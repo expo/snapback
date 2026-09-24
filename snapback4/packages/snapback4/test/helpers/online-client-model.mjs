@@ -25,6 +25,8 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
   const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
   const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
   const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
+  const durableBindings = new Map();
+  const failedReceiptSaves = new Set(), persistedTerminals = new Set(), executions = new Map(), intentStores = new Map();
   const rotations = [], submissions = [], minted = new Set(), retiredWrites = new Set();
   const unreachedRefreshes = [], explicitLogoutTokens = new Set();
   let failNextRefresh = false;
@@ -52,7 +54,10 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
         const next = JSON.parse(value), prior = JSON.parse(values.get(key) ?? '{"pending":[],"receipts":[]}');
         const retiring = prior.pending.some(p => !next.pending.some(n => n.id === p.id));
         if (retiring && holdStorage && !draining) { holdStorage = false; await hold('storage', {}, null); }
-        if (retiring && failStorage && !draining) { count('failed.storage'); throw Error('injected terminal persistence failure'); }
+        if (retiring && failStorage && !draining) {
+          for (const intent of prior.pending) if (!next.pending.some(p => p.id === intent.id)) failedReceiptSaves.add(intent.id);
+          count('failed.storage'); throw Error('injected terminal persistence failure');
+        }
         if (next.receipts.length === 256) count('journal.full');
         if (next.retired?.length) count('journal.compact');
         const storeRetirement = prior.pending.some(p => !next.pending.some(n => n.id === p.id)
@@ -69,7 +74,11 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
             `readmitted protected id ${entry.id} after retirement or saturation`);
         }
         values.set(key, value);
-        for (const entry of next.pending) admitted.add(entry.id);
+        for (const id of terminalWrites) if (durable(id)) persistedTerminals.add(id);
+        for (const entry of next.pending) {
+          admitted.add(entry.id);
+          if (entry.dispatched && entry.storeId) durableBindings.set(entry.id, entry.storeId);
+        }
       } else values.set(key, value);
     },
     async delete(key) { values.delete(key); },
@@ -103,7 +112,7 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
         }
       });
       c.onWrite(value => {
-        if (['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes(value.why?.code)) owner.terminal = true;
+        if (['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes(value.why?.code) && c.link() === 'signed-out') owner.terminal = true;
         count('write.emitted'); write(value);
       });
     }
@@ -122,7 +131,14 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
     if (['E_CLOSED', 'E_AUTH'].includes(value.why?.code)) return; // cancellation does not retire a durable intent
     if (tier === 'app' && admitted.has(value.id)) {
       count('check.durable-terminal');
-      invariant('R3', durable(value.id), `terminal ${value.id} still has durable pending intent`);
+      if (durable(value.id)) persistedTerminals.add(value.id);
+      else {
+        const intent = journal().flatMap(j => j.pending).find(p => p.id === value.id);
+        invariant('R3', failedReceiptSaves.has(value.id) && intent?.storeId === intentStores.get(value.id)
+          && !['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes(value.why?.code),
+          `terminal ${value.id} lacks either a durable receipt or a failed save with original-store intent`);
+        count('check.unpersisted-terminal');
+      }
     }
     if (admitted.has(value.id) || tier === 'client') terminalWrites.add(value.id);
     if (admitted.has(value.id) && ['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes(value.why?.code)) retiredWrites.add(value.id);
@@ -207,10 +223,34 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
     else if (path === '/changes') body = { store_id: store, seq: head, generation: 1, tables: ['secrets'] };
     else if (path.startsWith('/m/')) {
       invariant('R6', !displacedByRetirement.has(args.id), `id ${args.id} displaced by retirement posted to ${store}`);
-      invariant('R3', !terminalWrites.has(args.id), `terminal write ${args.id} replayed on ${store}`);
+      if (args.store_id !== undefined && args.store_id !== store) {
+        // The server rejects the target precondition before lookup/admission;
+        // a replacement between probe and dispatch never executes this intent.
+        count('write.store-fenced');
+        return Response.json({ state: 'failed', id: args.id, store_id: store, head,
+          why: { code: 'E_STORE_REPLACED', family: 'store', message: 'intent belongs to another store' } });
+      }
+      invariant('R3', !persistedTerminals.has(args.id), `persisted terminal write ${args.id} reposted on ${store}`);
+      invariant('R3', !intentStores.has(args.id) || intentStores.get(args.id) === store, `intent ${args.id} crossed from ${intentStores.get(args.id)} to ${store}`);
+      if (tier === 'app') {
+        // A concurrent owner can persist settlement after this request passed
+        // its dispatch gate. Ownership must have committed before dispatch;
+        // it need not still be a pending entry when the transport arrives.
+        invariant('R3', durableBindings.get(args.id) === store, `dispatch ${args.id} lacks prior durable store ownership`);
+      }
+      intentStores.set(args.id, store);
       const receiptKey = `${store}/${args.id}`;
-      if (receipts.has(receiptKey)) body = { ...receipts.get(receiptKey), replayed: true, head };
+      if (receipts.has(receiptKey)) {
+        body = { ...receipts.get(receiptKey), replayed: true, head };
+        count('write.deduped');
+        if (terminalWrites.has(args.id)) {
+          invariant('R3', failedReceiptSaves.has(args.id), `terminal ${args.id} reposted without a failed receipt save`);
+          count('write.unpersisted-replayed');
+        }
+      }
       else {
+        executions.set(receiptKey, (executions.get(receiptKey) ?? 0) + 1);
+        invariant('R3', executions.get(receiptKey) === 1, `double execution ${receiptKey}`);
         if (path === '/m/revoke') privateRow = false;
         head++;
         mutations.set(args.id, { store, revoke: path === '/m/revoke' });
@@ -386,8 +426,8 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
       assert.equal(app.client.session()?.token, token);
       assert.ok(sessions.has(token), 'the kept bearer is still live at the server');
     }
-    // Reopen over the same durable store, proving terminal intents do not
-    // replay. Restorable pending outcomes may settle during this final drain.
+    // Reopen over the same durable journal. Unpersisted terminal outcomes may
+    // replay only to their original store, whose idempotency record dedupes them.
     for (const a of apps) track(a.close(), 'final-close');
     for (const owner of owners) if (tier === 'client') track(owner.client.close(), 'final-close');
     for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }

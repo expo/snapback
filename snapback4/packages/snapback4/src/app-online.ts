@@ -5,7 +5,8 @@ import { mintId } from "./client.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
-import { journalReader, keepReceipts, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
+import { bindIntentStore, journalReader, keepReceipts, observeJournalStore, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
+import { dispatchIdentity, ownDispatch } from "./online-dispatch.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true) {
@@ -19,6 +20,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // I13: failed receipt persistence cannot turn a known outcome back into
   // pending, even after the raw client's bounded history evicts that id.
   const unpersisted = new Map<string, Terminal>();
+  const recoveredIntents = new Set<string>();
   const listeners = new Set<(write: Terminal) => void>();
   let writes: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
@@ -43,8 +45,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
     : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
   const retain = (write: Terminal, error: unknown) => {
+    if (!unpersisted.has(write.id)) notify(write);
     if (active) unpersisted.set(write.id, receiptOf(write));
-    notify(write);
     report(error);
   };
   const settle = async (write: Terminal) => {
@@ -58,11 +60,14 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     });
     // Durable retirement belongs to the shared journal; notification and
     // reservation cleanup belong to every client that observed settlement.
-    unpersisted.delete(write.id);
-    notify(write);
+    if (unpersisted.delete(write.id)) ids.finish(write.id);
+    else notify(write);
   };
   const stop = raw.onWrite(write => {
     if (active && terminal(write)) {
+      // An old intent can be retired while this runtime already belongs to
+      // the new store. Its refusal does not fence unrelated new-store intent.
+      if (recoveredIntents.delete(write.id)) { notify(write); return; }
       // The raw client emits one refusal per queued write. Retire that store's
       // queue once, so all newly failed receipts share the same pinned save.
       const retiring = write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
@@ -71,6 +76,18 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     }
   });
   const initial = await locked(key, read);
+  ownDispatch(raw, {
+    observe: identity => { void change(journal => observeJournalStore(journal, identity)).catch(report); },
+    before: (id, identity) => change(journal => {
+      const intent = journal.pending.find(entry => entry.id === id);
+      if (!intent) {
+        const receipt = journal.receipts.find(entry => entry.id === id) ?? retiredReceipt(journal, id);
+        if (receipt) return receipt;
+        throw new Error("the write has no durable intent; it cannot be dispatched");
+      }
+      return bindIntentStore(journal, intent, identity);
+    }).then(write => { if (write) recoveredIntents.add(id); return write; }),
+  });
   for (const receipt of initial.receipts) ids.remember(receipt.id);
   for (const id of initial.retired ?? []) ids.remember(id);
 
@@ -95,6 +112,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // intent expired. Every overlapping caller still owns that intent.
         return !active || raw.viewer() !== viewer ? { state: "pending", id } : write;
       }, async snapshot => {
+        const identity = dispatchIdentity(raw);
         const refusal = await change(journal => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {
@@ -105,7 +123,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           }
           const receipt = journal.receipts.find(write => write.id === id) ?? retiredReceipt(journal, id);
           if (receipt) return Promise.resolve(receipt);
-          journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot });
+          if (identity) observeJournalStore(journal, identity);
+          journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: identity ?? null, dispatched: false });
           return undefined;
         });
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;

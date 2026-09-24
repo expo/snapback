@@ -58,6 +58,12 @@ evicted bodies return `E_WRITE_RECEIPT_EXPIRED` without dispatch. It keeps up to
 the application reconciles prior outcomes and explicitly replaces that journal,
 rather than forgetting ids automatically. Already-admitted intents remain
 recoverable as pending while their outcomes are unresolved.
+Online intent records its dispatch store before transmission. A failed receipt
+save preserves the known terminal outcome for mutate, lookup and notification;
+reopening may resend that intent only to the acknowledging store, whose replay
+record prevents double execution. Persisted terminal receipts are not reposted.
+A replacement retires old-store intent with an unknown-outcome refusal; an old
+unbound intent may replay only to the first store its journal has seen.
 For a caller-supplied id with no local outcome, a prediction or validation refusal
 queues the write without a row so the server can answer from its replay record.
 The journal preserves this replay eligibility through navigation. If the server
@@ -72,8 +78,8 @@ terminal `sent` or `failed`, and `last` is the Write. Keep its mutation id in
 view state; `usePendingWrite(op, savedId)` resumes observation after reload
 without submitting again. `client.write(id)` reads the kept outcome (undefined
 for an unknown id or an evicted id that has left the outbox); `onWrite` reports
-later terminal changes. The online client retains at most 256 terminal outcomes
-in memory. The local client reads the device's one atomic window of the last
+later terminal changes. The ordinary in-memory history retains at most 256 terminal outcomes.
+Failed receipt saves retain known summaries separately until persistence or close. The local client reads the device's one atomic window of the last
 256 server terminal receipts and its current outbox directly, so another native
 owner's settlement cannot leave a stale pending outcome. Reads and repeated
 flushes do not refresh the window. Queued terminal writes emit at most once
@@ -91,8 +97,13 @@ after 1, 2 and 4 seconds; later opens or sync signals can try again. Receipt
 lookups do not create the shared window before adoption. Storage clearing or eviction
 from both windows can make an id unknown. Recovered success carries `replayed: true`
 and no result; recovered failure keeps code/family and `write refused: CODE`.
-Refusals before durable admission, the online tier and mock remember outcomes
-for their client lifetime only, up to 256 terminal outcomes.
+Refusals before durable admission, the raw online tier and mock remember ordinary
+outcomes for their client lifetime only, up to 256 terminal outcomes.
+Close completes after local work without waiting for the network. A mutation or
+action keeps a response received before close completes; otherwise its caller
+receives pending with its id. Late responses are consumed and discarded.
+`createApp` and device mutation intent recover on reopen; raw online callers
+retain their retry id, and action callers collect the same server action id.
 
 `client.acquired` and `useAcquired()` report completed snapshot and catch-up
 for the current store, stay true offline, and reset with invalidated acquisition.

@@ -27,7 +27,7 @@ for (const method of ["mutate", "act", "upload", "refreshSession", "write"]) tes
   else assert.equal((refused.why ?? refused.denied).code, "E_AUTH");
 });
 
-test("a real mutation committed before logout returns sent with its original id", { timeout: 20_000 }, async t => {
+test("a held committed mutation returns pending at logout and replays once with its original id", { timeout: 20_000 }, async t => {
   const { url } = await server(t), held = gate(), store = memorySessionStore();
   let receipt, dispatches = 0;
   const app = createApp({ url, sessionStore: store, fetch: async (input, init) => {
@@ -43,17 +43,18 @@ test("a real mutation committed before logout returns sent with its original id"
   const writing = old.mutate(add, { body: "one committed row" }, { id });
   await until(() => receipt);
   assert.equal((await app.auth.logout()).ok, true);
-  held.release();
-  const result = await writing; assert.equal(result.state, "sent"); assert.equal(result.id, id);
+  const result = await writing; assert.equal(result.state, "pending");
+  held.release(); assert.equal(result.id, id);
   assert.equal((await old.mutate(add, { body: "must not dispatch" })).why.code, "E_AUTH");
   assert.equal(dispatches, 1);
   assert.equal((await app.auth.login("alice@example.com", "password-a")).ok, true);
-  await until(async () => (await app.client.write(id))?.state === "sent");
+  const replay = await until(async () => { const write = await app.client.write(id); return write?.state === "sent" && write; });
+  assert.equal(replay.replayed, true);
   const rows = await app.client.query({ kind: "query", name: "list" }, {});
   assert.equal(rows.data.length, 1, "journal recovery replays the same id without duplicating the commit");
 });
 
-for (const state of ["done", "failed"]) test(`a dispatched online action preserves its ${state} outcome across close`, async t => {
+for (const state of ["done", "failed"]) test(`an undelivered online action returns pending across close (${state} later)`, async t => {
   const { createClient } = await import("../dist/client.js");
   const held = gate(), id = mintId(); let dispatched = false;
   const receipt = state === "done" ? { state, id, result: { accepted: true } }
@@ -64,6 +65,7 @@ for (const state of ["done", "failed"]) test(`a dispatched online action preserv
   t.after(async () => { held.release(); await raw.close(); });
   const pending = raw.act({ kind: "action", name: "add" }, {}, { id });
   await until(() => dispatched);
-  const closing = raw.close(); held.release();
-  assert.deepEqual(await pending, receipt); await closing;
+  await raw.close();
+  assert.deepEqual(await pending, { state: "pending", id });
+  held.release();
 });

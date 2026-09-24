@@ -718,6 +718,16 @@ fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
     Ok((id, tx.next_seq()? - 1))
 }
 
+// @ref LLP 3000.013#6 — a replay belongs to its acknowledged store, even if
+// the endpoint changes between the client's probe and this transaction.
+fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusal> {
+    let Some(expected) = payload.get("store_id").filter(|id| !id.is_null()) else { return Ok(()); };
+    let current = engine.store().meta("store_id")?;
+    if expected.as_str().is_some_and(|id| Some(id) == current.as_deref()) { return Ok(()); }
+    Err(Refusal::new("E_STORE_REPLACED", "store", "the intent belongs to another store; its original outcome is unknown")
+        .site("request.store_id").rewrite("reconcile this write with its original store before submitting new intent").guide("sync"))
+}
+
 fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
     let metadata = { response_head(&mut lock(&shared.engine)) };
     match metadata {
@@ -924,13 +934,13 @@ fn handle(mut request: Request, shared: &Shared) {
             if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
                 let (replay, metadata) = {
                     let mut engine = lock(&shared.engine);
-                    let replay = engine.replay_mutation(&principal, id, &op, &args_json);
+                    let replay = intent_store(&engine, &payload).and_then(|()| engine.replay_mutation(&principal, id, &op, &args_json).map_err(|error| error.refusal()));
                     (replay, response_head(&mut engine))
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
                 match replay {
                     Ok(Some(outcome)) => { let mut reply = outcome.reply(Some(id)); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond(request, 200, reply); return; }
-                    Err(error) => { let why = error.refusal(); respond(request, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
+                    Err(why) => { respond(request, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
                     Ok(None) => {}
                 }
             }
@@ -1038,7 +1048,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
                 let (outcome, metadata) = {
                     let mut engine = lock(&shared.engine);
-                    let outcome = engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json));
+                    let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     (outcome, response_head(&mut engine))
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
@@ -1054,7 +1064,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         body["head"] = json!(head);
                         respond(request, 200, body);
                     }
-                    Err(error) => { let refusal = error.refusal(); respond(request, mutation_error_status(&refusal), json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
+                    Err(refusal) => { respond(request, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
                 }
             }
         }

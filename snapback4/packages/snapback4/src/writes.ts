@@ -104,6 +104,7 @@ function receipt(write: Terminal): Terminal {
  * local refusals before admission). Server event ids follow the outbox. */
 export class WriteHistory {
   private values = new Map<string, Write>();
+  private unpersisted = new Map<string, Terminal>();
   private terminal = new Set<string>();
   private emitted = new Set<string>();
   constructor(private storage?: Storage) {}
@@ -116,7 +117,8 @@ export class WriteHistory {
       this.terminal.add(write.id);
       if (this.terminal.size > WRITE_HISTORY_LIMIT) {
         const oldest = this.terminal.values().next().value!;
-        this.terminal.delete(oldest); this.values.delete(oldest); this.emitted.delete(oldest);
+        this.terminal.delete(oldest); this.values.delete(oldest);
+        if (!this.unpersisted.has(oldest)) this.emitted.delete(oldest);
       }
     }
     return write;
@@ -124,12 +126,19 @@ export class WriteHistory {
 
   async keep(write: Terminal): Promise<void> {
     if (this.storage) {
-      await this.storage.save(JSON.stringify(receipt(write)));
+      try { await this.storage.save(JSON.stringify(receipt(write))); }
+      catch (error) { this.unpersisted.set(write.id, receipt(write)); throw error; }
+      this.unpersisted.delete(write.id);
       this.values.delete(write.id); this.terminal.delete(write.id);
     } else this.remember(write);
   }
 
   async read(id: string): Promise<Write | undefined> {
+    const known = this.unpersisted.get(id);
+    if (known) {
+      try { await this.keep(known); } catch { /* The known result survives failed receipt persistence. */ }
+      return known;
+    }
     const saved = await this.storage?.read();
     // @ref LLP 3000.007#20.4 — the device owns the receipt window; memory never retains a second server history.
     const durable = saved ? (JSON.parse(saved) as Terminal[]).find(write => write.id === id) : undefined;
@@ -140,6 +149,7 @@ export class WriteHistory {
   retainEmissions(queued: Iterable<string>): void {
     const retained = new Set(queued);
     for (const id of this.values.keys()) retained.add(id);
+    for (const id of this.unpersisted.keys()) retained.add(id);
     for (const id of this.emitted) if (!retained.has(id)) this.emitted.delete(id);
   }
 

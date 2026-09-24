@@ -205,6 +205,7 @@ const cases = {
     const seen = [];
     const app = createApp({ url: "https://app.invalid", sessionStore: memorySessionStore(), fetch: async (url, init) => {
       const path = new URL(url).pathname;
+      if (path === "/probe") return Response.json({ ok: true, store_id: "react-app", seq: 1 });
       if (path === "/auth/signup") {
         const principal = JSON.parse(init.body).email;
         return Response.json({ session: { principal, token: principal, kind: "user", expiresAt: Date.now() + 7 * 86400000 } });
@@ -253,6 +254,7 @@ const cases = {
       await memory.set(key, text);
     } };
     const app = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+      if (new URL(input).pathname === "/probe") return Response.json({ ok: true, store_id: "react-receipt", seq: 0 });
       if (new URL(input).pathname !== "/m/write") throw Error("unexpected route");
       sends++; await held.promise;
       return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: 3 });
@@ -294,6 +296,7 @@ const cases = {
     try {
       for (let index = 0; index < 2; index++) {
         const app = createApp({ url: "https://shared.invalid", sessionStore: store, fetch: async (url, init) => {
+          if (new URL(url).pathname === "/probe") return Response.json({ ok: true, store_id: "react-shared", seq: 0 });
           if (new URL(url).pathname !== "/m/write") throw Error("unexpected route " + url);
           if (++calls[index] === 1) throw Error("initial request offline");
           entered[index] = true;

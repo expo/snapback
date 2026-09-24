@@ -60,6 +60,14 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
     let Some(id) = payload.get("id").and_then(Json::as_str) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "mint an id on the client and reuse it when retrying this action") })); };
     let admitted = {
         let mut engine = lock(&shared.engine);
+        if let Err(why) = intent_store(&engine, &payload) {
+            let metadata = response_head(&mut engine);
+            drop(engine);
+            return respond(request, 200, match metadata {
+                Ok((store_id, head)) => json!({ "denied": why, "store_id": store_id, "head": head }),
+                Err(why) => json!({ "denied": why }),
+            });
+        }
         let raw_args = payload.get("args").cloned().unwrap_or_else(|| json!({}));
         match engine.replay_action(id, &principal, name, &raw_args, shared.now()) {
             Ok(Some(run)) => Ok((run, true)),

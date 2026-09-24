@@ -5,6 +5,7 @@ import { onlineCustody } from "../dist/app-online.js";
 import { memorySessionStore } from "../dist/auth.js";
 import { mintId } from "../dist/client.js";
 import { MutationIds, WRITE_HISTORY_LIMIT } from "../dist/writes.js";
+import { trackDispatch } from "../dist/online-dispatch.js";
 
 test("asynchronous settlement bounds online argument reservations, including another owner's retirement", async t => {
   const store = memorySessionStore(), instances = new Set(), emitted = [], callbacks = [];
@@ -15,6 +16,7 @@ test("asynchronous settlement bounds online argument reservations, including ano
     const raw = { viewer: () => "alice", onWrite(fn) { callback = fn; return () => {}; },
       mutate: async (op, args, { id }) => ({ state: "pending", id }), write: async () => undefined,
       close: async () => {}, signOut: async () => {} };
+    trackDispatch(raw, { store: "test-store" });
     callbacks.push(write => callback(write));
     return onlineCustody(raw, "https://bound.invalid", store, error => { throw error; });
   };
@@ -60,6 +62,7 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
     const raw = { viewer: () => "alice", onWrite(fn) { callback = fn; return () => {}; },
       mutate: async () => source === "mutate" ? outcome : { state: "pending", id },
       write: async () => available, close: async () => {}, signOut: async () => {} };
+    trackDispatch(raw, { store: "test-store" });
     const { client } = await onlineCustody(raw, "https://receipt.invalid", store, error => errors.push(error));
     t.after(() => client.close()); client.onWrite(value => notifications.push(value));
     const first = await client.mutate({ kind: "mutation", name: "write" }, { body: "one" }, { id });

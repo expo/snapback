@@ -4,7 +4,7 @@ import type { Act, Action, ActOptions, Refusal } from "./contract.ts";
 
 export type ActionPost = (path: string, body: unknown) => Promise<{ ok: false } | { ok: true; json: Record<string, unknown> }>;
 
-export async function act<A, R>(op: Action<A, R>, args: A, options: ActOptions | undefined, id: string, post: ActionPost, unavailable: () => Refusal | undefined): Promise<Act<R>> {
+export async function act<A, R>(op: Action<A, R>, args: A, options: ActOptions | undefined, id: string, post: ActionPost, unavailable: () => Refusal | undefined, recover?: (id: string) => Promise<Awaited<ReturnType<ActionPost>> | undefined>): Promise<Act<R>> {
   const denied = unavailable();
   if (denied) return { denied, id };
   if (op.kind !== "action") return { denied: { code: "E_ACTION_UNKNOWN", family: "action", message: "act takes an Action from the generated api" }, id };
@@ -14,9 +14,10 @@ export async function act<A, R>(op: Action<A, R>, args: A, options: ActOptions |
   catch { return { denied: { code: "E_INPUT", family: "input", message: "action arguments must be JSON-serializable" }, id }; }
   const wait = options?.waitSeconds;
   const query = wait == null ? "" : `?wait=${Math.max(0, Math.min(25, Math.floor(Number.isFinite(wait) ? wait : 25)))}`;
-  const reply = await post(`/a/${encodeURIComponent(op.name)}${query}`, { id, args });
+  let reply = await post(`/a/${encodeURIComponent(op.name)}${query}`, { id, args });
   // Admission checked the live capability before dispatch. A later fence
   // cannot replace the outcome (or erase uncertainty about an accepted id).
+  if (!reply.ok && recover) reply = await recover(id) ?? reply;
   if (!reply.ok) return { state: "pending", id };
   const json = reply.json;
   if (json.denied) return { denied: json.denied as Refusal, id };

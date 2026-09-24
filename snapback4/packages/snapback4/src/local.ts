@@ -1,3 +1,5 @@
+import { ClosingResponses } from "./closing-responses.ts";
+import type { Queued, StoreCapture } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // The local-first tier (LLP 3000 §7, one implementation): the device is
 // the Rust module — the partition in its own store, the stream applied,
@@ -88,34 +90,6 @@ export type LocalClient = Client & {
   sync(): Promise<void>;
 };
 
-interface Queued {
-  id: string;
-  seq: number;
-  op: string;
-  args: unknown;
-  new_ids: string[];
-  predicted: string[];
-  predictable?: boolean;
-  replay_candidate?: boolean;
-  sent_seq?: number | null;
-  observed_seq?: number | null;
-  viewer?: string;
-  now?: number;
-}
-
-interface StoreCapture {
-  backend_required?: boolean;
-  store_id?: string | null;
-  transfer_store_id?: string | null;
-  transfer_watermark?: number;
-  restore_watermark?: number;
-  restore_images_at?: number;
-  adoption_capture?: Record<string, string | null>;
-  watermark: number;
-  send_revision: number;
-  restore_refusal?: Refusal;
-}
-
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
@@ -205,6 +179,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const active = new Set<Promise<unknown>>();
   let closed = false;
   let closing: Promise<void> | undefined;
+  const closingResponses = new ClosingResponses();
   const aborter = new AbortController();
   // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — startup must preserve the evidence until the server head has been validated.
   const core = await options.device.open(storeName, null).catch(error => {
@@ -583,7 +558,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || sessionDead) return { ok: false };
     try {
       const request = requestCredentials();
-      const reply = await postForCaller(doFetch, base, path, request.headers, body, aborter.signal);
+      const reply = await postForCaller(doFetch, base, path, request.headers, body, aborter.signal, (json, status) => closingResponses.capture(path, body, json, status));
       if (!reply) return { ok: false };
       const { response, json } = reply;
       // I12: delivered mutation/action outcomes still belong to their callers
@@ -1165,11 +1140,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             if (response.ok) {
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
               if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
-                await history.keep(json.state === "sent"
-                  ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
-                  : { state: "failed", id: entry.id, why: why! });
-                const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
-                if (applied.denied) return { ok: false as const };
+                try {
+                  await history.keep(json.state === "sent"
+                    ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
+                    : { state: "failed", id: entry.id, why: why! });
+                  const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
+                  if (applied.denied) retryFlush();
+                } catch { retryFlush(); } // I13: receipt storage cannot erase a known server outcome.
               }
             }
             return response;
@@ -1221,7 +1198,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let stopHost: void | (() => void);
   const client: LocalClient = {
     act(op, args, options) {
-      return act(op, args, options, options?.id ?? mintId(), post, () => unavailable() ?? (link !== "online" ? offline() : undefined));
+      return act(op, args, options, options?.id ?? mintId(), post, () => unavailable() ?? (link !== "online" ? offline() : undefined), async id => { if (closed) { await closing; return closingResponses.take(id); } });
     },
     async query(op, args) {
       while (true) {
@@ -1301,7 +1278,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         void flush();
         if (link !== "online") { settled.delete(id); return pending; }
         let timer: ReturnType<typeof setTimeout> | undefined;
-        try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), 4_000); })]) as Write<R>; }
+        try {
+          const outcome = await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), 4_000); })]) as Write<R>;
+          if (outcome.state === "pending" && closed) { await closing; return closingResponses.write(outcome); }
+          return outcome;
+        }
         finally { clearTimeout(timer); settled.delete(id); }
       });
     },
@@ -1427,6 +1408,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     close() {
       if (closing) return closing;
       closed = true;
+      closingResponses.begin();
       stopHost?.();
       setAcquired(false);
       acquiredListeners.clear();
@@ -1443,8 +1425,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       sessionListeners.clear();
       viewerListeners.clear();
       writeListeners.clear();
-      // Dispatched writes own their waiters through response persistence and
-      // settlement. The device remains open until that work finishes.
+      // Network waits cancel promptly. Already delivered responses retain local
+      // receipt/settlement custody until that bounded device work finishes.
       for (const [id, resolve] of settled) if (!settling.has(id)) resolve({ state: "pending", id });
       closing = (async () => {
         await Promise.allSettled([following, syncing, flushing, refreshing, ...active]);
@@ -1452,6 +1434,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         await media?.close();
         await core.close();
         settled.clear();
+        closingResponses.finish();
       })();
       return closing;
     },

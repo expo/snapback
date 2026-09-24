@@ -90,7 +90,8 @@ explicit. `app.client` changes on restore, sign-in, logout and account switch;
 `AppProvider` supplies that client to all existing hooks and resets account-owned
 component state. `useAuth()` returns the current state, viewer, failure and actions.
 Call `app.close()` to stop a runtime while preserving its session for restart;
-an in-flight rotation finishes and saves its replacement before close completes.
+close finishes local work without waiting for a held network response. A known
+rotation successor is saved; a later unkept successor is retired.
 Its previously exposed client is revoked immediately: a pending public refresh
 returns E_AUTH after hiding, while the app privately persists its successor.
 `AppOptions` inherits the local client's application configuration. `assets` and
@@ -169,25 +170,25 @@ session lock:
   inline and journaled global watermarks under the session lock, and checks the
   selected session's committed scope. The shared legacy counter alone cannot
   distinguish another principal's logout from this account's replacement.
-- **I12 — dispatched outcomes.** Fencing refuses new calls; it never turns a
-  dispatched mutation's terminal outcome into an authorization failure or a
-  pending write. Actions, uploads and refreshes likewise retain their raw
-  outcomes. A failed receipt save reports the storage error and retains the
-  original intent for replay with the same id, while returning the confirmed
-  outcome. If cancellation prevents receiving a write's outcome, its id remains
-  pending for recovery; cancellation is not evidence that the server refused it.
-  Local close waits for dispatched mutation settlement and action transport
-  completion before closing the device. A delivered `sent` or nonretryable
-  `failed` mutation keeps its id and receipt; a delivered action keeps its
-  `done` or `failed` outcome. Reads retain their disclosure guards.
+- **I12 — known dispatched outcomes.** Fencing refuses new calls. Close waits
+  only for local cleanup, never for a held network response. A mutation or
+  action whose response arrives before close completes keeps that known outcome,
+  including during receipt application; otherwise its caller receives `pending`
+  with the original id. Close never invents a failure for an unknown outcome.
+  The request is not aborted: a later body is consumed and discarded. Durable
+  mutation intent recovers on reopen with the same id; the server returns
+  `replayed: true` for a prior execution. Raw online callers retain their id for
+  retry themselves; actions collect their server record with the original id.
+  Reads retain their disclosure guards.
 - **I13 — one known outcome per id.** Within a live client, `mutate`, `write(id)`
   and `onWrite` agree on a known terminal state, id and sequence or refusal code.
-  Failed receipt persistence reports the error and notifies subscribers; it
-  never changes a known terminal outcome back to pending. The online client
+  Failed receipt persistence never changes a known terminal outcome back to
+  pending; subscribers still receive it. Online custody also reports the storage
+  error through auth.why. The client
   retains a receipt summary in memory until persistence succeeds or the client
   is retired, independently of the lower client's bounded history. Lookup
-  retries persistence. Durable intent stays available for same-id replay after
-  restart. Receipt recovery still omits historical result values and refusal
+  retries persistence. Online durable intent stays available for same-id replay only to the store
+  that acknowledged it after restart. Receipt recovery still omits historical result values and refusal
   details; a hidden account cannot look up retained receipts.
 
 The state-machine suite runs 5,000 seeded sequences on each of the online and
@@ -264,7 +265,15 @@ crash guarantees require server-side issuance and revocation receipts.
 Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments
 before dispatch, retains uncertain writes through restart and sign-out, and
-recovers them only under their original backend/account. Terminal receipts keep
+recovers them only under their original backend/account and dispatch store.
+The intent's store identity is saved before dispatch; the server checks that
+identity before execution or idempotency lookup. If storage cannot write the
+durable intent together with its store identity, the intent is not admitted at all.
+On reopen, a different store retires the intent with an unknown-outcome refusal.
+An older intent without an identity replays only to the first store this journal
+has seen; once it has seen a replacement, unbound old intents are retired.
+A persisted terminal receipt never reposts. If its save failed, same-store replay
+is allowed and the server's idempotency record prevents double execution. Terminal receipts keep
 no historical result; `client.write(id)` collects one. Session and journal keys
 encode backend and principal segments as fixed-width hexadecimal; adapters pass
 keys through unchanged. Journals also record their backend and owner, and each
@@ -623,8 +632,9 @@ publishes its online client on `E_STORE_REPLACED`, retaining the session if the
 replacement store accepts it and retiring outstanding intents before reopening.
 A retryable refresh failure without a successor body preserves that bearer
 for the replacement probe; sign-out still attempts logout of the known token.
-An admitted `createApp` write reports a terminal outcome only after its durable
-retirement is saved; a failed save leaves the outcome `pending`, even during replacement.
+A known server outcome is reported even if saving its receipt fails. A store-change
+refusal, which does not establish execution, reports terminal only after durable
+retirement; a failed retirement save keeps that unknown outcome `pending`.
 Terminal online clients expose `link() === "signed-out"` and refuse actions,
 uploads, asset reads and refreshes too; late asset handles are revoked, unkept
 refresh successors are revoked, and `assetSource` returns an empty source.
@@ -665,11 +675,10 @@ one); `next` is the cursor for the next page (pass it as the query's
 true` with `next`. A row this device wrote and the server has not yet
 confirmed carries `pending: true`. A write is `pending` while the link is
 down, while the server has not answered within four seconds, or when the
-client closes with it in flight (it lands when the link returns, and the
-row loses `pending` when it does), `sent` with the server's sequence, or
-`failed` with the refusal and its predicted rows withdrawn; the online
-client fails an in-flight write at `close()` with `E_CLOSED` instead,
-since nothing queues it. `onWrite` emits that later terminal result once for
+client closes before its response arrives. It is `sent` with the server's
+sequence, or `failed` with the refusal and its predicted rows withdrawn.
+`createApp` and local devices keep uncertain intent for restart; the raw online
+client returns `pending` too, but its caller must keep the id for retry. `onWrite` emits that later terminal result once for
 the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `auth`, `rule`
 (your `require` codes, with `rule` naming the code), `constraint`,
 `bound`, `op`, `asset`, `prediction`, `generation` or `store` from the

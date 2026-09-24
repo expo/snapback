@@ -43,6 +43,7 @@ test('online clients preserve R1–R6 across 3,000 seeded interleavings', { time
     'terminal.E_STORE_REPLACED', 'terminal.E_STORE_RESTORE', 'ack.revocation', 'check.durable-terminal', 'query.refetch',
     'wire./assets', 'wire./assets/photo', 'wire./a/charge', 'wire./auth/refresh', 'asset.released', 'refresh.committed', 'refresh.retired', 'body.aborted', 'check.bearer-custody', 'write.duplicate', 'wire./auth/guest', 'journal.preloaded.255', 'journal.preloaded.256', 'journal.full', 'journal.compact', 'write.retired-retry',
     'journal.saturated', 'check.admitted-pending', 'retirement.displaced.sent', 'write.displaced-retry', 'check.retirement-admission',
+    'check.unpersisted-terminal', 'write.unpersisted-replayed', 'write.deduped', 'write.store-fenced',
     'refresh.unreached', 'probe.unrotated', 'journal.preloaded.ordinary-failure', 'retirement.displaced.ordinary-failure', 'write.displaced-ordinary-retry'])
     assert.ok(coverage[key] > 0, `exercised ${key}`);
   t.diagnostic(`sequences=${count}, seeds=1..${count}, coverage=${JSON.stringify(coverage)}`);
@@ -56,7 +57,7 @@ for (const unknownReceipts of [0, 8]) test(`full-journal model: replacement neve
 
 test('R6 scheduled replay: saturation preserves admitted pending recovery', async () => {
   const coverage = {};
-  await execute([{ op: 'recoverPending' }, { op: 'reopen' }, { op: 'recoverPending' }, { op: 'release' }],
+  await execute([{ op: 'release' }, { op: 'recoverPending' }, { op: 'reopen' }, { op: 'release' }, { op: 'recoverPending' }, { op: 'release' }],
     'app', coverage, { journalSize: 256, saturated: true });
   assert.ok(coverage['check.admitted-pending'] > 0, 'the schedule recovered a held pending intent');
 });
@@ -85,3 +86,6 @@ test('session recovery replay: sign-out still cleans up an unreached refresh', (
 for (const seed of [774, 2592]) test(`integrated store fence survives an awaited epoch check: seed ${seed}`, () => execute(
   generate(seed), 'app', {}, { journalSize: seed % 4 ? 255 : 256,
     unknownReceipts: seed % 8 ? 0 : 8, oldestFailure: seed % 8 === 4, saturated: seed % 20 === 0 }));
+
+test("R3 concurrent settlement retains the dispatch's previously persisted store binding", () => execute(
+  generate(2140), 'app', {}, { journalSize: 256, oldestFailure: true, saturated: true }));

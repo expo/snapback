@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { trackDispatch } from '../dist/online-dispatch.js';
 import { onlineCustody } from '../dist/app-online.js';
 import { memorySessionStore } from '../dist/auth.js';
 import { storeKey } from '../dist/app-storage.js';
@@ -14,8 +15,12 @@ const sent = n => ({ state: 'sent', id: id(n), seq: n, replayed: true });
 const intent = n => ({ owner: viewer, id: id(n), op: op.name, args: {} });
 function transport(result) {
   const posts = [];
-  return { posts, raw: { viewer: () => viewer, onWrite: () => () => {}, close: async () => {}, write: async () => undefined,
-    async mutate(_op, _args, { id }) { posts.push(id); return result(id); } } };
+  const raw = { viewer: () => viewer, onWrite: () => () => {}, close: async () => {}, write: async () => undefined,
+    async mutate(_op, _args, { id }) { posts.push(id); return result(id); } };
+  // This unit transport isolates receipt retirement; real dispatch binding is
+  // covered by online-intent-store and the independent online model.
+  trackDispatch(raw, {});
+  return { posts, raw };
 }
 
 for (const code of ['E_STORE_REPLACED', 'E_STORE_RESTORE']) test(`settle pins ${code}, then compacts its id across normal receipt churn and reopen`, async () => {

@@ -199,6 +199,8 @@ export interface Client {
   logoutAll(): Promise<SessionRevocation>;
   /** Clear local credentials and close; remote session revocation is best effort. */
   signOut(): Promise<void>;
+  /** Finish local cleanup without waiting on held network responses. Known write/action
+   * outcomes survive; unreceived outcomes return pending with their original id. */
   close(): Promise<void>;
 }
 

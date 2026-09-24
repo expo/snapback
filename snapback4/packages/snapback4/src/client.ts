@@ -1,3 +1,4 @@
+import { ClosingResponses } from "./closing-responses.ts";
 import { deferStart, trackRotation } from "./client-start.ts";
 // The online tier (LLP 2000.000 §7.4): no store, no interpreter. Reads go
 // to the server and are `fresh` when it answered; an observed read re-runs
@@ -13,6 +14,7 @@ import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
+import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -110,9 +112,12 @@ export function createClient(options: ClientOptions): Client {
   const aborter = new AbortController();
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
+  const closingResponses = new ClosingResponses();
   let seq = 0;
   let minimumReadSeq = 0, queryEpoch = 0;
   let storeIdentity: string | undefined;
+  const dispatch: DispatchState = {};
+  let probed = false;
   let storeRefusal: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const sessionListeners = new Set<(session: Session | null) => void>();
@@ -231,6 +236,7 @@ export function createClient(options: ClientOptions): Client {
     if (typeof id !== "string" || !id) return; // Older servers have no identity envelope.
     if (storeIdentity !== undefined && id !== storeIdentity) { stopForStore("E_STORE_REPLACED"); return; }
     storeIdentity = id;
+    if (dispatch.store !== id) { dispatch.store = id; dispatch.owner?.observe(id); }
     // Replayed receipts name a historical commit; their head is the current
     // store watermark. A buffered response may predate a later observed write,
     // so restoration compares with the floor at dispatch, not at delivery.
@@ -320,7 +326,8 @@ export function createClient(options: ClientOptions): Client {
   }
 
   function post(path: string, body: unknown) {
-    const request = waitForCaller(sendPost(path, body), aborter.signal).then(result => {
+    let arrived = false;
+    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }), aborter.signal, () => arrived).then(result => {
       // A terminal store change owns outstanding effect outcomes: preserve its
       // explicit unknown-outcome refusal instead of an ordinary offline retry.
       if (storeRefusal && path.startsWith("/a/")) return { ok: true as const, json: { denied: storeRefusal } };
@@ -331,28 +338,43 @@ export function createClient(options: ClientOptions): Client {
     return request;
   }
 
-  async function sendPost(path: string, body: unknown, attempt = 0): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
     if (refreshing) await refreshing;
     if (closed || !credentials || storeRefusal) return { ok: false };
     const revision = credentialRevision;
     const floor = minimumReadSeq;
     let encoded: string;
+    if (path.startsWith("/m/") && dispatch.owner) {
+      // First dispatch after reopen must establish which store is at this URL.
+      // A supplied store_id also fences a replacement after the probe.
+      if (!storeIdentity && !probed) await probe();
+      if ((!storeIdentity && !probed) || closed || storeRefusal || !credentials) return { ok: false };
+      try {
+        const known = await dispatch.owner.before((body as { id: string }).id, storeIdentity);
+        if (known) return { ok: true, json: known as unknown as Record<string, unknown> };
+      } catch { return { ok: false }; }
+      if (closed || storeRefusal || !credentials) return { ok: false };
+    }
+    if ((path.startsWith("/m/") || path.startsWith("/a/")) && storeIdentity) body = { ...(body as object), store_id: storeIdentity };
     try { encoded = JSON.stringify(body); }
     catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
     try {
       const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: aborter.signal } : {}) });
       const json = (await response.json()) as Record<string, unknown>;
-      // I12: a response to an already-dispatched write remains its outcome
-      // after close/sign-out. Query data still belongs to the live view.
-      if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
+      // Late bodies are consumed without adoption. A parsed effect response
+      // already known at close still finishes its local settlement.
+      closingResponses.capture(path, body, json, response.status);
+      if (closed) return { ok: false };
+      arrived(true);
       if (storeRefusal) return { ok: false };
       observeStore(json, floor, path.startsWith("/m/"));
       if (storeRefusal) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
+        arrived(false);
         if (attempt === 3) return { ok: false };
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
-        return sendPost(path, body, attempt + 1);
+        return sendPost(path, body, attempt + 1, arrived);
       }
       if (storeRefusal || (closed && !path.startsWith("/m/") && !path.startsWith("/a/"))) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
@@ -458,6 +480,7 @@ export function createClient(options: ClientOptions): Client {
         return;
       }
       if (response.status === 200 && json.ok === true && credentials) {
+        probed = true;
         setLink("online");
       }
     } catch {}
@@ -567,7 +590,7 @@ export function createClient(options: ClientOptions): Client {
 
   const client: Client = {
     act(op, args, options) {
-      return act(op, args, options, options?.id ?? mintId(), post, () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined));
+      return act(op, args, options, options?.id ?? mintId(), post, () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async id => { if (closed) { await closing; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : closingResponses.take(id); } });
     },
     async query(op, args) {
       const read = new ReadObservation<unknown>();
@@ -632,7 +655,9 @@ export function createClient(options: ClientOptions): Client {
         history.remember(write);
         const attempt = flush();
         if (link !== "online") return write;
-        return Promise.race([settled, attempt.then((): Write => write)]) as Promise<Write<R>>;
+        const outcome = await Promise.race([settled, attempt.then((): Write => write)]) as Write<R>;
+        if (outcome.state === "pending" && closed) { await closing; return closingResponses.write(outcome); }
+        return outcome;
       });
     },
     async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
@@ -731,6 +756,7 @@ export function createClient(options: ClientOptions): Client {
     close() {
       if (closing) return closing;
       closed = true;
+      closingResponses.begin();
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -744,15 +770,16 @@ export function createClient(options: ClientOptions): Client {
         // The request already dispatched may have committed. Its send owns
         // settlement; cancellation without a receipt leaves the id pending.
         if (entry === sending) continue;
-        const outcome = { state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } } as const;
+        const outcome = { state: "pending", id: entry.id } as const;
         entry.resolve(outcome);
-        emitWrite(outcome);
+        history.remember(outcome);
       }
       writeListeners.clear();
-      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); });
+      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); closingResponses.finish(); });
       return closing;
     },
   };
+  trackDispatch(client, dispatch);
   const start = () => {
     if (closed) return;
     if (session && session.kind !== "action" && session.expiresAt - Date.now() <= refreshBeforeExpiry) void refreshCurrent();

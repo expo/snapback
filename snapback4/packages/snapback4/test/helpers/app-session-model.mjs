@@ -28,7 +28,16 @@ export function generate(seed, length = 24) {
 let sequenceSerial = 0;
 export async function execute(commands, coverage = {}, tier = "online") {
   if (tier === "local") await modelReady();
-  const devices = tier === "local" ? Array.from({ length: 3 }, modelDevice) : [];
+  const devices = tier === "local" ? Array.from({ length: 3 }, () => {
+    const device = modelDevice();
+    return { ...device, async open(...args) {
+      const core = await device.open(...args);
+      return { ...core, async call(request, ...rest) {
+        if (receiptOffline && request.op === "keep_write") { count("fault.receiptSave"); throw Error("device receipt storage unavailable"); }
+        return core.call(request, ...rest);
+      } };
+    } };
+  }) : [];
   const clock = tier === "local" ? modelClock() : undefined;
   // Separate simulated backends must not share the package's per-URL lock
   // with background retirement from an earlier, already-checked sequence.
@@ -40,18 +49,18 @@ export async function execute(commands, coverage = {}, tier = "online") {
   const live = new Map(), minted = new Map(), parents = new Map(), accounts = new Set(), holds = [], tasks = [], apps = [];
   const errors = [], observed = new Map(), identities = [], publishedTokens = new Map(), privateRetries = new Map(), refusedAtOpen = new Map(), refused = new Set(), offline = new Set();
   const handles = [], observations = [], rotationFaults = new Set();
-  const writeReceipts = new Map(); let writeSerial = 0;
+  const writeReceipts = new Map(), deliveredWrites = new Set(); let writeSerial = 0;
   const results = new WeakMap();
   // A result fulfilled before hiding is already returned, even when its user's
   // .then callback runs after hiding. Audit the actual settlement boundary.
   const stopSettlements = promiseHooks.onSettled(promise => {
     const result = results.get(promise);
-    if (result) { result.hidden = result.handle.hidden || result.handle.client.viewer() === null; count("handle.resultSettled"); }
+    if (result) { result.hidden = result.handle.hidden || result.handle.client.viewer() === null; result.delivered = new Set(deliveredWrites); count("handle.resultSettled"); }
   });
   const completed = (handle, promise, check) => {
     const result = { handle, hidden: handle.hidden };
     results.set(promise, result);
-    return promise.then(value => { check(value, result.hidden); return value; });
+    return promise.then(value => { check(value, result.hidden, result.delivered ?? new Set(deliveredWrites)); return value; });
   };
   let holdStore = false, receiptOffline = false;
   let runtimeSerial = 0;
@@ -146,7 +155,7 @@ export async function execute(commands, coverage = {}, tier = "online") {
       else refusal(token);
       return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "refused" } }, { status: 401 });
     };
-    const requestEpoch = epoch();
+    const requestEpoch = epoch(), runtime = id;
     if (active?.holdDispatch && active.app === slot && ["/auth/signup", "/auth/login", "/auth/guest"].includes(path)) {
       count(`held.dispatch${path}`);
       await new Promise(resolve => holds.push({ id: slot, path, phase: "dispatch", resolve }));
@@ -230,7 +239,9 @@ export async function execute(commands, coverage = {}, tier = "online") {
       if (active?.hold && active.app === slot) {
         count(`held.${path}`); await new Promise(resolve => holds.push({ id: slot, token, resolve }));
       }
-      return Response.json(receipt);
+      const response = Response.json(receipt), json = response.json.bind(response);
+      response.json = async () => { const value = await json(); deliveredWrites.add(`${runtime}/${id}`); return value; };
+      return response;
     } else if (path.startsWith("/q/")) {
       invariant("I8", !JSON.parse(init.body).args?.hiddenHandle, "hidden handle dispatched a read");
       if (!live.has(token)) return denied(token);
@@ -332,7 +343,7 @@ export async function execute(commands, coverage = {}, tier = "online") {
     }
   }
   const capture = (app, slot) => {
-    const handle = { app, slot, client: app.client, principal: app.client.viewer(), hidden: false,
+    const handle = { app, slot, runtime: identities[slot], client: app.client, principal: app.client.viewer(), hidden: false,
       writes: [], outcomes: new Map(), notified: new Map() };
     handles.push(handle); count("handle.captured");
     handle.stops = [
@@ -453,13 +464,21 @@ export async function execute(commands, coverage = {}, tier = "online") {
           if (op === "handleMutate") {
             const id = String(++writeSerial).padStart(26, "0");
             h.writes.push(id);
-            promise = completed(h, h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden, refuse: command.refuse ?? command.account === 1 }, { id }), (result, ended) => {
+            promise = completed(h, h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden, refuse: command.refuse ?? command.account === 1 }, { id }), (result, ended, delivered) => {
               invariant("I8", !hidden || !writeReceipts.has(id), "already-hidden handle dispatched a write");
               if (writeReceipts.has(id)) {
                 count("write.outcome"); count(`write.outcome.${writeReceipts.get(id).state}`);
                 if (ended) { count("write.outcomeAfterFence"); count(`write.outcomeAfterFence.${writeReceipts.get(id).state}`); }
-                invariant("I12", JSON.stringify(result) === JSON.stringify(writeReceipts.get(id)), `dispatched ${id} outcome replaced by ${JSON.stringify(result)}`);
-                if (!ended) checkOutcome(h, id, result, "mutate");
+                const known = delivered.has(`${h.runtime}/${id}`);
+                if (result.state === "pending") {
+                  invariant("I12", ended && !known, `known/live ${id} outcome replaced by pending (ended=${ended}, known=${known})`);
+                  invariant("I12", result.id === id, `unknown ${id} lost its retry id`);
+                  count("write.unknownAtClose");
+                } else {
+                  invariant("I12", known && outcomeKey(result) === outcomeKey(writeReceipts.get(id)), `known ${id} outcome replaced by ${JSON.stringify(result)}`);
+                  count("write.knownAtDelivery");
+                  if (!ended) checkOutcome(h, id, result, "mutate");
+                }
               }
             });
           }

@@ -12,7 +12,7 @@ for (const tier of ["online", "local"]) test(`${tier} session state machine pres
       assert.fail(`tier=${tier} seed=${seed}: ${error.message}\nminimal sequence=${JSON.stringify(minimal)}`);
     }
   }
-  if (count >= 5000) for (const event of ["write.outcome", "write.outcomeAfterFence", "global.attempt", "global.attemptRefused", "global.ackWithLaterToken", "global.newerAccountEpoch", "retirement.removed", "wire.retirementOffline", "handle.resultSettled", "held.dispatch/auth/signup", "held.dispatch/auth/login", "held.dispatch/auth/guest"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
+  if (count >= 5000) for (const event of ["write.outcome", "write.outcomeAfterFence", "write.unknownAtClose", "write.knownAtDelivery", "global.attempt", "global.attemptRefused", "global.ackWithLaterToken", "global.newerAccountEpoch", "retirement.removed", "wire.retirementOffline", "handle.resultSettled", "held.dispatch/auth/signup", "held.dispatch/auth/login", "held.dispatch/auth/guest"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
   if (count >= 5000) {
     for (const op of operations) assert.ok(coverage[`op.${op}`] > 0, `generated ${op}`);
     for (const kind of ["get", "set", "delete"]) assert.ok(coverage[`fault.${kind}`] > 0, `injected ${kind}`);
@@ -25,7 +25,7 @@ for (const tier of ["online", "local"]) test(`${tier} session state machine pres
     for (const state of ["sent", "failed"]) for (const source of ["mutate", "write", "onWrite"])
       assert.ok(coverage[`consistent.${source}.${state}`] > 0, `I13 ${source} ${state}`);
     assert.ok(coverage["consistent.writeDuringReceiptFailure"] > 0, "looked up known outcomes during persistent failure");
-    if (tier === "online") assert.ok(coverage["fault.receiptSave"] > 0, "kept receipt saves failing");
+    assert.ok(coverage["fault.receiptSave"] > 0, "kept receipt saves failing on this tier");
   }
   t.diagnostic(`tier=${tier} sequences=${count} seed=1..${count} coverage=${JSON.stringify(coverage)}`);
 });
@@ -47,7 +47,7 @@ test("model regression: a peer-fenced provisional local opener cannot leave auth
 ], {}, "local"));
 
 for (const tier of ["online", "local"]) for (const refuse of [false, true]) for (const ending of ["close", "logout"]) {
-  test(`model regression: ${tier} delivered ${refuse ? "refusal" : "commit"} retains its id across ${ending}`, () => execute([
+  test(`model regression: ${tier} held ${refuse ? "refusal" : "commit"} remains pending with its id across ${ending}`, () => execute([
     { op: "guest", app: 0 }, { op: "handleMutate", app: 0, hold: true, refuse },
     { op: ending, app: 0 }, { op: "release", app: 0 },
   ], {}, tier));
@@ -69,7 +69,7 @@ for (const [name, sequence] of [
     { op: "guest", app: 0 }, { op: "reopen", app: 1 },
     { op: "handleMutate", app: 1, hold: true }, { op: "release", app: 1, fault: { kind: "get", at: 2 } },
   ]],
-  ["a dispatched write keeps its committed outcome across logout", [
+  ["an undelivered write remains pending with its id across logout", [
     { op: "guest", app: 0 }, { op: "handleMutate", app: 0, hold: true }, { op: "logout", app: 0 }, { op: "release", app: 0 },
   ]],
   ["a facade hidden after dispatch preserves the raw rotation outcome", [
@@ -177,3 +177,10 @@ test("session model sweeps 120 failure points after an unpersisted rotation", as
     catch (error) { assert.fail(`${kind} #${at}: ${error.message}\nminimal sequence=${JSON.stringify(await minimize(sequence, error))}`); }
   }
 });
+
+test("I12 local close retains a body delivered while cleanup awaits another runtime", () => execute([
+  { op: "guest", app: 0 }, { op: "reopen", app: 1 },
+  { op: "handleMutate", app: 1, account: 1, hold: true }, { op: "holdStore", app: 0 },
+  { op: "refreshFault", app: 0, account: 1, hold: true, fault: { kind: "get", at: 7 } },
+  { op: "handleQuery", app: 1, fault: { kind: "delete", at: 10 } }, { op: "close", app: 1 },
+], {}, "local"));

@@ -54,8 +54,13 @@ for (const ending of ['sign-out', 'replacement', 'close']) test(`effectful mutat
   else await promptly(ending === 'sign-out' ? client.signOut() : client.close());
   const code = ending === 'replacement' ? 'E_STORE_REPLACED' : 'E_CLOSED';
   assert.equal((await promptly(upload)).why?.code, code);
-  assert.equal((await promptly(mutation)).why?.code, code);
-  assert.equal((await promptly(action)).denied?.code, code);
+  const written = await promptly(mutation), acted = await promptly(action);
+  if (ending === 'replacement') {
+    assert.equal(written.why?.code, code); assert.equal(acted.denied?.code, code);
+  } else {
+    assert.equal(written.state, 'pending'); assert.equal(acted.state, 'pending');
+    assert.ok(written.id && acted.id, 'unknown effects keep their retry ids');
+  }
   await delay(20); assert.ok(w.held.every(entry => !entry.aborted), 'caller cancellation must not abort a committed effect');
   w.release(); await until(() => ['/assets', '/m/charge', '/a/charge'].every(path => w.consumed.includes(path)));
   assert.equal(w.held.length, 3, 'no effect is retried or uploaded asset placed after cancellation');
