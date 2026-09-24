@@ -36,7 +36,16 @@ const DIGEST: &str = "table messages:\n  conversationId: id\n  at: time\n  tombs
 
 #[test]
 fn finite_digest_aggregates_seek_without_authored_order() {
-    let b = bound(DIGEST);
+    digest_aggregates_seek(DIGEST);
+}
+
+#[test]
+fn uncapped_digest_aggregates_seek_and_stream_without_authored_order() {
+    digest_aggregates_seek(&DIGEST.replace("  cap 50 by conversationId\n", ""));
+}
+
+fn digest_aggregates_seek(source: &str) {
+    let b = bound(source);
     for program in &b.programs {
         let scans = snapback4_core::ir::scans(&program.program);
         assert_eq!(scans.len(), 1);

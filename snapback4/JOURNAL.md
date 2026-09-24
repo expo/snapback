@@ -48868,3 +48868,49 @@ failures. All 995 client tests pass, 10 skipped; WASM remains 1,736,564 B raw /
 changed source files remain below 1,500 lines. Full log:
 `/tmp/lane-a-final-order-full-suite.log`; file-by-file report and reproductions:
 `reports/20260924-intent-lane-a-final-order.md`.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 2: final planner fixes
+
+Merged Lane A at `3562069d8` with `--no-ff` as `bca135b13`, preserving
+Following's binder setup, the rewritten guide and every lane's examples,
+tests, diagnostics and journal entries. The post-merge workspace build
+passed. Final-insert probes now synthesize exact written-order indexes;
+unpaged aggregates infer range seeks; table orders truncate after intrinsic
+id while view orders keep later keys; nullable range membership and rejected
+source-row heap regressions remain covered. The final table-order ruling
+resolves A's historical design stop.
+
+Removed the remaining explicit role index from the app card and the reads
+card's aggregate `by .at` workaround. The language card carries the role-index
+removal and compiled id-order example from A. All 57 guide tests pass; the
+README remains 292/300 lines. The complete Clique fixture already spelled
+its digest without `by .at`, so its text is unchanged. Strengthened its test
+to require the `(conversationId, tombstone, at, id)` index and both exact time
+seek bounds, plus an empty range that skips 5,000 rows under examined=20.
+An additional uncapped count/sum/exists regression proves A's seek planning
+runs through D's streaming admission without changing bounds or authority.
+
+Measured the target digest at two chunks, K=64, zero retries and 312,580 B
+peak heap across 67 profiles and 5,000 period rows. The count retains 823 B;
+authorized totals, restart, once suppression, Following delivery and lifecycle
+all pass. CLI check reports 21 tables, 13 operations, zero diagnostics and
+the same five advisory notes. WASM remains 1,744,850 B raw / 485,005 B gzip;
+compiler changes stay outside the device artifact. Keep the 486,000 B ratchet
+with 995 B headroom and record the reason in metrics/wasm-budget.json.
+
+140 focused tests passed: 103 language, three planner, 14 device, three target
+and 17 scale. The first complete suite was `== 1 failure(s) in 273 s`: our
+integration expectation in `scale::language_operation_classes` lacked the
+new `intentIds` guide query. Its classification is correctly constant: a
+public, non-expiring byId scan with no residual, at most 21 examined rows.
+Added the operation and assertions proving that bound; the isolated scale
+target passed. The final complete suite is `== 0 failure(s) in 262 s`, with
+1,088 client tests passed and 10 skipped. No intermittent client failure
+occurred. Reference validation has zero errors and zero unchecked references;
+all changed source files remain below 1,500 lines.
+
+No design deviation, new open problem, engine redesign, authorization or
+meter relaxation, baseline snapshot repair, publication or push. The complete
+file map, merge resolutions, forms and evidence logs are recorded in
+reports/20260924-intent-integration-r2.md.

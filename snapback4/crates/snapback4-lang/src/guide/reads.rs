@@ -115,7 +115,7 @@ query readForms(roomId: rooms, messageId: messages, c: cursor ?):
 query newest(roomId: rooms, c: cursor ?):
   return messages where .roomId = roomId and .body != null last 20 by .at after c
 query recentTotal(roomId: rooms):
-  return count(messages where .roomId = roomId and .at >= now - 1d and .at <= now by .at)
+  return count(messages where .roomId = roomId and .at >= now - 1d and .at <= now)
 ```
 
 For an expiring table, return the deadline with each row:

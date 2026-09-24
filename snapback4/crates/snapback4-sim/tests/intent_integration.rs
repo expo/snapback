@@ -91,7 +91,17 @@ fn predicate_stream_and_target_digest_sweep_preserve_authority_restart_and_once(
     let b = compiled(&format!("{SOURCE}{TOTALS}"));
     for name in ["periodCount", "daily"] {
         let p = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
-        assert!(ir::scans(p).iter().any(|s| s.table == "messages" && s.take == ir::Bound::Meter));
+        let scans = ir::scans(p);
+        let messages = scans.iter().filter(|s| s.table == "messages").collect::<Vec<_>>();
+        assert_eq!(messages.len(), 1, "{name}: one streaming input");
+        let scan = messages[0];
+        assert_eq!(scan.take, ir::Bound::Meter);
+        assert_eq!(b.schema.tables["messages"].indexes[&scan.index].columns(),
+            ["conversationId", "tombstone", "at", "id"]);
+        assert_eq!(scan.prefix.len(), 2);
+        let range = scan.range.as_ref().expect("unpaged aggregate must seek its time range without by");
+        assert!(range.gte.is_some() && range.lt.is_some(), "{name}: {range:?}");
+        assert!(range.gt.is_none() && range.lte.is_none(), "{name}: exact written endpoints");
     }
     let directory = std::env::temp_dir().join(format!("sb4-intent-target-{}-{}", std::process::id(), snapback4_core::now_ms()));
     std::fs::create_dir_all(&directory).unwrap();
@@ -126,6 +136,11 @@ fn predicate_stream_and_target_digest_sweep_preserve_authority_restart_and_once(
     assert_eq!(history.data.as_array().unwrap().len(), 50);
     assert!(history.next.is_some());
     engine.set_ceilings(Ceilings { examined: 20, ..Default::default() });
+    let empty_window = engine.query("periodCount", Context::new("alice", args(&[
+        ("c", text("room")), ("s", Value::Int(15_001)), ("e", Value::Int(120_000)),
+    ])).at(200_000)).unwrap();
+    assert!(empty_window.complete, "the seek must skip 5000 out-of-window rows: {empty_window:?}");
+    assert_eq!(empty_window.data, Value::Int(0));
     let cut = engine.query("periodCount", Context::new("alice", count_args).at(200_000)).unwrap();
     assert!(!cut.complete && cut.data == Value::Null && cut.next.is_none());
     engine.set_ceilings(Ceilings::default());

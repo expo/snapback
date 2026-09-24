@@ -28,7 +28,6 @@ table memberships:
   role: enum('member', 'admin')
   joinedAt: time
   unique conversationId, principal
-  by byConversationPrincipalRole: conversationId, principal, role
   cap 50 by conversationId
   immutable conversationId, principal, joinedAt
   read <- exists memberships[.conversationId, viewer]

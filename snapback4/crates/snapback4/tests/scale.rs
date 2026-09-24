@@ -23,10 +23,18 @@ fn pin(b: &Bound, constant: &[&str], grows: &[&str]) {
 #[test]
 fn language_operation_classes() {
     let b = bound(&guide::language());
+    // The new written-order example truncates at intrinsic id: one public,
+    // non-expiring scan with no residual can examine at most page size + 1.
+    let ids = &b.programs.iter().find(|p| p.program.name == "intentIds").unwrap().program;
+    let scans = snapback4_core::ir::scans(ids);
+    assert_eq!(scans.len(), 1);
+    assert_eq!(scans[0].index, "byId");
+    assert!(scans[0].filter.is_none());
+    assert_eq!(analyze(&b.schema, ids).bounds.rows_examined, 21);
     // Expiring messages require live filtering and maintained recounts;
     // search expands words; meter domains discover uncapped membership lanes;
     // Following/Trending have residuals. Native bodies have no static proof.
-    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "roomHour", "roomWindow", "sendBrief", "split", "intentCount", "intentDurations", "intentGlobal", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
+    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "roomHour", "roomWindow", "sendBrief", "split", "intentCount", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
         &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "rescoreNative", "search", "thread", "intentDaily", "intentSearch"]);
 }
 
