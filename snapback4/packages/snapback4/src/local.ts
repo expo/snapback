@@ -935,11 +935,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return (backend?.schema.operations?.[op.name]?.runs ?? program?.runs ?? op.runs) === "server";
   }
 
-  function runLocal<R>(op: Query<unknown, R>, args: unknown) {
+  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch) {
     const work = (async () => {
       while (true) {
         const revision = incarnation, authority = answers.revision;
-        const result = await evaluateLocal(op, args, revision, authority);
+        const result = await evaluateLocal(op, args, revision, authority, watch);
         if ((revision === incarnation && authority === answers.revision) || closed) return { ...result, incarnation: revision, authority };
       }
     })();
@@ -948,7 +948,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   }
 
-  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown, revision: number, authority: number): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean }> {
+  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean }> {
     const refused = unavailable();
     if (refused) return { read: { denied: refused }, tables: new Set(), nextExpiry: null };
     const schema = backend!.schema;
@@ -958,36 +958,40 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const held = schema.operations?.[op.name]?.held ?? program?.held ?? op.held ?? false;
     const key = `${op.name}:${JSON.stringify(args)}`;
     const remembered = () => {
+      if (watch) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
       const last = serverAnswers.get(key);
       if (last) for (const table of last.tables) tables.add(table);
       return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: !last };
     };
     const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean } = remembered, remember = true) => {
-      // A held query must not turn missing local coverage into a server scan, even during reset.
-      if (held) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: true };
-      while (true) {
-        const credentials = credentialRevision;
-        const result = await post(`/q/${op.name}`, { args });
-        if (revision !== incarnation || authority !== answers.revision) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
-        if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
-        if (!result.ok) return failure();
-        if (result.obsoleteAuth || (!remember && credentials !== credentialRevision)) {
-          const rotation = refreshing;
-          if (rotation) try { await rotation; } catch {}
-          const unavailableWhy = unavailable();
-          if (unavailableWhy) return { read: { denied: unavailableWhy } as Read<R>, tables, nextExpiry: null };
-          continue;
+      const fetch = async () => {
+        // A held query must not turn missing local coverage into a server scan, even during reset.
+        if (held) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: true };
+        while (true) {
+          const credentials = credentialRevision;
+          const result = await post(`/q/${op.name}`, { args });
+          if (revision !== incarnation || authority !== answers.revision) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
+          if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
+          if (!result.ok) return failure();
+          if (result.obsoleteAuth || (!remember && credentials !== credentialRevision)) {
+            const rotation = refreshing;
+            if (rotation) try { await rotation; } catch {}
+            const unavailableWhy = unavailable();
+            if (unavailableWhy) return { read: { denied: unavailableWhy } as Read<R>, tables, nextExpiry: null };
+            continue;
+          }
+          const json = result.json;
+          for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
+          if (json.denied) { serverAnswers.delete(key); return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null }; }
+          const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
+          if (json.loading || !("data" in json)) return { read: { loading: true } as Read<R>, tables, nextExpiry };
+          const next = (json.next as Cursor | null | undefined) ?? null;
+          const read = { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next };
+          if (remember) serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
+          return { read, tables, nextExpiry };
         }
-        const json = result.json;
-        for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
-        if (json.denied) { serverAnswers.delete(key); return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null }; }
-        const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-        if (json.loading || !("data" in json)) return { read: { loading: true } as Read<R>, tables, nextExpiry };
-        const next = (json.next as Cursor | null | undefined) ?? null;
-        const read = { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next };
-        if (remember) serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
-        return { read, tables, nextExpiry };
-      }
+      };
+      return watch ? watch.fetch(fetch, () => notify(watch), remember) : fetch();
     };
     // A rerun started by observation must not read the old partition while
     // its reset is still queued behind a send. Current server reads are safe.
@@ -1081,14 +1085,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, incarnation: revision, authority, transportOffline } = await runLocal(watch.op, watch.args);
+      const { read, tables, nextExpiry, incarnation: revision, authority, transportOffline } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
-      watch.publish(read, transportOffline);
       scheduleExpiry(watch, nextExpiry);
-      notify(watch);
+      if (watch.snapshot !== read || transportOffline) {
+        watch.publish(transportOffline ? { loading: true } : read);
+        notify(watch);
+      }
+    } catch {
+      if (!closed && watches.get(watch.key) === watch) { watch.publish({ loading: true }); notify(watch); }
     } finally {
       watch.running = false;
       const dirty = watch.dirty;

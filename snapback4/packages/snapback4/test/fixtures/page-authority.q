@@ -6,15 +6,22 @@ table groups:
 table members:
   group: groups
   principal: principal
+  expiresAt: time ?
+  expire at .expiresAt
+  immutable group, principal
   unique group, principal
   unique principal
   public
   insert <- created groups[.group]
   delete <- allow
+  update <- allow
   sync public
 table secrets:
   group: groups
   body: text <=100
+  expiresAt: time ?
+  expire at .expiresAt
+  update <- allow
   read <- exists members[.group, viewer]
   insert <- allow
   retain until-revoked
@@ -59,3 +66,8 @@ query serverPage():
   extra = online first 1
   cost = expensive()
   return secrets first 50
+
+mutation expireMember(at: time):
+  update members[principal = viewer] { expiresAt: at }
+mutation expireSecret(id: secrets, at: time):
+  update secrets[id] { expiresAt: at }

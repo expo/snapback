@@ -36,7 +36,7 @@ async function backend(t) {
   assert.fail(log);
 }
 
-test("native process devices keep an unavailable inbox and clear it on account switch", { timeout: 45_000 }, async t => {
+test("native process devices bridge an inbox fetch and clear it offline and on account switch", { timeout: 45_000 }, async t => {
   const { url, dir } = await backend(t);
   let serial = 0;
   const result = await exercise({ url, createApp, memorySessionStore,
@@ -46,7 +46,7 @@ test("native process devices keep an unavailable inbox and clear it on account s
   assert.equal(result.accountCleared, true);
 });
 
-test("web IndexedDB device keeps the two-device inbox in useQuery and usePage", { timeout: 60_000 }, async t => {
+test("web IndexedDB device bridges the two-device inbox fetch in useQuery and usePage", { timeout: 60_000 }, async t => {
   let executablePath;
   try { executablePath = chromiumExecutable(); }
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }

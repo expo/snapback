@@ -33,12 +33,16 @@ test('predicted authority changes and settlement reset answers while read marker
   assert.equal(authority.committed({ op: 'clear_rows' }, {}, backend), true);
   const watch = Object.assign(new ReadObservation(), { expiryTimer: null });
   watch.publish({ data: ['private'], complete: true, cut: null, fresh: true });
-  watch.publish({ loading: true });
+  // Hold a fetch so clear() invalidates an actively retained answer.
+  let release;
+  const waiting = watch.fetch(() => new Promise(resolve => { release = resolve; }), () => {});
   const remembered = new Map([['query', watch.snapshot]]);
   authority.clear([watch], remembered);
   assert.deepEqual(watch.snapshot, { loading: true });
   assert.equal(remembered.size, 0);
   assert.equal(authority.revision, 1, 'old in-flight queries have a different authority revision');
+  release({ read: { loading: true } });
+  return waiting;
 });
 
 
@@ -48,4 +52,20 @@ test('adoption forgets old pending-write authority classifications', () => {
   const adopted = structuredClone(backend);
   adopted.schema.tables.members.rules.read = { Eq: [{ Field: 'readAt' }, { Literal: 123 }] };
   assert.equal(authority.committed({ op: 'settle', id: 'pending' }, {}, adopted), true, 'settlement cannot trust the old rule dependency classification');
+});
+
+
+test('residual probe equalities classify a predicted update outside the selected index', () => {
+  const residual = structuredClone(backend);
+  residual.schema.tables.secrets.rules.read.Exists.equalities = [['enabled', { Literal: { Bool: true } }]];
+  residual.programs.push({ name: 'disable', body: [{ Update: { table: 'members', patch: { Object: { enabled: false } } } }] });
+  const authority = new ReadAuthority();
+  assert.equal(authority.committed({ op: 'admit', entry: { id: 'disable', op: 'disable' } }, { predicted: ['members/1'] }, residual), true);
+});
+
+for (const table of ['secrets', 'members']) test(`predicted expiry on ${table} changes authority`, () => {
+  const expiring = structuredClone(backend);
+  expiring.schema.tables[table].expire = 'expiresAt';
+  expiring.programs.push({ name: 'expire', body: [{ Update: { table, patch: { Object: { expiresAt: 1 } } } }] });
+  assert.equal(new ReadAuthority().committed({ op: 'admit', entry: { id: 'expire', op: 'expire' } }, { predicted: [`${table}/1`] }, expiring), true);
 });

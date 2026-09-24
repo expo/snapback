@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createLocalClient } from '../dist/local.js';
 import { createClient } from '../dist/client.js';
 import { processDevice } from '../dist/native.js';
+import { ReadAuthority } from '../dist/read-authority.js';
 import { memorySessionStore } from '../dist/auth.js';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
 const query = name => ({ kind: 'query', name });
@@ -20,13 +21,13 @@ const blocked = signal => new Promise((_, reject) => {
   else signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
 });
 
-async function fixture(t) {
+async function fixture(t, online = false) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-authority-'));
   mkdirSync(join(dir, 'snapback'));
   writeFileSync(join(dir, 'snapback/schema.q'), readFileSync(new URL('./fixtures/page-authority.q', import.meta.url)));
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const exited = new Promise(resolve => host.once('exit', resolve));
-  let log = '', client, core, held = false, release, entered = false, offline = false, failServer = false, failApply = false;
+  let log = '', client, core, held = false, release, entered = false, offline = false, failServer = false, failApply = false, holdWrites = false;
   const requests = [];
   host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
   t.after(async () => { release?.(); await client?.close(); host.kill('SIGTERM'); await exited; rmSync(dir, { recursive: true, force: true }); });
@@ -36,7 +37,7 @@ async function fixture(t) {
   const post = async (path, args = {}) => (await fetch(url + path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-snapback-persona': 'bob' }, body: JSON.stringify({ args, id: `authority-${++serial}` }) })).json();
   assert.equal((await post('/m/setup')).state, 'sent');
   const device = processDevice({ dir: join(dir, 'device'), binary });
-  client = await createLocalClient({ url, persona: 'alice', sessionStore: memorySessionStore(), device: { async open(...args) {
+  const options = { url, persona: 'alice', sessionStore: memorySessionStore(), device: { async open(...args) {
     core = await device.open(...args);
     return { ...core, async call(request, committed) {
       const reply = await core.call(request);
@@ -49,16 +50,18 @@ async function fixture(t) {
   } }, fetch: async (input, init) => {
     const path = new URL(input).pathname; requests.push(path);
     if (path === '/changes') return blocked(init.signal);
+    if (holdWrites && path.startsWith('/m/')) throw Error('controlled pending write');
     if (offline || (failServer && path === '/q/serverPage')) throw Error('offline');
     const response = await fetch(input, init);
-    if (path === '/q/serverPage' && held) {
+    if (path === `/q/${held}`) {
       held = false; entered = true;
       await new Promise(resolve => { release = resolve; });
     }
     return response;
-  } });
-  await client.sync();
-  return { client, post, requests, core: () => core, hold: () => { held = true; }, entered: () => entered, release: () => release?.(), offline: () => { offline = true; }, failServer: value => { failServer = value; }, failAfterApply: () => { failApply = true; } };
+  } };
+  client = online ? createClient(options) : await createLocalClient(options);
+  if (!online) await client.sync();
+  return { client, post, requests, core: () => core, hold: (name = 'serverPage') => { held = name; entered = false; }, entered: () => entered, release: () => release?.(), offline: () => { offline = true; }, failServer: value => { failServer = value; }, failAfterApply: () => { failApply = true; }, holdWrites: () => { holdWrites = true; } };
 }
 
 for (const postCommitFailure of [false, true]) test(`applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: ${postCommitFailure})`, { timeout: 30_000 }, async t => {
@@ -69,9 +72,10 @@ for (const postCommitFailure of [false, true]) test(`applied revocation clears k
   f.hold(); await f.post('/m/setCost', { grow: false }); await f.client.sync();
   await until(f.entered, 'old server answer held');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
-  await until(() => page.getSnapshot().fresh === false, 'heap abort retains authorized answer');
-  assert.equal(page.getSnapshot().data[0].body, 'private');
-  const since = page.getSnapshot().since; assert.ok(Number.isFinite(since));
+  await until(() => page.getSnapshot().loading, 'heap abort settles as unavailable');
+  assert.equal(server.getSnapshot().data[0].body, 'private', 'only the pending fetch retains its answer');
+  assert.equal(server.getSnapshot().fresh, false);
+  assert.ok(Number.isFinite(server.getSnapshot().since));
   if (postCommitFailure) f.failAfterApply();
   await f.post('/m/revoke');
   if (postCommitFailure) await assert.rejects(f.client.sync(), /fallible work after committed revocation/);
@@ -90,19 +94,18 @@ for (const postCommitFailure of [false, true]) test(`applied revocation clears k
   page.close(); server.close();
 });
 
-test('an online unavailable held rerun keeps its answer without a server fallback', { timeout: 30_000 }, async t => {
+test('an unavailable held rerun clears its answer without a server fallback', { timeout: 30_000 }, async t => {
   const f = await fixture(t), watch = f.client.observe(query('heldPage'), {});
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'held answer');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
-  await until(() => watch.getSnapshot().fresh === false, 'held unavailable rerun');
+  await until(() => watch.getSnapshot().loading, 'held unavailable rerun');
   assert.equal(f.client.link(), 'online');
-  assert.equal(watch.getSnapshot().data[0].body, 'private');
-  assert.ok(Number.isFinite(watch.getSnapshot().since));
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
   assert.equal(f.requests.filter(path => path === '/q/heldPage').length, 0);
   watch.close();
 });
 
-test('successful loading replaces a transport refusal, but not a server refusal with the same code', async t => {
+test('transport failures are loading and an explained server refusal lasts until the next result', async t => {
   for (const transport of [true, false]) {
     let reads = 0;
     const client = createClient({ url: 'http://refusal.test', persona: 'alice', fetch: async (input, init) => {
@@ -117,37 +120,91 @@ test('successful loading replaces a transport refusal, but not a server refusal 
     } });
     t.after(() => client.close());
     const watch = client.observe(query('page'), {});
-    await until(() => watch.getSnapshot().denied, 'initial refusal');
-    assert.equal(watch.getSnapshot().denied.code, 'E_OFFLINE');
+    await until(() => reads === 1, 'first request');
+    await delay(0); // Let the controlled response settle before checking its observation.
+    if (transport) assert.deepEqual(watch.getSnapshot(), { loading: true });
+    else await until(() => watch.getSnapshot().denied?.code === 'E_OFFLINE', 'explained refusal');
     await client.mutate({ kind: 'mutation', name: 'retry' }, {});
     await until(() => reads > 2, 'successful loading reruns');
-    if (transport) assert.deepEqual(watch.getSnapshot(), { loading: true });
-    else assert.equal(watch.getSnapshot().denied.message, 'explicit refusal');
+    assert.deepEqual(watch.getSnapshot(), { loading: true });
     watch.close();
   }
 });
 
 
-test('a local observation recovers from transport refusal to successful loading', { timeout: 30_000 }, async t => {
+test('a local observation has no remembered answer after a failed replacing fetch', { timeout: 30_000 }, async t => {
   const f = await fixture(t);
-  f.failServer(true);
   const watch = f.client.observe(query('serverPage'), {});
-  await until(() => watch.getSnapshot().denied?.code === 'E_OFFLINE', 'transport refusal');
-  f.failServer(false);
+  await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial server answer');
+  f.failServer(true);
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
-  await until(() => watch.getSnapshot().loading === true, 'successful unavailable response replaces transport refusal');
+  await until(() => watch.getSnapshot().loading, 'failed replacing fetch cannot remember private data');
+  f.failServer(false);
+  f.offline(); await f.client.sync();
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, 'offline cannot restore a remembered server answer');
   watch.close();
 });
 
 test('a predicted membership removal clears a kept private answer before the pending send', { timeout: 30_000 }, async t => {
   const f = await fixture(t), watch = f.client.observe(query('privatePage'), {});
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'private answer');
+  f.hold('privatePage');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
-  await until(() => watch.getSnapshot().fresh === false, 'kept answer');
+  await until(f.entered, 'replacing fetch');
+  assert.equal(watch.getSnapshot().fresh, false);
   f.offline(); await f.client.sync();
   const write = await f.client.mutate({ kind: 'mutation', name: 'revoke' }, {});
   assert.equal(write.state, 'pending');
   assert.deepEqual(watch.getSnapshot(), { loading: true });
   assert.ok((await f.core().call({ op: 'queued' })).ok.find(entry => entry.id === write.id).predicted.some(row => row.startsWith('members/')), 'membership deletion was predicted');
+  watch.close();
+});
+
+
+for (const operation of ['expireSecret', 'expireMember']) for (const classifier of [true, false])
+  test(`predicted ${operation}: retention ends within one fetch (classifier ${classifier})`, { timeout: 30_000 }, async t => {
+    const f = await fixture(t), watch = f.client.observe(query('privatePage'), {});
+    await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'private answer');
+    const id = watch.getSnapshot().data[0].id;
+    if (!classifier) {
+      const original = ReadAuthority.prototype.committed;
+      ReadAuthority.prototype.committed = () => false;
+      t.after(() => { ReadAuthority.prototype.committed = original; });
+    }
+    f.hold('privatePage');
+    await f.post('/m/setCost', { grow: true }); await f.client.sync();
+    await until(f.entered, 'unavailable replacing fetch held');
+    assert.equal(watch.getSnapshot().data[0].body, 'private');
+    assert.equal(watch.getSnapshot().fresh, false);
+    assert.ok(Number.isFinite(watch.getSnapshot().since));
+    f.holdWrites();
+    const write = await f.client.mutate({ kind: 'mutation', name: operation }, { ...(operation === 'expireSecret' ? { id } : {}), at: Date.now() - 1000 });
+    assert.equal(write.state, 'pending');
+    assert.ok((await f.core().call({ op: 'queued' })).ok.find(entry => entry.id === write.id).predicted.length, 'real expiry prediction');
+    if (classifier) assert.deepEqual(watch.getSnapshot(), { loading: true }, 'expiry clears the answer before HTTP settles');
+    else assert.equal(watch.getSnapshot().data[0].body, 'private', 'classifier disabled: the one fetch is the only retention bound');
+    f.release();
+    await until(() => watch.getSnapshot().loading, 'one unavailable fetch clears the private row');
+    f.offline(); await f.client.sync();
+    await delay(20);
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, 'no remembered answer returns on the offline rerun');
+    watch.close();
+  });
+
+test('online client drops a heap-aborted private answer within one fetch, including after revoke', { timeout: 30_000 }, async t => {
+  const f = await fixture(t, true), watch = f.client.observe(query('privatePage'), {});
+  await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'online private answer');
+  f.hold('privatePage');
+  await f.client.mutate({ kind: 'mutation', name: 'setCost' }, { grow: true });
+  await until(f.entered, 'online replacement fetch');
+  assert.equal(watch.getSnapshot().data[0].body, 'private');
+  assert.equal(watch.getSnapshot().fresh, false);
+  f.release();
+  await until(() => watch.getSnapshot().loading, 'heap abort ends retention');
+  await f.client.mutate({ kind: 'mutation', name: 'revoke' }, {});
+  assert.deepEqual((await f.client.query(query('visible'), {})).data, []);
+  await until(() => watch.getSnapshot().loading, 'revoked unavailable read stays loading');
+  await delay(20);
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
   watch.close();
 });

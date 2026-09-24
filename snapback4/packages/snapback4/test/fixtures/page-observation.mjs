@@ -7,7 +7,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
   };
   const q = name => ({ kind: "query", name }), m = name => ({ kind: "mutation", name });
   const apps = [], watches = [], replies = [], requests = [];
-  let offline = false, holdWrite = false, unmount;
+  let offline = false, holdWrite = false, holdInbox = false, releaseInbox, inboxGate, unmount;
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname.split("/").slice(-2).join("/");
     requests.push(path);
@@ -16,6 +16,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
       if (init.signal.aborted) reject(Error("closed"));
       else init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
     });
+    if (holdInbox && path === "q/inbox") await inboxGate;
     return fetch(input, init);
   };
   try {
@@ -51,32 +52,39 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     if (hooks) await until(() => hooks.read().query.data?.[0]?.unread === 3 && hooks.read().page.items[0]?.unread === 3, "both hooks published inbox");
     check(replies.some(row => row.name === "inbox" && row.reply.ok?.loading), "the cold device's unread domain crosses its horizon");
     const before = requests.filter(path => path === "q/inbox").length;
+    const publicationStart = snapshots.length;
+    holdInbox = true; inboxGate = new Promise(resolve => { releaseInbox = resolve; });
     holdWrite = true;
     const pending = await reader.mutate(m("resetRead"), { chat: dm.result });
     check(pending.state === "pending" && reader.client.link() === "online", "pending prediction while online");
-    check((await reader.client.query(q("inbox"), {})).data?.[0]?.unread === 3, "unavailable device read falls back during pending send");
-    check(requests.filter(path => path === "q/inbox").length > before, "server was queried despite pending prediction");
+    const direct = reader.client.query(q("inbox"), {});
+    await until(() => requests.filter(path => path === "q/inbox").length > before && inbox.getSnapshot().fresh === false, "pending server replacement");
+    const kept = inbox.getSnapshot();
+    check(kept.data?.[0]?.unread === 3 && Number.isFinite(kept.since), "published inbox bridges the server fetch");
+    if (hooks) await until(() => hooks.read().query.fresh === false && hooks.read().page.read.fresh === false, "both hooks bridge the fetch");
+    if (hooks) check(hooks.read().query.data[0].unread === 3 && hooks.read().page.items[0].unread === 3, "neither hook blanks its first page during the fetch");
+    check(snapshots.slice(publicationStart).every(read => "data" in read), "no blank while the replacing fetch is in flight");
+    check(inbox.getSnapshot().since === kept.since, "since is stable during the fetch");
+    holdInbox = false; releaseInbox();
+    check((await direct).data?.[0]?.unread === 3, "server answers despite pending prediction");
+    await until(() => inbox.getSnapshot().fresh === true, "server answer replaces kept inbox");
     offline = true;
     await reader.client.query(q("ping"), {});
     check(reader.client.link() === "offline", "link disconnected");
     const rawBefore = replies.length;
     await reader.mutate(m("resetRead"), { chat: dm.result });
-    await until(() => replies.slice(rawBefore).some(row => row.name === "inbox" && row.reply.ok?.loading), "unavailable rerun");
-    await until(() => inbox.getSnapshot().fresh === false, "kept inbox is stale");
-    const kept = inbox.getSnapshot();
-    check(kept.data?.[0]?.unread === 3 && Number.isFinite(kept.since), "published inbox and its timestamp survive");
-    if (hooks) await until(() => hooks.read().query.fresh === false && hooks.read().page.read.fresh === false, "both hooks retain stale inbox");
-    if (hooks) check(hooks.read().query.data[0].unread === 3 && hooks.read().page.items[0].unread === 3, "neither hook blanks its first page");
+    await until(() => replies.slice(rawBefore).some(row => row.name === "inbox" && row.reply.ok?.loading), "unavailable offline rerun");
+    await until(() => inbox.getSnapshot().loading, "offline has no replacing fetch");
+    if (hooks) await until(() => hooks.read().query.loading && hooks.read().page.read.loading, "both hooks become loading offline");
+    if (hooks) check(hooks.read().page.items.length === 0, "offline unavailable first page cannot retain its old rows");
     const never = reader.client.observe(q("totalList"), { chat: dm.result }); watches.push(never);
     never.subscribe(() => {});
     await until(() => replies.some(row => row.name === "totalList" && row.reply.ok?.loading), "never-answered offline query evaluated");
     check(never.getSnapshot().loading === true, "offline without an answer is loading");
     await reader.mutate(m("resetRead"), { chat: dm.result });
     await until(() => replies.length > rawBefore + 2, "another rerun");
-    check(inbox.getSnapshot().since === kept.since, "unavailable reruns never advance since");
+    check(inbox.getSnapshot().loading, "another unavailable rerun cannot resurrect data");
     check(snapshots.filter(read => "data" in read).every(read => Array.isArray(read.data)), "all published lists are arrays");
-    const firstReady = snapshots.findIndex(read => "data" in read);
-    check(snapshots.slice(firstReady).every(read => "data" in read), "no observation regresses to loading");
     offline = false; holdWrite = false;
     const switched = await reader.auth.login("bob@example.com", "password-bob");
     check(switched.ok && reader.auth.viewer === bob.session.principal, "account switched");
@@ -85,6 +93,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     if (hooks) check(hooks.read().page.items.every(row => row.principal === bob.session.principal), "pages contain only the new account's rows");
     return { keptUnread: kept.data[0].unread, since: kept.since, serverFallback: true, accountCleared: true };
   } finally {
+    releaseInbox?.();
     await unmount?.();
     for (const watch of watches) watch.close();
     await Promise.all(apps.map(app => app.close()));

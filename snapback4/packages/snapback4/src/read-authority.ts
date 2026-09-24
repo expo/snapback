@@ -83,7 +83,11 @@ export class ReadAuthority {
       }
       for (const child of Object.values(value)) walk(child, table);
     };
-    for (const [name, table] of Object.entries(schema.tables)) walk((table as any).rules?.read, name);
+    for (const [name, table] of Object.entries(schema.tables)) {
+      // Expiry can withdraw a source row or a row consulted by a read rule.
+      if (table.expire) add(name, table.expire);
+      walk((table as any).rules?.read, name);
+    }
   }
 
   private writesAuthority(value: any): boolean {

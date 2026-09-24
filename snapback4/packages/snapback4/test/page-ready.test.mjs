@@ -130,7 +130,7 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   finally { await online.close(); }
 });
 
-test("unavailable server list reruns keep published answers in both clients", { timeout: 30_000 }, async t => {
+test("unavailable server list responses end retention in both clients", { timeout: 30_000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-page-server-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source);
@@ -175,9 +175,7 @@ test("unavailable server list reruns keep published answers in both clients", { 
   queryOffline = false;
   await local.query(query("ping"), {});
   await setCost(true);
-  for (const watch of watches) await until(() => watch.getSnapshot().fresh === false, "heap-aborted rerun keeps the last answer");
-  const kept = watches.map(watch => watch.getSnapshot());
-  for (const read of kept) { assert.equal(read.data.length, 1); assert.ok(Number.isFinite(read.since)); }
+  for (const watch of watches) await until(() => watch.getSnapshot().loading, "heap-aborted fetch ends retention");
   await until(() => fetched.some(reply => reply.loading === true), "server evaluated the new heap-aborting control");
   for (const client of clients) {
     await client.query(query("ping"), {}); // End the earlier deliberate transport failure before testing HTTP loading.
@@ -188,11 +186,7 @@ test("unavailable server list reruns keep published answers in both clients", { 
   // Invalidate the online observation once more while its next query fails.
   await setCost(false);
   await until(() => clients.every(client => client.link() === "offline"), "transport loss");
-  for (const [n, watch] of watches.entries()) {
-    assert.deepEqual(watch.getSnapshot().data, kept[n].data);
-    assert.equal(watch.getSnapshot().fresh, false);
-    assert.ok(watch.getSnapshot().since >= kept[n].since);
-  }
+  for (const watch of watches) assert.deepEqual(watch.getSnapshot(), { loading: true });
   assert.equal((await local.query(query("costly"), {})).fresh, false);
   for (const watch of watches) watch.close();
 });

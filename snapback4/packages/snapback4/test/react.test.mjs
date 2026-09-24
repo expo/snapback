@@ -517,8 +517,9 @@ const cases = {
     } finally { await unmount(); }
   },
 
-  async "real observations retain every unavailable page, preserve since, and clear on refusal and close"() {
+  async "real observations bridge page fetches and clear on unavailable settlement, refusal and close"() {
     let phase = "ready", seq = 0, latest;
+    const held = [];
     const client = createClient({ url: "http://observation.test", persona: "alice", fetch: async (input, init) => {
       const path = new URL(input).pathname;
       if (path === "/changes") return new Promise((_, reject) => {
@@ -527,6 +528,7 @@ const cases = {
       });
       if (path === "/m/write") return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: ++seq, result: null });
       if (path === "/q/read") {
+        if (phase === "held") { await new Promise(resolve => held.push(resolve)); return Response.json({ loading: true }); }
         if (phase === "loading") return Response.json({ loading: true });
         if (phase === "missing") return Response.json({});
         if (phase === "denied") return Response.json({ denied: { code: "E_RULE", family: "rule", message: "access withdrawn" } });
@@ -554,25 +556,30 @@ const cases = {
       await act(async () => latest.page.loadMore());
       await settle(() => latest.page.items.length === 2);
       equal(latest.page.items, ["a", "b"], "two published pages");
-      await rerun("loading");
-      equal(latest.page.items, ["a", "b"], "both unavailable pages remain visible");
-      equal(latest.query.data, ["a"], "useQuery keeps its answer too");
-      check(!latest.query.fresh && !latest.page.read.fresh, "all kept answers are stale");
+      await rerun("held");
+      equal(latest.page.items, ["a", "b"], "both pages bridge their replacing fetches");
+      equal(latest.query.data, ["a"], "useQuery bridges its fetch too");
+      check(!latest.query.fresh && !latest.page.read.fresh, "kept answers are stale");
       const since = [latest.query.since, latest.page.read.since];
       check(since.every(Number.isFinite), "kept answers have their publication time");
+      await settle(() => true);
+      equal([latest.query.since, latest.page.read.since], since, "timestamps stay fixed during the fetch");
+      phase = "loading";
+      await act(async () => held.splice(0).forEach(resolve => resolve()));
+      await settle(() => latest.query.loading && latest.page.read.loading);
+      equal(latest.page.items, [], "unavailable settlement clears the first page and suffix");
       await rerun("missing");
-      equal([latest.query.since, latest.page.read.since], since, "missing-data reruns preserve timestamps");
-      equal(latest.page.items, ["a", "b"], "missing-data reruns preserve every page");
+      check(latest.query.loading && latest.page.read.loading, "missing-data reruns cannot resurrect answers");
       await rerun("denied");
       check(latest.query.denied?.code === "E_RULE" && latest.page.read.denied?.code === "E_RULE", "refusals replace kept answers");
       equal(latest.page.items, [], "refused first page clears visible items");
       await rerun("loading");
-      check(latest.query.denied?.code === "E_RULE" && latest.page.read.denied?.code === "E_RULE", "an unavailable rerun cannot retract the refusal or resurrect its old data");
+      check(latest.query.loading && latest.page.read.loading, "the next unavailable result is loading and cannot resurrect old data");
       await rerun("ready");
       await act(async () => client.close());
       check(latest.query.denied?.code === "E_CLOSED" && latest.page.read.denied?.code === "E_CLOSED", "close clears both hooks");
       equal(latest.page.items, [], "closed client retains no page");
-    } finally { await unmount(); await client.close(); }
+    } finally { held.splice(0).forEach(resolve => resolve()); await unmount(); await client.close(); }
   },
   async "usePage treats every non-array ready value as loading and keeps the earlier pages"() {
     for (const invalid of [null, undefined, {}, "text", 7, false]) {

@@ -49520,3 +49520,106 @@ Rust targets, guide checks, builds and typechecks passed. Evidence:
 /tmp/lane-j-r2-pg-final.log. Whitespace checks pass. No design deviation or
 unresolved Lane J implementation issue remains; the unrelated scheduler
 fixture race above remains a recorded test limitation.
+
+## 2026-09-24 — Lane J round 3: retain an answer only during its replacing fetch
+
+Closed the next Astra review by replacing indefinite retention, rather than
+extending the authority classifier as the correctness boundary. Previously,
+ReadObservation.publish(loading) kept a private answer indefinitely. The
+classifier missed predicted changes to expire columns, and the online client
+had no membership classifier at all: privatePage could heap-abort, revoke could
+succeed, and each unavailable rerun would keep the old private row.
+
+read-observation.ts now bridges exactly one replacing fetch with fresh=false
+and the previous since. Its answer replaces the kept value; unavailable or
+failed settlement clears it to loading. A revision fences responses after a
+reset. client.ts and local.ts wrap their server requests in that lifetime,
+avoid duplicate result notifications, and publish loading when no replacement
+can start. Local observations never fall back to remembered server answers;
+composed reads retire the kept answer when HTTP settles, before any remaining
+device work. The online client also resets every watch on generation changes.
+Existing committed revocation, reset, adoption and account/client fences remain.
+read-authority.ts additionally tracks expire columns on source and rule-probe
+tables as defense in depth; residual probe equalities retain their own test.
+
+Engineering choices: direct query() remembered-answer behavior is unchanged;
+the requested new lifetime governs observations. Explained refusals are shown
+until a subsequent result replaces them, including a subsequent unavailable
+result becoming loading under the round-3 contract. A transport failure in an
+observation is loading. The Read type, engine semantics, Quarry syntax,
+authorization rules and all resource ceilings are unchanged. local.ts is
+1,495 lines, below the source-file limit.
+
+File-by-file regression and documentation record:
+- contract.ts: two-sentence Read comment describing the fetch lifetime.
+- CLIENT-AND-OPERATIONS.md: the observation contract, offline behavior and
+  meter text; distinguishes direct query caching from observations.
+- guide/reads.rs: the same bounded lifetime and corrected meter wording.
+- test/read-observation.test.mjs: answer, unavailable, refusal and thrown-fetch
+  settlement; no resurrection by a later fetch; reset publication fence; online
+  generation invalidation before the next change request. The generation test
+  checks immediately after application so a later link watchdog cannot mask it.
+- test/read-authority.test.mjs: source/probe expiry, residual equalities outside
+  the selected index, and resetting an answer during a real pending fetch.
+- test/fixtures/page-authority.q: source and membership expiry plus mutations.
+- test/page-authority.test.mjs: real server and SQLite device expiry predictions,
+  both with the classifier enabled and disabled; real online privatePage heap
+  abort followed by revoke; failed-fetch cache exclusion; held/unrefetchable
+  loading; existing applied-revocation and delayed-publication witnesses.
+- test/fixtures/page-observation.mjs: two independent devices, pending write,
+  held inbox HTTP response, stable since and no blank in both hooks; offline
+  unavailable reruns become loading and cannot resurrect a page.
+- test/page-observation.test.mjs: runs that journey on the native process device
+  and Chromium/IndexedDB, including account isolation.
+- test/react.test.mjs: every page and useQuery bridge pending requests, then
+  clear at unavailable settlement; refusal, close and non-array defense remain.
+- test/page-ready.test.mjs: unavailable responses end retention in both arms.
+- test/client-seams.test.mjs: online/native/web retain data, cursor, cut,
+  completeness and meter only during the fetch; offline clears observations.
+- test/retained-history.test.mjs: adopted answers can become stale during the
+  next fetch, while every publication still belongs to the new generation.
+- test/maintained-column-adoption.test.mjs: check newly served fresh answers;
+  a stale bridge before generation discovery is not a new server transaction.
+- test/readme-examples.test.mjs: exactly one stale bridge notification and one
+  replacement; typing deadlines still extend and clean up correctly.
+- test/residency.test.mjs: offline observations stay loading, cannot recover a
+  remembered server answer on remount, and recover online; device reads persist.
+
+All eight negative checks were caught: removing expiry classification, removing
+residual-equality classification, restoring indefinite retention with the
+classifier disabled, reusing remembered answers in observations, keeping fresh
+during a fetch, removing the reset fence, skipping failed-fetch cleanup, and
+removing online generation invalidation. In particular, with committed()
+disabled, both source and membership expiry tests prove the private row leaves
+the observation when the single unavailable fetch settles. Evidence:
+/tmp/lane-j-r3-mutations.log and /tmp/lane-j-r3-mutant-*.log. The generation
+check initially survived because it waited for a later timeout; tightening its
+application barrier caught the mutation. Sources were restored after checks.
+
+Validation: affected tests 48/48; guide 57/57 plus docs budget; final follow-up
+25/25. Earlier routing checks exposed five obsolete assertions (three offline
+retention expectations and two adopted-answer freshness expectations), updated
+as described above. The first full scripts/test.sh result was exactly
+`== 1 failure(s) in 143 s` (client tests, five assertions, all ours):
+- column activation: sqlite, server watch; column activation: wasm, server
+  watch — old data carried by a stale fetch notification was counted as a newly
+  served transaction. Fresh server-answer assertions now preserve that check.
+- W10R1 typing renderer replaces deadlines on a live watch and cleans up on
+  unmount — duplicated settled-result notifications; fixed in both clients,
+  then asserted the additional intended stale notification during a rerun.
+- server-run watches rerun on online-only commits and retain answers offline
+  for the client lifetime — obsolete indefinite offline retention expectation.
+- offline cold watches refuse E_OFFLINE, persisted local reads still work,
+  server answers never persist — obsolete observation transport refusal.
+No baseline or environmental failure occurred in either round-3 full run.
+
+Final scripts/test.sh: `== 0 failure(s) in 148 s`. Main client shard: 1,096
+tests, 1,086 passed, 10 existing skips, zero failures; all other shards, Rust
+targets, guide checks, builds and typechecks passed. Evidence:
+/tmp/lane-j-r3-full-suite.log, /tmp/lane-j-r3-full-suite-final.log,
+/tmp/lane-j-r3-affected-final.log, /tmp/lane-j-r3-followup.log,
+/tmp/lane-j-r3-guide-final.log and /tmp/lane-j-r3-docs-final.log.
+No new language form: ordinary privatePage(), heldPage() held and expiry
+mutations in the fixture compile and run. No unresolved Lane J issue or design
+deviation remains. Native evidence uses the real SQLite process device and
+shared native client; no iOS simulator, publication, version bump or push.

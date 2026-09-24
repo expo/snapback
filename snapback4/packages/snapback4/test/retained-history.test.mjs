@@ -397,8 +397,10 @@ query wordBoth():
       await until(() => publications.length > 0, "watch must publish the new generation");
       for (const read of publicationReads) {
         assert.deepEqual(read.data, { left: [], held: expected("held", 0), epoch: 2 }, "no old-generation query or watch reply may publish");
-        assert.equal(read.complete, true); assert.equal(read.fresh, true);
+        assert.equal(read.complete, true);
+        if (!read.fresh) assert.ok(Number.isFinite(read.since), "a further fetch may bridge only the new generation's answer");
       }
+      assert.ok(publicationReads.some(read => read.fresh), "the new generation's server answer was published");
     }
     if (!closing && !["MQ adoption", "MQ rejoin", "MQ reset", "MQ interrupted snapshot"].includes(scenario)) {
       await until(() => publications.length > 0, "watch must publish the composed observation");

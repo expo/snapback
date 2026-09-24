@@ -326,7 +326,7 @@ export function createClient(options: ClientOptions): Client {
     }
     watch.inFlight = true;
     try {
-      const { read, tables, nextExpiry, transportOffline } = await runQuery(watch.op, watch.args);
+      const { read, tables, nextExpiry, transportOffline } = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch));
       if (closed || watches.get(watch.key) !== watch) return;
       if (!credentials) {
         watch.publish({ denied: auth() });
@@ -334,9 +334,11 @@ export function createClient(options: ClientOptions): Client {
         return;
       }
       watch.tables = new Set(tables);
-      watch.publish(transportOffline && "data" in watch.snapshot ? { loading: true } : read, transportOffline);
       scheduleExpiry(watch, nextExpiry);
-      notify(watch);
+      if (watch.snapshot !== read || transportOffline) {
+        watch.publish(transportOffline ? { loading: true } : read);
+        notify(watch);
+      }
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;
@@ -388,7 +390,9 @@ export function createClient(options: ClientOptions): Client {
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
+          if (changedGeneration) for (const watch of watches.values()) watch.reset({ loading: true });
           for (const watch of watches.values()) {
+            if (changedGeneration) notify(watch);
             if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }

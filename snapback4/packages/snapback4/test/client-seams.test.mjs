@@ -720,13 +720,18 @@ query search():
   t.diagnostic("hidden words=32,33 hidden rows=8193 identical full-response pairs=3");
 });
 
-for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} remembered uniform continuation and nonuniform cuts survive disconnection`, { timeout: 30000 }, async t => {
-  const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only"));
+for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} uniform continuation and nonuniform cuts bridge one replacing fetch`, { timeout: 30000 }, async t => {
+  const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only") + "\nmutation pulse(): server\n  return null\n");
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${n}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
   seeds.push(...Array.from({ length: 33 }, (_, n) => ({ table: "privateWords", row: { id: `p${n}`, owner: "dev:alice", body: `cof${n}`, at: n } })));
   for (let n = 0; n < seeds.length; n += 1000) await f.post("/seed", seeds.slice(n, n + 1000));
-  let offline = false;
-  const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: (...args) => offline ? Promise.reject(new Error("offline")) : fetch(...args) };
+  let offline = false, hold = false, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: async (url, init) => {
+    if (offline) throw Error("offline");
+    if (hold && String(url).includes("/q/")) await Promise.race([gate, new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }))]);
+    return fetch(url, init);
+  } };
   const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: tier === "native" ? f.device : f.web });
   f.clients.push(client);
   if (tier !== "online") await client.sync();
@@ -736,16 +741,22 @@ for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} remembered u
   const before = watches.map(({ watch }) => watch.getSnapshot());
   assert.ok(before[1].next, "the full uniform page continues past 32 words");
   assert.equal(before[2].next, null, "the nonuniform discovery cut has no continuation");
-  offline = true;
-  if (tier === "online") await client.query({ kind: "query", name: "filtered" }, {});
-  else await client.sync();
+  hold = true;
+  assert.equal((await client.mutate(mutation("pulse"), {})).state, "sent");
   await until(() => watches.every(({ watch }) => watch.getSnapshot().fresh === false));
   watches.forEach(({ watch, cut, complete }, n) => {
     const after = watch.getSnapshot();
     assert.equal(after.cut, cut); assert.equal(after.complete, complete);
     assert.equal(after.next, before[n].next);
     assert.deepEqual(after.data, before[n].data); assert.deepEqual(after.meter, before[n].meter);
+    assert.ok(Number.isFinite(after.since));
   });
+  hold = false; release();
+  await until(() => watches.every(({ watch }) => watch.getSnapshot().fresh));
+  offline = true;
+  if (tier === "online") await client.query({ kind: "query", name: "filtered" }, {});
+  else await client.sync();
+  await until(() => watches.every(({ watch }) => watch.getSnapshot().loading));
 });
 
 for (const tier of ["online", "native", "web"]) test(`W8a ${tier} uniform words continue while nonuniform words and meter cuts remain bounded`, { timeout: 30000 }, async t => {

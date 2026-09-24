@@ -70,7 +70,9 @@ for (const tier of ["sqlite", "wasm"]) for (const synced of [false, true]) {
     for(const id of ["p","unselected","zero"]){
       const watch=client.observe({kind:"query",name:"one"},{id});
       watches.push(watch);
-      watch.subscribe(()=>{const data=watch.getSnapshot().data;if(data)seen.push(structuredClone(data));});
+      // A stale notification may bridge a fetch before generation discovery;
+      // this assertion examines newly served answers, not that previous value.
+      watch.subscribe(()=>{const read=watch.getSnapshot();if(read.data && read.fresh)seen.push(structuredClone(read.data));});
     }
     await until(()=>watches.every(w=>w.getSnapshot().data?.id));
     // The zero parent must remain physically untouched by both activations.
