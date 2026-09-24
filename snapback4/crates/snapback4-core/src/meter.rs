@@ -177,8 +177,9 @@ impl Meter {
         { self.heap_once = mark.heap_once; }
     }
 
-    /// Release only the store/row allocation part of a streaming iteration.
-    /// Filter allocations and retained helper bindings remain cumulative.
+    /// Release only the store/row/key scratch part of an incremental scan.
+    /// Retained cursor, selected row and buffer allowances are charged
+    /// separately; filter allocations and helper bindings remain cumulative.
     pub(crate) fn release_row_heap(&mut self, mark: MeterMark, bytes: u64) {
         self.used.heap_bytes = self.used.heap_bytes.saturating_sub(bytes);
         #[cfg(feature = "sqlite")]

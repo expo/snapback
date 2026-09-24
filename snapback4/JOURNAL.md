@@ -48226,3 +48226,42 @@ still waits for Lane A's announced landing. No migration, disclosure change,
 meter increase, device prediction expansion, rebase, push or publication.
 Implementation: `e1ef352ea`. File-by-file changes, tests, failures and reproductions:
 [round-2 report](reports/20260924-following-v2/review-round2.md).
+
+## 2026-09-24 — LLP 3000.013 lane D, Grok review round 2
+
+Addressed all four findings. Streaming key-decode and key-copy scratch is
+released with each row; one retained cursor/key reservation remains and grows
+only for a larger key. Inner aborting domains now decode one prepaid row at a
+time, charge selected images and buffers before retaining them, and release
+decoder scratch separately. Their existing select-before-body semantics stay.
+Adaptive job pages fetch one candidate at a time for every read-rule class,
+with key work prepaid. Round 1 had already removed the forced 32-row fetch.
+Added four simulator regressions and tightened both retained digest heap
+assertions. Temporary mutations doubling scratch, removing retention charges,
+restoring 32-row job fetches and bypassing row rules each fail the intended
+regression; all faults were restored before final verification.
+
+The original retained 5,000-candidate / 4,900-hit / 50-recipient fixture peaks
+at 370,216 B (previously 4,102,784 B), below its new 370,500 B test envelope
+and the unchanged 16 MiB job ceiling. Its cumulative Rust allocation counter
+is 48,089,687 B, not a live-heap or RSS claim. The ordinal/once digest peaks
+at 372,756 B; scheduled scale still emits 50 digests in 26 chunks, K=2 after
+five retries, across restart/rerun, at 1,309,094 B peak. A 16,370-row domain
+with 256-character index keys peaks at 22,233 B. Non-uniform sweeps with legal
+large JSON payloads finish at K=2 and K=1 under differing per-item work; a
+too-large inner domain refuses before reaching a deliberately malformed final
+row, rolling back all keys/effects. The read-rule regression visits three
+rows in a permitted prefix and excludes the denied row from count and sum.
+
+149 affected tests pass, one existing test ignored; PostgreSQL compiles.
+scripts/test.sh: `== 1 failure(s) in 151 s` (`cargo test`), solely the four
+recorded baseline failures: legacy schema capability, word-expansion fixture,
+authoring census and CLI why text. The census difference matches baseline
+exactly. No new or environmental failures remain. WASM is 1,714,371 B raw /
+475,536 B gzip, within the unchanged 476,000 B budget. Ref-check: 504 LLP docs,
+9,212 refs, zero errors/unchecked. Largest changed source: 1,289 lines.
+
+No admission, authorization, expiry, effect transaction, replay/prediction,
+syntax or IR changes; no runtime ceiling increase, push or publication.
+File-by-file details, executable forms, measurements, fault-injection results
+and baseline reproductions: `reports/20260924-intent-work-r2.md`.

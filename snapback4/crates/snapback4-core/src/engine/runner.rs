@@ -478,10 +478,13 @@ impl<'a> Runner<'a> {
     pub(super) fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
         let values = match domain {
             LoopDomain::Page(scan) => {
-                let values = self.scan(scan)?;
+                // @ref LLP 3000.013#5.2 — uncapped inner job domains must pay before decoding/retaining each row, not after materializing a whole page.
+                let prepaid = scan.take == Bound::Meter && self.meter.cut == Cut::Abort
+                    && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)));
+                let values = if prepaid { self.metered_domain(scan)? } else { self.scan(scan)? };
                 #[cfg(feature = "postgres")]
                 self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, self.tx);
-                self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?;
+                if !prepaid { self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?; }
                 Ok(values)
             }
             LoopDomain::LiteralRange { start, end_exclusive } => {

@@ -84,7 +84,9 @@ fn dropping_count_results_does_not_remove_sqlite_decode_allocations() {
             let (run, allocated, elapsed) = measured(|| engine.run_job("streamPeriod", args, 20_000).unwrap());
             assert_eq!(run.state, snapback4_core::JobState::Done, "{run:?}");
             assert_eq!(run.chunks, 1);
-            assert!(run.heap_peak < Ceilings::job().heap_bytes, "{run:?}");
+            // Pin this fixture's envelope tightly enough that doubling the
+            // per-row key scratch fails, even when the scratch is released.
+            assert!(run.heap_peak <= 370_500, "transient scratch envelope: {run:?}");
             let effects = engine.effects(None, 10).unwrap();
             assert_eq!(effects.len(), 1);
             assert_eq!(effects[0].payload.field("n").unwrap(), &Value::Int(4900));

@@ -714,7 +714,18 @@ impl Runner<'_> {
         let prefix = self.prefix_values(scan)?;
         let table = &self.schema.tables[&scan.table];
         let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
-        self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, None, true)
+        self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, None, true, false)
+    }
+
+    /// An aborting domain retains a bounded result vector, but decodes only
+    /// one prepaid row at a time. Transfer each selected image to the retained
+    /// row/vector allowance before releasing that iteration's decode scratch.
+    pub(super) fn metered_domain(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
+        self.schema.refuse_private(&scan.table)?;
+        let prefix = self.prefix_values(scan)?;
+        let table = &self.schema.tables[&scan.table];
+        let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
+        self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, None, false, true).map(|(rows, _)| rows)
     }
 
     #[cfg(feature = "sqlite")]
@@ -785,7 +796,7 @@ impl Runner<'_> {
     /// expressions still govern uniformity; freezing them into literals would
     /// lose facts such as a prefix pinned to `viewer`.
     fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
-        self.scan_consumed(scan, prefix, bounds, take, word, None, false)
+        self.scan_consumed(scan, prefix, bounds, take, word, None, false, false)
     }
 
     // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
@@ -813,7 +824,7 @@ impl Runner<'_> {
         let bounds = self.bounds(scan, table, index, Some(&prefix))?;
         let mut total = 0_i128;
         self.page_depth += 1;
-        let result = self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, Some((&mut total, projection)), false);
+        let result = self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, Some((&mut total, projection)), false, false);
         self.page_depth -= 1;
         result?;
         if scan.existence && total == 0 && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
@@ -826,7 +837,7 @@ impl Runner<'_> {
         Value::int(total).map_err(Into::into)
     }
 
-    fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<(&mut i128, Option<&Expr>)>, job_page: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+    fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<(&mut i128, Option<&Expr>)>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
@@ -875,29 +886,32 @@ impl Runner<'_> {
         // Ordinary jobs may hold an empty Purge grant; that is not a transition.
         let metered_payload = word.is_some_and(|w| w.metered)
             || matches!(&self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_)));
-        if metered_payload { self.meter.heap(word_heap::bounds(&bounds))?; }
-        let mut cursor = bounds.clone();
         let streaming = aggregate.is_some();
-        let batch = if streaming { 1 } else if job_page { take } else if visibility.uniform { take + 1 } else { (take + 1).max(32) };
+        let transient = streaming || metered_domain;
+        if metered_payload || transient { self.meter.heap(word_heap::bounds(&bounds))?; }
+        let mut cursor = bounds.clone();
+        // One retained cursor/key allowance, outside the transient row scope.
+        // Key payload sizes vary: only grow this reservation when a
+        // larger key is encountered, before its decode or clone can allocate.
+        let mut cursor_heap = 0;
+        let batch = if transient || job_page { 1 } else if visibility.uniform { take + 1 } else { (take + 1).max(32) };
         let mut row_heap = None;
         let mut row_bytes = 0;
         let mut consumed = 0;
 
         'outer: loop {
-            if streaming {
+            if transient {
                 if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
                 row_bytes = 0;
                 if !self.read_charge(MeterKind::Steps, 1)? { break; }
                 row_heap = Some(self.meter.mark());
             }
             let fetch_heap = self.meter.used.heap_bytes;
-            // Adaptive chunks have no lookahead: even one extra decoded row
-            // can refuse K=1 when each iteration itself fits. A later chunk
-            // establishes exhaustion. Rejected rows leave selected slots open.
-            let batch = if job_page { take - visible.len() } else { batch };
-            let fetched = if metered_payload || streaming || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
+            // No adaptive lookahead, even for non-uniform rules. A later chunk
+            // establishes exhaustion; every new candidate must first fit.
+            let fetched = if metered_payload || transient || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
                 else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
-            if streaming { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
+            if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
             if fetched.is_empty() {
                 break;
             }
@@ -910,13 +924,22 @@ impl Runner<'_> {
                     capped = true;
                     break 'outer;
                 }
-                // Decode scratch and the retained seek position, before decoding the key.
-                if metered_payload || streaming { self.meter.heap(word_heap::key_decode(index.components.len() + 1, key.len()))?; }
+                // The previous cursor remains reserved while the new key is
+                // decoded. Transient consumers release scratch with this row.
+                if metered_payload || transient || job_page {
+                    let scratch = word_heap::key_decode(index.components.len() + 1, key.len());
+                    if transient {
+                        let retained = scratch + word_heap::allocation(key.len());
+                        if retained > cursor_heap { self.meter.heap(retained - cursor_heap)?; cursor_heap = retained; }
+                    }
+                    self.meter.heap(scratch)?;
+                    if transient { row_bytes += scratch; }
+                }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
-                let materialized = if metered_payload || streaming || job_page { word_heap::materialize(&row, table) } else { 0 };
+                let materialized = if metered_payload || transient || job_page { word_heap::materialize(&row, table) } else { 0 };
                 if materialized > 0 { self.meter.heap(materialized)?; }
                 materialize_optional_fields(&mut row, table);
-                if streaming { row_bytes += materialized; }
+                if transient { row_bytes += materialized; }
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
                     continue;
@@ -956,7 +979,11 @@ impl Runner<'_> {
                     }
                     let Some(row) = live_row else { continue; };
                     let row = super::recorded::public_image(table, row);
-                    if metered_payload || streaming { self.meter.heap(word_heap::allocation(key.len()))?; }
+                    if metered_payload || transient || job_page {
+                        let scratch = word_heap::allocation(key.len());
+                        self.meter.heap(scratch)?;
+                        if transient { row_bytes += scratch; }
+                    }
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
                         if metered_payload { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
@@ -1001,7 +1028,13 @@ impl Runner<'_> {
                         has_more = true;
                         break 'outer;
                     }
-                    if metered_payload {
+                    if metered_domain {
+                        // The store prepaid decoding; retain the image and both
+                        // result buffers before another row can be decoded.
+                        self.meter.heap(row.heap_bytes() + word_heap::allocation(key.len()))?;
+                        word_heap::push(&mut self.meter, &mut visible, row)?;
+                        word_heap::push(&mut self.meter, &mut keys, key.clone())?;
+                    } else if metered_payload {
                         // Charge retention of a store-provided row and the emitted raw key
                         // before either output vector grows; moves do not copy row bodies.
                         self.meter.heap(word_heap::allocation(key.len()))?;
