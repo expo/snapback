@@ -274,13 +274,26 @@ export function createApp(options: AppOptions): App {
       finally { for (const signal of signals) signal.removeEventListener("abort", abort); }
     };
     let raw: Client | undefined;
+    let notifyPublished: (() => void) | undefined;
+    // Native host observers must not adopt a restoration candidate that can
+    // still be discarded when its rotated session is persisted.
+    const device = options.device && { open: async (...args: Parameters<DeviceOpener["open"]>) => {
+      const core = await options.device!.open(...args);
+      const notify = core.onClient?.bind(core);
+      if (notify) core.onClient = (client, origin) => {
+        let stop: void | (() => void);
+        notifyPublished = () => { stop = notify(client, origin); };
+        return () => stop?.();
+      };
+      return core;
+    } };
     try {
       await keepSession(url, session, scopedStore);
       if (!scope.valid || revision !== expected) return inactive();
       if (options.device) {
         // Preserve all local tuning while retaining app-owned identity, even
         // when an untyped caller supplies lower-level sign-in options.
-        const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: options.device };
+        const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
         raw = await createLocalClient({ ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch });
       } else raw = createClient({ url, session, fetch: scopedFetch });
       scope.client = raw;
@@ -330,6 +343,7 @@ export function createApp(options: AppOptions): App {
       restoreToken = undefined;
       current = client;
       publish("signed-in", raw.viewer(), warning);
+      notifyPublished?.();
       return { ok: true, session: next };
     } catch (error) {
       if (revision === expected) hide("restoring");

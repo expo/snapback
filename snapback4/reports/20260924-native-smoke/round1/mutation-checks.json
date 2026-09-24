@@ -1,0 +1,42 @@
+[
+  {
+    "mutation": "restart-prime-only",
+    "exitStatus": 1,
+    "rejected": true
+  },
+  {
+    "mutation": "latch-first-client",
+    "exitStatus": 1,
+    "rejected": true
+  },
+  {
+    "mutation": "stale-final-snapshot",
+    "exitStatus": 1,
+    "rejected": true
+  },
+  {
+    "mutation": "ignore-generation",
+    "exitStatus": 1,
+    "rejected": true
+  },
+  {
+    "mutation": "any-object-is-optional",
+    "exitStatus": 1,
+    "rejected": true
+  },
+  {
+    "mutation": "notify-unpublished-client",
+    "exitStatus": 1,
+    "rejected": true
+  },
+  {
+    "mutation": "driver-prime-only",
+    "exitStatus": 101,
+    "rejected": true
+  },
+  {
+    "mutation": "allow-crashed-success",
+    "exitStatus": 101,
+    "rejected": true
+  }
+]

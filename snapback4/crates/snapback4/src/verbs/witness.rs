@@ -1,6 +1,7 @@
 //! Installed-app witness driver. It owns its backend and capture children;
 //! simulator operations always name a resolved UDID, never `booted`.
 mod protocol;
+mod smoke;
 use protocol::*;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
@@ -14,17 +15,17 @@ fn tick() -> Result<()> {
 
 struct Options {
     bundle: String, udid: Option<String>, segment: String, artifacts: PathBuf,
-    port: u16, timeout: Duration, prime: bool, relaunch: bool,
+    port: u16, timeout: Duration, prime: bool, relaunch: bool, smoke: bool,
 }
 impl Options {
     fn parse(args: &[String]) -> Result<Self> {
-        if args.first().map(String::as_str) != Some("ios") { return Err(error("E_WITNESS_INPUT", "use snapback4 witness ios --bundle-id <id> --segment <name> --artifacts <dir> [--udid <id>] [--port 4400] [--prime] [--relaunch] [--timeout 120]")); }
+        if args.first().map(String::as_str) != Some("ios") { return Err(error("E_WITNESS_INPUT", "use snapback4 witness ios --smoke --bundle-id <id> --artifacts <dir> [--udid <id>] [--port 4400] [--prime] [--relaunch] [--timeout 120]")); }
         let mut flags = BTreeMap::new();
         let mut iter = args.iter().skip(1);
         while let Some(flag) = iter.next() {
             let Some(key) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", format!("unexpected argument {flag}"))); };
-            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
-            let value = if ["prime", "relaunch"].contains(&key) { String::new() } else {
+            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
+            let value = if ["prime", "relaunch", "smoke"].contains(&key) { String::new() } else {
                 iter.next().filter(|s| !s.starts_with("--")).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} requires a value")))?
             };
             if flags.insert(key, value).is_some() { return Err(error("E_WITNESS_INPUT", format!("duplicate --{key}"))); }
@@ -32,12 +33,16 @@ impl Options {
         let required = |key| flags.get(key).filter(|s| !s.is_empty()).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} is required; see snapback4 guide witness")));
         let bundle = required("bundle-id")?;
         if !bundle.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') { return Err(error("E_WITNESS_INPUT", "invalid bundle identifier")); }
-        let segment = required("segment")?;
+        let smoke = flags.contains_key("smoke");
+        if smoke && ["segment", "prime", "relaunch"].iter().any(|key| flags.contains_key(key)) {
+            return Err(error("E_WITNESS_INPUT", "--smoke owns prime, offline and restart; omit --segment, --prime and --relaunch"));
+        }
+        let segment = if smoke { "smoke".into() } else { required("segment")? };
         if !name(&segment) || segment == "prime" { return Err(error("E_WITNESS_INPUT", "--segment uses letters, digits, hyphens or underscores; prime is reserved")); }
         let artifacts = PathBuf::from(required("artifacts")?);
         let port = flags.get("port").map_or(Ok(4400), |s| s.parse::<u16>()).ok().filter(|p| *p > 0).ok_or_else(|| error("E_WITNESS_INPUT", "--port must be 1..65535"))?;
         let seconds = flags.get("timeout").map_or(Ok(120), |s| s.parse::<u64>()).ok().filter(|s| *s > 0 && *s <= 86400).ok_or_else(|| error("E_WITNESS_INPUT", "--timeout must be 1..86400 seconds per step"))?;
-        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: flags.contains_key("prime"), relaunch: flags.contains_key("relaunch") })
+        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke })
     }
 }
 
@@ -112,10 +117,10 @@ impl Run {
         Ok(())
     }
     // @ref LLP 3000.007#20.10 — the launch PID owns cleanup, never the bundle alone
-    fn terminate(&mut self) -> Result<()> {
-        let Some(pid) = self.app_pid else { return Ok(()); };
+    fn terminate(&mut self, require_alive: bool) -> Result<()> {
+        let Some(pid) = self.app_pid else { return if require_alive { Err(error("E_WITNESS_APP", "successful segment lost its owned PID")) } else { Ok(()) }; };
         match self.running_app()? {
-            None => { self.app_pid = None; return Ok(()); }
+            None => { self.app_pid = None; return if require_alive { Err(error("E_WITNESS_APP", format!("app PID {pid} exited before deliberate termination"))) } else { Ok(()) }; }
             Some(current) if current != pid => {
                 self.app_pid = None;
                 return Err(error("E_WITNESS_APP", format!("{} on {} was replaced by PID {current}; leaving that instance running", self.options.bundle, self.udid)));
@@ -133,10 +138,10 @@ impl Run {
         self.app_pid = None;
         self.events.push(json!({ "step": "app-terminated", "pid": pid, "at": now() })); Ok(())
     }
-    fn launch(&mut self, prime: bool) -> Result<()> {
+    fn launch(&mut self, segment: &str) -> Result<()> {
         self.require_stopped()?;
-        let segment = if prime { "prime" } else { &self.options.segment };
-        let config = json!({ "run": self.run, "segment": segment, "timeoutMs": self.options.timeout.as_millis() });
+        let config = json!({ "run": self.run, "segment": segment, "timeoutMs": self.options.timeout.as_millis(),
+            "smoke": self.options.smoke, "barrierSeq": self.manifest["syncBarrier"]["seq"], "baseline": self.manifest["segments"]["prime"]["receipt"] });
         let mut command = Command::new("xcrun");
         command.args(["simctl", "launch", &self.udid, &self.options.bundle])
             .env("SIMCTL_CHILD_SNAPBACK4_WITNESS", config.to_string())
@@ -160,7 +165,7 @@ impl Run {
         let status = status?;
         if !status.success() { return Err(error("E_WITNESS_APP", format!("app launch failed ({status}); see {}", self.path("launch.log").display()))); }
         let pid = self.app_pid.ok_or_else(|| error("E_WITNESS_APP", "simctl launch did not report an app PID; cannot claim ownership"))?;
-        self.events.push(json!({ "step": if prime { "prime-launched" } else { "offline-launched" }, "pid": pid, "at": now() })); Ok(())
+        self.events.push(json!({ "step": format!("{segment}-launched"), "pid": pid, "at": now() })); Ok(())
     }
     fn start_backend(&mut self) -> Result<()> {
         let reservation = reserve(self.options.port)?;
@@ -169,6 +174,7 @@ impl Run {
         let offset = fs::metadata(&stdout).map_or(0, |m| m.len()) as usize;
         let mut command = Command::new(binary);
         command.args(["dev", "--port", &self.options.port.to_string(), "--no-watch"])
+            .env("SNAPBACK4_WITNESS_DRIVER", "1")
             .stdin(Stdio::null()).stdout(output(&stdout)?).stderr(output(&self.path("backend.log"))?);
         drop(reservation);
         self.backend = Some(Owned::spawn(&mut command)?);
@@ -267,15 +273,16 @@ impl Run {
         video?; logs?; self.event("recording-stopped"); Ok(())
     }
     fn execute(&mut self) -> Result<()> {
+        if self.options.smoke { return self.execute_smoke(); }
         self.require_stopped()?;
         self.start_backend()?;
-        if self.options.prime { self.launch(true)?; self.wait_step("primed", false)?; self.terminate()?; }
+        if self.options.prime { self.launch("prime")?; self.wait_step("primed", false)?; self.terminate(false)?; }
         self.stop_backend()?;
         self.capture()?;
-        self.launch(false)?;
+        self.launch(&self.options.segment.clone())?;
         if self.options.relaunch {
-            self.wait_step("relaunch", true)?; self.terminate()?;
-            self.launch(false)?; self.event("offline-relaunched");
+            self.wait_step("relaunch", true)?; self.terminate(false)?;
+            self.launch(&self.options.segment.clone())?; self.event("offline-relaunched");
         }
         self.wait_step("offline-done", true)?;
         self.start_backend()?;
@@ -283,7 +290,7 @@ impl Run {
         self.event("reconnect-signaled");
         self.wait_step("done", false)?;
         self.finish_capture()?;
-        self.terminate()?;
+        self.terminate(false)?;
         self.stop_backend()?;
         Ok(())
     }
@@ -314,6 +321,8 @@ impl Run {
             sequence(&rows, &self.expected(), true)
         }) { if problem.is_none() { problem = Some(e); } }
         if result.is_ok() && let Some(e) = &problem { self.manifest["exitStatus"] = json!(1); self.manifest["error"] = json!(e); }
+        if self.options.smoke { self.save_smoke(&mut problem); }
+        if result.is_ok() && let Some(e) = &problem { self.manifest["exitStatus"] = json!(1); self.manifest["error"] = json!(e); }
         fs::write(self.path("run.json"), serde_json::to_vec_pretty(&self.manifest).unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         if let Some(e) = problem { return Err(e); } Ok(())
     }
@@ -321,7 +330,7 @@ impl Run {
 impl Drop for Run {
     fn drop(&mut self) {
         let _ = self.finish_capture();
-        if self.app_pid.is_some() { let _ = self.terminate(); }
+        if self.app_pid.is_some() { let _ = self.terminate(false); }
         if let Some(mut backend) = self.backend.take() { let _ = backend.stop(libc::SIGTERM); }
     }
 }
@@ -341,6 +350,10 @@ fn prepare(options: Options) -> Result<Run> {
         build[key] = json!(String::from_utf8_lossy(&output.stdout).trim());
     }
     if build["CFBundleIdentifier"] != options.bundle { return Err(error("E_WITNESS_APP", "installed Info.plist bundle identifier does not match --bundle-id")); }
+    let installed = if options.smoke {
+        json!({ "executable": artifact(&Path::new(&app).join(build["CFBundleExecutable"].as_str().unwrap()))?,
+            "javascript": artifact(&Path::new(&app).join("main.jsbundle"))? })
+    } else { Value::Null };
     let _reservation = reserve(options.port)?;
     if app_pid(&simctl(&["spawn", &udid, "launchctl", "list"], options.timeout)?, &options.bundle)?.is_some() {
         return Err(error("E_WITNESS_APP", format!("{} is already running on {udid}; quit it before starting the witness", options.bundle)));
@@ -352,8 +365,8 @@ fn prepare(options: Options) -> Result<Run> {
     let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let cwd = std::env::current_dir().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let project = cwd.ancestors().find(|p| p.join("snapback/schema.q").is_file()).ok_or_else(|| error("E_WITNESS_BACKEND", "no snapback/schema.q here or above; run the witness from your backend project"))?;
-    let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "appBuild": build, "appPath": app,
-        "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
+    let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
+        "mode": if options.smoke { "smoke" } else { "application" }, "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
         "backend": { "command": [binary.to_string_lossy(), "dev", "--port", options.port.to_string(), "--no-watch"],
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },
         "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", options.segment)),
@@ -371,7 +384,7 @@ pub fn run(args: &[String]) -> i32 {
         INTERRUPTED.store(false, Ordering::Relaxed);
         // On failure finalize capture before collecting and hashing artifacts.
         let cleanup = run.finish_capture();
-        let app = if run.app_pid.is_some() { run.terminate() } else { Ok(()) };
+        let app = if run.app_pid.is_some() { run.terminate(false) } else { Ok(()) };
         let backend = if run.backend.is_some() { run.stop_backend() } else { Ok(()) };
         let result = result.and(cleanup).and(app).and(backend);
         let saved = run.save(&result);

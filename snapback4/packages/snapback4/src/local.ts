@@ -51,6 +51,8 @@ interface SyncPage extends Record<string, unknown> {
 
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
+  /** Native host instrumentation, absent on ordinary launches. Uses this client, never a second one. */
+  onClient?(client: LocalClient, url: string): void | (() => void);
   readonly media?: MediaStorage;
   /** Web recovery may acquire an orphan outbox without a backend change. */
   onOutbox?(listener: () => void): () => void;
@@ -1229,6 +1231,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch { /* The ordinary sync/retry path owns an unreachable probe. */ }
   }
 
+  let stopHost: void | (() => void);
   const client: LocalClient = {
     act(op, args, options) {
       return act(op, args, options, options?.id ?? mintId(), post, () => unavailable() ?? (link !== "online" ? offline() : undefined));
@@ -1416,6 +1419,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     close() {
       if (closing) return closing;
       closed = true;
+      stopHost?.();
       setAcquired(false);
       acquiredListeners.clear();
       stopSuspend?.();
@@ -1462,6 +1466,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   follow();
   void flush();
   scheduleRefresh();
+  stopHost = core.onClient?.(client, base);
   return client;
   } catch (error) {
     stopSuspend?.();

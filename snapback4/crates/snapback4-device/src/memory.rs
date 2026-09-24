@@ -199,6 +199,10 @@ fn project(row: &mut Value, table: &Table) -> bool {
 }
 
 impl DeviceStore for MemoryStore {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn witness_count(&self, table: &str) -> Result<u64, RuntimeError> {
+        Ok(self.state.borrow().rows.range((table.to_owned(), String::new())..).take_while(|((t, _), _)| t == table).count() as u64)
+    }
     type Tx<'a> = MemoryTx<'a>;
 
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {

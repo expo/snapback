@@ -23,6 +23,10 @@ pub trait DeviceStore {
         if !expected.is_empty() { return Err(RuntimeError::Store("this device store cannot check backend adoption captures".into())); }
         self.install(schema, metadata, reset)
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    fn witness_count(&self, _table: &str) -> Result<u64, RuntimeError> {
+        Err(RuntimeError::Store("this host cannot count held rows for the native witness".into()))
+    }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
     fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError>;
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError>;

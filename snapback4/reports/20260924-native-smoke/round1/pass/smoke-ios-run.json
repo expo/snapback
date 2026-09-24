@@ -1,0 +1,378 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/92367552-2B65-40D8-9697-E0C33793F72C/data/Containers/Bundle/Application/F8679FC0-5163-45B8-ADB8-C5B0CD51CEB7/Snapback4chat.app",
+  "artifacts": {
+    "device.log": {
+      "bytes": 4439912,
+      "path": "../../reports/20260924-native-smoke/round1/pass/smoke-ios-device.log",
+      "sha256": "eb59d4b4c7460772202686bde500c5a73067e1b75486c503fd63833681e4ed28"
+    },
+    "offline.png": {
+      "bytes": 95268,
+      "path": "../../reports/20260924-native-smoke/round1/pass/smoke-ios-offline.png",
+      "sha256": "81acf35c9680fcdc6ebd886a95f34fa006296314e9168b7798a36fd47fc97d30"
+    },
+    "prime.png": {
+      "bytes": 95142,
+      "path": "../../reports/20260924-native-smoke/round1/pass/smoke-ios-prime.png",
+      "sha256": "4d14fda44ceb0c9e217f87e6f99dd221ac41035853bbe44c3e94da697ba59ff3"
+    },
+    "receipts.jsonl": {
+      "bytes": 1785,
+      "path": "../../reports/20260924-native-smoke/round1/pass/smoke-ios-receipts.jsonl",
+      "sha256": "cce0a0b713f7259e7f908a97a9d433f79bda81897834932e776479551104fe1e"
+    },
+    "restart.png": {
+      "bytes": 95142,
+      "path": "../../reports/20260924-native-smoke/round1/pass/smoke-ios-restart.png",
+      "sha256": "4d14fda44ceb0c9e217f87e6f99dd221ac41035853bbe44c3e94da697ba59ff3"
+    },
+    "screen.mp4": {
+      "bytes": 7652690,
+      "path": "../../reports/20260924-native-smoke/round1/pass/smoke-ios-screen.mp4",
+      "sha256": "e2ab8407b4d9fd8dc033416457ef509727881db3d7f183c5a768948f0a619178"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/../../target/debug/snapback4",
+      "dev",
+      "--port",
+      "4448",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat",
+    "origin": "http://127.0.0.1:4448",
+    "port": 4448,
+    "store": "/Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "cliVersion": "0.4.0",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/92367552-2B65-40D8-9697-E0C33793F72C/data/Containers/Data/Application/FF7E9758-CC18-4657-AD13-25E693C15D27",
+  "endedAt": 1790264467110,
+  "error": null,
+  "events": [
+    {
+      "at": 1790264459027,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790264459358,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790264460010,
+      "pid": 16574,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790264460010,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790264460532,
+      "step": "primed"
+    },
+    {
+      "at": 1790264461926,
+      "pid": 16574,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790264462094,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790264462741,
+      "pid": 16935,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790264462741,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790264463157,
+      "step": "offline-done"
+    },
+    {
+      "at": 1790264464425,
+      "pid": 16935,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790264464433,
+      "step": "smoke-sync-barrier"
+    },
+    {
+      "at": 1790264464538,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790264465082,
+      "pid": 17364,
+      "step": "restart-launched"
+    },
+    {
+      "at": 1790264465082,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1790264465606,
+      "step": "done"
+    },
+    {
+      "at": 1790264466884,
+      "pid": 17364,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790264467050,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790264467110,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "installed": {
+    "executable": {
+      "bytes": 5503760,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/92367552-2B65-40D8-9697-E0C33793F72C/data/Containers/Bundle/Application/F8679FC0-5163-45B8-ADB8-C5B0CD51CEB7/Snapback4chat.app/Snapback4chat",
+      "sha256": "3b9a76ba2497413a68e12c9f73b8f14364ec91d8d0e41a7d03ff883a67814f5e"
+    },
+    "javascript": {
+      "bytes": 1784583,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/92367552-2B65-40D8-9697-E0C33793F72C/data/Containers/Bundle/Application/F8679FC0-5163-45B8-ADB8-C5B0CD51CEB7/Snapback4chat.app/main.jsbundle",
+      "sha256": "c563da29f3275aad682621ede69bcb3322535a0f0e1b6860ad1f4d2f2b85eccb"
+    }
+  },
+  "mode": "smoke",
+  "outputs": [
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-run.json",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-screen.mp4",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-receipts.jsonl",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-device.log",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-video.log",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-launch.log",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-backend.log",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-backend-stdout.log",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-log-stderr.log",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-prime.png",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-offline.png",
+    "../../reports/20260924-native-smoke/round1/pass/smoke-ios-restart.png"
+  ],
+  "prime": true,
+  "relaunch": false,
+  "reservation": "../../reports/20260924-native-smoke/round1/pass/smoke-ios-reserved",
+  "run": "1790264458587-16227",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+  "segment": "smoke",
+  "segments": {
+    "offline": {
+      "durationMs": 2331,
+      "endedAt": 1790264464425,
+      "error": null,
+      "receipt": {
+        "acquired": true,
+        "backendRequired": false,
+        "durationMs": 156,
+        "endedAt": 1790264463145,
+        "errors": [],
+        "generation": 1,
+        "link": "offline",
+        "origin": "http://127.0.0.1:4448",
+        "pass": true,
+        "queries": [
+          {
+            "complete": true,
+            "count": 1,
+            "cut": null,
+            "fresh": false,
+            "name": "inbox",
+            "state": "ready"
+          }
+        ],
+        "rows": {
+          "conversations": 1,
+          "memberships": 1,
+          "messageCounts": 1,
+          "messages": 3,
+          "profiles": 1
+        },
+        "segment": "offline",
+        "startedAt": 1790264462989,
+        "storeId": "2a7835a658a9b70460840477cc8b4ed8",
+        "viewer": "guest:01M3A16TBRKV8F02EWM1SNHBTB",
+        "watermark": 1
+      },
+      "receipts": [
+        {
+          "acquired": true,
+          "backendRequired": false,
+          "durationMs": 156,
+          "endedAt": 1790264463145,
+          "errors": [],
+          "generation": 1,
+          "link": "offline",
+          "origin": "http://127.0.0.1:4448",
+          "pass": true,
+          "queries": [
+            {
+              "complete": true,
+              "count": 1,
+              "cut": null,
+              "fresh": false,
+              "name": "inbox",
+              "state": "ready"
+            }
+          ],
+          "rows": {
+            "conversations": 1,
+            "memberships": 1,
+            "messageCounts": 1,
+            "messages": 3,
+            "profiles": 1
+          },
+          "segment": "offline",
+          "startedAt": 1790264462989,
+          "storeId": "2a7835a658a9b70460840477cc8b4ed8",
+          "viewer": "guest:01M3A16TBRKV8F02EWM1SNHBTB",
+          "watermark": 1
+        }
+      ],
+      "startedAt": 1790264462094,
+      "status": "passed"
+    },
+    "prime": {
+      "durationMs": 2568,
+      "endedAt": 1790264461926,
+      "error": null,
+      "receipt": {
+        "acquired": true,
+        "backendRequired": false,
+        "durationMs": 159,
+        "endedAt": 1790264460462,
+        "errors": [],
+        "generation": 1,
+        "link": "online",
+        "origin": "http://127.0.0.1:4448",
+        "pass": true,
+        "queries": [],
+        "rows": {
+          "conversations": 1,
+          "memberships": 1,
+          "messageCounts": 1,
+          "messages": 3,
+          "profiles": 1
+        },
+        "segment": "prime",
+        "startedAt": 1790264460303,
+        "storeId": "2a7835a658a9b70460840477cc8b4ed8",
+        "viewer": "guest:01M3A16TBRKV8F02EWM1SNHBTB",
+        "watermark": 1
+      },
+      "receipts": [
+        {
+          "acquired": true,
+          "backendRequired": false,
+          "durationMs": 159,
+          "endedAt": 1790264460462,
+          "errors": [],
+          "generation": 1,
+          "link": "online",
+          "origin": "http://127.0.0.1:4448",
+          "pass": true,
+          "queries": [],
+          "rows": {
+            "conversations": 1,
+            "memberships": 1,
+            "messageCounts": 1,
+            "messages": 3,
+            "profiles": 1
+          },
+          "segment": "prime",
+          "startedAt": 1790264460303,
+          "storeId": "2a7835a658a9b70460840477cc8b4ed8",
+          "viewer": "guest:01M3A16TBRKV8F02EWM1SNHBTB",
+          "watermark": 1
+        }
+      ],
+      "startedAt": 1790264459358,
+      "status": "passed"
+    },
+    "restart": {
+      "durationMs": 2346,
+      "endedAt": 1790264466884,
+      "error": null,
+      "receipt": {
+        "acquired": true,
+        "backendRequired": false,
+        "barrierSeq": 2,
+        "durationMs": 147,
+        "endedAt": 1790264465562,
+        "errors": [],
+        "generation": 1,
+        "link": "online",
+        "origin": "http://127.0.0.1:4448",
+        "pass": true,
+        "queries": [],
+        "rows": {
+          "conversations": 1,
+          "memberships": 1,
+          "messageCounts": 1,
+          "messages": 3,
+          "profiles": 1
+        },
+        "segment": "restart",
+        "startedAt": 1790264465415,
+        "storeId": "2a7835a658a9b70460840477cc8b4ed8",
+        "viewer": "guest:01M3A16TBRKV8F02EWM1SNHBTB",
+        "watermark": 2
+      },
+      "receipts": [
+        {
+          "acquired": true,
+          "backendRequired": false,
+          "barrierSeq": 2,
+          "durationMs": 147,
+          "endedAt": 1790264465562,
+          "errors": [],
+          "generation": 1,
+          "link": "online",
+          "origin": "http://127.0.0.1:4448",
+          "pass": true,
+          "queries": [],
+          "rows": {
+            "conversations": 1,
+            "memberships": 1,
+            "messageCounts": 1,
+            "messages": 3,
+            "profiles": 1
+          },
+          "segment": "restart",
+          "startedAt": 1790264465415,
+          "storeId": "2a7835a658a9b70460840477cc8b4ed8",
+          "viewer": "guest:01M3A16TBRKV8F02EWM1SNHBTB",
+          "watermark": 2
+        }
+      ],
+      "startedAt": 1790264464538,
+      "status": "passed"
+    }
+  },
+  "startedAt": 1790264458587,
+  "syncBarrier": {
+    "applicationWrites": 0,
+    "at": 1790264464433,
+    "seq": 2
+  },
+  "timestampUnit": "unix-ms",
+  "udid": "92367552-2B65-40D8-9697-E0C33793F72C"
+}

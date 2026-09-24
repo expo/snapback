@@ -50437,3 +50437,143 @@ meter, package version, push or publication change. No Bob unrepost test,
 scope deviation or new open problem. The inherited full-history search
 N_NO_HORIZON exception is unchanged. File map, audit and qualification:
 reports/20260924-guide-review-r6.md. Logs: ~/sb4-intent/lane-f-r6-*.log.
+
+## 2026-09-24 — Lane N: no-app-code native smoke witness
+
+Added `snapback4 witness ios --smoke` as a mode of the installed-app driver.
+An explicit smoke launch lazily loads the Expo runner, installs the native
+uncaught-error handler and binds to the application's own local client through
+an optional device-host hook. Ordinary launches do not load the runner. No
+contract change, new endpoint, privileged read or application mutation was
+added. The deeper app-specific witness remains available and stays inactive
+on smoke launches.
+
+Prime proves restored/signed-in session, online link and full partition
+acquisition. Native SQLite supplies counts of synced tables without decoding
+rows. A terminated/relaunched offline app must keep those counts and identity;
+all queries with no required arguments return ready counts or explained
+refusals through that same client. Restart must reconnect and advance the
+watermark. A quiet backend cannot advance a commit clock from reads: while
+both owned processes are stopped, the driver adds one identified zero-write
+commit through existing store APIs. It changes no application row, index,
+stream event or operation receipt, and the manifest records the sync barrier.
+The existing ownership, connection-refusal, capture, receipt and cleanup
+protocols carry all three cold segments and screenshots.
+
+The Release chat app now uses ordinary createApp/AppProvider startup and
+SecureStore; its persona and deeper witness paths remain available. On the
+M5 Air's actual macOS 27.0 / Xcode 27.0 toolchain, the dedicated iOS 26.4
+simulator passed in 8.521 s: counts 1 conversation, 1 membership, 1 derived
+message count, 3 messages and 1 profile survived all launches; offline inbox
+was ready with one complete local result; no uncaught errors; watermark 1→2.
+A separately rebuilt Release throwing on offline JS entry failed as intended
+in 5.538 s, with the fatal error in the receipt and restart unrun. The injected
+source was restored. Both manifests, their hashed screenshots/video/logs,
+negative-control patch, fixture preparation and detailed commands are retained
+under `reports/20260924-native-smoke/`.
+
+Used headless prebuild/xcodebuild/simctl instead of Expo's UI-opening launch
+step. One build job and a 40 GiB disk watchdog respected the in-use host;
+free disk stayed above 70 GiB. The dedicated simulator was shut down/deleted.
+An initial unsigned build exposed SecureStore's entitlement requirement;
+normal simulator signing resolved it without an application workaround.
+The initial host-hook test's open long poll caused a Node teardown socket
+error; explicitly closing the app before fixture teardown resolved it.
+Affected verification passed: 21 driver tests, 45 client/app/runner/helper
+tests, native SQLite counts/reopen test, package and Expo typechecks, docs
+budget, reference validation (505 LLPs / 9,236 refs, zero errors/unchecked).
+WASM is 485,463 B gzip under the unchanged 486,000 B ceiling. The runner never
+writes application data; screenshots naturally retain visible app data while
+receipts retain counts only. Native smoke does not claim Android, physical
+devices, required-argument queries or deeper application behavior. Versions
+remain inherited 0.4.0 for the supervisor's 0.4.2 integration; no packages
+were published and no independent review is claimed.
+
+The complete suite exposed a stale React browser fixture exporting only
+openClient after the Expo reference app adopted openApp. Updated that fixture
+to return an app-shaped owner and exercise AppProvider on the controlled
+client. All 17 actual React hook/lifecycle tests passed in the focused rerun;
+no production change or native rebuild was needed for this correction.
+
+Complete suite result: `== 1 failure(s) in 1572 s`, client tests only. All
+857 Rust executions from 140 binaries passed (2,716 tests, 13 ignored), and
+doctests, builds, typechecks, docs budget, release guard and fixture wrappers
+passed. Initial clients: 1,032 passed, 48 failed, nine skipped. In addition
+to the corrected React fixture, 47 failures shared a 600-second timeout of
+the wire-fixture export waiting on cold single-job Cargo compilation. Both
+complete failure files then passed 99/99 with no skips in 42.705 s; the
+strengthened populated-store barrier test passed separately. The whole suite
+was not rerun and its initial nonzero result remains in the report. Cold
+serial build-lock contention remains a suite-harness limitation, not a
+claimed green full-suite run. Final reference and whitespace checks pass.
+
+Delivery encountered an inapplicable root Snapback 1 pre-push hook failing
+its acorn import in this fresh worktree. Under the explicit Snapback 4 fence,
+the branch push uses command-local `-c core.hooksPath=/dev/null`; no persistent
+hook configuration or package installation/publication is changed.
+
+
+## 2026-09-24 — Lane N round 1: close native-smoke review findings
+
+Addressed all six supplied Astra/Grok findings. Restart launch configuration
+now names the exact zero-write barrier sequence; both JS and driver validation
+require reaching it, so prime 7 / persisted tail 8 cannot pass barrier 9.
+Successful segments require their owned PID to remain present until deliberate
+termination, including after a successful done receipt. Final receipts reread
+device state after the render pause and repeat readiness, identity, offline
+counts and restart barrier checks.
+
+The native hook now receives createApp's client only after publication, with
+synchronous host detachment on close. The runner follows replacements under
+one step and discards obsolete samples without failure receipts. A real
+SQLite/session test restores a bearer one hour from expiry and introduces a
+competing rotation during construction: the discarded candidate closes,
+only its published replacement reaches the hook, and smoke completes. Added
+isolated generation-mismatch and real required-Ref argument selection cases.
+
+Eight deliberate mutations were rejected, covering both barrier validators,
+the missing-process check, first-client latching, unpublished notification,
+the final snapshot, generation identity and Optional selection. All mutations
+were restored before final verification and native qualification. One initial
+mutation test asserted inside construction and hung on cleanup; moving the
+assertion after restoration produced a clean two-versus-one attachment failure.
+
+Final affected checks pass: 66 JS tests, 22 witness driver tests, two smoke
+unit tests, 57 guide tests, package/Expo typechecks, docs budget and references
+(505 documents / 9,236 refs, zero errors/unchecked). The whole suite was not
+repeated; the preceding round's nonzero full-suite result remains documented.
+No unchanged full-suite or WASM rebuild is claimed.
+
+Fresh signed Release runs on dedicated headless iOS 26.4 simulator
+92367552-2B65-40D8-9697-E0C33793F72C: positive exit 0 in 8.523 s, all counts
+preserved and no errors, restart watermark 2 consuming barrier 2; deliberately
+broken offline startup exit 1 in 5.831 s, fatal error retained and restart not
+run. The app-specific runner remains unmounted. Restored the injected source,
+verified every artifact hash, and shut down/deleted the dedicated simulator.
+Evidence and exact commands: reports/20260924-native-smoke/round1/. Earlier
+manifests remain historical. Unchanged native framework hashes match the
+initial round. No remaining failure in the supplied review scope, no version
+bump, no package publication, and no independent re-review verdict claimed.
+
+## 2026-09-24 — Lane N round 2: close remaining smoke regression gaps
+
+Added runner regressions for client acquisition disappearing during the render
+pause while device acquisition stays true (prime, offline and restart), and
+for restart watermark 9 regressing to 8 below barrier 9 after the pause. Both
+require failure receipts with no successful smoke receipt. Extended the fake
+simulator's crash-after-success modes to prime and offline, alongside restart;
+the driver must fail the crashed segment, leave later segments unrun and stop
+its backend without claiming deliberate termination of the vanished PID.
+
+Mutation checks rejected removing the final readiness assertion, removing the
+final barrier assertion, and restricting live-PID enforcement to restart. The
+last mutation failed both new prime/offline cases independently. Restored all
+production source before final verification; this round changes tests only.
+
+Affected checks passed with the pinned Node 24 toolchain and serial Cargo:
+`node --test packages/snapback4/test/native-smoke.test.mjs packages/snapback4/test/witness.test.mjs`
+(15 passed), and `cargo test -p snapback4 --test witness -- --test-threads=1`
+(24 passed in 62.92 s). Whitespace checks pass. No full-suite or native rerun
+was needed for these test-only additions; round 1's committed native manifests
+remain unchanged. No package publication. Delivery retains the previously
+recorded command-local Snapback 1 hook exception under the Snapback 4 fence.

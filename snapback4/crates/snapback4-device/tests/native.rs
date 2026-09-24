@@ -317,3 +317,22 @@ fn finding_1_another_owner_adopting_b_does_not_bless_this_owners_a_programs() {
     reader.adopt(b).unwrap();
     assert_eq!(reader.query("marker", "alice", &json!({}), 1).unwrap().data, Value::String("B".into()));
 }
+
+#[test]
+fn smoke_counts_held_rows_without_exporting_contents_and_survives_reopen() {
+    let source = "table items:\n  value: text <=100\n  read <- allow\n  sync public\ntable empty:\n  value: int\n  read <- allow\n  sync public\ntable remote:\n  value: int\n  read <- allow\n";
+    let (mut engine, backend) = compile(source);
+    engine.seed([("items".into(), snapback4_core::value::object([("id", id("a")), ("value", Value::String("PRIVATE CONTENT".into()))]))]).unwrap();
+    let host = Sqlite::new("native-smoke-counts");
+    let path = host.path("device");
+    let mut device = Device::open(&path, Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let state = snapback4_device::call::call(&mut device, serde_json::json!({"op": "witness_state"}));
+    assert_eq!(state["ok"]["rows"], serde_json::json!({"items": 1, "empty": 0}));
+    assert_eq!(state["ok"]["acquired"], true);
+    assert_eq!(state["ok"]["watermark"], engine.seq().unwrap());
+    assert!(!state.to_string().contains("PRIVATE CONTENT"));
+    drop(device);
+    let mut reopened = Device::open(&path, None).unwrap();
+    assert_eq!(snapback4_device::call::call(&mut reopened, serde_json::json!({"op": "witness_state"})), state);
+}

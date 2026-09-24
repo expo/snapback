@@ -83,6 +83,9 @@ Native sessions use SecureStore; browser persistence is explicit because page sc
 uses the online client. Keep the starter's Metro config and wasm transformer.
 `assets` retains viewed media within its byte budget when a device is available; Expo Go's online tier ignores it.
 
+Prove the native runtime: `npx snapback4 witness ios --smoke --bundle-id ID --udid "$UDID" --artifacts artifacts/native-smoke` (no app code).
+Build/install Release first; `npx snapback4 guide witness` explains the three receipts and the deeper application runner.
+
 ```ts
 // src/client.ts
 import { Platform } from "react-native";

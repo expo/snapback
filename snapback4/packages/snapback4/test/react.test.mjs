@@ -54,7 +54,16 @@ test("React hooks and reference-app lifetimes", async (t) => {
           if (/\/(?:chat\/src|chat-expo)\/App\.tsx$/.test(importer) && /\/(?:Inbox|Thread)(?:\.tsx)?$/.test(id)) return "\0home-views";
         },
         load(id) {
-          if (id === "\0open-client") return "export const openClient = (...args) => globalThis.openClient(...args); export const createLocalClient = openClient;";
+          if (id === "\0open-client") return `
+            export const openClient = (...args) => globalThis.openClient(...args);
+            export const createLocalClient = openClient;
+            export const persona = undefined;
+            export async function openApp(...args) {
+              const client = await openClient(...args);
+              const snapshot = { state: "signed-in", viewer: client.viewer() };
+              return { client, auth: { getSnapshot: () => snapshot, onChange: () => () => {} }, close: () => client.close() };
+            }
+          `;
           if (id === "\0generated-api") return 'export const api = { send: { kind: "mutation", name: "send" }, markRead: { kind: "mutation", name: "markRead" }, room: { kind: "query", name: "room" }, thread: { kind: "query", name: "thread" } };';
           if (id === "\0home-views") return "export const Inbox = () => null; export const Thread = () => null;";
           if (id === "\0witness-launch") return "export const witness = () => null;";
