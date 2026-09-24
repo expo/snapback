@@ -1,0 +1,42 @@
+# complete battery red: cargo-audit
+
+**Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Testing, CI
+**Date:** 2026-09-24
+**Battery gate:** `cargo-audit`
+**Failure signature:** `sha256:bb07cd9bc0e0a16b3a6efff6b7866e2d0f6795045082972a00f511d2f96fea23`
+**First observed run:** `local.20260924T130725Z.942753a689cd`
+**Last observed run:** `local.20260924T130725Z.942753a689cd`
+**Last processed run:** `local.20260924T130725Z.942753a689cd`
+**Detected at revision:** `942753a689cd474aeff0cc571b2b4336ca4fe9f4`
+**Last observed revision:** `942753a689cd474aeff0cc571b2b4336ca4fe9f4`
+**Consecutive red runs:** `1`
+**Escalation:** `pending (1/4)`
+**Related:** LLP 0189 D-1, LLP 0175 D2.3
+
+## Summary
+
+The scheduled complete canonical battery reported `cargo-audit` as a root
+failure (exit 1). This ticket is keyed by gate plus the normalized
+root-failure signature and remains idempotent while open. Dependent `BLOCKED`
+results do not create tickets.
+
+## Standing claim cross-references
+
+- None.
+
+These are the standing published claims whose recorded LLP 0189 D-4 scope
+derives `cargo-audit` as claim-relevant for this battery revision.
+
+## Reproduce and repair
+
+```sh
+cargo audit --deny unmaintained
+```
+
+Fix forward, rerun the complete battery, and let the next determinate pass close
+this signature. Four consecutive red observations require author escalation.
