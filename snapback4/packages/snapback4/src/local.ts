@@ -1331,17 +1331,25 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
     async upload(bytes) {
+      if (refreshing) await refreshing;
       const unavailableWhy = unavailable();
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const request = requestCredentials();
       const uploaded = await uploadAsset(base, request.headers, doFetch, bytes,
         () => !unavailable() && link === "online" && request.revision === credentialRevision);
-      if (uploaded.ok && !unavailable() && request.revision === credentialRevision) {
+      const interrupted = (): Refusal | null => unavailable() ?? (request.revision !== credentialRevision
+        ? { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } : null);
+      let why = interrupted();
+      if (why) return { ok: false, why };
+      if (uploaded.ok) {
         // The device keeps only facts received from this uploader's server reply.
         await call({ op: "upload_facts", viewer: principal, asset: uploaded.asset });
       }
       if (!uploaded.ok) await refusedSession(uploaded.why, request.revision);
+      // Device persistence and session refusal can yield to a rotation too.
+      why = interrupted();
+      if (why) return { ok: false, why };
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },

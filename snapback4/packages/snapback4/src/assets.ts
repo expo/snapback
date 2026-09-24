@@ -58,7 +58,9 @@ function ownBlob(blob: Blob): () => void {
 
 export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes, canRetry: () => boolean = () => true): Promise<Uploaded> {
   const { "content-type": _json, ...auth } = headers;
-  const body = bytes instanceof Uint8Array ? new Blob([bytes as BlobPart]) : bytes;
+  // Caller-owned buffers may change during admission backoff. Every attempt
+  // sends the same snapshot; Blob inputs are already immutable.
+  const body = bytes instanceof Uint8Array || bytes instanceof ArrayBuffer ? new Blob([bytes as BlobPart]) : bytes;
   try {
     let waited = 0;
     for (let attempt = 0; ; attempt++) {

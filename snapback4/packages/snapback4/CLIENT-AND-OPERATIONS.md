@@ -651,6 +651,10 @@ delay (seconds or an HTTP date) is a minimum wait. Total retry waits are
 limited to 10 s; a longer requested wait returns the refusal immediately
 without retrying early. Other refusals and transport failures are returned
 without retrying: a lost reply may follow a stored upload.
+Buffer inputs are snapshotted before the first attempt. Closing or signing
+out refuses an in-flight result; rotating the session returns `E_AUTH` with
+a request to start the upload again. An upload never returns an old session's
+success or replays its bytes under the replacement bearer.
 
 ```ts
 import type { Client } from "snapback4/contract";

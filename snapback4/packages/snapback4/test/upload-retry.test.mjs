@@ -63,6 +63,32 @@ test("upload admission attempts are bounded and return the last refusal unchange
   assert.deepEqual(result, { ok: false, why: rateLimit });
 });
 
+test("upload snapshots a caller-owned ArrayBuffer before the first attempt", async t => {
+  immediateTimers(t);
+  const original = new Uint8Array([1, 2, 3]);
+  const bodies = [];
+  const result = await uploadAsset("http://uploads.invalid", {}, async (_, init) => {
+    bodies.push([...new Uint8Array(await new Response(init.body).arrayBuffer())]);
+    original.fill(9);
+    return bodies.length === 1 ? Response.json({ denied: rateLimit }, { status: 429 }) : Response.json({ asset });
+  }, original.buffer);
+  assert.deepEqual(result, { ok: true, asset });
+  assert.deepEqual(bodies, [[1, 2, 3], [1, 2, 3]]);
+  assert.deepEqual([...original], [9, 9, 9]);
+});
+
+test("repeated Retry-After: 6 consumes the cumulative ten-second wait budget", async t => {
+  const delays = immediateTimers(t);
+  let attempts = 0;
+  const result = await uploadAsset("http://uploads.invalid", {}, async () => {
+    attempts++;
+    return Response.json({ denied: rateLimit }, { status: 429, headers: { "Retry-After": "6" } });
+  }, bytes);
+  assert.equal(attempts, 2);
+  assert.deepEqual(delays, [6000]);
+  assert.deepEqual(result, { ok: false, why: rateLimit });
+});
+
 for (const why of [{ ...rateLimit, retryable: false }, { ...rateLimit, retryable: undefined }, { ...rateLimit, code: "E_STORE" }, { ...rateLimit, code: "E_AUTH", retryable: false }]) {
   test(`upload does not retry ${why.code} with retryable=${why.retryable}`, async t => {
     const delays = immediateTimers(t);
@@ -107,6 +133,6 @@ test("closing the client during admission backoff prevents another upload", asyn
     attempts++; return Response.json({ denied: rateLimit }, { status: 429 });
   } });
   close = () => client.close();
-  await client.upload(bytes);
+  assert.equal((await client.upload(bytes)).why.code, "E_CLOSED");
   assert.equal(attempts, 1);
 });
