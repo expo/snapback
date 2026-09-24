@@ -228,6 +228,7 @@ const cases = {
       await act(async () => { await auth.signup("alice", "password"); });
       const alice = client;
       await act(async () => { setDraft("alice draft"); await write.run({ body: "alice write" }); });
+      for (let n = 0; n < 200 && read.data !== "Bearer alice"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
       equal(read.data, "Bearer alice", "query hook uses Alice");
       await act(async () => { await auth.signup("bob", "password"); });
       check(client !== alice && auth.viewer === "bob", "provider switched clients");

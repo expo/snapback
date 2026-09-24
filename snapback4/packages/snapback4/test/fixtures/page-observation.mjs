@@ -100,7 +100,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     offline = false; holdWrite = false;
     const switched = await reader.auth.login("bob@example.com", "password-bob");
     check(switched.ok && reader.auth.viewer === bob.session.principal, "account switched");
-    check(inbox.getSnapshot().denied?.code === "E_CLOSED", "old client clears its kept answer");
+    check(inbox.getSnapshot().denied?.code === "E_AUTH", "the retired app facade refuses access and clears its kept answer");
     if (hooks) await until(() => hooks.read().query.data?.[0]?.principal === bob.session.principal, "new account's hooks answer");
     if (hooks) check(hooks.read().page.items.every(row => row.principal === bob.session.principal), "pages contain only the new account's rows");
     return { keptUnread: kept.data[0].unread, since: kept.since, serverFallback: true, accountCleared: true };

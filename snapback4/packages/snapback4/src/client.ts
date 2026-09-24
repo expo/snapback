@@ -320,7 +320,12 @@ export function createClient(options: ClientOptions): Client {
   }
 
   function post(path: string, body: unknown) {
-    const request = waitForCaller(sendPost(path, body), aborter.signal).then(result => result ?? { ok: false as const });
+    const request = waitForCaller(sendPost(path, body), aborter.signal).then(result => {
+      // A terminal store change owns outstanding effect outcomes: preserve its
+      // explicit unknown-outcome refusal instead of an ordinary offline retry.
+      if (storeRefusal && path.startsWith("/a/")) return { ok: true as const, json: { denied: storeRefusal } };
+      return result ?? { ok: false as const };
+    });
     requests.add(request);
     void request.finally(() => requests.delete(request)).catch(() => {});
     return request;

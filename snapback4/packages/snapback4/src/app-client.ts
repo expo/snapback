@@ -5,7 +5,7 @@ import { mintId } from "./client.ts";
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
  * I12 preserves dispatched outcomes: a fence cannot turn a commit into failure. */
-export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal) {
+export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined) {
   let active = true;
   const valid = () => active && validScope();
   const cleanups = new Set<() => void>(), invalidations = new Set<() => void>();
@@ -50,7 +50,8 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
       let snapshot: Read<R> = { loading: true };
-      const denied: Read<R> = { denied: why() };
+      let refused: Read<R> | undefined;
+      const denied = (): Read<R> => refused ??= { denied: why() };
       const listeners = new Set<() => void>();
       const emit = () => { for (const listener of listeners) notify(listener); };
       const detach = () => { stop?.(); source?.close(); source = undefined; stop = undefined; };
@@ -69,9 +70,9 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
           stop = source.subscribe(() => { void refresh().catch(() => {}); });
         }
         return refresh();
-      }).catch(() => { snapshot = denied; emit(); });
+      }).catch(() => { snapshot = denied(); emit(); });
       return {
-        getSnapshot: () => valid() ? snapshot : denied,
+        getSnapshot: () => valid() ? snapshot : denied(),
         subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
         close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
       };
@@ -83,7 +84,15 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       try { snapshot = JSON.parse(JSON.stringify(args)); }
       catch { return { state: "failed", id, why: { code: "E_INPUT", family: "input", message: "mutation arguments must be JSON-serializable", guide: "writes" } }; }
       const denied = await refusal();
-      if (denied) return { state: "failed", id, why: denied };
+      if (denied) {
+        // A repeated ID can already have durable custody behind this facade.
+        // Store retirement must commit before a terminal refusal can escape.
+        if (["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(denied.code)) {
+          try { await retireStore?.(); }
+          catch { return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
+        }
+        return { state: "failed", id, why: denied };
+      }
       return raw.mutate(op, snapshot, { ...options, id });
     },
     async write(id) {

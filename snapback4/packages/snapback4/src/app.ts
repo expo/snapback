@@ -328,6 +328,9 @@ export function createApp(options: AppOptions): App {
       }
       if (scope.sealing && path === new URL(url + "/auth/refresh").pathname) throw new Error("global logout is selecting its retry credential");
       if (!await authorized()) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
+      // The epoch check awaits storage. A concurrent response can retire this
+      // store while it waits; never dispatch a fresh request through that gap.
+      if (changedStore && !path.startsWith("/auth/")) return Response.json({ denied: changedStore });
       if (init?.signal?.aborted) throw init.signal.reason ?? new Error("request was cancelled");
       if (!scope.valid && !path.startsWith("/auth/")) throw new Error("app opener was cancelled");
       if (path !== "/schema") {
@@ -471,7 +474,7 @@ export function createApp(options: AppOptions): App {
       recoverStore();
       const baseClient = custody?.client ?? raw;
       scope.expose = () => {
-        const guarded = guardClient(baseClient, authorized, () => scope.valid, () => new SessionEpochChanged().why);
+        const guarded = guardClient(baseClient, authorized, () => scope.valid, () => changedStore ?? new SessionEpochChanged().why, () => retirement);
         const client = guarded.client;
         scope.view = client; scope.fenceView = guarded.fence;
         const exposed = () => owner === scope && current === client;

@@ -61,11 +61,11 @@ test('R6 scheduled replay: saturation preserves admitted pending recovery', asyn
   assert.ok(coverage['check.admitted-pending'] > 0, 'the schedule recovered a held pending intent');
 });
 
-for (const oldestFailure of [false, true]) test(`R6 scheduled replay: retry ${oldestFailure ? 'an E_UNIQUE' : 'a sent'} id displaced by retirement after reopening`, async () => {
-  const coverage = {};
+for (const ordinaryFailureCode of [null, 'E_UNIQUE', 'E_CONFLICT']) test(`R6 scheduled replay: retry ${ordinaryFailureCode ? `an ${ordinaryFailureCode}` : 'a sent'} id displaced by retirement after reopening`, async () => {
+  const coverage = {}, oldestFailure = ordinaryFailureCode !== null;
   await execute([{ op: 'query' }, { op: 'release' }, { op: 'write' }, { op: 'replace' },
     { op: 'query' }, { op: 'release', pick: 1 }, { op: 'release' }, { op: 'release' }],
-    'app', coverage, { journalSize: 256, oldestFailure });
+    'app', coverage, { journalSize: 256, oldestFailure, ordinaryFailureCode });
   assert.ok(coverage[oldestFailure ? 'retirement.displaced.ordinary-failure' : 'retirement.displaced.sent'] > 0, 'retirement displaced the oldest receipt');
   assert.ok(coverage['write.displaced-retry'] > 0, 'the reopened client retried its id');
   if (oldestFailure) assert.ok(coverage['write.displaced-ordinary-retry'] > 0, 'the retry covers the displaced ordinary failure');
@@ -79,3 +79,9 @@ test('session recovery replay: replacement keeps a refresh that never reached th
 test('session recovery replay: sign-out still cleans up an unreached refresh', () => execute([
   { op: 'refreshUnreached' }, { op: 'signOut' }, { op: 'release' },
 ], 'client'));
+
+// E's epoch lookup awaits storage; J's terminal store fence still owns dispatch
+// after that await. These schedules exercise both action and mutation sends.
+for (const seed of [774, 2592]) test(`integrated store fence survives an awaited epoch check: seed ${seed}`, () => execute(
+  generate(seed), 'app', {}, { journalSize: seed % 4 ? 255 : 256,
+    unknownReceipts: seed % 8 ? 0 : 8, oldestFailure: seed % 8 === 4, saturated: seed % 20 === 0 }));

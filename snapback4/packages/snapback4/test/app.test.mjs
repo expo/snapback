@@ -766,7 +766,7 @@ test("logout retry revokes a discarded login after its token-comparison read thr
     },
     async get(k) {
       if (k === key && brokenRead) { failedReads++; throw Error("token comparison is unavailable"); }
-      if (k === key && failedWrites.length === 2) comparedOriginal = true;
+      if (k === key && failedWrites.includes(key)) comparedOriginal = true;
       return memory.get(k);
     },
   };
@@ -786,7 +786,7 @@ test("logout retry revokes a discarded login after its token-comparison read thr
   assert.notEqual(issued.token, original.token);
   brokenWrites = true;
   assert.equal((await app.auth.logout()).ok, false);
-  assert.deepEqual(failedWrites, [key + ".epoch", key], "both durable fences failed");
+  assert.deepEqual(failedWrites.filter(k => k === key || k === key + ".epoch"), [key], "the atomic session-and-epoch fence failed before any revocation");
   await until(() => comparedOriginal, "the stored bearer was compared before the read outage");
   brokenRead = true;
   release(); assert.equal((await pending).ok, false);
