@@ -82,7 +82,7 @@ impl Binder<'_> {
                     let (value, ty) = self.value_of(&items[0], out)?;
                     let mut origins = binding.origins.clone();
                     origins.push((Ty::List(Box::new(ty.clone()), 1), right.as_ref().clone()));
-                    let joined = if *max == 0 { ty.clone() } else { item.join(&ty).map_err(|error| self.join_error_many(error, &origins))? };
+                    let joined = if *max == 0 { ty.clone() } else { item.join(&ty).map_err(|error| self.join_error_many(error.at("[]"), &origins))? };
                     if !ty.assignable_to(item) && !item.assignable_to(&ty) {
                         return Err(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"));
                     }
@@ -105,7 +105,7 @@ impl Binder<'_> {
                 if let Some(mut binding) = self.binding(name).cloned() {
                     let mut origins = binding.origins.clone();
                     origins.push((ty.clone(), value.clone()));
-                    let joined = binding.declared.join(&ty).map_err(|error| self.join_error_many(error, &origins))?;
+                    let joined = binding.declared.join(&ty).map_err(|error| self.assignment_join_error(error, name, &origins))?;
                     if ty != Ty::Null && binding.declared != Ty::Null && !ty.assignable_to(&binding.declared) && !binding.declared.assignable_to(&ty) {
                         return Err(type_error(site, format!("{name} is {}; cannot rebind it to {}", binding.declared.name(), ty.name()), "use a different local for a different type"));
                     }

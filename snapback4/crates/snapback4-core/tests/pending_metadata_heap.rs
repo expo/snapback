@@ -83,3 +83,38 @@ fn pending_only_metadata_pays_heap_and_cuts_during_evaluation_on_sqlite() {
     let tx = engine.store_mut().transaction().unwrap();
     check(&tx);
 }
+
+#[test]
+fn a_pending_row_with_ordinary_columns_pays_for_metadata_before_outer_fields() {
+    fn check_row(rows: &dyn Rows) {
+        // An ordinary pending row, not a metadata-only synthetic base. Its
+        // shared literal allocation is free to clone; the projection still
+        // allocates 40 + 80 + 7 bytes for its sole pending entry.
+        const PENDING: u64 = 127;
+        let metadata = || Expr::Shape {
+            base: Box::new(Expr::Literal(object([
+                ("id", Value::Id("note".into())),
+                ("title", Value::String("original".into())),
+                ("pending", Value::Bool(true)),
+            ]))),
+            fields: BTreeMap::new(),
+        };
+        let complete = query(rows, metadata(), PENDING);
+        assert!(complete.complete);
+        assert_eq!(complete.data, object([("pending", Value::Bool(true))]));
+        assert_eq!(complete.metered.heap_bytes, PENDING);
+        let cut = query(rows, Expr::Shape {
+            base: Box::new(metadata()),
+            fields: [("title".into(), Expr::Literal(Value::String("later".into())))].into(),
+        }, PENDING - 1);
+        assert!(!cut.complete);
+        assert_eq!(cut.data, Value::Null);
+        assert_eq!(cut.metered.heap_bytes, PENDING);
+        assert_eq!(cut.metered.steps, 4, "outer field must not run");
+        assert_eq!(cut.capped_at, Some((MeterKind::HeapBytes, "metadata:1".into())));
+    }
+    check_row(&MemoryRows::new());
+    let mut engine = Engine::memory(Schema::default(), []).unwrap();
+    let tx = engine.store_mut().transaction().unwrap();
+    check_row(&tx);
+}

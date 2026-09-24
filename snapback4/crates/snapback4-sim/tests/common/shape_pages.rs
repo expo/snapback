@@ -780,7 +780,7 @@ fn w13h_incompatible_record_alternatives_are_refused_at_the_join() {
 fn incompatible_return(tail: &str) {
     let source = format!("{}{}query feed(c: cursor ?, q: text <=100):\n  page = msgs[0] after c first 1 by byLane\n  ignored = page {{ id, preview: extra[1] first 2 by byLane }}\n{tail}\n", table("msgs"), table("extra"));
     let result = snapback4_lang::compile(&[("schema.q".into(), source)]);
-    assert!(result.diagnostics.iter().any(|d| d.code == "E_QUARRY_SHAPE_JOIN" && d.rewrite.contains("q")), "{:?}", result.diagnostics);
+    assert!(result.diagnostics.iter().any(|d| d.code == "E_QUARRY_SHAPE_JOIN" && d.rewrite.is_empty() && d.message.contains("make both arms the same kind")), "{:?}", result.diagnostics);
 }
 
 #[test]

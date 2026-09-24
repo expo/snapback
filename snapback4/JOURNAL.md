@@ -50082,3 +50082,113 @@ zero errors and zero unchecked. Every changed source is under 1,500 lines;
 git diff --check passes. The earlier extra-tested write targets remain
 intentionally stopped; this round does not alter their authorization or
 residual-test limitation. No push or package publication.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 10: known-empty collectors and bounded diagnostic promises
+
+Fixed the collector regression in types.rs: rebound preserves zero-length
+List and Collection bounds, including under nested types. A reset to []
+inside a loop no longer becomes an unbounded Unknown element that conflicts
+with the next row append. Nonempty Unknown/row joins still refuse; no meter
+or resource bound is removed. JoinError now records a field path through
+objects, sequences and view projections. Differing outer object kinds also
+check their shared fields for a deeper conflict, so an outer spread cannot
+be suggested for a nested mismatch it would leave unresolved.
+
+Removed the recursive diagnostic rewrite generator from
+bind/program/joins.rs (198 lines before this round, 123 after). No more
+collection-copy loops, scalar wrappers, recursive field projections,
+source hoisting or generated temporary locals. Coalescing, nested conflicts,
+containers, helper/operation returns, ordering helpers and complex source
+expressions receive an explanation and an empty rewrite field. The message
+names arm A and arm B's kinds, any conflicting field path, and the need to
+make the kinds agree. diag.rs omits the rewrite line for that empty field;
+the existing JSON field remains an empty string, with no envelope change.
+
+Executable repairs are limited to flat row-derived locals or point reads
+in a conditional or a two-value reassignment. The normalized types must
+join, and assignment types must also be structurally assignable. The
+condition and operands use the program's actual names. A nullable operand
+is evaluated once with existing null-preserving shape/member behavior:
+`((notes[key]) { rowCopy: { ... . } }).rowCopy`. This preserves absence and
+pending while keeping each read at its original conditional or assignment
+site. There is no temporary-name or eager-fallback setup to insert.
+
+Engineering decision within the requested guarantee: assignment repairs
+also require adjacent assignments, optionally with the second in a single
+guarded branch whose condition does not use the assigned local. Otherwise
+normalizing the initial RowShape to RowObject could change an intervening
+wildcard shape before the conflicting assignment. Such cases get the same
+explanation-only diagnostic. Scalar/plain-object arms also get explanations,
+since spreading them cannot guarantee the common row kind or metadata.
+Source operands retained by the binder are only for these located repairs,
+not type-lattice or runtime provenance. No RowMixed machinery returned.
+
+File-by-file integration: control.rs selects the conservative assignment
+repair and locates append conflicts; expr.rs adds array element paths;
+views.rs adds projected field paths. guide/codes.rs updates the existing
+E_QUARRY_SHAPE_JOIN why entry; guide/shapes.rs states known emptiness and
+which diagnostics promise source edits. sim/tests/common/shape_pages.rs
+now checks explanation-only refusal for its incompatible record alternatives.
+No new form or refusal code, no IR/device/wire/schema changes, and no
+changes to authorization, disclosure, durability or metering behavior.
+
+lang/tests/joined_shapes.rs now has 14 tests. The existing 60-program matrix
+still refuses all differing Row/RowShape/RowObject/Object pairs across
+conditionals, assignments, helper returns, lists and containers. It executes
+only the 12 supported simple row-pair repairs, comparing both choices with
+the direct spread; the other cases assert explanation-only output. Added
+and updated regressions cover:
+- [] resets in a two-iteration row collector, an empty alias, conditional
+  [], and both initially empty and initially nonempty collectors;
+- empty helper returns, coalescing and conditional row-list assignments,
+  plus a nonempty Unknown collector that must still refuse its row append;
+- Astra's nullable left coalescing and missing-row fallback cases, with no
+  rewrite; matching-kind controls still preserve null and skip the fallback;
+- the nested RowShape.item/RowObject.item conflict, deeper item.child and
+  item[] paths, and a conflict beneath differing outer kinds;
+- nullable locals and point reads in both supported repair contexts, both
+  condition values, present/missing rows, and an asserted missing row only
+  on the taken arm. Result types stay optional; independently expected
+  examined counts prove each selected read executes once;
+- intervening wildcard observations and a condition using the reassigned
+  local, which must get no source edits;
+- the two older erasure sequences, same-kind wildcard/text/pending behavior,
+  nested Optional rows against scalars and Unknown, coalescing/order/view
+  refusals, multiple assignments, helper returns and appends.
+Explanation tests check human formatting and JSON's empty rewrite field.
+
+Also closed the other Low witness in the located Astra review:
+core/tests/pending_metadata_heap.rs now starts with a pending row containing
+id and title. It independently expects 127 bytes for the metadata projection
+and a 126-byte cut before any outer field runs (four steps), on both Rows
+stores. This complements the prior metadata-only-base oracle; no engine
+code changed. The review was at ~/sb4-intent/reviews/k-d7.astra.md.
+
+Fault injections detected and restored: dropping zero-bound preservation
+fails both empty-collector tests; restoring the round-9 recursive rewrite
+generator fails eight join tests; dropping Optional recursion fails the
+nested-type test; skipping Shape's heap charge for a base with ordinary
+columns fails the new heap witness; removing the adjacency guard fails the
+intervening-use test. These intentional failures are negative verification,
+not unresolved suite failures. Evidence is /tmp/lane-k-r10-*-mutant.log.
+
+Restored targeted verification: 57 guide, 14 joined-shape and 16 natural-form
+cases, three heap tests and the affected simulator continuation case passed.
+Initial development failures were ours: eight old tests still required
+now-forbidden generated rewrites, and one new meter assertion used the
+nonexistent probes field before being corrected to examined. All are fixed.
+Bun install --frozen-lockfile checked 506 installs with no changes. Baseline
+tail read before attribution. Reference check passed 505 LLP documents,
+9,238 refs, zero errors and zero unchecked. Changed source files remain
+under 1,500 lines; git diff --check passes.
+
+The first and only full scripts/test.sh run finished with the exact summary
+`== 0 failure(s) in 186 s`. No own, baseline or environmental full-suite
+failure. Client tests passed 1,054, skipped 10 and failed zero. Evidence:
+/tmp/lane-k-r10-full-suite.log; targeted evidence is in
+/tmp/lane-k-r10-targeted-final.log, /tmp/lane-k-r10-simple.log,
+/tmp/lane-k-r10-heap.log and /tmp/lane-k-r10-continuation.log.
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. No unresolved round-10 problem. The conservative eligibility checks
+above are the engineering choices where the brief leaves proof scope open;
+there is no functional deviation. No push or publication.

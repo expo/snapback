@@ -49,6 +49,8 @@ impl Ty {
     pub(crate) fn rebound(self) -> Ty {
         match self {
             Ty::Text(_) => Ty::Text(u32::MAX),
+            // A known empty value stays empty, even at a loop header.
+            Ty::List(_, 0) | Ty::Collection(_, 0) => self,
             Ty::List(item, _) => Ty::List(Box::new(item.rebound()), u32::MAX),
             Ty::Collection(item, _) => Ty::Collection(Box::new(item.rebound()), u32::MAX),
             Ty::Object(fields) => Ty::Object(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
@@ -221,7 +223,7 @@ impl Ty {
         if *other == Ty::Null { return Ok(self.clone().optional()); }
         if let Ty::Optional(a) = self { return Ok(a.join(&other.required())?.optional()); }
         if let Ty::Optional(b) = other { return Ok(self.required().join(b)?.optional()); }
-        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name() };
+        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new() };
         Ok(match (self, other) {
             (Ty::Null, other) | (other, Ty::Null) => other.clone().optional(),
             (Ty::Unknown, other) | (other, Ty::Unknown) if !other.contains_row() => other.clone(),
@@ -231,7 +233,7 @@ impl Ty {
                 let mut fields = BTreeMap::new();
                 for (name, ty) in a {
                     fields.insert(name.clone(), match b.get(name) {
-                        Some(other) => ty.join(other)?,
+                        Some(other) => ty.join(other).map_err(|error| error.at(name))?,
                         None => ty.clone().optional(),
                     });
                 }
@@ -243,6 +245,16 @@ impl Ty {
                     Ty::RowObject(_) => Ty::RowObject(fields),
                     _ => Ty::Object(fields),
                 }
+            }
+            // Differing outer kinds can also hide a conflict in a shared
+            // field. Explain that path rather than proposing an outer-only fix.
+            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b)) => {
+                for (name, ty) in a {
+                    if let Some(other) = b.get(name) {
+                        ty.join(other).map_err(|error| error.at(name))?;
+                    }
+                }
+                return Err(conflict());
             }
             (Ty::Collection(a, am), Ty::Collection(b, bm)) => Ty::Collection(Box::new(join_items(a, *am, b, *bm)?), *am.max(bm)),
             (Ty::List(a, am), Ty::List(b, bm)) => Ty::List(Box::new(join_items(a, *am, b, *bm)?), *am.max(bm)),
@@ -310,12 +322,22 @@ impl Ty {
 pub struct JoinError {
     pub left: String,
     pub right: String,
+    pub path: String,
+}
+
+impl JoinError {
+    pub(crate) fn at(mut self, path: &str) -> Self {
+        self.path = if self.path.is_empty() { path.into() }
+            else if self.path.starts_with("[]") { format!("{path}{}", self.path) }
+            else { format!("{path}.{}", self.path) };
+        self
+    }
 }
 
 // An empty sequence supplies no arm to compare, including the initial []
 // of a collector. Unknown in a nonempty value never gets this exemption.
 fn join_items(a: &Ty, am: u32, b: &Ty, bm: u32) -> Result<Ty, JoinError> {
-    if am == 0 { Ok(b.clone()) } else if bm == 0 { Ok(a.clone()) } else { a.join(b) }
+    if am == 0 { Ok(b.clone()) } else if bm == 0 { Ok(a.clone()) } else { a.join(b).map_err(|error| error.at("[]")) }
 }
 
 pub fn scalar_to_column(scalar: &ScalarType) -> ColumnType {

@@ -77,7 +77,7 @@ impl Binder<'_> {
                     let current = projection_source(lane, &name);
                     let origins = field_sources.get_mut(&name).unwrap();
                     origins.push((ty.clone(), current));
-                    old.join(&ty).map_err(|error| self.join_error_many(error, origins))?;
+                    old.join(&ty).map_err(|error| self.join_error_many(error.at(&name), origins))?;
                     let joined = view_join(old, &ty).ok_or_else(|| type_error(&lane.site,
                         format!("view {} field {name}: {} conflicts with {} at {}", merge.table, ty.name(), old.name(), first_site.as_ref().unwrap()),
                         format!("project compatible values for {name} in every branch")).guide("reads"))?;
