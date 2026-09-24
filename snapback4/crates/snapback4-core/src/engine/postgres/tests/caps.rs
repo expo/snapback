@@ -15,6 +15,8 @@ table items:
   delete <- allow
 mutation add(id: id, group: text <=20):
   insert items { id, group, until: null }
+mutation born():
+  insert items { id: 'born', group: 'a', until: 0 }
 "#.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
@@ -112,4 +114,36 @@ fn unswept_expired_rows_enforce_group_and_table_caps_on_postgres() {
     let replacement = call(&mut engine, "replacement", "a");
     assert!(matches!(replacement.state, WriteState::Sent { .. }), "{replacement:?}");
     assert_eq!(replacement.metered.examined, 0);
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn retired_birth_releases_caps_after_postgres_commit_and_reopen() {
+    let mut engine = engine();
+    let name: String = engine.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+    let born = engine.mutate("born", Some("born"), Context::new("alice", BTreeMap::new()).at(100)).unwrap();
+    assert!(matches!(born.state, WriteState::Sent { .. }), "{born:?}");
+    drop(engine);
+    let client = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap();
+    let mut engine = PostgresEngine::open(client, &name).unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    counts(&tx, 0, 0, 0);
+    assert!(tx.get("items", "born").unwrap().is_none());
+    tx.rollback().unwrap();
+    for (id, group, all, a, b, succeeds) in [
+        ("live", "a", 1, 1, 0, true),
+        ("group-full", "a", 1, 1, 0, false),
+        ("other", "b", 2, 1, 1, true),
+        ("table-full", "c", 2, 1, 1, false),
+    ] {
+        let out = engine.mutate("add", Some(id), Context::new("alice", BTreeMap::from([
+            ("id".into(), Value::Id(id.into())), ("group".into(), Value::String(group.into())),
+        ])).at(100)).unwrap();
+        if succeeds { assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}"); }
+        else { assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{out:?}"); }
+        assert_eq!(out.metered.examined, 0);
+        let tx = engine.store.transaction(None).unwrap();
+        counts(&tx, all, a, b);
+        tx.rollback().unwrap();
+    }
 }

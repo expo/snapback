@@ -1098,6 +1098,8 @@ mod opening_tests;
 
 #[cfg(test)]
 mod cap_counts_tests;
+#[cfg(all(test, feature = "native"))]
+mod expired_births_tests;
 
 #[cfg(all(test, feature = "native"))]
 mod upsert_reservation_tests;

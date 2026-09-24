@@ -45,7 +45,8 @@ mod column_activation;
 pub use recorded::RecordedNulls;
 mod write_target;
 mod receipt;
-#[cfg(all(test, feature = "sqlite"))]
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
 mod retire_tests;
 pub(crate) mod presence;
 #[cfg(feature = "postgres")]

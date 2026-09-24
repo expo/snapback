@@ -137,3 +137,36 @@ fn cap_counts_interpret_legacy_images_through_literal_defaults() {
     memory.delete("items", table, &materialized).unwrap();
     assert_eq!(memory.cap_count("items", &["group".into()], &[Value::String("a".into())]).unwrap(), 0);
 }
+
+#[test]
+fn retired_birth_releases_caps_after_sqlite_commit_and_reopen() {
+    let dir = std::env::temp_dir().join(format!("sb4-retired-cap-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("server.sqlite");
+    let b = compile(include_str!("../../../snapback4-core/tests/fixtures/expired-birth-cap.q"));
+    let mut engine = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    for (id, group, until, expected, succeeds) in [
+        ("born", "a", Value::Int(0), 0, true),
+        ("live", "a", Value::Null, 1, true),
+        ("group-full", "a", Value::Null, 1, false),
+        ("other", "b", Value::Null, 2, true),
+        ("table-full", "c", Value::Null, 2, false),
+    ] {
+        let out = engine.mutate("add", Some(id), Context::new("alice", BTreeMap::from([
+            ("id".into(), Value::Id(id.into())), ("group".into(), Value::String(group.into())), ("until".into(), until),
+        ])).at(100)).unwrap();
+        if succeeds { assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}"); }
+        else { assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{out:?}"); }
+        assert_eq!(out.metered.examined, 0, "caps never scan the population");
+        drop(engine);
+        engine = Engine::open_at(Store::open(&path).unwrap(), 100).unwrap();
+        let tx = engine.store_mut().transaction().unwrap();
+        assert_eq!(tx.cap_count("items", &[], &[]).unwrap(), expected);
+        assert_eq!(tx.cap_count("items", &["group".into()], &[Value::String("a".into())]).unwrap(), u64::from(expected > 0));
+        assert!(tx.get("items", "born").unwrap().is_none());
+        tx.rollback().unwrap();
+    }
+    assert_eq!(engine.sweep_expired(100, 2_000).unwrap(), 0);
+    drop(engine);
+    std::fs::remove_dir_all(dir).unwrap();
+}

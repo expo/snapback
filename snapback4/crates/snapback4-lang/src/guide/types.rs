@@ -143,6 +143,9 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   skip expired collisions at the same full key under the examined meter;
   secondary-key predecessors remain until the sweep, so replacement at a full
   cap refuses until that sweep frees room. The refusal names the sweep timing.
+  A row inserted already expired by a program is retired at its commit's end,
+  releasing its cap occupancy without a later deletion event. Reviving it
+  within that commit preserves it. Seeds and loads keep expired rows for sweep.
   Devices queue occupancy-increasing writes on expiring capped tables without
   predicted rows: even a complete live snapshot omits unswept expired rows.
   Unrelated live or expired rows are never scanned for a write's constraints. An already returned answer keeps the row until the
