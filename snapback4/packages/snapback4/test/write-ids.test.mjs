@@ -187,7 +187,8 @@ test("server write ids bind raw arguments and operation names across independent
   const first = await post("explicit", id, { row: "stable", n: 7 });
   assert.equal(first.state, "sent");
   const replay = await post("explicit", id, { n: 7, row: "stable" });
-  assert.deepEqual(replay, { state: "sent", id, seq: first.seq, replayed: true });
+  assert.match(first.store_id, /^[0-9a-f]{32}$/);
+  assert.deepEqual(replay, { state: "sent", id, seq: first.seq, replayed: true, store_id: first.store_id, head: first.seq });
   for (const [name, args] of [["explicit", { row: "stable", n: 8 }], ["answer", { n: 7 }], ["removed", {}]]) {
     const reused = await post(name, id, args);
     assert.equal(reused.state, "failed"); assert.equal(reused.why.code, "E_ID_REUSED");

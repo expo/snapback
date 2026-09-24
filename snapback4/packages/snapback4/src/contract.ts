@@ -43,6 +43,10 @@ export type ReadCut = "meter" | "words" | null;
  * `fresh` is transport truth: the value reflects the server now. When it does
  * not, `since` is the wall-clock time (ms) of the newest server state it does
  * reflect, so a screen can say "as of three minutes ago".
+ * Online observations retain nothing, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
+ * A local observation may keep its last answer with `fresh: false` and `since`
+ * only during an unavailable device read's server fallback, ending at fetch
+ * settlement or any local commit, reset, adoption, generation, account change or close.
  */
 export type Read<T> =
   | { readonly data: T; readonly complete: boolean; readonly cut: ReadCut; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }

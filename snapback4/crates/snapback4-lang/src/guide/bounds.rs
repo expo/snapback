@@ -35,7 +35,7 @@ non-uniform read rules keep their bounded page execution and coverage contract.
 Mutations retain their uniform-read and
 plain-prefix admission rules; a cut aborts the transaction, never commits a
 partial total. A streaming query total with a meter cut or unknown device
-coverage returns `data: null`, `complete: false`, never a partial count or sum.
+coverage leaves the client read `loading`, never a partial count or sum.
 Unknown earlier reads also make a streaming scalar unavailable, including
 inputs saved in locals or used as domain bounds; a fallback cannot establish
 coverage.
@@ -52,8 +52,9 @@ Constructed values,
 concatenation and other allocating builtins, local bindings, and owned
 copies count. Inspecting a held value's length or sum borrows it; row and
 map clones share their immutable image. A heap cut stops a query immediately
-with `data: null`, `complete: false`, and no continuation, since an interrupted
-scalar or shape has no valid partial answer. Its cut site remains internal;
+with no available value or continuation, since an interrupted scalar or shape
+has no valid partial answer. The client read is `loading`; narrow the query or
+use a maintained view for a total. Its cut site remains internal;
 the meter is available only through dev's default read inspection (CLIENT-AND-OPERATIONS.md §4).
 An unfinished maintained lookup or live aggregate uses the same unavailable
 query result, preserving zero only for a completed missing-group lookup.
@@ -101,8 +102,8 @@ filtered scan as `filter over ≤ examined ceiling`, its reads as `probe × exam
 and a seek as a prefix. Sorting or grouping a page only processes that page.
 `sha256(text)` charges the input's UTF-8 byte length plus one to steps before
 hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step
-cut refuses a scalar query with E_BOUND; a cut on that result allocation returns
-`data: null`, `complete: false`, as other query heap cuts do. A mutation rolls
+cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves
+the client read `loading`, as other query heap cuts do. A mutation rolls
 back on either cut.
 
 ### The scale certificate

@@ -994,3 +994,58 @@ test("W6R1 journal: an evicted guarded caller ID survives failed admission persi
   assert.equal(posts.length, 1); assert.equal((await f.rows()).length, 2); assert.equal(await f.audit(), null);
   t.diagnostic("evicting_writes=256 recovered_replay_candidates=1 replay_posts=1 duplicate_rows=0");
 });
+
+test("device close model: cancelled callers retain their ids across offline and online reopen", { timeout: 60000 }, async t => {
+  const f = await fixture(t), coverage = { unreached: 0, committed: 0, delivered: 0, late: 0, early: 0 };
+  let random = 0x14c105e;
+  const choose = n => { random ^= random << 13; random ^= random >>> 17; random ^= random << 5; return (random >>> 0) % n; };
+  for (let sequence = 1; sequence <= 32; sequence++) {
+    const phase = ["unreached", "committed", "delivered"][choose(3)], repairFirst = choose(2) === 1;
+    const reopens = 1 + choose(2), id = mintId(), posts = [], effect = deferred(), body = deferred();
+    let entered = false, committed = false, consumed = false, signal;
+    coverage[phase]++; coverage[repairFirst ? "late" : "early"]++;
+    f.cleanup.push(() => { effect.resolve(); body.resolve(); });
+    if (phase !== "unreached") effect.resolve();
+    const client = await f.open(async (url, init) => {
+      if (!String(url).includes("/m/")) return quietChanges(url, init);
+      posts.push(JSON.parse(init.body).id); entered = true; signal = init.signal;
+      await effect.promise;
+      const response = await fetch(url, init); await response.clone().json(); committed = true;
+      await body.promise;
+      const read = response.json.bind(response);
+      response.json = async () => { const result = await read(); consumed = true; return result; };
+      return response;
+    });
+    const writing = client.mutate(send, { conversationId: "c1", body: `close model ${sequence}` }, { id });
+    assert.ok(await until(() => entered), `sequence ${sequence}: mutation reached the transport`);
+    assert.equal(signal, undefined, "closing must not abort a possibly committed mutation");
+    if (phase !== "unreached") assert.ok(await until(() => committed));
+    if (phase === "delivered") { body.resolve(); assert.equal((await writing).state, "sent"); }
+    let closed = false; const closing = client.close().then(() => { closed = true; });
+    assert.ok(await until(() => closed), "close cancels the caller without waiting for the server effect"); await closing;
+    assert.ok(["pending", "sent"].includes((await writing).state));
+
+    // An online reopen could conceal a dropped outbox through server repair.
+    // Check durable identity first, with no transport available to recover it.
+    for (let reopen = 0; reopen < reopens; reopen++) {
+      const offline = await f.open(() => Promise.reject(new TypeError("offline")));
+      const known = await offline.write(id);
+      assert.ok(known && ["pending", "sent"].includes(known.state), `sequence ${sequence}, ${phase}: offline reopen lost ${id}`);
+      await offline.close();
+    }
+    const release = async () => { effect.resolve(); body.resolve(); assert.ok(await until(() => consumed), "the background response is consumed"); };
+    if (!repairFirst) await release();
+    const online = await f.open((url, init) => {
+      if (String(url).includes("/m/")) posts.push(JSON.parse(init.body).id);
+      return quietChanges(url, init);
+    });
+    await online.sync();
+    assert.ok(await until(async () => (await online.write(id))?.state === "sent"), `sequence ${sequence}: original id settles`);
+    if (repairFirst) await release();
+    assert.ok(posts.length <= 2 && posts.every(sent => sent === id), "recovery has one bounded replay using the original id");
+    assert.equal((await f.rows()).length, sequence, "each intent applies once despite reordered effect delivery");
+    await online.close();
+  }
+  for (const [phase, count] of Object.entries(coverage)) assert.ok(count > 0, `exercised ${phase}`);
+  t.diagnostic(`device_close_sequences=32 seed=0x14c105e coverage=${JSON.stringify(coverage)}`);
+});

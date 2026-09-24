@@ -64,10 +64,14 @@ fn paired_tombstoned_repost_identity_is_unobservable() {
         identity::assert_placement(&e, &supplied);
         let mut changes = body(&changes);
         // Different in-memory stores have independently random identities;
-        // compare every change field after removing only that fixture identity.
-        assert!(changes.as_object_mut().unwrap().remove("store_id").is_some());
+        // compare every field after removing only that fixture identity.
+        let mut answer = body(&response);
+        let mut repeated = body(&retry);
+        let identity = changes.as_object_mut().unwrap().remove("store_id").unwrap();
+        assert_eq!(answer.as_object_mut().unwrap().remove("store_id"), Some(identity.clone()));
+        assert_eq!(repeated.as_object_mut().unwrap().remove("store_id"), Some(identity));
         assert_eq!(changes["tables"],json!([]));
-        observed.push((status(&response), body(&response), receipt, status(&retry), body(&retry), changes, out.state, replay.state, out.metered, replay.metered, out.tables));
+        observed.push((status(&response), answer, receipt, status(&retry), repeated, changes, out.state, replay.state, out.metered, replay.metered, out.tables));
     }
     assert_eq!(observed[0], observed[1], "pending private copy changed the actor-visible outcome");
     assert_eq!(observed[0].1["state"], "failed");

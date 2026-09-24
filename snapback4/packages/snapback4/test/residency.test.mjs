@@ -96,7 +96,7 @@ async function fixture(t, watchSources = false) {
   return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads };
 }
 
-test("server-run watches rerun on online-only commits and retain answers offline for the client lifetime", { timeout: 20000 }, async (t) => {
+test("server-run watches rerun on online-only commits and drop answers when offline", { timeout: 20000 }, async (t) => {
   const f = await fixture(t);
   const client = await f.open(); await client.sync();
   const backend = await fetch(`${f.url}/schema`, { headers: { "x-snapback-persona": "alice" } }).then((r) => r.json());
@@ -107,32 +107,27 @@ test("server-run watches rerun on online-only commits and retain answers offline
   await until(() => watch.getSnapshot().data?.[0]?.id === "a1", "initial server answer missing");
   await f.seed([{ table: "audit", row: { id: "a2", text: "commit touched only the server table", at: 2 } }]);
   await until(() => watch.getSnapshot().data?.[0]?.id === "a2", "online-only commit did not rerun watch");
-  const last = watch.getSnapshot().data;
   f.offline(true); await client.sync();
-  await until(() => watch.getSnapshot().fresh === false, "offline watch did not become stale");
-  assert.deepEqual(watch.getSnapshot().data, last);
-  assert.ok(watch.getSnapshot().since > 0);
+  await until(() => watch.getSnapshot().loading, "offline watch must stop retaining its answer");
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
   watch.close();
   watch = client.observe(query("audits"), { c: null });
-  await until(() => watch.getSnapshot().fresh === false, "recreated watch lost lifetime memory");
-  assert.deepEqual(watch.getSnapshot().data, last);
+  await sleep(20);
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, "recreated watch cannot restore remembered server data");
   assert.ok(!f.deviceReads.includes("audits"), "server-run query entered the device interpreter");
   f.offline(false); await client.sync();
   await until(() => watch.getSnapshot().fresh === true, "watch did not recover online");
   watch.close();
 });
 
-test("offline cold watches refuse E_OFFLINE, persisted local reads still work, server answers never persist", { timeout: 20000 }, async (t) => {
+test("offline cold watches stay loading, persisted local reads still work, server answers never persist", { timeout: 20000 }, async (t) => {
   const f = await fixture(t);
   let client = await f.open(); await client.sync();
   assert.equal((await client.query(query("auditById"), { id: "a1" })).data.text, "server answer");
   f.offline(true); await client.sync();
   const watch = client.observe(query("auditById"), { id: "never-observed" });
-  await until(() => watch.getSnapshot().denied, "cold offline watch did not refuse");
-  assert.equal(watch.getSnapshot().denied.code, "E_OFFLINE");
-  assert.equal(watch.getSnapshot().denied.family, "link");
-  assert.equal(watch.getSnapshot().denied.retryable, true);
-  assert.ok(!("data" in watch.getSnapshot()));
+  await sleep(20);
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
   const local = await client.query(query("localNotes"), { c: null });
   assert.equal(local.data[0].id, "n2");
   assert.equal(local.fresh, false);

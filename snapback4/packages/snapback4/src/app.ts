@@ -164,6 +164,8 @@ export function createApp(options: AppOptions): App {
   let operations: Promise<unknown> = Promise.resolve();
   let closed = false;
   let revision = 0;
+  let cancelSignIn: (() => void) | undefined;
+  let recoveryAbort: AbortController | undefined;
   const publish = (state: AuthState, viewer: Principal | null, why?: Refusal) => {
     snapshot = { state, viewer, ...(why ? { why } : {}) };
     for (const listener of listeners) listener();
@@ -202,10 +204,10 @@ export function createApp(options: AppOptions): App {
     }).catch(report);
   }
   async function open(session: Session, expected: number, epoch: string, restoring = false): Promise<SignIn> {
-    if (closed || revision !== expected) { if (!closed) revokeRetired(session.token); return inactive(); }
+    if (closed || revision !== expected) { if (!closed || !restoring) revokeRetired(session.token); return inactive(); }
     hide("restoring");
     await release();
-    if (closed || revision !== expected) { if (!closed) revokeRetired(session.token); return inactive(); }
+    if (closed || revision !== expected) { if (!closed || !restoring) revokeRetired(session.token); return inactive(); }
     // Every opener owns its persistence, including before it returns a Client.
     // Logout invalidates this guard synchronously, ahead of any network work.
     const scope: Scope = { valid: true, session, aborter: new AbortController(), stop() {}, pause() {} };
@@ -287,6 +289,44 @@ export function createApp(options: AppOptions): App {
       };
       return core;
     } };
+    let custody: Awaited<ReturnType<typeof onlineCustody>> | undefined;
+    let changedStore: Refusal | undefined;
+    let recovering = false;
+    let retirement: Promise<void> | undefined;
+    const recoverStore = () => {
+      if (!changedStore || !custody) return;
+      // Retire intents even when another auth operation has superseded this
+      // owner. No later sign-in may replay them against the replacement.
+      if (!retirement) {
+        retirement = custody.refuseStore(changedStore);
+        void retirement.catch(error => { if (scope.valid && owner === scope) report(error); });
+      }
+      if (changedStore.code !== "E_STORE_REPLACED" || recovering || owner !== scope || !scope.valid || closed || revision !== expected) return;
+      recovering = true;
+      const retired = retirement;
+      hide("restoring");
+      void enqueue(async () => {
+        await retired;
+        if (owner !== scope || closed || revision !== expected) return;
+        await release();
+        if (closed || revision !== expected) return;
+        const restored = await restore();
+        if (closed || revision !== expected) return;
+        if (!restored.session) { publish("signed-out", null); return; }
+        // Reuse the kept session only if the replacement backend accepts it.
+        recoveryAbort = scope.aborter;
+        const response = await fetcher(url + "/probe", { headers: { authorization: `Bearer ${restored.session.token}` }, signal: scope.aborter.signal });
+        const json = await response.json() as { ok?: boolean; denied?: Refusal };
+        if (closed || revision !== expected) return;
+        if (!response.ok || json.ok !== true) {
+          if (json.denied?.code === "E_AUTH") await removeSession(restored.session.token);
+          if (revision === expected) publish("signed-out", null, json.denied ?? { code: "E_OFFLINE", family: "link", message: "the replacement backend is unreachable", retryable: true });
+          return;
+        }
+        await open(restored.session, expected, restored.epoch, true);
+      }).catch(error => { if (!closed && revision === expected) publish("signed-out", null, problem(error)); })
+        .finally(() => { if (recoveryAbort === scope.aborter) recoveryAbort = undefined; });
+    };
     try {
       await keepSession(url, session, scopedStore);
       if (!scope.valid || revision !== expected) return inactive();
@@ -295,7 +335,7 @@ export function createApp(options: AppOptions): App {
         // when an untyped caller supplies lower-level sign-in options.
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
         raw = await createLocalClient({ ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch });
-      } else raw = createClient({ url, session, fetch: scopedFetch });
+      } else raw = createClient({ url, session, fetch: scopedFetch, onStoreChange: why => { changedStore = why; recoverStore(); } });
       scope.client = raw;
       if (!scope.valid || closed || revision !== expected) {
         if (scope.valid && closed) await raw.close();
@@ -318,10 +358,11 @@ export function createApp(options: AppOptions): App {
         }
       });
       let warning: Refusal | undefined;
-      const custody = options.device ? undefined : await onlineCustody(raw, url, storage, error => {
+      custody = options.device ? undefined : await onlineCustody(raw, url, storage, error => {
         warning = problem(error);
         if (scope.valid) report(error);
       });
+      recoverStore();
       const client = custody?.client ?? raw;
       if (!scope.valid || closed || revision !== expected) {
         custody?.pause();
@@ -344,6 +385,7 @@ export function createApp(options: AppOptions): App {
       current = client;
       publish("signed-in", raw.viewer(), warning);
       notifyPublished?.();
+      recoverStore();
       return { ok: true, session: next };
     } catch (error) {
       if (revision === expected) hide("restoring");
@@ -364,14 +406,28 @@ export function createApp(options: AppOptions): App {
   }
 
   const signIn = (work: () => Promise<SignIn>): Promise<SignIn> => {
+    cancelSignIn?.();
+    const cancelled = new Promise<null>(resolve => { cancelSignIn = () => resolve(null); });
     const expected = ++revision;
+    recoveryAbort?.abort();
     return enqueue(async () => {
       if (closed || revision !== expected) return inactive();
       try {
         if (configurationError) throw configurationError;
         const epoch = await captureEpoch();
         if (closed || revision !== expected) return inactive();
-        const result = await work();
+        // Cancel only this wait. A committed login/guest response still owns
+        // a bearer, which must be read and revoked if this opener was retired.
+        const request = work();
+        const result = await Promise.race([request, cancelled]);
+        if (!result) {
+          void request.then(late => { if (late.ok) void revokeSession(url, late.session.token, fetcher); });
+          return inactive();
+        }
+        if (closed || revision !== expected) {
+          if (result.ok) void revokeSession(url, result.session.token, fetcher);
+          return inactive();
+        }
         if (!result.ok) {
           if (revision !== expected) return inactive();
           if (snapshot.state === "restoring") publish("signed-out", null, result.why);
@@ -396,7 +452,9 @@ export function createApp(options: AppOptions): App {
     login: (email, password) => signIn(() => login(url, email, password, fetcher)),
     guest: () => signIn(() => guest(url, fetcher)),
     logout() {
+      cancelSignIn?.();
       const expected = ++revision;
+      recoveryAbort?.abort();
       hide("restoring");
       // Credential deletion is deliberately outside the auth/network queue.
       // Constructors and retiring clients can no longer write this session.
@@ -462,7 +520,8 @@ export function createApp(options: AppOptions): App {
     get client() { return current; },
     mutate: (op, args, options) => current.mutate(op, args, options),
     close() {
-      closed = true; ++revision; hide();
+      cancelSignIn?.();
+      closed = true; ++revision; recoveryAbort?.abort(); hide();
       return enqueue(async () => { await release(); await current.close(); listeners.clear(); });
     },
   };

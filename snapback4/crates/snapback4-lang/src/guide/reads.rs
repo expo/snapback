@@ -65,10 +65,17 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage or a page without continuation. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
+Online observations retain nothing, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
+A local observation may keep its previous answer with `fresh: false` and `since`
+only during an unavailable device read's server fallback, ending at fetch
+settlement or any local commit, reset, adoption, generation, account change or close.
+A ready list read always carries an array; an absent point can still be null.
+`usePage` keeps earlier pages visible while a later page is unavailable.
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
 as do held queries and retained left groups, and pending predictable writes
-still prevent fallback.
+still prevent fallback when the device has an answer. An unavailable ordinary
+device read asks the server while online even with pending writes.
 
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,
@@ -279,7 +286,7 @@ explicit pagination for a returned page. `first N` remains an ordinary page;
 `count(messages where .roomId = roomId)` and `sum(orders where .owner =
 viewer, .amount)` stream their domains. They authorize and filter each row,
 then release it. They do not retain a page of bodies. A meter cut or unknown
-device coverage returns `data: null, complete: false`, never a partial total.
+device coverage leaves the client read `loading`, never a partial total.
 Use a maintained view for a total that should be updated with each write.
 `count(page)` still counts only that page.
 An unpaged aggregate keeps enum inequalities and membership predicates as
@@ -303,7 +310,7 @@ plans. Unknown widths print `lanes ≤ meter`; the author writes no lane list.
 
 A resumable read-meter cut after every required head is known can carry `next`
 after its last fully shaped emitted row, subject to final-answer eligibility.
-Heap exhaustion clears the whole page to `data: null` with no continuation,
+Heap exhaustion clears the whole page and leaves the client read `loading`, with no continuation,
 even during the drain. Step exhaustion aborts; output exhaustion can refuse.
 A uniform matching scan is always lazy. Opening and word-limit cuts cannot
 supply continuation. A terminal full page need not carry `next`. Following a
@@ -381,8 +388,8 @@ Successful `query` and `observe` answers include `Read.meter`:
 `Read.meter.cut` keeps the precise reason even for a non-uniform server read;
 it is `meter`, `words` or null, with `meter` winning when both limits cut.
 These are the engine's counters for that answer, not latency or process memory;
-`probes` is rule_probes and `heapBytes` is charged heap work. A remembered
-offline watch keeps the counters of its last server answer. Local device reads
+`probes` is rule_probes and `heapBytes` is charged heap work. A local fallback
+keeps its previous answer’s counters only until the fetch settles. Local device reads
 have no meter; use the online client to inspect the server for the same account.
 `meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.
 Loopback dev includes the field without either; `serve` ignores the header and never returns

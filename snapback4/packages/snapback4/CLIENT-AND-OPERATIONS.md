@@ -157,11 +157,10 @@ already manage their own session lifetime:
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
 
 The local client routes queries using the compiled `runs` word. An observed
-server-run query refreshes when a commit touches its tables. Offline, it
-returns the last server answer for that watch with `fresh: false` and
-`since`, kept only in memory for the client's lifetime, or `denied: E_OFFLINE`
-(`family: link`, `retryable: true`) when there is no answer. It never uses an
-empty device page as a server answer.
+server-run query refreshes when a commit touches its tables; offline, its
+observation is `loading`. A direct `query()` may return a remembered server
+answer with `fresh: false` and `since`, or `denied: E_OFFLINE` when none exists.
+It never uses an empty device page as a server answer.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
@@ -425,7 +424,7 @@ await client.close();
 examined rows, index entries, rule probes (`probes`), steps, charged heap work
 (`heapBytes`), output bytes and rows written. These are work counts, not latency
 or process memory. Successful `query` and `observe` answers carry them; a
-remembered offline watch keeps its last server answer's counters. Local device
+local fallback keeps its previous answer's counters only until the fetch settles. Local device
 reads have no meter. Loopback `dev` includes the field by default; `meter: true`
 and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms. `serve` ignores the header and never
 returns meters. They can reflect hidden work, so they are development-only.
@@ -479,6 +478,44 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
+Online observations retain nothing and discard responses older than observed commits in the same store.
+A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
+(`E_STORE_RESTORE`) permanently denies this online client's reads and fails its
+queued and in-flight writes without retry; whether those writes executed is unknown.
+Create a new client to recover; `createApp` automatically closes, reopens and
+publishes its online client on `E_STORE_REPLACED`, retaining the session if the
+replacement store accepts it and retiring outstanding intents before reopening.
+A retryable refresh failure without a successor body preserves that bearer
+for the replacement probe; sign-out still attempts logout of the known token.
+An admitted `createApp` write reports a terminal outcome only after its durable
+retirement is saved; a failed save leaves the outcome `pending`, even during replacement.
+Terminal online clients expose `link() === "signed-out"` and refuse actions,
+uploads, asset reads and refreshes too; late asset handles are revoked, unkept
+refresh successors are revoked, and `assetSource` returns an empty source.
+Cancellation ends the caller's wait, never an effectful request: refresh,
+login, guest, mutations, actions and uploads still consume their replies;
+unkept bearers are revoked and cancelled uploads remain unplaced.
+Only queries, polls and asset fetches may abort their network requests.
+Retirement pins newly failed receipts in the 256-body window, compacting older
+store-failure receipts to ids before evicting the oldest sent receipts. Every
+id displaced by retirement, including a sent id, enters the compact set. Those
+compact ids never expire while the journal remains: retrying one returns
+`E_WRITE_RECEIPT_EXPIRED` without dispatch, including after reopening.
+The journal holds at most 4,096 compact retirement ids (about 116 KiB); if more
+are needed, a durable flag blocks new admissions instead of forgetting an id.
+Reconcile prior outcomes before explicitly replacing a saturated journal;
+ordinary successful-write eviction keeps its existing policy and does not
+consume this retirement-id allowance. Saturation blocks new admissions;
+an already-admitted intent still recovers as `pending` until it settles.
+Within a store, replayed mutation receipts never lower the read floor: their
+historical commit sequence is separate from the current store head.
+A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
+exhaustion leaves `loading` until the next invalidation, and closing the last
+observation owner cancels its retries.
+A local observation may keep its previous answer with `fresh: false` and `since`
+only during an unavailable device read's server fallback, ending at fetch
+settlement or any local commit, reset, adoption, generation, account change or close.
+An unavailable device read asks the server while online even with pending writes.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix

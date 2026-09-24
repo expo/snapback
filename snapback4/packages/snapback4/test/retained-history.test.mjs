@@ -374,17 +374,20 @@ query wordBoth():
       const left = expected("left", 1).filter(row => row.expiresAt > deviceNow);
       assert.deepEqual(result.data.left, left);
       assert.equal(result.complete, false);
-      // Server-only held fields keep the one server transaction's observation.
-      assert.deepEqual(result.data.held, expected("held", 0));
+      // Applied expiry withdrawals invalidate the old server transaction too.
+      assert.deepEqual(result.data.held, expected("held", 0).filter(row => row.expiresAt > deviceNow));
       const refreshed = await client.query(both, {});
       assert.deepEqual(refreshed.data.left, left);
       assert.deepEqual(refreshed.data.held, expected("held", 0).filter(row => row.expiresAt > deviceNow));
       assert.equal(refreshed.complete, false);
     } else if (closing) { await closing; assert.equal(result.data, undefined, "closed identity must publish no rows"); assert.deepEqual(publications, [], "watch must publish nothing from the closed identity"); }
-    else if (scenario === "MQ rejoin") assert.deepEqual(result.data.left, [], "the old server observation stands when no retained component remains");
+    else if (scenario === "MQ rejoin") assert.deepEqual(result.data.left, expected("left", 0), "the new authority requires a new server observation");
     else {
       assert.deepEqual(result.data.left, expected("left", 1));
-      assert.deepEqual(result.data.held, expected("held", scenario === "MQ transport" ? 1 : 0));
+      if (scenario === "MQ held change") {
+        assert.equal(result.data.held[0].body, "new", "a horizon withdrawal fences the old server response");
+        assert.deepEqual(result.data.held.slice(1), expected("held", 0));
+      } else assert.deepEqual(result.data.held, expected("held", scenario === "MQ transport" ? 1 : 0));
       assert.equal(result.complete, false);
       assert.equal(result.fresh, false);
     }
@@ -394,8 +397,10 @@ query wordBoth():
       await until(() => publications.length > 0, "watch must publish the new generation");
       for (const read of publicationReads) {
         assert.deepEqual(read.data, { left: [], held: expected("held", 0), epoch: 2 }, "no old-generation query or watch reply may publish");
-        assert.equal(read.complete, true); assert.equal(read.fresh, true);
+        assert.equal(read.complete, true);
+        if (!read.fresh) assert.ok(Number.isFinite(read.since), "a further fetch may bridge only the new generation's answer");
       }
+      assert.ok(publicationReads.some(read => read.fresh), "the new generation's server answer was published");
     }
     if (!closing && !["MQ adoption", "MQ rejoin", "MQ reset", "MQ interrupted snapshot"].includes(scenario)) {
       await until(() => publications.length > 0, "watch must publish the composed observation");
@@ -427,7 +432,8 @@ query wordBoth():
     assert.deepEqual(result.data, { left: expected("left", 1), held: expected("held", 0) });
     assert.equal(result.fresh, false);
     assert.equal(result.complete, false);
-    assert.equal(result.since, before, "composed since must precede the server read, not follow the in-flight sync");
+    assert.equal(result.since, querySince, "composed since belongs to the replacement request after the commit fence");
+    assert.ok(querySince >= after, "the sync commit discards and refetches the earlier HTTP response");
     return;
   }
   if (scenario === "R2 mixed result") {

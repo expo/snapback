@@ -1,17 +1,19 @@
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
-import type { Client, Mutation, Write } from "./contract.ts";
+import type { Client, Mutation, Refusal, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
 import { mintId } from "./client.ts";
-import { MutationIds, WriteHistory, WRITE_HISTORY_LIMIT } from "./writes.ts";
+import { MutationIds, WriteHistory } from "./writes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
-import { journalReader, type Journal, type Terminal } from "./app-journal.ts";
+import { journalReader, keepReceipts, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void) {
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
   let active = true;
+  let storeRefusal: Refusal | undefined;
+  let retirement: Promise<void> | undefined;
   const ids = new MutationIds();
   const emissions = new WriteHistory();
   const listeners = new Set<(write: Terminal) => void>();
@@ -40,9 +42,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       // Never persist historical read results or refusal details for disclosure on reopen.
       const receipt: Terminal = write.state === "sent"
         ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-        : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } };
+        : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
       journal.receipts.push(receipt);
-      journal.receipts = journal.receipts.slice(-WRITE_HISTORY_LIMIT);
+      keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
     // Durable retirement belongs to the shared journal; notification and
@@ -50,17 +52,38 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     notify(write);
   };
   const stop = raw.onWrite(write => {
-    if (active && terminal(write)) void settle(write).catch(report);
+    if (active && terminal(write)) {
+      // The raw client emits one refusal per queued write. Retire that store's
+      // queue once, so all newly failed receipts share the same pinned save.
+      const retiring = write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
+      void (retiring ? refuseStore(write.why) : settle(write)).catch(report);
+    }
   });
   const initial = await locked(key, read);
   for (const receipt of initial.receipts) ids.remember(receipt.id);
+  for (const id of initial.retired ?? []) ids.remember(id);
+
+  const refusedStore = async (id: string): Promise<Write> => {
+    // UI custody may already be paused. A terminal outcome still owns its
+    // durable intent until retirement commits, including admission in flight.
+    try { await retirement; return { state: "failed", id, why: storeRefusal! }; }
+    catch (error) { report(error); return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
+  };
 
   const client: Client = {
     ...raw,
     mutate<A, R>(op: Mutation<A, R>, args: A, options?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
       const id = options?.id ?? mintId();
+      if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
       if (!active || raw.viewer() !== viewer) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
-      return ids.run<R>(id, op.name, args, () => client.write(id), async snapshot => {
+      return ids.run<R>(id, op.name, args, async () => {
+        if (storeRefusal) return refusedStore(id);
+        const write = await client.write(id);
+        if (storeRefusal) return refusedStore(id);
+        // Paused custody hides receipts; it does not prove that a durable
+        // intent expired. Every overlapping caller still owns that intent.
+        return !active || raw.viewer() !== viewer ? { state: "pending", id } : write;
+      }, async snapshot => {
         const refusal = await change(journal => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {
@@ -69,15 +92,17 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
             check.remember(id, previous.op, previous.args);
             return check.run(id, op.name, snapshot, async () => ({ state: "pending", id }), async () => ({ state: "pending", id }));
           }
-          const receipt = journal.receipts.find(write => write.id === id);
+          const receipt = journal.receipts.find(write => write.id === id) ?? retiredReceipt(journal, id);
           if (receipt) return Promise.resolve(receipt);
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot });
           return undefined;
         });
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
+        if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
         const result = await raw.mutate(op, snapshot as A, { id });
-        if (active && terminal(result)) {
+        if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
+        if (terminal(result)) {
           try { await settle(result); }
           catch (error) { report(error); return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
         }
@@ -90,6 +115,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (!active || raw.viewer() !== viewer) return undefined;
       const receipt = journal.receipts.find(write => write.id === id);
       if (receipt) { notify(receipt); return receipt; }
+      const retired = retiredReceipt(journal, id);
+      // Saturation fences new admissions, not recovery of an admitted intent.
+      if (retired && !journal.pending.some(intent => intent.id === id)) return retired;
       const known = await raw.write(id);
       if (journal.pending.some(intent => intent.id === id)) {
         if (known && terminal(known)) {
@@ -111,5 +139,20 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const recovery = Promise.all(initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent =>
     client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
   void recovery.catch(report);
-  return { client, pause };
+  function refuseStore(why: Refusal): Promise<void> {
+    if (retirement) return retirement;
+    storeRefusal = why;
+    // Fence admissions synchronously, then retire the entire durable queue
+    // before createApp can reopen. These intents must never cross stores.
+    retirement = change(journal => {
+      const failed = journal.pending.map(intent => ({ state: "failed", id: intent.id,
+        why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
+      journal.pending = [];
+      journal.receipts.push(...failed);
+      keepReceipts(journal, new Set(failed.map(write => write.id)), true);
+      return failed;
+    }).then(failed => { for (const write of failed) notify(write); });
+    return retirement;
+  }
+  return { client, pause, refuseStore };
 }

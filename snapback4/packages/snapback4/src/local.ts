@@ -7,6 +7,9 @@
 // web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
+import { ReadObservation } from "./read-observation.ts";
+import { postForCaller, waitForCaller } from "./request-wait.ts";
+import { LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
 import { requireSyncProtocol, syncTransport, type SyncPage } from "./local-sync.ts";
@@ -82,19 +85,6 @@ export interface LocalOptions {
 export type LocalClient = Client & {
   sync(): Promise<void>;
 };
-
-interface Watch {
-  op: Query<unknown, unknown>;
-  args: unknown;
-  key: string;
-  tables: Set<string>;
-  snapshot: Read<unknown>;
-  subscribers: Set<() => void>;
-  running: boolean;
-  dirty: boolean;
-  expiryTimer: ReturnType<typeof setTimeout> | null;
-  incarnation: number;
-}
 
 interface Queued {
   id: string;
@@ -313,6 +303,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const watches = new Map<string, Watch>();
   const serverAnswers = new Map<string, { read: Extract<Read<unknown>, { data: unknown }>; at: number; tables: Set<string> }>();
   const settled = new Map<string, (write: Write) => void>();
+  const answers = new LocalReads();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
   let caughtUp = false;
   let identityChecked = false;
@@ -357,13 +348,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     identityChecked = false;
     seq = 0;
     lastSyncAt = 0;
-    serverAnswers.clear();
-    for (const watch of watches.values()) {
-      watch.snapshot = { loading: true };
-      watch.incarnation = incarnation;
-      if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-      watch.expiryTimer = null;
-    }
+    answers.clear(watches.values(), serverAnswers);
     // Finish invalidating every answer before invoking application callbacks.
     const deliver = () => {
       if (wasAcquired) for (const listener of acquiredListeners) listener(false);
@@ -375,11 +360,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (delivery) delivery.push(deliver); else deliver();
   }
 
+  function invalidateAnswers(delivery: (() => void)[] = []) {
+    answers.clear(watches.values(), serverAnswers);
+    delivery.push(() => { for (const watch of watches.values()) { notify(watch); void rerun(watch); } });
+    return delivery;
+  }
+
   function refuseRestore(denied?: Refusal) {
     if (denied?.code !== "E_STORE_RESTORE") return;
     partitionDenied = denied;
     observeIncarnation(storeIdentity, true);
-    for (const watch of watches.values()) { watch.snapshot = { denied }; notify(watch); }
+    for (const watch of watches.values()) { watch.publish({ denied }); notify(watch); }
   }
 
   // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the device validates head observations against private progress and retained image heads before replay or freshness decisions.
@@ -410,6 +401,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (observed) return;
       observed = true;
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
+      if (!result.denied && ["apply", "admit", "settle", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery);
       if (!result.denied && request.op === "apply") {
         for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
       }
@@ -440,10 +432,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     link = next;
     if (next !== "online") {
       identityChecked = false;
-      for (const watch of watches.values()) if ("data" in watch.snapshot && watch.snapshot.fresh) {
-        watch.snapshot = { ...watch.snapshot, fresh: false, ...(lastSyncAt ? { since: lastSyncAt } : {}) };
-        notify(watch);
+      for (const watch of watches.values()) {
+        if (next === "signed-out") watch.publish({ denied: unavailable()! });
+        else if ("data" in watch.snapshot && watch.snapshot.fresh) watch.publish({ loading: true });
       }
+      for (const watch of watches.values()) notify(watch);
     }
     for (const listener of linkListeners) listener(next);
     if (next === "online") void flush();
@@ -462,7 +455,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // @ref LLP 3000.011.003.000#2 — local sign-out fences refresh before durable credential deletion; it never deletes the replica or outbox.
   const endSession = (): Promise<void> => {
     if (endingSession) return endingSession;
-    const notify = !sessionDead;
+    const notifySession = !sessionDead;
     const work = Promise.resolve().then(async () => {
       try {
         // A store write already in progress must finish before deletion. A
@@ -471,7 +464,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         await forgetSession(base, sessions);
         await media?.clear();
       } finally {
-        if (notify) {
+        if (notifySession) {
           for (const listener of [...sessionListeners]) listener(null);
           for (const listener of [...viewerListeners]) listener(null);
         }
@@ -585,9 +578,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || sessionDead) return { ok: false };
     try {
       const request = requestCredentials();
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers: request.headers, body: JSON.stringify(body), signal: aborter.signal });
-      const json = (await response.json()) as Record<string, unknown>;
-      if (closed) return { ok: false };
+      const reply = await postForCaller(doFetch, base, path, request.headers, body, aborter.signal);
+      if (!reply || closed) return { ok: false };
+      const { response, json } = reply;
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       const denied = (json.denied ?? json.why) as Refusal | undefined;
       const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
@@ -648,7 +641,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           backendRequired = !!backend_required;
           requestedStore = transfer_store_id ?? store_id;
           publishedStore = store_id;
-          observeIncarnation(store_id ?? undefined);
+          observeIncarnation(store_id ?? undefined, backendRequired && partitionCurrent);
           storeIdentity = store_id ?? undefined;
           pageIncarnation = incarnation;
           const snapshotRequest = restartingSnapshot || after !== undefined;
@@ -726,6 +719,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (link !== "online") setLink("online");
         if (!denied) partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
+        if (generationChanged || pageGeneration !== generation || (backendRequired && partitionCurrent)) observeIncarnation(storeIdentity, true);
         if (generationChanged || pageGeneration !== generation || replacedStore || backendRequired) {
           // Generation counters restart with a new store. Reload the backend
           // even when its number matches, then acquire its current partition.
@@ -814,10 +808,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
       } else if (!closed && caughtUp && identityChecked) {
         for (const watch of watches.values()) {
-          if (serverRun(watch.op)) { void rerun(watch); continue; }
+          if (serverRun(watch.op) || watch.kept) { void rerun(watch); continue; }
           if (watch.incarnation !== incarnation || !("data" in watch.snapshot) || watch.snapshot.fresh) continue;
           const { since: _, ...read } = watch.snapshot;
-          watch.snapshot = { ...read, fresh: true };
+          watch.publish({ ...read, fresh: true });
           notify(watch);
         }
       }
@@ -914,12 +908,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return (backend?.schema.operations?.[op.name]?.runs ?? program?.runs ?? op.runs) === "server";
   }
 
-  function runLocal<R>(op: Query<unknown, R>, args: unknown) {
+  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch) {
     const work = (async () => {
       while (true) {
-        const revision = incarnation;
-        const result = await evaluateLocal(op, args, revision);
-        if (revision === incarnation || closed) return { ...result, incarnation: revision };
+        const revision = incarnation, authority = answers.revision;
+        const result = await evaluateLocal(op, args, revision, authority, watch);
+        if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
       }
     })();
     active.add(work);
@@ -927,7 +921,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   }
 
-  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown, revision: number): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null }> {
+  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean }> {
     const refused = unavailable();
     if (refused) return { read: { denied: refused }, tables: new Set(), nextExpiry: null };
     const schema = backend!.schema;
@@ -937,46 +931,51 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const held = schema.operations?.[op.name]?.held ?? program?.held ?? op.held ?? false;
     const key = `${op.name}:${JSON.stringify(args)}`;
     const remembered = () => {
+      if (watch) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
       const last = serverAnswers.get(key);
       if (last) for (const table of last.tables) tables.add(table);
-      return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null };
+      return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: !last };
     };
-    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null } = remembered, remember = true) => {
-      // A held query must not turn missing local coverage into a server scan, even during reset.
-      if (held) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null };
-      while (true) {
-        const credentials = credentialRevision;
-        const result = await post(`/q/${op.name}`, { args });
-        if (revision !== incarnation) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
-        if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
-        if (!result.ok) return failure();
-        if (result.obsoleteAuth || (!remember && credentials !== credentialRevision)) {
-          const rotation = refreshing;
-          if (rotation) try { await rotation; } catch {}
-          const unavailableWhy = unavailable();
-          if (unavailableWhy) return { read: { denied: unavailableWhy } as Read<R>, tables, nextExpiry: null };
-          continue;
+    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean } = remembered, remember = true, retain = false) => {
+      const fetch = async () => {
+        // A held query must not turn missing local coverage into a server scan, even during reset.
+        if (held) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: true };
+        while (true) {
+          const credentials = credentialRevision;
+          const result = await post(`/q/${op.name}`, { args });
+          if (revision !== incarnation || authority !== answers.revision) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
+          if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
+          if (!result.ok) return failure();
+          if (result.obsoleteAuth || (!remember && credentials !== credentialRevision)) {
+            const rotation = refreshing;
+            if (rotation) try { await rotation; } catch {}
+            const unavailableWhy = unavailable();
+            if (unavailableWhy) return { read: { denied: unavailableWhy } as Read<R>, tables, nextExpiry: null };
+            continue;
+          }
+          const json = result.json;
+          for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
+          if (json.denied) { serverAnswers.delete(key); return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null }; }
+          const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
+          if (json.loading || !("data" in json)) return { read: { loading: true } as Read<R>, tables, nextExpiry };
+          const next = (json.next as Cursor | null | undefined) ?? null;
+          const read = { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next };
+          if (remember) serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
+          return { read, tables, nextExpiry };
         }
-        const json = result.json;
-        for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
-        if (json.denied) { serverAnswers.delete(key); return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null }; }
-        const next = (json.next as Cursor | null | undefined) ?? null;
-        const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-        const read = { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next };
-        if (remember) serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
-        return { read, tables, nextExpiry };
-      }
+      };
+      return watch ? watch.fetch(fetch, () => notify(watch), { publishResult: remember, retain }) : fetch();
     };
     // A rerun started by observation must not read the old partition while
     // its reset is still queued behind a send. Current server reads are safe.
-    if (!partitionCurrent) return link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null };
+    if (!partitionCurrent) return link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true };
     if (program?.native && !nativeReady) {
       if (link === "online") nativeReady = await installNative(aborter.signal);
       if (!nativeReady) return link === "online" ? server() : remembered();
     }
     if (!held && serverRun(op)) return link === "online" ? server() : remembered();
     type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; denied?: Refusal };
-    type Outcome = Coverage & { data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
+    type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
     // Keep whole-query and component routing on the same coverage rule.
     // @ref LLP 3000.007#20.22.1 — ask the server only for facts the device cannot establish (a missing fact, presence), not cuts the server would repeat; the same rule routes a composed component.
     const wantsServer = (coverage: Coverage) => !held && !coverage.retained && !!coverage.unknown;
@@ -990,14 +989,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const fresh = link === "online" && caughtUp && identityChecked;
       const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
       const denied = unavailableWhy ?? answer.denied ?? outcome.denied;
-      const read: Read<R> = denied ? { denied } : { data: outcome.data as R, complete: outcome.complete !== false, cut: outcome.cut ?? null, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) };
+      const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true } : { data: outcome.data as R, complete: outcome.complete !== false, cut: outcome.cut ?? null, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) };
       return { outcome, result: { read, tables, nextExpiry }, terminal: !!(unavailableWhy || answer.denied) };
     };
     const first = await local();
     if (first.terminal) return first.result;
+    if (!held && "loading" in first.result.read && link === "online") return server(() => first.result, true, true);
     const { outcome } = first;
     // @ref LLP 3000.007#18.2 — a left group answers from delivered rows, online and offline, including watch reruns.
-    if (outcome.denied) return wantsServer(outcome) ? link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null } : first.result;
+    if (outcome.denied) return wantsServer(outcome) ? link === "online" ? server(remembered, true, true) : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true } : first.result;
     const pending = async () => (await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0));
     const components = Object.values(outcome.components ?? {});
     // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — one original server query, then a second local observation and one publication of independent fields.
@@ -1006,11 +1006,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       serverAnswers.delete(key);
       let failed = false;
       const composedSince = lastSyncAt;
-      const remote = await server(() => { failed = true; return first.result; }, false);
+      const remote = await server(() => { failed = true; return first.result; }, false, true);
       if (!("data" in remote.read)) return remote;
       const second = await local();
       if (revision !== incarnation) return { read: { loading: true }, tables, nextExpiry: null };
-      if (second.terminal || second.outcome.denied || failed || link !== "online" || await pending()) return second.result;
+      if (!failed && "loading" in second.result.read && link === "online") return remote;
+      if (second.terminal || !("data" in second.result.read) || failed || link !== "online" || await pending()) return second.result;
       const coverage = Object.entries(second.outcome.components ?? {});
       const retained = coverage.filter(([, c]) => c.retained);
       if (!retained.length) return remote;
@@ -1021,7 +1022,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
       return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
     }
-    if (wantsServer(outcome) && link === "online" && !await pending()) return server();
+    if (wantsServer(outcome) && link === "online" && !await pending()) return server(remembered, true, true);
     return first.result;  }
 
   function notify(watch: Watch) {
@@ -1057,14 +1058,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, incarnation: revision } = await runLocal(watch.op, watch.args);
-      if (revision !== incarnation) { watch.dirty = true; return; }
+      const { read, tables, nextExpiry, incarnation: revision, authority, transportOffline } = await runLocal(watch.op, watch.args, watch);
+      if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
-      watch.snapshot = read;
       scheduleExpiry(watch, nextExpiry);
-      notify(watch);
+      if (watch.snapshot !== read || transportOffline) {
+        watch.publish(transportOffline ? { loading: true } : read);
+        notify(watch);
+      }
+    } catch {
+      if (!closed && watches.get(watch.key) === watch) { watch.publish({ loading: true }); notify(watch); }
     } finally {
       watch.running = false;
       const dirty = watch.dirty;
@@ -1210,21 +1215,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async query(op, args) {
       while (true) {
         const result = await runLocal(op, args);
-        if (result.incarnation === incarnation || closed) return result.read;
+        if ((result.incarnation === incarnation && result.authority === answers.revision) || closed) return result.read;
       }
     },
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, subscribers: new Set(), running: false, dirty: false, expiryTimer: null, incarnation };
+        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation });
         watches.set(key, watch);
         void rerun(watch);
       }
       const own = watch;
       const mine = new Set<() => void>();
       return {
-        getSnapshot: () => own.snapshot as Read<R>,
+        getSnapshot: () => own.read(unavailable()) as Read<R>,
         subscribe(notifyMe) {
           mine.add(notifyMe);
           own.subscribers.add(notifyMe);
@@ -1310,12 +1315,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const request = requestCredentials();
       const sameSession = () => !refreshing && request.headers.authorization === headers.authorization;
-      const uploaded = await uploadAsset(base, request.headers, doFetch, bytes,
-        () => !unavailable() && link === "online" && sameSession());
+      const uploaded = await waitForCaller(uploadAsset(base, request.headers, doFetch, bytes,
+        () => !unavailable() && link === "online" && sameSession()), aborter.signal);
       const interrupted = (): Refusal | null => unavailable() ?? (!sameSession()
         ? { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } : null);
       let why = interrupted();
-      if (why) return { ok: false, why };
+      if (!uploaded || why) return { ok: false, why: why! };
       if (uploaded.ok) {
         let finish!: () => void;
         const keeping = new Promise<void>(resolve => { finish = resolve; });
@@ -1420,6 +1425,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
       for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+      for (const watch of watches.values()) watch.publish({ denied: unavailable()! });
+      for (const watch of watches.values()) notify(watch);
       watches.clear();
       linkListeners.clear();
       sessionListeners.clear();

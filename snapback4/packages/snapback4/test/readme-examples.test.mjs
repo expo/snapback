@@ -258,7 +258,8 @@ test("W10R1 typing renderer replaces deadlines on a live watch and cleans up on 
   advance(start + 3000);
   answer = [{ principal: "alice", expiresAt: start + 7500 }];
   seq++; pendingChange();
-  await until(() => painted.length === 2 && pendingChange);
+  await until(() => watch.getSnapshot().data?.[0]?.expiresAt === start + 7500 && pendingChange);
+  assert.deepEqual(painted, [["alice"], ["alice"]], "online observations publish only the two server answers");
   assert.ok(cleared.includes(originalTimer), "the extended answer cancels the old deadline");
   assert.notEqual(watch.getSnapshot().data, originalAnswer);
   const paintsBeforeOldDeadline = painted.length;

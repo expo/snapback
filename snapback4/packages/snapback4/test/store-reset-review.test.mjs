@@ -28,6 +28,7 @@ async function fixture(t, count = 1) {
   let schema = original.schema;
   let queryGate, localGate, mutationGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
   const reads = [], clients = [], sends = [], syncRequests = [];
+  let queryUnavailable = false;
   let adopting, committed, resetReadFailure, failNextResetRead = false, failureOp = "observe_store";
   const fetcher = async (input, init = {}) => {
     if (offline && !init.keepalive) throw new TypeError("offline");
@@ -49,7 +50,7 @@ async function fixture(t, count = 1) {
       const captured = marker; queryStarts++;
       if (queryGate) await queryGate.promise;
       reads.push(captured);
-      return Response.json({ data: captured, complete: true, tables: ["messages"] });
+      return Response.json(queryUnavailable ? { loading: true } : { data: captured, complete: true, tables: ["messages"] });
     }
     if (path.startsWith("/m/")) { sends.push({ ...JSON.parse(init.body), store, exit: !!init.keepalive }); mutationStarts++; if (mutationGate) await mutationGate.promise; return Response.json({ state: "sent", seq: 11 }); }
     if (path === "/probe") return Response.json({ ok: true });
@@ -75,6 +76,7 @@ async function fixture(t, count = 1) {
   t.after(async () => { queryGate?.resolve(); localGate?.resolve(); mutationGate?.resolve(); for (const c of clients) await c.close(); });
   await open();
   return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends, syncRequests,
+    unavailable(value) { queryUnavailable = value; },
     replace() { store = marker = "B"; }, updateBackend() { generation++; marker = "A2"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
     widenBackend() {
       generation++; marker = "A2"; schema = structuredClone(schema);
@@ -540,4 +542,14 @@ test("finding 2: a rerun started by replacement observation cannot publish the o
   const stale = notices.filter(r => r.complete && r.data === "A");
   barrier.resolve(); await write;
   assert.deepEqual(stale, [], "a new revision cannot relabel a device read still backed by A as complete");
+});
+
+
+test("generation discovery clears retained answers even when backend adoption cannot start", async t => {
+  const f = await fixture(t), watch = f.client.observe({ kind: "query", name: "marker" }, {});
+  await until(() => watch.getSnapshot().data === "A");
+  f.unavailable(true); f.failSchema(100); f.updateBackend();
+  await f.client.sync();
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, "the old generation's authority cannot survive a failed schema fetch");
+  watch.close();
 });

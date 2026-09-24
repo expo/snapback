@@ -103,11 +103,11 @@ export function assetSource(base: string, headers: Record<string, string>, id: s
   return { uri: `${base}/assets/${encodeURIComponent(id)}`, headers: auth };
 }
 
-export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>): Promise<AssetRead> {
+export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>, signal?: AbortSignal): Promise<AssetRead> {
   const source = assetSource(base, headers, id);
   let release: (() => void) | undefined;
   try {
-    const response = await doFetch(source.uri, { headers: source.headers });
+    const response = await doFetch(source.uri, { headers: source.headers, ...(signal ? { signal } : {}) });
     if (!response.ok) {
       const json = (await response.json().catch(() => null)) as { denied?: Refusal } | null;
       return { denied: json?.denied ?? { code: response.status === 410 ? "E_ASSET_VIEWED" : "E_ASSET_UNKNOWN", family: "asset", message: response.status === 410 ? "this photo was for one view, and it was viewed" : "no asset is served under that id to this viewer" } };

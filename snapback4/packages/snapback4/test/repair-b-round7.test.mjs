@@ -25,7 +25,7 @@ function device(state, apply, extra = () => undefined) {
   } };
 }
 
-test("private identity leaves published watches and adoption unchanged until publication", { timeout: 5000 }, async t => {
+test("private commits rerun the published image without adopting the staged identity", { timeout: 5000 }, async t => {
   const { createLocalClient } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
   let mode = "initial", publishedStore = "A", watermark = 5, transfer = 5, value = 1;
   let stage = 0, localReads = 0, observations = 0, adoptions = 0, client, watch;
@@ -71,9 +71,10 @@ test("private identity leaves published watches and adoption unchanged until pub
   await client.sync();
   for (let i = 0; i < 20 && watch.getSnapshot().data !== 2; i++) await pause();
   assert.equal(stage, 2, "private transfer reached publication");
-  assert.equal(duringPrivate.snapshot.data, 1, "a private identity cannot replace the published watch with loading/denied");
-  assert.equal(duringPrivate.reads, priorReads, "private pages do not rerun published watches");
-  assert.equal(duringPrivate.notifications, priorNotifications);
+  assert.equal(duringPrivate.snapshot.data, 1, "a rerun still reads the published image");
+  assert.ok(duringPrivate.reads > priorReads, "even a private staging commit invalidates observations");
+  assert.ok(duringPrivate.notifications > priorNotifications);
+  assert.ok(watched.slice(priorNotifications, duringPrivate.notifications).every(read => !("data" in read) || read.data === 1), "staged rows cannot reach any publication");
   assert.equal(watch.getSnapshot().data, 2);
   assert.equal(observations, 3, "all pages are validated without treating private identity as a replacement");
   assert.equal(adoptions, 0);

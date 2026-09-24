@@ -96,7 +96,7 @@ export class MutationIds {
 function receipt(write: Terminal): Terminal {
   return write.state === "sent"
     ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } };
+    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
 }
 
 /** Persist before retiring an outbox entry. Durable receipts are read straight

@@ -146,6 +146,7 @@ impl PostgresEngine {
         let data = runner.run(program)?;
         runner.charge_output(&data)?;
         let outcome = QueryOutcome {
+            unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none()
                 && runner.word_cut_at.is_none()
                 && !runner.non_uniform

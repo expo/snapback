@@ -52071,3 +52071,1401 @@ Follow-up commits `e15d67613` and `29de33694` contain the reviewed expectation
 repairs and cross-lane witnesses/docs. J, K round 8+ and P round 2 remain for
 their requested incremental merges. No native simulator or PostgreSQL runtime
 qualification, version bump, push or publication was performed.
+
+## 2026-09-24 — LLP 3000.013 Lane J: unavailable query values and safe pages
+
+Reproduced the ready-null failure with a live `snapback4 dev`, password
+accounts, `createApp` restoration and the real SQLite process device. The
+fixture starts a DM on the server before acquisition and observes history
+and the shell inbox together. Its cold snapshot keeps two of three messages
+(to make the builder's 10,000-row horizon inexpensive to cross). The inbox's
+streaming unread count cannot establish its entire domain. Before the fix,
+the device replies `data: null, complete: false, unknown: true`; `local()`
+turns that into a ready read and `first.result` exposes it offline or while
+a predictable write prevents online fallback. The regression now asserts
+both offline and online-with-prediction states. A plain unacquired/new-chat
+history scan returned an array; the concrete crash reproduction is the
+concurrent inbox. The retained calibration files do not identify which
+page produced the historical exception, so this does not claim that its
+history query itself produced null.
+
+Root cause: `Runner::run` catches a query meter abort (heap or a capped
+maintained/scalar lookup), or an unavailable streaming scalar, and returns
+an internal `Value::Null` placeholder. The device and HTTP encoders used to
+publish that placeholder as data regardless of the declared result. The
+HTTP path can also remember it; the JavaScript adapters could manufacture
+ready `undefined` from a response without a data field. Neither the web
+JSON bridge nor account replacement is needed to produce the problem.
+`worker.ts` is the effects worker in this checkout, not a device-query
+bridge. Store reset/adoption already invalidate observations to loading,
+clear remembered answers and fence in-flight replies by incarnation.
+Account changes replace clients and remount account-owned React state.
+
+The runner now records `query_unavailable`, and every `QueryOutcome`
+constructor carries it as `unavailable`. This deliberately preserves the
+engine's internal placeholder, exact work, cut flags, partial-page behavior
+and legitimate nullable results; it changes whether that placeholder can
+be published as an answer. Device, HTTP and CLI query encoders publish
+`loading` without `data` when it is set. No reason or private meter count
+is newly disclosed. `Read`, Quarry syntax, rules, the meter and its ceilings
+are unchanged. A query that remains over budget stays loading until its
+inputs/data change; the cards advise narrowing it or using a maintained
+view for a total.
+
+The online/local clients recognize unavailable and missing-data replies,
+retain expiry-driven reevaluation, and clear obsolete remembered server
+answers. Composition stops on an unavailable second local observation;
+an aborted record has no components to combine. `usePage` also treats all
+non-array ready values as loading, stops at that page, preserves earlier
+items, refuses its cursor and restores requested depth when it recovers.
+`useQuery` itself is unchanged. The bounds and reads cards describe the
+public unavailable state; no language form or refusal code was added.
+
+Tests added: `query_unavailable.rs` runs unknown aggregate/list and reopen
+checks on both device stores, and checks server heap/aggregate aborts
+against genuine nullable points and valid partial arrays. `page-ready.q`
+and `page-ready.test.mjs` exercise restored authentication/new-chat history,
+inbox coverage offline and with a pending prediction, real HTTP heap
+exhaustion, online/local remembered-answer invalidation, expiry retries and
+missing-data replies. `react.test.mjs` checks null, undefined, object,
+string, number and bool page values at the first/middle page, prefix
+retention, suffix disposal and recovery in Chromium. The existing wasm
+heap-exhaustion test now requires loading with no data, rather than its old
+null placeholder. The Node reproduction did not require a browser worker;
+the real wasm boundary remains covered by the wasm test and complete suite.
+
+Validation: targeted Rust regression tests 2/2, page-read client tests 3/3,
+React harness including its new regression, and guide tests 57/57 pass.
+The final full suite reports `== 0 failure(s) in 178 s`. The earlier full
+run reported `== 1 failure(s) in 181 s`: my documentation wording broke
+`w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation`,
+which pins "Heap exhaustion clears the whole page". Restoring that phrase
+while retaining the loading explanation fixed it. The next full run passed
+with `== 0 failure(s) in 144 s`; the final run includes the strengthened
+test below. No baseline or environmental failure occurred in these runs;
+none of the four supplied
+baseline Rust failures recurred. Full-suite client shards all report zero
+failures (10 existing skips). Strengthening the online-state assertion
+exposed a test-harness error: a failed sync kept the supposedly online
+case offline, and stalling its queued write could prevent reconnection.
+The final test holds a write while already online, checks that pending
+prediction prevents fallback, then disconnects and checks the offline
+case separately. All three client targets pass with these explicit states.
+
+Wasm measures 1,749,325 B raw / 485,718 B gzip against the unchanged
+486,000 B budget. Changed source files remain below 1,500 lines (local.ts
+is 1,490); whitespace checks pass. Evidence is in
+`/tmp/lane-j-repro-before.log`, `/tmp/lane-j-rust-targeted.log`,
+`/tmp/lane-j-pages-final.log`, `/tmp/lane-j-js-targeted.log`,
+`/tmp/lane-j-guide.log`, `/tmp/lane-j-full-suite-first.log`,
+`/tmp/lane-j-full-suite-second.log` and
+`/tmp/lane-j-full-suite.log`. No open implementation problem found. No
+version bump, publication, push, acquisition redesign or benchmark rerun.
+
+### 2026-09-24 — Lane J round 1: keep published answers through unavailable reruns
+
+The M8 correction supersedes round 0's decision to discard remembered answers
+on unavailable replies. Both observation arms now use `ReadObservation`: an
+unavailable rerun keeps the last ready value, cursor and coverage flags with
+`fresh: false`, preserving its `since`. A fresh value without a public `since`
+records its publication time for a later stale answer; repeated unavailable
+reruns do not advance that time. An initial unavailable observation stays
+loading. A refusal replaces and discards the kept value; subsequent unavailable
+reruns retain that refusal until there is another answer. Explicit sign-out,
+close and account replacement fence snapshots, including an old observation
+handle that is no longer subscribed. Existing store-incarnation invalidation
+and held-query authority boundaries remain intact.
+
+An unavailable ordinary device read now asks the online server before checking
+pending predictions: it has no usable prediction to preserve. A transport
+failure on that attempt returns the unavailable local state, so an observation
+can keep its answer and a never-answered observation can keep loading. Existing
+server-only offline refusals remain. Available local predictions keep their
+previous routing. Composition may use the already-fetched server value if its
+second local read becomes unavailable. A no-change sync reevaluates kept
+answers instead of promoting them to fresh by changing their flag. Server
+answers remain remembered through unavailable replies; an explicit refusal
+still removes them. The online arm distinguishes transport loss from an
+explicit E_OFFLINE refusal, so the latter also replaces a kept answer.
+
+Files: added the small shared `src/read-observation.ts` helper and updated
+`src/client.ts` and `src/local.ts`. Updated only the Read comment in
+`src/contract.ts`, two sentences in `CLIENT-AND-OPERATIONS.md`, and the read
+card's availability/fallback description. Read's union, Quarry syntax, Rust,
+engine semantics, disclosure and meter ceilings are unchanged. local.ts is
+1,495 lines; every changed source remains below 1,500.
+
+Added `test/page-observation.test.mjs` and its shared
+`test/fixtures/page-observation.mjs` journey. Two real device owners send and
+read a three-message chat across a two-row horizon. The Node/native process
+journey and Chromium's real wasm/IndexedDB journey prove server fallback during
+an online pending send, an offline unavailable rerun retaining the inbox,
+stable since, loading for a never-answered offline query, and account-switch
+clearing. The browser mounts AppProvider with both useQuery and usePage; both
+keep their first page visible and move to the new account. Added resetRead to
+the shared Quarry fixture to trigger a predictable membership update. Updated
+round 0's page-ready tests for the corrected cache/fallback behavior. Extended
+the React harness with the actual online client to cover every page becoming
+unavailable, missing data, stable timestamps, refusal replacement and retention,
+recovery, and close. No React hook implementation change was needed.
+
+Affected tests passed 94/94, including lifecycle, local sign-out and existing
+store-reset cases; the final refusal refinement passed the React harness 19/19.
+An intermediate React test called loadMore before the asynchronous first page
+was ready; awaiting readiness corrected the harness. Initial typechecking also
+caught my local notify-name shadow, corrected before validation. The first full
+round-1 suite passed `== 0 failure(s) in 147 s`; final validation follows below.
+No iOS simulator, publication, version bump or push was performed.
+
+Final round-1 suite: `== 0 failure(s) in 99 s`. Both round-1 full runs had
+zero product, baseline or environmental failures. The main client shard
+reported 1,071 tests: 1,061 passed, 10 existing skips, zero failures; the
+remaining shards, Rust targets, guide compilation and typechecks also passed.
+The two new device journeys and the multipage React case ran in the final
+suite. Evidence: `/tmp/lane-j-r1-targeted.log`,
+`/tmp/lane-j-r1-refusal.log`, `/tmp/lane-j-r1-full-suite.log`, and
+`/tmp/lane-j-r1-full-suite-final.log`. Whitespace checks pass. No open
+implementation problem or design deviation found; native validation uses the
+real process device and the shared client arm, without an iOS simulator.
+
+## 2026-09-24 — Lane J round 2: revoke retained answers with their authority
+
+Closed the Astra/Grok review items. The leak was in the observation lifetime:
+a heap-aborted rerun returned loading after an until-revoked membership had
+been removed, and ReadObservation retained the previously authorized private
+row. An applied withdrawal only scheduled that rerun. The local client now
+clears every retained and remembered server answer at the committed authority
+boundary, before notifications, reruns or fallible post-commit work. A separate
+answer revision fences direct reads, observations and server-cache insertion
+against earlier in-flight responses. Scope/deletion events, authority-table
+changes, deferred publication, predicted membership changes, settlement and
+clear_rows use the same fence. Existing store-reset/adoption fences remain;
+generation discovery and backend-required recovery invalidate before fetching
+the new backend, even when that fetch fails. Prediction classification is
+bounded to 256 entries and is discarded when the schema changes.
+
+Engineering choice: when the affected observation cannot be established,
+reset all observations. ReadAuthority's schema/program inspection supplies
+invalidation hints, never authorization decisions. An unchanged read marker
+can still predict without discarding an inbox answer. Unknown settlements,
+native prediction effects and another owner's staged transfer fail closed.
+The helper also keeps local.ts below the 1,500-line source limit.
+
+ReadObservation and both client arms now distinguish a transport-generated
+E_OFFLINE from a server refusal, so a successful loading response replaces the
+former and preserves the latter. HTTP and CLI unavailable responses carry
+loading=true, data=null, complete=false for old consumers. Release HTTP omits
+the meter field entirely. React combines since only across stale pages.
+contract.ts and CLIENT-AND-OPERATIONS.md document the authority lifetime.
+
+New page-authority.q/page-authority.test.mjs use the real server and SQLite
+process device: revoke an until-revoked row after a heap abort, including a
+post-commit exception and a delayed old HTTP response; neither observation nor
+remembered cache may resurrect it. Other cases prove held queries stay local,
+transport refusals recover in both clients, explicit refusals stay, and a
+predicted membership deletion clears retention. read-authority.test.mjs tests
+private/other-owner staging, rule fields, settlement, cache reset and adoption
+of changed read dependencies. store-reset-review adds failed-backend-fetch
+generation discovery. React tests mixed fresh/stale timestamps. Rust HTTP/CLI
+tests assert legacy fields and release disclosure. PostgreSQL's feature-gated
+regression proves heap abort versus valid null/empty-list availability.
+
+PostgreSQL was not installed globally. Extracted PostgreSQL 16.15 packages under
+/tmp/lane-j-postgres, ran one socket-only private cluster and the regression
+with SNAPBACK4_EVAL_POSTGRES, then stopped that cluster. The live test passed;
+forcing unavailable=false made it fail. Ten initial mutation checks all failed
+as intended (authority reset, stale server-cache insertion, refusal provenance,
+held fallback, early generation invalidation, mixed since, HTTP fields, release
+meter, CLI fields, PostgreSQL availability). The additional adoption test
+failed against the prior compiled helper and passed after classification reset.
+Evidence: /tmp/lane-j-r2-mutations.log and /tmp/lane-j-r2-mutant-*.log.
+
+Affected validation passed 60/60; the final authority/adoption set passed 9/9;
+the full-failure follow-up set passed 68/68. HTTP, CLI and live PostgreSQL tests
+also passed individually. The first scripts/test.sh run reported exactly
+`== 1 failure(s) in 158 s` (client tests; nine assertions):
+- Ours: MQ rejoin, MQ held change and MQ expiry held, each on wasm and process.
+  Their old assertions explicitly accepted an HTTP answer from before the
+  authority change. Updated them to require the newly authorized transaction.
+- Ours: column activation: sqlite, device watch. Server fallback can publish
+  the new generation before device adoption completes; await both adoptions.
+- Ours: unavailable server list reruns keep published answers in both clients.
+  Wait for the heap-aborted response and reconnect after the deliberate earlier
+  transport failure before asserting a direct online loading answer.
+- Environmental/pre-existing fixture race: stopped full-release restore
+  preserves its recovery point and stays separate from the original. The real
+  scheduler completed an empty job before the fixture inserted its row (done
+  versus parked). This code is unchanged; its isolated follow-up passed. The
+  host baseline's Rust failures did not recur. Reproduction/evidence:
+  scripts/test.sh under concurrent load, /tmp/lane-j-r2-full-suite.log.
+
+No Quarry form, Read type, engine semantics or resource ceiling changed. The
+ordinary privatePage() and heldPage() held forms compile and run in the new
+fixture. No iOS simulator, version bump, package publication or push was done.
+
+Final scripts/test.sh result: `== 0 failure(s) in 129 s`. No product, baseline
+or environmental failures remained in that run. The main client shard had
+1,082 tests: 1,072 passed, 10 existing skips, zero failures; all other shards,
+Rust targets, guide checks, builds and typechecks passed. Evidence:
+/tmp/lane-j-r2-full-suite-final.log, /tmp/lane-j-r2-affected-final.log,
+/tmp/lane-j-r2-adoption-final.log, /tmp/lane-j-r2-full-failure-check.log,
+/tmp/lane-j-r2-http-final.log, /tmp/lane-j-r2-cli-final.log and
+/tmp/lane-j-r2-pg-final.log. Whitespace checks pass. No design deviation or
+unresolved Lane J implementation issue remains; the unrelated scheduler
+fixture race above remains a recorded test limitation.
+
+## 2026-09-24 — Lane J round 3: retain an answer only during its replacing fetch
+
+Closed the next Astra review by replacing indefinite retention, rather than
+extending the authority classifier as the correctness boundary. Previously,
+ReadObservation.publish(loading) kept a private answer indefinitely. The
+classifier missed predicted changes to expire columns, and the online client
+had no membership classifier at all: privatePage could heap-abort, revoke could
+succeed, and each unavailable rerun would keep the old private row.
+
+read-observation.ts now bridges exactly one replacing fetch with fresh=false
+and the previous since. Its answer replaces the kept value; unavailable or
+failed settlement clears it to loading. A revision fences responses after a
+reset. client.ts and local.ts wrap their server requests in that lifetime,
+avoid duplicate result notifications, and publish loading when no replacement
+can start. Local observations never fall back to remembered server answers;
+composed reads retire the kept answer when HTTP settles, before any remaining
+device work. The online client also resets every watch on generation changes.
+Existing committed revocation, reset, adoption and account/client fences remain.
+read-authority.ts additionally tracks expire columns on source and rule-probe
+tables as defense in depth; residual probe equalities retain their own test.
+
+Engineering choices: direct query() remembered-answer behavior is unchanged;
+the requested new lifetime governs observations. Explained refusals are shown
+until a subsequent result replaces them, including a subsequent unavailable
+result becoming loading under the round-3 contract. A transport failure in an
+observation is loading. The Read type, engine semantics, Quarry syntax,
+authorization rules and all resource ceilings are unchanged. local.ts is
+1,495 lines, below the source-file limit.
+
+File-by-file regression and documentation record:
+- contract.ts: two-sentence Read comment describing the fetch lifetime.
+- CLIENT-AND-OPERATIONS.md: the observation contract, offline behavior and
+  meter text; distinguishes direct query caching from observations.
+- guide/reads.rs: the same bounded lifetime and corrected meter wording.
+- test/read-observation.test.mjs: answer, unavailable, refusal and thrown-fetch
+  settlement; no resurrection by a later fetch; reset publication fence; online
+  generation invalidation before the next change request. The generation test
+  checks immediately after application so a later link watchdog cannot mask it.
+- test/read-authority.test.mjs: source/probe expiry, residual equalities outside
+  the selected index, and resetting an answer during a real pending fetch.
+- test/fixtures/page-authority.q: source and membership expiry plus mutations.
+- test/page-authority.test.mjs: real server and SQLite device expiry predictions,
+  both with the classifier enabled and disabled; real online privatePage heap
+  abort followed by revoke; failed-fetch cache exclusion; held/unrefetchable
+  loading; existing applied-revocation and delayed-publication witnesses.
+- test/fixtures/page-observation.mjs: two independent devices, pending write,
+  held inbox HTTP response, stable since and no blank in both hooks; offline
+  unavailable reruns become loading and cannot resurrect a page.
+- test/page-observation.test.mjs: runs that journey on the native process device
+  and Chromium/IndexedDB, including account isolation.
+- test/react.test.mjs: every page and useQuery bridge pending requests, then
+  clear at unavailable settlement; refusal, close and non-array defense remain.
+- test/page-ready.test.mjs: unavailable responses end retention in both arms.
+- test/client-seams.test.mjs: online/native/web retain data, cursor, cut,
+  completeness and meter only during the fetch; offline clears observations.
+- test/retained-history.test.mjs: adopted answers can become stale during the
+  next fetch, while every publication still belongs to the new generation.
+- test/maintained-column-adoption.test.mjs: check newly served fresh answers;
+  a stale bridge before generation discovery is not a new server transaction.
+- test/readme-examples.test.mjs: exactly one stale bridge notification and one
+  replacement; typing deadlines still extend and clean up correctly.
+- test/residency.test.mjs: offline observations stay loading, cannot recover a
+  remembered server answer on remount, and recover online; device reads persist.
+
+All eight negative checks were caught: removing expiry classification, removing
+residual-equality classification, restoring indefinite retention with the
+classifier disabled, reusing remembered answers in observations, keeping fresh
+during a fetch, removing the reset fence, skipping failed-fetch cleanup, and
+removing online generation invalidation. In particular, with committed()
+disabled, both source and membership expiry tests prove the private row leaves
+the observation when the single unavailable fetch settles. Evidence:
+/tmp/lane-j-r3-mutations.log and /tmp/lane-j-r3-mutant-*.log. The generation
+check initially survived because it waited for a later timeout; tightening its
+application barrier caught the mutation. Sources were restored after checks.
+
+Validation: affected tests 48/48; guide 57/57 plus docs budget; final follow-up
+25/25. Earlier routing checks exposed five obsolete assertions (three offline
+retention expectations and two adopted-answer freshness expectations), updated
+as described above. The first full scripts/test.sh result was exactly
+`== 1 failure(s) in 143 s` (client tests, five assertions, all ours):
+- column activation: sqlite, server watch; column activation: wasm, server
+  watch — old data carried by a stale fetch notification was counted as a newly
+  served transaction. Fresh server-answer assertions now preserve that check.
+- W10R1 typing renderer replaces deadlines on a live watch and cleans up on
+  unmount — duplicated settled-result notifications; fixed in both clients,
+  then asserted the additional intended stale notification during a rerun.
+- server-run watches rerun on online-only commits and retain answers offline
+  for the client lifetime — obsolete indefinite offline retention expectation.
+- offline cold watches refuse E_OFFLINE, persisted local reads still work,
+  server answers never persist — obsolete observation transport refusal.
+No baseline or environmental failure occurred in either round-3 full run.
+
+Final scripts/test.sh: `== 0 failure(s) in 148 s`. Main client shard: 1,096
+tests, 1,086 passed, 10 existing skips, zero failures; all other shards, Rust
+targets, guide checks, builds and typechecks passed. Evidence:
+/tmp/lane-j-r3-full-suite.log, /tmp/lane-j-r3-full-suite-final.log,
+/tmp/lane-j-r3-affected-final.log, /tmp/lane-j-r3-followup.log,
+/tmp/lane-j-r3-guide-final.log and /tmp/lane-j-r3-docs-final.log.
+No new language form: ordinary privatePage(), heldPage() held and expiry
+mutations in the fixture compile and run. No unresolved Lane J issue or design
+deviation remains. Native evidence uses the real SQLite process device and
+shared native client; no iOS simulator, publication, version bump or push.
+
+## 2026-09-24 — Lane J round 4: local fallback courtesy, monotonic online reads
+
+Implemented the supervisor's narrower contract. The online generation race was
+a second publication in refresh(): fetch() had published an answer, a generation
+reset could replace it with loading while the caller resumed, and refresh()
+then republished the old answer as fresh. Separately, a successful mutation did
+not fence a pre-commit query response. The real-server reproduction held an
+authorized privatePage HTTP response across a successful revoke and observed
+the revoked row reappear, fresh, before the next rerun removed it.
+
+client.ts now retains nothing: fetch starts loading and watch.fetch() alone
+publishes its result. Mutation acknowledgements and change notifications advance
+a minimum acceptable sequence. Direct queries and observations discard and
+refetch responses below it; publication checks the fence after the asynchronous
+query continuation. A generation epoch also fences direct reads when the
+generation changes without a sequence increase. Retries yield to the event loop
+so a repeatedly stale transport cannot starve cancellation. Refusals without a
+sequence remain explicit refusals; unsequenced unavailable responses carry no
+data and remain loading. Ready responses retain their actual server sequence.
+
+read-observation.ts defaults to no retention. local.ts opts in only after a
+device evaluation needs server fallback, including composition's unavailable
+component. Server-run reads and backend/native recovery fetches do not retain.
+Every successful apply (including private staging), admission, settlement and
+clear_rows invalidates all answers and remembered server responses before
+notification or rerun. Existing reset/adoption/generation/account/close fences
+remain. The schema/program classifier and its tests are deleted; local-reads.ts
+contains only the watch shape and unconditional clear/revision helper. No
+classifier remains in use. Composition retires its old answer immediately at
+HTTP settlement when publishResult=false, before further device work. A closed
+local observation stops retrying when a commit fenced its pending read.
+
+Engineering choices: the minimum query sequence is separate from the changes
+poll cursor, so a mutation acknowledgement cannot skip another table's change
+notification. Local direct query caches remain supported, but every applied
+commit now retires them too. Unrelated commits may blank and rerun observations,
+as explicitly accepted in this round. The retained answer is only a courtesy;
+the classifier no longer decides its lifetime. No Quarry form, Read type,
+engine/wire semantics, refusal code, disclosure rule or meter ceiling changed.
+
+File-by-file tests and documentation:
+- online-read-order.test.mjs: no online retention; stale responses after both
+  writes and change notifications for direct reads and observations; a buffered
+  fetch continuation crossing a generation reset; same-sequence generation
+  fencing for direct reads. The buffered-continuation test deterministically
+  observes the asynchronous gap between fetch publication and its caller.
+- page-authority.test.mjs: the real HTTP revoke reproduction, heap aborts,
+  applied revocations, expiry predictions and pending writes under unconditional
+  invalidation; server-run local reads retain nothing even without a commit.
+- read-observation.test.mjs: existing settlement/reset tests opt in explicitly;
+  a new composition test requires loading at HTTP settlement and proves the raw
+  server component is not published before composition.
+- local-reads.test.mjs: unconditional clearing of kept answers, remembered data
+  and pending publication. read-authority.test.mjs was removed with its subject.
+- fixtures/page-observation.mjs: real native/SQLite and Chromium/IndexedDB
+  two-device inbox; a controlled nextExpiry schedules a rerun without changing
+  rows, both hooks keep their page during fallback, a pending prediction clears
+  both immediately, and server fallback still starts while the send is pending.
+  The real server supplies all data; the transport controls only retry timing.
+- client-seams.test.mjs, react.test.mjs and readme-examples.test.mjs: replace
+  online/server-run retention expectations with loading and server answers;
+  typing deadlines still extend and clean up with no synthetic stale repaint.
+- page-ready.test.mjs: remembered data cannot survive an intervening commit.
+- retained-history.test.mjs: a sync during composition forces a new request;
+  since belongs to that replacement's captured sync time.
+- client-lifecycle.test.mjs: idle polls remain quiet; committed changes and
+  predictions invalidate all observations. The unchanged pending-watch close
+  regression caught and verifies the new retry exit.
+- repair-b-round7.test.mjs: private staging commits may rerun the published
+  image, but no staged row or identity becomes visible before publication.
+- contract.ts, CLIENT-AND-OPERATIONS.md and guide/reads.rs: the narrowed
+  two-sentence contract, with meter prose restricted to local fallback.
+
+The real revoke regression failed before the fix, exposing a transient private
+publication. Ten mutation checks were caught: reintroducing the second online
+publication; deleting the write floor, changes floor, generation fence or
+publication check; enabling online retention or local server-run retention;
+removing local commit invalidation; deleting composition cleanup; and disabling
+local fallback retention. In particular, the previously surviving composition
+cleanup mutation now fails. Sources were restored after each check. Evidence:
+/tmp/lane-j-r4-before.log, /tmp/lane-j-r4-revoke-before.log,
+/tmp/lane-j-r4-mutations.log and /tmp/lane-j-r4-mutant-*.log.
+
+Affected validation passed 50/50. Earlier focused runs found one obsolete
+remembered-answer assertion, the two old composed-since assertions, and a web
+fixture remount that recreated its page observation; the replacement timer
+journey preserves that observation while exercising the same real device read.
+The first full scripts/test.sh reported exactly `== 1 failure(s) in 152 s`:
+client tests had two failed assertions and two timed-out/cancelled tests, all
+ours, with no baseline or environmental failures:
+- local observations skip idle sync and rerun only after a changed page is
+  applied: an obsolete exact rerun-count expectation timed out.
+- closing a pending watch prevents its response from scheduling expiry or
+  rerunning dirty work: the commit fence caused a closed local read to retry;
+  fixed the implementation and kept this regression unchanged.
+- local prediction invalidation reruns only observations of written tables:
+  the old selective-invalidation expectation timed out.
+- private identity leaves published watches and adoption unchanged until
+  publication: the old no-rerun expectation conflicts with every-commit clearing;
+  retained and strengthened the no-staged-data assertion.
+Lifecycle follow-ups passed 3/3; private-staging follow-ups passed 3/3.
+
+Final scripts/test.sh: `== 0 failure(s) in 100 s`. Main client shard: 1,098
+tests, 1,088 passed, 10 existing skips, zero failures or cancellations. All
+other shards, Rust targets, guide checks, builds and typechecks passed. Logs:
+/tmp/lane-j-r4-full-suite.log, /tmp/lane-j-r4-full-suite-final.log,
+/tmp/lane-j-r4-affected-final.log, /tmp/lane-j-r4-routing.log,
+/tmp/lane-j-r4-updated-pins.log, /tmp/lane-j-r4-lifecycle.log and
+/tmp/lane-j-r4-staging.log. Source files remain below 1,500 lines. No open
+implementation issue or design deviation remains. Existing privatePage(),
+heldPage() held and expiry mutations still compile and run; no new language
+form was added. No iOS simulator, version bump, publication or push was done.
+
+## 2026-09-24 — Lane J round 5: store-scoped read order and bounded retries
+
+The online client's sequence floor and change cursor were process-wide: a
+verified replacement B at sequence 1 inherited A's floor of 100. Every B
+answer then failed the acceptance check, whose direct-query and observation
+loops had no cap or backoff. Closing a watch removed it from the map without
+retiring that loop's fetch revision. Both review reproductions failed before
+the client fix (replacement never settled; closed watch kept requesting).
+
+client.ts now binds the floor and polling cursor to store identity verified by
+authenticated changes/probe replies. Replacement resets both, clears answers
+and expiry timers, and fences outstanding query and head responses. A late
+receipt from the old store cannot raise the new store's floor. A same-store
+head below the floor captured at dispatch reports E_STORE_RESTORE and halts
+reads/polling; a held head that predates a later write is not restore evidence.
+First identity discovery cannot lower a write floor advanced after dispatch.
+A write sent before discovery and received afterward needs a head verified
+after its receipt; reads stay loading until that proof arrives, including
+after a failed probe. Probes coalesce, and later queries or changes can obtain
+the proof. These are engineering decisions where the brief left the initial
+identity race unspecified.
+
+read-observation.ts bounds each stale-read round to four attempts, separated
+by 25/50/100 ms backoff, checking cancellation before another request. Direct
+queries use the same loop. Exhaustion becomes loading, suppresses dirty/expiry
+rearming for that round, and waits for another invalidation. Final-owner close
+increments the revision; one remaining subscribed owner keeps the shared
+fetch alive. Obsolete-credential POST and probe retries have the same cap and
+backoff. Online retention remains absent; the local fallback courtesy,
+composition cleanup, legacy unavailable body and meter omission are intact.
+
+Files/tests:
+- online-store-order.test.mjs adds eleven regressions: replacement/cursor and
+  buffered read/write fences; same-store restore; a pre-write held head;
+  direct and observed retry limits/backoff/recovery; final-owner cancellation;
+  shared-owner survival; reconnect probe replacement; first-head/write races,
+  including failed verification and recovery through a later head.
+- online-session.test.mjs adds query and reconnect-probe credential-churn caps.
+- page-authority.test.mjs adds the real-server heap-abort/cost-reduction case:
+  hold an unavailable privatePage response, commit setCost(false), release it,
+  and require a refetch yielding the private row. Exempting loading from the
+  sequence check now fails this regression.
+- read-observation.test.mjs adds deterministic reset during retry backoff.
+- contract.ts, CLIENT-AND-OPERATIONS.md and guide/reads.rs scope read ordering
+  to the same store; the reference documents restore recovery and retry limits.
+
+Validation: bun install --frozen-lockfile completed. The affected five-file
+suite passed 50/50. Thirteen controlled mutations were caught: floor reset,
+cursor reset, response epoch, restore refusal, retry cap, backoff, close reset,
+pre-retry cancellation, loading sequence checks, both first-identity fences,
+and both credential retry caps. One initial close test did not force entry into
+backoff and let the pre-retry-check mutation survive; its scheduling and the
+new deterministic helper test close that gap. The new probe-cap test initially
+raced its own disconnect (zero probes); its fixture now waits for the initial
+answer before disconnecting. These test-development issues were ours and fixed.
+
+The first two full runs reported `== 1 failure(s) in 183 s` and
+`== 1 failure(s) in 143 s`. Each had only the existing W5c process pending-write
+reopen assertion at acquisition.test.mjs:375: sent instead of pending. This was
+a pre-existing fixture race exposed by scheduling, not a production regression:
+sync-fails still permits mutation requests, so a retry could settle during
+close. The baseline log did not fail this test, and it passed unchanged in
+isolation. The scope extension is a test-only fix in acquisition.test.mjs:
+keep all transport offline throughout the pending phase and close, then enable
+it for the existing recovery assertions. Both WASM and process cases passed
+2/2; committed separately as 0919427b2. No baseline Rust failure was changed.
+
+Final scripts/test.sh: `== 0 failure(s) in 158 s`. Main client shard: 1,113
+tests, 1,103 passed, 10 existing skips, no failures/cancellations; every other
+shard, Rust target, guide check, build and typecheck passed. Logs are
+/tmp/lane-j-r5-affected-final.log, /tmp/lane-j-r5-mutations.log,
+/tmp/lane-j-r5-auth-mutations.log, /tmp/lane-j-r5-acquisition-fixed.log and
+/tmp/lane-j-r5-full-suite-green.log (earlier reds: full-suite.log and
+full-suite-final.log with the same lane-j-r5 prefix).
+
+No Quarry form, Read type or engine semantics changed. Existing privatePage()
+and setCost(grow: bool) forms compile and run in the real-server regression;
+client.query(privatePage, {}) refetches a stale unavailable answer, and
+client.observe(privatePage, {}) settles or stops within one bounded round.
+No open reproduction remains. No native simulator, package publication,
+version bump or push was performed. Changed source files stay below 1,500 lines.
+
+## 2026-09-24 — Lane J round 6: Grok's exact races and composed authority
+
+Audited round 5 against Grok's additional details. No production change was
+needed: verified replacement resets the floor/cursor and query epoch even at
+the same head and generation; mutation receipts advance the floor with max;
+close resets the last subscriber's watch and fetch checks its revision both
+after receiving the result and after retry backoff.
+
+The lower-head suggestion is scoped to verified replacement, preserving the
+round 5 E_STORE_RESTORE rule for a same-store head below its dispatch-time
+floor. Blindly lowering on any smaller head would weaken the write fence:
+acknowledge revoke at S=10, then deliver an older same-store change head at
+S=1 and a private query result at S=1. Lowering the floor would publish the
+revoked row as fresh. A head captured before the write is therefore ignored
+for lowering; a proven same-store regression refuses. Existing tests for both
+cases and replacement A/100 -> B/1 passed. This is the only qualification of
+Grok's proposed wording; the established authorization contract stays intact.
+
+packages/snapback4/test/online-store-order.test.mjs adds four tests:
+- Replace A/10 with B/10 at the same generation while both a direct query and
+  a watch response are held. Neither old-store answer may publish as fresh.
+- Replay an older mutation acknowledgement (S=1 after S=10), separately for
+  direct queries and observations. The older query answer must be refetched;
+  the replay must not lower the floor or reopen the revocation window.
+- Close the final subscriber while a stale S=1 HTTP body is still in flight
+  behind floor S=2, then release the body. Snapshot stays loading and there
+  is exactly one query request. The existing deterministic backoff reset test
+  separately covers cancellation after the yield.
+
+packages/snapback4/test/composed-authority.test.mjs adds four real-server
+tests: watch/query crossed with WASM/process SQLite devices. The fixture
+acquires two scopes, leaves a delivered-history scope, and composes its one
+retained row with two server-authorized private rows beyond a one-row device
+horizon. It holds the second device reply after HTTP settlement and server()'s
+authority check. A real membership revocation and sync then remove the private
+rows, without changing store identity or schema generation. Releasing the old
+device reply must publish no old server field, even transiently, while keeping
+the authorized retained history. A direct device query proves the revocation
+was applied before the held reply is released.
+
+The exact surviving mutation is now caught: deleting only the authority
+comparisons in runLocal and rerun, while keeping server()'s comparison intact,
+fails both composed watch tests with secrets-2 AND the server-only secrets-1
+in their publication traces. Five further mutation variants were caught:
+ignoring same-head store changes, omitting replacement's queryEpoch increment,
+letting a replay lower the floor, omitting close's reset, and omitting the
+cancellation check after retry backoff. No mutation survived; generated files
+were restored before the final validation.
+
+Validation: bun install --frozen-lockfile and package build completed; all 33
+affected tests passed. Initial fixture development had six failures, all ours:
+four Quarry parser failures from an inline order list consuming the next
+object field (fixed by naming each component before returning the object),
+and two replay cases using an invalid mutation id (fixed to a valid canonical
+id). The deliberate mutation failures above are regression evidence.
+
+scripts/test.sh passed on its first round-6 run:
+`== 0 failure(s) in 146 s`. Main client shard: 1,121 tests, 1,111 passed,
+10 existing skips, zero failures/cancellations. All other shards, Rust targets,
+guide checks, builds and typechecks passed. No baseline or environmental
+failure occurred in this full run. Logs: /tmp/lane-j-r6-affected-final.log,
+/tmp/lane-j-r6-mutations.log and /tmp/lane-j-r6-full-suite.log.
+
+Only these two test files and this journal changed. No new Quarry form, Read
+type, engine semantic or runtime policy was added. The fixture's existing
+forms compile and run: query mixed() returns independent history/private
+fields; mutation revoke(room) removes the viewer's membership. Both
+client.observe(mixed, {}) and client.query(mixed, {}) pass the new race.
+No open reproduction remains. No package publication, push or native simulator
+run was performed; both changed test files remain below 1,500 lines.
+
+## 2026-09-24 — Lane J round 7: store replacement terminates the online client
+
+Round 7 supersedes round 5's cross-store reconciliation. The old online client
+only verified identities through poll/probe heads, so direct queries could keep
+retrying below the old floor; a replacement-store mutation receipt could lose
+its fence; and an in-flight write could schedule another attempt after a
+restore refusal. Store identity is now checked before receipt sequences or
+query publications, and replacement or regression permanently ends that client.
+
+File by file:
+
+- crates/snapback4/src/serve.rs includes the evaluated reader's store_id in ready,
+  unavailable and refused query replies, and store_id plus the current head in
+  original/replayed mutation receipts and authenticated validation refusals.
+  Identity/head metadata comes from one read snapshot on the operation's owner;
+  its shared engine lock is released before the HTTP response is written. Query
+  data, the legacy unavailable placeholder and release meter omission are unchanged.
+- packages/snapback4/src/client.ts replaces rebasing, store epochs and head
+  re-verification with one terminal transition. E_STORE_REPLACED or
+  E_STORE_RESTORE fences all observations, aborts transport, settles every queued
+  and in-flight write as failed/unknown, cancels retries, and guards later calls.
+  Within-store monotonic reads, bounded refetches and close cancellation remain.
+  Refusal replies' head participates in the read floor as well as query seq.
+- packages/snapback4/src/app.ts reopens only the online tier on E_STORE_REPLACED,
+  using the existing serialized auth ownership and persistence fences. It retires
+  outstanding intents before closing/reopening, verifies the kept session on the
+  replacement, republishes the client, and cancels verification on logout/close.
+  E_STORE_RESTORE remains terminal and requires explicit recovery.
+- packages/snapback4/src/app-online.ts fences durable admissions and retires the
+  whole outbox, including an intent awaiting its admission write before raw
+  dispatch; no automatic reopen or later restart replays those failed intents.
+  Retirement also runs if another auth operation already superseded that owner.
+- packages/snapback4/src/writes.ts preserves the unknown-execution warning in
+  redacted terminal receipts; app-online.ts does the same for durable receipts.
+- packages/snapback4/src/contract.ts, packages/snapback4/CLIENT-AND-OPERATIONS.md
+  and crates/snapback4-lang/src/guide/reads.rs document the narrowed terminal
+  behavior. guide/sync.rs explains recovery and distinguishes local restoration;
+  guide/codes.rs registers E_STORE_REPLACED and updates E_STORE_RESTORE;
+  crates/snapback4-lang/src/diag.rs routes both codes to their dedicated sync text.
+- crates/snapback4/tests/serve_store/mod.rs is a new real HTTP test on memory and
+  pooled SQLite stores: ready/refused/validation query bodies, new/failed/replayed
+  mutation receipts, identical identity across endpoints, and historical replay
+  seq versus current head. serve_tests.rs registers it and checks identity on
+  unavailable replies in dev/release. tests/serve_timeline/mod.rs validates and
+  removes only each fixture's random store_id before its paired disclosure test.
+- packages/snapback4/test/online-store-terminal.test.mjs adds 15 regressions:
+  query/mutation/change/probe replacement and regression (eight); direct-only
+  ready/unavailable/denied replacement (three); B/2 revocation with buffered B/1
+  private data; same-head/same-generation replacement; historical replay head;
+  and a buffered refusal preceding a newer grant. The matrix also checks new,
+  queued and in-flight writes, immediate settlement before body release, exactly
+  one terminal event, no retry, and no later HTTP request.
+- packages/snapback4/test/app-store-replacement.test.mjs adds four regressions:
+  replacement accepting/rejecting the session, plus logout/close during recovery.
+  Admission of a second durable intent is paused across replacement; its receipt
+  is failed and the queue is empty before reopening, with no resend after restart.
+- packages/snapback4/test/online-store-order.test.mjs removes five superseded
+  reconciliation expectations. The new terminal tests cover their replacement
+  races; replay floors, stale-response bounds, initial identity and owner-close
+  tests remain. client-seams.test.mjs, write-authority.test.mjs and
+  write-ids.test.mjs assert the expanded wire envelope while preserving the public
+  Write shape, historical-result withholding, and paired disclosure checks.
+
+No new Quarry form or Read variant was introduced. Existing forms compile/run:
+query page() returns [1], mutation change() returns 1, and the private-row
+revocation fixtures still run. API examples: client.query(page, {}) on A/100
+then B/1 returns denied E_STORE_REPLACED; A/100 then A/1 returns
+E_STORE_RESTORE. A racing client.mutate(revoke, {}) returns failed with that
+code, even if its receipt later arrives. createApp({ url, sessionStore }) opens
+another client after replacement and keeps a session accepted by the new store.
+
+Engineering decisions where the brief was silent: first authenticated response
+identity binds the client; an actual regression compares its head with the floor
+at request dispatch, so a buffered response preceding a later write is refetched
+rather than falsely classified as restoration. Replay uses a separate current
+head because its seq names a historical commit. Identity-less legacy replies
+remain compatible; identity detection on direct queries/receipts requires the
+updated server envelope. A store-change callback connects createClient to the
+app owner without changing Client or Read. Retirement must persist before app
+reopening; persistence failure reports an error and prevents that automatic reopen.
+
+Validation and failures:
+
+- bun install --frozen-lockfile, build/typecheck and docs budget passed.
+- Initial affected JavaScript run: 90 passed. Final client/store/app set: 36
+  passed. HTTP target: 59 passed; guide target: 57 passed; the dedicated why
+  renderer and why CLI tests passed. The final full run covers all changed tests.
+- Eight deliberate mutations were caught: ignoring query identity; ignoring
+  receipt identity; ignoring same-head replacement; excluding the sending write
+  from terminal retirement; removing storeRefusal from new-mutation admission;
+  omitting app recovery notification; leaving the durable queue behind; and
+  ignoring a refused query's head. Generated files were restored before builds.
+- Preliminary failures, resolved: our private Tx::meta access did not compile
+  (use the public transaction connection); our change-feed regression fixture
+  captured a pre-floor poll (establish the initial head first); and our paired
+  timeline test needed the new per-fixture store identity normalized. An unchanged
+  full_poll_admission_preserves_short_request_progress test timed out under load
+  (environmental/pre-existing timing): it passed alone, all 59 HTTP tests passed
+  with four test threads, and every full run passed that case. A mutation-test
+  mock originally spun on repeated immediate change replies; bounding that mock
+  let the same-head mutant fail on its assertion instead of the harness timeout.
+- First scripts/test.sh: `== 2 failure(s) in 151 s`, both categories ours. Three
+  Rust cases lacked dedicated E_STORE_REPLACED guide text:
+  w11_every_registered_code_has_a_dedicated_section,
+  w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code, and
+  w11_why_every_registered_code_returns_its_dedicated_section. Thirteen JS cases
+  pinned the old wire: W6d two-POST replay (online/web/native); lost-first-ACK
+  replay (online/process-device, immediate/queued); W7r1 hidden/absent (dev/serve);
+  W8R1a hidden population cuts (dev/serve); write-authority's /m replay; and
+  write-ids' independent-client raw-argument binding. Fixed the guide routing/
+  section and explicit identity/head expectations. A focused rerun exposed one
+  remaining dev-only hidden/absent comparison (ours), then both modes passed.
+- Second scripts/test.sh: `== 0 failure(s) in 147 s`, 1,124 main-client passes
+  and 10 existing skips. Final audit then added the refused-head ordering test.
+- Final scripts/test.sh: `== 0 failure(s) in 143 s`. Main client shard: 1,135
+  tests, 1,125 passed, 10 existing skips, zero failures/cancellations.
+  No baseline or environmental failure occurred in either successful full run.
+  Logs: /tmp/lane-j-r7-full-suite.log, /tmp/lane-j-r7-full-suite-green.log,
+  /tmp/lane-j-r7-full-suite-final.log, /tmp/lane-j-r7-final-affected.log and
+  /tmp/lane-j-r7-mutant-*.log. The unrelated baseline check failure was read and
+  was not changed by this lane.
+
+No unresolved round-7 reproduction remains. No engine semantics, ceilings,
+local/native/web device read path, package versions, or Read type were changed.
+No new retention policy was introduced. All changed source files are below
+1,500 lines. No push, package publication, or native simulator run was performed.
+
+## 2026-09-24 — Lane J round 8: first discovery and the direct-query return fence
+
+Audited round 7 against Grok's round-6 report. No production change was needed:
+observeStore compares each head with minimumReadSeq captured at dispatch, refuses
+head < captured floor even on first identity discovery, and advances the floor
+with Math.max. A poll dispatched before an acknowledged write can discover the
+identity without declaring a restore, but cannot lower the receipt's floor. A
+subsequent same-store head below that receipt is terminal E_STORE_RESTORE.
+Round 7 already removed headNeeded and cross-store floor rebasing.
+
+Files and regressions:
+
+- packages/snapback4/test/online-store-order.test.mjs adds three cases. Two
+  acknowledge a write at sequence 2 before starting the first /changes request,
+  then deliver identity A at head 1 while old sequence-1 query replies are
+  buffered. Both identity-less legacy receipts and identity-bearing receipts
+  must refuse, fence the private replies, stop polling, and refuse later reads
+  and writes without requests. The third discovers A through a pre-write poll,
+  then delivers another head 1 after the sequence-2 receipt; that second head
+  must refuse rather than forget the receipt.
+- packages/snapback4/test/composed-authority.test.mjs adds two return-boundary
+  cases over the real server and wasm/SQLite process devices. The server answer
+  contains two private rows and the second device read contains one; a real
+  membership revocation removes both from the authorized view. Its commit is
+  delivered after runLocal's check but before client.query returns. Only the
+  outer authority fence prevents the composed pre-revocation server fields
+  from escaping, and the retry keeps authorized delivered history. The test
+  briefly intercepts synchronous Promise.finally registration to reach this
+  exact continuation boundary; it restores the prototype before yielding and
+  adds no production scheduling hook.
+- JOURNAL.md records this audit and validation. No Quarry form, client API,
+  documentation contract, refusal code, engine semantics, or meter changed.
+
+Validation:
+
+- bun install --frozen-lockfile and package build passed. The first targeted
+  run passed all 19 cases; the broader affected run passed all 52 cases.
+- Three deliberate mutations were caught: restoring the old first-discovery
+  floor assignment; replacing Math.max at discovery with head; and deleting
+  only client.query's result.authority comparison. For the last mutation,
+  server(), runLocal and rerun authority checks remained intact; both real
+  device tests failed because revoked private rows escaped. Generated files
+  were restored before the full suite's build. Logs: /tmp/lane-j-r8-mutant-*.log.
+- `scripts/test.sh`: `== 0 failure(s) in 167 s`. Main client shard: 1,140
+  tests, 1,130 passed, 10 existing skips, no failures or cancellations. No
+  baseline or environmental suite failure occurred. The baseline log tail was
+  read; its unrelated cargo-test failure was not changed. Full log:
+  /tmp/lane-j-r8-full-suite.log; affected log: /tmp/lane-j-r8-affected.log.
+
+No unresolved reproduction or deviation from round 8. This is test coverage
+for existing round-7 behavior. No new language forms, source fixes, native
+simulator run, push, or package publication were needed/performed. Both changed
+test files remain below 1,500 lines.
+
+## 2026-09-24 — Lane J round 9: terminal return fences and durable retirement model
+
+Closed both Astra Highs. A direct online query could pass fetch's acceptance
+check, then return its captured ready value after another response terminated
+the client. client.query now rechecks store refusal, close/credentials and the
+sequence/epoch fence immediately after await. A stale result becomes loading;
+this outer boundary starts no additional retry loop. Observations also recheck
+the result before installing metadata or expiry work, clear an invalid result,
+and preserve terminal denial.
+
+The durable-write race was in onlineCustody: createApp's synchronous hide paused
+the owner, so active && terminal(result) skipped persistence. Its other return
+path could refuse just-admitted work before the separately queued retirement
+saved. Custody now owns one retirement promise. Admitted dispatch, admission,
+and repeated-id refusal paths await it even after pause; a failed save returns
+pending. Ordinary terminal settlement also persists independently of active UI
+ownership. Retirement is idempotent. Automatic app reopening still waits for
+retirement, and a persistence failure prevents that recovery from proceeding.
+
+Files and regressions:
+
+- packages/snapback4/src/client.ts: final direct-query and observation fences;
+  no extra retry round, no retention, and no Read type change.
+- packages/snapback4/src/app-online.ts: shared durable retirement barrier and
+  persistence after pause; failed terminal saves remain pending.
+- packages/snapback4/CLIENT-AND-OPERATIONS.md: two lines describe the durable
+  outcome boundary and pending result when persistence fails.
+- packages/snapback4/test/online-read-order.test.mjs: five exact continuation
+  races after fetch accepts its answer: replacement, regression, acknowledged
+  revoke, close and sign-out. Terminal/cancelled answers refuse; the stale
+  post-revocation answer becomes loading without another request.
+- packages/snapback4/test/app-store-replacement.test.mjs: both an in-flight write
+  and a second admitted write wait while retirement storage is blocked; retry
+  of the first id also waits. Successful retirement leaves receipts and never
+  replays on reopen; failed persistence leaves both intents/outcomes pending.
+  Added login during a stalled replacement probe: it cancels the old probe and
+  publishes Bob. Round 7's signIn cancellation already handled it; no app.ts
+  change was necessary.
+- packages/snapback4/test/helpers/online-client-model.mjs: real createClient and
+  online createApp driven by a seeded wire/storage scheduler and virtual timers.
+  Operations include direct/observed queries, writes, revocations, polls, held
+  and reordered bodies, held accepted returns, replacement, regression, heap
+  unavailability, close, sign-out, login, reopen and storage failures. The oracle
+  checks R1 revocation/publication, R2 terminal reads/requests, R3 persisted
+  terminal writes/no replay, and R4 per-read requests, timer/step caps and fair
+  drain. ReadObservation is intercepted only to schedule the final await seam;
+  the oracle does not use implementation authority or journal helpers.
+- packages/snapback4/test/online-client-model.test.mjs: 3,000 seeded sequences
+  (1,500 raw online / 1,500 app), required coverage checks, and two named replay
+  seeds. Each failure reports its seed, tier, full sequence and executed trace.
+- JOURNAL.md: this append-only record.
+
+Validation and model findings:
+
+- Frozen Bun install, package build/typecheck and docs-budget check passed;
+  the initial focused run passed 20 tests, and the broader run passed all 55.
+- The model passed 3,000 seeds before and after adding onWrite emission checks;
+  its final coverage run is part of the full suite below. No additional product
+  defect was found after the two reviewed fixes. Mutation validation restores
+  each reviewed bug separately: seed 1615 detects R2 (data after terminal state),
+  seed 142 detects R3 (terminal outcome while durable intent is still pending).
+  Both seeds are now named regressions and pass with the fixes.
+- Focused mutation checks also caught the unfenced direct return, premature
+  retirement failures, and deletion of signIn's recoveryAbort.abort call.
+  All generated-file mutations were restored before the full build. Logs:
+  /tmp/lane-j-r9-mutant-*.log and /tmp/lane-j-r9-model-*.log.
+- `scripts/test.sh`: `== 0 failure(s) in 144 s`. Main client shard: 1,151
+  tests, 1,141 passed, 10 existing skips, no failures/cancellations. The final
+  3,000-sequence model and both named replay seeds passed. No baseline or
+  environmental failure occurred; the baseline tail was read and its unrelated
+  cargo-test failure was not changed. Logs: /tmp/lane-j-r9-full-suite.log and
+  /tmp/lane-j-r9-affected.log.
+
+No open round-9 reproduction or deviation. The engineering choice at the final
+read boundary is to discard to loading rather than add retries. The model uses
+controlled HTTP/storage/timer adapters around the real clients, not a separate
+client implementation or a browser/native witness. No Quarry form, engine
+semantics, meter, package version, or retention policy changed. All changed
+source/test files remain under 1,500 lines. No push or publication was performed.
+
+Final model measurements: 37.97 s in the full suite; 4,673 reordered releases,
+216 acknowledged revocations, 459 observed replacement refusals, 322 observed
+restore refusals, 450 durable-terminal checks, 57 held retirement saves, 55
+injected retirement-save failures, and 17 direct-query refetches. These are
+scheduler coverage counts, not throughput or production performance claims.
+
+## 2026-09-24 — Lane J round 10: terminal entry points and refresh custody
+
+Implemented Grok's remaining online-client findings on top of round 9.
+`packages/snapback4/src/client.ts` now makes a terminal store refusal observable
+as `link() === "signed-out"`, without discarding the session that `createApp`
+may validate on its new client. Actions return the store refusal rather than
+retryable pending; uploads and asset reads refuse before dispatch and after
+awaits, and late asset handles are released. `assetSource` returns an empty
+source and logout-all refuses too. `src/assets.ts` passes the optional client
+abort signal through both asset transports. `src/auth.ts` does the same for
+refresh, and `src/client.ts` fences refresh adoption and the awaited E_AUTH
+continuation. A late successor this owner cannot keep is revoked once;
+ordinary close keeps its existing in-flight rotation custody through a separate
+client-owned refresh abort controller. Store refusal and credential loss abort
+that controller immediately; ordinary close waits for custody. Sign-out cleanup
+now shares this per-rotation owner instead of a second cleanup callback.
+
+`src/app-online.ts` applies the same bounded receipt selection to individual
+settlement and bulk store retirement: unknown E_STORE_REPLACED/E_STORE_RESTORE
+failures leave before known sent receipts. Both sites matter because raw write
+settlement can enter the durable queue before bulk retirement. No receipt limit
+was raised. `CLIENT-AND-OPERATIONS.md` records terminal connectivity, entry-point
+behavior, successor cleanup and the receipt preference.
+
+Tests added or extended under `packages/snapback4/test/`:
+
+- `online-terminal-entrypoints.test.mjs`: replacement and same-store regression
+  refuse actions/uploads/assets/refresh/logout-all without more requests;
+  in-flight actions and assets share cancellation, do not publish late results,
+  and release native Blob/object-URL ownership; successful and E_AUTH refresh
+  responses cannot adopt or clear terminal credentials, including an old E_AUTH
+  response awaiting refresh; createApp never persists the late successor and
+  probes the kept token; a poll awaiting refresh cannot restart after refusal.
+- `app-store-replacement.test.mjs`: full receipt journals with zero or eight
+  older unknown failures retain all sent ids through retirement and reopening;
+  retrying the oldest sent id returns its receipt without another mutation.
+- `online-store-terminal.test.mjs`: after an acknowledged sequence 10 and a
+  replayed historical sequence 1 receipt with head 10, a later sequence 1 read
+  reports E_STORE_RESTORE. Replacing Math.max with assignment fails this test.
+- `helpers/online-client-model.mjs` and `online-client-model.test.mjs`: extend
+  the real createClient/createApp scheduler with uploads, asset reads, actions,
+  refresh rotation, held bodies and terminal successor cleanup. R1-R4 still
+  cover read authority, terminal requests/results, durable terminal writes and
+  bounded loops. Direct results are judged at public-promise settlement using
+  Node's promise hook, not at a later test-consumer callback. Explicit scheduled
+  replays cover the final query-return fence after replacement and revocation.
+
+The expanded model found one additional product defect (seed 1615, expanded
+vocabulary): a change poll entered while online, waited for refresh, then sent
+/changes after terminal refusal. Reproduction: hold refresh, let an existing
+poll settle, detect store replacement, then release refresh. The poll now
+rechecks terminal authority after the wait; sendPost and the post-E_AUTH poll
+continuation also discard retired results. A named seed and a focused test
+cover the defect. The model initially reported an already-settled direct read
+whose consumer resumed after refusal; correcting that oracle removed the false
+positive. Fault injection then exposed a random-corpus gap at the final return
+boundary, so the two explicit schedules now fail when that fence is deleted.
+
+Measurements and verification:
+
+- Frozen Bun install, affected tests: 60 passed, zero failures; after preserving
+  ordinary-close refresh custody, all 57 app/session/terminal tests and all six
+  model tests passed again. All changed
+  source/test files are below 1,500 lines.
+- Expanded randomized model: 3,000 sequences (seeds 1-3000, alternating online
+  raw/app clients), plus the named and explicit replay schedules, passed.
+  The final standalone randomized run took 32.04 s. Its coverage included 4,681
+  reordered releases, 162 acknowledged revocations, 428 durable-terminal
+  checks, 33 held retirement saves, 27 injected persistence failures, 107 asset
+  releases, 828 refresh cancellations and 16 terminal successor retirements.
+- Twelve fault-injection checks caught removal of terminal link reporting,
+  action refusal, each asset abort signal, refresh cancellation, refresh
+  adoption fencing, the E_AUTH gap guard, successor cleanup, receipt selection,
+  the historical sequence floor, the polling gap guard, and the final query
+  return fence. Injected mutants were confined to generated dist files and
+  restored before the full suite. Logs: /tmp/lane-j-r10-mutant-*.log.
+- First full run: `== 1 failure(s) in 148 s` (client-tests step; two tests).
+  `ordinary online app close keeps an in-flight rotation for the next runtime`
+  was ours: sharing the request abort signal aborted a committed refresh's
+  unread body. The separate refresh lifetime above fixes it without weakening
+  terminal cancellation. `W7r1 runWorker and doctor observe deferred presence
+  effects` reported `AbortError: This operation was aborted` while stopping
+  the worker after its database row became sent but before settlement finished.
+  This is an unrelated pre-existing shutdown timing race in unchanged worker
+  code, classified environmental, not a failure recorded in baseline-test.log.
+  Both presence variants passed unchanged on targeted rerun. Reproduction:
+  `node --test --test-name-pattern 'W7r1 runWorker and doctor observe'
+  packages/snapback4/test/worker.test.mjs`; intermittent during the full run,
+  not reproduced by that rerun. It remains outside this lane's implementation.
+  The baseline's separately recorded cargo-test failure was not changed.
+  Log: /tmp/lane-j-r10-full-suite.log.
+- Final `scripts/test.sh`: `== 0 failure(s) in 145 s`. Main client shard:
+  1,167 tests, 1,157 passed, 10 existing skips, zero failures/cancellations.
+  All 3,000 model sequences and replay schedules passed (38.35 s randomized
+  run inside the full suite). There were no final baseline or environmental
+  failures. Log: /tmp/lane-j-r10-full-suite-final.log.
+
+Development failures were ours and resolved: strict optional-property typing
+for omitted signals, the model's consumer-time oracle, the newly found
+post-refresh poll race, and ordinary-close refresh custody. Intentional mutant failures are verification evidence,
+not outstanding failures. No Quarry forms, Read type, engine semantics, meters,
+package versions, local retention rules or existing receipt limits changed.
+No open round-10 reproduction remains; the unrelated intermittent worker
+shutdown test observation is recorded above. The model uses controlled HTTP/storage/
+timer adapters around real clients, not a browser or native-platform witness.
+No push or publication was performed.
+
+## 2026-09-24 — Lane J round 11: keep custody of committed network effects
+
+Supersedes round 10's refresh/upload cancellation policy. The server can commit
+old -> next before the refresh body is read; aborting that body converted the
+rotation into E_OFFLINE, so cleanup saw no successor and logout could revoke
+only old. The real-fetch/SQLite regression failed before this change: next
+remained live after sign-out. The other reproduction submitted one durable id
+twice before replacement; failed retirement left the first caller pending but
+the overlapping recovery returned E_WRITE_RECEIPT_EXPIRED. Both are fixed.
+
+Files and behavior (under packages/snapback4):
+
+- src/request-wait.ts separates cancelling a caller from cancelling transport,
+  and consumes local POST replies after the caller leaves. It extracts that
+  work to keep local.ts under the 1,500-line limit (1,498 lines).
+- src/client.ts never aborts mutation/action/upload/refresh requests. Public
+  waits end on terminal refusal/close; refresh waits end on sign-out or terminal
+  refusal, and the background rotation revokes an unkept successor exactly
+  once. Ordinary close still keeps its existing refresh custody for restoration.
+  Queries, probes, polls and asset GETs retain network cancellation. Late effect
+  replies cannot publish, adopt credentials or retry against the replacement.
+- src/auth.ts removes refresh's abort input and makes logout's existing deadline
+  cancel only its wait. Login/signup/guest already sent without an abort signal.
+  src/assets.ts removes upload's abort input; fetched assets remain cancellable.
+- src/app.ts cancels superseded login/signup/guest waits without blocking later
+  auth operations, consumes their background replies and revokes unkept bearers.
+  Closing an opener also revokes a newly minted bearer that was never kept.
+  Restoration of an already-kept session retains ordinary-close semantics.
+- src/app-online.ts checks terminal refusal before and after duplicate receipt
+  recovery, so every caller awaits retirement and reports pending on a failed
+  save. Paused custody is also pending, rather than proof of receipt expiry.
+- src/local.ts applies the same no-abort rule to effectful POSTs and cancels
+  upload callers without adopting late facts. This is the shared transport for
+  Node SQLite, web and native hosts. Local refresh and the web keepalive sender
+  already preserved their effectful requests. App schema/recovery cancellation
+  remains confined to read requests; no worker execution policy was changed.
+- CLIENT-AND-OPERATIONS.md documents the rule and unplaced cancelled uploads.
+
+Tests and model:
+
+- test/app.test.mjs adds the real SQLite server/real fetch unread-refresh-body
+  reproduction for sign-out and replacement, verifying next is revoked and
+  cancellation ends the public wait; it also covers local mutation/upload
+  close, background response consumption and absence of late upload adoption.
+- test/app-store-replacement.test.mjs submits a duplicate BEFORE replacement,
+  alongside the existing after-replacement retry, through blocked and failing
+  retirement saves. Neither caller may outrun persistence.
+- test/effectful-cancellation.test.mjs uses actual HTTP/fetch with committed
+  effects and held response bodies. Nine cases cover mutation/action/upload
+  across sign-out, replacement and close, plus login/guest across logout,
+  close and replacement; every minted bearer is kept or revoked.
+- test/online-terminal-entrypoints.test.mjs changes round 10's deliberately
+  superseded abort expectations: only the asset GET aborts, while effectful
+  public waits end before their bodies arrive. test/online-store-terminal.test.mjs,
+  test/page-ready.test.mjs and test/fixtures/page-observation.mjs allow held
+  effectful requests without an AbortSignal.
+- test/client-lifecycle.test.mjs now proves a mutation committed on the real
+  server finishes delivery after close cancels its caller; no new write is
+  admitted. Its fallback-count tests await startup sync so an authority reset
+  cannot legitimately force a second read in a test measuring fallback routing.
+- test/helpers/online-client-model.mjs and test/online-client-model.test.mjs add
+  held login/guest responses, duplicate ids, body cancellation that rejects the
+  unread body without rolling back its server effect, and R5. After fair drain,
+  every minted bearer is either retained by a client/session store or revoked.
+  Client/app instances own their HTTP adapters; restoration traffic is kept
+  separate from the retired visible client. Six explicit R5 schedules protect
+  successor/login/guest cleanup independently of random coverage.
+
+The model found another product defect at expanded seed 16: ordinary close or
+account transition pauses custody while overlapping callers recover an admitted
+id, producing the same false E_WRITE_RECEIPT_EXPIRED without store replacement.
+The recovery callback now returns pending for this paused owner. The named
+replay fails if that guard is removed. Reproduce with `node --test
+--test-name-pattern 'expanded model replay seed 16:'
+packages/snapback4/test/online-client-model.test.mjs`.
+
+Measurements and verification:
+
+- Frozen Bun install passed. Initial affected batch: 84 passed. Additional
+  app/effect/local/page batch: 59 passed; the updated lifecycle batch: 10 passed;
+  native-process and Chromium two-device inbox journeys: both passed.
+- 3,000 randomized sequences (seeds 1-3000, alternating raw online/createApp)
+  passed R1-R5; all 13 model tests passed. Full-suite model time: 48.00 s.
+  Coverage: 9,342 bearer-custody checks, 2,857 duplicate submissions, 795 durable
+  terminal checks, 333 acknowledged revocations, 1,351 committed refreshes,
+  9,692 cancelled read bodies, 5,026 reordered releases, and 25 terminal
+  successor retirements. These are scheduler counts, not throughput claims.
+- Seven deliberate generated-dist mutations were caught: refresh transport
+  abort, missing successor revocation, missing paused duplicate guard, missing
+  terminal duplicate guard, missing auth wait cancellation, missing late-login
+  revocation, and aborting effectful POSTs. R5 itself reports orphaned tokens
+  when successor or login cleanup is removed. Dist was restored before testing.
+- First full run: `== 1 failure(s) in 181 s` (client-tests step, five failures,
+  all ours as changed cancellation/timing expectations). The old `close aborts
+  online posts and stops admission` expected the forbidden mutation abort;
+  W13b `missing fact` and `presence` raced startup's authority reset and observed
+  two correct fallback requests; native and web inbox journeys treated the now
+  absent mutation signal as an offline error. The fixes above preserve the
+  assertions' intended boundaries; all five passed on targeted rerun.
+- Final scripts/test.sh: `== 0 failure(s) in 116 s`. Main client shard: 1,187
+  tests, 1,177 passed, 10 existing skips, zero failures/cancellations. No final
+  baseline or environmental failure. The baseline log's unrelated cargo-test
+  failure was read and not changed. Logs: /tmp/lane-j-r11-before.log,
+  /tmp/lane-j-r11-affected*.log, /tmp/lane-j-r11-mutant-*.log,
+  /tmp/lane-j-r11-full-suite.log and /tmp/lane-j-r11-full-suite-final.log.
+
+No open round-11 reproduction or design deviation remains. The added engineering
+choices are to preserve ordinary-close refresh custody, use the same cancellation
+rule in the local transport, and keep paused overlapping outcomes pending. No
+Quarry form, Read type, engine semantics, meter, receipt limit or package version
+changed. All modified source/test files remain below 1,500 lines. No push or
+publication was performed.
+
+## 2026-09-24 — Lane J round 12: retirement survives receipt eviction
+
+The round-10 helper discarded unknown store-failure receipts before sent
+receipts, including failures just moved out of pending. With 256 sent receipts,
+a replacement could clear the pending charge and its only receipt in the same
+save. The reopened client then treated its id as new. The full-journal
+regression now retries the retired charge itself, not a retained sent id.
+
+Files and behavior:
+
+- packages/snapback4/src/app-journal.ts owns receipt retention. Newly retired
+  bodies are pinned; older unknown store outcomes compact to ids before the
+  oldest ordinary receipts leave the unchanged 256-body window. Bulk retirement
+  larger than that window also preserves every omitted failure id. Optional
+  journal fields preserve compatibility with existing journals.
+- packages/snapback4/src/app-online.ts uses that policy for settle and bulk
+  retirement, coalesces the raw client's per-write store refusals into one
+  queue retirement, and checks compact ids inside durable admission and receipt
+  recovery. Another already-open owner cannot miss retirement by relying on
+  its in-memory reservations.
+- Compact retirement ids have no safe time expiry. They remain for this
+  backend/account journal's lifetime, with a limit of 4,096 ids (about 116 KiB
+  of serialized id strings, sixteen receipt windows). If another id cannot fit,
+  the same atomic save sets a permanent retirementFull flag: new admissions
+  refuse E_WRITE_RECEIPT_EXPIRED instead of dropping replay protection. Existing
+  receipt bodies and admitted intents remain recoverable. Ordinary sent
+  receipts retain the existing bounded window and do not consume compact-id
+  capacity. Reconciliation and explicit journal replacement are required after
+  saturation; neither sign-out nor reopening clears this protection. This bound
+  is an engineering choice for rare unknown store outcomes, not a write-count
+  limit on ordinary successful operations.
+- packages/snapback4/src/client.ts also attempts best-effort logout of the
+  known old bearer when an unkept refresh rejects with a retryable transport
+  error: rejection does not prove rotation consumed it. No refreshAborter
+  remains. Rotation never receives the read/request AbortSignal, so neither
+  endCredentials nor stopForStore can abort it; a delivered successor is
+  revoked rather than adopted. An unread successor genuinely lost by transport
+  cannot be recovered by client code; old-bearer cleanup remains best effort,
+  not a stronger server revocation claim.
+- packages/snapback4/CLIENT-AND-OPERATIONS.md and the writes guide card document
+  compact ids, the cap, saturation, and the exception to reopening for receipt
+  recovery. No Quarry syntax, public Read type, engine semantics or meters change.
+
+Tests:
+
+- test/app-store-replacement.test.mjs now retries newly retired ids after a
+  journal with 256 sent receipts, and compacted old retirement ids with eight
+  old unknown outcomes. None posts to the replacement; retained sent receipts
+  still return their value-free confirmations.
+- New test/app-retirement.test.mjs covers both store-failure codes through
+  settle, 260 later successful settlements, reopening and another previously
+  open owner; a 300-intent bulk retirement; and saturation of all 4,096 compact
+  ids. Body eviction and the permanent admission fence are both reached.
+- test/online-terminal-entrypoints.test.mjs adds sign-out and replacement with
+  a refresh fetch that rejects on AbortSignal cancellation but must deliver
+  and logout next. Separate TypeError-rejecting refreshes require a new logout
+  attempt with old after the rejection. Round 11's real SQLite/real-fetch held
+  body tests also pass, including actual server rejection of the revoked next.
+- test/helpers/online-client-model.mjs and test/online-client-model.test.mjs add
+  full and nearly full journals, mixed historical store failures, compact ids
+  in the durability oracle, and explicit retry of retired ids on the reopened
+  client. The existing timer/transport checks remain; R1-R5
+  pass all 3,000 seeded sequences. Of those, 750 start with 255 receipts and
+  750 with 256 receipts (375 also contain eight old failures). The other 1,500
+  exercise raw online clients. Coverage: 1,350 retired-id retries, 388 compact
+  journal saves, 3,533 full-window saves, 3,271 durable-terminal checks and
+  9,342 bearer-custody checks. These are scheduler counts, not throughput.
+  The full-journal scheduled replay detects the reported lost-id defect under
+  the old helper; no additional product failure appeared in the seeded run.
+
+Verification:
+
+- Frozen Bun install, package build and typecheck passed. Four regressions
+  failed against the previous build (full/mixed journal and rejected refresh
+  at sign-out/replacement). After the fix, 88 affected tests passed; the
+  additional peer-admission assertions also passed. All 15 model tests passed;
+  the standalone 3,000-sequence run took 36.33 s.
+- Seven deliberate generated-dist mutations were caught: old retention by the
+  full-journal model, missing pin, missing compact-id persistence, missing
+  admission fence, missing saturation fence, skipped retryable-refresh logout,
+  and aborting refresh. Dist was restored before the full suite.
+- An intermediate affected run had one failure: raw per-write store events
+  retired each id separately, so only the last newly failed body remained
+  pinned. This was ours; coalescing those events into the single queue
+  retirement fixed it. The ids were already protected by compaction.
+- scripts/test.sh: `== 0 failure(s) in 145 s`. Main client shard: 1,197 tests,
+  1,187 passed, 10 existing skips, zero failures or cancellations. No baseline
+  or environmental failure in this run. The baseline log's unrelated cargo
+  failure was read and left alone. Full log: /tmp/lane-j-r12-full-suite.log;
+  focused/model/mutant logs use /tmp/lane-j-r12-*.log.
+
+No open round-12 finding remains. No design deviation beyond the requested
+choice of a compact-id bound; saturation refuses instead of weakening
+at-most-once protection. No package version or public contract type changed,
+all modified source/test files remain below 1,500 lines, and no push or
+publication was performed.
+
+## 2026-09-24 — Lane J round 13: retirement preserves displaced sent ids
+
+Round 12 pinned the failed pending charge but only compacted unknown-outcome
+ids. At a full 256-receipt window, the sent receipt displaced to make room for
+that failure disappeared. Reopening admitted its id to the replacement store.
+The restored oldest-sent retry and both single-settlement variants failed on
+the round-12 build; the oldest retry actually returned a new sent result.
+
+Files and behavior:
+
+- packages/snapback4/src/app-journal.ts takes an explicit retirement mode.
+  Every receipt id displaced by store retirement enters the compact set,
+  regardless of sent/failed state, in the same save as pending retirement.
+  The code states R6: an id the server may have executed is never admitted
+  again by this app while its record might matter. Ordinary successful-write
+  eviction retains its existing policy. The 256-body window, 4,096 compact-id
+  bound and durable saturation fence are unchanged. Compact receipts refuse
+  E_WRITE_RECEIPT_EXPIRED without dispatch; they do not invent a seq or result.
+- packages/snapback4/src/app-online.ts passes retirement mode for both a store
+  failure returned through settle and the bulk store-refusal path. The existing
+  pending exception is retained and explained: saturation fences new admission,
+  not recovery of already-admitted intent.
+- packages/snapback4/CLIENT-AND-OPERATIONS.md and
+  crates/snapback4-lang/src/guide/writes.rs document displaced sent ids and
+  saturated pending recovery. Refusal wording now covers known sent outcomes
+  as well as unknown outcomes after the body is compacted.
+- test/app-store-replacement.test.mjs retries the oldest sent id again, in
+  addition to the newly retired ids and a still-retained sent receipt. With no
+  older unknown failures it gets E_WRITE_RECEIPT_EXPIRED and sends no POST;
+  where its body remains it gets the original value-free replay confirmation.
+- test/app-retirement.test.mjs covers single-settlement displacement for both
+  store-failure codes, preservation after normal churn/reopen, unchanged
+  ordinary-success eviction, and saturation caused by either a sent or unknown
+  displaced id. A held, already-admitted intent in a saturated journal returns
+  pending from write(id) and overlapping mutate recovery; new ids still refuse.
+- test/helpers/online-client-model.mjs and test/online-client-model.test.mjs
+  add R6, track ids displaced by retirement independently of the compact set,
+  retry those ids after reopening, and seed saturated journals with previously
+  admitted intents. Receipt recovery is an asynchronous scheduled operation,
+  allowing later commands to release held storage. Historical replay seeds
+  retain their original operation vocabulary. Two named R6 schedules protect
+  the review reproductions independently of random coverage.
+
+Verification and measurements:
+
+- Frozen Bun install, build and typecheck passed. Three pre-fix regressions
+  failed as expected. The affected app/custody/storage tests: 68 passed.
+- All 17 model tests passed, including 3,000 seeded sequences under R1-R6:
+  1,500 raw online sequences, 750 app sequences starting with 255 receipts,
+  and 750 starting with 256 receipts; 150 app sequences also start saturated
+  with an admitted intent. Standalone model time: 39.04 s.
+- Coverage: 113 displaced sent receipts, 26 displaced failed receipts,
+  129 retries of displaced ids after reopen, 1,484 retirement-admission checks,
+  433 held-pending recovery checks, 3,319 durable-terminal checks and 9,017
+  bearer-custody checks. These are scheduler counts, not throughput claims.
+- Six generated-dist mutations were caught: compacting only unknown ids (R6
+  reports a protected id readmitted), disabling retirement in settle, disabling
+  it in the bulk path, treating ordinary success eviction as retirement, and
+  the exact pending-exception deletion in both the unit test and the model.
+  The latter reports R6: held admitted intent recovered as E_WRITE_RECEIPT_EXPIRED.
+  Dist was restored before the full suite.
+- During model development an initial run waited on the new receipt-read
+  operation behind deliberately held storage. This was a harness scheduling
+  error, not a client deadlock; that run was stopped and receipt reads were
+  changed to tracked tasks so subsequent release commands could run. The
+  completed seeded run found no additional client defect beyond the reviewed
+  paths verified by the regressions and deliberate mutations.
+- scripts/test.sh: `== 0 failure(s) in 159 s`. Main client shard: 1,201 tests,
+  1,191 passed, 10 existing skips, zero failures or cancellations. No baseline
+  or environmental failure in this run. The baseline log's unrelated cargo
+  failure was read and left alone. Full log: /tmp/lane-j-r13-full-suite.log;
+  focused/model/mutant logs use /tmp/lane-j-r13-*.log.
+
+No open round-13 finding or deviation from the requested design remains. No
+Quarry form, public contract type, engine semantics, meter, receipt/id cap or
+package version changed. All modified source/test files remain below 1,500
+lines. No push or publication was performed.
+
+## 2026-09-24 — Lane J round 14: keep an unrotated bearer through store replacement
+
+The refresh retirement continuation treated every retryable transport failure
+as a reason to log out the old bearer. During store replacement, that bearer
+is still owned by createApp's recovery probe; a refresh that never reached the
+server left it valid, so cleanup could revoke the very session recovery was
+trying to keep. Old-bearer cleanup now requires ended credentials (sign-out).
+A delivered, unkept successor is still revoked, and no effectful request is
+aborted.
+
+Changes, file by file:
+
+- packages/snapback4/src/client.ts limits retryable-failure retirement to
+  sign-out. Store refusal without a successor leaves the live bearer alone.
+- packages/snapback4/CLIENT-AND-OPERATIONS.md documents bearer preservation
+  for the replacement probe and continued cleanup on sign-out.
+- test/online-terminal-entrypoints.test.mjs changes the rejected-refresh
+  replacement expectation to no logout, keeping the sign-out cleanup and
+  committed-successor cancellation regressions intact.
+- test/app.test.mjs adds a real-server recovery case: a held refresh rejects
+  before reaching the server, a query detects replacement, and the recovery
+  probe presents the original bearer and restores the signed-in app. Its
+  SQLite close regression now reopens offline before releasing the committed
+  reply, checks that the id remains known, then reopens online and verifies
+  that the original id settles with exactly one application.
+- test/helpers/online-client-model.mjs adds an unreached-refresh transport
+  outcome and an oracle forbidding cleanup of the still-kept bearer during
+  replacement. test/online-client-model.test.mjs adds named replacement and
+  sign-out replays and requires random coverage of unrotated recovery probes.
+- test/navigation-model.test.mjs extends the real wasm-device/server model
+  with 32 seeded schedules: close before execution, after commit, or after
+  reply delivery; one or two offline reopens; online recovery before or after
+  the original reply. Each checks durable id custody before server repair,
+  a bounded replay using that id, and exactly one application.
+
+Verification and measurements:
+
+- Frozen Bun install, typecheck and build passed. All 53 tests in the affected
+  app and terminal-entrypoint files passed, including the sign-out and
+  abort-rejecting refresh tests from the prior rounds.
+- All 19 online model tests passed, including 3,000 seeded sequences under
+  R1-R6 (1,500 raw client, 1,500 app; 750 app sequences each with 255 and 256
+  receipts, including 150 saturated journals). Standalone model time: 38.40 s.
+  Coverage includes 1,095 unreached refreshes, seven unrotated recovery probes,
+  8,334 bearer-custody checks and 3,192 durable-terminal checks.
+- All 32 device-close schedules passed (seed 0x14c105e): nine unreached,
+  12 committed and 11 delivered; 20 with original delivery after repair and
+  12 before repair. Standalone model time: 32.31 s. No additional production
+  defect was found by either model.
+- Reverting the refresh guard in generated dist failed three regressions:
+  direct replacement cleanup, real-app recovery and the named model replay.
+  Injecting outbox deletion on post's cancelled {ok:false} failed both the
+  SQLite reopen test and device model (sequence 2). Dist was restored before
+  the full suite. These were deliberate mutation failures, not suite failures.
+- scripts/test.sh: `== 0 failure(s) in 157 s`. Main client shard: 1,205 tests,
+  1,195 passed, 10 existing skips, zero failures or cancellations. No introduced,
+  baseline or environmental failures in this run. The baseline log's unrelated
+  cargo failure was read and left alone. Full log:
+  /tmp/lane-j-r14-full-suite.log; focused/model/mutant logs use
+  /tmp/lane-j-r14-*.log.
+
+No open round-14 finding or deviation remains. The device model uses the
+existing real wasm/server navigation harness alongside the online model;
+the SQLite regression covers the native device store through its process
+bridge. No local production code change was needed: it already preserves the
+outbox when close cancels the caller. No Quarry form, public contract type,
+engine semantics, meter, receipt/id cap or package version changed. All
+modified source/test files remain below 1,500 lines. No push or publication
+was performed.
+
+## 2026-09-24 — Lane J round 15: ordinary failed receipts survive retirement
+
+Confirmed that round 14 fixes Astra's exact late-rejection schedule as well:
+the refresh never reaches the server, replacement is detected, the recovery
+probe accepts the saved bearer and reopens the app, and only then does the old
+refresh reject. The recovered app remains signed in and can read with the
+same bearer. No further production fix was needed.
+
+Changes, file by file:
+
+- packages/snapback4/test/app.test.mjs now covers rejection both before and
+  after replacement reopens. Logout requests reach the real auth server and
+  are awaited before checking the recovered client, so recording a call
+  cannot stand in for revocation. Each case finishes with explicit logout
+  and verifies that probing with the original token returns E_AUTH.
+- packages/snapback4/test/helpers/online-client-model.mjs can preload an
+  ordinary E_UNIQUE failure as the oldest receipt. Independent displacement
+  and retry counters distinguish it from unknown store-failure outcomes;
+  the existing R6 oracle forbids readmission or dispatch of every id
+  displaced by retirement.
+- packages/snapback4/test/online-client-model.test.mjs seeds that case into
+  the randomized generator and adds a named replay: 256 receipts, oldest
+  E_UNIQUE, one pending write retired, reopen, retry the displaced failed id.
+  The earlier sent-receipt replay remains covered too.
+
+Verification and measurements:
+
+- Frozen Bun install passed. Both real-server refresh schedules passed;
+  all 20 online-model tests passed in the initial 100-sequence targeted run.
+- Reverting round 14's refresh guard in generated dist failed both schedules:
+  rejection before reopening left the app signed out, while rejection after
+  reopening revoked its bearer and prevented the authenticated query answer.
+- The exact sent-only retirement mutation, replacing
+  `(retiring || unknown(write))` with
+  `(unknown(write) || (retiring && write.state === "sent"))`, was caught by
+  both the named E_UNIQUE replay and random seed 76. R6 reported readmission
+  of the protected displaced id. Dist was restored before the full suite.
+- All 3,000 seeded sequences passed in the full suite. They include 375
+  journals with an ordinary failed receipt, eight observed retirement
+  displacements of that receipt and five retries after reopening. No
+  additional production defect was found.
+- scripts/test.sh: `== 0 failure(s) in 97 s`. Main client shard: 1,207 tests,
+  1,197 passed, 10 existing skips, zero failures or cancellations. No
+  introduced, baseline or environmental failure occurred. The unrelated
+  cargo failure in the baseline log was read and left alone. Full log:
+  /tmp/lane-j-r15-full-suite.log; focused and deliberate-mutation logs use
+  /tmp/lane-j-r15-*.log.
+
+No open round-15 finding or deviation remains. Production behavior already
+retired displaced failed receipts; this round closes the model gap and
+strengthens the real-server refresh regression. No Quarry form, public
+contract type, engine semantics, meter, receipt/id cap or package version
+changed. All modified test files remain below 1,500 lines. No push or
+publication was performed.

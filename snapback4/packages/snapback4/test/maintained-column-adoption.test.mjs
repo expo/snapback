@@ -70,7 +70,9 @@ for (const tier of ["sqlite", "wasm"]) for (const synced of [false, true]) {
     for(const id of ["p","unselected","zero"]){
       const watch=client.observe({kind:"query",name:"one"},{id});
       watches.push(watch);
-      watch.subscribe(()=>{const data=watch.getSnapshot().data;if(data)seen.push(structuredClone(data));});
+      // A stale notification may bridge a fetch before generation discovery;
+      // this assertion examines newly served answers, not that previous value.
+      watch.subscribe(()=>{const read=watch.getSnapshot();if(read.data && read.fresh)seen.push(structuredClone(read.data));});
     }
     await until(()=>watches.every(w=>w.getSnapshot().data?.id));
     // The zero parent must remain physically untouched by both activations.
@@ -99,7 +101,7 @@ with sqlite3.connect(sys.argv[1]) as db:
  print(db.execute("SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id='zero'").fetchone()[0])
 `,join(dir,".snapback4/store.sqlite")],{encoding:"utf8"}));
     assert.ok(!Object.hasOwn(stored.Row,"likeCount"));
-    if (synced) assert.equal(between.length,2);
+    if (synced) { await until(()=>between.length===2); assert.equal(between.length,2); }
     else assert.ok(seen.some(row=>row.id === "unselected" && row.likeCount === 0),"server-run watch reruns on the parent barrier");
   });
 }

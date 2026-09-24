@@ -34,6 +34,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         { find: "snapback4/app", replacement: join(root, "packages/snapback4/src/app.ts") },
         { find: "snapback4/auth", replacement: join(root, "packages/snapback4/src/auth.ts") },
+        { find: "snapback4/client", replacement: join(root, "packages/snapback4/src/client.ts") },
         { find: "snapback4/react", replacement: join(root, "packages/snapback4/src/react.tsx") },
         { find: "web-state", replacement: join(root, "apps/chat/src/state.ts") },
         { find: "web-composer", replacement: join(root, "apps/chat/src/Composer.tsx") },
@@ -111,6 +112,7 @@ import { StrictMode, act, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset } from "snapback4/react";
 import { createApp } from "snapback4/app";
+import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession } from "snapback4/auth";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
@@ -503,6 +505,109 @@ const cases = {
     equal(latest.items, ["a", "b"], "new arguments reset the requested depth");
     check(active(client).length === 1, "new arguments close every old page");
     await unmount(); allClosed(client);
+  },
+  async "usePage keeps the oldest stale timestamp across fresh and stale pages"() {
+    const client = controlled();
+    let latest;
+    function Screen() { latest = usePage(query, {}); return null; }
+    await mount(h(Screen), client);
+    try {
+      await act(async () => active(client)[0].set(ready(["a"], "a", { fresh: false, since: 80 })));
+      await act(async () => latest.loadMore());
+      await act(async () => active(client)[1].set(ready(["b"], "b", { since: undefined })));
+      check(latest.read.since === 80 && !latest.read.fresh, "fresh page without since preserves the stale timestamp");
+      await act(async () => latest.loadMore());
+      await act(async () => active(client)[2].set(ready(["c"], null, { fresh: false, since: 40 })));
+      check(latest.read.since === 40, "minimum of stale pages");
+      await act(async () => active(client)[1].set(ready(["b"], "b", { since: 1 })));
+      check(latest.read.since === 40, "fresh pages do not contribute old timestamps");
+      await act(async () => active(client)[2].set(ready(["c"], null, { fresh: false, since: undefined })));
+      check(latest.read.since === undefined, "unknown stale timestamp remains unknown");
+    } finally { await unmount(); }
+  },
+
+  async "online observations clear pages during fetches and on unavailable settlement, refusal and close"() {
+    let phase = "ready", seq = 0, latest;
+    const held = [];
+    const client = createClient({ url: "http://observation.test", persona: "alice", fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/changes") return new Promise((_, reject) => {
+        if (init.signal.aborted) reject(Error("closed"));
+        else init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
+      });
+      if (path === "/m/write") return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: ++seq, result: null });
+      if (path === "/q/read") {
+        if (phase === "held") { await new Promise(resolve => held.push(resolve)); return Response.json({ loading: true, seq }); }
+        if (phase === "loading") return Response.json({ loading: true, seq });
+        if (phase === "missing") return Response.json({ seq });
+        if (phase === "denied") return Response.json({ denied: { code: "E_RULE", family: "rule", message: "access withdrawn" } });
+        const { c } = JSON.parse(init.body).args;
+        return Response.json({ data: c ? ["b"] : ["a"], next: c ? null : "a", complete: true, seq });
+      }
+      throw Error(path);
+    } });
+    function Probe() { latest = { query: useQuery(query, {}), page: usePage(query, {}) }; return null; }
+    const settle = async condition => {
+      for (let n = 0; n < 100; n++) {
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+        if (condition()) return;
+      }
+      throw Error("observation did not settle");
+    };
+    const rerun = async value => {
+      phase = value;
+      await act(async () => { await client.mutate(mutation, {}); });
+      await settle(() => true);
+    };
+    try {
+      await mount(h(Probe), client);
+      await settle(() => latest.page.hasMore);
+      await act(async () => latest.page.loadMore());
+      await settle(() => latest.page.items.length === 2);
+      equal(latest.page.items, ["a", "b"], "two published pages");
+      await rerun("held");
+      equal(latest.page.items, [], "online pages retain nothing during fetches");
+      check(latest.query.loading && latest.page.read.loading, "both online hooks are loading");
+      phase = "loading";
+      await act(async () => held.splice(0).forEach(resolve => resolve()));
+      await settle(() => latest.query.loading && latest.page.read.loading);
+      equal(latest.page.items, [], "unavailable settlement clears the first page and suffix");
+      await rerun("missing");
+      check(latest.query.loading && latest.page.read.loading, "missing-data reruns cannot resurrect answers");
+      await rerun("denied");
+      check(latest.query.denied?.code === "E_RULE" && latest.page.read.denied?.code === "E_RULE", "refusals replace kept answers");
+      equal(latest.page.items, [], "refused first page clears visible items");
+      await rerun("loading");
+      check(latest.query.loading && latest.page.read.loading, "the next unavailable result is loading and cannot resurrect old data");
+      await rerun("ready");
+      await act(async () => client.close());
+      check(latest.query.denied?.code === "E_CLOSED" && latest.page.read.denied?.code === "E_CLOSED", "close clears both hooks");
+      equal(latest.page.items, [], "closed client retains no page");
+    } finally { held.splice(0).forEach(resolve => resolve()); await unmount(); await client.close(); }
+  },
+  async "usePage treats every non-array ready value as loading and keeps the earlier pages"() {
+    for (const invalid of [null, undefined, {}, "text", 7, false]) {
+      const client = controlled(args => args.c == null ? ready(["a"], "a") : args.c === "a" ? ready(["b"], "b") : ready(["c"]));
+      let latest;
+      function Probe() { latest = usePage(query, {}); return null; }
+      await mount(h(Probe), client);
+      await act(async () => latest.loadMore());
+      await act(async () => latest.loadMore());
+      equal(latest.items, ["a", "b", "c"], "three resolved pages");
+      const [first, second, third] = active(client);
+      await act(async () => second.set(ready(invalid, "b")));
+      equal(latest.items, ["a"], "an unavailable middle page keeps the prefix");
+      check("loading" in latest.read && !latest.hasMore, "invalid data is not a ready combined read or a continuation");
+      check(third.closes === 1, "the suffix of an invalid page is closed");
+      await act(async () => latest.loadMore());
+      check(active(client).length === 2, "loadMore cannot follow an invalid page's cursor");
+      await act(async () => second.set(ready(["b"], "b")));
+      equal(latest.items, ["a", "b", "c"], "recovery restores requested depth");
+      await act(async () => first.set(ready(invalid, "a")));
+      equal(latest.items, [], "an invalid first page has no visible items");
+      check("loading" in latest.read && !latest.hasMore, "the first page also waits");
+      await unmount(); allClosed(client);
+    }
   },
   async "usePage discards an in-flight suffix and does not claim a ready combined read"() {
     const client = controlled(args => args.c == null ? ready(["a", "b"], "b") : { loading: true }); let latest;
