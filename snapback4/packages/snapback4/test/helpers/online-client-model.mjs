@@ -2,17 +2,19 @@
 // disclosed rows, acknowledged revocations, durable intents, and lifetimes;
 // it does not import the client's authority or journal implementation.
 import assert from 'node:assert/strict';
+import { promiseHooks } from 'node:v8';
 import { createClient } from '../../dist/client.js';
 import { createApp } from '../../dist/app.js';
 import { keepSession } from '../../dist/auth.js';
 import { ReadObservation } from '../../dist/read-observation.js';
 
-export const operations = ['query', 'observe', 'write', 'revoke', 'release', 'poll', 'replace', 'regress', 'unavailable', 'close', 'signOut', 'reopen', 'login', 'holdStorage', 'failStorage', 'tick'];
-export function generate(seed, length = 32) {
+export const round9Operations = ['query', 'observe', 'write', 'revoke', 'release', 'poll', 'replace', 'regress', 'unavailable', 'close', 'signOut', 'reopen', 'login', 'holdStorage', 'failStorage', 'tick'];
+export const operations = [...round9Operations, 'upload', 'asset', 'act', 'refresh'];
+export function generate(seed, length = 32, vocabulary = operations) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
   return [{ op: 'query' }, { op: 'release' }, { op: 'observe' },
-    ...Array.from({ length }, () => ({ op: operations[choose(operations.length)], pick: choose(100), holdReturn: choose(4) === 0 }))];
+    ...Array.from({ length }, () => ({ op: vocabulary[choose(vocabulary.length)], pick: choose(100), holdReturn: choose(4) === 0 }))];
 }
 const microtasks = async () => { for (let i = 0; i < 100; i++) await Promise.resolve(); };
 
@@ -20,6 +22,9 @@ export async function execute(commands, tier, coverage = {}) {
   const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
   const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
   const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
+  const rotations = [];
+  const settlements = new WeakMap();
+  const stopSettlements = promiseHooks.onSettled(promise => settlements.get(promise)?.());
   let store = 'A', head = 10, privateRow = true, unavailable = false, stores = 0, ticket = 0, serial = 0, writeId = 0;
   let app, client, holdStorage = false, failStorage = false, draining = false, currentOwner, requests = 0;
   const count = key => { coverage[key] = (coverage[key] ?? 0) + 1; };
@@ -65,7 +70,13 @@ export async function execute(commands, tier, coverage = {}) {
   function ownerFor(c) {
     let owner = owners.find(o => o.client === c);
     if (!owner) {
-      owner = { client: c, terminal: false, id: owners.length }; owners.push(owner);
+      owner = { client: c, terminal: false, id: owners.length, tokens: new Set([c.session()?.token]) }; owners.push(owner);
+      c.onSession(value => {
+        if (value) {
+          invariant('R2', !owner.terminal, `owner ${owner.id} installed a session after terminal refusal`);
+          owner.tokens.add(value.token);
+        }
+      });
       c.onWrite(value => {
         if (['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes(value.why?.code)) owner.terminal = true;
         count('write.emitted'); write(value);
@@ -73,13 +84,13 @@ export async function execute(commands, tier, coverage = {}) {
     }
     return owner;
   }
-  function read(owner, value, site) {
+  function read(owner, value, site, at = { terminal: owner.terminal, revoked }) {
     count('read.' + site);
     if (value.denied?.code === 'E_STORE_REPLACED' || value.denied?.code === 'E_STORE_RESTORE') {
       owner.terminal = true; count('terminal.' + value.denied.code);
     }
-    invariant('R2', !owner.terminal || !('data' in value), `owner ${owner.id} returned data after terminal refusal at ${site}`);
-    for (const row of value.data ?? []) invariant('R1', !(value.fresh && revoked.has(row.secret)), `revoked ${row.secret} was fresh at ${site}`);
+    invariant('R2', !at.terminal || !('data' in value), `owner ${owner.id} returned data after terminal refusal at ${site}`);
+    for (const row of value.data ?? []) invariant('R1', !(value.fresh && at.revoked.has(row.secret)), `revoked ${row.secret} was fresh at ${site}`);
   }
   function write(value) {
     if (value.state === 'pending') return;
@@ -97,10 +108,19 @@ export async function execute(commands, tier, coverage = {}) {
   function track(promise, label, owner, kind) {
     const task = { label, pending: true };
     tasks.push(task);
+    // Promise callbacks may run after a later refusal. Check authority when
+    // the public promise actually settles, not when its consumer resumes.
+    const capture = () => { task.at = { terminal: owner?.terminal, revoked: new Set(revoked) }; };
+    capture(); settlements.set(promise, capture);
     Promise.resolve(promise).then(result => {
       task.result = result;
-      if (kind === 'read') read(owner, result, 'direct');
+      if (kind === 'read') read(owner, result, 'direct', task.at);
       if (kind === 'write') write(result);
+      if (['upload', 'asset', 'act', 'refresh'].includes(kind)) {
+        if (['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes((result.denied ?? result.why)?.code)) owner.terminal = true;
+        invariant('R2', !task.at.terminal || !(result.ok || 'url' in result || result.state === 'done' || result.state === 'pending'), `${kind} succeeded or remained pending after terminal refusal`);
+        if (kind === 'asset' && 'url' in result) { result.revoke(); count('asset.released'); }
+      }
     }, error => { errors.push(`unexpected rejection ${label}: ${error.message}`); }).finally(() => { task.pending = false; });
     return task;
   }
@@ -109,13 +129,14 @@ export async function execute(commands, tier, coverage = {}) {
     sessions.set(session.token, session); return session;
   }
   const fetcher = async (input, init = {}) => {
-    const path = new URL(input).pathname, args = init.body ? JSON.parse(init.body) : {}, token = new Headers(init.headers).get('authorization')?.slice(7);
+    const path = new URL(input).pathname, args = typeof init.body === 'string' ? JSON.parse(init.body) : {}, token = new Headers(init.headers).get('authorization')?.slice(7);
     count('wire.' + path); requests++;
     if (path.startsWith('/auth/')) {
       if (path === '/auth/login') return Response.json({ session: issue() });
       if (path === '/auth/logout') { sessions.delete(token); return Response.json({ ok: true }); }
-      throw Error('unexpected auth route ' + path);
+      if (path !== '/auth/refresh') throw Error('unexpected auth route ' + path);
     }
+    invariant('R2', !!init.signal, `${path} has no client lifetime signal`);
     invariant('R2', !init.signal?.aborted, `sent ${path} with a retired lifetime`);
     // Query/mutation requests share the raw client's lifetime signal. Change
     // requests have their own watchdog; they remain explicitly scheduled.
@@ -125,8 +146,13 @@ export async function execute(commands, tier, coverage = {}) {
       roots.set(init.signal, owner);
     }
     if (owner) invariant('R2', !owner.terminal, `owner ${owner.id} sent ${path} after terminal refusal`);
-    let body;
-    if (tier === 'app' && !sessions.has(token)) body = { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in' } };
+    let body, rotation;
+    if (!sessions.has(token)) body = { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in' } };
+    else if (path === '/auth/refresh') {
+      sessions.delete(token); const next = issue(); body = { session: next };
+      rotation = { owner, token: next.token }; rotations.push(rotation);
+      init.signal?.addEventListener('abort', () => count('refresh.aborted'), { once: true });
+    }
     else if (path === '/probe') body = { ok: true, store_id: store, seq: head };
     else if (path === '/changes') body = { store_id: store, seq: head, generation: 1, tables: ['secrets'] };
     else if (path.startsWith('/m/')) {
@@ -140,7 +166,10 @@ export async function execute(commands, tier, coverage = {}) {
         body = { state: 'sent', id: args.id, seq: head, head, store_id: store };
         receipts.set(receiptKey, body);
       }
-    } else if (path.startsWith('/q/')) {
+    } else if (path === '/assets') body = { asset: { id: `${store}:photo`, type: 'image/png', bytes: 1 } };
+    else if (path.startsWith('/assets/')) body = {};
+    else if (path.startsWith('/a/')) body = { id: args.id, state: 'done', result: store, store_id: store, seq: head };
+    else if (path.startsWith('/q/')) {
       body = { seq: head, store_id: store, tables: ['secrets'], ...(unavailable ? { loading: true, data: null, complete: false }
         : { data: privateRow ? [{ secret: store, request: args.args.ticket }] : [], complete: true }) };
       if (args.args.holdReturn) returnHolds.add(args.args.ticket);
@@ -150,8 +179,13 @@ export async function execute(commands, tier, coverage = {}) {
       if (args.args.direct) invariant('R4', coverage[key] <= 4, `direct read ${args.args.ticket} exceeded four requests`);
     } else throw Error('unexpected route ' + path);
     // Headers arrive now; bodies may finish out of order, even after abort.
-    return { ok: !body.denied, status: body.denied ? 401 : 200, body: null, async json() {
+    const delivered = async () => {
       if (!draining || path === '/changes') await hold('body', { path, owner, body, signal: init.signal }, null);
+      if (rotation) rotation.delivered = true;
+    };
+    return { ok: !body.denied, status: body.denied ? 401 : 200, body: null, headers: new Headers({ 'content-type': 'image/png' }),
+      async blob() { await delivered(); return new Blob(['x'], { type: 'image/png' }); }, async json() {
+      await delivered();
       return body;
     } };
   };
@@ -168,7 +202,7 @@ export async function execute(commands, tier, coverage = {}) {
       track(app.ready, 'ready');
       app.auth.onChange(() => { ownerFor(app.client); });
       await microtasks(); client = app.client;
-    } else { client = createClient({ url, persona: 'alice', fetch: fetcher }); }
+    } else { client = createClient({ url, session: issue(), fetch: fetcher }); }
     currentOwner = undefined; ownerFor(client);
   }
   function check() { if (errors.length) assert.fail(errors[0] + '\ntrace=' + JSON.stringify(trace)); }
@@ -197,6 +231,10 @@ export async function execute(commands, tier, coverage = {}) {
         const id = String(++writeId).padStart(26, '0');
         track(client.mutate({ kind: 'mutation', name: step.op === 'revoke' ? 'revoke' : 'charge' }, {}, { id }), step.op, owner, 'write'); break;
       }
+      case 'upload': track(client.upload(new Uint8Array([1])), 'upload', owner, 'upload'); break;
+      case 'asset': track(client.asset('photo'), 'asset', owner, 'asset'); break;
+      case 'act': track(client.act({ kind: 'action', name: 'charge' }, {}), 'act', owner, 'act'); break;
+      case 'refresh': track(client.refreshSession(), 'refresh', owner, 'refresh'); break;
       case 'release': release(step.pick); break;
       case 'poll': release(step.pick, true); break;
       case 'replace': store = 'B' + (++stores); head = 1; privateRow = true; break;
@@ -236,6 +274,9 @@ export async function execute(commands, tier, coverage = {}) {
     for (const a of apps) track(a.close(), 'final-close');
     for (const owner of owners) if (tier === 'client') track(owner.client.close(), 'final-close');
     for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
+    for (const r of rotations) if (r.delivered && r.owner?.terminal && !r.owner.tokens.has(r.token)) {
+      count('refresh.retired'); invariant('R2', !sessions.has(r.token), 'unkept terminal successor was not revoked');
+    }
     if (tier === 'app') {
       await open();
       for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
@@ -250,6 +291,7 @@ export async function execute(commands, tier, coverage = {}) {
     for (const owner of owners) if (tier === 'client') void owner.client.close();
     for (let n = 0; n < 15; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
     ReadObservation.prototype.fetch = originalFetch;
+    stopSettlements();
     globalThis.setTimeout = originalTimeout; globalThis.clearTimeout = originalClear;
   }
 }

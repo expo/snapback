@@ -50156,3 +50156,110 @@ Final model measurements: 37.97 s in the full suite; 4,673 reordered releases,
 restore refusals, 450 durable-terminal checks, 57 held retirement saves, 55
 injected retirement-save failures, and 17 direct-query refetches. These are
 scheduler coverage counts, not throughput or production performance claims.
+
+## 2026-09-24 — Lane J round 10: terminal entry points and refresh custody
+
+Implemented Grok's remaining online-client findings on top of round 9.
+`packages/snapback4/src/client.ts` now makes a terminal store refusal observable
+as `link() === "signed-out"`, without discarding the session that `createApp`
+may validate on its new client. Actions return the store refusal rather than
+retryable pending; uploads and asset reads refuse before dispatch and after
+awaits, and late asset handles are released. `assetSource` returns an empty
+source and logout-all refuses too. `src/assets.ts` passes the optional client
+abort signal through both asset transports. `src/auth.ts` does the same for
+refresh, and `src/client.ts` fences refresh adoption and the awaited E_AUTH
+continuation. A late successor this owner cannot keep is revoked once;
+ordinary close keeps its existing in-flight rotation custody through a separate
+client-owned refresh abort controller. Store refusal and credential loss abort
+that controller immediately; ordinary close waits for custody. Sign-out cleanup
+now shares this per-rotation owner instead of a second cleanup callback.
+
+`src/app-online.ts` applies the same bounded receipt selection to individual
+settlement and bulk store retirement: unknown E_STORE_REPLACED/E_STORE_RESTORE
+failures leave before known sent receipts. Both sites matter because raw write
+settlement can enter the durable queue before bulk retirement. No receipt limit
+was raised. `CLIENT-AND-OPERATIONS.md` records terminal connectivity, entry-point
+behavior, successor cleanup and the receipt preference.
+
+Tests added or extended under `packages/snapback4/test/`:
+
+- `online-terminal-entrypoints.test.mjs`: replacement and same-store regression
+  refuse actions/uploads/assets/refresh/logout-all without more requests;
+  in-flight actions and assets share cancellation, do not publish late results,
+  and release native Blob/object-URL ownership; successful and E_AUTH refresh
+  responses cannot adopt or clear terminal credentials, including an old E_AUTH
+  response awaiting refresh; createApp never persists the late successor and
+  probes the kept token; a poll awaiting refresh cannot restart after refusal.
+- `app-store-replacement.test.mjs`: full receipt journals with zero or eight
+  older unknown failures retain all sent ids through retirement and reopening;
+  retrying the oldest sent id returns its receipt without another mutation.
+- `online-store-terminal.test.mjs`: after an acknowledged sequence 10 and a
+  replayed historical sequence 1 receipt with head 10, a later sequence 1 read
+  reports E_STORE_RESTORE. Replacing Math.max with assignment fails this test.
+- `helpers/online-client-model.mjs` and `online-client-model.test.mjs`: extend
+  the real createClient/createApp scheduler with uploads, asset reads, actions,
+  refresh rotation, held bodies and terminal successor cleanup. R1-R4 still
+  cover read authority, terminal requests/results, durable terminal writes and
+  bounded loops. Direct results are judged at public-promise settlement using
+  Node's promise hook, not at a later test-consumer callback. Explicit scheduled
+  replays cover the final query-return fence after replacement and revocation.
+
+The expanded model found one additional product defect (seed 1615, expanded
+vocabulary): a change poll entered while online, waited for refresh, then sent
+/changes after terminal refusal. Reproduction: hold refresh, let an existing
+poll settle, detect store replacement, then release refresh. The poll now
+rechecks terminal authority after the wait; sendPost and the post-E_AUTH poll
+continuation also discard retired results. A named seed and a focused test
+cover the defect. The model initially reported an already-settled direct read
+whose consumer resumed after refusal; correcting that oracle removed the false
+positive. Fault injection then exposed a random-corpus gap at the final return
+boundary, so the two explicit schedules now fail when that fence is deleted.
+
+Measurements and verification:
+
+- Frozen Bun install, affected tests: 60 passed, zero failures; after preserving
+  ordinary-close refresh custody, all 57 app/session/terminal tests and all six
+  model tests passed again. All changed
+  source/test files are below 1,500 lines.
+- Expanded randomized model: 3,000 sequences (seeds 1-3000, alternating online
+  raw/app clients), plus the named and explicit replay schedules, passed.
+  The final standalone randomized run took 32.04 s. Its coverage included 4,681
+  reordered releases, 162 acknowledged revocations, 428 durable-terminal
+  checks, 33 held retirement saves, 27 injected persistence failures, 107 asset
+  releases, 828 refresh cancellations and 16 terminal successor retirements.
+- Twelve fault-injection checks caught removal of terminal link reporting,
+  action refusal, each asset abort signal, refresh cancellation, refresh
+  adoption fencing, the E_AUTH gap guard, successor cleanup, receipt selection,
+  the historical sequence floor, the polling gap guard, and the final query
+  return fence. Injected mutants were confined to generated dist files and
+  restored before the full suite. Logs: /tmp/lane-j-r10-mutant-*.log.
+- First full run: `== 1 failure(s) in 148 s` (client-tests step; two tests).
+  `ordinary online app close keeps an in-flight rotation for the next runtime`
+  was ours: sharing the request abort signal aborted a committed refresh's
+  unread body. The separate refresh lifetime above fixes it without weakening
+  terminal cancellation. `W7r1 runWorker and doctor observe deferred presence
+  effects` reported `AbortError: This operation was aborted` while stopping
+  the worker after its database row became sent but before settlement finished.
+  This is an unrelated pre-existing shutdown timing race in unchanged worker
+  code, classified environmental, not a failure recorded in baseline-test.log.
+  Both presence variants passed unchanged on targeted rerun. Reproduction:
+  `node --test --test-name-pattern 'W7r1 runWorker and doctor observe'
+  packages/snapback4/test/worker.test.mjs`; intermittent during the full run,
+  not reproduced by that rerun. It remains outside this lane's implementation.
+  The baseline's separately recorded cargo-test failure was not changed.
+  Log: /tmp/lane-j-r10-full-suite.log.
+- Final `scripts/test.sh`: `== 0 failure(s) in 145 s`. Main client shard:
+  1,167 tests, 1,157 passed, 10 existing skips, zero failures/cancellations.
+  All 3,000 model sequences and replay schedules passed (38.35 s randomized
+  run inside the full suite). There were no final baseline or environmental
+  failures. Log: /tmp/lane-j-r10-full-suite-final.log.
+
+Development failures were ours and resolved: strict optional-property typing
+for omitted signals, the model's consumer-time oracle, the newly found
+post-refresh poll race, and ordinary-close refresh custody. Intentional mutant failures are verification evidence,
+not outstanding failures. No Quarry forms, Read type, engine semantics, meters,
+package versions, local retention rules or existing receipt limits changed.
+No open round-10 reproduction remains; the unrelated intermittent worker
+shutdown test observation is recorded above. The model uses controlled HTTP/storage/
+timer adapters around real clients, not a browser or native-platform witness.
+No push or publication was performed.
