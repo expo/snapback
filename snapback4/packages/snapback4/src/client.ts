@@ -265,9 +265,11 @@ export function createClient(options: ClientOptions): Client {
     const rotation = rotateSession(base, token, doFetch);
     let retired = false;
     const retire = (result: SignIn) => {
-      if (!result.ok || retired) return;
+      if (retired || (!result.ok && !result.why.retryable)) return;
       retired = true;
-      void logout(base, result.session.token, doFetch);
+      // A transport rejection cannot establish that the old token was consumed.
+      // Without a successor body, attempt logout with the bearer we still know.
+      void logout(base, result.ok ? result.session.token : token, doFetch);
     };
     // Never abort rotation: the server may already have consumed the old
     // token. Keep reading so a cancelled caller's successor can be revoked.

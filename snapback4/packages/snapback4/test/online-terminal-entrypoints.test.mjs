@@ -133,3 +133,58 @@ test('app replacement never persists a late successor before probing the kept se
   assert.equal((await restoreSession(url, sessionStore)).token, 'old');
   assert.ok(saved.every(value => JSON.parse(value).token !== 'next'));
 });
+
+for (const ending of ['sign-out', 'replacement']) test(`a rejected refresh still attempts logout after ${ending}`, async t => {
+  const rotation = gate(), logouts = []; let rotating = false, queries = 0;
+  const client = createClient({ url, session: session('old'), fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/auth/logout') { logouts.push(new Headers(init.headers).get('authorization')); return Response.json({ ok: true }); }
+    if (path === '/auth/refresh') {
+      rotating = true; await rotation.promise;
+      throw new TypeError('fetch failed'); // No usable body: the old bearer may still be live.
+    }
+    return Response.json(++queries === 1 ? ready() : ready('B', 1));
+  } });
+  t.after(async () => { rotation.resolve(); await client.close(); });
+  await client.query(q, {});
+  const changing = ending === 'replacement' ? client.query(q, {}) : null;
+  const refresh = client.refreshSession(); await until(() => rotating);
+  if (ending === 'sign-out') await client.signOut();
+  else assert.equal((await changing).denied.code, 'E_STORE_REPLACED');
+  assert.equal((await refresh).ok, false);
+  const before = logouts.length; rotation.resolve();
+  await until(() => logouts.length > before);
+  assert.equal(logouts.at(-1), 'Bearer old', 'transport failure cannot prove that the old bearer was consumed');
+});
+
+for (const ending of ['sign-out', 'replacement']) test(`refresh fetch rejects on abort: ${ending} still logs out next`, async t => {
+  const rotation = gate(), change = gate(), logouts = [], sessions = []; let rotating = false, aborted = false;
+  const client = createClient({ url, session: session('old'), fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/auth/logout') { logouts.push(new Headers(init.headers).get('authorization')); return Response.json({ ok: true }); }
+    if (path === '/auth/refresh') {
+      rotating = true; // The server has already committed old -> next.
+      return new Promise((resolve, reject) => {
+        const abort = () => { aborted = true; reject(new DOMException('request aborted', 'AbortError')); };
+        init.signal?.addEventListener('abort', abort, { once: true });
+        if (init.signal?.aborted) abort();
+        void rotation.promise.then(() => {
+          init.signal?.removeEventListener('abort', abort);
+          resolve(Response.json({ session: session('next') }));
+        });
+      });
+    }
+    if (JSON.parse(init.body).args.change) { await change.promise; return Response.json(ready('B', 1)); }
+    return Response.json(ready());
+  } });
+  t.after(async () => { rotation.resolve(); change.resolve(); await client.close(); });
+  client.onSession(value => sessions.push(value)); await client.query(q, {});
+  const changing = ending === 'replacement' ? client.query(q, { change: true }) : null;
+  const refreshing = client.refreshSession(); await until(() => rotating);
+  if (changing) { change.resolve(); assert.equal((await changing).denied.code, 'E_STORE_REPLACED'); }
+  else await client.signOut();
+  assert.equal((await refreshing).ok, false); assert.equal(aborted, false);
+  rotation.resolve(); await until(() => logouts.includes('Bearer next'));
+  assert.ok(sessions.every(value => value?.token !== 'next'), 'cleanup never adopts the unkept successor');
+  assert.equal(logouts.filter(value => value === 'Bearer next').length, 1);
+});
