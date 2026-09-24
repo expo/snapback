@@ -112,6 +112,13 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name"),
+    ("E_QUARRY_SPREAD", "E_QUARRY_SPREAD refuses nullable operands and values without statically known fields"),
+    ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses shaping an already-joined local"),
+    ("E_QUARRY_RULE_SPELLING", "E_QUARRY_RULE_SPELLING locates a guessed table rule"),
+    ("E_QUARRY_JOB_SCHEDULE", "E_QUARRY_JOB_SCHEDULE separates work from its clock"),
+    ("E_QUARRY_KEY_ORDER", "E_QUARRY_KEY_ORDER means a positional component followed a named one"),
+    ("E_QUARRY_WRITE_TESTS", "E_QUARRY_WRITE_TESTS means a write target includes tests beyond its unique key"),
     ("E_INIT_CONFLICT", "E_INIT_CONFLICT means `init` found files or package entries it would overwrite, and wrote nothing."),
     ("E_JOB_SWEEP", "E_JOB_SWEEP parks stored job IR with no recorded table sweep or an unsupported top-level work loop before running a chunk, including when valid sweeps appear alongside that loop."),
     ("N_OPTIONAL_FILTER_LIMIT", "At most three optional inputs expand; N_OPTIONAL_FILTER_LIMIT names any extra residual filters, which can stay metered or move into separate queries."),

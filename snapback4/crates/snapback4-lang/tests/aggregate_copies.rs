@@ -813,7 +813,7 @@ fn l26_conditional_delta_is_control_and_toggle_message_names_both_arms() {
     let bound = bind(&expression);
     let notes = copies(&bound);
     assert_eq!(notes.len(), 1);
-    assert!(notes[0].message.contains("`p.score + (1 if value else (-1))`, chosen by `value` in `like`"), "{}", notes[0]);
+    assert!(notes[0].message.contains("`p.score + (1 if value else -1)`, chosen by `value` in `like`"), "{}", notes[0]);
     println!("expression: {}", notes[0]);
     let source = INCREMENT.replace("mutation like(postId: posts):", "mutation setLike(postId: posts, liked: bool):")
         .replace("update posts[id = p.id] { score: p.score + 1 }", "if liked:\n    update posts[id = p.id] { score: p.score + 1 }\n  else:\n    update posts[id = p.id] { score: p.score - 1 }");
@@ -923,7 +923,7 @@ fn review_f13_different_conditions_of_the_same_arguments_name_both_arms() {
         let notes = copies(&bound);
         assert_eq!(notes.len(), 1);
         println!("F13: {}", notes[0]);
-        assert_eq!(notes[0].message, format!("every write to posts.score is computed from reads (`p.score + 1` or `max(0, (p.score - 1))`, chosen by `{choice}` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it"));
+        assert_eq!(notes[0].message, format!("every write to posts.score is computed from reads (`p.score + 1` or `max(0, p.score - 1)`, chosen by `{choice}` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it"));
     }
 }
 

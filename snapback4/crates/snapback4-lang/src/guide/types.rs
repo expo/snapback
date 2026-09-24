@@ -4,10 +4,6 @@ pub(super) const CARD: &str = r##"# Types
 Types describe the values a column or argument accepts.
 They also set limits on text, lists and uploaded assets.
 
-`text` defaults to `text <=10000` characters in columns, arguments and helper
-parameters. Write `text <=N` or `text M..N` when the bound is a product rule;
-an indexed column must also fit the key budget (`guide indexes`).
-
 ```quarry
 table everything:
   who: principal                      -- the authenticated subject; `viewer` is one
@@ -41,6 +37,10 @@ query enumLabel(kind: enum('a', 'b')):
 query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take the same types, plus `cursor ?`
   return everything[handle = handle]
 ```
+
+`text` defaults to `text <=10000` characters in columns, arguments and helper
+parameters. Write `text <=N` or `text M..N` when the bound is a product rule;
+an indexed column must also fit the key budget (`guide indexes`).
 
 `?` after a type makes it optional: null when absent, and an omitted
 optional argument reads as null. Text literals in id positions are ids. A
