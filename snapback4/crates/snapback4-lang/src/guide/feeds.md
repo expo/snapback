@@ -18,9 +18,15 @@ Posting commits the event, your own inbox copy, and a durable delivery record.
 Followers receive copies in background chunks of 256. A page can temporarily
 lack an event whose delivery is still pending. Following copies the newest 50
 live events immediately, then backfills the rest of an engine-chosen 1,000-event window in chunks.
+The engine assigns a fresh edge epoch on every follow, even if the application
+reuses a follows row id. Backfill alone copies events admitted before that epoch;
+delivery alone copies events admitted afterward. This order comes from the
+engine's transaction sequence and write ordinal, never event time, so delaying
+delivery cannot enlarge the history window. The completed delivery record keeps
+that admission order until the event is removed.
 Older events remain readable on the author’s profile.
 Unfollow hides the actor on the very next read, before background cleanup. Up to 256 stale copies are deleted synchronously.
-The read checks the public follow edge and removal tombstone for every examined row. A meter cut on stale copies returns an incomplete
+The read checks the current privately replicated edge epoch and public removal tombstone for every examined row. A meter cut on stale copies returns an incomplete
 page with a continuation.
 Removal writes the tombstone immediately; background work purges copies before
 retiring it. A crash resumes from the last committed cursor without duplicate

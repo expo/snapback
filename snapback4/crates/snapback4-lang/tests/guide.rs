@@ -936,7 +936,7 @@ fn language_following_uses_the_declaration() {
     assert_eq!(bound.schema.timelines.len(), 1);
     assert_eq!(bound.schema.operations["timelineHome"].runs.as_deref(), Some("device"));
     let sites = &bound.schema.operations["timelineHome"].sites;
-    for table in ["timelineFeed", "timelineFollows", "timelineRemovedEvents", "timelineWork"] {
+    for table in ["timelineFeed", "timelineEdges", "timelineRemovedEvents", "timelineWork"] {
         assert!(sites.iter().any(|site| site.table == table), "missing {table}: {sites:?}");
     }
     assert_eq!(bound.schema.operations["timelineFollow"].predicts.as_deref(), Some("never"));

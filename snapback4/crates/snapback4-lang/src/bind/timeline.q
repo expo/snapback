@@ -46,10 +46,20 @@ table @T@Work:
   eventId: id ?
   cursor: text <=4096 ?
   at: time
-  status: enum('pending', 'parked')
+  admitted: id
+  status: enum('pending', 'parked', 'done')
   error: text <=4096 ?
   by byStatusTime: status, at, id
   by byReader: readerId
   by byViewer: viewerId, id
   read <- .viewerId = viewer
+  sync
+
+table @T@Edges:
+  readerId: principal
+  actorId: principal
+  epoch: id
+  unique byPair: readerId, actorId
+  immutable readerId, actorId, epoch
+  read <- .readerId = viewer
   sync

@@ -1106,12 +1106,13 @@ impl Engine {
     fn load_stored_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
         let now = crate::now_ms();
         let tx = self.store.transaction()?;
-        let seq = tx.next_seq()?;
+        let mut seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table_name, row) in rows {
             if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
             validate::validate_row(&self.schema, &table_name, &row)?;
+            if mode == LoadMode::Restore { seq = seq.max(timeline::restored_sequence(&self.schema, &table_name, &row)?); }
             let table = self.schema.table(&table_name).expect("validated").clone();
             let id = row.field("id")?.as_str()?.to_owned();
             let old = tx.get(&table_name, &id)?;

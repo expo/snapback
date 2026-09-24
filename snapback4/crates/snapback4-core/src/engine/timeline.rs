@@ -59,6 +59,24 @@ pub(crate) fn check_version(schema: &crate::schema::Schema) -> Result<(), Runtim
     Ok(())
 }
 
+/// Trusted row restores retain admission history too. Advance the restore
+/// commit beyond every imported token so a fresh store cannot reuse an epoch.
+#[cfg(feature = "sqlite")]
+pub(crate) fn restored_sequence(schema: &crate::schema::Schema, table: &str, row: &Value) -> Result<u64, RuntimeError> {
+    if !schema.timelines.iter().any(|t| t.owns(table)) { return Ok(0); }
+    let mut sequence = 0;
+    for name in ["epoch", "admitted"] {
+        let Some(value) = row.field(name).ok().filter(|v| **v != Value::Null) else { continue; };
+        let token = value.as_str()?;
+        let invalid = || refusal("E_TIMELINE_SHAPE", "invalid engine admission order in restored timeline history; restore the complete store or use a fresh store in dev");
+        if token.len() != 32 || !token.bytes().all(|b| b.is_ascii_hexdigit()) { return Err(invalid()); }
+        let born = u64::from_str_radix(&token[..16], 16).map_err(|_| invalid())?;
+        if born >= i64::MAX as u64 { return Err(invalid()); }
+        sequence = sequence.max(born + 1);
+    }
+    Ok(sequence)
+}
+
 fn field(row: &Value, name: &str) -> Result<Value, RuntimeError> { Ok(row.field(name)?.clone()) }
 fn text(row: &Value, name: &str) -> Result<String, RuntimeError> { Ok(row.field(name)?.as_str()?.to_owned()) }
 fn require(condition: bool, code: &str) -> Result<(), RuntimeError> {
@@ -162,6 +180,23 @@ impl Runner<'_> {
         Ok(())
     }
 
+    /// Transaction sequence and write ordinal form a durable total admission
+    /// order, including delete/reinsert and post/follow inside one mutation.
+    /// Neither component comes from an application id or wall-clock timestamp.
+    fn timeline_admission(&self) -> Value {
+        Value::Id(format!("{:016x}{:016x}", self.seq, self.rows_written))
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
+    fn timeline_edge(&mut self, t: &Timeline, reader: &Value, actor: &Value) -> Result<Option<Value>, RuntimeError> {
+        self.timeline_get(&t.table("Edges"), "byPair", vec![reader.clone(), actor.clone()])
+    }
+
+    #[cfg(feature = "sqlite")]
+    fn timeline_delivery_id(t: &Timeline, actor: &Value, event: &Value) -> String {
+        crate::schema::timeline::owned_id(&t.name, "Work", &[Value::String("delivery".into()), actor.clone(), Value::Null, event.clone(), Value::Null])
+    }
+
     fn timeline_deliver(&mut self, t: &Timeline, event: &Value) -> Result<(), RuntimeError> {
         let actor = field(event, "actorId")?;
         self.timeline_copy(t, event, actor.as_str()?, Value::Null)?;
@@ -175,7 +210,7 @@ impl Runner<'_> {
         let viewer = if reader == Value::Null { actor.clone() } else { reader.clone() };
         let row = object([("viewerId", viewer), ("epoch", epoch), ("remaining", Value::Int(remaining as i64)), ("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
             ("cursor", cursor.map(|c| Value::String(crate::value::encode_bytes_hex(&c))).unwrap_or(Value::Null)),
-            ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
+            ("admitted", self.timeline_admission()), ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
         self.meter.heap(row.heap_bytes())?;
         // Resetting an existing natural-key task is safe and costs the same one
         // write as insertion. No task existence is disclosed to the application.

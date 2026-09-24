@@ -27,7 +27,7 @@ fn paired_tombstoned_repost_identity_is_unobservable() {
     };
     drop(initial);
     // The new repost would deliver exactly this (C, removed) natural key.
-    let epoch = images.iter().find(|(t,r)|t=="follows" && r.field("followedId").unwrap()==&Value::Id(persona_principal("a"))).unwrap().1.field("id").unwrap().clone();
+    let epoch = images.iter().find(|(t,r)|t=="feedEdges" && r.field("actorId").unwrap()==&Value::Id(persona_principal("a"))).unwrap().1.field("epoch").unwrap().clone();
     let hidden_id = owned_id("feed", "Feed", &[Value::Id(persona_principal("c")), Value::Id("removed".into()), epoch]);
     assert!(images.iter().any(|(t,r)| t == "feedFeed" && r.field("id").unwrap() == &Value::Id(hidden_id.clone())));
     let ids = ["new-repost", "removed", "spare"].map(String::from);

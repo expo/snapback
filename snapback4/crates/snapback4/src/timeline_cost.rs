@@ -12,11 +12,11 @@ pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<Str
             lines.push("      removal: 1 app + 1 tombstone + 1 event delete + 1 purge record = 4 writes; visibility changes immediately".into());
         }
         if affected.contains(t.edges[0].as_str()) {
-            lines.push("      follow: 1 edge + at most 50 newest live event copies + 1 backfill record = at most 52 writes".into());
-            lines.push("      unfollow: 1 edge delete + up to 256 stale copies + 1 cleanup record = at most 258 writes; the next read excludes this actor".into());
+            lines.push("      follow: 1 edge + 1 owned admission + at most 50 newest live event copies + 1 backfill record = at most 53 writes".into());
+            lines.push("      unfollow: 1 edge delete + 1 admission delete + up to 256 stale copies + 1 cleanup record = at most 259 writes; the next read excludes this actor".into());
         }
         lines.push("      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities".into());
-        lines.push("      reads: one private inbox lane, current public edge and tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending".into());
+        lines.push("      reads: one private inbox lane, current private edge epoch and public tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending".into());
         if let Some(bounds) = stream_bounds(schema,t) {
             for (op,bytes) in bounds { lines.push(format!("      {op}: derived stream <= {bytes} B (application rows excluded)")); }
         }
@@ -71,7 +71,7 @@ pub(crate) fn stream_bounds(schema: &Schema, t: &snapback4_core::schema::timelin
     let work = event("Work", false)?;
     Some(vec![
         ("event insert", source + feed + work),
-        ("follow preview", t.backfill() * feed + work),
+        ("follow preview", t.backfill() * feed + work + event("Edges", false)?),
         ("delivery chunk", 256 * feed + work),
         ("removal", event("RemovedEvents", false)? + event("Posts", true)? + work),
         ("purge chunk", 256 * event("Feed", true)? + event("RemovedEvents", true)? + 2 * event("Work", true)?),

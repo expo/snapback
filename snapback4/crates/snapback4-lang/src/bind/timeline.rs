@@ -20,7 +20,7 @@ pub fn expand(mut documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -
         let owned: BTreeSet<_> = snapback4_core::schema::timeline::OWNED_SUFFIXES.iter().map(|s| format!("{}{s}", decl.name)).collect();
         let nested = declarations.iter().any(|other| other.name != decl.name && snapback4_core::schema::timeline::OWNED_SUFFIXES.iter().any(|s| format!("{}{s}", other.name) == decl.name));
         if nested || names.get(&decl.name) != Some(&1) || owned.iter().any(|n| names.contains_key(n)) {
-            diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", "timeline or owned name collides", "choose a distinct timeline name and leave its Posts, Feed, RemovedEvents and Work names unused"));
+            diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", "timeline or owned name collides", "choose a distinct timeline name and leave its Posts, Feed, RemovedEvents, Work and Edges names unused"));
             continue;
         }
         let source = include_str!("timeline.q").replace("@T@", &decl.name);
@@ -100,11 +100,10 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
                     return Err(refusal(decl, "E_TIMELINE_SHAPE", "edges and reposts need immutable attribution and a total unique pair", format!("unique byPair: {}\n  update <- deny", pair.join(", "))));
                 }
             }
-            let followed_index = edges.indexes.iter().find(|(_, i)| i.is_plain() && i.columns() == [decl.edges[2].clone(), decl.edges[1].clone()]).map(|(n,_)| n.clone());
-            let followed_index = followed_index.unwrap_or_else(|| format!("byTimeline{}Followers", decl.name));
-            schema.tables.get_mut(&decl.edges[0]).unwrap().indexes.entry(followed_index.clone()).or_insert_with(|| snapback4_core::schema::Index {
-                components: vec![snapback4_core::schema::IndexComponent::Column(decl.edges[2].clone()), snapback4_core::schema::IndexComponent::Column(decl.edges[1].clone())], unique: false,
-            });
+            // Always own a stable, unreachable-from-source index name. Reusing
+            // an arbitrary authored name can silently reinterpret a saved cursor.
+            let followed_index = format!("$timeline:{}:followers", decl.name);
+            reserve_followed_index(decl, &mut schema.tables.get_mut(&decl.edges[0]).unwrap().indexes, &followed_index)?;
             Ok(Timeline { name: decl.name.clone(), version: 2, filter, authors: Default::default(), posts: decl.posts.clone(), reposts: decl.reposts.clone(), edges: decl.edges.clone(),
                 author_cap: 1000, edge_cap: 100000, followed_index, purge: String::new(), owned, mapped })
         })();
@@ -138,8 +137,8 @@ pub fn read(timeline: &Timeline, read: &ReadExpr) -> Fallible<Expr> {
         return Err(Diagnostic::new(&read.site, "E_TIMELINE_READ", "a timeline reads one viewer, newest first by time then event id",
             format!("{}[viewer] after c last 20", timeline.name)).guide("feeds"));
     }
-    let source = format!("query q(c: cursor ?):\n  return {}[viewer] after c last {} by byReaderTime where (.actorId = viewer or exists {}[{} = viewer, {} = .actorId, id = .epoch]) and not exists {}[eventId = .eventId]\n",
-        timeline.table("Feed"), range.take, timeline.edges[0], timeline.edges[1], timeline.edges[2], timeline.table("RemovedEvents"));
+    let source = format!("query q(c: cursor ?):\n  return {}[viewer] after c last {} by byReaderTime where (.actorId = viewer or exists {}[readerId = viewer, actorId = .actorId, epoch = .epoch]) and not exists {}[eventId = .eventId]\n",
+        timeline.table("Feed"), range.take, timeline.table("Edges"), timeline.table("RemovedEvents"));
     let (doc, errors) = crate::parse_document("timeline.q", &source);
     let shape_error = || Diagnostic::new(&read.site, "E_TIMELINE_READ", "timeline read expansion has an invalid shape", format!("{}[viewer] after c last 20", timeline.name)).guide("feeds");
     if !errors.is_empty() { return Err(shape_error()); }
@@ -151,4 +150,34 @@ pub fn read(timeline: &Timeline, read: &ReadExpr) -> Fallible<Expr> {
         name: name.into(), value: Expr::Member { base: Box::new(Expr::Focal { site: read.site.clone() }), name: if name == "id" { "eventId" } else { name }.into(), site: read.site.clone() }, site: read.site.clone(),
     }).collect();
     Ok(Expr::Shape { base: Box::new(Expr::Read(scan)), fields, site: read.site.clone() })
+}
+
+fn reserve_followed_index(decl: &TimelineDecl, indexes: &mut BTreeMap<String, snapback4_core::schema::Index>, name: &str) -> Fallible<()> {
+    let definition = snapback4_core::schema::Index {
+        components: vec![snapback4_core::schema::IndexComponent::Column(decl.edges[2].clone()), snapback4_core::schema::IndexComponent::Column(decl.edges[1].clone())], unique: false,
+    };
+    if indexes.get(name).is_some_and(|existing| existing != &definition) {
+        return Err(refusal(decl, "E_TIMELINE_SHAPE", "reserved timeline follower index differs from its canonical definition", "restore the compiler-owned follower index; declare application indexes under a separate name"));
+    }
+    indexes.insert(name.into(), definition);
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn reserved_follower_index_requires_its_exact_definition() {
+        let (doc, errors) = crate::parse_document("test.q", "maintain feed: timeline\n  events posts by authorId, at removed by removed\n  reposts reposts by actorId, postId, at\n  edges follows by followerId, followedId\n");
+        assert!(errors.is_empty());
+        let decl = &doc.timelines[0];
+        let name = "$timeline:feed:followers";
+        let mut indexes = BTreeMap::new();
+        reserve_followed_index(decl, &mut indexes, name).unwrap();
+        reserve_followed_index(decl, &mut indexes, name).unwrap();
+        indexes.get_mut(name).unwrap().components.reverse();
+        let previous = indexes.clone();
+        assert_eq!(reserve_followed_index(decl, &mut indexes, name).unwrap_err().code, "E_TIMELINE_SHAPE");
+        assert_eq!(indexes, previous, "refusal must not overwrite the conflicting index");
+    }
 }

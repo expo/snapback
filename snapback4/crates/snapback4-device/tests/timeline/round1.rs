@@ -13,9 +13,10 @@ pub fn queued_only<S: Images>(d: &mut Device<S>, q: &Queued, before: &BTreeMap<S
 }
 pub fn assert_partition<S: Images>(d: &mut Device<S>, e: &Engine, viewer: &str) {
     let local=rows(d);
-    for table in ["profiles","posts","reposts","follows","feedPosts","feedRemovedEvents","feedFeed","feedWork"] {
+    for table in ["profiles","posts","reposts","follows","feedPosts","feedRemovedEvents","feedFeed","feedWork","feedEdges"] {
         let mut expected=fixture::rows(e,table);
         if table=="feedFeed" { expected.retain(|r|r.field("readerId").unwrap()==&fixture::id(viewer)); }
+        if table=="feedEdges" { expected.retain(|r|r.field("readerId").unwrap()==&fixture::id(viewer)); }
         if table=="feedWork" { expected.retain(|r|r.field("viewerId").unwrap()==&fixture::id(viewer)); }
         expected.sort_by_key(|r|r.field("id").unwrap().as_str().unwrap().to_owned());
         assert_eq!(local[table],expected,"settled partition {table}");

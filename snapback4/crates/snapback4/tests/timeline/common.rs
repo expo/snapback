@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 pub const APP: &str = include_str!("app.q");
 pub const DECLARATION: &str = include_str!("declaration.q");
-pub const OWNED: [&str; 4] = ["feedPosts", "feedRemovedEvents", "feedFeed", "feedWork"];
+pub const OWNED: [&str; 5] = ["feedPosts", "feedRemovedEvents", "feedFeed", "feedWork", "feedEdges"];
 pub fn id(s: &str) -> Value { Value::Id(s.into()) }
 pub fn context(viewer: &str, args: &[(&str, Value)], at: i64) -> Context {
     Context::new(viewer, args.iter().map(|(k,v)| (k.to_string(), v.clone())).collect()).at(at)

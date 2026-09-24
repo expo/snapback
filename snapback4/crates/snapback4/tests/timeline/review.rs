@@ -50,7 +50,7 @@ fn unchanged_semantics_refresh_followed_index_without_reactivation() {
         b.programs = bound(true).programs;
         e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
         assert_eq!(snapshot(&e),before);
-        assert_eq!(e.schema().timelines[0].followed_index,if indexes.contains("aFollowers") {"aFollowers"} else {"renamed"});
+        assert_eq!(e.schema().timelines[0].followed_index,"$timeline:feed:followers");
         let reader = format!("new-{n}");
         for (op,args) in [("register",vec![]),("follow",vec![("authorId",id("a"))])] {
             let out=e.mutate(op,None,context(&reader,&args,100+n as i64*2+usize::from(op=="follow") as i64)).unwrap();
@@ -66,7 +66,7 @@ fn unfollow_hides_then_cleans_more_than_the_old_copy_cap() {
     let mut e=engine(true);sent(&mut e,"follow","b",&[("authorId",id("a"))],1);
     for n in 0..1001 {sent(&mut e,"publish","a",&[("postId",id(&format!("p{n:04}")))],n+2);}
     drain(&mut e);assert_eq!(rows(&e,"feedFeed").len(),2002);
-    let out=sent(&mut e,"unfollow","b",&[("authorId",id("a"))],2000);assert_eq!(out.metered.rows_written,258);
+    let out=sent(&mut e,"unfollow","b",&[("authorId",id("a"))],2000);assert_eq!(out.metered.rows_written,259);
     assert_eq!(rows(&e,"feedFeed").len(),1746);
     assert!(e.query("following",context("b",&[],2001)).unwrap().data.as_array().unwrap().is_empty());
     drain(&mut e);assert_eq!(rows(&e,"feedFeed").len(),1001);

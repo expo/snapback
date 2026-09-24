@@ -3,6 +3,7 @@ use snapback4_core::{Engine, Value, schema::timeline::owned_id};
 pub fn natural_key(suffix: &str, row: &Value) -> Vec<Value> {
     let fields: &[&str] = match suffix {
         "Work" => &["kind", "actorId", "readerId", "eventId", "epoch"],
+        "Edges" => &["readerId", "actorId"],
         "Authors" => &["principal"],
         "Pulls" => &["readerId", "authorId"],
         "PullCounts" | "PullTotals" => &["readerId"],

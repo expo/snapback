@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use crate::Value;
 
-pub const OWNED_SUFFIXES: [&str; 4] = ["Posts", "RemovedEvents", "Feed", "Work"];
+pub const OWNED_SUFFIXES: [&str; 5] = ["Posts", "RemovedEvents", "Feed", "Work", "Edges"];
 pub const DELIVERY_CHUNK: u32 = 256;
 
 pub const PUSH_FOLLOWERS: usize = 50;

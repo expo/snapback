@@ -87,7 +87,7 @@ fn durable_history_survives_adoption_reopen_and_trusted_restore() {
         let suffix = table.strip_prefix("feed");
         // A real natural-key digest, not a merely well-formed or tampered id.
         let natural = match suffix {
-            Some("Feed" | "Work") => "readerId",
+            Some("Feed" | "Work" | "Edges") => "readerId",
             Some("RemovedEvents") => "eventId",
             _ => "id",
         };

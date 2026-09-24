@@ -50,7 +50,7 @@ fn follow_preview_and_delivery_have_bounded_bytes_and_private_partitions() {
     for n in 0..1000 {mutate(&mut e,"publish",&author,&[("postId",id(&format!("{}p{n:04}","p".repeat(130))))],n+2);}
     for who in &followers {mutate(&mut e,"follow",who,&[("authorId",id(&author))],1100);}
     let from=e.seq().unwrap();
-    assert_eq!(mutate(&mut e,"follow",&reader,&[("authorId",id(&author))],1200),52);
+    assert_eq!(mutate(&mut e,"follow",&reader,&[("authorId",id(&author))],1200),53);
     for (class,who) in [("triggering reader",&reader),("author",&author),("existing follower",&followers[0]),("public only",&"outsider".into())] {
         let p=e.stream(who,from,1).unwrap();
         let seq=e.seq().unwrap();
@@ -59,14 +59,14 @@ fn follow_preview_and_delivery_have_bounded_bytes_and_private_partitions() {
         let copies=p.events.iter().filter(|ev|ev.table==t.table("Feed")).collect::<Vec<_>>();
         assert_eq!(copies.len(),if class=="triggering reader" {FOLLOW_BACKFILL} else {0});
         for ev in &p.events {
-            if matches!(ev.table.as_str(),"feedFeed"|"feedWork") {
+            if matches!(ev.table.as_str(),"feedFeed"|"feedWork"|"feedEdges") {
                 assert_ne!(class,"public only");
                 assert_eq!(ev.data.as_ref().unwrap().field("readerId").unwrap(),&id(who));
             } else if class=="public only" {
                 assert!(e.schema().tables[&ev.table].rules.read.is_uniformly_readable());
             }
         }
-        assert_eq!(p.events.len(),match class {"triggering reader"=>FOLLOW_BACKFILL+2,"public only"=>1,_=>1});
+        assert_eq!(p.events.len(),match class {"triggering reader"=>FOLLOW_BACKFILL+3,"public only"=>1,_=>1});
         let derived:usize=p.events.iter().filter(|ev|t.owns(&ev.table)).map(|ev|serde_json::to_vec(&sync_wire::SyncEvent {
             data:ev.data.as_ref().map(snapback4_core::wire::Plain),id:&ev.id,kind:&ev.kind,seq:Some(ev.seq),table:&ev.table
         }).unwrap().len()+1).sum();

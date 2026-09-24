@@ -6,9 +6,7 @@ use crate::schema::timeline::DELIVERY_CHUNK;
 
 impl Runner<'_> {
     fn timeline_follows(&mut self, t: &Timeline, reader: &Value, actor: &Value, epoch: &Value) -> Result<bool, RuntimeError> {
-        let index = self.schema.tables[&t.edges[0]].indexes.iter().find(|(_, i)| i.unique && i.is_plain() && i.columns() == t.edges[1..3])
-            .map(|(n,_)| n.clone()).ok_or_else(|| refusal("E_TIMELINE_SHAPE", "missing unique follower/followed key; restore the timeline edge declaration"))?;
-        Ok(self.timeline_get(&t.edges[0], &index, vec![reader.clone(), actor.clone()])?.is_some_and(|edge| edge.field("id").ok() == Some(epoch)))
+        Ok(self.timeline_edge(t, reader, actor)?.is_some_and(|edge| edge.field("epoch").ok() == Some(epoch)))
     }
 
     fn timeline_work(&mut self, t: &Timeline, work: &Value) -> Result<(), RuntimeError> {
@@ -19,6 +17,7 @@ impl Runner<'_> {
         let epoch = field(work, "epoch")?;
         let remaining = field(work, "remaining")?.as_int()? as usize;
         let mut finished = false;
+        let mut copied = 0;
         let cursor = match work.field("cursor")? {
             Value::Null => None,
             Value::String(hex) => Some(crate::value::decode_bytes_hex(hex).ok_or_else(|| refusal("E_TIMELINE_SHAPE", "invalid delivery cursor; restore the complete store"))?),
@@ -33,16 +32,30 @@ impl Runner<'_> {
                     visited = edges.len(); last = keys.last().cloned();
                     for edge in edges {
                         let follower = field(&edge, &t.edges[1])?;
-                        if follower != actor { self.timeline_copy(t, &event, follower.as_str()?, field(&edge, "id")?)?; }
+                        if follower != actor {
+                            if let Some(admission) = self.timeline_edge(t, &follower, &actor)? {
+                                let epoch = field(&admission, "epoch")?;
+                                // Backfill alone owns events born before this edge.
+                                if epoch.as_str()? < work.field("admitted")?.as_str()? {
+                                    self.timeline_copy(t, &event, follower.as_str()?, epoch)?;
+                                }
+                            }
+                        }
                     }
                 }
             }
             "backfill" => {
                 if self.timeline_follows(t, &reader, &actor, &epoch)? {
-                    let (events, keys) = self.timeline_page(&t.table("Posts"), "byActorTime", vec![actor], DELIVERY_CHUNK.min(remaining as u32), true, cursor.as_deref())?;
+                    let (events, keys) = self.timeline_page(&t.table("Posts"), "byActorTime", vec![actor.clone()], DELIVERY_CHUNK.min(remaining as u32), true, cursor.as_deref())?;
                     visited = events.len(); last = keys.last().cloned();
-                    finished = visited == remaining;
-                    for event in events { self.timeline_copy(t, &event, reader.as_str()?, epoch.clone())?; }
+                    for event in events {
+                        let delivery = required(self.timeline_get(&t.table("Work"), "byId", vec![Value::Id(Self::timeline_delivery_id(t, &actor, event.field("id")?))])?, "FEED_APP_NOT_FOUND")?;
+                        if delivery.field("admitted")?.as_str()? < epoch.as_str()? {
+                            self.timeline_copy(t, &event, reader.as_str()?, epoch.clone())?;
+                            copied += 1;
+                        }
+                    }
+                    finished = copied == remaining;
                 }
             }
             "cleanup" => {
@@ -59,7 +72,7 @@ impl Runner<'_> {
                 if visited < DELIVERY_CHUNK as usize {
                     // Retire/cancel the event's delivery record before its public
                     // tombstone. Backfills scan only the live event table.
-                    let delivery_id = crate::schema::timeline::owned_id(&t.name, "Work", &[Value::String("delivery".into()), actor, Value::Null, event_id.clone(), Value::Null]);
+                    let delivery_id = Self::timeline_delivery_id(t, &actor, &event_id);
                     if self.timeline_get(&t.table("Work"), "byId", vec![Value::Id(delivery_id.clone())])?.is_some() {
                         self.delete(&t.table("Work"), &delivery_id)?;
                     }
@@ -70,11 +83,20 @@ impl Runner<'_> {
             }
             _ => return Err(refusal("E_TIMELINE_SHAPE", "unknown delivery work; restore the complete timeline store")),
         }
-        if finished || visited < DELIVERY_CHUNK as usize {
-            self.delete(&t.table("Work"), &text(work, "id")?)?;
+        let batch = if kind == "backfill" { DELIVERY_CHUNK.min(remaining as u32) } else { DELIVERY_CHUNK };
+        if finished || visited < batch as usize {
+            if kind == "delivery" {
+                // Keep the admission order until removal: a later backfill must
+                // distinguish old history from already-delivered newer events.
+                self.update(&t.table("Work"), &field(work, "id")?, object([
+                    ("status", Value::String("done".into())), ("cursor", Value::Null),
+                ]))?;
+            } else {
+                self.delete(&t.table("Work"), &text(work, "id")?)?;
+            }
         } else {
             let cursor = last.ok_or_else(|| refusal("E_TIMELINE_SHAPE", "delivery made no progress; restore the complete timeline store"))?;
-            self.update(&t.table("Work"), &field(work, "id")?, object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(visited) as i64))]))?;
+            self.update(&t.table("Work"), &field(work, "id")?, object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(copied) as i64))]))?;
         }
         Ok(())
     }
