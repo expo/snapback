@@ -221,7 +221,7 @@ impl Runner<'_> {
                         + last.as_ref().map_or(0, |key| 2 * word_heap::values(key))
                         + word_heap::cursor_build(table, index, prefix_len, if continues || shaped { max_key } else { 0 }, word_heap::text(&first.table) + word_heap::text(&first.index)))?;
                 }
-                self.record_page(site.to_owned(), PagePosition { table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
+                self.record_page(site.to_owned(), PagePosition { view_suffix: None, table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
             } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
         }
         Ok(page)

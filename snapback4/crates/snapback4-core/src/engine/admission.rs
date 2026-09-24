@@ -479,7 +479,7 @@ fn read_only_expr(value: &Expr) -> bool {
         Expr::Binary { left, right, .. } => read_only_expr(left) && read_only_expr(right),
         Expr::Get(read) | Expr::Exists(read) => read.key.iter().all(read_only_expr),
         Expr::Scan(scan) => read_only_scan(scan),
-        Expr::Merge(merge) => merge.lanes.iter().all(|lane| read_emit_only(&lane.setup) && read_only_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(read_only_scan) && source.expressions().into_iter().all(read_only_expr))),
+        Expr::Merge(merge) => merge.position.as_ref().and_then(|position| position.after.as_deref()).is_none_or(read_only_expr) && merge.lanes.iter().all(|lane| lane.project.as_ref().is_none_or(read_only_expr) && lane.distinct.as_ref().is_none_or(read_only_expr) && read_emit_only(&lane.setup) && read_only_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(read_only_scan) && source.expressions().into_iter().all(read_only_expr))),
         Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => true,
     }
 }

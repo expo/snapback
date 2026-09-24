@@ -173,7 +173,7 @@ fn w2_a_uniform_hidden_page_after_metered_work_has_the_same_complete_observation
 
 #[test]
 fn w3_uniform_page_with_expiring_rule_probe_has_no_population_oracle() {
-    let source = format!("{}\ntable grants:\n  owner: principal\n  expiresAt: time\n  by byOwner: owner\n  by byExpiry: expiresAt\n  expire at .expiresAt\n  read <- deny\nmutation pass(): server\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n", SOURCE.replace("read <- .owner = viewer", "read <- exists grants[.owner]").replace("  sync to .owner last 20 by byOwner\n", ""));
+    let source = format!("{}\ntable grants:\n  owner: principal\n  expiresAt: time\n  by byOwner: owner\n  by byExpiry: expiresAt\n  expire at .expiresAt\n  read <- deny\nmutation pass(): server\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n", SOURCE.replace("read <- .owner = viewer", "read <- exists grants[owner = .owner]").replace("  sync to .owner last 20 by byOwner\n", ""));
     for admitted in [false, true] {
         let mut observations = Vec::new();
         for expired in [0, 9000] {
@@ -198,7 +198,7 @@ fn w3_serialized_nonlooping_merge_without_merge_site_is_refused() {
     let mut program = bound.programs.iter().find(|p| p.program.name == "page").unwrap().program.clone();
     let mut scan = scans(&program)[0].clone(); scan.merge_site = None;
     program.kind = ProgramKind::Mutation;
-    program.body = vec![Stmt::Let { name: "rows".into(), value: Expr::Merge(Merge { site: "structural".into(), lanes: vec![MergeLane { setup: vec![], scan: scan.clone(), source: None, binding: "r".into() }] }) }, Stmt::Return(Expr::Literal(Value::Null))];
+    program.body = vec![Stmt::Let { name: "rows".into(), value: Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: "structural".into(), lanes: vec![MergeLane { distinct: None, branch: None, project: None, setup: vec![], scan: scan.clone(), source: None, binding: "r".into() }] }) }, Stmt::Return(Expr::Literal(Value::Null))];
     let serialized: Program = serde_json::from_str(&serde_json::to_string(&program).unwrap()).unwrap();
     let why = snapback4_core::engine::admission::check(&bound.schema, &serialized).unwrap_err().refusal();
     assert_eq!(why.code, "E_STRUCTURAL_FANOUT");
@@ -258,7 +258,7 @@ fn w4_negated_self_probe_empty_and_hidden_pages_match_at_probe_ceiling() {
     }
 }
 
-const MAINTAIN_PROBE: &str = "table sources:\n  group: text <=10\n  amount: int\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- deny\nmaintain totals: sum sources of amount by group\n  read <- deny\ntable targets:\n  group: text <=10\n  amount: int\n  by byGroup: group, id\n  read <- exists totals[.group]\n  update <- allow\nmutation pass(): server\n  rows = targets['g'] first 1 by byGroup\n  return count(rows)\nquery one():\n  return null\n";
+const MAINTAIN_PROBE: &str = "table sources:\n  group: text <=10\n  amount: int\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- deny\nmaintain totals: sum sources of amount by group\n  read <- deny\ntable targets:\n  group: text <=10\n  amount: int\n  by byGroup: group, id\n  read <- exists totals[group = .group]\n  update <- allow\nmutation pass(): server\n  rows = targets['g'] first 1 by byGroup\n  return count(rows)\nquery one():\n  return null\n";
 fn maintain_probe_world(source: &str, population: usize, live: bool) -> Engine {
     let b = compile(source);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
@@ -290,10 +290,10 @@ fn w4_live_maintain_existence_walk_has_one_probe_with_zero_or_nine_thousand_expi
 fn w4_live_maintain_probe_equalities_ignore_expired_contributions() {
     for effect in ["read", "update"] {
         let base = if effect == "read" { MAINTAIN_PROBE.to_owned() } else {
-            MAINTAIN_PROBE.replace("read <- exists totals[.group]", "read <- deny").replace("update <- allow", "update <- exists totals[.group]")
+            MAINTAIN_PROBE.replace("read <- exists totals[group = .group]", "read <- deny").replace("update <- allow", "update <- exists totals[group = .group]")
                 .replace("  rows = targets['g'] first 1 by byGroup\n  return count(rows)", "  update targets[id = 'target'] {amount: 1}")
         };
-        let source = base.replace("exists totals[.group]", "exists totals[group = .group, value = 2]");
+        let source = base.replace("exists totals[group = .group]", "exists totals[group = .group, value = 2]");
         let refused = compile(&source);
         assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
         assert_eq!(refused.diagnostics[0].code, "E_QUARRY_LIVE_MAINTAIN_PROBE");

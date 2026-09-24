@@ -17,6 +17,8 @@ use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 use crate::rows::word_heap;
 #[path = "word_merge.rs"]
 mod word_merge;
+#[path = "view_merge.rs"]
+mod view_merge;
 
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
 #[derive(Clone)]
@@ -447,7 +449,7 @@ impl Runner<'_> {
         if rules::scan_visibility(self.schema, scan).uniform { return self.merge_lazy(None, Some(scan)); }
         let Some((merge, word)) = self.word_lanes(scan)? else {
             if self.page_depth == 0 && scan.opaque_cursor {
-                self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next: None }, std::iter::empty())?;
+                self.record_page(scan.site.clone(), PagePosition { view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next: None }, std::iter::empty())?;
             }
             return Ok(Vec::new());
         };
@@ -587,9 +589,9 @@ impl Runner<'_> {
         let lanes = words.into_iter().map(|token| {
             let mut generated = scan.clone();
             generated.prefix = scope.iter().cloned().chain([Value::String(token)]).map(|v| IndexKeyExpr::Scalar(Expr::Literal(v))).collect();
-            MergeLane { setup: Vec::new(), scan: generated, source: None, binding: String::new() }
+            MergeLane { distinct: None, branch: None, project: None, setup: Vec::new(), scan: generated, source: None, binding: String::new() }
         }).collect();
-        Ok(Some((Merge { site: scan.site.clone(), lanes }, word)))
+        Ok(Some((Merge { position: None, view: None, order_keys: Vec::new(), site: scan.site.clone(), lanes }, word)))
     }
 
     fn take(&self, bound: &Bound) -> Result<usize, RuntimeError> {
@@ -677,6 +679,11 @@ impl Runner<'_> {
                 bounds.after = Some(vec![value]);
             }
             Some(_) => return Err(RuntimeError::Input("an opaque cursor is a string or null".into())),
+        }
+        if let Some((site, position)) = &self.view_seek && site == &scan.site {
+            self.meter.heap(word_heap::values(&position.values))?;
+            if position.inclusive { bounds.at_or_after = Some(position.values.clone()); }
+            else { bounds.after = Some(position.values.clone()); }
         }
         if let Some(range) = &scan.range {
             bounds.gt = range.gt.as_deref().map(|v| self.expr(v)).transpose()?;
@@ -941,7 +948,7 @@ impl Runner<'_> {
             let mut next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
             // @ref LLP 3000.007#20.24.1 — retry an interrupted predicate once; no emission at the same inclusive input position must not advertise a loop.
             if filter_interrupted && visible.is_empty() && next.is_some() && next == bounds.at_or_after { next = None; }
-            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
+            self.record_page(scan.site.clone(), PagePosition { view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
         }
         Ok((visible, keys))
     }
@@ -1007,9 +1014,11 @@ impl Runner<'_> {
     pub(super) fn next_cursor(&self) -> Result<Option<String>, RuntimeError> {
         let Some(page) = &self.page else { return Ok(None) };
         let Some(values) = &page.next else { return Ok(None) };
-        let table = self.schema.table(&page.table).expect("scanned table");
-        let index = table.index(&page.index).expect("scanned index");
-        let suffix = if page.merge { Self::merge_suffix(table, index, page.prefix_len) } else { Self::cursor_suffix(table, index, page.prefix_len) };
+        let suffix = if let Some(suffix) = &page.view_suffix { suffix.clone() } else {
+            let table = self.schema.table(&page.table).expect("scanned table");
+            let index = table.index(&page.index).expect("scanned index");
+            if page.merge { Self::merge_suffix(table, index, page.prefix_len) } else { Self::cursor_suffix(table, index, page.prefix_len) }
+        };
         encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone(), inclusive: page.inclusive, scope: page.prefix.as_ref().map(|prefix| CursorScope { generation: self.context.generation, prefix: prefix.clone() }) })
             .map(Some)
             .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
@@ -1022,6 +1031,7 @@ impl Runner<'_> {
     }
 
     fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
+        if merge.view.is_some() { return self.merge_view(merge); }
         // Keep the disclosure-sensitive non-uniform scan traversal unchanged.
         // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
         if rules::lazy_merge(self.schema, merge) {
@@ -1111,17 +1121,32 @@ impl Runner<'_> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
+            self.record_page(merge.site.clone(), PagePosition { view_suffix: None, table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
 
     fn lane_values(&mut self, lane: &MergeLane) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
-        match &lane.source {
-            Some(LaneSource::Scan(scan)) => Ok(Box::new(self.scan(scan)?.into_iter())),
-            Some(source) => self.domain(&source.domain()),
-            None => Ok(Box::new(std::iter::once(Value::Null))),
+        let values: Box<dyn Iterator<Item = Value>> = match &lane.source {
+            Some(LaneSource::Scan(scan)) => Box::new(self.scan(scan)?.into_iter()),
+            Some(source) => self.domain(&source.domain())?,
+            None => Box::new(std::iter::once(Value::Null)),
+        };
+        let Some(distinct) = &lane.distinct else { return Ok(values); };
+        let prior = self.env.get(&lane.binding).cloned();
+        let mut seen = BTreeSet::new();
+        let mut unique = Vec::new();
+        for value in values {
+            if !self.read_charge(MeterKind::Steps, 1)? { break; }
+            self.env.insert(lane.binding.clone(), value.clone());
+            let key = self.expr(distinct)?;
+            if key == Value::Null { continue; }
+            let key = canonical_json(&key);
+            self.meter.heap(key.len() as u64 + 64)?;
+            if seen.insert(key) { self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?; unique.push(value); }
         }
+        if let Some(prior) = prior { self.env.insert(lane.binding.clone(), prior); } else { self.env.remove(&lane.binding); }
+        Ok(Box::new(unique.into_iter()))
     }
 
     fn charge_lane(&mut self, lane: &MergeLane, site: &str) -> Result<bool, RuntimeError> {

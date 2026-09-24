@@ -51,7 +51,7 @@ fn observation(or: bool, admitted: bool, hidden: bool, words: bool, cut: Cut, re
     meter.charge(MeterKind::RuleProbes, Ceilings::default().rule_probes - remaining).unwrap();
     let mut runner = Runner::new(&tx, &schema, Context::new("alice", BTreeMap::new()).at(100), meter, 0);
     let scan = scan(words);
-    let expr = if words { Expr::Merge(Merge { site: "merge".into(), lanes: vec![MergeLane { setup: vec![], source: None, binding: String::new(), scan }] }) } else { Expr::Scan(scan) };
+    let expr = if words { Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: "merge".into(), lanes: vec![MergeLane { distinct: None, branch: None, project: None, setup: vec![], source: None, binding: String::new(), scan }] }) } else { Expr::Scan(scan) };
     let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false, returned_shapes: Default::default() };
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
@@ -121,8 +121,8 @@ fn r1a_prefix_conjunction_denial_matches_with_cap_and_abort() {
             let hidden = scan(words);
             let mut visible = hidden.clone();
             visible.prefix[0] = IndexKeyExpr::Scalar(Expr::Literal(Value::Id("visible".into())));
-            let lanes = [hidden, visible].into_iter().map(|scan| MergeLane { scan, setup: vec![], source: None, binding: String::new() }).collect();
-            observations.push(observe_read(schema, seed, Expr::Merge(Merge { site: "merge".into(), lanes }), cut));
+            let lanes = [hidden, visible].into_iter().map(|scan| MergeLane { distinct: None, branch: None, project: None, scan, setup: vec![], source: None, binding: String::new() }).collect();
+            observations.push(observe_read(schema, seed, Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: "merge".into(), lanes }), cut));
         }
         assert_eq!(observations[0], observations[1], "words={words}, cut={cut:?}");
         assert_eq!(observations[0]["data"].as_array().unwrap().len(), 1);

@@ -28,6 +28,7 @@ pub(super) enum Flow {
 /// One evaluated cursor-bearing page; the return plan selects its owner.
 #[derive(Clone, Debug)]
 pub(crate) struct PagePosition {
+    pub view_suffix: Option<Vec<crate::cursor::CursorColumn>>,
     pub table: String,
     pub index: String,
     pub order: Order,
@@ -89,6 +90,8 @@ pub struct Runner<'a> {
     pub(crate) page: Option<PagePosition>,
     pub(crate) pages: BTreeMap<String, PagePosition>,
     /// Matching scopes share one validated cursor image within a query.
+    /// Validated view position translated to one source index, scoped to its scan.
+    pub(super) view_seek: Option<(String, crate::cursor::CursorPosition)>,
     pub(super) word_cursor: Option<(String, crate::cursor::CursorPosition)>,
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,
@@ -189,6 +192,7 @@ impl<'a> Runner<'a> {
             page: None,
             pages: BTreeMap::new(),
             word_cursor: None,
+            view_seek: None,
             discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),
@@ -421,6 +425,7 @@ impl<'a> Runner<'a> {
                     let shaped = returned.into_iter().flat_map(|returned| &returned.shapes)
                         .filter_map(|shape| self.shape_positions.get(shape)).min_by_key(|position| position.rows);
                     self.page = self.page_owner.as_ref().and_then(|owner| self.pages.get(owner)).map(|page| PagePosition {
+                        view_suffix: page.view_suffix.clone(),
                         table: page.table.clone(), index: page.index.clone(), order: page.order, prefix_len: page.prefix_len,
                         prefix: page.prefix.clone(), merge: page.merge, interrupted: page.interrupted,
                         next: shaped.map_or_else(|| page.next.clone(), |position| position.next.clone()),

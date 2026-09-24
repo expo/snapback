@@ -304,15 +304,37 @@ pub struct Scan {
     pub provenance: KeyProvenance,
 }
 
+/// A union owns its projected cursor descriptor, including when no branch survives.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ViewPosition {
+    pub take: u32,
+    pub order: Order,
+    pub after: Option<Box<Expr>>,
+    pub suffix: Vec<crate::cursor::CursorColumn>,
+}
+
 /// A merge owns its lane discovery and ordered scans; no materialized union.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Merge {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<ViewPosition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub order_keys: Vec<String>,
     pub site: String,
     pub lanes: Vec<MergeLane>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MergeLane {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distinct: Option<Expr>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+    /// Evaluated with $project bound to a rule-visible, filtered source row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<Expr>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub setup: Vec<Stmt>,
     pub scan: Scan,
@@ -355,7 +377,7 @@ impl LaneSource {
 
 impl Merge {
     pub fn take(&self) -> u64 {
-        self.lanes.first().map_or(0, |lane| lane.scan.take.maximum())
+        self.position.as_ref().map_or_else(|| self.lanes.first().map_or(0, |lane| lane.scan.take.maximum()), |position| u64::from(position.take))
     }
     pub fn table(&self) -> &str {
         self.lanes.first().map_or("", |lane| lane.scan.table.as_str())
@@ -533,7 +555,10 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
         Expr::Block { body, value } => { stmts_read_sites(body, out); expr_read_sites(value, out); }
         Expr::Scan(scan) => scan_read_sites(scan, out),
         Expr::Merge(merge) => {
+            if let Some(after) = merge.position.as_ref().and_then(|position| position.after.as_ref()) { expr_read_sites(after, out); }
             for lane in &merge.lanes {
+                if let Some(project) = &lane.project { expr_read_sites(project, out); }
+                if let Some(value) = &lane.distinct { expr_read_sites(value, out); }
                 stmts_read_sites(&lane.setup, out);
                 if let Some(source) = &lane.source {
                     if let Some(scan) = source.scan() { scan_read_sites(scan, out); }
@@ -634,7 +659,10 @@ fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>, has_merge: &mut bool)
         }
         Expr::Merge(merge) => {
             *has_merge = true;
+            if let Some(after) = merge.position.as_ref().and_then(|position| position.after.as_ref()) { expr_scans(after, out, has_merge); }
             for lane in &merge.lanes {
+                if let Some(project) = &lane.project { expr_scans(project, out, has_merge); }
+                if let Some(value) = &lane.distinct { expr_scans(value, out, has_merge); }
                 stmts_scans(&lane.setup, out, has_merge);
                 if let Some(source) = &lane.source {
                     if let Some(scan) = source.scan() { expr_scans_of_scan(scan, out, has_merge); out.push(scan); }
