@@ -1,7 +1,7 @@
 # LLP 4000: Snapback 5 — the bridge is invisible
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted (in direction, author ruling 2026-09-24: §9.6 steps 2–6 commissioned and the §9.2 comparison judged worthwhile; the three round-3 reviews remain NOT READY on contracts the first slice will now produce as sub-LLPs — see §11)
 **Role:** Root of a proposed Snapback 5 corpus (LLPs 4000 and up), if commissioned
 **Systems:** A Snapback 5 authoring surface over the Snapback 4 engine; derived residency; the device acquisition policy; the client contract; `check`; the calibration protocol
 **Author:** Claude Fable 5.1, at Charlie Cheever's request
@@ -791,12 +791,26 @@ registered before it starts) and a stop. Not distinguished never ships.
 - **Self-attribution.** A third family classifies both arms; the author
   reads the reviews before the lead's summary of them.
 
-## 11. Questions for the author
+## 11. Questions for the author, and the rulings
 
-Two of revision 1's five questions were answered on 2026-09-24 (a fenced
-sibling: yes; the reference lanes: yes, running). The round-1 reviews did
-not answer the others identically; the answers below are this document's
-choices among their recommendations, pending the author's ruling:
+**Author ruling, 2026-09-24, after revision 4 and the three round-3
+verdicts:** (1) "commission §9.6 steps 2 through 6"; (2) on the three
+choices below, "you decide what you think is best here, you don't have to
+listen to the reviewers"; (3) the six-run comparison of §9.2 "seems
+worthwhile". So: steps 2–6 are commissioned now; step 7 is commissioned in
+principle, to run after step 6's checkpoint unless that checkpoint
+falsifies the mechanism (the differential page invariant red, or the
+delivery load failing its gates), in which case the author decides again.
+The lead's choices on items 2–4 stand as written, for the reasons given in
+each: they keep the first slice small and the control clean. A fourth
+review round on this document is not run; the contracts the round-3
+reviews named are produced by the first slice as sub-LLPs (4000.000 and
+up), each reviewed on its own.
+
+Two of revision 1's five questions were answered earlier on 2026-09-24 (a
+fenced sibling: yes; the reference lanes: yes, running). The round-1
+reviews did not answer the others identically; the answers below are the
+lead's choices among their recommendations, now ruled the lead's to make:
 
 2. **The additions:** none in Snapback 5's first slice. All land in
    Snapback 4 first as the shared baseline: `written by`, `sequence by`,
