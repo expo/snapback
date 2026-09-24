@@ -1,5 +1,9 @@
 # Lane E Grok delta — shared logout epochs, conditional cleanup and hex proof
 
+Follow-up: [the final delta](./20260924-lane-e-final-delta.md) fixes quota-time
+logout and automatic-refresh restoration, and adds a mutation-tested cross-tab
+Chromium witness. Results below remain the historical qualification.
+
 Date: 2026-09-24. Review base: `4e21d8688`; branch: `sb4-intent/e-client`.
 Implementation commit: `3e72df5ea`. No push or publication.
 

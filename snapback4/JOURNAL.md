@@ -47713,3 +47713,36 @@ ceilings or Quarry forms. Did not run a native Expo simulator or integrated
 Clique qualification, fix the unrelated baseline/timing failures, push or
 publish. The epoch is separate safe-key metadata; absent metadata starts at
 zero, and the marker survives bearer deletion.
+
+## 2026-09-24 — lane E final delta: quota cleanup and cross-tab qualification
+
+Landed all three final findings. Logout now attempts bearer deletion when its
+epoch write fails, retries the same marker after deletion frees space under
+the same session lock, and reports any remaining storage failure. Constructor
+cleanup now retries restoration when automatic near-expiry refresh was refused
+and another app has saved a successor. A new Chromium witness controls a
+session read/write race across two pages sharing localStorage, then verifies
+Bob's persisted account, fresh-page restoration and Alice's successor revocation.
+
+Measured: three new real-server tests reproduced the reported failures before
+the fixes; all 34 app tests and all 139 affected tests passed afterward.
+The cross-tab witness passes with Web Locks and fails the account-isolation
+assertion when only that call is removed from the built artifact. The first
+witness barrier was too weak because its async browser predicate was accepted
+early; explicit awaited polling corrected it before qualification. Both existing
+Chromium witnesses pass, including the previously timed-out worker update and
+cold-offline account/replica restoration with both servers stopped (1,526 ms,
+not a performance claim).
+
+The initial full run was **`== 1 failure(s) in 233 s`**: environmental disk
+exhaustion stopped two Rust test-artifact builds. Clearing only this worktree's
+old incremental cache freed about 15 GB. The final full run was
+**`== 1 failure(s) in 185 s`**, cargo aggregate only, with the same four Rust
+failures as the untouched baseline. Both full runs passed 1,087 client tests,
+with 10 skips and no client failures. Exact failures, logs, reproductions and
+file-by-file changes are in [the final delta report](./reports/20260924-lane-e-final-delta.md).
+
+No deviation from the final review brief. Did not change the Client contract,
+Quarry forms, authorization/disclosure, meters or ceilings; did not run a native
+Expo simulator or integrated Clique qualification, fix unrelated baseline/timing
+defects, push or publish. Chromium was available and the new witness ran here.
