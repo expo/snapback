@@ -49380,3 +49380,12 @@ deferral and sweep-timed refusals. The size exceeds the inherited 486,000 B
 ratchet, so metrics/wasm-budget.json raises it to 488,000 B in this commit,
 leaving 356 B. No runtime meter ceiling changes. No push or publication.
 Details: reports/20260924-intent-lane-p-round1.md.
+
+Final qualification appended after completion: `scripts/test.sh` returned
+`== 0 failure(s) in 740 s`, exit 0, using CARGO_INCREMENTAL=0 and
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1. The complete Rust inventory passed in
+135 s. Client inventory: 1,098 tests, 1,088 passes, 10 skips, zero failures
+(707 s). Every build, guide, release guard, typecheck and fixture step passed;
+no baseline or environmental failure remains. Final wasm stayed at
+1,753,421 B raw / 487,644 B gzip. Log:
+~/sb4-intent/lane-p-round1-suite-final.log. Implementation commit: 39864279e.
