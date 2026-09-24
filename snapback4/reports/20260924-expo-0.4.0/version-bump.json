@@ -1,0 +1,11 @@
+{
+  "started_at": "2026-09-24T10:38:02.553386+00:00",
+  "seconds": 0.001,
+  "versions": {
+    "snapback4": "0.4.0",
+    "snapback4-darwin-arm64": "0.4.0",
+    "snapback4-expo": "0.4.0"
+  },
+  "cargo_lock_workspace_packages": 6,
+  "version_mismatch_test": "crates/snapback4/src/main.rs:version_is_the_workspace_version"
+}

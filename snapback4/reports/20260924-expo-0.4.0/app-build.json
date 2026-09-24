@@ -1,0 +1,27 @@
+{
+  "app": "/Users/ccheever/projects/snapback-pub-040/snapback4/target/expo-release/Snapback4chat.app",
+  "configuration": "Release",
+  "origin": "http://127.0.0.1:44440",
+  "bundle": {
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleVersion": "1",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleExecutable": "Snapback4chat",
+    "MinimumOSVersion": "16.4",
+    "DTPlatformName": "iphonesimulator"
+  },
+  "files": {
+    "Snapback4chat": {
+      "bytes": 5522768,
+      "sha256": "6d520ade11f045b965e70ebe27919ed1861a56f369ed25c72e4cfef0b326d8eb"
+    },
+    "main.jsbundle": {
+      "bytes": 1715832,
+      "sha256": "d9bb06e42f139dd5ab71472d8870b49fa0aff4ad971c147a5bab5e4f81751390"
+    },
+    "Info.plist": {
+      "bytes": 3708,
+      "sha256": "fa54271123fdd11dfd9deaf67cbd234eb48e1a69e81b9b7923b5aa6e2818ba57"
+    }
+  }
+}

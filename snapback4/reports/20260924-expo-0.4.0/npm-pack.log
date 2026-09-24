@@ -1,0 +1,101 @@
+[
+  {
+    "id": "snapback4-expo@0.4.0",
+    "name": "snapback4-expo",
+    "version": "0.4.0",
+    "size": 4809589,
+    "unpackedSize": 12092675,
+    "shasum": "b51b0a813c2508026be084e641a04c8099a0f291",
+    "integrity": "sha512-yH1Ho6zhujUsi7uyF5iawUk2DaunFE9ewCrVenR8lHDGmWLTFs2plKhaDEuzKz59+WMIK7GXL3dHZToeoUau+Q==",
+    "filename": "snapback4-expo-0.4.0.tgz",
+    "files": [
+      {
+        "path": "README.md",
+        "size": 3144,
+        "mode": 420
+      },
+      {
+        "path": "expo-module.config.json",
+        "size": 82,
+        "mode": 420
+      },
+      {
+        "path": "ios/MediaFiles.swift",
+        "size": 4191,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/Info.plist",
+        "size": 1257,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap",
+        "size": 61,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h",
+        "size": 2204,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+        "size": 6029792,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap",
+        "size": 61,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h",
+        "size": 2204,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+        "size": 6035616,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Expo.podspec",
+        "size": 1222,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Module.swift",
+        "size": 3928,
+        "mode": 420
+      },
+      {
+        "path": "ios/WitnessContainer.swift",
+        "size": 2095,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 817,
+        "mode": 420
+      },
+      {
+        "path": "src/index.ts",
+        "size": 2464,
+        "mode": 420
+      },
+      {
+        "path": "src/witness-core.ts",
+        "size": 3019,
+        "mode": 420
+      },
+      {
+        "path": "src/witness.ts",
+        "size": 518,
+        "mode": 420
+      }
+    ],
+    "entryCount": 17,
+    "bundled": []
+  }
+]

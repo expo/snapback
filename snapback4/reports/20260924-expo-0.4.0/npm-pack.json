@@ -1,0 +1,16 @@
+{
+  "name": "npm-pack",
+  "command": [
+    "npm",
+    "pack",
+    "--json",
+    "--pack-destination",
+    "../../target/expo-0.4.0"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4/packages/snapback4-expo",
+  "started_at": "2026-09-24T10:44:47.413251+00:00",
+  "finished_at": "2026-09-24T10:44:48.329039+00:00",
+  "seconds": 0.916,
+  "exit_code": 0,
+  "log": "npm-pack.log"
+}

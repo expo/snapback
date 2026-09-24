@@ -48914,3 +48914,53 @@ No design deviation, new open problem, engine redesign, authorization or
 meter relaxation, baseline snapshot repair, publication or push. The complete
 file map, merge resolutions, forms and evidence logs are recorded in
 reports/20260924-intent-integration-r2.md.
+
+
+## 2026-09-24 — snapback4-expo 0.4.0 native qualification, phase 1 only
+
+Prepared from `4af0ef82f9` in `~/projects/snapback-pub-040`, branch
+`sb4-intent/publish-040`. Version commit `8d52f3ea88` aligns the CLI,
+platform package, optional dependency, Cargo workspace and lockfiles, and
+Expo package at 0.4.0. No npm publication command or CLI publication
+script was run. The publication suite and installed CLI consumer proof are
+not part of this native-only phase.
+
+Node 24.18.0, Bun 1.4.2, Rust 1.97.0, Xcode 27.0 (27A266a). The frozen
+install passed in 0.778 s; the version-mismatch regression passed (1 test,
+55.763 s including cold compilation). `cargo build` passed in 16.973 s;
+`build-xcframework.sh` built both iOS slices in 79.837 s. Their object
+deployment metadata honors the advertised iOS 16.4 minimum.
+
+The chat-expo Release build passed in 65.349 s, zero errors and three
+warnings. CocoaPods first ran after the rebuilt xcframework existed and
+installed Snapback4Expo 0.4.0; the archive copied to the linker is
+byte-identical to the new simulator slice. Client/package prerequisites
+passed, including WASM at 485,461 B gzip under the unchanged 486,000 B
+budget, package compilation and the chat backend check.
+
+The published native witness verb/helper was driven by this worktree's
+`target/debug/snapback4`, not a registry CLI, on the dedicated iPhone 17 Pro
+iOS 26.5 simulator `83D9B076-D3E5-4045-AD0A-17AF5DBC137A`, port 44440.
+Offline with `--prime` passed in 8.958 s; restart with
+`--prime --relaunch` passed in 12.158 s, including durable pending sends
+across the offline relaunch and ordered settlement after reconnect.
+There were no failed qualification attempts or retries.
+
+`npm pack` passed in 0.916 s: 17 files, 4,809,589 bytes. Every packed
+file matches the qualified source. Unpublished tarball integrity:
+`sha512-yH1Ho6zhujUsi7uyF5iawUk2DaunFE9ewCrVenR8lHDGmWLTFs2plKhaDEuzKz59+WMIK7GXL3dHZToeoUau+Q==`
+The exact tarball is retained at
+`snapback4/target/expo-0.4.0/snapback4-expo-0.4.0.tgz` in this worktree.
+
+SHA-256 native archives:
+- iOS arm64: `972d05ece4565e63ff64b48285d1c6abb90eb631026fafe5a948ce4ae2af56e5`
+- iOS arm64 simulator: `735cf95fcc2b9b115d193b496dd5ccfbf6b90e45dc48af822b29456e056eb4b7`
+
+Committed source-tree digests used to build the device:
+- `snapback4-device`: `708272bad68589c64517f4a15063bfa1eee16bf1`
+- `snapback4-core`: `f1149e8831365b5102d53b3c49227c2798941214`
+
+All xcframework file hashes, tarball verification, command timings, native
+link evidence, app/CLI hashes, both manifests, receipts, logs and videos
+are under `reports/20260924-expo-0.4.0/`; `qualified.json` records
+`published: false`. The simulator is retained and shut down.
