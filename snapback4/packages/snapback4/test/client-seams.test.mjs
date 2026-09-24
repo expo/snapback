@@ -275,7 +275,7 @@ for (const tier of ["online", "web", "native"]) {
     await until(async () => (await client.write(id))?.state === "sent");
     assert.equal(f.attempts.length, 2); assert.deepEqual(f.attempts[1], f.attempts[0]);
     const receipt = { state: "sent", id, seq: f.replies[0].seq, replayed: true };
-    assert.deepEqual(f.replies[1], receipt); assert.deepEqual(await client.write(id), receipt);
+    assert.deepEqual(f.replies[1], { ...receipt, store_id: f.replies[0].store_id, head: f.replies[0].seq }); assert.deepEqual(await client.write(id), receipt);
     assert.equal((await f.post("/q/receipts", { args: {} })).data.length, 1);
     // A new client recovers the original receipt by resending the same input.
     await client.close(); const reopened = await f.open();
@@ -414,7 +414,7 @@ for (const tier of ["online", "process-device"]) for (const queued of [false, tr
     assert.deepEqual(replies[0].result.n, 43);
     assert.equal(replies[0].replayed, undefined);
     const receipt = { state: "sent", id: initial.id, seq: replies[0].seq, replayed: true };
-    assert.deepEqual(replies[1], receipt, "the real HTTP server withholds historical values");
+    assert.deepEqual(replies[1], { ...receipt, store_id: replies[0].store_id, head: replies[0].seq }, "the real HTTP server withholds historical values");
     assert.equal(attempts.length, 2);
     assert.deepEqual(attempts[1], attempts[0], "retry preserves id, arguments and predicted ids");
     const rows = await f.post("/q/receipts", { args: {} });
@@ -620,20 +620,24 @@ for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform
     assert.equal(write.state, "sent", JSON.stringify(write));
     const query = async meter => (await fetch(`${f.url}/q/scan`, { method: "POST", headers: { ...headers, ...(meter ? { "x-snapback-meter": "1" } : {}) }, body: '{"args":{}}' })).json();
     const opted = await query(true), plain = await query(false);
+    assert.match(write.store_id, /^[0-9a-f]{32}$/);
+    assert.equal(opted.store_id, write.store_id); assert.equal(plain.store_id, write.store_id);
     assert.deepEqual(plain.data, []); assert.equal(plain.complete, false);
     assert.equal(Object.hasOwn(plain, "meter"), !release);
     assert.equal(Object.hasOwn(opted, "meter"), !release);
     for (const key of ["metered", "capped_at", "cappedAt"]) { assert.equal(Object.hasOwn(opted, key), false); }
     observations.push({ opted, plain });
   }
-  const withoutMeter = ({ meter, ...rest }) => rest;
+  // Each fixture has its own random store identity; every answer above must
+  // identify its seed's store. Compare the remaining observable fields.
+  const withoutMeter = ({ meter, store_id, ...rest }) => rest;
   assert.deepEqual(withoutMeter(observations[0].plain), withoutMeter(observations[1].plain));
-  if (release) assert.deepEqual(observations[0].opted, observations[1].opted);
+  if (release) assert.deepEqual(withoutMeter(observations[0].opted), withoutMeter(observations[1].opted));
   else {
     const [absent, hidden] = observations.map(x => x.opted.meter);
     assert.ok(hidden.examined > absent.examined);
     assert.notDeepEqual(hidden, absent);
-    assert.deepEqual(observations.map(x => { const { meter, ...rest } = x.opted; return rest; }), observations.map(x => withoutMeter(x.plain)));
+    assert.deepEqual(observations.map(x => withoutMeter(x.opted)), observations.map(x => withoutMeter(x.plain)));
     t.diagnostic(`absent=${JSON.stringify(absent)} hidden=${JSON.stringify(hidden)}`);
   }
 });
@@ -695,9 +699,13 @@ query search():
     assert.equal(token.status, 0, token.stderr);
     const session = await mintSession(f.url, token.stdout.trim(), "member:viewer");
     const headers = { authorization: `Bearer ${session.token}`, "x-snapback-meter": "1" };
+    let identity;
     const seed = async (count, body) => {
       const response = await (await fetch(`${f.url}/m/seed`, { method: "POST", headers, body: JSON.stringify({ args: { hidden, count, body } }) })).json();
       assert.equal(response.state, "sent", JSON.stringify(response));
+      assert.match(response.store_id, /^[0-9a-f]{32}$/);
+      identity ??= response.store_id;
+      assert.equal(response.store_id, identity);
     };
     const observed = [];
     const read = async (name, reason) => {
@@ -706,7 +714,8 @@ query search():
       assert.equal(page.cut, null, JSON.stringify(page));
       if (release) assert.equal(Object.hasOwn(page, "meter"), false);
       else assert.equal(page.meter.cut, hidden ? reason : null);
-      const { meter, ...production } = page;
+      const { meter, store_id, ...production } = page;
+      assert.equal(store_id, identity); // Only the independently minted fixture identity differs.
       observed.push(production);
     };
     for (let n = 0; n < 32; n++) await seed(1, `cof${n}`);

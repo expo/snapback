@@ -724,6 +724,22 @@ fn query_params(url: &str) -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
+// Identity and head are a single snapshot from the owner of the evaluated
+// operation. Mutation replay's seq is historical; head is never that receipt.
+fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
+    let tx = engine.store_mut().read_transaction()?;
+    let id: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).map_err(snapback4_core::RuntimeError::from)?;
+    Ok((id, tx.next_seq()? - 1))
+}
+
+fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
+    let metadata = { response_head(&mut lock(&shared.engine)) };
+    match metadata {
+        Ok((store_id, head)) => respond(request, status, json!({ "denied": refusal_json(&why), "store_id": store_id, "head": head })),
+        Err(why) => respond(request, 503, json!({ "denied": refusal_json(&why) })),
+    }
+}
+
 // @ref LLP 3000.009#5.1 — a racing id conflict is a terminal input refusal, not a transport failure.
 fn mutation_error_status(refusal: &Refusal) -> u16 {
     if refusal.retryable { 503 } else if refusal.code == "E_ID_REUSED" { 200 } else { 500 }
@@ -910,23 +926,28 @@ fn handle(mut request: Request, shared: &Shared) {
             let payload: Json = match serde_json::from_str(if body.is_empty() { "{}" } else { &body }) {
                 Ok(json) => json,
                 Err(error) => {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("the request body is not JSON: {error}"))) }));
+                    operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("the request body is not JSON: {error}")));
                     return;
                 }
             };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
             if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
-                let replay = lock(&shared.engine).replay_mutation(&principal, id, &op, &args_json);
+                let (replay, metadata) = {
+                    let mut engine = lock(&shared.engine);
+                    let replay = engine.replay_mutation(&principal, id, &op, &args_json);
+                    (replay, response_head(&mut engine))
+                };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
                 match replay {
-                    Ok(Some(outcome)) => { respond(request, 200, outcome.reply(Some(id))); return; }
-                    Err(error) => { let why = error.refusal(); respond(request, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why })); return; }
+                    Ok(Some(outcome)) => { let mut reply = outcome.reply(Some(id)); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond(request, 200, reply); return; }
+                    Err(error) => { let why = error.refusal(); respond(request, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
                     Ok(None) => {}
                 }
             }
             let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
                 .map(|p| (p.program.kind, p.program.args.clone()));
             let Some((kind, arg_types)) = signature else {
-                respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")) }));
+                operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
             };
             let mut args = BTreeMap::new();
@@ -938,12 +959,12 @@ fn handle(mut request: Request, shared: &Shared) {
                                 args.insert(name.clone(), typed);
                             }
                             Err(why) => {
-                                respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types")) }));
+                                operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types"));
                                 return;
                             }
                         },
                         None => {
-                            respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs")) }));
+                            operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs"));
                             return;
                         }
                     }
@@ -953,23 +974,31 @@ fn handle(mut request: Request, shared: &Shared) {
             let mut context = Context::new(principal, args).at(shared.now());
             if path.starts_with("/q/") {
                 if kind != ProgramKind::Query {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}"))) }));
+                    operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}")));
                     return;
                 }
                 let reader = {
                     let engine = lock(&shared.engine);
                     lock(&shared.readers).take(&engine)
                 };
-                let outcome = match reader {
+                let (outcome, metadata) = match reader {
                     Ok((epoch, mut reader)) => {
+                        // Take identity from the same reader that evaluates the query,
+                        // never from an engine that may have replaced it meanwhile.
+                        let metadata = response_head(&mut reader);
                         let outcome = reader.query(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
-                        outcome
+                        (outcome, metadata)
                     },
                     // `--fresh` deliberately uses an in-memory store, which
                     // has no second SQLite connection to detach.
-                    Err(_) => lock(&shared.engine).query(&op, context),
+                    Err(_) => {
+                        let mut engine = lock(&shared.engine);
+                        let metadata = response_head(&mut engine);
+                        (engine.query(&op, context), metadata)
+                    },
                 };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
@@ -981,6 +1010,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             #[serde(rename = "nextExpiry")]
                             next_expiry: Option<i64>,
                             seq: u64,
+                            store_id: String,
                             tables: &'a [String],
                             viewer: &'a str,
                             #[serde(skip_serializing_if = "Option::is_none")]
@@ -994,29 +1024,34 @@ fn handle(mut request: Request, shared: &Shared) {
                             json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut })
                         });
                         if outcome.unavailable {
-                            let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "tables": outcome.tables, "viewer": viewer });
+                            let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
                             if let Some(meter) = meter { reply["meter"] = meter; }
                             respond(request, 200, reply);
                         } else {
-                            respond(request, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer, meter });
+                            respond(request, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
                         }
                     }
-                    Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
+                    Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
                 }
             } else {
                 if kind == ProgramKind::Query {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a query; POST /q/{op}"))) }));
+                    operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a query; POST /q/{op}")));
                     return;
                 }
                 if kind == ProgramKind::Job {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs")) }));
+                    operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs"));
                     return;
                 }
                 let id = payload.get("id").and_then(Json::as_str).map(str::to_owned);
                 if let Some(ids) = payload.get("newIds").and_then(Json::as_array) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
-                let outcome = lock(&shared.engine).mutate(&op, id.as_deref(), context.with_wire_args(args_json));
+                let (outcome, metadata) = {
+                    let mut engine = lock(&shared.engine);
+                    let outcome = engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json));
+                    (outcome, response_head(&mut engine))
+                };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
                         if let WriteState::Sent { seq, .. } = &outcome.state {
@@ -1024,10 +1059,12 @@ fn handle(mut request: Request, shared: &Shared) {
                             *current = (*current).max(*seq);
                             shared.committed.notify_all();
                         }
-                        let body = outcome.reply(id.as_deref());
+                        let mut body = outcome.reply(id.as_deref());
+                        body["store_id"] = json!(store_id);
+                        body["head"] = json!(head);
                         respond(request, 200, body);
                     }
-                    Err(error) => { let refusal = error.refusal(); respond(request, mutation_error_status(&refusal), json!({ "state": "failed", "id": id, "why": refusal_json(&refusal) })) }
+                    Err(error) => { let refusal = error.refusal(); respond(request, mutation_error_status(&refusal), json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
                 }
             }
         }
