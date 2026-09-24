@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { createApp } from "../dist/app.js";
-import { memorySessionStore, restoreSession, keepSession, logout as revokeSession } from "../dist/auth.js";
+import { memorySessionStore, restoreSession, keepSession, sessionKey, logout as revokeSession } from "../dist/auth.js";
 import { processDevice } from "../dist/native.js";
 
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
@@ -138,17 +138,18 @@ test("online logout completes while rotation is stalled and revokes the late suc
   const sessionStore = memorySessionStore(), url = "https://app.invalid";
   const initial = { principal: "user:a", token: "old", kind: "user", expiresAt: Date.now() + 7 * 86400000 };
   await keepSession(url, initial, sessionStore);
-  let finish; const rotation = new Promise(resolve => { finish = resolve; });
+  let finish, requested = false; const rotation = new Promise(resolve => { finish = resolve; });
   const revoked = [];
   const app = createApp({ url, sessionStore, fetch: async (input, init) => {
     const path = new URL(input).pathname;
-    if (path === "/auth/refresh") return rotation;
+    if (path === "/auth/refresh") { requested = true; return rotation; }
     if (path === "/auth/logout") { revoked.push(init.headers.authorization); return Response.json({ ok: true }); }
     throw Error(path);
   } });
   t.after(async () => { finish(Response.json({ session: { ...initial, token: "next" } })); await app.close(); });
   await app.ready;
   const refresh = app.client.refreshSession();
+  await until(() => requested);
   assert.equal((await app.auth.logout()).ok, true);
   assert.equal(await restoreSession(url, sessionStore), null);
   finish(Response.json({ session: { ...initial, token: "next" } })); await refresh;
@@ -341,11 +342,18 @@ for (const [tier, stage] of [["online", "first save"], ["local", "first save"], 
     if (key.endsWith(".session")) saved.push(JSON.parse(value).token);
     await memory.set(key, value);
   } };
-  const b = createApp({ url, sessionStore: store }); t.after(() => b.close());
+  let held = false, release, requested = false, releaseResponse;
+  const gate = new Promise(resolve => { release = resolve; });
+  const responseGate = new Promise(resolve => { releaseResponse = resolve; });
+  const b = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    if (new URL(input).pathname === "/auth/refresh") { requested = true; await responseGate; }
+    return fetch(input, init);
+  } });
+  t.after(async () => { release(); releaseResponse(); await b.close(); });
   await b.ready; await b.auth.guest();
   const old = b.client.session().token;
-  let held = false, release;
-  const gate = new Promise(resolve => { release = resolve; });
+  const refreshing = b.client.refreshSession();
+  await until(() => requested); // Capture the epoch before holding A's storage lock.
   const a = createApp({ url, sessionStore: { ...store, async get(key) {
     const value = await store.get(key);
     if (!held && stage !== "backend acquisition" && key.endsWith(stage === "first save" ? ".session" : ".writes")) {
@@ -360,7 +368,8 @@ for (const [tier, stage] of [["online", "first save"], ["local", "first save"], 
   await until(() => held, "A captured the old session");
   // Online refresh reports its successor before its async onSession save
   // completes. Queue that save behind A's read, ahead of A's opening saves.
-  const fresh = await b.client.refreshSession(); assert.equal(fresh.ok, true);
+  releaseResponse();
+  const fresh = await refreshing; assert.equal(fresh.ok, true);
   assert.notEqual(fresh.session.token, old);
   if (stage !== "first save") await until(async () => (await restoreSession(url, memory))?.token === fresh.session.token);
   release();
@@ -392,4 +401,224 @@ for (const tier of ["online", "local"]) test(`${tier} auth rejection after a fai
   await until(() => app.auth.state === "signed-out", "rejected original session publishes signed-out");
   assert.equal(app.auth.viewer, null); assert.equal(app.client.session(), null);
   assert.equal(await restoreSession(url, store), null);
+});
+
+for (const tier of ["online", "local"]) for (const loginBob of [false, true]) test(`shared logout fences a held ${tier} rotation${loginBob ? " across Bob's login" : " while signed out"}`, { timeout: 20_000 }, async t => {
+  const { url, dir } = await server(t), store = memorySessionStore();
+  const bob = (await (await fetch(url + "/auth/signup", { method: "POST", body: JSON.stringify({ email: "bob@example.com", password: "password-b" }) })).json()).session;
+  await revokeSession(url, bob.token);
+  let release, rotated;
+  const gate = new Promise(resolve => { release = resolve; });
+  const a = createApp({ url, sessionStore: store,
+    ...(tier === "local" ? { device: processDevice({ dir: join(dir, "epoch-device"), binary }) } : {}),
+    fetch: async (input, init) => {
+      const response = await fetch(input, init);
+      if (new URL(input).pathname === "/auth/refresh") { rotated = (await response.clone().json()).session; await gate; }
+      return response;
+    },
+  });
+  t.after(async () => { release(); await a.close(); });
+  await a.ready; assert.equal((await a.auth.signup("alice@example.com", "password-a")).ok, true);
+  const b = createApp({ url, sessionStore: store }); t.after(() => b.close());
+  await b.ready;
+  const refresh = a.client.refreshSession();
+  await until(() => rotated, "server committed Alice's rotation; response still held");
+  assert.equal((await b.auth.logout()).ok, true);
+  assert.equal(await restoreSession(url, store), null);
+  let kept = null;
+  if (loginBob) {
+    const result = await b.auth.login("bob@example.com", "password-b");
+    assert.equal(result.ok, true); kept = result.session;
+  }
+  release(); await refresh;
+  await until(() => a.auth.state === "signed-out", "Alice notices the shared logout epoch");
+  assert.equal(a.auth.viewer, null); assert.equal(a.client.session(), null);
+  assert.equal((await restoreSession(url, store))?.token ?? null, kept?.token ?? null);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${rotated.token}` } })).json()).denied?.code === "E_AUTH", "late successor is revoked");
+  const reopened = createApp({ url, sessionStore: store }); t.after(() => reopened.close());
+  assert.equal((await reopened.ready).ok, true);
+  assert.equal(reopened.auth.viewer, kept?.principal ?? null);
+  if (loginBob) assert.deepEqual((await b.client.query(list, {})).data, []);
+});
+
+test("a sign-in started before another app's logout cannot overwrite its later login", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), store = memorySessionStore();
+  const b = createApp({ url, sessionStore: store }); t.after(() => b.close());
+  await b.ready; await b.auth.signup("bob@example.com", "password-b");
+  let release, issued;
+  const gate = new Promise(resolve => { release = resolve; });
+  const a = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/guest") { issued = (await response.clone().json()).session; await gate; }
+    return response;
+  } });
+  t.after(async () => { release(); await a.close(); });
+  await a.ready;
+  const signingIn = a.auth.guest();
+  await until(() => issued);
+  await b.auth.logout();
+  const bob = await b.auth.login("bob@example.com", "password-b"); assert.equal(bob.ok, true);
+  release(); assert.equal((await signingIn).ok, false);
+  assert.equal(a.auth.state, "signed-out");
+  assert.equal((await restoreSession(url, store)).token, bob.session.token);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied?.code === "E_AUTH");
+  assert.deepEqual((await b.client.query(list, {})).data, []);
+});
+
+for (const damage of ["invalid JSON", "expired session"]) test(`restoration cleanup of ${damage} preserves a replacement written after its read`, { timeout: 15_000 }, async t => {
+  const { url } = await server(t), store = memorySessionStore();
+  let held = false, release, requested = false, releaseResponse;
+  const gate = new Promise(resolve => { release = resolve; });
+  const responseGate = new Promise(resolve => { releaseResponse = resolve; });
+  const a = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    if (new URL(input).pathname === "/auth/refresh") { requested = true; await responseGate; }
+    return fetch(input, init);
+  } });
+  t.after(async () => { release(); releaseResponse(); await a.close(); });
+  await a.ready; await a.auth.guest();
+  const bytes = damage === "invalid JSON" ? "NOTJSON" : JSON.stringify({ ...a.client.session(), expiresAt: 0 });
+  await store.set(sessionKey(url), bytes);
+  const refreshing = a.client.refreshSession();
+  await until(() => requested);
+  const b = createApp({ url, sessionStore: { ...store, async get(key) {
+    const value = await store.get(key);
+    if (key === sessionKey(url) && !held) { held = true; await gate; }
+    return value;
+  } } });
+  t.after(async () => { release(); await b.close(); });
+  await until(() => held, "B read the damaged session");
+  releaseResponse();
+  const rotated = await refreshing; assert.equal(rotated.ok, true);
+  // A's onSession save is queued ahead of B's compare-and-delete cleanup.
+  release(); assert.equal((await b.ready).ok, true);
+  assert.equal((await restoreSession(url, store))?.token, rotated.session.token);
+  assert.equal(b.client.session()?.token, rotated.session.token);
+  assert.deepEqual((await a.client.query(list, {})).data, []);
+});
+
+test("expired stored-session cleanup deletes bytes without revoking the live bearer", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), store = memorySessionStore();
+  const a = createApp({ url, sessionStore: store }); t.after(() => a.close());
+  await a.ready; await a.auth.guest();
+  const token = a.client.session().token;
+  await store.set(sessionKey(url), JSON.stringify({ ...a.client.session(), expiresAt: 0 }));
+  const revocations = [];
+  const b = createApp({ url, sessionStore: store, fetch: (input, init) => {
+    if (new URL(input).pathname === "/auth/logout") revocations.push(init.headers.authorization);
+    return fetch(input, init);
+  } });
+  t.after(() => b.close());
+  await b.ready; assert.equal(b.auth.state, "signed-out");
+  assert.equal(await restoreSession(url, store), null);
+  assert.deepEqual(revocations, [], "garbage cleanup is not logout");
+  assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied, undefined);
+});
+
+test("refresh started after a shared logout refuses before dispatch even if remote logout failed", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), store = memorySessionStore();
+  let refreshes = 0;
+  const a = createApp({ url, sessionStore: store, fetch: (input, init) => {
+    if (new URL(input).pathname === "/auth/refresh") refreshes++;
+    return fetch(input, init);
+  } });
+  t.after(() => a.close());
+  await a.ready; await a.auth.guest();
+  const token = a.client.session().token;
+  const b = createApp({ url, sessionStore: store, fetch: (input, init) => {
+    if (new URL(input).pathname === "/auth/logout") throw Error("offline logout");
+    return fetch(input, init);
+  } });
+  t.after(() => b.close());
+  await b.ready; assert.equal((await b.auth.logout()).ok, true);
+  assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied, undefined);
+  const bob = await b.auth.signup("bob@example.com", "password-b"); assert.equal(bob.ok, true);
+  const result = await a.client.refreshSession();
+  assert.equal(result.ok, false); assert.equal(result.why.code, "E_AUTH");
+  assert.equal(refreshes, 0);
+  await until(() => a.auth.state === "signed-out");
+  assert.equal((await restoreSession(url, store)).token, bob.session.token);
+  assert.deepEqual((await b.client.query(list, {})).data, []);
+});
+
+for (const persistentFailure of [false, true]) test(`offline logout deletes credentials when its epoch write ${persistentFailure ? "keeps failing" : "exceeds quota"}`, { timeout: 15_000 }, async t => {
+  const { url } = await server(t), values = new Map();
+  const key = sessionKey(url), epochKey = key + ".epoch";
+  const size = () => [...values].reduce((total, [key, value]) => total + key.length + value.length, 0);
+  let quota = Infinity, offline = false, markerAttempts = 0, deletions = 0;
+  const store = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) {
+      if (values.get(key) === value) return; // A full store still permits unchanged writes.
+      if (offline && key === epochKey) markerAttempts++;
+      const growth = key.length + value.length - (values.has(key) ? key.length + values.get(key).length : 0);
+      if (size() + growth > quota || (offline && persistentFailure && key === epochKey)) {
+        throw new DOMException("session storage quota exceeded", "QuotaExceededError");
+      }
+      values.set(key, value);
+    },
+    async delete(key) { if (key === sessionKey(url)) deletions++; values.delete(key); },
+  };
+  const fetcher = (input, init) => { if (offline) throw Error("offline"); return fetch(input, init); };
+  const app = createApp({ url, sessionStore: store, fetch: fetcher }); t.after(() => app.close());
+  await app.ready; assert.equal((await app.auth.guest()).ok, true);
+  assert.equal(await store.get(epochKey), null);
+  quota = size(); offline = true;
+  await store.set(key, await store.get(key));
+  const result = await app.auth.logout();
+  assert.equal(deletions, 1, "deletion is attempted even when the first marker write fails");
+  assert.equal(markerAttempts, 2, "retry the marker after deletion frees space");
+  assert.equal(await restoreSession(url, store), null);
+  assert.equal(app.auth.state, "signed-out");
+  assert.equal(result.ok, !persistentFailure);
+  if (persistentFailure) {
+    assert.equal(result.why.code, "E_CLIENT");
+    assert.match(result.why.message, /quota exceeded/);
+    assert.deepEqual(app.auth.why, result.why);
+  } else {
+    assert.equal(await store.get(epochKey), "1", "the retry advances the epoch only once");
+    assert.equal(app.auth.why, undefined);
+  }
+  const reopened = createApp({ url, sessionStore: store, fetch: fetcher }); t.after(() => reopened.close());
+  assert.equal((await reopened.ready).ok, true);
+  assert.equal(reopened.auth.state, "signed-out");
+});
+
+test("near-expiry restoration retries a successor after automatic refresh is rejected during journal opening", { timeout: 20_000 }, async t => {
+  const { url } = await server(t), store = memorySessionStore();
+  let rotated, releaseResponse, journalHeld = false, releaseJournal, rejected = false;
+  const responseGate = new Promise(resolve => { releaseResponse = resolve; });
+  const journalGate = new Promise(resolve => { releaseJournal = resolve; });
+  const b = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/refresh") { rotated = (await response.clone().json()).session; await responseGate; }
+    return response;
+  } });
+  t.after(async () => { releaseResponse(); releaseJournal(); await b.close(); });
+  await b.ready; assert.equal((await b.auth.guest()).ok, true);
+  await keepSession(url, { ...b.client.session(), expiresAt: Date.now() + 60_000 }, store);
+  const refreshing = b.client.refreshSession();
+  await until(() => rotated, "B's rotation committed, with its response still held");
+  const a = createApp({ url, sessionStore: { ...store, async get(key) {
+    const value = await store.get(key);
+    if (key.endsWith(".writes") && !journalHeld) { journalHeld = true; await journalGate; }
+    return value;
+  } }, fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/refresh") {
+      assert.equal((await response.clone().json()).denied?.code, "E_AUTH");
+      rejected = true;
+    }
+    return response;
+  } });
+  t.after(async () => { releaseJournal(); await a.close(); });
+  await until(() => journalHeld && rejected, "A's constructor refresh was rejected while custody is opening");
+  releaseResponse(); assert.equal((await refreshing).ok, true);
+  await until(async () => (await restoreSession(url, store))?.token === rotated.token);
+  releaseJournal();
+  assert.equal((await a.ready).ok, true, "A must reopen the successor rather than return E_CLOSED");
+  assert.equal(a.auth.state, "signed-in"); assert.equal(a.auth.why, undefined);
+  assert.equal(a.client.session()?.token, rotated.token);
+  assert.equal((await restoreSession(url, store))?.token, rotated.token);
+  assert.deepEqual((await a.client.query(list, {})).data, []);
+  assert.deepEqual((await b.client.query(list, {})).data, [], "retry must not revoke the winning session family");
 });

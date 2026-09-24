@@ -1,6 +1,11 @@
 # LLP 3000.013 lane E — paved client
 
-Latest follow-up: [delta review](./20260924-lane-e-delta.md) fixes the remaining
+Latest follow-up: [final delta](./20260924-lane-e-final-delta.md) fixes quota-time
+logout and constructor-rejected restoration, and proves Web Locks across two
+Chromium pages with a failing mutation test.
+The earlier [Grok delta](./20260924-lane-e-grok-delta.md) adds shared logout
+epochs, conditional invalid-session cleanup and the hex-padding collision proof.
+The earlier [delta review](./20260924-lane-e-delta.md) fixes the remaining
 restoration race, auth cleanup and exported-page routing, and strengthens the
 backend-journal proof. [Review round 2](./20260924-lane-e-review2.md) records the
 earlier storage ownership, cleanup, shared-session and damaged-journal fixes.

@@ -48471,3 +48471,72 @@ source: 1,302 lines. No syntax, IR, diagnostic, admission, authorization,
 expiry, effect or runtime ceiling changes; no push or publication. Details,
 forms, mutation evidence and baseline reproductions:
 `reports/20260924-intent-work-r4.md`.
+
+## 2026-09-24 — lane E Grok delta: shared logout epochs and safe restore cleanup
+
+Landed all three findings. A persisted epoch now binds sign-in, restore and
+refresh ownership across app instances. Logout advances it under the same
+session lock as deletion; obsolete saves revoke their late successor and
+retire their client without replacing a newer login. Invalid/expired session
+cleanup compares the exact bytes read and never invokes remote logout. A
+replacement causes restoration to retry. The SecureStore tests now include
+the `ab`/`慢` collision that variable-width hex encoding would introduce.
+
+Measured: ten new regression cases; all 136 final affected tests passed.
+Real-server probes cover held online/local rotations across logout and Bob's
+login, an old sign-in returning late, refresh starting after failed remote
+revocation, and garbage cleanup racing a rotated session. Removing only hex
+padding fails the strengthened uniqueness check. Both Chromium witnesses
+passed, including worker updates and fresh offline account/replica reopening
+with both servers stopped (1,575 ms on this run, not a performance claim).
+
+Final complete suite: **`== 2 failure(s) in 159 s`**, cargo and client
+aggregates. The four Rust failures match the untouched baseline. Across all
+client processes, 1,083 passed, 10 skipped and one unchanged release-recovery
+fixture failed: its scheduler completed on an empty table before the fixture
+inserted the row that would park the job. The isolated rerun passed; a
+controlled startup delay in a temporary copy reproduced the same assertion.
+Classified environmental/timing-sensitive. The earlier full run was
+`== 1 failure(s) in 109 s`, baseline Rust failures only. Initial focused-test
+barrier failures were corrected to accommodate epoch capture before transport;
+all original outcome assertions remain. Exact failures and reproductions are
+in [the Grok delta report](./reports/20260924-lane-e-grok-delta.md).
+
+Did not change the Client contract, engine authorization/disclosure, meters,
+ceilings or Quarry forms. Did not run a native Expo simulator or integrated
+Clique qualification, fix the unrelated baseline/timing failures, push or
+publish. The epoch is separate safe-key metadata; absent metadata starts at
+zero, and the marker survives bearer deletion.
+
+## 2026-09-24 — lane E final delta: quota cleanup and cross-tab qualification
+
+Landed all three final findings. Logout now attempts bearer deletion when its
+epoch write fails, retries the same marker after deletion frees space under
+the same session lock, and reports any remaining storage failure. Constructor
+cleanup now retries restoration when automatic near-expiry refresh was refused
+and another app has saved a successor. A new Chromium witness controls a
+session read/write race across two pages sharing localStorage, then verifies
+Bob's persisted account, fresh-page restoration and Alice's successor revocation.
+
+Measured: three new real-server tests reproduced the reported failures before
+the fixes; all 34 app tests and all 139 affected tests passed afterward.
+The cross-tab witness passes with Web Locks and fails the account-isolation
+assertion when only that call is removed from the built artifact. The first
+witness barrier was too weak because its async browser predicate was accepted
+early; explicit awaited polling corrected it before qualification. Both existing
+Chromium witnesses pass, including the previously timed-out worker update and
+cold-offline account/replica restoration with both servers stopped (1,526 ms,
+not a performance claim).
+
+The initial full run was **`== 1 failure(s) in 233 s`**: environmental disk
+exhaustion stopped two Rust test-artifact builds. Clearing only this worktree's
+old incremental cache freed about 15 GB. The final full run was
+**`== 1 failure(s) in 185 s`**, cargo aggregate only, with the same four Rust
+failures as the untouched baseline. Both full runs passed 1,087 client tests,
+with 10 skips and no client failures. Exact failures, logs, reproductions and
+file-by-file changes are in [the final delta report](./reports/20260924-lane-e-final-delta.md).
+
+No deviation from the final review brief. Did not change the Client contract,
+Quarry forms, authorization/disclosure, meters or ceilings; did not run a native
+Expo simulator or integrated Clique qualification, fix unrelated baseline/timing
+defects, push or publish. Chromium was available and the new witness ran here.
