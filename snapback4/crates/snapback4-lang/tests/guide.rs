@@ -131,16 +131,16 @@ fn w14b_first_account_screen_is_self_contained() {
         "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npx snapback4 dev",
         "use identity password", "table profiles:", "unique byHandle:", "avatar: image",
         "query handleAvailable(", "query myProfile(", "mutation saveProfile(",
-        "signup(", "login(", "keepSession(", "restoreSession(", "sessionStore",
-        "nativeDevice", "webDevice()", "createClient(", "createLocalClient(", "acquired",
-        "client.upload(", "avatar: { id:", "client.mutate(api.saveProfile", "client.write(",
-        "\"pending\"", "\"denied\"", "\"sent\"", "\"failed\"", "\"loading\"",
+        "signup(", "login(", "createApp(", "useAuth()", "AppProvider", "sessionStore",
+        "nativeDevice", "webDevice()", "localStorageSessionStore()", "acquired", "web-shell dist",
+        "client.upload(", "avatar: { id:", "useMutation(api.saveProfile)", "save.run(",
+        "\"pending\"", "\"denied\"", "`sent`", "\"failed\"", "\"loading\"",
         "post-signup", "terminal", "cold-offline", "1,024 UTF-8 bytes", "8 characters",
-        "// src/account.ts", "// src/client.ts", "// App.tsx",
+        "// src/client.ts", "// App.tsx",
     ] { assert!(path.contains(text), "in-file first-screen path omits {text}"); }
     assert!(!path.contains("]("), "required setup is in-file; external lookups belong in the reference map");
     assert!(!path.contains("guest("), "the first account is password-only");
-    assert!(path.find("client.upload(").unwrap() < path.find("avatar: { id: uploaded.asset.id }").unwrap());
+    assert!(path.find("client.upload(").unwrap() < path.find("avatar: { id: result.asset.id }").unwrap());
     let source = quarry(path).into_iter().find(|block| block.contains("table profiles:")).unwrap();
     let bound = clean("first account", &source);
     assert!(bound.schema.auth.password && !bound.schema.auth.guests);
