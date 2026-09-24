@@ -47513,3 +47513,53 @@ membership boundaries. Rolling-rank oracle coverage and separate follow-graph
 growth/hub/boundary evidence are recorded without native/acquisition or release
 speedup claims. Details and the completed/unmet ledger:
 [`reports/20260923-cal18-followups/scale.md`](./reports/20260923-cal18-followups/scale.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane E: app-owned accounts and exported shells
+
+Implemented `snapback4/app` with auth state/actions, session restoration and
+rotation, account-fenced client replacement, local-device outbox reuse, and
+per-account durable online intents recovered with their original IDs and
+arguments. Added `AppProvider`/`useAuth` without changing the Client contract.
+Credential-storage failures keep authenticated clients hidden, preserve
+uncertain writes, and allow logout cleanup to be retried; signed-out completion
+waits for credential deletion. Web persistence remains explicit.
+
+The JS CLI shim now owns `snapback4 web-shell`: every exported static file is
+precached in a content-hashed cache, every HTML entry registers idempotently,
+and offline navigations recover the shell. Cross-origin requests pass through;
+API responses do not enter the shell cache. The JS implementation needs no
+platform binary. Generated Expo and Vite starters use the app API and finish
+their web builds with that command. The README first screen replaces its
+handwritten account controller with the same forms.
+
+Measured: 29 focused app/React/shell tests passed; the final cleanup follow-up
+passed all 10 app tests. Generated Expo/web entrypoints typecheck, the language
+guide passed 55 tests, and the Rust initializer passed 18. Chromium restored a
+fresh offline page, then reloaded, with shell, account and replica intact after
+both backend and shell server stopped (1,483 ms witness, not a speed claim).
+The broader starter journey passed account isolation, original-ID ordered
+replay with no duplicate rows, receipt persistence and guest credential
+clearing. Its failed worker-only update step remains unqualified after three
+attempts: the fixture did not observe the expected failed asset download, and
+no installing/waiting worker appeared. The 3-round fix-loop rule stops that
+investigation; the worker's unit cases pass. Reproduction and logs are in the
+[lane report](./reports/20260924-lane-e-client.md).
+
+Latest complete `scripts/test.sh`: **`== 1 failure(s) in 100 s`** (cargo test).
+All four failures also occur in the untouched host baseline: legacy schema
+capabilities, the search wasm fixture, authoring census and the why-operation
+cost-output assertion. Client tests: 1,009 passed, 10 skipped, zero failed.
+The final small logout-everywhere storage-error change was checked with the
+10-test targeted app run afterward. An earlier full run also had a raw-HTTP
+action-settlement socket closure; its targeted rerun and later full runs
+passed. This is recorded as intermittent/environmental, not a proven baseline
+failure. No affected suite failure remains attributable to this lane.
+
+Did not alter engine authority, disclosure, meters, the Client contract, Quarry
+syntax or reference-app calibration modes. Did not run a native Expo simulator
+on Linux, claim integrated target-Clique qualification, push or publish. Custom
+SessionStores shared concurrently by separate non-browser processes remain
+unsupported because the existing store card has no compare-and-swap; browser
+tabs use Web Locks. Detailed files, examples, decisions and open reproductions
+are in the same lane report.

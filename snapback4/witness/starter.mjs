@@ -8,6 +8,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, symlinkSync, existsSy
 import { tmpdir } from "node:os";
 import { join, extname, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
+import { webShell } from "../packages/snapback4/bin/web-shell.js";
 import { binary, root, chromiumExecutable, scaleSeed } from "./lib.mjs";
 
 const temporary = mkdtempSync(join(tmpdir(), "sb4-web-starter-"));
@@ -17,6 +18,7 @@ const { chromium } = require("playwright-core");
 const appRequire = createRequire(join(root, "apps/chat/package.json"));
 const { build } = await import(pathToFileURL(appRequire.resolve("vite")).href);
 let processServer, stopServer, api, browser, pageServer, deployed;
+let aliceSession, bobSession;
 let workerOnlyPatch = false, failInstallAsset = false;
 const requests = [], mutations = [], writeResponses = [], pageErrors = [];
 const out = { witness: "production-web-starter", base: "/chat/" };
@@ -50,6 +52,7 @@ async function start() {
 }
 async function buildApp(directory) {
   await build({ root: app, configFile: join(app, "vite.config.ts"), base: "/chat/", logLevel: "warn", define: { "import.meta.env.VITE_SNAPBACK_URL": JSON.stringify(api) }, build: { outDir: directory, emptyOutDir: true } });
+  await webShell(directory, "/chat/");
 }
 function installedPackage(name) {
   if (name === "snapback4") return join(root, "packages/snapback4");
@@ -101,7 +104,7 @@ async function pick(page) {
   await page.getByRole("heading", { name: "Group 0", exact: true }).waitFor();
   await page.getByText("message 1 in group 0:", { exact: false }).waitFor();
 }
-async function saved(page, principal = "dev:alice") {
+async function saved(page, principal = aliceSession.principal) {
   return page.evaluate(({ api, principal }) => JSON.parse(localStorage.getItem(`snapback4-chat:${JSON.stringify([api, principal])}`)), { api, principal });
 }
 try {
@@ -112,7 +115,11 @@ try {
   rmSync(join(app, "snapback/worker.ts")); // no external invitation worker in this journey
   command(["check"]);
   await start();
-  const seed = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(scaleSeed({ groups: 1, messages: 2, members: 2 })) }).then(r => r.json());
+  aliceSession = (await fetch(`${api}/auth/guest`, { method: "POST", body: "{}" }).then(r => r.json())).session;
+  bobSession = (await fetch(`${api}/auth/guest`, { method: "POST", body: "{}" }).then(r => r.json())).session;
+  const rows = JSON.parse(JSON.stringify(scaleSeed({ groups: 1, messages: 2, members: 2 }))
+    .replaceAll("dev:alice", aliceSession.principal).replaceAll("dev:bob", bobSession.principal));
+  const seed = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(rows) }).then(r => r.json());
   assert.equal(seed.seeded, 5);
   const first = join(temporary, "build-a"), second = join(temporary, "build-b");
   await buildApp(first);
@@ -139,13 +146,20 @@ try {
     }
     response.setHeader("content-type", types[extname(file)] ?? "application/octet-stream");
     const content = readFileSync(file);
-    response.end(leaf === "shell.js" && workerOnlyPatch ? content + "\n// worker-only update fixture\n" : content);
+    response.end(leaf === "snapback4-sw.js" && workerOnlyPatch ? Buffer.concat([content, Buffer.from("\nself.witnessWorkerUpdate = true;\n")]) : content);
   });
   await new Promise(resolve => pageServer.listen(0, "127.0.0.1", resolve));
   const origin = `http://127.0.0.1:${pageServer.address().port}`;
   const address = `${origin}/chat/`;
   browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true });
   const context = await browser.newContext();
+  // The starter now restores real sessions. The witness's query parameter
+  // chooses a preauthenticated fixture before the app starts; no persona door
+  // or authentication controller is added to generated application code.
+  await context.addInitScript(({ api, alice, bob }) => {
+    const as = new URLSearchParams(location.search).get("as");
+    if (as) localStorage.setItem(`snapback4:${api}:session`, JSON.stringify(as === "alice" ? alice : bob));
+  }, { api, alice: aliceSession, bob: bobSession });
   let page = await trackedPage(context);
   await page.goto(`${address}?as=alice`);
   await acquired(page); await pick(page);
@@ -185,8 +199,8 @@ try {
   assert.ok(!mutations.some(request => /create|dm/i.test(request.path)), "held and unknown routes never create");
   await page.evaluate(() => { location.hash = "room=c000"; });
   await page.getByText("offline first", { exact: true }).waitFor();
-  await page.getByRole("combobox", { name: "Development account" }).selectOption("bob");
-  await page.getByText("as dev:bob", { exact: false }).waitFor();
+  await page.goto(`${address}?as=bob`);
+  await page.getByText(`as ${bobSession.principal}`, { exact: false }).waitFor();
   assert.equal(await page.locator('[data-write-id]').count(), 0);
   assert.ok(!(await page.locator("body").innerText()).includes("offline first"));
   assert.deepEqual((await saved(page)).intents, intents, "A references survive B switching");
@@ -201,7 +215,7 @@ try {
   await page.getByText("offline first", { exact: true }).waitFor();
   await start(); await context.setOffline(false);
   await until(async () => await page.locator('[data-write-state="sent"]').count() === 3, "original writes settle after reconnect");
-  const thread = await fetch(`${api}/q/thread`, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { conversationId: "c000" } }) }).then(r => r.json());
+  const thread = await fetch(`${api}/q/thread`, { method: "POST", headers: { authorization: `Bearer ${aliceSession.token}` }, body: JSON.stringify({ args: { conversationId: "c000" } }) }).then(r => r.json());
   const sentRows = thread.data.filter(row => row.body?.startsWith("offline "));
   assert.equal(sentRows.length, 2);
   assert.deepEqual(sentRows.map(row => row.body), ["offline second", "offline first"]);
@@ -221,34 +235,40 @@ try {
   await page.getByRole("button", { name: "Mark read", exact: true }).click();
   await until(async () => await page.locator('[data-write-state="pending"]').count() === 1, "queued refusal candidate");
   const failedId = (await saved(page)).intents.at(-1).id;
-  const leave = await fetch(`${api}/m/leave`, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { conversationId: "c000" } }) }).then(r => r.json());
+  const leave = await fetch(`${api}/m/leave`, { method: "POST", headers: { authorization: `Bearer ${aliceSession.token}` }, body: JSON.stringify({ args: { conversationId: "c000" } }) }).then(r => r.json());
   assert.equal(leave.state, "sent");
   await context.setOffline(false);
   await page.locator(`[data-write-id="${failedId}"][data-write-state="failed"]`).waitFor();
 
   // Restore access so the failed receipt can be inspected in its room.
-  const rejoined = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify([{ table: "memberships", row: { id: "restored-alice", conversationId: "c000", principal: "dev:alice", role: "admin", joinedAt: Date.now() } }]) }).then(r => r.json());
+  const rejoined = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify([{ table: "memberships", row: { id: "restored-alice", conversationId: "c000", principal: aliceSession.principal, role: "admin", joinedAt: Date.now() } }]) }).then(r => r.json());
   assert.equal(rejoined.seeded, 1);
   await page.locator(`[data-write-id="${failedId}"][data-write-state="failed"]`).waitFor();
   await page.close(); page = await trackedPage(context); await page.goto(`${address}?as=alice`);
   await page.locator(`[data-write-id="${failedId}"][data-write-state="failed"]`).waitFor();
   // Inject only a UI reference to an absent SDK ID: recovery may never invent
   // a fresh write. This also represents eviction or a crash before admission.
-  await page.evaluate(({ api }) => {
-    const key = `snapback4-chat:${JSON.stringify([api, "dev:alice"])}`;
+  await page.evaluate(({ api, principal }) => {
+    const key = `snapback4-chat:${JSON.stringify([api, principal])}`;
     const state = JSON.parse(localStorage.getItem(key));
     state.intents.push({ id: "00000000000000000000000000", room: "c000", operation: "send" });
     localStorage.setItem(key, JSON.stringify(state));
-  }, { api });
+  }, { api, principal: aliceSession.principal });
   await page.reload();
-  await page.getByText("Outcome unknown.", { exact: false }).waitFor();
+  await page.locator(`[data-write-id="${failedId}"][data-write-state="failed"]`).waitFor();
+  await page.locator('[data-write-id="00000000000000000000000000"]').getByText("Outcome unknown.", { exact: false }).waitFor();
   out.receipts = { failedAfterRestart: true, unknownRemainsUnknown: true };
   console.log(JSON.stringify({ stage: "receipts", ...out.receipts }));
 
   // The default guest path must keep its actual identity across an offline
   // page restart and clear credentials on offline sign-out without erasing data.
+  // Leave the fixture account's open tab alone and start a distinct guest,
+  // so the offline reopen owns that guest's original replica store.
+  await page.evaluate(api => localStorage.removeItem(`snapback4:${api}:session`), api);
   let guest = await trackedPage(context);
-  await guest.goto(address); await acquired(guest);
+  await guest.goto(address);
+  await guest.getByRole("button", { name: "Continue as a guest" }).click();
+  await acquired(guest);
   const session = await guest.evaluate(api => JSON.parse(localStorage.getItem(`snapback4:${api}:session`)), api);
   assert.ok(session?.principal && session?.token);
   await guest.close(); await context.setOffline(true);
@@ -263,7 +283,8 @@ try {
 
   // Hold a real logout request open: completion must mean local credentials
   // are already gone, even if this page is closed before revocation answers.
-  guest = await trackedPage(context); await guest.goto(address); await acquired(guest);
+  guest = await trackedPage(context); await guest.goto(address);
+  await guest.getByRole("button", { name: "Continue as a guest" }).click(); await acquired(guest);
   const stalledPrincipal = await guest.evaluate(api => JSON.parse(localStorage.getItem(`snapback4:${api}:session`)).principal, api);
   let logoutRequested = false, releaseLogout;
   const heldLogout = new Promise(resolve => { releaseLogout = resolve; });
@@ -279,7 +300,7 @@ try {
     assert.equal(await guest.evaluate(api => localStorage.getItem(`snapback4:${api}:session`), api), null);
     await guest.close(); await context.setOffline(true);
     guest = await trackedPage(context); await guest.goto(address);
-    await guest.getByRole("alert").filter({ hasText: "Could not open this account" }).waitFor();
+    await guest.getByRole("heading", { name: "Signed out", exact: true }).waitFor();
     assert.ok(!(await guest.locator("body").innerText()).includes(stalledPrincipal), "offline reopen cannot restore the signed-out principal");
     assert.equal(await guest.evaluate(api => localStorage.getItem(`snapback4:${api}:session`), api), null);
     await guest.close(); await context.setOffline(false);
@@ -291,7 +312,7 @@ try {
   await page.evaluate(async () => {
     for (const path of ["api-private", "media-private", "personal"]) await fetch(`/chat/${path}`, { headers: { authorization: "Bearer fixture-not-a-secret" } });
   });
-  const old = await page.evaluate(async () => ({ keys: await caches.keys(), assets: (await (await caches.open((await caches.keys()).find(k => k.startsWith("snapback4-chat-shell:")))).keys()).map(r => r.url), controller: navigator.serviceWorker.controller.scriptURL }));
+  const old = await page.evaluate(async () => ({ keys: await caches.keys(), assets: (await (await caches.open((await caches.keys()).find(k => k.startsWith("snapback4-shell:")))).keys()).map(r => r.url), controller: navigator.serviceWorker.controller.scriptURL }));
   for (const asset of old.assets) assert.ok(new URL(asset).pathname === "/chat/index.html" || /^\/chat\/assets\//.test(new URL(asset).pathname));
   assert.ok(!old.assets.some(url => /api-private|media-private|personal/.test(url)));
   const shellHasPrivateBytes = await page.evaluate(async token => {
@@ -308,7 +329,7 @@ try {
   await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration();
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(Error("failed update did not become redundant")), 15000);
+      const timer = setTimeout(() => reject(Error(`failed update did not become redundant: installing=${registration.installing?.state}, waiting=${registration.waiting?.state}, active=${registration.active?.state}`)), 15000);
       registration.addEventListener("updatefound", () => {
         const installing = registration.installing;
         installing.addEventListener("statechange", () => {
@@ -319,7 +340,7 @@ try {
     });
   });
   assert.equal(failInstallAsset, false, "worker-only update attempted the failed download");
-  const oldCache = old.keys.find(k => k.startsWith("snapback4-chat-shell:"));
+  const oldCache = old.keys.find(k => k.startsWith("snapback4-shell:"));
   assert.ok((await page.evaluate(() => caches.keys())).includes(oldCache));
   const immutable = old.assets.find(url => /\/assets\/.*\.js$/.test(url));
   assert.ok(immutable);
@@ -333,7 +354,7 @@ try {
   await page.evaluate(() => navigator.serviceWorker.getRegistration().then(r => r.update()));
   await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration()).waiting);
   assert.equal(await page.evaluate(url => fetch(url).then(r => r.status), immutable), 200, "old tab still loads its removed asset");
-  assert.ok((await page.evaluate(() => caches.keys())).includes(old.keys.find(k => k.startsWith("snapback4-chat-shell:"))));
+  assert.ok((await page.evaluate(() => caches.keys())).includes(old.keys.find(k => k.startsWith("snapback4-shell:"))));
   await page.close();
   // An out-of-scope page can inspect registration without keeping the old
   // worker alive. Wait for activation before navigating back into its scope.
@@ -342,11 +363,11 @@ try {
     const registration = await navigator.serviceWorker.getRegistration(scope);
     return registration && !registration.waiting && registration.active?.state === "activated";
   }, address);
-  await page.goto(`${address}?as=bob`);
+  await page.goto(address);
   await until(async () => await page.title() === "Snapback 4 chat updated", "new worker activates after old tabs close");
   const currentKeys = await page.evaluate(() => caches.keys());
-  assert.equal(currentKeys.filter(k => k.startsWith("snapback4-chat-shell:")).length, 1);
-  assert.ok(!currentKeys.includes(old.keys.find(k => k.startsWith("snapback4-chat-shell:"))));
+  assert.equal(currentKeys.filter(k => k.startsWith("snapback4-shell:")).length, 1);
+  assert.ok(!currentKeys.includes(old.keys.find(k => k.startsWith("snapback4-shell:"))));
   out.shell = { subpath: true, allowlistOnly: true, failedSameAssetsUpdateKeptCache: true, oldTabAssetKept: true, newBuildActivated: true };
   console.log(JSON.stringify({ stage: "shell", ...out.shell }));
   assert.deepEqual(pageErrors, []);
