@@ -717,6 +717,14 @@ impl<'a> Runner<'a> {
 
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
+            Builtin::ProjectFields { table } => {
+                let row = args.remove(0);
+                if row == Value::Null { Ok(row) } else {
+                    let row = self.with_defaults(table, row)?;
+                    self.project_row(table, row)
+                }
+            }
+            Builtin::OptionalField { field } => Ok(args[0].field(field).cloned().unwrap_or(Value::Null)),
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
             Builtin::Calendar { millis } => {
                 if *millis <= 0 { return Err(RuntimeError::Input("calendar duration must be positive".into())); }
@@ -905,7 +913,7 @@ impl<'a> Runner<'a> {
             }
         };
         let value = result?;
-        if matches!(builtin, Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Concat | Builtin::Slice | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::Divmod { .. }) {
+        if matches!(builtin, Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Concat | Builtin::Slice | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::Divmod { .. }) {
             self.meter.heap(value.heap_bytes())?;
         }
         Ok(value)

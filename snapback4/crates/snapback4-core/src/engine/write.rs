@@ -34,7 +34,9 @@ impl Runner<'_> {
     fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
+        let supplied = row.clone();
         let row = self.with_defaults(table_name, row)?;
+        self.authorize_fields(table_name, &row, &supplied)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
@@ -130,7 +132,9 @@ impl Runner<'_> {
     pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
+        let supplied = row.clone();
         let row = self.with_defaults(table_name, row)?;
+        self.authorize_fields(table_name, &row, &supplied).map_err(|_| self.no_write_target())?;
         if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
         // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
         if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
@@ -138,35 +142,28 @@ impl Runner<'_> {
         if let Err(error) = validate_row(self.schema, table_name, &row) {
             return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
         }
-        match self.insert_attempt(table_name, row, false).map(|_| ()) {
+        match self.insert_attempt(table_name, supplied, false).map(|_| ()) {
             Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
             result => result,
         }
     }
 
     fn replace(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
-        self.authorize_update(table_name, &old, &new, readable)?;
+        self.authorize_update_fields(table_name, &old, &new, patch, readable)?;
         self.replace_authorized(table_name, old, new, readable, patch)
-    }
-
-    // @ref LLP 3000.007#8 — item 7: pre-write read authority controls details; update authority precedes asset diagnostics.
-    pub(super) fn authorize_update(&mut self, table: &str, old: &Value, new: &Value, readable: bool) -> Result<(), RuntimeError> {
-        if !self.check_rule(table, Effect::Update, Some(old), new)? {
-            return Err(if readable { RuntimeError::Rule { table: table.into(), effect: Effect::Update } } else { self.no_write_target() });
-        }
-        Ok(())
     }
 
     pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, patch)?;
+        self.authorize_fields(table_name, &old, patch)?;
         for path in self.schema.tables[table_name].recorded.keys() {
             if old.field(path).ok() != new.field(path).ok() {
                 return Err(if readable { RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("engine replacement changed stored attribution at {table_name}.{path} (guide maintains)") } } else { self.no_write_target() });
             }
         }
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
-        if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
+        if let Err(error) = super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str())) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
         let table = self.schema.table(table_name).expect("validated").clone();
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &new, Some(&old)))?;
@@ -210,7 +207,7 @@ impl Runner<'_> {
     /// it out, before validation and before the asset facts, so the row the
     /// rules and the constraints see is the complete one.
     // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
-    fn with_defaults(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+    pub(super) fn with_defaults(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if !table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
             return Ok(row);

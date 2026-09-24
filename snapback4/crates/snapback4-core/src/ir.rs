@@ -208,6 +208,10 @@ pub enum UnaryOp {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Builtin {
+    /// Compiler-owned projection of a successful insert result.
+    ProjectFields { table: String },
+    /// A private field may be absent from a projected row.
+    OptionalField { field: String },
     Calendar { millis: i64 },
     Len,
     Slice,
@@ -237,7 +241,7 @@ pub enum Builtin {
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
-            Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
             Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }

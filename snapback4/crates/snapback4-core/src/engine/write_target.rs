@@ -144,10 +144,11 @@ impl Runner<'_> {
             let id = old.field("id")?.clone();
             let new = self.merge_patch(&old, &patch)?;
             // The old image is used only in this isolated condition scope, after update authority.
-            self.authorize_update(&target.table, &old, &new, readable)?;
+            self.authorize_update_fields(&target.table, &old, &new, &patch, readable)?;
             if let Some(condition) = condition {
                 self.require_readable_condition(readable)?;
-                let passed = self.write_condition(condition, &old);
+                let projected_old = self.project_row(&target.table, old.clone())?;
+                let passed = self.write_condition(condition, &projected_old);
                 match passed {
                     Ok(true) => {}
                     Ok(false) => return Err(RuntimeError::Conflict { current: Read { key: vec![Expr::Literal(id)], index: "byId".into(), ..target.clone() } }),
@@ -268,7 +269,7 @@ fn pure_expr(expr: &Expr) -> bool {
 fn pure_builtin(builtin: &Builtin) -> bool {
     match builtin {
         Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
-        Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
+        Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }

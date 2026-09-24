@@ -9,6 +9,12 @@ use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use std::collections::BTreeMap;
 
 pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
+    validate_projection(schema, table_name, row, None)
+}
+
+/// A predicting patch preserves unknown, untouched fields as omissions.
+/// The authoritative writer always uses the complete-row validator.
+pub(super) fn validate_projection(schema: &Schema, table_name: &str, row: &Value, viewer: Option<&str>) -> Result<(), RuntimeError> {
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     let object = row.as_object()?;
     if !object.contains_key("id") {
@@ -19,6 +25,8 @@ pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<()
     }
     for (name, kind) in &table.columns {
         let value = object.get(name).or_else(|| table.maintained.contains_key(name).then_some(&Value::Int(0)));
+        if value.is_none() && viewer.is_some_and(|viewer| table.written_by.get(name).is_some_and(|authority|
+            !authority.audience && row.field(&authority.owner).ok() != Some(&Value::Id(viewer.into())))) { continue; }
         validate_column(table_name, name, kind, value)?;
     }
     for constraint in &table.constraints {

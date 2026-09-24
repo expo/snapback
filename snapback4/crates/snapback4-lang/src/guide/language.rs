@@ -625,6 +625,24 @@ query timelineHome(c: cursor ?):
   return timeline last 20 by .at after c { *, post: timelineCards[.post] }
 ```
 
+## Field authority
+
+Column modifiers give one field an owner and choose its read visibility.
+See `guide rules` for Clique's membership and `markRead` recipe.
+
+```quarry
+table marks:
+  principal: principal
+  readUpTo: int default 0 written by .principal
+  sharedMark: int default 0 written by .principal readable by audience
+  public 'shared membership rows with private read marks'
+  insert <- .principal = viewer
+  update (old, next) <- next.readUpTo >= old.readUpTo
+  sync public last 100 by .id
+mutation markRead(memberId: marks, readUpTo: int) predicts:
+  update marks[memberId] { readUpTo }
+```
+
 ## Older spellings that still compile
 
 Existing explicit indexes, merges, fixed chunks, aggregates and timelines keep

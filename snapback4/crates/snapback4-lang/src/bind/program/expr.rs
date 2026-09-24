@@ -265,6 +265,9 @@ impl Binder<'_> {
             }
             Ty::Row(table) => {
                 let info = self.table(&table, site)?;
+                if let Some(column) = info.decl.columns.iter().find(|column| column.name == name && column.written_by.is_some() && !column.readable_by_audience) {
+                    return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::from_scalar(&column.type_).optional()));
+                }
                 if name == "id" {
                     Ty::Ref(table.clone())
                 } else {

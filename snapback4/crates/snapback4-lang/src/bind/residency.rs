@@ -62,7 +62,11 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
                 }
             }
             let rule = match kind { "insert" | "insert-if-absent" => &definition.rules.insert, "delete" => &definition.rules.delete, _ => &definition.rules.update };
-            rule_sites(schema, rule, &format!("{kind} {table} rule"), &mut fact.sites, &mut BTreeSet::new());
+            // Owner-only point updates do not evaluate an ordinary row grant.
+            // Named transitions still run and retain every dependency.
+            if kind != "update" || definition.update_transition || !field_only_updates(&program.body, &table, definition) {
+                rule_sites(schema, rule, &format!("{kind} {table} rule"), &mut fact.sites, &mut BTreeSet::new());
+            }
             if kind == "upsert" { rule_sites(schema, &definition.rules.insert, &format!("upsert {table} insert rule"), &mut fact.sites, &mut BTreeSet::new()); }
             // Final-exists constraints retain declaration order; target and
             // index are not identities when several declarations probe them.
@@ -85,6 +89,17 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
     }
     fact.components = components::plan(program);
     fact
+}
+
+fn field_only_updates(body: &[Stmt], table: &str, definition: &snapback4_core::schema::Table) -> bool {
+    let owned = |patch: &Expr| matches!(patch, Expr::Object(fields) if !fields.is_empty() && fields.keys().all(|field| definition.written_by.contains_key(field)));
+    body.iter().all(|stmt| match stmt {
+        Stmt::Update { table: target, patch, .. } if target == table => owned(patch),
+        Stmt::WriteTarget { target, patch, upsert: false, .. } if target.table == table => owned(patch),
+        Stmt::If { then_body, else_body, .. } => field_only_updates(then_body, table, definition) && field_only_updates(else_body, table, definition),
+        Stmt::For { body, .. } => field_only_updates(body, table, definition),
+        _ => true,
+    })
 }
 
 // @ref LLP 3000.007#6.3 — the printed reason belongs to its read, write or rule declaration, in every residency class.
@@ -326,6 +341,7 @@ fn old_read(rule: &RuleExpr) -> RuleExpr {
     match rule {
         RuleExpr::Eq(a, b) => RuleExpr::Eq(old(a), old(b)),
         RuleExpr::Ne(a, b) => RuleExpr::Ne(old(a), old(b)),
+        RuleExpr::Compare(op,a,b) => RuleExpr::Compare(*op,old(a),old(b)),
         RuleExpr::And(rules) => RuleExpr::And(rules.iter().map(old_read).collect()),
         RuleExpr::Or(rules) => RuleExpr::Or(rules.iter().map(old_read).collect()),
         RuleExpr::Not(rule) => RuleExpr::Not(Box::new(old_read(rule))),

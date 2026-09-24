@@ -392,16 +392,30 @@ impl Parser {
             let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
             let by = if self.maybe("by") { self.maybe("."); self.word()?.value } else { String::new() };
             self.newline()?;
-            return Ok(ColumnDecl { maintained: Some(ColumnAggregate { source, of, filter, by }),
+            return Ok(ColumnDecl { written_by: None, readable_by_audience: false, maintained: Some(ColumnAggregate { source, of, filter, by }),
                 name: name.value, type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
         }
         let type_ = self.parse_type(true)?;
         if matches!(type_.kind, TypeKind::Cursor) {
             return Err(syntax_with(&name.site, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query"));
         }
-        let default = if self.maybe("default") { Some(self.expression(0, &[])?) } else { None };
+        let default = if self.maybe("default") { Some(self.expression(0, &["written", "readable"])?) } else { None };
+        let mut written_by = None;
+        let mut readable_by_audience = false;
+        let authority_error = || crate::diag::Diagnostic::new(&name.site, "E_FIELD_AUTHORITY",
+            "expected one `written by .principal` followed by optional `readable by audience`",
+            format!("{}: int default 0 written by .principal", name.value)).guide("rules");
+        if self.maybe("written") {
+            if !self.maybe("by") || !self.maybe(".") || !self.at_kind(Kind::Word) { return Err(authority_error()); }
+            written_by = Some(self.word()?.value);
+        }
+        if self.maybe("readable") {
+            if written_by.is_none() || !self.maybe("by") || !self.maybe("audience") { return Err(authority_error()); }
+            readable_by_audience = true;
+        }
+        if self.at("written") || self.at("readable") { return Err(authority_error()); }
         self.newline()?;
-        Ok(ColumnDecl { maintained: None, name: name.value, type_, default, site: name.site })
+        Ok(ColumnDecl { written_by, readable_by_audience, maintained: None, name: name.value, type_, default, site: name.site })
     }
 
     fn parse_index(&mut self, unique: bool) -> Fallible<IndexDecl> {

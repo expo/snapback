@@ -137,10 +137,9 @@ mod born_tests;
 #[cfg(feature = "sqlite")]
 mod log_events {
     use super::*;
-    pub(super) fn put(events: &mut PendingEvents, table: &str, id: &str, new: &Value, after: &BTreeSet<String>) {
-        let image = new.clone();
+    pub(super) fn put(events: &mut PendingEvents, table: &str, definition: &Table, id: &str, new: &Value, after: &BTreeSet<String>) {
         for partition in after {
-            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(image.clone()) });
+            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(definition.project_fields(new.clone(), partition.strip_prefix("p:"))) });
         }
     }
     pub(super) fn del(events: &mut PendingEvents, table: &str, id: &str, before: &BTreeSet<String>, after: &BTreeSet<String>) {
@@ -182,8 +181,13 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         runner.born_rows.insert(key.clone(), earlier);
     }
     if let Some(sync) = &table.sync {
-        let before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
-        let after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
+        let mut before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
+        let mut after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
+        // Shared images omit private fields; each owner's own partition also
+        // carries a full projected image. A lost owner gets a tombstone; serve
+        // time replaces it with a redacted put only if the row is still theirs to read.
+        if let Some(row) = old { before.extend(table.field_owners(row).iter().map(|p| partition_of(p))); }
+        if let Some(row) = new { after.extend(table.field_owners(row).iter().map(|p| partition_of(p))); }
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
         #[cfg(feature = "sqlite")]
         let id = if LOG { id.to_owned() } else { String::new() };
@@ -200,11 +204,11 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 // re-read it as absent and send its id as a `del`).
                 let live = new.filter(|new| !runner.context.now.is_some_and(|now| table.expired(new, now)));
                 if let Some(new) = live {
-                    log_events::put(&mut runner.events, table_name, &id, new, &after);
+                    log_events::put(&mut runner.events, table_name, table, &id, new, &after);
                 }
             } else {
                 if let Some(new) = new {
-                    log_events::put(&mut runner.events, table_name, &id, new, &after);
+                    log_events::put(&mut runner.events, table_name, table, &id, new, &after);
                 }
                 log_events::del(&mut runner.events, table_name, &id, &before, &after);
             }
@@ -483,11 +487,11 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
                 let id = row.field("id")?.as_str()?.to_owned();
                 at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
                 at.taken += 1;
-                let partition = match &sync.audience {
+                let partition = if table.field_owners(&row).contains(principal) { partition_of(principal) } else { match &sync.audience {
                     Audience::Public => PUBLIC.to_owned(),
                     Audience::Column(_) => partition_of(principal),
                     Audience::Target { .. } => group_partition(table_name, group),
-                };
+                }};
                 events.push(Event { partition, table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
             }
             if !exhausted {
@@ -563,6 +567,9 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             if let Some(reader) = &mut reader {
                 if !reader.check_rule(table_name, crate::schema::Effect::Read, None, &row)? { continue; }
             }
+            // Transport retains recorded attribution for device aggregates;
+            // only authored private fields are stripped from sync images.
+            let row = table.project_fields(row, viewer.map(|(_, principal)| principal));
             live.push((row, key));
             if live.len() == target { break; }
         }
@@ -851,10 +858,21 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0);
     for mut event in page {
         if event.kind != "join" {
+            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.written_by.values().any(|authority| !authority.audience)) {
+                if let Some(row) = reader.fetch(&event.table, &event.id)? {
+                    if reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)? {
+                        event.kind = "put".into();
+                        event.data = Some(schema.tables[&event.table].project_fields(row, Some(principal)));
+                    }
+                }
+                out.push(event);
+                continue;
+            }
             if event.kind == "put" {
                 event.data = if schema.table(&event.table).is_some() { reader.fetch(&event.table, &event.id)? } else { None };
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
+                    event.data = event.data.take().map(|row| schema.tables[&event.table].project_fields(row, Some(principal)));
                 } else { event.kind = "del".into(); }
             }
             out.push(event);

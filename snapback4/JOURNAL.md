@@ -49278,3 +49278,99 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+
+## 2026-09-25 — LLP 3000.015 B1: field authority and private owner projection
+
+Implemented `written by .principal` and `readable by audience` across
+September 24–25 in Quarry,
+schema IR and the shared engine. Supplied insert values require the named
+owner; omissions use declared defaults. Each touched owned field uses the old
+row's owner, while other fields use the ordinary row update grant. An owned
+point patch needs no ordinary update grant, including when that grant probes
+an online-only admin table. A named `update (old, next)` remains a transition
+constraint; matching integer/time comparisons admit monotonic read marks.
+Hidden targets and refused absent upserts retain NOT_FOUND; readable field
+refusals use E_FIELD_AUTHORITY with an owner/default/visibility rewrite.
+
+Private fields are removed from stored shared group/public images. Each
+owner's principal partition also carries its projected row. Queries, scalar
+selection, shapes, write results, snapshots, joins and refreshed stream images
+respect the same visibility. Ownership transfer sends a tombstone, refreshed
+to a redacted put only when the old viewer still reads the current row. This
+normalization is limited to tables with private fields. Audience-only fields
+keep ordinary projection heap cost. Private asset placements also constrain
+asset download, preserving trusted system authority. Field ownership does
+not grant row reading. Projection removes keys; selecting an absent private
+field returns null, with optional TypeScript/Rust row types.
+
+Device patches preserve another owner's missing contextual-default fields as
+unknown. A transition depending on them, or acquiring their ownership, queues;
+an independent owned-field patch still predicts. Capability fencing rejects
+older consumers rather than silently dropping authority. Adoption treats
+changed ownership/visibility as a rule generation change. check prints one
+owner/visibility line per field; the rules and writes cards include Clique's
+monotonic readUpTo/markRead recipe and a compiled language example.
+
+Conservative boundaries beyond the brief: a field requires a declared default
+and an ordinary required principal owner; nested written-by ownership refuses.
+Private values cannot feed indexes/cursors, expiry, materialized aggregates,
+recorded attribution or other rules' probes/non-update terms. The diagnostic
+rewrites to readable by audience when that disclosure is intended. Local
+named transitions remain supported; general cross-table ordered lookup was
+not added. No store layout or wire protocol change, no PostgreSQL-specific
+change, and no runtime meter ceiling increase.
+
+Two blind reviews (Astra and Grok) completed. Astra's ownership-transfer,
+private-asset, hidden-refusal and missing-private-default findings were fixed
+with regressions, including its absent-upsert follow-up. Grok's system asset
+bypass and extra audience projection cost were fixed. Its WriteRow and filtered
+maintain hypotheses were disproved by existing delegation/dependency walkers
+and new regressions; the grant distinction follows the explicit named-transition
+contract. Both final confirmations are READY. The del refresh confirmation
+explicitly covers the final table-scoped form, with no partition provenance
+added to LogEvent.
+
+The complete suite additionally exposed an interoperability regression: sync
+had reused ordinary query projection, removing recorded attribution that
+replica aggregates need. All three sync paths now use only field projection,
+preserving recorded transport values. The existing recorded coverage tests
+pass unchanged. The read-authority census adds only the new guide mutations
+and shifts the final language block ordinal. Astra confirmed this final delta;
+Grok also confirmed the final transport-only projection change READY.
+
+70 focused tests pass (8 engine/device, 4 language, 57 guide, 1 CLI). Coverage
+includes in-memory and disk SQLite engines, memory and SQLite devices, online
+and offline reopen/settlement, second owner devices, actual shared/principal
+log images, query/shape/cursor/reply projection, audience-readable controls,
+transfer revocation, contextual defaults and maintained-column write results.
+Exact blocking suite result: `== 0 failure(s) in 743 s`. All Rust targets and doctests pass;
+client tests: 1,088 passed, 10 existing skips. Final log: /tmp/b1-final-suite4.log.
+Node is exactly 24.18.0, downloaded into this worktree's ignored target because
+the requested Volta path is absent. Final suite uses the existing serial-client
+mode, eight Rust test processes and eight build jobs. Server PIDs are recorded
+in target/b1-suite4-processes.jsonl; harnesses own their child termination.
+
+Earlier qualification attempts are preserved in the lane report: host disk
+exhaustion, a subsequent stale Rust incremental link artifact (resolved by
+cleaning only snapback4-device in this worktree), parallel client timeout/
+scheduling races, and a PID tracer failure on a deliberate stopped-server test.
+The final observer does not trace or intercept server signals. No other
+worktree was modified. The first serial run passed all 1,088 client tests but ended
+`== 1 failure(s) in 814 s` on those four Rust failures. The final transport and
+census fixes then passed all 113 affected tests (81 read-authority, 24 recorded
+coverage, 8 field-authority).
+
+The web device measured through scripts/build-wasm.sh is 1,763,871 B raw /
+488,970 B gzip (Rust 1.97.0, wasm-bindgen 0.2.127, without wasm-opt). Against
+the prior recorded integrated artifact of 1,744,842 / 484,967, this is
++19,029 raw / +4,003 gzip for the whole artifact: field schema/capability
+metadata, field authorization, projection/optional-field/insert-result
+builtins, ordered transitions and partial-image prediction validation.
+Server partition logging, asset serving and compiler/reporting are outside
+the web artifact. The baseline is the preceding integration record, not a
+second local build; no per-component byte attribution is claimed. The old
+486,000 B ratchet is exceeded by 2,970 B; raise it in the same commit to
+489,000 B, leaving 30 B. metrics/wasm-budget.json and the commit message carry
+this measured reason. Final report: /home/ccheever/sb5/lane-b1.r0.final.md.
+No push, publication or deployment.

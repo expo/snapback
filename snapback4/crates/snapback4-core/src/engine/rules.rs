@@ -120,7 +120,7 @@ fn fields_pinned<'a>(name: &str, table: &Table, rule: &RuleExpr, pinned: &impl F
         RuleExpr::Or(_) => all_disjunct(rule, &|part| any_disjunct(rule, &|other| self_probe_absorbs(name, table, part, other)) || fields_pinned(name, table, part, pinned)),
         RuleExpr::And(terms) => terms.iter().all(|part| fields_pinned(name, table, part, pinned)),
         RuleExpr::Not(inner) => fields_pinned(name, table, inner, pinned),
-        RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => term(a) && term(b),
+        RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) | RuleExpr::Compare(_,a,b) => term(a) && term(b),
         RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, term)| term)).all(term),
         RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } => true,
     }
@@ -225,6 +225,13 @@ pub fn evaluate(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value
         RuleExpr::Deny => Ok(false),
         RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next)? == term(right, viewer, old, next)?),
         RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next)? != term(right, viewer, old, next)?),
+        RuleExpr::Compare(op,left,right) => {
+            let left = term(left, viewer, old, next)?;
+            let right = term(right, viewer, old, next)?;
+            let (Value::Int(a),Value::Int(b)) = (left,right) else { return Ok(false); };
+            Ok(match op { crate::ir::BinaryOp::Gte => a >= b, crate::ir::BinaryOp::Gt => a > b,
+                crate::ir::BinaryOp::Lte => a <= b, crate::ir::BinaryOp::Lt => a < b, _ => false })
+        }
         RuleExpr::And(rules) => {
             for rule in rules {
                 if !evaluate(rule, viewer, old, next, created_allowed, probe)? {
@@ -277,7 +284,7 @@ pub(super) fn rule_probes(rule: &RuleExpr) -> u64 {
         RuleExpr::Created { equalities, .. } => u64::from(!equalities.is_empty()),
         RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().map(rule_probes).fold(0, u64::saturating_add),
         RuleExpr::Not(inner) => rule_probes(inner),
-        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) => 0,
+        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) | RuleExpr::Compare(..) => 0,
     }
 }
 

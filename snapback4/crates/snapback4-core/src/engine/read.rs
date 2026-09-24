@@ -412,7 +412,8 @@ impl Runner<'_> {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
-            Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
+            let row = self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null);
+            self.project_row(&read.table, row)
         } else {
             self.next_expiry = expiry_mark;
             if !provisional {
@@ -992,7 +993,7 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     let Some(row) = live_row else { continue; };
-                    let row = super::recorded::public_image(table, row);
+                    let row = self.project_row(&scan.table, row)?;
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;

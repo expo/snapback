@@ -31,6 +31,7 @@ pub mod rules;
 pub mod runner;
 pub mod validate;
 pub mod write;
+mod field_authority;
 mod maintains;
 pub(crate) mod timeline;
 mod timeline_authority;
@@ -628,7 +629,9 @@ impl Engine {
         let mut image = row.clone();
         materialize_optional_fields(&mut image, table);
         let mut runner = Runner::new(&tx, &self.schema, Context::new(principal, BTreeMap::new()).at(now), Meter::new(self.ceilings, Cut::Cap), 0);
-        let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?;
+        let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?
+            && (runner.context.is_system() || !table.written_by.get(column).is_some_and(|authority| !authority.audience
+                && image.field(&authority.owner).ok() != Some(&Value::Id(principal.into()))));
         drop(runner);
         if !allowed {
             tx.rollback()?;

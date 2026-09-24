@@ -79,12 +79,20 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
             schema.auth = core::Auth { password, guests };
         }
     }
+    // Owner type/default diagnostics remain useful even when an invalid
+    // owner also makes audience inference fail.
+    for issue in core::field_authority::validate(&schema) {
+        diagnostics.push(Diagnostic::new(&catalog.site_for(&issue.path), "E_FIELD_AUTHORITY", issue.message,
+            "name a required principal column of this table; declare a default; use readable by audience before indexing or deriving from the field").guide("rules"));
+    }
     // The core's structural check catches what binding did not; a
     // declaration that already refused is not reported twice.
     if diagnostics.is_empty() {
         for issue in core::validate(&schema) {
             let site = catalog.site_for(&issue.path);
-            if issue.message.contains("maintained column") || issue.message.contains("guide maintains") {
+            if issue.message.starts_with("written by:") {
+                diagnostics.push(Diagnostic::new(&site, "E_FIELD_AUTHORITY", issue.message, "name a required principal column of this table; declare a default; use readable by audience before indexing or deriving from the field").guide("rules"));
+            } else if issue.message.contains("maintained column") || issue.message.contains("guide maintains") {
                 diagnostics.push(super::columns::refusal(&site, issue.message));
             } else if issue.path.ends_with(".sync") {
                 let rewrite = if issue.message.contains("needs required group keys") { "remove `?` from every content and audience group column named by this sync" } else { "make the sync audience exactly match the table's read rule" };
@@ -213,7 +221,10 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     };
     let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
-    Table { maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    let written_by = decl.columns.iter().filter_map(|column| column.written_by.as_ref().map(|owner|
+        (column.name.clone(), core::FieldAuthority { owner: owner.clone(), audience: column.readable_by_audience }))).collect();
+    let update_transition = decl.rules.iter().any(|rule| rule.effect == Effect::Update && !rule.bindings.is_empty());
+    Table { written_by, update_transition, maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -345,7 +356,9 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
         Expr::Binary { op, left, right, .. } => match op.as_str() {
             "and" => Ok(RuleExpr::And(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
             "or" => Ok(RuleExpr::Or(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
-            "=" | "!=" => {
+            "=" | "!=" | ">=" | ">" | "<=" | "<" => {
+                let ordered = !matches!(op.as_str(), "=" | "!=");
+                if ordered && (!bindings.update || bindings.old.is_none()) { return Err(unknown(site, "ordered comparisons belong to update (old, next) transitions", "update (old, next) <- next.readUpTo >= old.readUpTo")); }
                 let (mut l, mut lt) = rule_term(catalog, info, left, bindings)?;
                 let (mut r, mut rt) = rule_term(catalog, info, right, bindings)?;
                 // `viewer = 'service:ranker'`: a text literal beside the
@@ -371,7 +384,12 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                 {
                     return Err(type_error(site, format!("viewer meets {} here; only principal columns compare with viewer", other.name()), "declare the column as principal"));
                 }
-                Ok(if op == "=" { RuleExpr::Eq(l, r) } else { RuleExpr::Ne(l, r) })
+                if ordered && (!matches!(lt.required(), Ty::Int | Ty::Time) || lt != rt) {
+                    return Err(type_error(site, "ordered transition terms need matching int or time types", "update (old, next) <- next.readUpTo >= old.readUpTo"));
+                }
+                Ok(match op.as_str() { "=" => RuleExpr::Eq(l,r), "!=" => RuleExpr::Ne(l,r),
+                    ">=" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Gte,l,r), ">" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Gt,l,r),
+                    "<=" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Lte,l,r), _ => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Lt,l,r) })
             }
             other => Err(unknown(site, format!("`{other}` is not a rule operator; rules use and, or, not, =, and !="), "read <- .ownerId = viewer")),
         },
@@ -585,12 +603,12 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
         },
     };
-    columns.push(ColumnDecl { maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
+    columns.push(ColumnDecl { written_by: None, readable_by_audience: false, maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
     let computed = super::maintains::keys(&source, maintain)?;
     if let Some(expr) = &maintain.filter { super::maintains::predicate(&source, expr)?; }
     for field in &maintain.by {
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[field].clone() };
-        columns.push(ColumnDecl { maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
+        columns.push(ColumnDecl { written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);
