@@ -49036,3 +49036,51 @@ line budgets pass. No design deviation, new open problem, runtime change,
 authorization/disclosure relaxation, publication or push. Detailed file map,
 examples, the guide failure reproduction and logs are recorded in
 reports/20260924-intent-integration-r3.md.
+
+## 2026-09-24 — 0.4 publication fences: compatibility ruling and transactional once keys
+
+Supervisor ruling: **a 0.4 release requires a 0.4 server**. The 0.4 compiler
+may persist different selection facts, synthesized indexes and explanations.
+Published 0.2.33 `serve` correctly refuses the mixed-version release with
+`E_GENERATION: release source differs from its activated backend; deploy the
+source as a new release`. Old devices remain compatible with capability-free
+backends. The control now proves native and WASM install, adoption, queries
+and persisted reopen before checking byte pins; the matching 0.4 server serves
+successfully, and the old server refuses without changing the prepared
+release or checkpointed store bytes.
+
+The canonical control is 2,950 bytes, formerly 2,734. Its complete new pin
+contains exactly eight diagnostic-string changes: `first 10` in the two read
+sites and selected key/result/selection-reason text, each repeated in programs
+and schema operation metadata. The stored-schema pin accepts precisely those
+string changes against the real published encoding; no structural difference
+is erased. The timeline fence now expects `timeline-v2` (LLP 3000.013 §4),
+retaining old native/WASM install/adoption/reopen refusal checks.
+
+The shared SQLite store no longer creates `_effect_keys` during open. First
+use creates it inside the emitting transaction, so an outbox, heap or write
+meter failure rolls back the table along with its keys. Existing lifetime
+keys survive retries, reopen, replay suppression and outbox removal, as before
+(LLP 3000.013 §5.3). Native and engine refusal regressions assert no new table
+and unchanged raw SQLite bytes after successful opening/setup. Successful
+opening of an old store may still migrate existing job-bookkeeping columns;
+that setup is explicitly before the refused-adoption boundary.
+
+Affected qualification, with the packaged SQLite build policy:
+- Four real published-0.2.33 fence tests: 4 passed, 0 skipped, 3.351 s.
+- Core and device suites: 253.494 s, all passed (the log records ignored cases).
+- Five work-intent suites: 27 passed, 0 ignored, 21.491 s; permanent once-key
+  rollback, retry, replay, reopen and outbox-removal behavior remains covered.
+- CLI rebuild: 3.208 s. No ceiling or test was disabled.
+
+Attempts remain under `reports/20260924-publication-0.4.0/`. Phase 2's dry-run
+stopped on the original four client fences after 710.694 s, before staging.
+Phase 3's two control probes (1.453 and 1.046 s) exposed stored-schema drift
+and then the old-server refusal; the ruling above resolves that policy stop.
+Phase 4 fence attempts failed at fixture initialization boundaries (8.579 s),
+uncheckpointed successful-server WAL recovery (4.527 s), and Rust stored-field
+order versus canonical wire order (4.600 s), before the final 4/4 pass.
+The earlier append-only journal merge conflict was resolved preserving both
+entries. The phase-1 push attempt failed on the root hook's missing `acorn`;
+there is no further push authorization. No package has been published yet.
+The changed core requires a rebuilt xcframework and renewed native evidence.

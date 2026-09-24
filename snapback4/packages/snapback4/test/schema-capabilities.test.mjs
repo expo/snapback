@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
 import {once} from 'node:events';
+import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
-import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync,existsSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync,existsSync,readdirSync,readlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -39,7 +40,7 @@ const recorded=`use personas alice
 const ordinary=recorded.replace(/maintain totals:[\s\S]*?mutation like/, 'mutation like');
 const maintained=ordinary.replace('table posts:\n','table posts:\n likeCount: count likes by postId\n');
 const fixtures=[
-  {name:'timeline',source:timeline,plain:timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts'),
+  {name:'timeline-v2',source:timeline,plain:timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts'),
     seed:[{table:'profiles',row:{id:'profile',principal:'dev:alice'}}], query:'profiles',op:'publish',args:{postId:'offline'},predictions:3},
   {name:'recorded-attribution',source:recorded,plain:ordinary,
     seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:2},
@@ -59,6 +60,18 @@ function dump(path) {
   assert.ok(existsSync(path),`missing store ${path}`);
   const db=new DatabaseSync(path,{readOnly:true});
   try {return JSON.stringify(db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(({name})=>[name,db.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all().map(row=>JSON.stringify(row)).sort()]));}
+  finally {db.close();}
+}
+// Content snapshot includes symlink targets without following them twice.
+function files(path) {
+  return readdirSync(path,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name)).map(entry=>{
+    const child=join(path,entry.name);
+    return [entry.name,entry.isDirectory()?files(child):entry.isSymbolicLink()?{link:readlinkSync(child)}:createHash('sha256').update(readFileSync(child)).digest('hex')];
+  });
+}
+function noEffectKeys(path) {
+  const db=new DatabaseSync(path,{readOnly:true});
+  try {assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name='_effect_keys'").get().n,0,'refusal must not add the once-key table');}
   finally {db.close();}
 }
 const ok=reply=>{assert.ok(Object.hasOwn(reply,'ok'),JSON.stringify(reply));assert.equal(reply.denied,undefined);return reply.ok;};
@@ -181,9 +194,17 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   // Unsupported future capabilities use a stable new-device refusal code.
   const future=structuredClone(candidate);
   Object.values(future.schema.tables).flatMap(t=>t.constraints).find(c=>c?.Capabilities).Capabilities.push('future-derivation');
+  noEffectKeys(priorPath);
+  // A successful current open may migrate the old job bookkeeping columns.
+  // It must not create the once-key table. Snapshot that opened store before
+  // the separately requested adoption, which must not change any bytes.
+  const currentOpen=native(binary,priorPath,null,[query]);
+  assert.equal(currentOpen.status,0,currentOpen.stderr);assert.deepEqual(currentOpen.replies[1],priorAnswer);
+  noEffectKeys(priorPath);const beforeBytes=readFileSync(priorPath);
   const denied=native(binary,priorPath,null,[{op:'adopt',backend:future},query]);
   assert.equal(denied.status,0,denied.stdout+denied.stderr);
   assert.equal(dump(priorPath),before,'current adoption refusal preserves the old store');
+  noEffectKeys(priorPath);assert.deepEqual(readFileSync(priorPath),beforeBytes,'refused native adoption preserves every SQLite byte');
   assert.deepEqual(native(legacy.binary,priorPath,null,[query]).replies[1],priorAnswer);
   assert.equal(denied.replies[1].denied.code,'E_SCHEMA_CAPABILITY');assert.deepEqual(denied.replies[2],priorAnswer);
   const futurePath=join(dir,'future.sqlite'),futureInstall=native(binary,futurePath,future);
@@ -235,11 +256,14 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   const storedSchema=JSON.parse(db.prepare('SELECT schema FROM _generations ORDER BY generation DESC LIMIT 1').get().schema);
   markers(storedSchema,[f.name]);
   Object.values(storedSchema.tables).flatMap(t=>t.constraints).find(c=>c?.Capabilities).Capabilities.push('future-derivation');
-  db.prepare('UPDATE _generations SET schema=? WHERE generation=(SELECT MAX(generation) FROM _generations)').run(JSON.stringify(storedSchema));db.close();
+  db.prepare('UPDATE _generations SET schema=? WHERE generation=(SELECT MAX(generation) FROM _generations)').run(JSON.stringify(storedSchema));
+  db.exec('DROP TABLE IF EXISTS _effect_keys');db.close();
+  noEffectKeys(store);const engineBeforeBytes=readFileSync(store);
   const unknownStored=dump(store),newDoctor=run(binary,['doctor','--store',store],'',next.cwd);
   assert.notEqual(newDoctor.status,0);assert.match(newDoctor.stdout+newDoctor.stderr,/E_SCHEMA_CAPABILITY/);assert.equal(dump(store),unknownStored);
   const newRun=run(binary,['run',f.op,JSON.stringify(f.args),'--as','alice'],'',next.cwd);
   assert.notEqual(newRun.status,0);assert.match(newRun.stdout+newRun.stderr,/E_SCHEMA_CAPABILITY/);assert.equal(dump(store),unknownStored);
+  noEffectKeys(store);assert.deepEqual(readFileSync(store),engineBeforeBytes,'refused engine opening preserves every SQLite byte');
   const releaseDb=new DatabaseSync(releaseStore);
   releaseDb.prepare('UPDATE _generations SET schema=? WHERE generation=(SELECT MAX(generation) FROM _generations)').run(JSON.stringify(storedSchema));releaseDb.close();
   const unknownRelease=dump(releaseStore),newServe=run(binary,['serve',release,'--port','0'],'',next.cwd);
@@ -254,10 +278,7 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   const control='use identity guests\n'+ordinary;
   const newApp=await app('new',control,fixtures[1].seed),oldApp=await app('old',control,fixtures[1].seed,legacy.binary);
   assert.ok(Buffer.isBuffer(newApp.backendBytes));assert.ok(Buffer.isBuffer(oldApp.backendBytes));
-  assert.deepEqual(newApp.backendBytes,oldApp.backendBytes,'byte-for-byte canonical backend against published 0.2.33');
-  assert.equal(JSON.stringify(newApp.backend),JSON.stringify(oldApp.backend));
   markers(newApp.backend.schema,[]);
-  assert.equal(storedSchema(join(newApp.cwd,'.snapback4/store.sqlite')),storedSchema(join(oldApp.cwd,'.snapback4/store.sqlite')),'byte-for-byte stored generation schema');
   const apply={op:'apply',page:newApp.page,first:true,viewer:'dev:alice'},query={op:'query',name:'posts',viewer:'dev:alice',args:{},now:1000};
   const path=join(dir,'control.sqlite'),result=native(legacy.binary,path,newApp.backend,[apply,query,{op:'adopt',backend:newApp.backend},query]);
   assert.equal(result.status,0,result.stderr);result.replies.forEach(ok);
@@ -266,14 +287,56 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   assert.ok(ok(result.replies[2]).data.length>0);assert.equal(ok(result.replies[2]).complete,true);
   const reopened=native(legacy.binary,path,null,[query]);assert.equal(reopened.status,0,reopened.stderr);
   assert.equal(reopened.replies.length,2);reopened.replies.forEach(ok);assert.deepEqual(reopened.replies[1],result.replies[2]);
-  for(const Web of [legacy.wasm,current]) {const d=new Web(JSON.stringify(newApp.backend),'[]');ok(JSON.parse(d.call(JSON.stringify(apply))));assert.ok(ok(JSON.parse(d.call(JSON.stringify(query)))).data.length);d.free();}
+  for(const Web of [legacy.wasm,current]) {
+    const d=new Web(JSON.stringify(newApp.backend),'[]');
+    ok(JSON.parse(d.call(JSON.stringify(apply))));
+    const answer=JSON.parse(d.call(JSON.stringify(query)));assert.ok(ok(answer).data.length);
+    ok(JSON.parse(d.call(JSON.stringify({op:'adopt',backend:newApp.backend}))));
+    assert.deepEqual(JSON.parse(d.call(JSON.stringify(query))),answer);
+    const kept=d.drain();d.free();
+    const reopened=new Web(undefined,kept);
+    assert.deepEqual(JSON.parse(reopened.call(JSON.stringify(query))),answer);reopened.free();
+  }
+  t.diagnostic('capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed');
   await newApp.server.stop();await oldApp.server.stop();
   const doctor=run(legacy.binary,['doctor','--store',join(newApp.cwd,'.snapback4/store.sqlite')],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stderr);
   const release=join(dir,'control-release'),deployed=run(binary,['deploy',release],'',newApp.cwd);assert.equal(deployed.status,0,deployed.stderr);
-  const server=await start(legacy.binary,newApp.cwd,['serve',release,'--port','0']);
-  const guest=await request(server,'/auth/guest',{},{});assert.ok(guest.json.session?.token,JSON.stringify(guest.json));
+  // Supervisor's 0.4 compatibility policy: a 0.4 release requires a 0.4
+  // server. Selection facts/indexes/explanations may change the compiled
+  // backend; old devices still accept capability-free backends. An older
+  // server recompiles the source differently and must fail closed unchanged.
+  // First serve with the matching server establishes the ordinary release
+  // store link and proves the release works before testing the old server.
+  const server=await start(binary,newApp.cwd,['serve',release,'--port','0']);
+  const guest=await request(server,'/auth/guest',{},{});assert.ok(guest.json.session?.token);
   const reply=await request(server,'/q/posts',{args:{}},{authorization:`Bearer ${guest.json.session.token}`});
-  // A first deployment creates an empty store; development seed data is not copied.
   assert.equal(reply.json.complete,true);assert.deepEqual(reply.json.data,[]);
-  server.assertAlive();await server.stop();
+  await server.stop();
+  // SIGTERM leaves the successful server's WAL to recover. Checkpoint that
+  // committed setup before comparing physical bytes across the refusal.
+  const closedStore=new DatabaseSync(join(release,'store.sqlite'));
+  try {assert.equal(closedStore.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get().busy,0);} finally {closedStore.close();}
+  const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
+  const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
+  assert.notEqual(served.status,0);
+  assert.match(served.stdout+served.stderr,/E_GENERATION: release source differs from its activated backend; deploy the source as a new release/);
+  assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
+  assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused mixed-version serve preserves every SQLite byte');
+  t.diagnostic('published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes');
+  // Pin the complete canonical 0.4 backend after the behavioral checks. This
+  // fixture includes the new first-10 site spelling and selection explanation.
+  const pinned=readFileSync(new URL('./fixtures/capability-free-0.4.backend.json',import.meta.url));
+  assert.equal(pinned.length,2950);
+  assert.deepEqual(newApp.backendBytes,pinned,'byte-for-byte canonical capability-free 0.4 backend');
+  assert.equal(JSON.stringify(newApp.backend),pinned.toString());
+  // Stored schema uses Rust's field order; /schema uses canonical key order.
+  // Pin its exact change against the real 0.2.33 encoding, allowing only the
+  // two documented diagnostic strings per read site, never structural drift.
+  let expectedSchema=storedSchema(join(oldApp.cwd,'.snapback4/store.sqlite'));
+  for(const table of ['likes','posts']) {
+    expectedSchema=expectedSchema.replaceAll(`(${table}[])`,`(${table}[] first 10)`)
+      .replaceAll(`scan ${table} by byId: held, no horizon`,`scan ${table} by byId: held, no horizon; selected byId (); result: page; explicit by`);
+  }
+  assert.equal(storedSchema(join(newApp.cwd,'.snapback4/store.sqlite')),expectedSchema,'byte-for-byte stored 0.4 generation schema');
+  assert.deepEqual(JSON.parse(expectedSchema),JSON.parse(pinned).schema);
 });

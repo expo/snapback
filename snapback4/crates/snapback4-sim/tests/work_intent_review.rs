@@ -138,14 +138,15 @@ mutation send(n: int):
     for n in [1024, 1025] {
         let mut engine = memory(source);
         let result = engine.mutate("send", Some("metered"), Context::new("alice", [("n".into(), Value::Int(n))].into()).at(1)).unwrap();
-        let keys: i64 = engine.store().conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap();
         let effects: i64 = engine.store().conn().query_row("SELECT count(*) FROM _outbox", [], |r| r.get(0)).unwrap();
         if n == 1025 {
             assert!(matches!(result.state, WriteState::Failed { ref why, .. } if why.code == "E_BOUND"), "{result:?}");
-            assert_eq!(keys, 0, "all permanent keys from the refused attempt roll back");
+            let tables: i64 = engine.store().conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'", [], |r| r.get(0)).unwrap();
+            assert_eq!(tables, 0, "all permanent keys and their table from the refused first attempt roll back");
             assert_eq!(effects, 0);
         } else {
             assert!(!matches!(result.state, WriteState::Failed { .. }), "{result:?}");
+            let keys: i64 = engine.store().conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap();
             assert_eq!(keys, n);
             assert_eq!(effects, n);
         }
