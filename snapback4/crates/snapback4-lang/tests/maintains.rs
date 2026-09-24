@@ -169,7 +169,8 @@ fn w14a_hour_lanes_are_the_first_trending_answer() {
     assert!(source.contains("unique byPair: postId, principal"));
     assert!(source.contains("delete <- .principal = viewer"));
     assert_eq!(source.lines().filter(|line| line.starts_with("mutation ")).collect::<Vec<_>>(),
-        ["mutation create(body: text <=500):", "mutation setLike(postId: posts, liked: bool):"]);
+        ["mutation create(body: text <=500):", "mutation setLike(postId: posts, liked: bool):", "mutation remove(postId: posts):"]);
+    assert!(source.contains("and not .removed"));
     assert_eq!(source.matches("[h] for h in range(hour(now) - 24, hour(now) + 1)").count(), 1);
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
