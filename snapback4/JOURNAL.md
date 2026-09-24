@@ -51249,3 +51249,54 @@ baseline or environmental. git diff --check passes; the moved protocol
 probe was also compared byte-for-byte with its previous body. No round-3
 finding remains open. The work is committed on sb4-intent/o-dx for review,
 without pushing or publishing.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 5 part e: A and O
+
+Merged A `2f20aa92f` as `e792b65d5`, then O `a54a52ce3` as `c85ee309f`,
+with `--no-ff` and a passing workspace build after each. Read the lane
+reports first. Kept both journal histories, A's presence/cursor/sweep work,
+H's source certificates, F's guide structure, L's lock/time slices and N's
+client attachment. Moved two sync interfaces from local.ts to local-sync.ts
+while retaining the public type export; local.ts is 1,485 lines.
+
+The A reviewer matrix now tests emits and writes in range end expressions,
+in 72 negative cases; removing end purity fails. The O advice fixture has a
+later cap 100, and choosing the largest cap fails. Two injected receipt-
+deletion refusals reproduced O's upload rejection after close or rotation.
+Cleanup refusal now preserves the session refusal and close completes;
+tests prove the receipt really remained when storage denied deletion.
+
+Qualification also caught normalized read origins overriding H's exact
+source text. Capture source-map text before presence expansion; all nine
+certificate-source tests pass, and the board's four variants are constant,
+including both optional filters absent. Keep residual-quotation witnesses
+on predicates that stay residual. Reviewed all three imported code definitions
+and recovery facts, plus O's cursor advice. Census changes only reads-card
+block 4 to block 5; rules and eligibility are identical. Commits `3d086c5d4`
+and `e5f11c19a` contain these fixes and reviewer regressions.
+
+Affected qualification passes: 584 language tests (four existing ignores),
+232 CLI tests, 107 device tests, 30 simulator tests and 111 JS tests, after
+failed-target repairs. This includes the complete Clique target, Following,
+and its 5,000-row predicate-count digest through automatic chunks/reopen/once.
+Both temporary Rust mutations were restored. Final workspace build, SDK
+build/typecheck, docs budget (README 299/300), source budgets, whitespace and
+ref-check (505 documents, 9,247 references, zero errors/unchecked) pass.
+No intermittent failure occurred. All integration failures were fixed;
+none was attributed to the old baseline.
+
+Rebuilt WASM before upload tests because the new receipt cleanup needs the
+new device operation. Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt
+measures 1,751,888 B raw / 488,046 B gzip. The inherited 488,000 B gate failed
+by 46 B; record 489,000 B, leaving 954 B. Against A round 14's recorded
+1,751,333 / 487,832 artifact this is +555 raw / +214 gzip for the whole
+integrated A/N/O device, not independent component attribution or a freshly
+rebuilt control. Shared presence/cursor behavior and exact receipt deletion
+are included; compiler/CLI and simulator driving are outside the web artifact.
+Runtime examined, steps, heap and writes ceilings are unchanged.
+
+No full scripts/test.sh run: explicitly deferred until the final round-5
+part. No version bump, push, publication or new native-simulator claim.
+Details, all failure classifications and logs are in
+`reports/20260924-intent-integration-r5e.md`.
