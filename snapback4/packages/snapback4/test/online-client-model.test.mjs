@@ -33,7 +33,8 @@ test('online clients preserve R1–R6 across 3,000 seeded interleavings', { time
     const tier = seed % 2 ? 'client' : 'app', sequence = generate(seed);
     // Query counters are per sequence; aggregate only coverage labels.
     const measured = {};
-    try { await execute(sequence, tier, measured, { journalSize: tier === 'app' ? (seed % 4 ? 255 : 256) : 0, unknownReceipts: seed % 8 ? 0 : 8, saturated: seed % 20 === 0 }); }
+    try { await execute(sequence, tier, measured, { journalSize: tier === 'app' ? (seed % 4 ? 255 : 256) : 0,
+      unknownReceipts: seed % 8 ? 0 : 8, oldestFailure: seed % 8 === 4, saturated: seed % 20 === 0 }); }
     catch (error) { assert.fail(`seed=${seed} tier=${tier}: ${error.message}\nsequence=${JSON.stringify(sequence)}`); }
     for (const [key, n] of Object.entries(measured)) if (!key.startsWith('query.requests.')) coverage[key] = (coverage[key] ?? 0) + n;
   }
@@ -42,7 +43,7 @@ test('online clients preserve R1–R6 across 3,000 seeded interleavings', { time
     'terminal.E_STORE_REPLACED', 'terminal.E_STORE_RESTORE', 'ack.revocation', 'check.durable-terminal', 'query.refetch',
     'wire./assets', 'wire./assets/photo', 'wire./a/charge', 'wire./auth/refresh', 'asset.released', 'refresh.committed', 'refresh.retired', 'body.aborted', 'check.bearer-custody', 'write.duplicate', 'wire./auth/guest', 'journal.preloaded.255', 'journal.preloaded.256', 'journal.full', 'journal.compact', 'write.retired-retry',
     'journal.saturated', 'check.admitted-pending', 'retirement.displaced.sent', 'write.displaced-retry', 'check.retirement-admission',
-    'refresh.unreached', 'probe.unrotated'])
+    'refresh.unreached', 'probe.unrotated', 'journal.preloaded.ordinary-failure', 'retirement.displaced.ordinary-failure', 'write.displaced-ordinary-retry'])
     assert.ok(coverage[key] > 0, `exercised ${key}`);
   t.diagnostic(`sequences=${count}, seeds=1..${count}, coverage=${JSON.stringify(coverage)}`);
 });
@@ -60,13 +61,14 @@ test('R6 scheduled replay: saturation preserves admitted pending recovery', asyn
   assert.ok(coverage['check.admitted-pending'] > 0, 'the schedule recovered a held pending intent');
 });
 
-test('R6 scheduled replay: retry a sent id displaced by retirement after reopening', async () => {
+for (const oldestFailure of [false, true]) test(`R6 scheduled replay: retry ${oldestFailure ? 'an E_UNIQUE' : 'a sent'} id displaced by retirement after reopening`, async () => {
   const coverage = {};
   await execute([{ op: 'query' }, { op: 'release' }, { op: 'write' }, { op: 'replace' },
     { op: 'query' }, { op: 'release', pick: 1 }, { op: 'release' }, { op: 'release' }],
-    'app', coverage, { journalSize: 256 });
-  assert.ok(coverage['retirement.displaced.sent'] > 0, 'retirement displaced a sent receipt');
+    'app', coverage, { journalSize: 256, oldestFailure });
+  assert.ok(coverage[oldestFailure ? 'retirement.displaced.ordinary-failure' : 'retirement.displaced.sent'] > 0, 'retirement displaced the oldest receipt');
   assert.ok(coverage['write.displaced-retry'] > 0, 'the reopened client retried its id');
+  if (oldestFailure) assert.ok(coverage['write.displaced-ordinary-retry'] > 0, 'the retry covers the displaced ordinary failure');
 });
 
 test('session recovery replay: replacement keeps a refresh that never reached the server', () => execute([

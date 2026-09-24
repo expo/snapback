@@ -690,13 +690,13 @@ for (const kind of ['mutation', 'upload']) test(`local close cancels a ${kind} c
 });
 
 
-test('online app keeps an unrotated bearer through replacement and the recovery probe accepts it', async t => {
+for (const afterReopen of [false, true]) test(`online app keeps an unrotated bearer when refresh rejects ${afterReopen ? 'after' : 'before'} replacement reopens`, async t => {
   const { url } = await server(t), sessionStore = memorySessionStore();
   let releaseRefresh, releaseChange, releaseProbe, rotating = false, rejected = false, probing = false;
   const refreshGate = new Promise(resolve => { releaseRefresh = resolve; });
   const changeGate = new Promise(resolve => { releaseChange = resolve; });
   const probeGate = new Promise(resolve => { releaseProbe = resolve; });
-  const probes = [], logouts = [];
+  const probes = [], logouts = [], logoutRequests = [];
   const app = createApp({ url, sessionStore, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/auth/refresh') {
@@ -707,7 +707,11 @@ test('online app keeps an unrotated bearer through replacement and the recovery 
       await changeGate; return Response.json({ data: [], seq: 1, store_id: 'replacement' });
     }
     if (path === '/probe') { probes.push(new Headers(init.headers).get('authorization')); probing = true; await probeGate; }
-    if (path === '/auth/logout') logouts.push(new Headers(init.headers).get('authorization'));
+    if (path === '/auth/logout') {
+      logouts.push(new Headers(init.headers).get('authorization'));
+      // Use the real auth server: cleanup must actually revoke the bearer.
+      const request = fetch(input, init); logoutRequests.push(request); return request;
+    }
     return fetch(input, init);
   } });
   t.after(async () => { releaseRefresh(); releaseChange(); releaseProbe(); await app.close(); });
@@ -717,12 +721,20 @@ test('online app keeps an unrotated bearer through replacement and the recovery 
   await until(() => rotating); releaseChange();
   assert.equal((await changing).denied.code, 'E_STORE_REPLACED');
   assert.equal((await refreshing).ok, false); await until(() => probing);
+  const reopen = async () => {
+    releaseProbe(); await until(() => app.auth.state !== 'restoring');
+    assert.equal(app.auth.state, 'signed-in'); assert.notEqual(app.client, prior);
+    assert.equal(app.client.session().token, original.token);
+  };
+  if (afterReopen) await reopen();
   releaseRefresh(); await until(() => rejected); await delay(0);
-  assert.deepEqual(logouts, [], 'a failed rotation must not revoke the bearer used by recovery');
-  releaseProbe(); await until(() => app.auth.state !== 'restoring');
-  assert.equal(app.auth.state, 'signed-in'); assert.notEqual(app.client, prior);
+  await Promise.all(logoutRequests); // Any erroneous cleanup has reached the server before the assertions.
+  if (!afterReopen) await reopen();
   assert.deepEqual(probes, [`Bearer ${original.token}`]);
-  assert.equal(app.client.session().token, original.token);
   assert.equal((await restoreSession(url, sessionStore)).token, original.token);
   assert.deepEqual((await app.client.query(list, {})).data, []);
+  assert.equal(app.auth.state, 'signed-in', 'late rejection must leave the recovered app signed in');
+  assert.deepEqual(logouts, [], 'a failed rotation must not revoke the bearer used by recovery');
+  assert.equal((await app.auth.logout()).ok, true);
+  await until(async () => (await (await fetch(url + '/probe', { headers: { authorization: `Bearer ${original.token}` } })).json()).denied?.code === 'E_AUTH', 'explicit logout really invalidates the saved bearer');
 });

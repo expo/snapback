@@ -21,7 +21,7 @@ export function generate(seed, length = 32, vocabulary = operations) {
 }
 const microtasks = async () => { for (let i = 0; i < 100; i++) await Promise.resolve(); };
 
-export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0, saturated = false, keepUnreachedSession = false } = {}) {
+export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0, oldestFailure = false, saturated = false, keepUnreachedSession = false } = {}) {
   const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
   const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
   const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
@@ -32,6 +32,7 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
   // while its record might matter. Track displacement independently of whether
   // the implementation remembered the id in its compact set.
   const displacedByRetirement = new Set();
+  const ordinaryFailedIds = new Set();
   const settlements = new WeakMap();
   const stopSettlements = promiseHooks.onSettled(promise => settlements.get(promise)?.());
   let store = 'A', head = 10, privateRow = true, unavailable = false, stores = 0, ticket = 0, serial = 0, writeId = 0;
@@ -59,6 +60,7 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
         if (storeRetirement) for (const receipt of prior.receipts) {
           if (!next.receipts.some(r => r.id === receipt.id)) {
             displacedByRetirement.add(receipt.id); count('retirement.displaced.' + receipt.state);
+            if (ordinaryFailedIds.has(receipt.id)) count('retirement.displaced.ordinary-failure');
           }
         }
         for (const entry of next.pending) if (!prior.pending.some(p => p.id === entry.id)) {
@@ -346,6 +348,10 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
         count('journal.preloaded.' + journalSize);
         const history = Array.from({ length: journalSize }, (_, n) => {
           const id = String(100_000 + n).padStart(26, '0');
+          if (oldestFailure && n === 0) {
+            count('journal.preloaded.ordinary-failure'); ordinaryFailedIds.add(id);
+            return { state: 'failed', id, why: { code: 'E_UNIQUE', family: 'input', message: 'a prior write failed its unique constraint' } };
+          }
           if (n < journalSize - unknownReceipts) return { state: 'sent', id, seq: 1, replayed: true };
           retiredWrites.add(id); admitted.add(id); terminalWrites.add(id);
           return { state: 'failed', id, why: { code: 'E_STORE_RESTORE', family: 'store', message: 'unknown prior outcome' } };
@@ -394,6 +400,7 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
       if (app.client.viewer()) for (const id of new Set([...retiredWrites, ...displacedByRetirement])) {
         count('write.retired-retry');
         if (displacedByRetirement.has(id)) count('write.displaced-retry');
+        if (displacedByRetirement.has(id) && ordinaryFailedIds.has(id)) count('write.displaced-ordinary-retry');
         track(app.mutate({ kind: 'mutation', name: 'charge' }, {}, { id }), 'retired-retry', ownerFor(app.client), 'write');
       }
       for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }

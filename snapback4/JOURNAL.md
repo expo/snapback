@@ -50621,3 +50621,58 @@ outbox when close cancels the caller. No Quarry form, public contract type,
 engine semantics, meter, receipt/id cap or package version changed. All
 modified source/test files remain below 1,500 lines. No push or publication
 was performed.
+
+## 2026-09-24 — Lane J round 15: ordinary failed receipts survive retirement
+
+Confirmed that round 14 fixes Astra's exact late-rejection schedule as well:
+the refresh never reaches the server, replacement is detected, the recovery
+probe accepts the saved bearer and reopens the app, and only then does the old
+refresh reject. The recovered app remains signed in and can read with the
+same bearer. No further production fix was needed.
+
+Changes, file by file:
+
+- packages/snapback4/test/app.test.mjs now covers rejection both before and
+  after replacement reopens. Logout requests reach the real auth server and
+  are awaited before checking the recovered client, so recording a call
+  cannot stand in for revocation. Each case finishes with explicit logout
+  and verifies that probing with the original token returns E_AUTH.
+- packages/snapback4/test/helpers/online-client-model.mjs can preload an
+  ordinary E_UNIQUE failure as the oldest receipt. Independent displacement
+  and retry counters distinguish it from unknown store-failure outcomes;
+  the existing R6 oracle forbids readmission or dispatch of every id
+  displaced by retirement.
+- packages/snapback4/test/online-client-model.test.mjs seeds that case into
+  the randomized generator and adds a named replay: 256 receipts, oldest
+  E_UNIQUE, one pending write retired, reopen, retry the displaced failed id.
+  The earlier sent-receipt replay remains covered too.
+
+Verification and measurements:
+
+- Frozen Bun install passed. Both real-server refresh schedules passed;
+  all 20 online-model tests passed in the initial 100-sequence targeted run.
+- Reverting round 14's refresh guard in generated dist failed both schedules:
+  rejection before reopening left the app signed out, while rejection after
+  reopening revoked its bearer and prevented the authenticated query answer.
+- The exact sent-only retirement mutation, replacing
+  `(retiring || unknown(write))` with
+  `(unknown(write) || (retiring && write.state === "sent"))`, was caught by
+  both the named E_UNIQUE replay and random seed 76. R6 reported readmission
+  of the protected displaced id. Dist was restored before the full suite.
+- All 3,000 seeded sequences passed in the full suite. They include 375
+  journals with an ordinary failed receipt, eight observed retirement
+  displacements of that receipt and five retries after reopening. No
+  additional production defect was found.
+- scripts/test.sh: `== 0 failure(s) in 97 s`. Main client shard: 1,207 tests,
+  1,197 passed, 10 existing skips, zero failures or cancellations. No
+  introduced, baseline or environmental failure occurred. The unrelated
+  cargo failure in the baseline log was read and left alone. Full log:
+  /tmp/lane-j-r15-full-suite.log; focused and deliberate-mutation logs use
+  /tmp/lane-j-r15-*.log.
+
+No open round-15 finding or deviation remains. Production behavior already
+retired displaced failed receipts; this round closes the model gap and
+strengthens the real-server refresh regression. No Quarry form, public
+contract type, engine semantics, meter, receipt/id cap or package version
+changed. All modified test files remain below 1,500 lines. No push or
+publication was performed.
