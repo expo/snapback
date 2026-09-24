@@ -37,7 +37,7 @@ table @T@Feed:
   sync
 
 table @T@Work:
-  kind: enum('delivery', 'backfill', 'cleanup', 'purge')
+  kind: enum('delivery', 'backfill', 'cleanup', 'purge', 'rebuild')
   actorId: principal
   readerId: principal ?
   viewerId: principal

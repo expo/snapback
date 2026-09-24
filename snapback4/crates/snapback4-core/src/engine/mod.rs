@@ -481,7 +481,7 @@ impl Engine {
             if !changed && !repair_live_sums { return Ok(()); }
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
-            timeline::activate_profiles(tx, schema, previous.as_ref())?;
+            timeline::activate_rebuilds(tx, schema, previous.as_ref(), now)?;
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)))
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))

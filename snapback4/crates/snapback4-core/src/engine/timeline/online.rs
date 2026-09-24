@@ -11,6 +11,10 @@ impl Runner<'_> {
         self.timeline_insert(t, "Edges", &[reader.clone(), actor.clone()], object([
             ("readerId", reader.clone()), ("actorId", actor.clone()), ("epoch", epoch.clone()),
         ]))?;
+        #[cfg(feature = "sqlite")]
+        if self.timeline_rebuild_state(t)?.is_some() {
+            return self.timeline_enqueue(t, "backfill", actor, reader, Value::Null, epoch, HISTORY_WINDOW, None);
+        }
         let (events, keys) = self.timeline_page(&t.table("Posts"), "byActorTime", vec![actor.clone()], (t.backfill() + 1) as u32, true, None)?;
         for event in events.iter().take(t.backfill()) { self.timeline_copy(t, event, reader.as_str()?, epoch.clone())?; }
         if events.len() > t.backfill() {
@@ -22,7 +26,10 @@ impl Runner<'_> {
     pub(super) fn timeline_unfollow(&mut self, t: &Timeline, row: &Value) -> Result<(), RuntimeError> {
         let reader = field(row, &t.edges[1])?;
         let actor = field(row, &t.edges[2])?;
-        let edge = required(self.timeline_edge(t, &reader, &actor)?, "FEED_APP_NOT_FOUND")?;
+        let edge = self.timeline_edge(t, &reader, &actor)?;
+        #[cfg(feature = "sqlite")]
+        if edge.is_none() && self.timeline_rebuild_state(t)?.is_some() { return Ok(()); }
+        let edge = required(edge, "FEED_APP_NOT_FOUND")?;
         let epoch = field(&edge, "epoch")?;
         self.delete(&t.table("Edges"), &text(&edge, "id")?)?;
         let (copies, keys) = self.timeline_page(&t.table("Feed"), "byReaderActor", vec![reader.clone(), actor.clone(), epoch.clone()], DELIVERY_CHUNK + 1, false, None)?;
