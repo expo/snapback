@@ -49230,3 +49230,51 @@ the supplied baseline log did not recur. Wasm remains 1,744,850 B raw /
 whitespace checks pass. Logs: `/tmp/lane-h-affected-final.log`,
 `/tmp/lane-h-clique-cost.log`, `/tmp/lane-h-full-suite.log`.
 No authorization, disclosure, engine, meter, publication or push change.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 4: first 0.4.1 candidate
+
+Fetched origin and merged published main `e8196704a` with `--no-ff` as
+`4bc740c0a`, carrying the 0.4.0 versions, fence policy and transactional
+_effect_keys creation. Then merged Lane H `de2673a5b` as `85848ae30`.
+Both post-merge workspace builds passed. Main merged cleanly; H conflicted
+only in the journal. The full publication journal and H entry survive
+byte-for-byte. H's precise window/expiry certificates, compact default notes,
+verbose/why detail and all tests remain intact.
+
+Closed H's remaining Low with
+`window_on_another_time_column_keeps_generic_growth_and_rewrite` in
+scale_windows_expiry.rs: 25 lanes bucket createdAt while the exact window
+filters publishedAt. The certificate keeps its generic growth reason and
+filter-pinning rewrite, and never claims edge-bucket-only growth. Changing
+only the predicate column to createdAt proves the positive control with the
+same numeric allowance. Temporarily removing `name != &key.column` makes
+the new test fail on the false edge-hour explanation and empty rewrite;
+restored the source byte-for-byte before qualification. No production
+analyzer change was needed.
+
+Reference validation also caught an inherited broken section anchor in the
+publication's store.rs comment. Changed only that anchor to LLP 3000.013
+section 5.3; transactional once-key behavior is unchanged. Final validation:
+504 LLP documents, 9,234 references, zero errors and zero unchecked references.
+All changed source files remain below 1,500 lines and whitespace checks pass.
+
+158 focused tests passed: CLI 98, guide 57 and complete Clique target three.
+The target still runs Following, Global, Trending, derived totals, history,
+search and the digest across restart with once suppression. The digest is
+two chunks, K=64, zero retries, 312,580 B peak heap and 823 B retained count
+heap. Full-suite WASM rebuild: 1,744,842 B raw / 484,967 B gzip, -8 raw /
+-38 gzip versus round 3. This is a whole-artifact measurement after importing
+main, without independent component attribution. Keep the 486,000 B ratchet
+with 1,033 B headroom; record the measurement in its reason.
+
+Exact full suite: `== 0 failure(s) in 304 s`. Client tests: 1,088 passed,
+10 skipped. No integration, baseline or environmental suite failure; no
+intermittent client failure to rerun. The intentionally failed mutation
+test and inherited reference error are documented in the report with their
+resolutions. The existing one-second sweep cadence still does not promise
+a maximum backlog age. No design deviation, new open problem, runtime,
+authorization or meter change. Package versions remain the inherited 0.4.0
+versions; this qualifies candidate code for 0.4.1, without a release bump,
+push, publication or deployment. See reports/20260924-intent-integration-r4.md
+for the file map, merge record, regression reproduction and evidence logs.

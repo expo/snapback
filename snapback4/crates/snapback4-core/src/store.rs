@@ -806,7 +806,7 @@ mod tests {
 impl crate::rows::Rows for Tx<'_> {
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
         // Opening an old store must not change it before a backend can refuse.
-        // @ref LLP 3000.013#5.3-effects-keyed-once — table and key commit with the emission; existing keys survive reopen.
+        // @ref LLP 3000.013#5.3 — table and key commit with the emission; existing keys survive reopen.
         self.conn().execute_batch("CREATE TABLE IF NOT EXISTS _effect_keys (effect TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(effect, key)) WITHOUT ROWID;")?;
         Ok(self.conn().execute("INSERT OR IGNORE INTO _effect_keys(effect, key) VALUES (?1, ?2)", params![effect, key])? != 0)
     }

@@ -84,6 +84,42 @@ fn window_explanation_requires_exact_time_filters_and_matching_calendar_key() {
 }
 
 #[test]
+fn window_on_another_time_column_keeps_generic_growth_and_rewrite() {
+    let source = r#"
+table posts:
+  createdAt: time
+  publishedAt: time
+  likeCount: int
+  by byCreatedHour: hour(createdAt), likeCount, publishedAt, id
+  public
+  online only
+query window(c: cursor ?):
+  return merge posts after c last 10 by byCreatedHour where .publishedAt > now - 24h and .publishedAt <= now:
+    [h] for h in range(hour(now - 24h), hour(now) + 1)
+"#;
+    // Matching endpoints and lane bounds are insufficient: publication-time
+    // rejects can occur in every creation-time bucket, including interior ones.
+    let b = compile(source);
+    let c = certificate(&b, "window");
+    assert_eq!(c.class, Class::Grows);
+    assert_eq!(c.bounds.lanes, Some(25));
+    assert_eq!(c.growth_sites.len(), 1);
+    assert!(c.growth_sites[0].reason.starts_with("posts skipped by `"), "{c:?}");
+    assert!(c.growth_sites[0].reason.contains(".publishedAt"), "{c:?}");
+    assert_eq!(c.growth_sites[0].rewrite,
+        "pin the filter column in the read, or add a view indexed by that predicate");
+    assert!(!c.line().contains("two edge"), "{c:?}");
+
+    // Change only the filtered column; this otherwise identical plan proves
+    // the recognized edge-bucket case and isolates the column-identity check.
+    let matching = compile(&source.replace(".publishedAt", ".createdAt"));
+    let matching = certificate(&matching, "window");
+    assert!(matching.line().contains("two edge hours"), "{matching:?}");
+    assert!(matching.growth_sites[0].rewrite.is_empty());
+    assert_eq!(c.bounds.rows_examined, matching.bounds.rows_examined);
+}
+
+#[test]
 fn window_explanation_does_not_hide_nonuniform_authorization() {
     let source = SOURCE.replacen("  public", "  read <- .removed = false", 1);
     let b = compile(&source);
