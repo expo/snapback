@@ -47630,3 +47630,35 @@ IR fields, widen lazy-merge or mutation admission, relax authorization or
 coverage, raise a meter, fix baseline failures, import integration changes,
 push or publish. Ordinary filtered null scans may examine more rows; the
 existing meter bounds that work.
+
+## 2026-09-24 — LLP 3000.013 Lane A, nullable membership delta review
+
+Fixed both supplied Astra delta findings. Planned lanes now use the existing
+authored-merge dependency check and preserve lane-dependent residual selectors
+in eager setup. Deduplication remains bound to the original discovered value;
+each scan sees its own selector instead of the last lane's value. Range sources
+cannot produce null, so they bypass null fallback planning and binding.
+
+Before the fix, the scalar regression paged ids 0, 2 instead of 0, 1, 2,
+nullable-owner ordering omitted Alice's authorized rows, and optional-column
+range membership refused with E_QUARRY_TYPE. Added three language regressions
+for scalar list ordering, literal/dynamic/empty ranges and multi-owner mutation
+results. Expanded the shared fixture to two authorized owners, matching hidden
+rows and an authorized nonmatch. Plain, word and projected queries now test
+one-row pages ordered by the optional membership column in both directions.
+Strengthened the Memory and SQLite device tests with the same distinct-owner
+case after sync/reopen, retaining missing-coverage and disclosure assertions.
+
+All 93 affected language tests and 10 device view tests passed. The exact
+`scripts/test.sh` result is `== 1 failure(s) in 141 s`: only the unchanged
+baseline legacy schema equality assertion in `schema_capabilities_legacy`.
+There are no introduced or environmental failures. All 995 client tests passed,
+10 skipped. Full log: `/tmp/lane-a-delta-full-suite.log`; file-by-file evidence,
+examples and the baseline reproduction are in
+`reports/20260924-intent-lane-a-delta-review.md`. Reference and whitespace checks
+pass; changed source files stay below 1,500 lines.
+
+WASM stays at 1,736,564 B raw / 480,855 B gzip under the unchanged 481,000 B
+budget. Did not change the interpreter or serialized IR, broaden lazy merge
+preparation, relax authorization/admission, raise meters, import integration
+changes, fix baseline failures, push or publish. No design deviation.

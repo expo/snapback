@@ -50,6 +50,8 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
         let distinct = value.clone();
         let mut lane_read = read.clone();
         let nullable_in = matches!(predicate, Expr::Binary { op, .. } if op == "in")
+            // Range lanes produce integers only; no fallback index is needed.
+            && !matches!(&source, Expr::Call { name, .. } if name == "range")
             && tables.get(&read.table)?.columns.get(&column).is_some_and(|ty| ty.optional);
         predicates.remove(position);
         let nulls = nullable_in.then(|| {

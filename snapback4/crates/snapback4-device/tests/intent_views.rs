@@ -77,30 +77,35 @@ fn source_heap<H: Host>(host: &mut H) {
 #[test] fn view_source_heap_sqlite() { source_heap(&mut Sqlite::new("intent-review-heap")); }
 
 fn nullable_membership<H: Host>(host: &mut H) {
-    let source = "table posts:\n  owner: principal ?\n  reader: principal\n  at: time\n  read <- .reader = viewer\n  sync to .reader\nview events:\n  posts { owner, reader, at }\nquery page(c: cursor ?):\n  return posts where .reader = viewer and .owner in [null, viewer, viewer] first 1 by .at after c\nquery projected(c: cursor ?):\n  return events where .reader = viewer and .owner in [null, viewer, viewer] first 1 by .at after c\n";
-    let (mut server, backend) = compile(source);
-    server.seed([("a", Value::Null, "alice"), ("b", id("alice"), "alice"), ("hidden", Value::Null, "bob")]
-        .map(|(key, owner, reader)| ("posts".into(), object([("id", id(key)), ("owner", owner), ("reader", id(reader)), ("at", Value::Int(1))])))).unwrap();
-    let mut device = host.open("intent-null", Some(backend)).unwrap();
-    for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
-    host.close("intent-null", device);
-    let mut device = host.open("intent-null", None).unwrap();
-    for query in ["page", "projected"] {
-        let mut cursor = None;
-        for key in ["a", "b"] {
-            let page = device.query(query, "alice", &json!({"c": cursor}), 10).unwrap();
-            assert!(page.complete, "{query}: {page:?}");
-            assert_eq!(page.data.as_array().unwrap().len(), 1);
-            assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &id(key));
-            cursor = page.next;
+    for (direction, expected) in [("first", ["a", "b", "c"]), ("last", ["c", "b", "a"])] {
+        let source = "table posts:\n  owner: principal ?\n  reader: principal\n  at: time\n  read <- .reader = viewer\n  sync to .reader\nview events:\n  posts { owner, reader, at }\nquery page(other: principal, c: cursor ?):\n  return posts where .reader = viewer and .owner in [null, viewer, other, viewer, other] first 1 by .owner after c\nquery projected(other: principal, c: cursor ?):\n  return events where .reader = viewer and .owner in [null, viewer, other, viewer, other] first 1 by .owner after c\n";
+        let source = source.replace("first 1 ", &format!("{direction} 1 "));
+        let (mut server, backend) = compile(&source);
+        server.seed([("a", Value::Null, "alice"), ("b", id("alice"), "alice"), ("c", id("bob"), "alice"),
+            ("hidden", Value::Null, "bob"), ("hiddenAlice", id("alice"), "bob"), ("hiddenBob", id("bob"), "bob")]
+            .map(|(key, owner, reader)| ("posts".into(), object([("id", id(key)), ("owner", owner), ("reader", id(reader)), ("at", Value::Int(1))])))).unwrap();
+        let name = format!("intent-null-{direction}");
+        let mut device = host.open(&name, Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        host.close(&name, device);
+        let mut device = host.open(&name, None).unwrap();
+        for query in ["page", "projected"] {
+            let mut cursor = None;
+            for key in expected {
+                let page = device.query(query, "alice", &json!({"c": cursor, "other": "bob"}), 10).unwrap();
+                assert!(page.complete, "{query}: {page:?}");
+                assert_eq!(page.data.as_array().unwrap().len(), 1);
+                assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &id(key));
+                cursor = page.next;
+            }
+            assert!(cursor.is_none());
         }
-        assert!(cursor.is_none());
-    }
-    let (_, backend) = compile(&source.replace("sync to .reader", "online only"));
-    let mut unknown = host.open("intent-null-unknown", Some(backend)).unwrap();
-    for query in ["page", "projected"] {
-        let page = unknown.query(query, "alice", &json!({"c": null}), 10).unwrap();
-        assert!(!page.complete && page.next.is_none(), "{query}: {page:?}");
+        let (_, backend) = compile(&source.replace("sync to .reader", "online only"));
+        let mut unknown = host.open(&format!("{name}-unknown"), Some(backend)).unwrap();
+        for query in ["page", "projected"] {
+            let page = unknown.query(query, "alice", &json!({"c": null, "other": "bob"}), 10).unwrap();
+            assert!(!page.complete && page.next.is_none(), "{query}: {page:?}");
+        }
     }
 }
 #[test] fn nullable_membership_memory() { nullable_membership(&mut Memory::new()); }
