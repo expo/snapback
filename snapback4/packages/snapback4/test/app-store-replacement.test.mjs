@@ -9,7 +9,7 @@ import { WRITE_HISTORY_LIMIT } from '../dist/writes.js';
 const url = 'http://store.test', q = { kind: 'query', name: 'page' }, m = { kind: 'mutation', name: 'revoke' };
 const until = async check => { for (let n = 0; n < 600; n++) { if (await check()) return; await delay(5); } assert.fail('app recovery did not settle'); };
 const session = { principal: 'alice', token: 'alice-token', kind: 'guest', expiresAt: Date.now() + 30 * 86400_000 };
-const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
+const blocked = signal => new Promise((_, reject) => { if (signal?.aborted) reject(Error('closed')); else signal?.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
 for (const accepted of [true, false]) test(`online app reopens after replacement; replacement accepts session: ${accepted}`, async t => {
   const storage = memorySessionStore();
@@ -122,6 +122,7 @@ for (const fail of [false, true]) test(`replacement waits for durable retirement
   await app.ready; const prior = app.client; await prior.query(q, {});
   const ids = [mintId(), mintId()], results = [];
   const submitted = ids.map(id => app.mutate(m, {}, { id }).then(write => { results.push(write); return write; }));
+  const overlapping = prior.mutate(m, {}, { id: ids[0] }).then(write => { results.push(write); return write; });
   await until(() => heldAdmission && posts === 1);
   replacing = true; store = 'B';
   assert.equal((await prior.query(q, {})).denied.code, 'E_STORE_REPLACED');
@@ -131,7 +132,7 @@ for (const fail of [false, true]) test(`replacement waits for durable retirement
   await delay(20);
   assert.deepEqual(results, [], 'neither dispatch, admission, nor repeated-id return may outrun retirement');
   assert.deepEqual(JSON.parse(await storage.get(key)).pending.map(write => write.id), ids);
-  releaseRetirement(); await Promise.all([...submitted, repeated]);
+  releaseRetirement(); await Promise.all([...submitted, overlapping, repeated]);
   const journal = JSON.parse(await storage.get(key));
   for (const write of results) assert.equal(write.state, fail ? 'pending' : 'failed');
   if (fail) {

@@ -80,7 +80,14 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const id = options?.id ?? mintId();
       if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
       if (!active || raw.viewer() !== viewer) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
-      return ids.run<R>(id, op.name, args, () => client.write(id), async snapshot => {
+      return ids.run<R>(id, op.name, args, async () => {
+        if (storeRefusal) return refusedStore(id);
+        const write = await client.write(id);
+        if (storeRefusal) return refusedStore(id);
+        // Paused custody hides receipts; it does not prove that a durable
+        // intent expired. Every overlapping caller still owns that intent.
+        return !active || raw.viewer() !== viewer ? { state: "pending", id } : write;
+      }, async snapshot => {
         const refusal = await change(journal => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {
