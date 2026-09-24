@@ -1,8 +1,9 @@
 //! The view spelling uses the same replicated inbox, dependencies and prediction.
 mod common;
-use common::{Host, Memory, Sqlite, snapshot_pages, stream_page};
+use common::{BoundaryMetadata, Host, Memory, Sqlite, snapshot_pages, stream_page};
 use snapback4_core::{Context, Value, WriteState};
 use serde_json::json;
+use std::collections::BTreeSet;
 const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/following-view.q");
 fn write(e: &mut snapback4_core::Engine, op: &str, who: &str, args: &[(&str, Value)], at: i64) {
     let out=e.mutate(op,None,Context::new(who,common::args(args)).at(at)).unwrap();
@@ -59,3 +60,57 @@ fn view<H: Host>(mut host: H) {
 }
 #[test]fn materialized_view_memory(){view(Memory::new());}
 #[test]fn materialized_view_sqlite(){view(Sqlite::new("following-view"));}
+
+fn refollow_before_cleanup<H: Host>(mut host: H) {
+    let (mut server, backend) = common::compile(SOURCE);
+    for n in 0..600 {
+        write(&mut server, "post", "alice", &[("postId", id(&format!("p{n:03}"))), ("parentId", Value::Null)], n + 1);
+    }
+    while server.run_timeline_chunk(700).unwrap().is_some() {}
+    write(&mut server, "follow", "bob", &[("actor", id("alice"))], 700);
+    while server.run_timeline_chunk(700).unwrap().is_some() {}
+    let mut d = host.open("bob", Some(backend)).unwrap();
+    for (i, p) in snapshot_pages(&mut server, "bob", 1000).iter().enumerate() { d.apply(p, i == 0).unwrap(); }
+    let old_epoch = d.store().raw_rows("feedEdges")[0].field("epoch").unwrap().clone();
+
+    let from = server.seq().unwrap();
+    write(&mut server, "unfollow", "bob", &[("actor", id("alice"))], 701);
+    write(&mut server, "follow", "bob", &[("actor", id("alice"))], 702);
+    let changes = stream_page(&mut server, "bob", from);
+    assert!(!changes.more, "the device must receive both edge transitions");
+    d.apply(&changes, false).unwrap();
+    let new_epoch = d.store().raw_rows("feedEdges")[0].field("epoch").unwrap().clone();
+    assert_ne!(old_epoch, new_epoch);
+    let copies = d.store().raw_rows("feedFeed");
+    let old: Vec<_> = copies.iter().filter(|r| r.field("epoch").unwrap() == &old_epoch).collect();
+    let current: Vec<_> = copies.iter().filter(|r| r.field("epoch").unwrap() == &new_epoch).collect();
+    assert_eq!(old.len(), 344, "stale copies remain on the device before cleanup");
+    assert_eq!(current.len(), 50, "the new epoch contains only its synchronous preview");
+    assert!(old.iter().any(|r| r.field("eventId").unwrap().as_str().unwrap() >= "p580"),
+        "the first page must encounter overlapping old and new copies");
+
+    let mut cursor = None;
+    let mut ids = Vec::new();
+    loop {
+        // The replicated view must reject stale epochs before any cleanup arrives.
+        let p = d.query("home", "bob", &json!({"c": cursor}), 703).unwrap();
+        assert!(!p.complete, "cleanup and backfill are still pending");
+        let rows = p.data.as_array().unwrap();
+        if ids.is_empty() {
+            assert_eq!(rows.len(), 20);
+            assert_eq!(rows.iter().map(|r| r.field("id").unwrap().as_str().unwrap()).collect::<BTreeSet<_>>().len(), 20);
+        }
+        for row in rows {
+            assert_eq!(current.iter().filter(|r| r.field("eventId").unwrap() == row.field("id").unwrap()).count(), 1,
+                "each returned event must have exactly one copy in the new epoch");
+            ids.push(row.field("id").unwrap().as_str().unwrap().to_owned());
+        }
+        cursor = p.next;
+        if cursor.is_none() { break; }
+    }
+    assert_eq!(ids, (550..600).rev().map(|n| format!("p{n:03}")).collect::<Vec<_>>());
+    assert_eq!(ids.iter().collect::<BTreeSet<_>>().len(), 50);
+}
+
+#[test]fn refollow_view_before_cleanup_memory(){refollow_before_cleanup(Memory::new());}
+#[test]fn refollow_view_before_cleanup_sqlite(){refollow_before_cleanup(Sqlite::new("following-view-epochs"));}

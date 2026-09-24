@@ -48430,3 +48430,25 @@ No remaining Following dependency gate or review-request deviation. The existing
 wide-payload task parking limit remains; adaptive retry is outside this binding.
 Implementation `151b5d7af`, cost correction `49876e86c`; file-by-file work, tests,
 boundaries and reproductions: [Following view report](reports/20260924-following-view/report.md).
+
+### 2026-09-24 — LLP 3000.013 lane C: Following view delta-review proofs
+
+Closed both review gaps with tests. The repost lifecycle now explicitly requires
+Bob as the actor when Bob reposts Alice's post. New server, memory-device and
+SQLite-device tests deliver 600 events, unfollow, then refollow before background
+cleanup: 344 old-epoch copies coexist with the new epoch's 50-copy preview. They
+prove the view's first page contains 20 distinct event ids backed by the new
+epoch, and all pages return exactly the newest 50 events once each while
+`complete` remains false. The device tests apply both transitions through sync.
+
+Confirmed sensitivity by temporarily changing the view's actor projection to
+the original author (the assertion fails with Alice versus Bob), then removing
+only the view path's epoch check (all three new refollow tests fail with 16
+distinct ids in 20 rows). Restored both mutations; runtime sources are unchanged.
+All 11 affected tests pass afterward. Required `scripts/test.sh`:
+`== 0 failure(s) in 97 s`; no introduced, baseline or environmental failures.
+Reference check: zero errors, zero unchecked references. Wasm remains 484,496
+gzip bytes against the unchanged 485,000-byte budget. No language, runtime,
+meter, migration or scheduling changes; no push or publication. The existing
+wide-payload parking limit is unchanged. Details and reproductions:
+[delta review report](reports/20260924-following-view/delta-review.md).

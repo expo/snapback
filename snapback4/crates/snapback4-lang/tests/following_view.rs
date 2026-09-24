@@ -1,6 +1,6 @@
 //! Materialized views retain the timeline contract under the planned syntax.
 use snapback4_core::{Context, Engine, Value, WriteState};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 const SOURCE: &str = include_str!("fixtures/following-view.q");
 fn bound(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
@@ -44,6 +44,7 @@ fn viewer_pages_map_event_fields_then_apply_shapes_and_keep_pending_completeness
     write(&mut e,"repost","bob",&[("postId",id("p000"))],101);
     let repost=page(&mut e,"home","bob",None).data.as_array().unwrap()[0].clone();
     assert_eq!(repost.field("repost").unwrap(),&Value::Bool(true));
+    assert_eq!(repost.field("actor").unwrap(),&id("bob"),"a repost is attributed to its actor, not the original author");
     assert_ne!(repost.field("id").unwrap(),repost.field("post").unwrap());
     write(&mut e,"remove","alice",&[("postId",id("p064"))],102);
     assert_ne!(page(&mut e,"home","bob",None).data.as_array().unwrap()[1].field("id").unwrap(),&id("p064"));
@@ -52,6 +53,52 @@ fn viewer_pages_map_event_fields_then_apply_shapes_and_keep_pending_completeness
     write(&mut e,"follow","bob",&[("actor",id("alice"))],104);
     assert!(!page(&mut e,"home","bob",None).complete);
     drain(&mut e);assert!(page(&mut e,"home","bob",None).complete);
+}
+
+#[test]
+fn refollow_view_pages_exclude_old_epochs_before_cleanup() {
+    let mut e = engine(SOURCE);
+    for n in 0..600 { post(&mut e, &format!("p{n:03}"), n + 1); }
+    drain(&mut e);
+    write(&mut e, "follow", "bob", &[("actor", id("alice"))], 700);
+    drain(&mut e);
+    let old_epoch = e.store().rows("feedEdges").unwrap()[0].field("epoch").unwrap().clone();
+    write(&mut e, "unfollow", "bob", &[("actor", id("alice"))], 701);
+    write(&mut e, "follow", "bob", &[("actor", id("alice"))], 702);
+    let new_epoch = e.store().rows("feedEdges").unwrap()[0].field("epoch").unwrap().clone();
+    assert_ne!(old_epoch, new_epoch);
+    let copies: Vec<_> = e.store().rows("feedFeed").unwrap().into_iter()
+        .filter(|r| r.field("readerId").unwrap() == &id("bob")).collect();
+    let old: Vec<_> = copies.iter().filter(|r| r.field("epoch").unwrap() == &old_epoch).collect();
+    let current: Vec<_> = copies.iter().filter(|r| r.field("epoch").unwrap() == &new_epoch).collect();
+    assert_eq!(old.len(), 344, "cleanup has not run beyond the synchronous 256 deletions");
+    assert_eq!(current.len(), 50, "only the new follow's preview has been delivered");
+    assert!(old.iter().any(|r| r.field("eventId").unwrap().as_str().unwrap() >= "p580"),
+        "the first page must encounter overlapping old and new copies");
+
+    let mut cursor = None;
+    let mut ids = Vec::new();
+    loop {
+        // `home` reads the view with `last 20 by .at`, not the legacy timeline.
+        let p = page(&mut e, "home", "bob", cursor);
+        assert!(!p.complete, "cleanup and backfill are still pending");
+        let rows = p.data.as_array().unwrap();
+        if ids.is_empty() {
+            assert_eq!(rows.len(), 20);
+            assert_eq!(rows.iter().map(|r| r.field("id").unwrap().as_str().unwrap()).collect::<BTreeSet<_>>().len(), 20);
+        }
+        for row in rows {
+            assert_eq!(current.iter().filter(|r| r.field("eventId").unwrap() == row.field("id").unwrap()).count(), 1,
+                "each returned event must have exactly one copy in the new epoch");
+            ids.push(row.field("id").unwrap().as_str().unwrap().to_owned());
+        }
+        cursor = p.next;
+        if cursor.is_none() { break; }
+    }
+    assert_eq!(ids, (550..600).rev().map(|n| format!("p{n:03}")).collect::<Vec<_>>());
+    assert_eq!(ids.iter().collect::<BTreeSet<_>>().len(), 50);
+    drain(&mut e);
+    assert!(page(&mut e, "home", "bob", None).complete);
 }
 #[test]
 fn recognition_uses_structure_including_renamed_projected_fields() {
