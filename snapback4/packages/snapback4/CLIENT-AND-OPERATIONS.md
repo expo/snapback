@@ -457,7 +457,8 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 An unavailable observation rerun keeps the last answer with `fresh: false`
-and its `since`; refusals and account/client lifetime changes clear it.
+and its `since`; refusals and authority changes (revocation, store replacement,
+adoption or account/client lifetime changes) clear it before reevaluation.
 An unavailable device read asks the server while online even with pending writes.
 
 `complete` says this is everything the query can answer: false when the

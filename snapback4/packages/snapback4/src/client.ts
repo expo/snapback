@@ -334,7 +334,7 @@ export function createClient(options: ClientOptions): Client {
         return;
       }
       watch.tables = new Set(tables);
-      watch.publish(transportOffline && "data" in watch.snapshot ? { loading: true } : read);
+      watch.publish(transportOffline && "data" in watch.snapshot ? { loading: true } : read, transportOffline);
       scheduleExpiry(watch, nextExpiry);
       notify(watch);
     } finally {

@@ -99,7 +99,7 @@ with sqlite3.connect(sys.argv[1]) as db:
  print(db.execute("SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id='zero'").fetchone()[0])
 `,join(dir,".snapback4/store.sqlite")],{encoding:"utf8"}));
     assert.ok(!Object.hasOwn(stored.Row,"likeCount"));
-    if (synced) assert.equal(between.length,2);
+    if (synced) { await until(()=>between.length===2); assert.equal(between.length,2); }
     else assert.ok(seen.some(row=>row.id === "unselected" && row.likeCount === 0),"server-run watch reruns on the parent barrier");
   });
 }

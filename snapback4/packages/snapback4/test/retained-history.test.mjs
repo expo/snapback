@@ -374,17 +374,20 @@ query wordBoth():
       const left = expected("left", 1).filter(row => row.expiresAt > deviceNow);
       assert.deepEqual(result.data.left, left);
       assert.equal(result.complete, false);
-      // Server-only held fields keep the one server transaction's observation.
-      assert.deepEqual(result.data.held, expected("held", 0));
+      // Applied expiry withdrawals invalidate the old server transaction too.
+      assert.deepEqual(result.data.held, expected("held", 0).filter(row => row.expiresAt > deviceNow));
       const refreshed = await client.query(both, {});
       assert.deepEqual(refreshed.data.left, left);
       assert.deepEqual(refreshed.data.held, expected("held", 0).filter(row => row.expiresAt > deviceNow));
       assert.equal(refreshed.complete, false);
     } else if (closing) { await closing; assert.equal(result.data, undefined, "closed identity must publish no rows"); assert.deepEqual(publications, [], "watch must publish nothing from the closed identity"); }
-    else if (scenario === "MQ rejoin") assert.deepEqual(result.data.left, [], "the old server observation stands when no retained component remains");
+    else if (scenario === "MQ rejoin") assert.deepEqual(result.data.left, expected("left", 0), "the new authority requires a new server observation");
     else {
       assert.deepEqual(result.data.left, expected("left", 1));
-      assert.deepEqual(result.data.held, expected("held", scenario === "MQ transport" ? 1 : 0));
+      if (scenario === "MQ held change") {
+        assert.equal(result.data.held[0].body, "new", "a horizon withdrawal fences the old server response");
+        assert.deepEqual(result.data.held.slice(1), expected("held", 0));
+      } else assert.deepEqual(result.data.held, expected("held", scenario === "MQ transport" ? 1 : 0));
       assert.equal(result.complete, false);
       assert.equal(result.fresh, false);
     }

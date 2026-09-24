@@ -49434,3 +49434,89 @@ suite. Evidence: `/tmp/lane-j-r1-targeted.log`,
 `/tmp/lane-j-r1-full-suite-final.log`. Whitespace checks pass. No open
 implementation problem or design deviation found; native validation uses the
 real process device and the shared client arm, without an iOS simulator.
+
+## 2026-09-24 — Lane J round 2: revoke retained answers with their authority
+
+Closed the Astra/Grok review items. The leak was in the observation lifetime:
+a heap-aborted rerun returned loading after an until-revoked membership had
+been removed, and ReadObservation retained the previously authorized private
+row. An applied withdrawal only scheduled that rerun. The local client now
+clears every retained and remembered server answer at the committed authority
+boundary, before notifications, reruns or fallible post-commit work. A separate
+answer revision fences direct reads, observations and server-cache insertion
+against earlier in-flight responses. Scope/deletion events, authority-table
+changes, deferred publication, predicted membership changes, settlement and
+clear_rows use the same fence. Existing store-reset/adoption fences remain;
+generation discovery and backend-required recovery invalidate before fetching
+the new backend, even when that fetch fails. Prediction classification is
+bounded to 256 entries and is discarded when the schema changes.
+
+Engineering choice: when the affected observation cannot be established,
+reset all observations. ReadAuthority's schema/program inspection supplies
+invalidation hints, never authorization decisions. An unchanged read marker
+can still predict without discarding an inbox answer. Unknown settlements,
+native prediction effects and another owner's staged transfer fail closed.
+The helper also keeps local.ts below the 1,500-line source limit.
+
+ReadObservation and both client arms now distinguish a transport-generated
+E_OFFLINE from a server refusal, so a successful loading response replaces the
+former and preserves the latter. HTTP and CLI unavailable responses carry
+loading=true, data=null, complete=false for old consumers. Release HTTP omits
+the meter field entirely. React combines since only across stale pages.
+contract.ts and CLIENT-AND-OPERATIONS.md document the authority lifetime.
+
+New page-authority.q/page-authority.test.mjs use the real server and SQLite
+process device: revoke an until-revoked row after a heap abort, including a
+post-commit exception and a delayed old HTTP response; neither observation nor
+remembered cache may resurrect it. Other cases prove held queries stay local,
+transport refusals recover in both clients, explicit refusals stay, and a
+predicted membership deletion clears retention. read-authority.test.mjs tests
+private/other-owner staging, rule fields, settlement, cache reset and adoption
+of changed read dependencies. store-reset-review adds failed-backend-fetch
+generation discovery. React tests mixed fresh/stale timestamps. Rust HTTP/CLI
+tests assert legacy fields and release disclosure. PostgreSQL's feature-gated
+regression proves heap abort versus valid null/empty-list availability.
+
+PostgreSQL was not installed globally. Extracted PostgreSQL 16.15 packages under
+/tmp/lane-j-postgres, ran one socket-only private cluster and the regression
+with SNAPBACK4_EVAL_POSTGRES, then stopped that cluster. The live test passed;
+forcing unavailable=false made it fail. Ten initial mutation checks all failed
+as intended (authority reset, stale server-cache insertion, refusal provenance,
+held fallback, early generation invalidation, mixed since, HTTP fields, release
+meter, CLI fields, PostgreSQL availability). The additional adoption test
+failed against the prior compiled helper and passed after classification reset.
+Evidence: /tmp/lane-j-r2-mutations.log and /tmp/lane-j-r2-mutant-*.log.
+
+Affected validation passed 60/60; the final authority/adoption set passed 9/9;
+the full-failure follow-up set passed 68/68. HTTP, CLI and live PostgreSQL tests
+also passed individually. The first scripts/test.sh run reported exactly
+`== 1 failure(s) in 158 s` (client tests; nine assertions):
+- Ours: MQ rejoin, MQ held change and MQ expiry held, each on wasm and process.
+  Their old assertions explicitly accepted an HTTP answer from before the
+  authority change. Updated them to require the newly authorized transaction.
+- Ours: column activation: sqlite, device watch. Server fallback can publish
+  the new generation before device adoption completes; await both adoptions.
+- Ours: unavailable server list reruns keep published answers in both clients.
+  Wait for the heap-aborted response and reconnect after the deliberate earlier
+  transport failure before asserting a direct online loading answer.
+- Environmental/pre-existing fixture race: stopped full-release restore
+  preserves its recovery point and stays separate from the original. The real
+  scheduler completed an empty job before the fixture inserted its row (done
+  versus parked). This code is unchanged; its isolated follow-up passed. The
+  host baseline's Rust failures did not recur. Reproduction/evidence:
+  scripts/test.sh under concurrent load, /tmp/lane-j-r2-full-suite.log.
+
+No Quarry form, Read type, engine semantics or resource ceiling changed. The
+ordinary privatePage() and heldPage() held forms compile and run in the new
+fixture. No iOS simulator, version bump, package publication or push was done.
+
+Final scripts/test.sh result: `== 0 failure(s) in 129 s`. No product, baseline
+or environmental failures remained in that run. The main client shard had
+1,082 tests: 1,072 passed, 10 existing skips, zero failures; all other shards,
+Rust targets, guide checks, builds and typechecks passed. Evidence:
+/tmp/lane-j-r2-full-suite-final.log, /tmp/lane-j-r2-affected-final.log,
+/tmp/lane-j-r2-adoption-final.log, /tmp/lane-j-r2-full-failure-check.log,
+/tmp/lane-j-r2-http-final.log, /tmp/lane-j-r2-cli-final.log and
+/tmp/lane-j-r2-pg-final.log. Whitespace checks pass. No design deviation or
+unresolved Lane J implementation issue remains; the unrelated scheduler
+fixture race above remains a recorded test limitation.
