@@ -76,11 +76,9 @@ table follows:
   sync public
 
 maintain feed: timeline
-  authors profiles by principal
   events posts by authorId, at removed by removed
   reposts reposts by actorId, postId, at
   edges follows by followerId, followedId
-  size authors 1008, edges 5921
 
 maintain receivedLikes: count likes by postId.authorId
   read <- allow

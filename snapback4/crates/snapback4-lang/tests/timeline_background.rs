@@ -198,3 +198,15 @@ fn last_purge_chunk_cancels_an_older_delivery_before_retiring_tombstone() {
     assert!(e.store().rows("feedWork").unwrap().is_empty());
     assert!(e.run_timeline_chunk(103).unwrap().is_none());
 }
+
+#[test]
+fn equal_times_order_by_event_id_and_removal_fills_the_page() {
+    let mut e=engine();run(&mut e,"follow","reader",&[("actor",id("a"))],1);
+    for n in 0..40 {post(&mut e,"a",&format!("p{n:03}"),2);}
+    drain(&mut e);
+    assert_eq!(ids(&mut e,"reader"),(20..40).rev().map(|n|format!("p{n:03}")).collect::<Vec<_>>());
+    for n in 20..40 {run(&mut e,"remove","a",&[("postId",id(&format!("p{n:03}")))],3);}
+    let page=home(&mut e,"reader");assert!(page.complete);
+    assert_eq!(ids(&mut e,"reader"),(0..20).rev().map(|n|format!("p{n:03}")).collect::<Vec<_>>());
+    assert_eq!(e.store().rows("feedRemovedEvents").unwrap().len(),20,"hides before purge");
+}

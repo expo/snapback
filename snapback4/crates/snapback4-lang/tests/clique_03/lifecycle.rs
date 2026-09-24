@@ -88,6 +88,7 @@ fn compare(e: &mut Engine, d: &mut Device<Store>, m: &Model) -> serde_json::Valu
 }
 // @ref LLP 3000.007.001#311-adoption — populated activation is event-free; device images are reacquired behind the generation barrier.
 pub fn adopt(e: &mut Engine, m: &Model) -> (Device<Store>, PathBuf) {
+    drain(e, m.now);
     let path = dir().join("device.sqlite");
     let mut d = Device::open(&path, Some(backend(e, &prior()))).unwrap();
     let start = Instant::now();
@@ -264,6 +265,7 @@ pub fn pending_restart(e: &mut Engine, m: &mut Model, d: Device<Store>, path: Pa
             _ => panic!("settlement {out:?}"),
         };
         d.settle(&q.id, Some(seq)).unwrap();
+        drain(e, at);
         let mut page: StreamPage =
             serde_json::from_slice(&transport::stream(e, &q.viewer, from, at)).unwrap();
         // This is local request metadata, deliberately not part of encoded response bytes.
@@ -379,6 +381,7 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
     let duplicate_idempotent = before == e.store().rows("reposts").unwrap()
         && events_before == e.store().rows("feedPosts").unwrap();
     assert!(duplicate_idempotent);
+    drain(e, m.now);
     assert!(m.like_counts()["rank-003"] > 0);
     sent(e, "remove", "alice", &args, m.now, "lifecycle-remove");
     m.events.remove("rank-003");
@@ -440,46 +443,12 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
         .iter()
         .all(|id| stored_row(e.store(), &table, id).is_some());
     assert!(tombstones_present);
-    let schedule = e
-        .schema()
-        .schedules
-        .iter()
-        .find(|s| s.target == timeline.purge)
-        .unwrap()
-        .clone();
-    // Do not let a prior run with the same target stand in for this firing.
-    let job_ids = |e: &Engine| -> BTreeSet<String> {
-        let mut statement = e.store().conn().prepare("SELECT id FROM _jobs").unwrap();
-        statement
-            .query_map([], |r| r.get(0))
-            .unwrap()
-            .map(Result::unwrap)
-            .collect()
-    };
-    let jobs_before = job_ids(e);
-    assert!(e.fire_schedules(m.now).unwrap().is_empty());
-    assert_eq!(job_ids(e), jobs_before);
-    let fired = e.fire_schedules(m.now + schedule.every_ms as i64).unwrap();
-    assert_eq!(fired, vec![schedule.name.clone()]);
-    let jobs_after = job_ids(e);
-    let new_ids: Vec<_> = jobs_after.difference(&jobs_before).collect();
-    assert_eq!(new_ids.len(), 1, "schedule enqueues one new purge");
-    let job = e.job(new_ids[0]).unwrap().unwrap();
-    assert_eq!(job.name, timeline.purge);
-    assert_eq!(job.state, snapback4_core::JobState::Queued);
-    let mut chunks = 0;
-    while let Some(run) = e.run_job_chunk(m.now + schedule.every_ms as i64).unwrap() {
-        assert_eq!(run.name, timeline.purge);
-        assert_eq!(run.id, job.id, "run the newly scheduled purge");
-        assert_ne!(run.state, snapback4_core::JobState::Parked, "{run:?}");
-        chunks += 1;
-        assert!(chunks < 100);
-    }
-    assert!(chunks > 0, "the new purge must execute a chunk");
-    assert_eq!(
-        e.job(&job.id).unwrap().unwrap().state,
-        snapback4_core::JobState::Done
-    );
+    let tasks_before=e.store().rows(&timeline.table("Work")).unwrap();
+    assert_eq!(tasks_before.iter().filter(|t|field(t,"kind")=="purge").count(),2);
+    let mut chunks=0;
+    while e.run_timeline_chunk(m.now).unwrap().is_some() { chunks+=1; assert!(chunks<100); }
+    assert!(chunks>0);
+    assert_eq!(e.timeline_work_counts().unwrap()[0].2,0);
     let purged = tombstone_ids
         .iter()
         .all(|id| stored_row(e.store(), &table, id).is_none());
@@ -492,8 +461,7 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
         "removed_like_refusal":like_refusal,"removed_repost_refusal":repost_refusal,
         "unlike_zero":unlike_zero,"following_after_unrepost":following_after_unrepost,
         "tombstone_table":table,"tombstone_ids":tombstone_ids,"tombstones_present_before":tombstones_present,
-        "tombstoned_events":event_ids,"schedule":schedule.name,
-        "jobs_before":jobs_before,"purge_job_id":job.id,"purge_target":job.name,
+        "tombstoned_events":event_ids,"tasks_before":tasks_before.len(),
         "purge_chunks":chunks,"recorded_tombstones_gone":purged})
     );
 }

@@ -16,8 +16,8 @@ test('oversized historical timeline commit recovers by snapshot with pending wri
     assert.equal(device.restartFrom,0);
     assert.equal(device.restartSnapshot,true);
     assert.equal(device.pendingBefore.length,1);
-    assert.equal(device.recoveredNotes,1021);
-    assert.equal(device.settledNotes,1021);
+    assert.equal(device.recoveredNotes,1020);
+    assert.equal(device.settledNotes,1020);
     assert.ok(device.heldSubmissions>0);
     assert.deepEqual(device.pendingAfter,device.pendingBefore);
     assert.deepEqual(device.finalFollowing,report.serverFollowing);

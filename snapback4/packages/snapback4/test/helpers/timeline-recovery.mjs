@@ -84,7 +84,7 @@ export async function recoverTimeline() {
       assert.equal(f.queued[0].predictable,true);
       assert.equal(f.queued[0].op,'post');
       assert.deepEqual(f.queued[0].args,{postId:'pending-'+host});
-      const own=createHash('sha256').update(JSON.stringify([{String:'snapback4.timeline.v1'},{String:'feed'},{String:'Feed'},{Id:f.queued[0].viewer},{Id:'pending-'+host}])).digest('hex');
+      const own=createHash('sha256').update(JSON.stringify([{String:'snapback4.timeline.v1'},{String:'feed'},{String:'Feed'},{Id:f.queued[0].viewer},{Id:'pending-'+host},'Null'])).digest('hex');
       assert.deepEqual(f.queued[0].predicted.toSorted(),['posts/pending-'+host,'feedPosts/pending-'+host,'feedFeed/'+own].toSorted());
       assert.equal((await f.client.query(query,{})).data.length,1);
       f.pages.length=0;
@@ -95,11 +95,11 @@ export async function recoverTimeline() {
     assert.equal(first.data.denied,undefined);
     assert.equal(first.data.events.length,1024);
     const noteIds=first.data.events.filter(e=>e.table==='notes').map(e=>e.id);
-    assert.equal(noteIds.length,1021);
+    assert.equal(noteIds.length,1020);
     let watermark=published.seq,largestUpdateBytes=0,historicalCommitMinimumBytes=0;
     for(const noteId of noteIds) {
       const grown=await mutate('grow',{noteId,body:'\n'.repeat(9000)});
-      const page=await request('/sync',{from:watermark,stream:true,limit:1,pending:[]});
+      const page=await request('/sync',{from:grown.seq-1,stream:true,limit:1,pending:[]});
       assert.equal(page.data.denied,undefined);assert.equal(page.data.events.length,1);
       largestUpdateBytes=Math.max(largestUpdateBytes,page.bytes);watermark=grown.seq;
       assert.equal(page.data.events[0].id,noteId);

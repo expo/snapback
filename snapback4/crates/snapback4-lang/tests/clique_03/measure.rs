@@ -158,7 +158,6 @@ pub fn writes(e: &mut Engine, m: &mut Model, full: bool) {
     } else {
         assert_eq!(celebrity_followers, 62);
     }
-    assert!(m.promoted.contains("u0900"));
     let ordinary_followers = followers(&ordinary);
     assert_eq!(ordinary_followers, 5);
     println!(

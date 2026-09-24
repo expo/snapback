@@ -17,7 +17,7 @@ fn encoded(e:&mut Engine,who:&str,from:u64)->usize {
     let p=e.stream(who,from,1).unwrap();
     assert!(p.events.iter().all(|ev|ev.seq==from+1),"only the requested historical commit");
     if from==1 {
-        assert_eq!(p.events.iter().filter(|ev|ev.table=="notes").count(),1021);
+        assert_eq!(p.events.iter().filter(|ev|ev.table=="notes").count(),1020);
         assert!(p.events.iter().any(|ev|ev.table=="feedPosts"));
     }
     serde_json::to_vec(&delivery_wire::reply(e,p)).unwrap().len()
@@ -32,7 +32,7 @@ fn historical_commit_uses_later_images() {
     let first=[encoded(&mut e,"reader",before),encoded(&mut e,"author",before)];
     assert!(first.iter().all(|bytes| *bytes<CEILING));
     let notes=e.store().rows("notes").unwrap();
-    assert_eq!(notes.len(),1021);
+    assert_eq!(notes.len(),1020);
     let body=Value::String("\n".repeat(9000));
     let mut largest_update=0;
     for note in notes {

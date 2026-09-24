@@ -130,7 +130,7 @@ pub fn write_site(schema: &Schema, table: &str, kind: &str, fact: &mut snapback4
     }
 }
 
-/// Reuse the existing merge, tombstone predicate, shape and cursor machinery.
+/// Reuse the existing filtered scan, shape and cursor machinery.
 pub fn read(timeline: &Timeline, read: &ReadExpr) -> Fallible<Expr> {
     let range = read.range.clone().unwrap_or(RangeSpec { order: Order::Desc, take: 20, cursor: None, site: read.site.clone() });
     if read.keys.len() != 1 || !read.seeks.is_empty() || read.matching.is_some() || read.index.is_some()

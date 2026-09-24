@@ -91,7 +91,7 @@ fn assert_no_helpers_in_api(bound: &snapback4_lang::Bound) {
 
 #[test]
 fn declaration_expansion_binds_cleanly_and_emits_no_recipe_or_bridge_helpers() {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(1);
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
