@@ -55,6 +55,8 @@ pub struct Binder<'a> {
     caller_kind: ProgramKind,
     scopes: Vec<BTreeMap<String, Binding>>,
     focal: Option<(String, Ty)>,
+    /// Only direct scanned-row columns get false-on-null ordering in where.
+    in_predicate: bool,
     temps: u32,
     sites: u32,
     returns: Vec<Ty>,
@@ -93,7 +95,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {

@@ -80,6 +80,42 @@ fn render_body(body: &[Stmt], env: &mut BTreeMap<String, String>) {
                     env.insert(key, value);
                 }
             }
+            Stmt::For { binding, domain, body } => {
+                // `in` is lowered to false, then an equality loop that sets
+                // true and breaks. Ignoring the loop prints the initializer.
+                if let Some((name, needle)) = membership_loop(binding, body)
+                    && env.get(name).is_some_and(|value| value == "false") {
+                    let values = match domain {
+                        LoopDomain::ArgList { name, .. } => env.get(name).cloned().unwrap_or_else(|| name.clone()),
+                        LoopDomain::DerivedArray { value, .. } => render(value, env),
+                        LoopDomain::LiteralRange { start, end_exclusive } => format!("range({start}, {end_exclusive})"),
+                        LoopDomain::ExpressionRange { start, end_exclusive } => format!("range({}, {})", render(start, env), render(end_exclusive, env)),
+                        LoopDomain::Page(scan) => format!("{} domain", scan.table),
+                        LoopDomain::Recurse(_) => "walk domain".into(),
+                    };
+                    env.insert(name.into(), format!("({} in {values})", render(needle, env)));
+                } else {
+                    forget_loop_writes(body, env);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn membership_loop<'a>(binding: &str, body: &'a [Stmt]) -> Option<(&'a str, &'a Expr)> {
+    let [Stmt::If { condition: Expr::Binary { op: BinaryOp::Eq, left, right }, then_body, else_body }] = body else { return None; };
+    let [Stmt::Assign { name, value: Expr::Literal(Value::Bool(true)) }, Stmt::Break] = then_body.as_slice() else { return None; };
+    if !else_body.is_empty() || right.as_ref() != &Expr::Variable(binding.into()) { return None; }
+    Some((name, left))
+}
+
+fn forget_loop_writes(body: &[Stmt], env: &mut BTreeMap<String, String>) {
+    for stmt in body {
+        match stmt {
+            Stmt::Assign { name, .. } | Stmt::Push { target: name, .. } => { env.insert(name.clone(), "loop result".into()); }
+            Stmt::If { then_body, else_body, .. } => { forget_loop_writes(then_body, env); forget_loop_writes(else_body, env); }
+            Stmt::For { body, .. } => forget_loop_writes(body, env),
             _ => {}
         }
     }

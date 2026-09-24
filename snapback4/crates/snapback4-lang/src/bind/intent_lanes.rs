@@ -16,6 +16,10 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
                 let column = intent::column(left)?.to_owned();
                 (column, *right.clone(), Expr::Name { name: name.into(), site: predicate.site().clone() })
             }
+            Expr::Binary { op, .. } if op == "!=" => {
+                let Some((column, source)) = enum_complement(predicate, tables.get(&read.table)?) else { continue; };
+                (column, source, Expr::Name { name: name.into(), site: predicate.site().clone() })
+            }
             Expr::Exists { read: probe, .. } => {
                 let target = tables.get(&probe.table)?;
                 if probe.filter.is_some() || probe.matching.is_some() || !probe.seeks.is_empty() || probe.range.is_some() { continue; }
@@ -70,3 +74,30 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
 }
 
 fn focal(name: &str, site: &crate::diag::Site) -> Expr { Expr::Member { base: Box::new(Expr::Focal { site: site.clone() }), name: name.into(), site: site.clone() } }
+
+// @ref LLP 3000.013#2.1 — small required enums have a finite complement;
+// nullable enums keep total inequality as a residual, including null rows.
+fn enum_complement(predicate: &Expr, table: &TableInfo) -> Option<(String, Expr)> {
+    let Expr::Binary { left, right, site, .. } = predicate else { return None; };
+    let (column, value) = if let Some(column) = intent::column(left) { (column, right.as_ref()) }
+        else { (intent::column(right)?, left.as_ref()) };
+    let ty = table.columns.get(column)?;
+    let TypeKind::Enum { variants } = &ty.kind else { return None; };
+    if ty.optional || variants.len() > 8 { return None; }
+    let values = |exclude: Option<&str>| Expr::Array { site: site.clone(), items: variants.iter()
+        .filter(|variant| Some(variant.as_str()) != exclude)
+        .map(|variant| Expr::Literal { value: Literal::Str(variant.clone()), site: site.clone() }).collect() };
+    let source = match value {
+        Expr::Literal { value: Literal::Str(exclude), .. } => values(Some(exclude)),
+        // Stable bindings are safe to test while opening lanes. Fallible
+        // expressions stay under their original row predicate's guards.
+        Expr::Name { name, .. } if !matches!(name.as_str(), "new" | "now" | "viewer") => {
+            variants.iter().rev().fold(values(None), |otherwise, variant| Expr::If {
+                condition: Box::new(Expr::Binary { op: "=".into(), left: Box::new(value.clone()),
+                    right: Box::new(Expr::Literal { value: Literal::Str(variant.clone()), site: site.clone() }), site: site.clone() }),
+                then: Box::new(values(Some(variant))), otherwise: Box::new(otherwise), site: site.clone() })
+        }
+        _ => return None,
+    };
+    Some((column.into(), source))
+}

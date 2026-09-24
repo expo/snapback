@@ -49176,3 +49176,46 @@ is in its adjacent `publication.json`. The full publication/attempt report is
 through the Expo package; the Developer ID signing record for the production
 CLI is in the preceding entry. Qualification here is iOS simulator only.
 All final evidence is committed locally on `sb4-intent/publish-040`; no push.
+
+## 2026-09-24 — Lane A: Workroom nullable predicates, enum complements and certificates
+
+Merged published 0.4.0 from origin/main by fast-forward to e8196704a, then
+implemented false-on-null ordering for direct nullable scanned-row columns
+inside `where`. Optional arguments, locals and non-predicate expressions keep
+their presence requirements. Nullable seeks accept present endpoints and
+upper-only ranges start exclusively above null. Diagnostics give a guarded
+read rewrite instead of `<time ?>`.
+
+Required enums with at most eight variants plan inequality against a literal
+or stable bound value as ordinary complement-value lanes. Nullable and larger
+enums remain residual; computed exclusions remain under their original guards
+so a hidden division failure is not hoisted into lane discovery. Cost display
+recovers membership from its lowered loop instead of showing the initial
+`false`. Read rules, interpreter operations, admission and meter ceilings were
+not changed. Updated the reads card with compiled examples and the governing
+LLP; the authorization census changed only 23 reads-card block ordinals,
+retaining 271 mutation occurrences and 49 distinct private write sites.
+
+Measured 104 affected language tests, 16 device tests (memory and SQLite,
+including reopen), 24 certificate tests and the targeted census passing.
+Seven new language regressions cover seeks/residuals, every ordering operator,
+null equality, narrowing boundaries, both paging directions, enum plan
+identity, nullable enum retention and guarded exclusions. Two new device tests
+exercise offline nullable seeks, residuals and view pages. The certificate
+regression covers the Workroom membership-plus-status predicate and omission
+when no residual remains. With 90 null rows added, the seek and streaming count
+examine at most two rows; with 90 finished tasks added, the complement lanes
+return five open tasks within eight examined rows.
+
+First full run: `== 2 failure(s) in 174 s`. One introduced failure was the
+census ordinal update above, fixed and verified. The unchanged client test
+`shared logout fences a held online rotation across Bob's login` had a
+transient `UND_ERR_SOCKET` fetch failure; isolated retry, all 34 app tests,
+and the final full suite passed. Final `scripts/test.sh`:
+`== 0 failure(s) in 96 s` (exit 0); clients 1,054 passed, 10 skipped. Web wasm:
+1,744,842 bytes raw / 484,967 gzip, within the inherited 486,000 budget.
+The separate reference audit reports the inherited store.rs:809 broken
+`#5.3-effects-keyed-once` reference at e8196704a, already corrected upstream;
+that untouched core line is not in this diff. No push, package publication,
+version bump, index namespace change or budget increase. Full file-level report,
+engineering choices and reproductions: reports/20260924-intent-lane-a-041.md.

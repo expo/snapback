@@ -217,6 +217,43 @@ N_SEEK is advice for an older explicit-index read whose residual filter can
 seek. For a new read, write `messages where .roomId = roomId and .at >= start
 first 20 by .at after c`; the planner makes that comparison a seek.
 
+## Nullable predicates and enum lanes
+
+Inside `where`, an ordering comparison (`<`, `<=`, `>`, `>=`) with a nullable
+column of that row is false when the column is null. `.due < now` therefore
+selects overdue tasks without a guard or a default. On the first order key it
+is a seek; a nullable upper-only seek starts exclusively above null. `= null`
+and `!= null` keep their ordinary meaning. Optional arguments and locals,
+and comparisons outside `where`, still need a presence guard.
+
+For a required enum with at most eight variants, `.status != 'done'` opens
+the same pinned value lanes as `.status in ['todo', 'doing']`. A bound value
+can also select the excluded variant. Fallible expressions remain residual
+predicates so their guards still run first. Nullable enums retain a residual
+inequality, including null rows; larger enums also stay residual.
+
+```quarry
+table workTasks:
+  owner: principal
+  cap 100 by owner
+  due: time ?
+  status: enum('todo', 'doing', 'done')
+  createdAt: time
+  read <- .owner = viewer
+  sync to .owner
+query overdueTasks(c: cursor ?):
+  return workTasks where .owner = viewer and .due < now first 50 by .due after c
+query openTasks(c: cursor ?):
+  return workTasks where .owner = viewer and .status != 'done' first 50 by .createdAt after c
+query openTaskValues(c: cursor ?):
+  return workTasks where .owner = viewer and .status in ['todo', 'doing'] first 50 by .createdAt after c
+```
+
+`check --cost` displays the residual that still tests each visible candidate,
+including `in` when another predicate supplies the lanes. A predicate fully
+extracted into pins or lanes has no residual-skip clause. These explanations
+do not change read rules, meter bounds or completeness.
+
 ## Pages without a cursor
 
 A page a query returns without
@@ -260,7 +297,8 @@ admission; rule probes keep exact-key semantics.
 
 Finite ranked windows use inclusive UTC buckets from the lower through the
 upper bound. Exact endpoints still filter rows. An `in` predicate over a list
-or a read's column opens one ruled scan per distinct non-null value. Unknown
+or a read's column opens one ruled scan per distinct non-null value; a null
+value adds one authorized null-filtered scan for a nullable column. Unknown
 or cut discovery cannot certify the page. Use `check --cost` to inspect these
 plans. Unknown widths print `lanes ≤ meter`; the author writes no lane list.
 

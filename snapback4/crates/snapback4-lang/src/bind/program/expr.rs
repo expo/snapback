@@ -402,6 +402,11 @@ impl Binder<'_> {
             out.extend(right_setup);
             ir::var(&left_value)
         };
+        let focal_nullable = |value: &A, ty: &Ty| self.in_predicate && ty.is_optional()
+            && self.focal.as_ref().is_some_and(|(name, ty)| name == "$filter" && matches!(ty, Ty::Row(_)))
+            && super::super::intent::column(value).is_some();
+        let nullable_left = focal_nullable(left, &lt);
+        let nullable_right = focal_nullable(right, &rt);
         let ir_op = match op {
             "/" | "%" => {
                 if !matches!(lt, Ty::Int | Ty::Time) || !matches!(rt, Ty::Int | Ty::Time) {
@@ -423,7 +428,7 @@ impl Binder<'_> {
                 if op == "=" { BinaryOp::Eq } else { BinaryOp::Ne }
             }
             "<" | "<=" | ">" | ">=" => {
-                if lt.is_optional() || rt.is_optional() {
+                if (lt.is_optional() && !nullable_left) || (rt.is_optional() && !nullable_right) {
                     return Err(type_error(
                         site,
                         format!("{op} needs present operands; got {} and {}", lt.name(), rt.name()),
@@ -478,7 +483,20 @@ impl Binder<'_> {
             }
             other => return Err(unknown(site, format!("unknown operator {other}"), "use =, !=, <, <=, >, >=, +, -, *, and, or, ??")),
         };
-        Ok((Expr::Binary { op: ir_op, left: Box::new(l), right: Box::new(r) }, Ty::Bool))
+        let mut present = Vec::new();
+        if matches!(ir_op, BinaryOp::Lt | BinaryOp::Lte | BinaryOp::Gt | BinaryOp::Gte) {
+            if nullable_left { present.push(l.clone()); }
+            if nullable_right { present.push(r.clone()); }
+        }
+        let mut comparison = Expr::Binary { op: ir_op, left: Box::new(l), right: Box::new(r) };
+        // @ref LLP 3000.013#2.1 — predicate nulls do not enter ordering;
+        // the ordinary interpreter's total value ordering remains unchanged.
+        for value in present.into_iter().rev() {
+            comparison = Expr::Binary { op: BinaryOp::And,
+                left: Box::new(Expr::Binary { op: BinaryOp::Ne, left: Box::new(value), right: Box::new(ir::lit(Value::Null)) }),
+                right: Box::new(comparison) };
+        }
+        Ok((comparison, Ty::Bool))
     }
 
     /// An expression in an identity position: a text literal becomes an id.
@@ -582,7 +600,9 @@ impl Binder<'_> {
                     if scan.take == Bound::Meter {
                         let saved = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
                         let mut setup = setup::Body::default();
+                        let predicate_context = std::mem::replace(&mut self.in_predicate, false);
                         let projected = self.expr(&args[1], &mut setup);
+                        self.in_predicate = predicate_context;
                         self.focal = saved;
                         let (projection, ty) = projected?;
                         if !ty.is_numeric() || !setup.is_empty() {

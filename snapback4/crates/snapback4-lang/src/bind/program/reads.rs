@@ -67,8 +67,14 @@ impl<'a> Binder<'a> {
             }
             let expected = self.key_ty(info, index, &bound.column);
             let (value, ty) = self.field_value(&ObjectField { name: bound.column.clone(), value: Some(bound.value.clone()), site: bound.site.clone() }, &expected, out)?;
-            if !ty.comparable(&expected) || ty.is_optional() || expected.is_optional() {
-                return Err(type_error(&bound.site, format!("seek on {}.{} expects {}, got {}", read.table, bound.column, expected.name(), ty.name()), format!("{} {} <{}>", bound.column, bound.op, expected.name())));
+            if !ty.comparable(&expected) || ty.is_optional() {
+                let endpoint = print::expression(&bound.value);
+                let rewrite = if ty.is_optional() {
+                    format!("put the read inside `if {endpoint} != null:`, then `{} where .{} {} {endpoint}`", read.table, bound.column, bound.op)
+                } else {
+                    format!("use a present {} endpoint in `{} where .{} {} {endpoint}`", expected.required().name(), read.table, bound.column, bound.op)
+                };
+                return Err(type_error(&bound.site, format!("seek on {}.{} expects present {}, got {}", read.table, bound.column, expected.required().name(), ty.name()), rewrite));
             }
             let slot = match bound.op.as_str() { ">" => &mut range.gt, ">=" => &mut range.gte, "<" => &mut range.lt, "<=" => &mut range.lte, _ => unreachable!("parser seek comparison") };
             if slot.is_some() { return Err(type_error(&bound.site, "a seek bound is repeated", "write one lower and one upper bound")); }
@@ -76,6 +82,12 @@ impl<'a> Binder<'a> {
         }
         if (range.gt.is_some() && range.gte.is_some()) || (range.lt.is_some() && range.lte.is_some()) {
             return Err(type_error(&read.site, "a seek has at most one lower and one upper bound", "t[prefix, col >= start, col < end] first 50 by index"));
+        }
+        // Null sorts below every present value. An upper-only nullable seek
+        // must skip the entire null segment, including its id suffixes.
+        if range.gt.is_none() && range.gte.is_none()
+            && read.seeks.first().is_some_and(|bound| self.key_ty(info, index, &bound.column).is_optional()) {
+            range.gt = Some(Box::new(ir::lit(Value::Null)));
         }
         Ok(Some(range))
     }
@@ -128,11 +140,13 @@ impl Binder<'_> {
         }
         let prior = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
         let kind = std::mem::replace(&mut self.kind, ProgramKind::Query);
+        let predicate_context = std::mem::replace(&mut self.in_predicate, true);
         let mut body = setup::Body::default();
         self.push_scope();
         let bound = self.expr(&predicate, &mut body);
         self.pop_scope();
         self.kind = kind;
+        self.in_predicate = predicate_context;
         self.focal = prior;
         let (value, ty) = bound?;
         if !ty.is_bool() { return Err(type_error(predicate.site(), format!("where needs a bool predicate, got {}", ty.name()), "where .col = value")); }

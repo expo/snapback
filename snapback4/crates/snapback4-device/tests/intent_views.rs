@@ -160,3 +160,34 @@ fn rejected_source_heap<H: Host>(host: &mut H) {
 }
 #[test] fn view_rejected_heap_memory() { rejected_source_heap(&mut Memory::new()); }
 #[test] fn view_rejected_heap_sqlite() { rejected_source_heap(&mut Sqlite::new("intent-rejected-heap")); }
+
+fn nullable_ordering<H: Host>(host: &mut H) {
+    for direction in ["first", "last"] {
+        let source = format!("table tasks:\n  owner: principal\n  due: time ?\n  read <- .owner = viewer\n  sync to .owner\nview dueTasks:\n  tasks {{ owner, due }}\nquery seek(c: cursor ?):\n  return tasks where .owner = viewer and .due < now {direction} 1 by .due after c\nquery residual(c: cursor ?):\n  return tasks where .owner = viewer and .due < now {direction} 1 by .id after c\nquery projected(c: cursor ?):\n  return dueTasks where .owner = viewer and .due < now {direction} 1 by .due after c\n");
+        let (mut server, backend) = compile(&source);
+        server.seed([( "null", None), ("a", Some(1)), ("b", Some(1)), ("c", Some(2)), ("future", Some(4))]
+            .into_iter().flat_map(|(key, due)| ["alice", "bob"].map(|owner| ("tasks".into(), object([
+                ("id", id(&format!("{owner}-{key}"))), ("owner", id(owner)), ("due", due.map(Value::Int).unwrap_or(Value::Null)),
+            ]))))).unwrap();
+        let key = format!("intent-null-order-{direction}");
+        let mut device = host.open(&key, Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        host.close(&key, device);
+        let mut device = host.open(&key, None).unwrap();
+        for query in ["seek", "residual", "projected"] {
+            let mut cursor = None;
+            let mut actual = Vec::new();
+            for _ in 0..4 {
+                let page = device.query(query, "alice", &json!({"c": cursor}), 3).unwrap();
+                assert!(page.complete, "{query} {direction}: {page:?}");
+                actual.extend(page.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()));
+                cursor = page.next;
+                if cursor.is_none() { break; }
+            }
+            assert!(cursor.is_none());
+            assert_eq!(actual, if direction == "first" { vec!["alice-a", "alice-b", "alice-c"] } else { vec!["alice-c", "alice-b", "alice-a"] });
+        }
+    }
+}
+#[test] fn nullable_ordering_memory() { nullable_ordering(&mut Memory::new()); }
+#[test] fn nullable_ordering_sqlite() { nullable_ordering(&mut Sqlite::new("intent-null-order")); }
