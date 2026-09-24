@@ -76,7 +76,9 @@ impl Runner<'_> {
                 // is already validated against the view's unified descriptor;
                 // it is not an independently supplied source-table cursor.
                 let previous_seek = std::mem::replace(&mut self.view_seek, local_position);
+                let previous_active = std::mem::replace(&mut self.view_scan_active, true);
                 let scanned = self.scan_with_words(&scan, None);
+                self.view_scan_active = previous_active;
                 self.view_seek = previous_seek;
                 let rows = scanned?.0;
                 for row in rows {

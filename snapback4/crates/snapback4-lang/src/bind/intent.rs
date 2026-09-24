@@ -63,7 +63,8 @@ impl Requests {
                     // Keep the full ordered suffix in every projected branch,
                     // even when the predicate fixes one of its order fields.
                     if read.order_keys.contains(&column) || column == "id" {
-                        if read.order_keys.first().map(String::as_str).unwrap_or("id") == column {
+                        if read.order_keys.first().map(String::as_str).unwrap_or("id") == column
+                            && !table.columns.get(&column).is_some_and(|ty| ty.optional) {
                             for op in [">=", "<="] {
                                 residual.push(Expr::Binary { op: op.into(), left: Box::new(Expr::Member { base: Box::new(Expr::Focal { site: predicate.site().clone() }), name: column.clone(), site: predicate.site().clone() }), right: Box::new(value.clone()), site: predicate.site().clone() });
                             }
@@ -82,8 +83,11 @@ impl Requests {
         columns.extend(pins.keys().filter(|column| read.computed.contains_key(*column)).cloned());
         let mut order = read.order_keys.clone();
         if order.is_empty() { order.push("id".into()); }
-        order.retain(|column| column != "id" && !pins.contains_key(column));
-        order.push("id".into());
+        // A projected field may alias id before another order key. Moving it
+        // changes the lane's order relative to the view's shared cursor.
+        let mut seen = std::collections::BTreeSet::new();
+        order.retain(|column| !pins.contains_key(column) && seen.insert(column.clone()));
+        if !order.iter().any(|column| column == "id") { order.push("id".into()); }
         let words = if read.matching.is_some() {
             let fields = if !table.decl.search.is_empty() { table.decl.search.clone() }
                 else {
@@ -106,14 +110,7 @@ impl Requests {
                 && !read.seeks.iter().any(|bound| (bound.op.starts_with('<')) == op.starts_with('<')) {
                 read.seeks.push(SeekBound { column, op, value, site: predicate.site().clone() });
             } else {
-                // Null values never open an intent lane. Residual evaluation
-                // keeps the same membership meaning when lane expansion is
-                // unavailable or another conjunct supplies the lanes.
-                let nullable = matches!(&predicate, Expr::Binary { op, left, .. } if op == "in" && column(left).is_some_and(|name| table.columns.get(name).is_some_and(|ty| ty.optional)));
-                if nullable && let Expr::Binary { left, site, .. } = &predicate {
-                    let guard = Expr::Binary { op: "!=".into(), left: left.clone(), right: Box::new(Expr::Literal { value: Literal::Null, site: site.clone() }), site: site.clone() };
-                    kept.push(Expr::Binary { op: "and".into(), left: Box::new(guard), right: Box::new(predicate.clone()), site: site.clone() });
-                } else { kept.push(predicate); }
+                kept.push(predicate);
             }
         }
         read.keys = columns.iter().filter_map(|column| pins.remove(column)).collect();
@@ -187,6 +184,16 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             if lanes && let Expr::Read(read) = value && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
                 for lane in &mut merge.lanes {
                     if let Some(read) = &mut lane.planned { requests.read(&tables, read, false); }
+                    if let Some((column, read)) = &mut lane.nulls {
+                        // Choose an ordinary index before adding the null
+                        // predicate: null membership must never become a pin.
+                        requests.read(&tables, read, false);
+                        let mut residual = read.filter.take().map(|value| vec![*value]).unwrap_or_default();
+                        residual.push(Expr::Binary { op: "=".into(),
+                            left: Box::new(Expr::Member { base: Box::new(Expr::Focal { site: read.site.clone() }), name: column.clone(), site: read.site.clone() }),
+                            right: Box::new(Expr::Literal { value: Literal::Null, site: read.site.clone() }), site: read.site.clone() });
+                        read.filter = conjunction(residual);
+                    }
                     if let Some((_, source)) = &mut lane.loop_ { walk::expression(source, &mut |value| {
                         if let Expr::Read(read) = value { requests.read(&tables, read, false); }
                     }); }

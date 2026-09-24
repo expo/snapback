@@ -893,7 +893,7 @@ impl Runner<'_> {
         // Internal timeline scans retain complete source rows, including arbitrary
         // application payload. Use the same pre-allocation ledger as word scans.
         // Ordinary jobs may hold an empty Purge grant; that is not a transition.
-        let metered_payload = word.is_some_and(|w| w.metered)
+        let metered_payload = word.is_some_and(|w| w.metered) || self.view_scan_active
             || matches!(&self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_)));
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
@@ -921,6 +921,11 @@ impl Runner<'_> {
             let fetched = if metered_payload || transient || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
                 else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
             if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
+            // The store ledger prices allocation (shared memory row handles
+            // are cheap). A view also retains the full source payload while
+            // scanning, even for rejected rows and fields its shape omits.
+            // Charge the entire fetched buffer before filtering or projecting.
+            if self.view_scan_active { self.meter.heap(fetched.iter().map(|(row, _)| row.heap_bytes()).sum())?; }
             if fetched.is_empty() {
                 break;
             }
@@ -1236,13 +1241,17 @@ impl Runner<'_> {
                 self.page_depth += 1;
                 // Pages look ahead; existence needs only its first witness.
                 let mut lane_scan = lane.scan.clone();
-                // @ref LLP 3000.007#20.3 — validate the common cursor above, then translate its descriptor for each same-shaped table.
-                if lane_scan.table != first.scan.table && lane_scan.opaque_cursor
+                // @ref LLP 3000.007#20.3 — translate a validated shared position to each table/index with the same ordered suffix.
+                if (lane_scan.table != first.scan.table || lane_scan.index != first.scan.index) && lane_scan.opaque_cursor
                     && let Some(after) = lane_scan.after.as_deref()
                     && let Value::String(token) = self.expr(after)?
                 {
                     let mut position = crate::cursor::decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                    let table = &self.schema.tables[&lane_scan.table];
+                    let suffix = Self::merge_suffix(table, &table.indexes[&lane_scan.index], lane_scan.prefix.len());
+                    if position.suffix != suffix { return Err(RuntimeError::Schema("merge lanes need the same ordered cursor suffix".into())); }
                     position.table = lane_scan.table.clone();
+                    position.index = lane_scan.index.clone();
                     let token = crate::cursor::encode_cursor(self.schema, &position).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                     lane_scan.after = Some(Box::new(Expr::Literal(Value::String(token))));
                 }

@@ -49,12 +49,19 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
         };
         let distinct = value.clone();
         let mut lane_read = read.clone();
+        let nullable_in = matches!(predicate, Expr::Binary { op, .. } if op == "in")
+            && tables.get(&read.table)?.columns.get(&column).is_some_and(|ty| ty.optional);
         predicates.remove(position);
+        let nulls = nullable_in.then(|| {
+            let mut null_read = read.clone();
+            null_read.filter = intent::conjunction(predicates.clone());
+            (column.clone(), Box::new(null_read))
+        });
         predicates.push(Expr::Binary { op: "=".into(), left: Box::new(focal(&column, &read.site)), right: Box::new(value), site: read.site.clone() });
         lane_read.filter = intent::conjunction(predicates);
         let range = read.range.clone().unwrap_or(RangeSpec { order: Order::Asc, take: 8192, cursor: None, site: read.site.clone() });
         return Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
-            cursor: range.cursor, lanes: vec![MergeLane { distinct: Some(distinct), branch: None, table: None, planned: Some(Box::new(lane_read)), project: None, prefix: Vec::new(), columns: None,
+            cursor: range.cursor, lanes: vec![MergeLane { nulls, distinct: Some(distinct), branch: None, table: None, planned: Some(Box::new(lane_read)), project: None, prefix: Vec::new(), columns: None,
                 loop_: Some((name.into(), source)), site: read.site.clone() }], site: read.site.clone() });
     }
     None

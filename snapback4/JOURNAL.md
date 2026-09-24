@@ -48540,3 +48540,71 @@ No deviation from the final review brief. Did not change the Client contract,
 Quarry forms, authorization/disclosure, meters or ceilings; did not run a native
 Expo simulator or integrated Clique qualification, fix unrelated baseline/timing
 defects, push or publish. Chromium was available and the new witness ran here.
+
+## 2026-09-24 — LLP 3000.013 Lane A, first review corrections
+
+Fixed all six supplied Astra findings: preserve projected id aliases in source
+ordering and cursor seeks; assign wrapped projected pages to ViewPosition.after;
+charge projected scans' store allocations, fetched source payloads, materialization
+and retention before projection; retain ordered nullable equality as a residual;
+lower one-source non-query views through ordinary admitted scans plus shapes;
+and restore the audience-uniqueness test with named probes and a compiling
+positive control. Audited the 70 pre-existing test/fixture files changed by the
+lane for refusal assertions masked by positional resolution. Added seven language
+regressions and four device regressions (memory and SQLite, including reopen).
+
+Focused checks passed: 7 review regressions, 8 device view tests, 25 simulator
+review tests and 94 affected language tests. `scripts/test.sh` ended exactly
+`== 1 failure(s) in 198 s`; the only failure is the baseline legacy schema
+round-trip assertion in `schema_capabilities_legacy`, with no introduced or
+environmental failures. All 995 client tests passed (10 skipped). Full evidence
+and the baseline's script-step versus Rust-target count correction are in
+`reports/20260924-intent-lane-a-review-1.md`; full log:
+`/tmp/lane-a-review-full-suite.log`.
+
+The 20 MB id-only view now hits heap with no continuation: 18,010,681 B on the
+server, 20,009,121 B on a memory device and 18,010,683 B on SQLite. A one-row
+memory projection charges 3,004,795 B including fetched source lookahead.
+WASM is 1,736,220 B raw / 480,743 B gzip, +484 / +119 over the reviewed artifact;
+the 481,000 B budget is unchanged. These are whole-artifact deltas. Did not
+change authorization, raise a meter, import Lane D's streaming implementation,
+redesign query view cursors, fix baseline failures, push or publish. Integration
+must combine the projected-scan metering condition with Lane D's existing
+metered-payload conditions. Grok findings were not supplied in this turn.
+
+## 2026-09-24 — LLP 3000.013 Lane A, second review corrections
+
+Fixed the supplied Grok null-membership finding: nullable `in` now opens one
+ordinary filtered null lane under the source read rule, while deduplicated
+non-null values retain their pinned lanes. The compiler caches the value list
+once during discovery and reuses a null sentinel through existing metered IR;
+null never becomes an index pin. Removed the incorrect non-null guard from
+residual membership, including mutations. Shared cursors translate between
+compatible indexes so the filtered lane pages with the value-pinned lanes.
+The reads card now states this behavior. This latest review correction
+supersedes the earlier instruction to omit null matches.
+
+Strengthened the finite-window test with rows one millisecond past the upper
+endpoint and in the next bucket, and an ordinary-scan oracle retaining both
+endpoints: bounded results contain 7 rows; the unbounded control contains 9.
+The reviewer probe file was absent. Added four language regressions covering
+both page directions, words, projection, duplicate/empty/null-only lists,
+source authorization, step/examined cuts and evaluated store prefixes. Added
+Memory and SQLite device tests covering sync, reopen and missing coverage.
+
+All 87 focused language tests and 10 device view tests passed. The full
+`scripts/test.sh` result is exactly `== 1 failure(s) in 165 s`; the sole failure
+is the baseline legacy schema equality assertion in `schema_capabilities_legacy`.
+There are no introduced or environmental failures. All 995 client tests passed,
+10 skipped. Full log: `/tmp/lane-a-r2-full-suite.log`; file-by-file corrections,
+regression proofs and the baseline reproduction are recorded in
+`reports/20260924-intent-lane-a-review-2.md`. Reference checks and diff whitespace
+checks pass; changed source files remain below 1,500 lines.
+
+WASM measures 1,736,564 B raw / 480,855 B gzip, +344 / +112 over the first-review
+artifact. This is a whole-artifact delta, not component attribution. The
+481,000 B budget stays unchanged, with 145 B headroom. Did not add serialized
+IR fields, widen lazy-merge or mutation admission, relax authorization or
+coverage, raise a meter, fix baseline failures, import integration changes,
+push or publish. Ordinary filtered null scans may examine more rows; the
+existing meter bounds that work.
