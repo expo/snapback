@@ -401,6 +401,8 @@ impl Runner<'_> {
                     }
                     // A complete live snapshot omits unswept expired rows, so
                     // its physical count cannot establish room on the server.
+                    // A count at the last delivered watermark would also be
+                    // stale after a sweep whose sync has not arrived yet.
                     if self.device && table.expire.is_some() {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }

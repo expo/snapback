@@ -49389,3 +49389,44 @@ SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1. The complete Rust inventory passed in
 no baseline or environmental failure remains. Final wasm stayed at
 1,753,421 B raw / 487,644 B gzip. Log:
 ~/sb4-intent/lane-p-round1-suite-final.log. Implementation commit: 39864279e.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 2: stale cap evidence and PostgreSQL execution
+
+Retained round 1's prediction deferral, as the review permits. Sending physical
+occupancy with an ordered snapshot or sync page would describe that delivered
+cut. It cannot distinguish cap 1 with an unswept expired row from the same
+server after an undelivered sweep: the device has identical rows, counts and
+clock, while one server refuses and the other accepts. This is the concrete
+reason to defer occupancy-increasing writes rather than claim matching local
+predictions in both schedules. No occupancy wire fields, author-visible form,
+refusal code or new durability state were added. Same-group updates and deletes
+keep the existing prediction behavior. Immediate secondary collision removal
+remains deferred under the round 1 decision.
+
+Added paired server worlds for inserts, insert-if-absent and both upsert
+addresses, whole-table and group caps, and snapshots before/after expiry, on
+both memory and SQLite devices. The complete snapshot evidence and queued
+entries match before settlement. A swept server accepts while an unswept one
+refuses; both devices persist no predicted row across reopen, then settle the
+server answer. The withheld deletion publishes before the insertion page.
+The 9,000-send regression now asserts examined == 1 on every send for both zero
+and 3,000 unrelated expired rows; the isolated unique/cap cases assert 1 too.
+All 22 expiry tests passed in 4.66 s.
+
+PostgreSQL Tx::cap_count already selects the maintained count by table and
+encoded key; the review's constant-zero description predates this lane's
+implementation. Found PostgreSQL 16.15 tools in another lane's temporary tool
+directory and started a separate socket-only cluster, with its own data and
+port. Added and ran two real PostgreSQL adapter tests: nonzero/absent counts,
+key separation, moves, savepoint and transaction rollback, reopen, legacy
+backfill, zero-count deletion, and unswept-expiry group/table cap enforcement.
+Both passed in 0.05 s; cap-only mutations examine exactly zero row images.
+The evaluation adapter has no sweep host, so its tests use the physical Rows
+deletion path. This is execution against PostgreSQL, not a SQL-string-only test.
+
+The first PostgreSQL run had one test-fixture failure: naming the source caps.q
+qualified the operation as caps.add, while the test called add. Changed the
+fixture filename to schema.q; both tests pass. This was mine, not baseline or
+environmental. The reference audit passed (505 LLP docs, 9,236 refs, zero errors
+or unchecked refs). The required full harness is running; its exact result and
+final report will be appended after completion. No push or publication.

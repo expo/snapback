@@ -1,7 +1,7 @@
 use super::*;
 #[path = "../../../snapback4-device/tests/common/mod.rs"]
 mod common;
-use common::{Host, Memory, Sqlite};
+use common::{BoundaryMetadata, Host, Memory, Sqlite};
 
 use snapback4_device::device::Queued;
 
@@ -61,6 +61,79 @@ fn expiring_cap_writes_queue_and_settle_on_both_devices_with_warm_and_post_expir
     for cold in [false, true] {
         agree(&mut Sqlite::new("expiry"), cold);
         agree(&mut Memory::new(), cold);
+    }
+}
+
+// A count at the last delivered watermark would be identical in these two
+// worlds too. Until post-sweep sync arrives, it cannot decide current space.
+fn sweep_in_transit<H: Host>(host: &mut H, cold: bool) {
+    for cap in ["  cap 1", "  cap 1 by conversationId"] {
+        for op in ["add", "quiet", "put", "putId"] {
+            let source = constraints::source(cap);
+            let deadline = snapback4_core::now_ms() + if cold { -60_000 } else { 60_000 };
+            let now = deadline + 120_000;
+            let mut prior_snapshot = None;
+            let mut prior_entry = None;
+            for swept in [false, true] {
+                let (mut server, backend) = common::compile(&source);
+                let old = constraints::row(&server, "old", 1, 1, json!(deadline));
+                server.load([old]).unwrap();
+                let pages = common::snapshot_pages(&mut server, "alice", 100);
+                let snapshot = serde_json::to_value(&pages).unwrap();
+                if let Some(prior) = prior_snapshot.replace(snapshot.clone()) {
+                    assert_eq!(snapshot, prior, "identical delivered evidence before the sweep");
+                }
+                let name = format!("transit-{op}-{cold}-{swept}-{}", cap.len());
+                let mut device = host.open(&name, Some(backend)).unwrap();
+                for (i, page) in pages.iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+                let from = device.state().unwrap().0;
+                let delayed = if swept {
+                    assert_eq!(server.sweep_expired(now, 2_000).unwrap(), 1);
+                    let page = common::stream_page(&mut server, "alice", from);
+                    assert!(page.events.iter().any(|e| e.table == "messages" && e.id == "old" && e.kind == "del"));
+                    Some(page) // The deletion has not reached the device.
+                } else { None };
+                assert_eq!(server.store().count("messages").unwrap(), u64::from(!swept));
+                assert_eq!(device.store().raw_rows("messages").len(), usize::from(!cold));
+                assert_eq!(device.state().unwrap().0, from);
+                let args = json!({"messageId":"new", "ordinal":2, "at":20, "expiresAt":null});
+                let entry = device.admit(queued(op, "send", args, now)).unwrap();
+                assert!(!entry.predictable && entry.predicted.is_empty(), "{} cold={cold} swept={swept}: {entry:?}", host.label());
+                if let Some(prior) = prior_entry.replace(entry.clone()) {
+                    assert_eq!(entry, prior, "the entire queued result is independent of an undelivered sweep");
+                }
+                let read_args = json!({"conversationId":"chat", "ordinal":2});
+                assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data, Value::Null);
+                host.close(&name, device);
+                device = host.open(&name, None).unwrap();
+                assert_eq!(device.queued().unwrap(), vec![entry]);
+                let out = server.mutate(op, Some("send"), Context::new("alice", constraints::args("new", 2, 20)).at(now).with_ids(["new".into()])).unwrap();
+                if swept {
+                    let WriteState::Sent { seq, .. } = out.state else { panic!("{out:?}") };
+                    device.settle("send", Some(seq)).unwrap();
+                    // The older sweep page publishes before the insertion page.
+                    device.apply(delayed.as_ref().unwrap(), false).unwrap();
+                    assert!(device.store().raw_rows("messages").is_empty());
+                    assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data, Value::Null);
+                    let from = device.state().unwrap().0;
+                    device.apply(&common::stream_page(&mut server, "alice", from), false).unwrap();
+                    assert_eq!(device.query("message", "alice", &read_args, now).unwrap().data.field("at"), Ok(&Value::Int(20)));
+                } else {
+                    assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{out:?}");
+                    device.settle("send", None).unwrap();
+                }
+                assert!(device.queued().unwrap().is_empty());
+                host.close(&name, device);
+            }
+        }
+    }
+}
+
+#[test]
+fn an_undelivered_sweep_cannot_make_either_device_accept_or_refuse_an_expiring_cap_write() {
+    for cold in [false, true] {
+        sweep_in_transit(&mut Sqlite::new("expiry-transit"), cold);
+        sweep_in_transit(&mut Memory::new(), cold);
     }
 }
 
