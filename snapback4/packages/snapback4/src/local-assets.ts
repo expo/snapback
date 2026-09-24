@@ -1,18 +1,7 @@
 // @ref LLP 3000.007#8 — ordinary viewed media belongs to its current home row
-import type { Asset, AssetRead, Refusal, Uploaded } from "./contract.ts";
+import type { AssetRead } from "./contract.ts";
 import type { DeviceCore } from "./local.ts";
 import { blobArrayBuffer } from "./assets.ts";
-
-/** A receipt rejected after persistence cannot remain an input to prediction. */
-export async function keepUpload(core: DeviceCore, viewer: string, asset: Asset, interrupted: () => Refusal | null): Promise<Uploaded> {
-  const stored = await core.call({ op: "upload_facts", viewer, asset }) as { denied?: Refusal };
-  if (stored.denied) return { ok: false, why: stored.denied };
-  const why = interrupted();
-  if (!why) return { ok: true, asset };
-  const removed = await core.call({ op: "forget_upload_facts", viewer, id: asset.id });
-  if (removed.denied) throw new Error(JSON.stringify(removed.denied));
-  return { ok: false, why };
-}
 
 /** A host's private byte storage. Hex crosses the native JSON bridge; native
  * hosts may also serve a file URI. The client has no dependency on Expo. */

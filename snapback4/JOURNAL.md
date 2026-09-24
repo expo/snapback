@@ -49563,3 +49563,69 @@ tests passed. The two expiry fixtures rendered online/local at +3/+1 ms and
 findings are closed; no new open problem remains from this round. Work is
 committed on sb4-intent/o-dx for supervisor review, without pushing or
 publishing.
+
+## 2026-09-24 — LLP 3000.013 Lane O, review round 3
+
+assets.ts snapshots mutable upload inputs into an owned Uint8Array and sends
+that view directly. The installed React Native BlobManager rejects buffer
+parts, while convertRequestBody accepts buffer views; wrapping the snapshot
+in a Blob was the regression. ArrayBuffer.isView recognizes foreign views,
+and the ArrayBuffer tag recognizes foreign buffers. Only the selected view
+range is copied, once before the first request. Existing Blob inputs still
+pass through without transferring their ownership. CLIENT-AND-OPERATIONS.md
+documents cross-window input and the direct web/native buffer path.
+
+local.ts now persists, checks the current upload session, deletes a rejected
+receipt, and settles the upload within the upload method. Success has no
+additional await after the final session check. A separately tracked stage
+keeps the core open until receipt persistence and any deletion finish; its
+finally releases that stage even if a device operation throws. The old
+keepUpload helper was removed from local-assets.ts because its promise
+introduced the settlement gap. To keep local.ts under the source ceiling
+(1,497 lines), requireSyncProtocol moved unchanged into local-sync.ts.
+This relocation is an engineering decision, not a protocol change.
+
+Regression evidence:
+
+- upload-retry.test.mjs now has 27 tests. The mutable-input test covers all
+  twelve combinations of ArrayBuffer / Uint8Array / subarray, current / vm
+  realm, and web / React Native Blob semantics. Both request bodies remain
+  [1, 2, 3] after mutating the original storage, including a subarray whose
+  excluded bytes differ. The native stub rejects buffer Blob parts and the
+  transport asserts that it receives a current-realm Uint8Array.
+- upload-lifetime.test.mjs now has 44 tests. Four new cases fail refresh by
+  transport or admission on both clients, preserve the old bearer, then
+  deliver E_AUTH and require a null session. Changing refusedSession back to
+  request.revision fails both web cases.
+- The lifetime regression closes at nine successive microtask positions
+  after receipt persistence. V8 promise settlement hooks distinguish close
+  before upload settlement from a consumer's later callback. The former
+  must refuse and delete the receipt; the latter may retain its success.
+  Round 2 returned success after close at offset 2. A separate held-deletion
+  case proves close waits for cleanup rather than relying on an unrelated
+  change-feed backoff to keep the device alive. Removing stage tracking
+  fails that assertion.
+
+Against round 2, the new tests reproduced ten failures: nine buffer cases
+and the settlement gap. After the fixes, 86 focused upload, Blob lifecycle
+and Expo witness-helper tests passed; the additional held-deletion test and
+the interleaving test then passed together. All temporary mutation changes
+were restored, and package build/typecheck passed before the full suite.
+The native Blob behavior is tested here with the installed implementation's
+semantics. An actual iOS simulator witness was not run on this Linux host;
+the existing Expo witness helpers are covered, with Expo typechecking in
+the full suite. No new Quarry form, refusal code, server change, meter
+change or budget increase is needed. There is no design deviation, package
+version change, push or publication in this round. The baseline-test.log
+tail was read before attributing any full-suite failure.
+
+The first and only scripts/test.sh run this round passed every step:
+`== 0 failure(s) in 146 s` (/tmp/lane-o-r3-suite.log). All 1,161 client tests
+passed across the shards, with the existing ten skips; all nine CLI fixture
+tests passed. Expo typechecking and witness-helper tests passed. The Wasm
+artifact is unchanged at 1,745,360 B raw / 485,141 B gzip, below the unchanged
+486,000 B ceiling. There were no full-suite failures to classify as ours,
+baseline or environmental. git diff --check passes; the moved protocol
+probe was also compared byte-for-byte with its previous body. No round-3
+finding remains open. The work is committed on sb4-intent/o-dx for review,
+without pushing or publishing.

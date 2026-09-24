@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { promiseHooks } from "node:v8";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { memorySessionStore } from "../dist/auth.js";
@@ -13,7 +14,7 @@ const rateLimit = { code: "E_RATE_LIMIT", family: "auth", message: "all upload s
 const session = token => ({ token, principal: "user:alice", kind: "user", expiresAt: Date.now() + 7 * 86_400_000 });
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 
-async function fixture(t, tier, respond, refresh = async () => {}, store = async () => {}) {
+async function fixture(t, tier, respond, refresh = async () => {}, store = async () => {}, forget = async () => {}) {
   const requests = [], facts = [];
   const persist = memoryPersistence();
   const device = webDevice({ wasm, persist });
@@ -38,6 +39,7 @@ async function fixture(t, tier, respond, refresh = async () => {}, store = async
       storeName = args[0];
       const core = await device.open(...args);
       return { ...core, call: async request => {
+        if (request.op === "forget_upload_facts") await forget();
         const result = await core.call(request);
         if (request.op === "upload_facts") { facts.push(request.asset); await store(); }
         return result;
@@ -157,6 +159,89 @@ const failedRefreshes = {
   transport: async () => { throw new TypeError("refresh unavailable"); },
   admission: async () => Response.json({ denied: rateLimit }, { status: 429 }),
 };
+for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.entries(failedRefreshes)) {
+  test(`${tier} upload E_AUTH ends the session after a completed ${failure} refresh failure`, { timeout: 10_000 }, async t => {
+    const entered = deferred(), response = deferred();
+    const denied = { code: "E_AUTH", family: "auth", message: "this bearer was revoked" };
+    const { client, requests, facts } = await fixture(t, tier, async () => {
+      entered.resolve(); await response.promise;
+      return Response.json({ denied }, { status: 401 });
+    }, refresh);
+    const uploading = client.upload(bytes);
+    await entered.promise;
+    assert.equal((await client.refreshSession()).ok, false);
+    assert.equal(client.session().token, "old");
+    response.resolve();
+    const result = await uploading;
+    assert.equal(result.ok, false);
+    assert.equal(result.why.code, "E_AUTH");
+    assert.equal(client.session(), null, "the unchanged bearer is still subject to a later authorization refusal");
+    assert.deepEqual(requests, ["Bearer old"]);
+    assert.deepEqual(facts, []);
+  });
+}
+
+test("web close waits until interrupted upload receipt deletion finishes", { timeout: 10_000 }, async t => {
+  const entered = deferred(), stored = deferred(), forgetting = deferred(), removed = deferred();
+  const { client, receipt } = await fixture(t, "web", async () => Response.json({ asset }), undefined,
+    async () => { entered.resolve(); await stored.promise; },
+    async () => { forgetting.resolve(); await removed.promise; });
+  const uploading = client.upload(bytes);
+  await entered.promise;
+  const closing = client.close();
+  stored.resolve();
+  await forgetting.promise;
+  assert.deepEqual(JSON.parse(await receipt()), asset, "deletion is held before the device call");
+  // Let the existing one-second change-feed backoff finish too: it must not
+  // accidentally keep the core alive for an untracked upload cleanup.
+  let timer;
+  const closedEarly = await Promise.race([closing.then(() => true),
+    new Promise(resolve => { timer = setTimeout(() => resolve(false), 1250); })]);
+  clearTimeout(timer);
+  removed.resolve();
+  const results = await Promise.allSettled([uploading, closing]);
+  assert.equal(closedEarly, false, "close must wait for receipt deletion");
+  assert.deepEqual(results[0], { status: "fulfilled", value: { ok: false,
+    why: { code: "E_CLOSED", family: "client", message: "this client is closed" } } });
+  assert.equal(results[1].status, "fulfilled");
+  assert.equal(await receipt(), null);
+});
+
+test("web upload fences close in every microtask between receipt persistence and upload settlement", { timeout: 10_000 }, async t => {
+  let fenced = 0, completed = 0;
+  for (let offset = 0; offset <= 8; offset++) {
+    let uploading, closing, settled = false, closedBeforeSettlement;
+    const closed = deferred();
+    // Observe actual promise settlement, not a consumer's later .then callback:
+    // closing after settlement is allowed, but closing before it must refuse.
+    const stop = promiseHooks.onSettled(promise => { if (promise === uploading) settled = true; });
+    try {
+      const { client, receipt } = await fixture(t, "web", async () => Response.json({ asset }), undefined, async () => {
+        const closeAfter = remaining => {
+          if (remaining) queueMicrotask(() => closeAfter(remaining - 1));
+          else { closedBeforeSettlement = !settled; closing = client.close(); closed.resolve(); }
+        };
+        queueMicrotask(() => closeAfter(offset));
+      });
+      uploading = client.upload(bytes);
+      const result = await uploading;
+      await closed.promise;
+      await closing;
+      if (closedBeforeSettlement) {
+        fenced++;
+        assert.equal(result.ok, false, `close at microtask ${offset} preceded upload settlement`);
+        assert.equal(result.why.code, "E_CLOSED");
+        assert.equal(await receipt(), null, `microtask ${offset} must not leave a prediction receipt`);
+      } else {
+        completed++;
+        assert.deepEqual(result, { ok: true, asset });
+        assert.deepEqual(JSON.parse(await receipt()), asset);
+      }
+    } finally { stop(); }
+  }
+  assert.ok(fenced > 0 && completed > 0, "the interleavings must cross the upload settlement boundary");
+});
+
 for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.entries(failedRefreshes)) {
   for (const reply of ["success", "admission refusal"]) {
     test(`${tier} upload preserves ${reply} after a completed ${failure} refresh failure`, { timeout: 10_000 }, async t => {
