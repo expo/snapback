@@ -138,10 +138,10 @@ table likes:
   public 'likes are public'
   insert <- .principal = viewer
   online only
-view receivedLikes: count likes by .postId.authorId -- one immutable hop to a public target; attribution is recorded by .the engine
+view receivedLikes: count likes by .postId.authorId -- one immutable hop to a public target; attribution is recorded by the engine
   online only
 
-view messageCounts: count messages by .roomId       -- an aggregate the engine keeps: read it by .group and get the number, 0 when the group has no row
+view messageCounts: count messages by .roomId       -- an aggregate the engine keeps: read it by group and get the number, 0 when the group has no row
                                                      -- read derives the source's membership rule because roomId is a bare group key
 view scoreTotals: sum posts of .score by .authorId  -- count, or sum of an int, decimal or money column
   online only                         -- mutations reading this view never predict
@@ -627,8 +627,8 @@ query timelineHome(c: cursor ?):
 ## Older spellings that still compile
 
 Existing explicit indexes, merges, fixed chunks, aggregates and timelines keep
- their meaning. New code uses predicates, views and `for` sweeps. Following's
-new view declaration is being integrated; `guide feeds` owns its complete example.
+their meaning. New code uses predicates, views and `for` sweeps. Following's
+view declaration is shown above; `guide feeds` owns its complete example.
 
 ```quarry
 table oldEvents:

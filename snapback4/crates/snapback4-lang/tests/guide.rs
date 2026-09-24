@@ -484,7 +484,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 3, "one running core, server extension and compatibility block");
+    assert_eq!(quarry(LANGUAGE).len(), 4, "one running core, server extension, Following view and compatibility block");
 }
 
 #[test]

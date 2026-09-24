@@ -96,7 +96,7 @@ query home(c: cursor ?):
 query global(c: cursor ?):
   return activity last 20 by .at after c activityCard
 query trending():
-  return posts where .parentId = null and not .removed and .at > now - 24h last 10 by .likeCount, .at postCard
+  return posts where .parentId = null and not .removed and .at > now - 24h and .at <= now last 10 by .likeCount, .at postCard
 query userPosts(owner: principal, c: cursor ?):
   return posts where .authorId = owner and .parentId = null last 20 by .at after c postCard
 query thread(postId: posts, c: cursor ?):

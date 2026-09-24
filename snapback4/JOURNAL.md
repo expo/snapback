@@ -48710,3 +48710,59 @@ claim a calibration score, push or publish.
 Final full suite: **`== 0 failure(s) in 351 s`**, exit 0. Reference audit:
 504 LLP documents, 9,226 references, zero errors or unchecked references.
 No final failures remain.
+
+## 2026-09-24 — LLP 3000.013 integration round 1: complete Following target
+
+Merged final D `eadb198d5`, E `d778b9266`, current A `dd0552d79`, final C
+`4e2e890e1` and F `827c0d752` with no-ff merges, building the workspace after
+each. G `542df62f4` was already included; its requested merge was a no-op and
+its build passed. A's subsequent delta is reserved for the next round.
+Read-path conflicts retain A's full projected-source payload charges, D's
+coverage and retained-domain allowance handoff, and C's prepaid timeline scans.
+F's guide prose and examples survive alongside C's compiled Following block;
+the final compatibility block and every lane's journal entries are preserved.
+
+The complete target now runs Following with its planned activity union, all
+nine derived views, maintained columns, Global, bounded Trending, search,
+history, insights and digest. Its only difference from the supplied target is
+the previously commissioned `.at <= now` endpoint. CLI check reports 21 tables,
+13 operations, zero diagnostics and five unsuppressed advisory notes. Following
+is correctly classified as growing work on one inbox scan. The target test
+checks shaped repost actor versus original author; the full lifecycle covers
+65 events, paging, replies, delivery, removal, unfollow/refollow and unrepost.
+Digest restart and permanent emission keys still pass: two chunks, K=64, zero
+retries, 310,936 B peak heap on 67 profiles and 5,000 period rows.
+
+Fixed the two stray prose dots in language comments. The README reference map
+now names Following as a view, Global as a planned view and Trending as a
+predicate read. Its whole-model section includes a standalone compiled union,
+Following and two-bound Trending example. Reflowed prose retains the onboarding
+wording and executable blocks at 292/300 lines. No guide example required a
+runtime workaround or new note exception. The census adds only four occurrences
+for the preserved compatibility block: 271 mutations, the same 49 private write
+sites, no removed authority record or assertion.
+
+WASM on Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt measures
+1,744,850 B raw / 485,005 B gzip, +893 raw / +365 gzip versus the preceding
+integration. This is the combined projected-source payload metering, scalar
+coverage, retained-domain handoff and Following runtime delta, not per-feature
+attribution. It exceeds the inherited 485,000 B ratchet by five bytes; raise
+the artifact budget to 486,000 B, leaving 995 B. Runtime ceilings are unchanged.
+The measured reason, ratchet and journal land in the same commit.
+
+Qualification: 75 focused language/guide and nine simulator tests pass. The
+initial focused census mismatch was an integration expectation and was reviewed
+before its four-entry refresh. Required full suite: **`== 0 failure(s) in 279 s`**.
+All stages pass, including all four former baseline failures, 81 authorization
+tests, 68 CLI check tests and 1,088 client tests (10 skips). Both historically
+intermittent acquisition and release-restore cases pass alone, 1/1 each, without
+modifying timing or assertions. Reference and whitespace checks pass; no changed
+source exceeds 1,500 lines. Logs: `~/sb4-intent/integration-r1-*.log`.
+
+Did not merge A's later delta, redesign delivery, weaken authorization,
+disclosure, durability or runtime meters, add adaptive retry to wide-payload
+Following tasks, run new browser/native-device witnesses, deliver via a real
+provider, push or publish. Existing compiler handoffs and metered task-parking
+limits remain documented. The complete file inventory, conflicts, forms,
+measurements and reproductions are in
+[the round 1 report](./reports/20260924-intent-integration-r1.md).

@@ -140,6 +140,10 @@ card/language/3:timelineFollow | never
 card/language/3:timelinePublish | eligible
 card/language/3:timelineRegister | eligible
 card/language/3:timelineRemove | eligible
+card/language/4:timelineFollow | never
+card/language/4:timelinePublish | eligible
+card/language/4:timelineRegister | eligible
+card/language/4:timelineRemove | eligible
 card/maintains/3:deletePost | never
 card/maintains/3:deleteReply | never
 card/maintains/3:likePost | never

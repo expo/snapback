@@ -1,8 +1,7 @@
 # snapback4
 
-A scale-to-zero backend: Quarry declares your data and rules; typed clients
-read online or on a device, using the same Rust interpreter as the server.
-The package carries the TypeScript client and the CLI (currently darwin-arm64).
+A scale-to-zero backend: Quarry declares your data and rules; typed clients read online or on a device, using the same
+Rust interpreter as the server. The package carries the TypeScript client and the CLI (currently darwin-arm64).
 
 ## Start here: your first working account screen
 
@@ -18,26 +17,21 @@ npx snapback4 init --expo
 npm install
 ```
 
-Use `init --web` for the offline Vite starter, `init` for a schema, or `init --online` for an online-only app.
-The example below uses the Expo starter's installed React Native and SecureStore.
-Replace `snapback/schema.q`, `src/client.ts` and `App.tsx` with the blocks below,
-and remove the unused `src/Inbox.tsx`, `src/Thread.tsx` and
-`src/witness.ts` chat screens. Remove the chat's optional `snapback/worker.mts`.
-Then run `npx snapback4 check` to generate the API; keep `npx snapback4 dev`
-running in one terminal and `npm start` in another (Expo Go), or use
-`npm run ios:dev` for a native development build. Do not set a persona for this
-password example. The iOS simulator reaches `http://127.0.0.1:4400`; set
-`EXPO_PUBLIC_SNAPBACK_URL` to your TLS deployment for a physical phone.
+Use `init --web` for the offline Vite starter, `init` for a schema, or `init --online` for an online-only app. The
+example below uses the Expo starter's installed React Native and SecureStore. Replace `snapback/schema.q`,
+`src/client.ts` and `App.tsx` with the blocks below, and remove the unused `src/Inbox.tsx`, `src/Thread.tsx` and
+`src/witness.ts` chat screens. Remove the chat's optional `snapback/worker.mts`. Then run `npx snapback4 check` to
+generate the API; keep `npx snapback4 dev` running in one terminal and `npm start` in another (Expo Go), or use `npm run
+ios:dev` for a native development build. Do not set a persona for this password example. The iOS simulator reaches
+`http://127.0.0.1:4400`; set `EXPO_PUBLIC_SNAPBACK_URL` to your TLS deployment for a physical phone.
 
 ### 2. Declare identity and a profile
 
-An email-and-password product declares `use identity password`; plain
-`use identity` also mints guest sessions. Password signup requires at least
-8 characters (Unicode scalar values) and at most 1,024 UTF-8 bytes; login
-accepts at most 1,024 UTF-8 bytes. Sessions normally last seven days.
-Handles are discoverable; profiles and avatars are private to their owner.
-`profileFor` explicitly refuses another owner; table rules otherwise hide
-unreadable rows as missing. Handle claims are server-authoritative.
+An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions. Password
+signup requires at least 8 characters (Unicode scalar values) and at most 1,024 UTF-8 bytes; login accepts at most 1,024
+UTF-8 bytes. Sessions normally last seven days. Handles are discoverable; profiles and avatars are private to their
+owner. `profileFor` explicitly refuses another owner; table rules otherwise hide unreadable rows as missing. Handle
+claims are server-authoritative.
 
 ```quarry
 use identity password
@@ -78,17 +72,15 @@ mutation placeAvatar(avatar: image <=10000000):
   update profiles[principal = viewer] { avatar }
 ```
 
-A post-signup availability check uses the new session. The unique handle index
-still decides races: keep the session after a failed save and choose another
-handle. An incomplete or stale availability answer is not permission to claim it.
+A post-signup availability check uses the new session. The unique handle index still decides races: keep the session
+after a failed save and choose another handle. An incomplete or stale availability answer is not permission to claim it.
 Availability and handle saves use the server; your private profile is held locally.
 
 ### 3. Create the app
 
-Replace `src/client.ts`. The app restores the session, opens the right client,
-and owns pending writes across restarts. Native sessions use SecureStore;
-browser persistence is explicit because page scripts can read localStorage.
-Expo Go uses the online client. Keep the starter's Metro config and wasm transformer.
+Replace `src/client.ts`. The app restores the session, opens the right client, and owns pending writes across restarts.
+Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Expo Go
+uses the online client. Keep the starter's Metro config and wasm transformer.
 
 ```ts
 // src/client.ts
@@ -112,9 +104,8 @@ export const app = createApp({
 
 ### 4. Sign in, save and render
 
-Replace `App.tsx`. A refused sign-in returns `{ ok: false, why }`. A missing
-profile resumes onboarding; a denied read remains an error. Enter an image URI
-accessible to the host (on web its server must allow CORS), or pass a photo
+Replace `App.tsx`. A refused sign-in returns `{ ok: false, why }`. A missing profile resumes onboarding; a denied read
+remains an error. Enter an image URI accessible to the host (on web its server must allow CORS), or pass a photo
 picker's Blob to `upload`. Uploads require a connection; placement is a mutation.
 
 ```tsx
@@ -168,33 +159,29 @@ function Profile() {
 }
 ```
 
-The unique handle constraint decides races. A failed save keeps the session so
-you can choose another handle. Existing hooks work under `AppProvider`; online
-mutations persist their IDs and arguments before dispatch, and local devices
-own their durable outbox. Pending writes stay with their original account.
-A terminal `sent` receipt confirms execution; `failed` carries the refusal.
+The unique handle constraint decides races. A failed save keeps the session so you can choose another handle. Existing
+hooks work under `AppProvider`; online mutations persist their IDs and arguments before dispatch, and local devices own
+their durable outbox. Pending writes stay with their original account. A terminal `sent` receipt confirms execution;
+`failed` carries the refusal.
 
 ### 5. Export an offline shell, then verify
 
-`npm run build:web` in the Expo starter runs `expo export -p web` followed by
-`snapback4 web-shell dist`. The Vite starter's `npm run build` ends with the same
-command. For an existing export, run `npx snapback4 web-shell dist --base /` and
-serve that directory over HTTPS (localhost also works). Every exported file is
-public shell content; keep exports nonpersonalized. The worker never caches
-API responses or assets from the backend. A replacement waits for old tabs to close.
+`npm run build:web` in the Expo starter runs `expo export -p web` followed by `snapback4 web-shell dist`. The Vite
+starter's `npm run build` ends with the same command. For an existing export, run `npx snapback4 web-shell dist --base
+/` and serve that directory over HTTPS (localhost also works). Every exported file is public shell content; keep exports
+nonpersonalized. The worker never caches API responses or assets from the backend. A replacement waits for old tabs to
+close.
 
-Sign up, save a profile and avatar, reload, then open the acquired profile with
-the network off for a cold-offline start. Reconnect to settle pending writes. Browser eviction can remove
-offline availability; `client.acquired` states whether the replica is ready.
-Defer feeds, search, schedules and server handlers until those features are needed.
+Sign up, save a profile and avatar, reload, then open the acquired profile with the network off for a cold-offline
+start. Reconnect to settle pending writes. Browser eviction can remove offline availability; `client.acquired` states
+whether the replica is ready. Defer feeds, search, schedules and server handlers until those features are needed.
 
 ## The whole model
 
-Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`;
-never commit it. A table holds data. Rules authorize each row. Sync chooses
-what devices hold. A query states a predicate and order. A view derives data.
-A mutation commits atomically. A job sweeps; an effect records external work.
-An asset belongs to its row and follows that row's read rule.
+Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`; never commit it. A table holds data. Rules
+authorize each row. Sync chooses what devices hold. A query states a predicate and order. A view derives data. A
+mutation commits atomically. A job sweeps; an effect records external work. An asset belongs to its row and follows that
+row's read rule.
 
 ```quarry
 table notes:
@@ -219,12 +206,10 @@ job remind(periodStart: time, periodEnd: time):
 schedule dailyReminder every 1d: remind
 ```
 
-The page and acquisition sizes describe this screen. Indexes and job chunk
-sizes are chosen by the engine. Streaming `count(notes where .owner = viewer)`
-counts a domain under the meter; `noteCount[viewer]` reads the maintained total.
-A cut total is unavailable. Each job iteration runs as the system: select the
-recipient's authorized data before emitting. `once` prevents repeated emission;
-the worker still deduplicates provider delivery.
+The page and acquisition sizes describe this screen. Indexes and job chunk sizes are chosen by the engine. Streaming
+`count(notes where .owner = viewer)` counts a domain under the meter; `noteCount[viewer]` reads the maintained total. A
+cut total is unavailable. Each job iteration runs as the system: select the recipient's authorized data before emitting.
+`once` prevents repeated emission; the worker still deduplicates provider delivery.
 
 Under the `AppProvider` above, use the generated handles:
 
@@ -234,20 +219,59 @@ const add = useMutation(api.addNote);
 const asset = useAsset(photoId);
 ```
 
-Import these hooks from `snapback4/react`. `usePage` supplies accumulated items,
-`hasMore`, `loadMore` and read completeness; `useQuery` observes one answer. `useMutation`
-tracks pending, sent and failed writes; `useAsset` resolves a placed asset.
-Upload bytes with `client.upload` before passing the asset id to `addNote`.
-Operations in `schema.q` are `api.name`; module files use `api.module.name`.
-Effects run in the optional Node ESM `snapback/worker.mts`.
+Import these hooks from `snapback4/react`. `usePage` supplies accumulated items, `hasMore`, `loadMore` and read
+completeness; `useQuery` observes one answer. `useMutation` tracks pending, sent and failed writes; `useAsset` resolves
+a placed asset. Upload bytes with `client.upload` before passing the asset id to `addNote`. Operations in `schema.q` are
+`api.name`; module files use `api.module.name`. Effects run in the optional Node ESM `snapback/worker.mts`.
+
+Public feeds share an activity union. Following delivers it to each reader; Trending ranks a finite time window.
+
+```quarry
+table posts:
+  author: principal
+  at: time
+  score: int default 0
+  immutable author, at
+  public
+  insert <- .author = viewer
+  sync public
+table reposts:
+  actor: principal
+  post: posts
+  at: time
+  unique actor, post
+  immutable actor, post, at
+  public
+  insert <- .actor = viewer
+  delete <- .actor = viewer
+  sync public
+table follows:
+  follower: principal
+  followed: principal
+  unique follower, followed
+  immutable follower, followed
+  public
+  insert <- .follower = viewer
+  delete <- .follower = viewer
+  sync public
+view activity:
+  posts { post: .id, actor: .author, at, repost: false }
+  reposts { post, actor, at, repost: true }
+view following: activity where .actor = viewer or exists follows[viewer, .actor]
+query global(c: cursor ?):
+  return activity last 20 by .at after c
+query home(c: cursor ?):
+  return following last 20 by .at after c
+query trending(c: cursor ?):
+  return posts where .at > now - 1d and .at <= now last 10 by .score, .at after c
+```
 
 ## Reference map: open only what the feature needs
 
-`snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal.
-Bare `guide` prints a two-line index of cards and aliases; `guide language`
-prints the language card. Every refusal names a code, site and rewrite.
-Every Quarry example here and on the cards compiles in the suite; the language
-card's single program also runs. The chat example is optional.
+`snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` prints a two-line index of
+cards and aliases; `guide language` prints the language card. Every refusal names a code, site and rewrite. Every Quarry
+example here and on the cards compiles in the suite; the language card's single program also runs. The chat example is
+optional.
 
 | Need | One reference lookup |
 |---|---|
@@ -256,7 +280,7 @@ card's single program also runs. The chat example is optional.
 | Fields / indexes / rules / aggregates | `guide types` / `guide indexes` / `guide rules` / `guide maintains` |
 | Reads / shapes / writes / helpers | `guide reads` / `guide shapes` / `guide writes` / `guide programs` |
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |
-| Following: `maintain feed: timeline` / Trending / search | `guide feeds` / `guide search` |
+| Following: `view following` / Global: planned view / Trending: predicate read / search | `guide feeds` / `guide search` |
 | Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |
 | Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
 | Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |

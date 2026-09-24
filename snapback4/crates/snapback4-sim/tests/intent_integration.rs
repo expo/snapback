@@ -51,6 +51,9 @@ fn target_queries_and_nine_derived_views_run_together() {
     mutate(&mut engine, "fixtureRepost", "bob", &[("id", text("post")), ("postId", text("post"))], 104);
     let following = engine.query("home", Context::new("bob", args(&[("c", Value::Null)])).at(105)).unwrap();
     assert_eq!(following.data.as_array().unwrap().len(), 2);
+    let repost_card = &following.data.as_array().unwrap()[0];
+    assert_eq!(repost_card.field("actor").unwrap().field("principal").unwrap(), &text("bob"));
+    assert_eq!(repost_card.field("post").unwrap().field("author").unwrap().field("principal").unwrap(), &text("alice"));
     assert_ne!(following.data.as_array().unwrap()[0].field("id").unwrap(), following.data.as_array().unwrap()[1].field("id").unwrap());
     let global = page(&mut engine, "global", &[("c", Value::Null)]);
     assert_eq!(global.len(), 2);
