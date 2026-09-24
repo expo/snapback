@@ -155,7 +155,7 @@ impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0)
 fn parsed(output: &Output) -> Value { serde_json::from_slice(&output.stdout).unwrap_or_else(|_| panic!("{output:?}")) }
 
 #[test]
-fn w10a_repeated_notes_explain_once_under_the_first_occurrence() {
+fn notes_stay_short_and_verbose_explains_each_code_once() {
     let p = Project::new();
     for count in [1, 2, 20] {
         let source = format!("table messages:\n  body: text <=100\n  read <- allow\n{}", (0..count).map(|i| format!("query page{i}():\n  return messages first 10 by byId\n")).collect::<String>());
@@ -164,16 +164,17 @@ fn w10a_repeated_notes_explain_once_under_the_first_occurrence() {
         assert!(bound.diagnostics.is_empty());
         assert_eq!(bound.notes.len(), count);
         let explanation = bound.notes[0].explanation().unwrap();
-        for _ in 0..2 {
-            let output = p.run(&["check"]);
+        for verbose in [false, true] {
+            let output = p.run(if verbose { &["check", "--verbose"] } else { &["check"] });
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             assert_eq!(text.matches("note: ").count(), count);
             assert_eq!(text.matches("  guide: reads").count(), count);
-            let excerpts = usize::from(count >= 2);
+            assert_eq!(text.matches("  why: snapback4 why N_NO_CURSOR").count(), count);
+            let excerpts = usize::from(verbose);
             assert_eq!(text.matches("Full card: snapback4 guide reads").count(), excerpts, "{text}");
-            if count >= 2 {
-                assert!(text.contains(&format!("note: {}\n\n{explanation}\n\nnote: {}", bound.notes[0], bound.notes[1])), "{text}");
+            if verbose {
+                assert!(text.contains(&format!("  why: snapback4 why N_NO_CURSOR\n\n{explanation}\n")), "{text}");
                 assert!(explanation.contains("Read.cut") && explanation.contains("Read.meter"), "the unvisited reads card must reach the builder: {explanation}");
                 assert!(explanation.len() + 1 <= 4096);
             }
@@ -777,12 +778,18 @@ fn b2_maintain_note_points_to_the_measured_cold_snapshot() {
     let table = &e.schema().tables["likes"];
     e.seed([( "l1", "p1"), ("l2", "p1"), ("l3", "p2")].map(|(id, post)| ("likes".into(), wire::row_from_json(table, &json!({"id":id,"postId":post,"owner":"alice"})).unwrap()))).unwrap();
     assert_eq!(e.store().count("likeCounts").unwrap(), 2);
+    let compact = p.run(&["check"]);
+    assert!(compact.status.success());
+    let compact = String::from_utf8(compact.stdout).unwrap();
+    assert!(compact.contains("N_MAINTAIN_SYNCED: 2 synced maintains."), "{compact}");
+    assert!(!compact.contains("maintain likeCounts:"), "{compact}");
     let output = p.run(&["check", "--residency", "--verbose"]);
     assert!(output.status.success(), "{output:?}");
     let text = String::from_utf8(output.stdout).unwrap();
     println!("{text}");
     assert!(!text.contains("current store measurement:") && !text.contains("before adoption"), "{text}");
-    assert_eq!(text.matches("N_MAINTAIN_SYNCED:").count(), 1);
+    assert_eq!(text.matches(" — N_MAINTAIN_SYNCED:").count(), 1);
+    assert_eq!(text.matches("Full card: snapback4 guide residency").count(), 1);
     assert!(text.contains("maintain likeCounts:") && text.contains("maintain ownerCounts:"));
     assert!(text.contains("measure cold rows with `snapback4 test --residency`"));
     assert!(text.contains("createPost, like, repost would stop predicting"));

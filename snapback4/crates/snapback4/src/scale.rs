@@ -10,6 +10,8 @@ mod display;
 mod writes;
 #[path = "scale/dependencies.rs"]
 mod dependencies;
+#[path = "scale/windows.rs"]
+mod windows;
 pub(crate) use display::summary;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -274,12 +276,12 @@ impl Analysis<'_> {
                         // then project every authorized candidate before sorting.
                         let mut scan = lane.scan.clone();
                         scan.take = Bound::Literal(position.take.saturating_add(1));
-                        self.scan(&scan, times.saturating_mul(count), false);
+                        self.scan_with_window(&scan, times.saturating_mul(count), false, windows::reason(self.schema, lane));
                         if let Some(project) = &lane.project {
                             self.expr(project, times.saturating_mul(count).saturating_mul(u64::from(position.take) + 1));
                         }
                     } else {
-                        self.scan(&lane.scan, times.saturating_mul(count), true);
+                        self.scan_with_window(&lane.scan, times.saturating_mul(count), true, windows::reason(self.schema, lane));
                     }
                 }
                 true
@@ -301,7 +303,7 @@ impl Analysis<'_> {
 
     fn lookup_growth(&mut self, name: &str, index: &str, site: &str) {
         if self.schema.table(name).is_some_and(|t| t.expire.is_some()) && index != "byId" {
-            self.growth(site, format!("expired {name} rows skipped by the `{index}` lookup"),
+            self.growth(site, Self::expiry_reason(name, &format!("by the `{index}` lookup")),
                 "read by id, or use a non-expiring keyed view");
             self.rows(self.result.bounds.meters.examined);
         }
@@ -330,6 +332,14 @@ impl Analysis<'_> {
     }
 
     fn scan(&mut self, scan: &Scan, times: u64, merged: bool) {
+        self.scan_with_window(scan, times, merged, None);
+    }
+
+    fn expiry_reason(table: &str, skipped: &str) -> String {
+        format!("expired {table} rows not yet swept, skipped {skipped} (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)")
+    }
+
+    fn scan_with_window(&mut self, scan: &Scan, times: u64, merged: bool, window: Option<String>) {
         for key in &scan.prefix { match key { IndexKeyExpr::Scalar(e) | IndexKeyExpr::WordPrefix(e) => { self.expr(e, times); } } }
         for e in [&scan.after, &scan.before].into_iter().flatten() { self.expr(e, times); }
         if let Some(r) = &scan.range { for e in [&r.gt, &r.gte, &r.lt, &r.lte].into_iter().flatten() { self.expr(e, times); } }
@@ -344,11 +354,11 @@ impl Analysis<'_> {
         }
         if let Some(filter) = &scan.filter {
             let timeline = self.schema.timelines.iter().find(|t| ["Feed", "Broadcast"].iter().any(|suffix| t.table(suffix) == scan.table));
-            let reason = if let Some(t) = timeline {
+            let rewrite = if window.is_some() { "" } else { "pin the filter column in the read, or add a view indexed by that predicate" };
+            let reason = if let Some(window) = window { window } else if let Some(t) = timeline {
                 format!("Following `{}` entries skipped by retired follow epochs or removal tombstones before {} match", t.name, display::bound(&scan.take))
             } else { format!("{} skipped by `{}` before {} match", scan.table, display::expr(filter), display::bound(&scan.take)) };
-            self.growth(&scan.site, reason,
-                "pin the filter column in the read, or add a view indexed by that predicate");
+            self.growth(&scan.site, reason, rewrite);
             grows = true;
         }
         if !visibility.uniform && self.program.kind != ProgramKind::Job {
@@ -357,8 +367,8 @@ impl Analysis<'_> {
             grows = true;
         }
         if table.is_some_and(|t| t.expire.is_some()) {
-            self.growth(&scan.site, format!("expired {} rows skipped before {} live rows match", scan.table, display::bound(&scan.take)),
-                "seek on the expiry column, or read a non-expiring keyed view");
+            self.growth(&scan.site, Self::expiry_reason(&scan.table, &format!("before {} live rows match", display::bound(&scan.take))),
+                "");
             grows = true;
         }
         if scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {

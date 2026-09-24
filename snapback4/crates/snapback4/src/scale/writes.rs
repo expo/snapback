@@ -21,7 +21,7 @@ impl Analysis<'_> {
                     Constraint::Unique { index } => self.lookup_growth(name, index, &site),
                     Constraint::FinalExistsOnInsert { table, index, .. } => self.lookup_growth(table, index, &site),
                     Constraint::Cap { .. } if table.expire.is_some() => self.growth(&site,
-                        format!("expired {name} rows skipped while enforcing the live-row cap"),
+                        Self::expiry_reason(name, "while enforcing the live-row cap"),
                         "use a non-expiring capped domain"),
                     _ => {}
                 }

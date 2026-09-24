@@ -105,11 +105,14 @@ fn cross_table_certificate_accounts_for_each_source_rule() {
     covered(&unpinned, &query("unpinned").metered);
 }
 #[test]
-fn bucketed_rank_has_fixed_lane_count_but_residual_work_grows() {
+fn bucketed_rank_grows_only_with_edge_bucket_density() {
     let c = cert("bucketed");
     assert_eq!(c.class, Class::Grows);
     assert_eq!(c.bounds.lanes, Some(25));
-    assert!(c.growth_sites.iter().any(|s| s.reason.contains(".at") && s.reason.contains("skipped")));
+    assert_eq!(c.growth_sites.len(), 1);
+    assert!(c.growth_sites[0].reason.contains("two edge hours"), "{c:?}");
+    assert!(c.growth_sites[0].reason.contains("25 lanes, page 2"));
+    assert!(c.growth_sites[0].rewrite.is_empty());
     covered(&c, &query("bucketed").metered);
 }
 #[test]

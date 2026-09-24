@@ -49176,3 +49176,105 @@ is in its adjacent `publication.json`. The full publication/attempt report is
 through the Expo package; the Developer ID signing record for the production
 CLI is in the preceding entry. Qualification here is iOS simulator only.
 All final evidence is committed locally on `sb4-intent/publish-040`; no push.
+
+## 2026-09-24 — LLP 3000.013 Lane H: precise cost reasons and compact check notes
+
+Changed `check --cost` to recognize the relationship between a merge's
+inclusive calendar range, pinned calendar key and exact time predicates.
+Hour/day windows now name their bounded lanes and page, edge-bucket density,
+repeated skips and opening/refill lookahead. They retain `class: grows` and
+the existing conservative numeric allowances; exact endpoints no longer
+suggest pinning the time column. Other residual predicates and non-uniform
+read rules keep their growth warnings. Expiry scans, lookups and cap checks
+name expired rows not yet swept; scan rewrites are omitted, while keyed
+lookups retain the useful by-id alternative. The bounds card documents both.
+
+Default `check` notes retain the code, site, message, rewrite and card pointer,
+add `snapback4 why <code>`, and omit the long explanation. Grouped multiline
+notes show their one-line summary. `--verbose` keeps all member sites and
+explains each code/card once, including a singleton; `why` and JSON retain
+their detail. Error reporting keeps its existing behavior. Updated CLI help
+and the bounds card; no new Quarry syntax or refusal code was introduced.
+
+Added five scale tests covering hour/day/subhour recognition and conservative
+fallback, per-row authorization, history versus edge density and a meter cut,
+the expiry backlog counterexample, and cost text/JSON without empty rewrite
+labels. Added a CLI test for repeated N_NO_HORIZON notes across plain,
+verbose, why and JSON output. Updated the existing bucket, repeated-note and
+grouped-maintain expectations. All 97 affected tests pass. Measured window
+examined rows: 11 initially, still 11 after adding 1,000 rows outside the
+window, 211 after adding 200 rejected edge rows. Adding 8,200 more edge rows
+returns incomplete within the unchanged certificate allowance. Expiry reads
+examine 2,001 rows before one 2,000-row sweep and one afterward, returning no
+expired rows. The provided target-clique.q compiles after adding the brief's
+missing `.at <= now` to Trending, and prints the 25-lane/page-10 explanation;
+the integrated target's three engine tests also pass.
+
+One requested claim was stopped: expiry is not bounded to rows expired since
+the last sweep, nor to at most one second. The server checks maintenance on
+a one-second tick and deletes at most 2,000 rows per pass across tables. A
+burst of 2,001 expirations leaves an older row after that pass; outages,
+slow maintenance and failures can leave more. Reproduce with
+`cargo test -p snapback4 --test scale_windows_expiry expiry_backlog_can_outlive_one_tick_and_remains_meter_bounded -- --nocapture`.
+The wording states this limit instead of inventing an age or population
+guarantee. Runtime/sweep redesign was not attempted. Retaining the existing
+two JSON classes and meter allowances, recognizing only proved window shapes,
+and preserving grouped-note details in verbose/JSON are the implementation
+choices where the brief was silent.
+
+Ran `bun install --frozen-lockfile` and the complete `scripts/test.sh` once.
+Exact result: `== 0 failure(s) in 227 s`. All 57 guide tests pass; no introduced,
+baseline or environmental full-suite failure occurred. The four failures in
+the supplied baseline log did not recur. Wasm remains 1,744,850 B raw /
+485,005 B gzip under 486,000. Changed source files stay below 1,500 lines;
+whitespace checks pass. Logs: `/tmp/lane-h-affected-final.log`,
+`/tmp/lane-h-clique-cost.log`, `/tmp/lane-h-full-suite.log`.
+No authorization, disclosure, engine, meter, publication or push change.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 4: first 0.4.1 candidate
+
+Fetched origin and merged published main `e8196704a` with `--no-ff` as
+`4bc740c0a`, carrying the 0.4.0 versions, fence policy and transactional
+_effect_keys creation. Then merged Lane H `de2673a5b` as `85848ae30`.
+Both post-merge workspace builds passed. Main merged cleanly; H conflicted
+only in the journal. The full publication journal and H entry survive
+byte-for-byte. H's precise window/expiry certificates, compact default notes,
+verbose/why detail and all tests remain intact.
+
+Closed H's remaining Low with
+`window_on_another_time_column_keeps_generic_growth_and_rewrite` in
+scale_windows_expiry.rs: 25 lanes bucket createdAt while the exact window
+filters publishedAt. The certificate keeps its generic growth reason and
+filter-pinning rewrite, and never claims edge-bucket-only growth. Changing
+only the predicate column to createdAt proves the positive control with the
+same numeric allowance. Temporarily removing `name != &key.column` makes
+the new test fail on the false edge-hour explanation and empty rewrite;
+restored the source byte-for-byte before qualification. No production
+analyzer change was needed.
+
+Reference validation also caught an inherited broken section anchor in the
+publication's store.rs comment. Changed only that anchor to LLP 3000.013
+section 5.3; transactional once-key behavior is unchanged. Final validation:
+504 LLP documents, 9,234 references, zero errors and zero unchecked references.
+All changed source files remain below 1,500 lines and whitespace checks pass.
+
+158 focused tests passed: CLI 98, guide 57 and complete Clique target three.
+The target still runs Following, Global, Trending, derived totals, history,
+search and the digest across restart with once suppression. The digest is
+two chunks, K=64, zero retries, 312,580 B peak heap and 823 B retained count
+heap. Full-suite WASM rebuild: 1,744,842 B raw / 484,967 B gzip, -8 raw /
+-38 gzip versus round 3. This is a whole-artifact measurement after importing
+main, without independent component attribution. Keep the 486,000 B ratchet
+with 1,033 B headroom; record the measurement in its reason.
+
+Exact full suite: `== 0 failure(s) in 304 s`. Client tests: 1,088 passed,
+10 skipped. No integration, baseline or environmental suite failure; no
+intermittent client failure to rerun. The intentionally failed mutation
+test and inherited reference error are documented in the report with their
+resolutions. The existing one-second sweep cadence still does not promise
+a maximum backlog age. No design deviation, new open problem, runtime,
+authorization or meter change. Package versions remain the inherited 0.4.0
+versions; this qualifies candidate code for 0.4.1, without a release bump,
+push, publication or deployment. See reports/20260924-intent-integration-r4.md
+for the file map, merge record, regression reproduction and evidence logs.
