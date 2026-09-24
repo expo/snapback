@@ -49675,3 +49675,24 @@ bound and positive deferral; no production timing or timeout changes. All three
 grace-push tests pass (0.06 s), retaining delivery, duplicate suppression, restart
 and reconnect checks. This additional fixture fix is required for qualification;
 the round 5 runtime design is unchanged. The second client run is still finishing.
+
+Second complete harness: == 1 failure(s) in 759 s, exit 1. The sole failure was
+the clock assertion above. Clients passed in 712 s: 1,098 tests, 1,088 passes,
+ten skips, zero failures, including both corrected codec-census tests. Every
+other harness step passed. Started the third complete harness with the clock
+fixture correction, after the second finished, using the same serial-client
+and nonincremental build settings. No full harnesses overlap.
+
+Final round 5 qualification: == 0 failure(s) in 748 s, exit 0, using
+CARGO_INCREMENTAL=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh.
+Rust passed in 129 s, including all 83 core unit tests, 40 device unit tests,
+30 expiry regressions, 18 clock integration tests and 25 simulator review tests.
+Clients passed in 716 s: 1,098 tests, 1,088 passes, ten skips, zero failures.
+Every other harness step passed; no introduced, baseline or environmental
+failure remains in the final run. Final reference audit passes: 505 documents,
+9,239 references in 25,679 files, zero errors or unchecked references. The exact
+three full-suite summaries, every development failure and its classification,
+file-by-file changes, form examples and retained limits are recorded in
+reports/20260924-intent-lane-p-round5.md. No round 5 design change or unmet
+requirement; the additional clock fixture correction is documented. No push,
+merge or publication. Final log: ~/sb4-intent/lane-p-round5-suite-complete.log.
