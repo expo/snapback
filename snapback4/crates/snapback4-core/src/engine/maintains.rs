@@ -14,7 +14,8 @@ use std::collections::BTreeMap;
 
 impl Runner<'_> {
     pub(super) fn maintain(&mut self, source: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-        let maintains: Vec<Maintain> = self.schema.maintains.iter().filter(|maintain| maintain.source == source).cloned().collect();
+        self.maintain_row_views(source, old, new)?;
+        let maintains: Vec<Maintain> = self.schema.maintains.iter().filter(|maintain| maintain.source == source && maintain.row_key.is_none()).cloned().collect();
         for maintain in maintains {
             if self.device && self.schema.tables[&maintain.target].sync.is_none() { continue; }
             let source_bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&maintain.source]);
@@ -76,6 +77,7 @@ impl Runner<'_> {
 
     #[cfg(feature = "sqlite")]
     fn rebuild_maintain_inner(&mut self, maintain: &Maintain) -> Result<(), RuntimeError> {
+        if maintain.row_key.is_some() { return self.rebuild_row_view(maintain); }
         let target = self.schema.table(&maintain.target).expect("validated").clone();
         let mut bounds = Bounds::default();
         let target_bytes = super::write_target::row_copy_ceiling(&target).saturating_mul(16 + 4 * target.indexes.len() as u64);
@@ -229,7 +231,7 @@ mod timeline_tests {
         let mut runner = Runner::new(&tx, &schema, crate::Context::system().at(1), crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort),0);
         let mut guard = runner.timeline_scope(crate::engine::timeline_authority::Authority::Transition("feed".into()));
         for suffix in crate::schema::timeline::OWNED_SUFFIXES {
-            let maintain = Maintain { target: format!("feed{suffix}"), source: "follows".into(), by: vec!["readerId".into()],
+            let maintain = Maintain { row_key: None, target: format!("feed{suffix}"), source: "follows".into(), by: vec!["readerId".into()],
                 kind: MaintainKind::Count, filter: None, computed: Default::default(), residency: Default::default(), readable: None, private: None };
             let result = guard.apply_aggregate(&maintain, vec![Value::Id("reader".into())], 1, None);
             assert_eq!(result.unwrap_err().code(), "E_TIMELINE_OWNED");

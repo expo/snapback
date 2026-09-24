@@ -340,6 +340,7 @@ pub struct TableDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MaintainDecl {
+    pub row_key: Option<(String, String)>,
     pub filter: Option<Expr>,
     pub keys: Vec<Expr>,
     pub indexes: Vec<IndexDecl>,

@@ -231,6 +231,9 @@ pub fn check(options: &Options) -> i32 {
     if !options.json && options.flags.contains_key("residency") && acquisition.is_none() {
         println!("residency (measurements): not measured — no dev store; use check --residency --fixture <fixture-directory> --as <principal>");
     }
+    if !options.json { for m in &bound.schema.maintains { if let Some(k)=&m.row_key {
+        println!("  view {}: key {}.{} = {}.{}; one value per {} row; source fanout <= {}; writer recount <= 1024 examined source rows within remaining meter, then pending/background chunks <= 256",m.target,m.source,k.source_key,k.table,k.member_key,k.table,k.fanout);
+    } } }
     if !options.json && !options.flags.contains_key("residency") {
         for (name, fact) in bound.schema.operations.iter().filter(|(_, fact)| fact.held) {
             println!("{}", snapback4_lang::bind::residency::operation_lines(name, fact));

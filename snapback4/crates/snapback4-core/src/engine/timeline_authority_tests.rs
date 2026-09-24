@@ -21,7 +21,7 @@ fn column_schema(parent: &str, source: &str) -> (Schema, crate::schema::Maintain
     use crate::schema::{columns::{ColumnOwner, GROUP}, Maintain, MaintainKind, Residency, public_table};
     let mut schema = schema();
     let owner = ColumnOwner { table: parent.into(), column: "value".into() };
-    let m = Maintain { target: owner.target(), source: source.into(), by: vec!["parentId".into()],
+    let m = Maintain { row_key: None, target: owner.target(), source: source.into(), by: vec!["parentId".into()],
         kind: MaintainKind::Count, private: Some(owner), filter: None, computed: Default::default(),
         residency: Residency { online_only: true, ..Default::default() }, readable: None };
     let mut parent_table = schema.tables["feedFeed"].clone();

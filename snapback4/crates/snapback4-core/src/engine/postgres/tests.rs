@@ -286,3 +286,11 @@ fn legacy_keys_can_shrink_and_open_reports_the_index_and_count() {
     let client = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap();
     PostgresEngine::open(client, &name).unwrap();
 }
+
+#[test]
+fn row_keyed_views_need_the_sqlite_background_runner() {
+    let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let error=supported(&bound.schema,&BTreeMap::new()).unwrap_err();
+    assert_eq!(error.code(),"E_VIEW_KEY");assert!(error.to_string().contains("background recount"));
+}

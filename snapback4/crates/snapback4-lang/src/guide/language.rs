@@ -19,6 +19,12 @@ image against all pending writes. `edit` of retained history after leaving
 the room also predicts, but the edited image is hidden until settlement.
 See `guide prediction`.
 
+A maintained count can use another table's row as its key:
+`view unread: count messages by members m where .conversationId = m.conversationId
+and .ordinal > m.readUpTo`. Read `unread[m.id]` under the member's read rule;
+a large mark change reports `complete: false` while its recount settles.
+The complete, compiled Clique recipe is on `guide maintains`.
+
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
 use personas alice, bob, carol        -- a development cast: `--as alice` and the persona header act as dev:alice

@@ -23,7 +23,7 @@ impl Schema {
         self.maintains.iter().filter(|m| m.target == name).find_map(|m| m.private.as_ref())
     }
 
-    pub fn visible(&self, name: &str) -> bool { self.private_owner(name).is_none() }
+    pub fn visible(&self, name: &str) -> bool { self.private_owner(name).is_none() && !self.is_recount_work(name) }
 
     pub fn visible_tables(&self) -> impl Iterator<Item = (&String, &Table)> {
         self.tables.iter().filter(|(name, _)| self.visible(name))
@@ -38,6 +38,7 @@ impl Schema {
     }
 
     pub fn refuse_private(&self, name: &str) -> Result<(), crate::error::RuntimeError> {
+        if self.is_recount_work(name) { return Err(crate::error::RuntimeError::Structural {code:"E_VIEW_KEY",message:"recount state is engine-owned; read the row-keyed view instead (guide maintains)".into()}); }
         if let Some(owner) = self.private_owner(name) {
             return Err(crate::error::RuntimeError::Structural { code: "E_MAINTAINED_COLUMN_PRIVATE",
                 message: format!("{} is maintained by the engine; read the parent row or write the source rows (guide maintains)", owner.label()) });
@@ -74,6 +75,7 @@ impl Walk<'_> {
         self.issues.push(SchemaIssue { path: path.into(), message: format!("maintained column {label} is depended on by {path}; use an ordinary column for authority, identity, lifetime or delivery, or a separate maintain for an aggregate (guide maintains)") });
     }
     fn target(&mut self, table: &str, path: &str) {
+        if self.schema.is_recount_work(table) {self.issues.push(SchemaIssue {path:path.into(),message:"E_VIEW_KEY: recount state is engine-owned; read the row-keyed view instead (guide maintains)".into()});}
         if let Some(owner) = self.schema.private_owner(table) { self.issue(path, &owner.label()); }
     }
     fn field(&mut self, table: &str, field: &str, path: &str) {
@@ -152,6 +154,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                     walk.target(&m.target,&path);
                     walk.target(&m.source,&path);
                     for field in m.dependencies() { walk.field(&m.source,&field,&path); }
+        if let Some(k)=&m.row_key {for field in k.fields() {walk.field(&k.table,&field,&path);}}
                 }
             }
         }
@@ -201,6 +204,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             walk.issues.push(SchemaIssue { path: path.clone(), message: format!("{path} takes generated source {}; use ordinary source rows; aggregate cascades are not supported (guide maintains)", schema.maintain_for(&m.source).unwrap().label()) });
         }
         for field in m.dependencies() { walk.field(&m.source,&field,&path); }
+        if let Some(k)=&m.row_key {for field in k.fields() {walk.field(&k.table,&field,&path);}}
         if let Some(owner) = &m.private {
             if schema.maintain_for(&owner.table).is_some() {
                 walk.issues.push(SchemaIssue { path, message: format!("maintained column {} belongs to generated table {}; declare it on an ordinary parent table instead (guide maintains)",owner.label(),owner.table) });

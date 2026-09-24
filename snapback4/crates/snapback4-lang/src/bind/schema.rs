@@ -31,7 +31,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     }
     // @ref LLP 3000.007#6.7 — inherit the resolved audience, unless explicitly online only.
     for maintain in catalog.maintains.values() {
-        if maintain.online_only || !schema.tables.contains_key(&maintain.name) { continue; }
+        if maintain.row_key.is_some() || maintain.online_only || !schema.tables.contains_key(&maintain.name) { continue; }
         let sync = schema.tables.get(&maintain.source).and_then(|t| t.sync.clone());
         if let Some(sync) = sync {
             let inherits = match &sync.audience {
@@ -47,6 +47,10 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         }
     }
     for maintain in catalog.maintains.values() {
+        if maintain.row_key.is_some() {
+            if schema.tables.contains_key(&maintain.name) { if let Err(d)=super::row_views::lower(catalog,&mut schema,maintain) { diagnostics.push(d); } }
+            continue;
+        }
         let source = catalog.tables.get(&maintain.source);
         let Some(source) = source else { continue };
         let mut source = source.clone();
@@ -58,9 +62,10 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         };
         let computed = match super::maintains::keys(&source, maintain) { Ok(keys) => keys, Err(d) => { diagnostics.push(d); continue; } };
         let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(&source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
-        schema.maintains.push(core::Maintain { private: None, filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
+        schema.maintains.push(core::Maintain { row_key: None, private: None, filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
     super::columns::lower(catalog, &mut schema, diagnostics);
+    schema.prepare_row_views();
     schema.prepare_contribution_indexes();
     for doc in &catalog.documents {
         for effect in &doc.effects {
@@ -84,7 +89,9 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     if diagnostics.is_empty() {
         for issue in core::validate(&schema) {
             let site = catalog.site_for(&issue.path);
-            if issue.message.contains("maintained column") || issue.message.contains("guide maintains") {
+            if issue.message.contains("E_VIEW_KEY") {
+                diagnostics.push(super::row_views::refusal(&site,issue.message));
+            } else if issue.message.contains("maintained column") || issue.message.contains("guide maintains") {
                 diagnostics.push(super::columns::refusal(&site, issue.message));
             } else if issue.path.ends_with(".sync") {
                 let rewrite = if issue.message.contains("needs required group keys") { "remove `?` from every content and audience group column named by this sync" } else { "make the sync audience exactly match the table's read rule" };

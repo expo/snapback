@@ -575,3 +575,67 @@ whose arguments are included. A native job can write tables outside this syntax
 census, so its presence makes the all-writers proof unknown and silent. The note does not infer meaning from column names,
 and its absence is not proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.
+
+
+## A value per member: Clique unread
+
+A row-keyed view keeps one count per row of another table. Its read rule and
+sync audience are the keyed row's. The key is exactly one equality between
+required references to the same parent; other conjuncts compare source fields
+with member fields or are ordinary source-only predicates. Cap the member group
+by the parent reference; `check` prints this key, fanout and writer recount bound.
+
+```quarry
+table conversations:
+  title: text <=100
+  read <- allow
+table members:
+  conversationId: conversations
+  principal: principal
+  readUpTo: int default 0
+  unique conversationId, principal
+  cap 100 by conversationId
+  read <- .principal = viewer
+  update <- .principal = viewer
+table messages:
+  conversationId: conversations
+  ordinal: int
+  senderId: principal
+  tombstone: bool default false
+  read <- allow
+view unread: count messages by members m
+  where .conversationId = m.conversationId and .ordinal > m.readUpTo
+    and .senderId != m.principal and not .tombstone
+query myUnread(member: members):
+  return unread[member]
+```
+
+This is LLP 3000.015's unread expression. If members also have a `joinedAt`
+position, add `and .ordinal > m.joinedAt` to exclude pre-join history. This
+lane uses integer positions until `sequence by conversationId` is available.
+Own sends and tombstones are excluded explicitly. Expiring messages stop
+contributing to live reads and their sweep applies the physical deletion delta.
+
+A small mark change scans the changed interval in the generated parent/ordinal
+index and updates the count in that transaction. A larger change commits the
+mark and leaves the last settled count **pending**: reads report `complete: false`.
+The server settles a durable recount in chunks of at most 256 source rows;
+source edits and deletes during the recount adjust its already-counted prefix.
+The writer examines at most 1,024 source rows, further limited by its remaining
+meter. Recounts restart for a changed member predicate and resume after a server
+restart. A covered device predicts; without source coverage it keeps the settled
+value and queues the mark without prediction. An acquired horizon suffix can
+cover the changed interval; a device recount that exceeds its allowance also
+queues without prediction. Expiring sources need covered live input to certify
+an unswept count: an uncovered device returns its settled value as incomplete
+until it can certify that live input. Count-dependent writers and numeric
+rule probes refuse an incomplete value; ordinary queries carry incomplete
+coverage. Indexes/ranking by `value` refuse
+with E_VIEW_KEY. Pure view existence follows the member's lifetime, including
+when its count is zero. `online only` on the view opts
+out of member-audience delivery. E_VIEW_KEY includes the admitted rewrite.
+
+The Postgres evaluation adapter has no background recount runner and refuses
+this form with E_VIEW_KEY; use the SQLite server and either device store.
+Member rows reserve `member`, `value` and `recountPending` for the generated
+view. The count form is admitted; row-keyed sums are not yet admitted.

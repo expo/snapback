@@ -20,6 +20,12 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     let mut work = Work::default();
     work.delivery_chunks = delivery(shared, drain)?;
     loop {
+        if phase(shared, lock(&shared.engine).run_view_chunk(shared.now()), drain, "view recount")?.is_none() {break;}
+        work.chunks += 1; bump_seq(shared);
+        if !drain && work.chunks >= 500 {break;}
+        std::thread::yield_now();
+    }
+    loop {
         let swept = phase(shared, lock(&shared.engine).sweep_expired(shared.now(), 2_000), drain, "the expiry sweep")?;
         work.expired += swept;
         if swept > 0 { bump_seq(shared); }

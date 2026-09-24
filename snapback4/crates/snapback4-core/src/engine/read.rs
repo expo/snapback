@@ -98,6 +98,7 @@ impl Runner<'_> {
     fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
         if !self.device { return; }
         let Some(maintain) = self.schema.maintain_for(table) else { return };
+        if maintain.row_key.is_some() { return; } // live_row_view proves the particular member range.
         let source = &self.schema.tables[&maintain.source];
         if self.schema.maintain_subset_unknown(table) || (source.expire.is_some() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
             self.read_tables.insert(maintain.source.clone());
@@ -119,10 +120,27 @@ impl Runner<'_> {
 
     /// Existence witnesses are raw data, never recursively authorized rows.
     pub(super) fn probe_witness(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        self.schema.refuse_private(table)?;
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
-        let found = self.lookup_live(table, index, index_def, key, false)?;
+        let mut found = self.lookup_live(table, index, index_def, key, false)?;
+        if let Some(maintain) = self.schema.maintain_for(table).filter(|m|m.row_key.is_some()) {
+            let member = &self.schema.tables[&maintain.row_key.as_ref().unwrap().table];
+            self.read_tables.insert(maintain.row_key.as_ref().unwrap().table.clone());
+            if let Some(row) = &found {
+                self.note_expiry(member,row);
+                if self.expired(member,row) { found = None; }
+            }
+            if equalities.iter().any(|(field,_)|field=="value") && let Some(row)=found.take() {
+                let prior = self.timeline_pending;
+                self.timeline_pending = false;
+                found = self.live_row_view(maintain,row)?;
+                let pending = self.timeline_pending;
+                self.timeline_pending |= prior;
+                if pending { return Err(RuntimeError::Schema("E_VIEW_KEY: a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or wait for complete (guide maintains)".into())); }
+            }
+        }
         let mut live = found.is_some();
         let mut known = !self.device || if current {
             match &found {
@@ -132,7 +150,7 @@ impl Runner<'_> {
         } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
         if let Some(row) = &found {
             self.note_expiry(definition, row);
-            if let Some(maintain) = self.schema.maintain_for(table)
+            if let Some(maintain) = self.schema.maintain_for(table).filter(|m|m.row_key.is_none())
                 && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
                 self.read_tables.insert(maintain.source.clone());
                 if self.device_work_active {
@@ -227,6 +245,7 @@ impl Runner<'_> {
     /// the usual runtime meter and device coverage rules.
     pub(crate) fn live_aggregate(&mut self, table_name: &str, row: Value) -> Result<Option<Value>, RuntimeError> {
         let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
+        if maintain.row_key.is_some() { return self.live_row_view(&maintain, row); }
         let source = self.schema.table(&maintain.source).ok_or_else(|| RuntimeError::Schema("missing maintain source".into()))?;
         if source.expire.is_none() { return Ok(Some(row)); }
         let bytes = super::write_target::row_copy_ceiling(source).saturating_mul(32)
@@ -286,7 +305,7 @@ impl Runner<'_> {
         self.context.now.is_some_and(|now| table.expired(row, now))
     }
 
-    fn note_expiry(&mut self, table: &Table, row: &Value) {
+    pub(super) fn note_expiry(&mut self, table: &Table, row: &Value) {
         if let Some(column) = &table.expire
             && let Ok(Value::Int(at)) = row.field(column)
             && self.context.now.is_some_and(|now| *at > now)

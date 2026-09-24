@@ -703,6 +703,8 @@ impl TextFormat {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Maintain {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_key: Option<crate::maintain::RowKey>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub private: Option<columns::ColumnOwner>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter: Option<crate::maintain::Predicate>,
@@ -1004,6 +1006,10 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         issue(issues, format!("maintain names unknown target table {}", maintain.target));
         return;
     };
+    if let Some(key)=&maintain.row_key {
+        if let Err(message)=key.validate(schema,maintain) {issue(issues,message);}
+        return;
+    }
     // @ref LLP 3000.007#20.9 — stored value order cannot rank live sums between expiry and sweep; enforce at every schema entry point.
     if source.expire.is_some() && target.indexes.values().any(|index| index.columns().iter().any(|column| column == "value")) {
         issue(issues, format!("maintain {} cannot order by value because source {} expires", maintain.target, maintain.source));

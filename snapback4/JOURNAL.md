@@ -49278,3 +49278,74 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+### 2026-09-24 — LLP 3000.015 Lane B3: a count per member row
+
+Implemented `view unread: count messages by members m where
+.conversationId = m.conversationId and .ordinal > m.readUpTo and
+.senderId != m.principal and not .tombstone` in the existing maintained
+aggregate path. Binding requires one conjunctive same-parent reference key,
+source/member scalar comparisons, source-only conditions and a member cap.
+Generated values inherit member readability, identity and delivery; `check`
+prints the key, recipient cap, writer slice and background chunk bound.
+E_VIEW_KEY has a rewrite and an explain entry. The maintains card compiles
+the design-of-record Clique expression.
+
+Source inserts, updates, deletes, expiry sweeps, tombstones and emitted job
+deletes fan out over the capped parent group. A mark move uses the generated
+parent/compared-field index, with residual predicates on the changed interval.
+The writer scans at most 1,024 rows within its remaining meter; an unfinished
+recount commits the mark and last settled count with `complete: false`. Private
+durable work resumes in at-most-256-row chunks through the existing metered
+store reader, engine transaction and maintenance tick. Concurrent source edits
+adjust the counted cursor prefix; member changes restart that prefix.
+No-progress single-row heap cuts report E_VIEW_KEY instead of spinning.
+
+Devices predict covered mark ranges, including a certified acquired horizon
+suffix. A cut queues without a fabricated local recount. Source deltas update
+held current private members without demanding unreadable recipients; member
+horizons retain the coverage refusal because a view can outlive its local
+member image. Retained members do not receive predicted current deltas.
+
+Review fixes include adopted-default materialization, member expiry in rule
+existence and reactive deadlines, pending-count refusal in count-dependent
+writers, a value-index/ranking refusal, live query scans under the query meter,
+and device prediction cut handling. Source/member existence remains true for a
+live member with a zero count. Language/engine tests cover 10,000-message cuts,
+small indexed changes, both SQLite memory and persistent stores, restart and
+concurrent edits, every required lifecycle, own sends and pre-join exclusion;
+device tests cover memory and SQLite, pending delivery/reopen/settlement,
+private prediction, horizons and expiry deadlines.
+
+Scope and conservative deviations: row-keyed sums remain unadmitted (optional
+in the brief); positions use the authorized int stand-in because B2 sequence
+columns are absent. The Postgres evaluation adapter refuses E_VIEW_KEY before
+creating a namespace because it has no background runner. Member fields named
+member/value/recountPending and maintained member fields are refused to keep
+the generated authority image unambiguous. Unlike a literal reading of the
+settled fallback, an uncovered device with expiring source input returns the
+settled number as incomplete: it cannot certify exclusion of unswept expired
+rows. Even a covered device queues if its bounded recount cannot finish; a
+member horizon may also require queuing source writes. None of these cases
+claims a partial number is complete. No runtime ceiling changed.
+
+Final `build-wasm.sh`: **1,780,941 B raw / 497,651 B gzip** with Rust 1.97.0
+and wasm-bindgen 0.2.127, without wasm-opt. Against the inherited recorded
+integration-r4 artifact (1,744,842 / 484,967), the whole-artifact difference
+is +36,099 raw / +12,684 gzip; the baseline was not rebuilt here and no
+independent component byte attribution is claimed. The inherited 486,000 B
+ratchet is exceeded by 11,651 B; raise to **498,000 B**, leaving 349 B.
+The same measured reason is recorded in the budget and commit message.
+Focused final tests: 16 language/engine and 16 device tests, all passing.
+`check` was exercised on the fixture and prints the key and recount bounds.
+`./ref-check --verbose`: 507 LLP docs, 9,237 refs, zero errors/unchecked.
+
+Final blocking suite: **`== 0 failure(s) in 271 s`**. It includes both
+16-test B3 targets and rebuilds the final measured wasm artifact. The first
+full run overlapped the final private-member coverage correction and failed
+the two newly added prediction cases; the final focused run and this clean
+full rerun pass both. No test was skipped or relaxed for B3. The requested
+Volta Node 24.18.0 path is absent; it was prepended to PATH and available
+Node v24.13.1 ran the client tests. Blind Astra and Grok-4.6 reviews returned
+READY after fixes, including the final private-member delta. No push,
+publication or deployment. Report: `/home/ccheever/sb5/lane-b3.r0.final.md`.

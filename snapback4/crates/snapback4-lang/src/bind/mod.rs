@@ -5,6 +5,7 @@ pub mod catalog;
 mod columns;
 mod defaults;
 mod maintains;
+mod row_views;
 pub mod program;
 pub mod schema;
 pub mod residency;
