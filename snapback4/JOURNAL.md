@@ -47513,3 +47513,71 @@ membership boundaries. Rolling-rank oracle coverage and separate follow-graph
 growth/hub/boundary evidence are recorded without native/acquisition or release
 speedup claims. Details and the completed/unmet ledger:
 [`reports/20260923-cal18-followups/scale.md`](./reports/20260923-cal18-followups/scale.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane B: maintained views without boilerplate
+
+Implemented on `sb4-intent/b-derived` in `9e217054c`, for supervisor review
+and integration; not pushed or published. The parser admits a maintain without
+a property block/read line and an in-table count/sum without `by`. The catalog
+normalizes dotted group keys, derives an ordinary read declaration from the
+source, and sends it through the unchanged binder, disclosure and partition
+checks. A public/allow source derives allow; other rules retain every referenced
+field only when it is a bare group key, including fields in probe equalities.
+Missing fields refuse with E_MAINTAIN_READ_RULE. Explicit rules still win.
+Maintained columns infer exactly one required or optional source reference to
+the parent; zero or multiple references refuse with
+E_MAINTAINED_COLUMN_REFERENCE, listing candidates and an explicit rewrite.
+Both refusals have registered why text and prose on the maintains card. The
+maintains and language cards compile derived-read and by-less count examples.
+
+All nine Clique aggregates compile and run in maintain spelling, including
+`count posts by parentId` as an ordinary maintain and recorded
+`count posts by parentId.authorId`; no self-reference admission change was
+needed. The fixture checks public scalar totals, daily groups, missing zeros,
+insert/delete deltas, nested replies and credit surviving target deletion.
+`posts.likeCount: count likes`, `repostCount: count reposts` and a by-less
+`sum likes of .weight` use the existing private totals and mirrors. Their
+write-result stripping, ownership, activation and meters are unchanged.
+
+Residency is unchanged: without `online only`, a maintain inherits its source's
+sync if the audience is public or all audience columns survive as bare group
+keys. The inherited aggregate has no horizon, remains until-revoked, and does
+not inherit delivered-history. No source sync or a lost audience column means
+no aggregate sync (server-only). Public sources with subset delivery retain the
+existing server/unknown-local completeness classification. Maintains still do
+not accept a sync line of their own; private column storage never inherits sync.
+
+Measured on the shared Linux host: the seven new regressions passed in 0.04 s.
+They cover the Clique oracle; semantic identity of dotted/undotted and
+explicit/inferred defaults; denied, private, calendar and path readability;
+reference ambiguity, optional references and sums; unchanged residency and
+admission; private snapshot/stream delivery and revocation on a real memory
+Device using production sync encoding; and rule-probe extra equalities. The
+existing maintains (14), maintained columns (42), recorded attribution (5) and
+guide (55) tests passed. WebAssembly was 1,707,362 B raw / 472,890 B gzip against
+the unchanged 474,000 B budget. `./ref-check --verbose` passed: 504 LLP docs,
+9,208 refs in 25,435 files, 0 errors, 0 unchecked. These are correctness and
+build observations, not performance or calibration claims.
+
+Ran `bun install --frozen-lockfile`, then `scripts/test.sh` once. Exact summary:
+`== 1 failure(s) in 236 s` (exit 1; failing step: `cargo test`). All four failed
+Rust cases also fail in `/home/ccheever/sb4-intent/baseline-test.log`:
+
+- Baseline: `cargo test -p snapback4-core --test schema_capabilities_legacy genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+- Baseline: `cargo test -p snapback4-device --test device uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+- Baseline: `cargo test -p snapback4-device --test readauth census::authoring_census`.
+- Baseline: `cargo test -p snapback4 --test check w9b_why_operation_keeps_residency_and_cost_output`.
+
+No introduced or additional environmental failure was observed. All other suite
+steps passed; client tests reported 994 passed, 10 skipped, 0 failed out of
+1,004. Full log: `/home/ccheever/sb4-intent/lane-b-test.log`.
+
+No design deviations. Engineering choices: optional `MaintainDecl.read` marks
+inference; an empty `ColumnAggregate.by` exists only until catalog resolution;
+a source with no read rule derives deny; failed readability inference suggests
+explicit deny as the conservative starting rewrite. The acceptance fixture
+isolates the target's aggregate forms and retains named indexes needed before
+Lane A integration. Did not implement `view`, planner/index synthesis, change
+engine admission or meters, add column prediction, change residency, fix the
+four baseline failures, run a new calibration, or push/publish.
