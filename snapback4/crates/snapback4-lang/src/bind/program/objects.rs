@@ -24,14 +24,20 @@ impl Binder<'_> {
         if fields.iter().all(|field| !field.spread) {
             return self.plain_object(fields, out);
         }
-        let fields = self.object_fields(fields, None, out)?;
+        let (expanded, base) = self.object_fields(fields, None, out)?;
         let mut values = BTreeMap::new();
         let mut types = BTreeMap::new();
-        for (name, value, ty, _) in fields {
+        for (name, value, ty, _) in expanded {
             values.insert(name.clone(), value);
             types.insert(name, ty);
         }
-        Ok((Expr::Object(values), Ty::Object(types)))
+        if let Some(base) = base {
+            if types.contains_key("pending") {
+                return Err(type_error(&fields.iter().find(|field| field.name == "pending").unwrap_or(&fields[0]).site,
+                    "pending is the device's row metadata", "omit pending from the object; it is preserved from the spread row"));
+            }
+            Ok((Expr::Shape { base: Box::new(base), fields: values }, Ty::RowShape(types)))
+        } else { Ok((Expr::Object(values), Ty::Object(types))) }
     }
 
     fn plain_object(&mut self, fields: &[ObjectField], out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
@@ -59,10 +65,11 @@ impl Binder<'_> {
     }
 
     /// Bind operands once, in source order, including overwritten operands.
-    /// Only explicit field selections reach the existing object IR. Reads
+    /// Field selections and an optional row base reach the existing IR. Reads
     /// still authorize the source before any of its fields can be selected.
-    fn object_fields(&mut self, fields: &[ObjectField], table: Option<&TableInfo>, out: &mut setup::Body) -> Fallible<Vec<Field>> {
+    fn object_fields(&mut self, fields: &[ObjectField], table: Option<&TableInfo>, out: &mut setup::Body) -> Fallible<(Vec<Field>, Option<Expr>)> {
         let mut result = Vec::new();
+        let mut base = None;
         let mut failed = None;
         for field in fields {
             let mut setup = setup::Body::default();
@@ -100,6 +107,9 @@ impl Binder<'_> {
                         format!("p = {} ! else NOT_FOUND\nreturn {{ ...p }}", print::expression(operand))).guide("shapes"));
                 }
                 let value = self.snapshot(value, out);
+                // The last spread row is the base, just as its columns replace
+                // earlier rows' columns. Plain objects do not replace row metadata.
+                if matches!(ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_)) { base = Some(value.clone()); }
                 for (name, ty) in self.row_fields(&ty, &field.site)? {
                     result.push((name.clone(), ir::field(value.clone(), &name), ty, field.site.clone()));
                 }
@@ -110,14 +120,14 @@ impl Binder<'_> {
                 result.push((field.name.clone(), self.snapshot(value, out), ty, field.site.clone()));
             }
         }
-        match failed { Some(error) => Err(error), None => Ok(result) }
+        match failed { Some(error) => Err(error), None => Ok((result, base)) }
     }
 
     /// Write payloads share object syntax. Expand before ordinary column,
     /// maintained-column, identity, default and write-rule validation.
     pub(super) fn expand_object_fields(&mut self, fields: &[ObjectField], table: Option<&TableInfo>, out: &mut setup::Body) -> Fallible<Vec<ObjectField>> {
         let mut expanded = BTreeMap::new();
-        for (name, value, ty, site) in self.object_fields(fields, table, out)? {
+        for (name, value, ty, site) in self.object_fields(fields, table, out)?.0 {
             let temporary = self.temp("field");
             let runtime = self.declare(&temporary, ty);
             out.push(Stmt::Let { name: runtime, value });

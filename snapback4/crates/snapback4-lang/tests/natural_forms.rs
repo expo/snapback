@@ -13,11 +13,13 @@ fn object_spreads_merge_rows_objects_and_types_left_to_right() {
     let source = "table profiles:\n  principal: principal\n  handle: text 3..20\n  bio: text\n  public\nquery row(h: profiles):\n  p = profiles[h] ! else NOT_FOUND\n  return { ...p, bio: 42, extra: true }\nquery objects():\n  a = { n: 1, keep: true }\n  b = { n: 'second', tail: 2 }\n  return { ...{ n: false }, ...a, ...b, tail: 3, n: 'last' }\n";
     let compiled = checked(source);
     let types = &compiled.programs.iter().find(|p| p.program.name == "row").unwrap().result;
-    assert_eq!(types, &Ty::Object(BTreeMap::from([
+    assert_eq!(types, &Ty::RowShape(BTreeMap::from([
         ("id".into(), Ty::Ref("profiles".into())), ("principal".into(), Ty::Principal),
         ("handle".into(), Ty::Text(20)), ("bio".into(), Ty::Int), ("extra".into(), Ty::Bool),
     ])));
     let ts = snapback4_lang::emit::typescript(&compiled);
+    assert!(ts.lines().find(|line| line.contains("row: Query<")).unwrap().contains("pending?: boolean"), "{ts}");
+    assert!(!ts.lines().find(|line| line.contains("objects: Query<")).unwrap().contains("pending?: boolean"), "{ts}");
     for field in ["bio: number", "extra: boolean", "handle: string", "principal: string", "n: string"] {
         assert!(ts.contains(field), "{field}: {ts}");
     }
@@ -36,6 +38,22 @@ fn nullable_spread_has_a_presence_rewrite_and_narrowing_accepts_it() {
     assert!(diagnostic.rewrite.contains("return { ...p }"));
     checked(&source.replace("p = profiles[handle = h]", "p = profiles[handle = h] ! else NOT_FOUND"));
     checked(&source.replace("  return { ...p }", "  if p != null:\n    return { ...p }\n  return null"));
+}
+
+#[test]
+fn row_spread_types_preserve_pending_without_marking_containing_records() {
+    let bound = checked(include_str!("fixtures/spread-metadata.q"));
+    let result = |name: &str| &bound.programs.iter().find(|p| p.program.name == name).unwrap().result;
+    for name in ["spread", "reshaped", "merged"] { assert_eq!(result(name), result("shaped"), "{name}"); }
+    assert!(matches!(result("nested"), Ty::Object(fields) if matches!(fields.get("row"), Some(Ty::RowShape(_)))));
+    let ts = snapback4_lang::emit::typescript(&bound);
+    for name in ["spread", "shaped", "reshaped", "merged", "nested"] {
+        let line = ts.lines().find(|line| line.contains(&format!("{name}: Query<"))).unwrap();
+        assert_eq!(line.matches("pending?: boolean").count(), 1, "{line}");
+    }
+    let source = include_str!("fixtures/spread-metadata.q").replace("return { ...p, extra: true }", "return { ...p, pending: false }");
+    let refused = compile(&[("schema.q".into(), source)]);
+    assert!(refused.diagnostics.iter().any(|d| d.message == "pending is the device's row metadata"));
 }
 
 #[test]
