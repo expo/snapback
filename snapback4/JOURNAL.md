@@ -49649,3 +49649,16 @@ built separately while the initial client run finishes, is 1,754,267 B raw /
 487,923 B gzip (+224 / +107 from round 4), within the unchanged budget with
 77 B spare. The initial full Rust inventory otherwise passed, including all
 40 device unit tests and 30 expiry regressions. A complete corrected run follows.
+
+First complete harness: == 2 failure(s) in 780 s, exit 1. Besides the introduced
+Rust ownership-order regression above, two client codec-census checks failed
+because the new nested unit fixture used owned typed JSON decoding. The
+scanner does not inherit this nested module's cfg; splitting cfg attributes
+was ineffective and reverted. Renaming the calls to json_codec::from_value
+also failed its owned-decoder restriction. The fixture now uses the existing
+text decoder, like neighboring device tests. All 26 codec-census checks pass
+(9.37 s), with no scanner edits or exceptions; all four device regressions still
+pass (0.32 s). Initial clients: 1,098 tests, 1,086 passes, two failures, ten skips,
+723 s. Every other harness step passed. All three failed tests are ours,
+corrected; no baseline or environmental failure occurred. The initial full
+harness has ended; starting the complete corrected qualification.

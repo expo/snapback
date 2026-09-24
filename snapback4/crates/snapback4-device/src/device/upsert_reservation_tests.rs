@@ -54,10 +54,10 @@ fn fixture<S: DeviceStore>(store: S) -> (Engine, Device<S>) {
     let mut device = Device::open_store(store, Some(backend)).unwrap();
     let page = engine.snapshot_acquisition_page_at("alice", None, 100, 100).unwrap();
     assert!(page.next.is_none());
-    let page: StreamPage = serde_json::from_value(json!({"snapshot":true, "watermark":page.watermark,
+    let page: StreamPage = decoded(&json!({"snapshot":true, "watermark":page.watermark,
         "more":false, "generation":engine.generation(), "held":page.held, "acquisitions":page.acquisitions,
         "events":page.events.iter().map(|e| json!({"table":e.table, "kind":e.kind, "id":e.id,
-            "data":e.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>() })).unwrap();
+            "data":e.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>() }).to_string()).unwrap();
     device.apply(&page, true).unwrap();
     (engine, device)
 }
@@ -83,7 +83,7 @@ fn after_8190<S: DeviceStore>(store: S) {
     let reply = crate::call::call(&mut device, json!({"op":"admit", "entry":{
         "id":"put", "seq":1, "op":"put", "viewer":"alice", "now":100, "args":{"work":8190}, "predictable":true
     }}));
-    let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
+    let queued: Queued = decoded(&reply["ok"].to_string()).expect(&reply.to_string());
     assert!(queued.predictable, "{queued:?}");
     assert_eq!(queued.predicted, ["records/target"]);
     assert_eq!(device.queued().unwrap().len(), 1, "admission keeps the write for server delivery");
