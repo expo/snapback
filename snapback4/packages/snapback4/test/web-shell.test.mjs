@@ -89,6 +89,8 @@ test("web-shell CLI runs without a platform binary and rejects unsafe bases/syml
   const cli = resolve(import.meta.dirname, "../bin/snapback4.js");
   const result = spawnSync(process.execPath, [cli, "web-shell", dir], { encoding: "utf8", env: { ...process.env, SNAPBACK4_BIN: "/missing/binary" } });
   assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /web-shell: 6 files/);
+  const invalid = spawnSync(process.execPath, [cli, "web-shell", dir, "--base", "https://evil.test/"], { encoding: "utf8" });
+  assert.equal(invalid.status, 2); assert.match(invalid.stderr, /E_INPUT at web-shell/); assert.match(invalid.stderr, /rewrite:.*snapback4 web-shell dist --base \//);
   for (const base of ["https://evil.test/", "//evil/", "/../", "/chat", "/a/./"]) await assert.rejects(webShell(dir, base));
   await symlink("index.html", join(dir, "leak.html"));
   await assert.rejects(webShell(dir), /symlink/);
