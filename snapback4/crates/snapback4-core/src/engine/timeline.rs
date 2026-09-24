@@ -106,7 +106,7 @@ impl Runner<'_> {
     fn timeline_apply(&mut self, t: &Timeline, table: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
         if table == t.posts[0] {
             if let Some(new) = new {
-                let removed = field(new, &t.posts[3])? == Value::Bool(true);
+                let removed = !t.posts[3].is_empty() && field(new, &t.posts[3])? == Value::Bool(true);
                 if old.is_none() {
                     if removed { return Err(refusal("E_TIMELINE_REMOVAL", "insert the post with its removal flag false; set it true only to remove an existing event")); }
                     if let Some(filter) = &t.filter {
@@ -122,7 +122,7 @@ impl Runner<'_> {
                     self.insert(&t.table("Posts"), event.clone())?;
                     self.timeline_deliver(t, &event)?;
                 } else if let Some(old) = old {
-                    let was_removed = field(old, &t.posts[3])? == Value::Bool(true);
+                    let was_removed = !t.posts[3].is_empty() && field(old, &t.posts[3])? == Value::Bool(true);
                     if was_removed && !removed { return Err(refusal("E_TIMELINE_REMOVAL", "a removed post cannot be restored; keep its flag true and insert a new post for new content")); }
                     if removed && !was_removed {
                         let event = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(old, &t.posts[1])?, field(old, "id")?, Value::Bool(false)])?;

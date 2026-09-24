@@ -1,6 +1,6 @@
 # Feeds: declare a Following timeline
 
-For a new public social app, declare `maintain feed: timeline` before adding
+For a new public social app, declare `view following` before adding
 posts, reposts or follows. The engine keeps Following, delivery and cleanup;
 the application writes the mapped source tables and reads shaped event cards.
 The complete program also keeps a public Global projection and ranks the same
@@ -12,7 +12,10 @@ Your own originals and reposts, and those of actors you currently follow,
 appear newest first by event time and then event id. Each event has its own
 identity. A repost keeps its original's post id and author, with the reposter
 as actor. Removing an original retains its card and independent reposts;
-a new repost requires a live original event.
+a new repost requires a live original event. The view exposes `id`, `post`,
+`actor`, `at` and `repost`; `id` is the event id, including a fresh id for each
+repost event. Read `following last 20 by .at after c`. A shape such as
+`{ *, post: posts[.post] }` applies to those fields after inbox filtering.
 
 Posting commits the event, your own inbox copy, and a durable delivery record.
 Followers receive copies in background chunks of 256. A page can temporarily
@@ -76,10 +79,10 @@ table follows:
   delete <- .followerId = viewer
   sync public
 
-maintain feed: timeline
-  events posts where .parentId = null and not .removed by authorId, at removed by removed
-  reposts reposts by actorId, postId, at
-  edges follows by followerId, followedId
+view activity:
+  posts where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }
+  reposts { post: .postId, actor: .actorId, at, repost: true }
+view following: activity where .actor = viewer or exists follows[viewer, .actor]
 
 mutation post(postId: id, parentId: posts ?):
   return insert posts { id: postId, authorId: viewer, parentId, at: now }
@@ -94,7 +97,7 @@ mutation unfollow(actor: principal):
 mutation remove(postId: posts):
   update posts[postId] { removed: true }
 query home(c: cursor ?):
-  return feed[viewer] after c last 20
+  return following last 20 by .at after c
 ```
 
 E_TIMELINE_FILTER means the originals predicate uses a mutable or non-local
@@ -983,6 +986,11 @@ census, so its presence makes the all-writers proof unknown and silent. The note
 and its absence is not proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.
 
-E_VIEW_FEED_PENDING means a `view following: activity where ...` declaration
-has parsed but its feed binder is pending. Read `activity last 20 by .at`
-directly while integrating the feed implementation. See `guide feeds`.
+E_VIEW_FEED_SHAPE means Following cannot recognize the public activity union or
+its viewer-or-followed predicate. Use originals `{ post: .id, actor: .authorId,
+at, repost: false }`, reposts `{ post: .postId, actor: .actorId, at, repost: true }`,
+and `view following: activity where .actor = viewer or exists follows[viewer,
+.actor]`. The edge table needs one declared unique pair of required principals.
+All three sources retain full `sync public`, owner rules and immutable mapped
+columns; private sources remain refused. Other union shapes can be read directly
+as planned views.

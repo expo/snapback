@@ -49,7 +49,7 @@ pub struct Timeline {
     pub filter: Option<crate::maintain::Predicate>,
     /// table, principal
     pub authors: [String; 2],
-    /// table, author, time, removal flag
+    /// table, author, time, removal flag (empty when the view has none)
     pub posts: [String; 4],
     /// table, actor, original, time
     pub reposts: [String; 4],
