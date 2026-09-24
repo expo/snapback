@@ -22,12 +22,7 @@ pub fn total_expr(expr: &Expr) -> bool {
 }
 
 pub fn total_body(body: &[Stmt]) -> bool {
-    body.iter().all(|stmt| match stmt {
-        Stmt::Let { value, .. } | Stmt::Assign { value, .. } => total_expr(value),
-        Stmt::Emit { payload, once, .. } => total_expr(payload) && once.as_ref().is_none_or(total_expr),
-        Stmt::If { condition, then_body, else_body } => total_expr(condition) && total_body(then_body) && total_body(else_body),
-        _ => false,
-    })
+    total_with_skips(body, "", &BTreeSet::new())
 }
 
 fn assigned(body: &[Stmt], names: &mut BTreeSet<String>) {
@@ -40,10 +35,24 @@ fn assigned(body: &[Stmt], names: &mut BTreeSet<String>) {
     }
 }
 
+fn total_with_skips(body: &[Stmt], prefix: &str, skips: &BTreeSet<String>) -> bool {
+    body.iter().enumerate().all(|(index, stmt)| {
+        let path = if skips.is_empty() { String::new() } else { format!("{prefix}:{}", index + 1) };
+        skips.contains(&path) || match stmt {
+            Stmt::Let { value, .. } | Stmt::Assign { value, .. } => total_expr(value),
+            Stmt::Emit { payload, once, .. } => total_expr(payload) && once.as_ref().is_none_or(total_expr),
+            Stmt::If { condition, then_body, else_body } => total_expr(condition)
+                && total_with_skips(then_body, &format!("{path}:then"), skips)
+                && total_with_skips(else_body, &format!("{path}:else"), skips),
+            _ => false,
+        }
+    })
+}
+
 impl Runner<'_> {
     // @ref LLP 3000.007#19.1 — prediction pays safe untaken presence arms too; their effects and local assignments do not escape.
     pub(super) fn charge_untaken(&mut self, body: &[Stmt], prefix: &str) -> Result<(), RuntimeError> {
-        if !total_body(body) { return Err(RuntimeError::Prediction("presence controls an arm that is not total; queued without a predicted row".into())); }
+        if !total_with_skips(body, prefix, &self.prediction_skips) { return Err(RuntimeError::Prediction("presence controls an arm that is not total; queued without a predicted row".into())); }
         self.charged_untaken = true;
         let mut names = BTreeSet::new();
         assigned(body, &mut names);

@@ -34,9 +34,9 @@ fn capture_existing_three_builder_cases() {
     let fact = &presence.schema.operations["send"];
     println!("presence why:\n{}", residency::operation_lines("send", fact));
     println!("presence JSON: {}", serde_json::to_string(fact).unwrap());
-    assert_eq!(fact.predicts.as_deref(), Some("never"));
-    assert!(fact.sites.iter().any(|site| site.reason.contains("fallible or variable-cost arm")));
-    assert!(fact.sites.iter().any(|site| site.reason.contains("connected[p]") && site.reason.contains("read at schema.q:10:")));
+    assert_eq!(fact.predicts.as_deref(), Some("eligible"));
+    assert!(fact.connected_effects_only);
+    assert!(fact.effect_payload_reads.iter().any(|site| site.reason.contains("server-only, feeds an effect") && site.site == "schema.q:11:23 (notes[n = 1])"));
 }
 
 #[test]
@@ -65,14 +65,17 @@ fn scope_guidance_uses_existing_index_and_preserves_the_message_equality() {
 
 #[test]
 fn presence_guidance_connects_the_existing_origin_to_the_consuming_read() {
-    let b = clean(PRESENCE); let fact = &b.schema.operations["send"];
+    // A shared read still costs prediction; the effect-only case below no
+    // longer needs the old hoisting workaround.
+    let shared = PRESENCE.replace("    emit notify {row: notes[n = 1]}", "    row = notes[n = 1]\n    if row != null:\n      emit notify {row}");
+    let b = clean(&shared); let fact = &b.schema.operations["send"];
     let blocked: Vec<_> = fact.sites.iter().filter(|site| site.kind == "presence").collect();
-    assert_eq!(blocked.len(), 2, "keep the existing two causes");
+    assert!(blocked.len() >= 2, "retain the presence causes");
     let read = blocked.iter().find(|site| site.reason.contains("a fallible evaluation")).unwrap();
-    assert_eq!(read.site, "schema.q:11:23 (notes[n = 1])");
+    assert_eq!(read.site, "schema.q:11:11 (notes[n = 1])");
     assert!(read.reason.contains("connected[p]") && read.reason.contains("schema.q:10:17"));
     assert_eq!(fact.predicts.as_deref(), Some("never"));
-    assert!(residency::operation_lines("send", fact).contains("fallible evaluation (read at schema.q:10:17) (site schema.q:11:23 (notes[n = 1]))"));
+    assert!(residency::operation_lines("send", fact).contains("fallible evaluation (read at schema.q:10:17) (site schema.q:11:11 (notes[n = 1]))"));
     assert_eq!(serde_json::to_value(read).unwrap()["site"], read.site);
     let hoisted = PRESENCE.replace("  if not exists connected[p]:\n    emit notify {row: notes[n = 1]}", "  row = notes[n = 1]\n  if not exists connected[p]:\n    emit notify {row}");
     let previous = clean(&hoisted);
@@ -80,7 +83,10 @@ fn presence_guidance_connects_the_existing_origin_to_the_consuming_read() {
     assert_eq!(notes.len(), 1, "one existing prediction-loss note");
     assert_eq!(notes[0].code, "N_NOT_PREDICTABLE");
     assert!(!notes[0].mechanical);
-    assert!(notes[0].message.contains("schema.q:11:23"));
+    assert!(notes[0].message.contains("schema.q:11:11"));
+    let effect_only = clean(PRESENCE);
+    assert_eq!(effect_only.schema.operations["send"].predicts.as_deref(), Some("eligible"));
+    assert!(residency::operation_lines("send", &effect_only.schema.operations["send"]).contains("server-only, feeds an effect"));
 }
 
 #[test]

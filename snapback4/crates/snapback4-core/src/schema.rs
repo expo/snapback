@@ -68,6 +68,12 @@ pub struct Execution {
     /// Pure presence-dependent branches whose untaken arm prediction also charges.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub prediction_guards: Vec<String>,
+    /// Infallible effect-payload work omitted by the device, at original statement paths.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub prediction_skips: Vec<String>,
+    /// Server reads that feed effects exclusively; these do not require device coverage.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effect_payload_reads: Vec<ResidencySite>,
 }
 
 /// A returned record field and the zero-based top-level statements it owns.

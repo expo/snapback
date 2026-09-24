@@ -165,6 +165,7 @@ pub struct Runner<'a> {
     pub(crate) statement_site: String,
     pub(crate) evaluating_write_condition: bool,
     prediction_guards: BTreeSet<String>,
+    pub(super) prediction_skips: BTreeSet<String>,
     pub(super) discard_effects: bool,
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
@@ -252,6 +253,7 @@ impl<'a> Runner<'a> {
             statement_site: String::new(),
             evaluating_write_condition: false,
             prediction_guards: BTreeSet::new(),
+            prediction_skips: BTreeSet::new(),
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
@@ -268,6 +270,9 @@ impl<'a> Runner<'a> {
         self.prediction_guards = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
+        self.prediction_skips = self.schema.operations.get(&program.name)
+            .filter(|fact| self.device && program.kind == ProgramKind::Mutation && fact.predicts.as_deref() == Some("eligible"))
+            .map(|fact| fact.prediction_skips.iter().cloned().collect()).unwrap_or_default();
         // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
         // A heap or maintained-value cut cannot invent a scalar/shape or a
         // continuation. Keep the internal null placeholder and private meter
@@ -301,6 +306,9 @@ impl<'a> Runner<'a> {
             let result = (|| {
             self.effect_presence.reads.clear();
             let site = format!("{prefix}:{}", index + 1);
+            // @ref LLP 3000.013#12.3 — infallible effect-payload reads and their
+            // exclusive bindings are server work, including in an untaken arm.
+            if self.prediction_skips.contains(&site) { return Ok(Flow::Next); }
             if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
             self.statement_site = site.clone();
             self.meter.at(&site);

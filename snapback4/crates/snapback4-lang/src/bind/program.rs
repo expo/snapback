@@ -220,7 +220,7 @@ impl<'a> Binder<'a> {
         let returned_shapes = returned_shapes::marks(&body.code, &full_name, &shape_candidates);
         let program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body: body.code, native: false, returned_shapes };
         let presence = if kind == ir::ProgramKind::Mutation {
-            Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
+            Some(super::residency::presence_facts(schema, &program, &ownership, &binder.presence_sources))
         } else { None };
         Some(BoundProgram { constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }

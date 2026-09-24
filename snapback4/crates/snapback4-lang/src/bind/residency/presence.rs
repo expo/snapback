@@ -11,9 +11,9 @@ type Env = BTreeMap<String, Origins>;
 const REWRITE: &str = "decide only the emit with presence; read it on the server in a service mutation for anything else";
 
 // @ref LLP 3000.007#19.1 — only presence flows ending in effects preserve prediction; every other sink stays server-only.
-pub(super) fn inspect(program: &Program, fact: &mut Execution, ownership: &Ownership, sources: &[(Expr, crate::diag::Site, String)]) {
-    let mut flow = Flow { seen: false, sites: BTreeMap::new(), consumers: BTreeMap::new(), effect_control: Origins::new(), escaped: Env::new(), ownership, sources, program: &program.name, guards: BTreeSet::new() };
-    flow.body(&program.body, &mut Env::new(), &Origins::new(), "", false);
+pub(super) fn inspect(program: &Program, prediction_body: &[Stmt], fact: &mut Execution, ownership: &Ownership, sources: &[(Expr, crate::diag::Site, String)]) {
+    let mut flow = Flow { seen: super::effect_reads::uses_presence(program), sites: BTreeMap::new(), consumers: BTreeMap::new(), effect_control: Origins::new(), escaped: Env::new(), ownership, sources, program: &program.name, guards: BTreeSet::new() };
+    flow.body(prediction_body, &mut Env::new(), &Origins::new(), "", false);
     fact.connected_effects_only = flow.seen && flow.sites.is_empty();
     if fact.connected_effects_only { fact.prediction_guards = flow.guards.into_iter().collect(); }
     for (key, site) in flow.sites {
