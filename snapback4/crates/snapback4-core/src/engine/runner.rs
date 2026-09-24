@@ -28,6 +28,7 @@ pub(super) enum Flow {
 /// One evaluated cursor-bearing page; the return plan selects its owner.
 #[derive(Clone, Debug)]
 pub(crate) struct PagePosition {
+    pub variant: Option<crate::ir::VariantId>,
     pub view_suffix: Option<Vec<crate::cursor::CursorColumn>>,
     pub table: String,
     pub index: String,
@@ -451,6 +452,7 @@ impl<'a> Runner<'a> {
                     let shaped = returned.into_iter().flat_map(|returned| &returned.shapes)
                         .filter_map(|shape| self.shape_positions.get(shape)).min_by_key(|position| position.rows);
                     self.page = self.page_owner.as_ref().and_then(|owner| self.pages.get(owner)).map(|page| PagePosition {
+                        variant: page.variant,
                         view_suffix: page.view_suffix.clone(),
                         table: page.table.clone(), index: page.index.clone(), order: page.order, prefix_len: page.prefix_len,
                         prefix: page.prefix.clone(), merge: page.merge, interrupted: page.interrupted,
@@ -841,6 +843,13 @@ impl<'a> Runner<'a> {
                         .unwrap_or(Ordering::Equal)
                 });
                 Ok(Value::Array(values))
+            }
+            Builtin::SearchPresent => {
+                let text = args[0].as_str()?;
+                let mark = self.meter.mark();
+                let present = !crate::rows::word_heap::tokenize_limit(&mut self.meter, [text], crate::words::MAX_TERMS)?.is_empty();
+                self.meter.release_heap(mark);
+                Ok(Value::Bool(present))
             }
             Builtin::MentionTokens => {
                 let text = args[0].as_str()?;

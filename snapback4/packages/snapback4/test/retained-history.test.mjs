@@ -37,8 +37,7 @@ table messages:
   room: text <=40
   at: time
   body: text <=40
-  unique byRoomAt: room, at
-  by byTime: room, at, id
+  unique byTime: room, at
   by byWords: room, words(body), at, id
   read <- exists members[.room, viewer]
   insert <- exists members[.room, viewer]

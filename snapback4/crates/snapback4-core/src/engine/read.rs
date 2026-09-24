@@ -449,7 +449,7 @@ impl Runner<'_> {
         if rules::scan_visibility(self.schema, scan).uniform { return self.merge_lazy(None, Some(scan)); }
         let Some((merge, word)) = self.word_lanes(scan)? else {
             if self.page_depth == 0 && scan.opaque_cursor {
-                self.record_page(scan.site.clone(), PagePosition { view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next: None }, std::iter::empty())?;
+                self.record_page(scan.site.clone(), PagePosition { variant: scan.variant, view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next: None }, std::iter::empty())?;
             }
             return Ok(Vec::new());
         };
@@ -591,7 +591,7 @@ impl Runner<'_> {
             generated.prefix = scope.iter().cloned().chain([Value::String(token)]).map(|v| IndexKeyExpr::Scalar(Expr::Literal(v))).collect();
             MergeLane { guard: None, distinct: None, branch: None, project: None, setup: Vec::new(), scan: generated, source: None, binding: String::new() }
         }).collect();
-        Ok(Some((Merge { position: None, view: None, order_keys: Vec::new(), site: scan.site.clone(), lanes }, word)))
+        Ok(Some((Merge { variant: scan.variant, position: None, view: None, order_keys: Vec::new(), site: scan.site.clone(), lanes }, word)))
     }
 
     fn take(&self, bound: &Bound) -> Result<usize, RuntimeError> {
@@ -652,17 +652,18 @@ impl Runner<'_> {
                     else if merged { Self::merge_suffix(table, index, scan.prefix.len()) }
                     else { Self::cursor_suffix(table, index, scan.prefix.len()) };
                 if metered {
-                    self.validate_word_cursor(&token, &scan.table, &scan.index, scan.order, &suffix)?;
+                    self.validate_word_cursor(&token, &scan.table, &scan.index, scan.order, &suffix, scan.variant)?;
                     let position = &self.word_cursor.as_ref().unwrap().1;
                     self.meter.heap(word_heap::values(&position.values))?;
                     if position.inclusive { bounds.at_or_after = Some(position.values.clone()); }
                     else { bounds.after = Some(position.values.clone()); }
                     self.word_shape_cursor(&scan.site, token)?;
                 } else {
-                let values = decode_cursor_for(self.schema, &token, &scan.table, &scan.index, scan.order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                 let position = decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                crate::cursor::check_variant(&position, scan.variant)?;
+                let values = decode_cursor_for(self.schema, &token, &scan.table, &scan.index, scan.order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                 if scan.merge_site.is_none() && let Some(prefix) = prefix {
-                    let expected = CursorScope { generation: self.context.generation, prefix: prefix.to_vec() };
+                    let expected = CursorScope { variant: scan.variant, generation: self.context.generation, prefix: prefix.to_vec() };
                     if position.scope.as_ref() != Some(&expected) {
                         return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Scope)));
                     }
@@ -1017,10 +1018,7 @@ impl Runner<'_> {
                             // The paved existence predicate has no verdict when its
                             // one-row search starves. Retry that membership; general
                             // counting predicates keep their existing forward progress.
-                            filter_interrupted = self.schema.timelines.iter().any(|t| scan.table == t.table("Feed")) || matches!(&**filter, Expr::Binary { op: BinaryOp::Gt, left, right }
-                                if matches!(right.as_ref(), Expr::Literal(Value::Int(0)))
-                                && matches!(left.as_ref(), Expr::Builtin { builtin: Builtin::Count, args }
-                                    if matches!(args.as_slice(), [Expr::Scan(inner)] if inner.existence)));
+                            filter_interrupted = self.schema.timelines.iter().any(|t| scan.table == t.table("Feed")) || existence_predicate(filter);
                             break 'outer;
                         }
                         let matched = matched?.as_bool()?;
@@ -1111,7 +1109,7 @@ impl Runner<'_> {
             let mut next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
             // @ref LLP 3000.007#20.24.1 — retry an interrupted predicate once; no emission at the same inclusive input position must not advertise a loop.
             if filter_interrupted && visible.is_empty() && next.is_some() && next == bounds.at_or_after { next = None; }
-            self.record_page(scan.site.clone(), PagePosition { view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
+            self.record_page(scan.site.clone(), PagePosition { variant: scan.variant, view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
         }
         Ok((visible, keys))
     }
@@ -1183,7 +1181,7 @@ impl Runner<'_> {
             let index = table.index(&page.index).expect("scanned index");
             if page.merge { Self::merge_suffix(table, index, page.prefix_len) } else { Self::cursor_suffix(table, index, page.prefix_len) }
         };
-        encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone(), inclusive: page.inclusive, scope: page.prefix.as_ref().map(|prefix| CursorScope { generation: self.context.generation, prefix: prefix.clone() }) })
+        encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone(), inclusive: page.inclusive, scope: (page.prefix.is_some() || page.variant.is_some()).then(|| CursorScope { variant: page.variant, generation: self.context.generation, prefix: page.prefix.clone().unwrap_or_default() }) })
             .map(Some)
             .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
     }
@@ -1222,6 +1220,7 @@ impl Runner<'_> {
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
         {
+            crate::cursor::check_variant(&decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?, merge.variant)?;
             decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
             self.record_shape_cursor(&merge.site, Some(token));
         }
@@ -1290,7 +1289,7 @@ impl Runner<'_> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.record_page(merge.site.clone(), PagePosition { view_suffix: None, table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
+            self.record_page(merge.site.clone(), PagePosition { variant: merge.variant, view_suffix: None, table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
@@ -1359,3 +1358,20 @@ impl Probe for PrefixProbe<'_, '_> {
 #[cfg(all(test, feature = "sqlite"))]
 #[path = "../../tests/read_verdict/mod.rs"]
 mod read_verdict_tests;
+
+// Presence selection does not turn an interrupted one-witness predicate into
+// a negative verdict. Both alternatives must retain that exact consumer.
+fn existence_predicate(value: &Expr) -> bool {
+    match value {
+        Expr::Binary { op: BinaryOp::Gt, left, right } => matches!(right.as_ref(), Expr::Literal(Value::Int(0)))
+            && matches!(left.as_ref(), Expr::Builtin { builtin: Builtin::Count, args }
+                if matches!(args.as_slice(), [Expr::Scan(inner)] if inner.existence)),
+        Expr::Block { body, value } => {
+            let Expr::Variable(target) = value.as_ref() else { return false; };
+            let Some(Stmt::If { then_body, else_body, .. }) = body.last() else { return false; };
+            [then_body, else_body].iter().all(|body| matches!(body.last(), Some(Stmt::Assign { name, value })
+                if name == target && existence_predicate(value)))
+        }
+        _ => false,
+    }
+}

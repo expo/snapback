@@ -16,7 +16,7 @@ impl Runner<'_> {
             match self.expr(after)? {
                 Value::Null => None,
                 Value::String(token) => {
-                    self.validate_word_cursor(&token, &view, view_index, order, &suffix)?;
+                    self.validate_word_cursor(&token, &view, view_index, order, &suffix, merge.variant)?;
                     self.meter.heap(word_heap::cursor_decode(&token))?;
                     self.record_shape_cursor(&merge.site, Some(token));
                     Some(self.word_cursor.as_ref().unwrap().1.clone())
@@ -112,7 +112,7 @@ impl Runner<'_> {
                 let next = (has_more && !self.read_capped() && self.word_cut_at.is_none() && !self.beyond_horizon && !self.presence_unknown).then(|| candidates.last().unwrap().0.clone());
                 self.meter.heap(candidates.iter().map(|(key, _)| key.iter().map(Value::heap_bytes).sum::<u64>() + 64).sum())?;
                 let cursor_rows: Vec<Value> = candidates.iter().map(|(key, _)| Value::Row(suffix.iter().zip(key).map(|(column, value)| (column.name.clone(), value.clone())).collect::<std::collections::BTreeMap<_, _>>().into())).collect();
-                self.record_page(merge.site.clone(), PagePosition { view_suffix: Some(suffix), table: view, index: view_index.into(), order,
+                self.record_page(merge.site.clone(), PagePosition { variant: merge.variant, view_suffix: Some(suffix), table: view, index: view_index.into(), order,
                     prefix_len: 0, prefix: None, merge: true, interrupted: false, inclusive: false, next, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never }, cursor_rows.iter())?;
             } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
         }

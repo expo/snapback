@@ -64,7 +64,7 @@ fn consumer(value: &mut Expr, tables: &BTreeMap<String, TableInfo>, functions: &
     }
 }
 
-fn choose(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>, required: &BTreeSet<String>) {
+pub(super) fn choose(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>, required: &BTreeSet<String>) {
     // A page bound makes row order observable even inside count/sum. Explicit
     // authored order/index choices also retain their existing meaning.
     if read.index.is_some() || !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some() { return; }

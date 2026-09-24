@@ -334,6 +334,9 @@ impl Binder<'_> {
     /// After `require x != null` or inside `if x != null:`, `x` is present.
     pub(super) fn narrow(&mut self, condition: &A, then_branch: bool) {
         match condition {
+            A::Call { name, args, site } if name == super::super::intent_variants::PRESENT => self.narrow(&A::Binary {
+                op: "!=".into(), left: Box::new(args[0].clone()), right: Box::new(A::Literal { value: Literal::Null, site: site.clone() }), site: site.clone(),
+            }, then_branch),
             A::Unary { op, value, .. } if op == "not" => self.narrow(value, !then_branch),
             A::Binary { op, left, right, .. } if (op == "and" && then_branch) || (op == "or" && !then_branch) => {
                 self.narrow(left, then_branch);

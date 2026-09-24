@@ -37,8 +37,8 @@ fn ids(data: &Value) -> Vec<String> { data.as_array().unwrap().iter().map(|row| 
 #[test]
 fn nullable_value_lanes_page_in_both_directions_with_words_and_projection() {
     for program in bound(SOURCE).programs {
-        assert_eq!(snapback4_core::ir::scans(&program.program).len(), if program.program.name == "nonuniform" { 1 } else { 2 },
-            "{} must exercise value and null lanes", program.program.name);
+        assert_eq!(snapback4_core::ir::scans(&program.program).len(), match program.program.name.as_str() { "nonuniform" => 1, "words" => 4, _ => 2 },
+            "{} must exercise value and null lanes in each search/browse variant", program.program.name);
     }
     for (order, expected) in [("at", vec!["a", "b", "e", "c", "d", "f"]), ("owner", vec!["a", "c", "b", "d", "e", "f"])] {
         for direction in ["first", "last"] {

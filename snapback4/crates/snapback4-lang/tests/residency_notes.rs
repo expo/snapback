@@ -599,7 +599,10 @@ fn horizon_calibration_advice_preserves_prediction_and_groups_sites() {
     let guard = b.notes.iter().find(|n| n.code == "N_HORIZON_GUARD").unwrap();
     assert_eq!(guard.to_string(), "chat.q:83:22 — N_HORIZON_GUARD: chat.send: `require not exists messages[messageId] else DUPLICATE` reads the argument row id `messageId`, not the mutation write id; a miss past the horizon cannot prove row absence, so this call queues without a predicted row\n  rewrite: if this guard only dedupes retries, remove `require not exists messages[messageId] else DUPLICATE` and keep the insert; retry with the same mutation write id for this principal. That id dedupes the mutation, not the argument row id; a new mutation write id with the same row id is a different write. Keep guards that enforce an application requirement\n  guide: prediction");
     assert!(!guard.mechanical, "a guard may be an application requirement");
-    assert_eq!(b.notes.len(), 4);
+    // Search now also has a browse plan; both retain their lane warning.
+    assert_eq!(b.notes.iter().filter(|n| n.code == "N_WIDE_MERGE").count(), 2);
+    assert!(b.notes.iter().any(|n| n.code == "N_WIDE_MERGE" && n.guide == "reads"));
+    assert_eq!(b.notes.len(), 5);
     for name in ["chat.react", "chat.acceptIntent", "chat.recordSent"] { assert_eq!(b.schema.operations[name].predicts.as_deref(), Some("eligible")); }
     // If prediction is deliberately disabled, the growing tables get ordinary advice again.
     let server = horizon_fixture(&HORIZONS.replace("mutation react(conversationId: id, messageId: id):", "mutation react(conversationId: id, messageId: id): server")

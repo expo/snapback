@@ -49261,3 +49261,61 @@ store.rs:809 `#5.3-effects-keyed-once` anchor, unchanged from 49131c3eb and alre
 fixed in newer upstream. No push, publication, version bump, streamed-union
 implementation or budget increase. File-level report, exact tests, deliberate
 behavior changes and audit reproduction: reports/20260924-intent-lane-a-round10.md.
+
+
+## 2026-09-24 — Lane A round 11: optional filters, exact probes and empty-search browsing
+
+Implemented argument-presence alternatives for up to three optional inputs in
+`a = null or C` filters (also `==`, either order), with input-only local tracking,
+ordinary index synthesis and streaming count/sum/exists consumers. Each server
+and device execution chooses the admitted branch; cursors carry a fixed-size
+presence identity and refuse changed presence, even when indexes are shared.
+A fourth input stays residual with N_OPTIONAL_FILTER_LIMIT naming it. Scale
+certificates classify and label every alternative, claiming constant only when
+all are constant.
+
+Exact unique keyed exists predicates retain authorized per-row probes when
+reverse discovery cannot prove its source rule uniform. Hidden label rows do
+not satisfy the probe; the certificate names issues skipped by the predicate.
+Empty, whitespace-only and punctuation-only matching needles now browse with
+normal ordering, rules and continuation. Needles evaluate once; folded-term
+presence uses the existing metered tokenizer. The search guide uses one query.
+
+Conditional reads remain ordinary IR expressions. Page provenance, returned
+shape retries, interrupted-existence retries, retained-field ownership and
+merge diagnostics follow their alternatives. Legacy positional decoding and
+absent-field serialization remain compatible. Tests cover all four board
+variants and their cursor indexes on server, memory device and reopened SQLite,
+nullable data, foreign-presence cursors, k=4, local/helper/range/list inputs,
+streamed totals interrupted to null, hidden exact probes, folded-empty browse,
+wrapped page ownership and certificates. Existing retained-history fixtures
+consolidate duplicate covering indexes into unique byTime without weakening
+uniqueness, coverage or authorization assertions. The generated Quarry word
+fixture now includes its browse branch; the raw IR corpus is unchanged.
+
+Validation: `scripts/test.sh` finished `== 0 failure(s) in 196 s` (exit 0), invoked as `taskset -c 64-79 env SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`. The affected compiler/certificate/guide/search
+checks and the 99-test client rerun passed. The first full run reported
+`== 2 failure(s) in 199 s`: 37 Rust and 48 retained-history client failures were
+ours and are corrected; three unrelated client timing failures passed unchanged
+in the isolated rerun. The serial-client rerun (`== 1 failure(s) in 740 s`) also hit a pending-write race that passed unchanged
+in isolation. The first reduced-concurrency run (`== 1 failure(s) in 193 s`) reported one failing category
+(two WASM tests whose fixture preludes assumed a direct scan); finding the
+words alternative fixed both, and all 17 word-expansion tests passed. Final
+qualification uses 16 CPUs and eight Rust test processes, with the full inventory. Every initial failure is listed and classified in the report.
+
+Measured device artifact: 1,751,318 B raw / 487,805 B gzip, versus the preceding
+lane artifact 1,744,842 / 484,967 (+6,476 raw / +2,838 gzip). Under the repository's
+explicit byte-budget policy, raise the ratchet from 486,000 to 488,000 B (195 B
+headroom) for presence evaluation, cursor metadata, conditional page provenance
+and interrupted-existence handling. This is whole-artifact attribution; compiler
+planning and certificates are outside the web artifact. Runtime examined,
+steps, heap and write ceilings are unchanged.
+
+No push, publication, version bump, residency relaxation or streaming-union
+redesign. Recognition conservatively leaves unproved endpoint/provenance forms
+residual. The local llp-orient links are unavailable; orientation used the LLP
+and guide directly. The separate ref-check audit still has the inherited
+store.rs:809 `LLP 3000.013#5.3-effects-keyed-once` anchor error, reproduced on the
+starting commit; no new reference error. Full file inventory, compatibility
+migrations, test evidence, decisions and reproductions:
+[round report](reports/20260924-intent-lane-a-r11.md).

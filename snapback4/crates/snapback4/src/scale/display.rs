@@ -5,12 +5,50 @@ impl Certificate {
         let scope = if self.per_chunk { "per chunk — " } else { "" };
         let verdict = match self.class {
             Class::Constant => format!("constant — at most {} rows examined, {} probes, {} lanes", self.bounds.rows_examined, self.bounds.probes, self.bounds.lanes.map_or_else(|| "meter-bounded".into(), |n| n.to_string())),
+            Class::Grows if self.growth_sites.iter().any(|g| g.when.is_some()) => self.growth_sites.iter().map(|g| match &g.when {
+                Some(when) => format!("when {when}: grows with {}", g.reason), None => format!("grows with {}", g.reason),
+            }).collect::<Vec<_>>().join("; "),
             Class::Grows => format!("grows with {}", self.growth_sites.iter().map(|g| g.reason.as_str()).collect::<Vec<_>>().join("; ")),
         };
         let writes = if self.per_write.is_empty() { String::new() } else { format!("; per write: {}", self.per_write.join("; ")) };
         let sweep = if self.whole_job.is_empty() { String::new() } else { format!("; whole job grows with {}", self.whole_job.join("; ")) };
-        format!("scale: {scope}{verdict}{writes}{sweep}")
+        let constants = self.variants.iter().filter(|variant| variant.class == Class::Constant)
+            .map(|variant| format!("; when {}: constant", variant.when)).collect::<String>();
+        format!("scale: {scope}{verdict}{constants}{writes}{sweep}")
     }
+}
+
+pub(super) fn presence(expr: &Expr, labels: &BTreeMap<String, String>) -> Option<(String, bool)> {
+    match expr {
+        Expr::Binary { op: op @ (BinaryOp::Eq | BinaryOp::Ne), left, right } => {
+            let input = match (left.as_ref(), right.as_ref()) {
+                (Expr::Variable(name), Expr::Literal(Value::Null)) | (Expr::Literal(Value::Null), Expr::Variable(name)) => name,
+                _ => return None,
+            };
+            Some((author_name(input), *op == BinaryOp::Ne))
+        }
+        Expr::Builtin { builtin: Builtin::SearchPresent, args } => Some((format!("search {}", match &args[0] {
+            Expr::Variable(name) => labels.get(name).cloned().unwrap_or_else(|| author_name(name)),
+            value => self::expr(value),
+        }), true)),
+        _ => None,
+    }
+}
+
+fn author_name(name: &str) -> String {
+    if let Some(local) = name.strip_prefix('$') { local.trim_end_matches(|ch: char| ch.is_ascii_digit()).into() }
+    else { name.into() }
+}
+
+pub(super) fn conditions(conditions: &[(String, bool)]) -> Option<String> {
+    if conditions.is_empty() { return None; }
+    let render = |present| {
+        let names: Vec<_> = conditions.iter().filter(|(_, value)| *value == present).map(|(name, _)| name.as_str()).collect();
+        if names.is_empty() { return None; }
+        let verb = if names.len() == 1 { "is" } else if names.len() == 2 { "are both" } else { "are all" };
+        Some(format!("{} {verb} {}", names.join(" and "), if present { "present" } else { "absent" }))
+    };
+    Some([render(true), render(false)].into_iter().flatten().collect::<Vec<_>>().join(" and "))
 }
 
 pub(crate) fn summary(certificates: &[Certificate]) -> String {

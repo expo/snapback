@@ -115,28 +115,37 @@ impl Binder<'_> {
             }
             A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
             A::If { then, condition, otherwise, .. } => {
-                let (cond, cond_ty) = self.expr(condition, out)?;
+                let variant = super::super::intent_variants::condition(condition)
+                    .map(|(kind, input)| format!("{kind}:{}", print::expression(input)));
+                let mut variant_body = setup::Body::default();
+                let output = if variant.is_some() { &mut variant_body } else { &mut *out };
+                let (cond, cond_ty) = self.expr(condition, output)?;
                 if !cond_ty.is_bool() {
                     return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), super::control::bool_condition_rewrite(&cond_ty, "x if ttl {} else y")));
                 }
                 // Each arm binds under its narrowing and runs only when taken.
                 let temp = self.temp("if");
+                if let Some(name) = &variant { self.variants.push((name.clone(), true)); }
+                let variant_start = self.sites;
                 let mut then_out = setup::Body::default();
                 self.push_scope();
                 self.narrow(condition, true);
                 let then_bound = self.expr(then, &mut then_out);
                 self.pop_scope();
                 let (then_expr, then_ty) = then_bound?;
+                let then_sites = self.sites;
+                if variant.is_some() { self.variants.last_mut().unwrap().1 = false; self.sites = variant_start; }
                 let mut else_out = setup::Body::default();
                 self.push_scope();
                 self.narrow(condition, false);
                 let else_bound = self.expr(otherwise, &mut else_out);
                 self.pop_scope();
                 let (else_expr, else_ty) = else_bound?;
+                if variant.is_some() { self.variants.pop(); self.sites = self.sites.max(then_sites); }
                 then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
                 else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
-                out.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
-                out.push_if(cond, then_out, else_out);
+                output.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
+                output.push_if(cond, then_out, else_out);
                 let ty = if then_ty == Ty::Null {
                     else_ty.optional()
                 } else if else_ty == Ty::Null {
@@ -144,7 +153,8 @@ impl Binder<'_> {
                 } else {
                     then_ty.join(&else_ty)
                 };
-                Ok((ir::var(&temp), ty))
+                let value = if variant.is_some() { Expr::Block { body: variant_body.code, value: Box::new(ir::var(&temp)) } } else { ir::var(&temp) };
+                Ok((value, ty))
             }
             A::Member { base, name, .. } => {
                 // Generated maintain keys are literal path-named columns. Resolve
@@ -521,6 +531,20 @@ impl Binder<'_> {
             Ok(())
         };
         match name {
+            super::super::intent_variants::PRESENT => {
+                let (value, _) = self.expr(&args[0], out)?;
+                Ok((Expr::Binary { op: BinaryOp::Ne, left: Box::new(value), right: Box::new(Expr::Literal(Value::Null)) }, Ty::Bool))
+            }
+            super::super::intent_variants::SEARCH => {
+                let (value, ty) = self.expr(&args[0], out)?;
+                if !matches!(ty, Ty::Text(_)) { return Err(type_error(site, "matching needs present text", "matching (q ?? '')")); }
+                let A::Name { name, .. } = &args[1] else { unreachable!("planned needle binding") };
+                let runtime = self.temp("intentNeedle");
+                self.declare(name, ty);
+                self.scopes.last_mut().unwrap().get_mut(name).unwrap().runtime = runtime.clone();
+                out.push(Stmt::Let { name: runtime.clone(), value });
+                Ok((Expr::Builtin { builtin: Builtin::SearchPresent, args: vec![ir::var(&runtime)] }, Ty::Bool))
+            }
             "day" | "hour" | "bucket" => {
                 let (millis, offset) = super::super::maintains::calendar(name, args, site)?;
                 let (value, ty) = self.expr(&args[0], out)?;

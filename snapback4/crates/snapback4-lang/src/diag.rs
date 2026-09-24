@@ -140,7 +140,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_SYNC" | "E_SYNC_GENERATION" => "sync",
         "E_SCHEMA_CONSTRAINT" | "E_INDEX_KEY_BYTES" => "indexes",
         "E_EMIT_IN_QUERY" => "programs",
-        "E_QUARRY_MODIFIER_SCOPE" | "N_NO_CURSOR" | "N_SEEK" | "N_NEVER_COMPLETE" | "E_SHAPE_EXCEEDS_METER" => "reads",
+        "E_QUARRY_MODIFIER_SCOPE" | "N_NO_CURSOR" | "N_SEEK" | "N_NEVER_COMPLETE" | "E_SHAPE_EXCEEDS_METER" | "N_OPTIONAL_FILTER_LIMIT" => "reads",
         "N_WIDE_MERGE" | "E_HOST_UNICODE" => "search",
         "E_QUARRY_POSITIONAL_SCAN" => "reads",
         "E_VIEW_FEED_SHAPE" => "feeds",

@@ -528,10 +528,10 @@ fn a_search_matches_word_prefixes_newest_first() {
     let page = search(&mut engine, "dev:bob", "cof", page.next.clone(), 1_050);
     assert_eq!(bodies(&page), vec!["the coffers are empty", "Coffee time at nine"]);
     assert!(page.complete && page.next.is_none(), "the last page ends: {page:?}");
-    // Case-insensitive; a second term filters the page; an empty search is empty.
+    // Case-insensitive; a second term filters the page; an empty search browses.
     assert_eq!(bodies(&search(&mut engine, "dev:bob", "COF car", None, 1_050)), vec!["COFFEE for Carol"]);
     assert_eq!(bodies(&search(&mut engine, "dev:bob", "coffee nine", None, 1_050)), vec!["Coffee time at nine"]);
-    assert!(bodies(&search(&mut engine, "dev:bob", "", None, 1_050)).is_empty());
+    assert_eq!(bodies(&search(&mut engine, "dev:bob", "", None, 1_050)), vec!["brief coffee", "COFFEE for Carol"]);
     assert!(bodies(&search(&mut engine, "dev:bob", "offee", None, 1_050)).is_empty(), "mid-word is not a match");
     // The expired row is gone at once, before the sweep.
     assert_eq!(bodies(&search(&mut engine, "dev:bob", "cof", None, 1_200)), vec!["COFFEE for Carol", "the coffers are empty"]);

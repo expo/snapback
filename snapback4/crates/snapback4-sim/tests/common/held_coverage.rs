@@ -80,7 +80,7 @@ pub fn assert_nested(schema: &snapback4_core::schema::Schema, case: &str) {
     let fact = &schema.operations["nestedSearch"];
     let line = snapback4_lang::bind::residency::operation_lines("nestedSearch", fact);
     println!("W9R2 case={case} sites={}\n{line}", fact.sites.len());
-    assert_eq!(fact.sites.len(), 2, "the matching expression's source must be retained: {line}");
+    assert_eq!(fact.sites.len(), 3, "both variants and the matching expression's source must be retained: {line}");
     assert!(fact.sites.iter().any(|site| site.table == "messages" && site.class == SiteClass::Held));
     let class = match case { "online" => SiteClass::Server, "horizon" => SiteClass::Horizon, "full" => SiteClass::Held, _ => unreachable!() };
     assert!(fact.sites.iter().any(|site| site.table == "terms" && site.class == class && site.site.contains("schema.q:10:")), "{line}");
@@ -89,7 +89,7 @@ pub fn assert_nested(schema: &snapback4_core::schema::Schema, case: &str) {
 
 pub fn assert_nested_read(read: &snapback4_core::QueryOutcome, case: &str) {
     let count = read.data.as_array().unwrap().len();
-    assert_eq!(count, usize::from(case != "online"), "{read:?}");
+    assert_eq!(count, 1, "{read:?}");
     assert_eq!(read.complete, case == "full", "{read:?}");
     assert!(read.next.is_none() && read.capped_at.is_none() && read.word_cut_at.is_none());
     println!("W9R2 case={case} rows={count} complete={} examined={} index_entries={} probes={} steps={} heap_bytes={} output_bytes={} rows_written={}",

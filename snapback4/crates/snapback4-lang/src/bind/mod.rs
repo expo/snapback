@@ -18,6 +18,7 @@ mod timeline;
 mod feed_view;
 mod intent;
 mod intent_aggregates;
+mod intent_variants;
 mod intent_walk;
 mod intent_views;
 mod view_predicate;
@@ -55,6 +56,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut catalog = Catalog::build(documents, &mut diagnostics);
     catalog.feed_views = feeds;
     intent::table_order(&mut catalog);
+    intent_variants::expand(&mut catalog);
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
@@ -441,6 +443,10 @@ pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Me
     fn in_expr<'a>(expr: &'a Expr, out: &mut Vec<&'a snapback4_core::ir::Merge>) {
         match expr {
             Expr::Merge(merge) => out.push(merge),
+            Expr::Block { body, value } => {
+                in_stmts(body, out);
+                in_expr(value, out);
+            }
             Expr::Field { base, .. } => in_expr(base, out),
             Expr::Array(items) | Expr::Builtin { args: items, .. } => items.iter().for_each(|item| in_expr(item, out)),
             Expr::Object(fields) => fields.values().for_each(|item| in_expr(item, out)),

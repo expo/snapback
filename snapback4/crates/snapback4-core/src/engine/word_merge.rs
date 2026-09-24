@@ -30,13 +30,14 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(super) fn validate_word_cursor(&mut self, token: &str, table: &str, index: &str, order: Order, suffix: &[CursorColumn]) -> Result<(), RuntimeError> {
+    pub(super) fn validate_word_cursor(&mut self, token: &str, table: &str, index: &str, order: Order, suffix: &[CursorColumn], variant: Option<crate::ir::VariantId>) -> Result<(), RuntimeError> {
         if self.word_cursor.as_ref().is_none_or(|(cached, _)| cached != token) {
             self.meter.heap(word_heap::cursor_decode(token) + word_heap::text(token))?;
             let position = decode_cursor(self.schema, token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
             self.word_cursor = Some((token.to_owned(), position));
         }
         let position = &self.word_cursor.as_ref().unwrap().1;
+        crate::cursor::check_variant(position, variant)?;
         if position.table != table || position.index != index || position.order != order || position.suffix != suffix {
             return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Descriptor)));
         }
@@ -71,7 +72,7 @@ impl Runner<'_> {
             && let Value::String(token) = self.expr(after)?
         {
             // The merge's initial cursor validation also allocates decode scratch.
-            if metered_merge { self.validate_word_cursor(&token, &first.table, &first.index, order, &suffix)?; }
+            if metered_merge || first.variant.is_some() { self.validate_word_cursor(&token, &first.table, &first.index, order, &suffix, first.variant)?; }
             else { decode_cursor_for(self.schema, &token, &first.table, &first.index, order, &suffix)
                 .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?; }
             if metered_merge { self.word_shape_cursor(site, token)?; }
@@ -222,7 +223,7 @@ impl Runner<'_> {
                         + last.as_ref().map_or(0, |key| 2 * word_heap::values(key))
                         + word_heap::cursor_build(table, index, prefix_len, if continues || shaped { max_key } else { 0 }, word_heap::text(&first.table) + word_heap::text(&first.index)))?;
                 }
-                self.record_page(site.to_owned(), PagePosition { view_suffix: None, table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
+                self.record_page(site.to_owned(), PagePosition { variant: merge.and_then(|m| m.variant).or_else(|| first.variant), view_suffix: None, table: first.table.clone(), index: first.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
             } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
         }
         Ok(page)

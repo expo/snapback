@@ -57,6 +57,7 @@ pub struct Binder<'a> {
     focal: Option<(String, Ty)>,
     /// Only direct scanned-row columns get false-on-null ordering in where.
     in_predicate: bool,
+    variants: Vec<(String, bool)>,
     temps: u32,
     sites: u32,
     returns: Vec<Ty>,
@@ -95,7 +96,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -329,6 +330,7 @@ impl<'a> Binder<'a> {
         let spelling = if !read.order_keys.is_empty() { self.catalog.read_origins.get(&read.site.to_string()).cloned() } else { None };
         self.sources.insert(scan_site.clone(), (read.site.clone(), spelling.unwrap_or_else(|| print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() }))));
         let mut scan = Scan {
+            variant: self.variant(),
             site: scan_site,
             table: read.table.clone(),
             index: index.name,
@@ -633,7 +635,7 @@ impl<'a> Binder<'a> {
             scan.merge_site = Some(merge_site.clone());
             lanes.push(MergeLane { guard: None, distinct: None, branch: None, project: None, setup: setup.code, scan, source, binding });
         }
-        Ok((Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: merge_site, lanes }), Ty::Page(merge.table.clone(), merge.take)))
+        Ok((Expr::Merge(Merge { variant: self.variant(), position: None, view: None, order_keys: Vec::new(), site: merge_site, lanes }), Ty::Page(merge.table.clone(), merge.take)))
     }
 
     // ----- shapes -----

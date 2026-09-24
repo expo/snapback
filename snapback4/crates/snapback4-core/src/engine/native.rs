@@ -635,7 +635,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
                 }
                 Some(_) => return Err(RuntimeError::Input("native scan after is the previous page's next, or null".into())),
             };
-            let scan = Scan {
+            let scan = Scan { variant: None,
                 site,
                 table: table_name.to_owned(),
                 index: index_name.to_owned(),

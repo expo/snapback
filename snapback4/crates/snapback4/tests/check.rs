@@ -803,7 +803,7 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
     let first = p.run(&["check", "--json"]);
     assert!(first.status.success(), "{first:?}");
     let first = parsed(&first);
-    assert_eq!(first["notes"].as_array().unwrap().len(), 4);
+    assert_eq!(first["notes"].as_array().unwrap().len(), 5);
     let summary = first["predictionSummary"].as_str().unwrap();
     assert!(summary.contains("chat.send (messages[messageId] (chat.q:83:22))"), "{summary}");
     for _ in 0..3 {

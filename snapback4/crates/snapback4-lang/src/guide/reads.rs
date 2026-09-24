@@ -25,6 +25,9 @@ changes can move rows across a saved position. Restart to see the new order.
 Value lanes deduplicate values; each lane keeps its source rule. Null never
 becomes an index pin. When a membership list includes null, one ordinary
 filtered lane reads the null-valued rows under the same rule.
+A keyed `exists` inside `where` probes one authorized row per candidate;
+when its discovery prefix cannot decide the other table's read rule, the
+planner retains those probes and the certificate names the skipped rows.
 A cut during discovery or while any lane head is unknown is incomplete and
 has no cursor. A full page never certifies a prefix of an unfinished lane list.
 
@@ -248,6 +251,7 @@ table workTasks:
   cap 100 by owner
   due: time ?
   status: enum('todo', 'doing', 'done')
+  assignee: principal ?
   createdAt: time
   read <- .owner = viewer
   sync to .owner
@@ -260,7 +264,15 @@ query openTasks(c: cursor ?):
   return workTasks where .owner = viewer and .status != 'done' first 50 by .createdAt after c
 query openTaskValues(c: cursor ?):
   return workTasks where .owner = viewer and .status in ['todo', 'doing'] first 50 by .createdAt after c
+query board(status: enum('todo', 'doing', 'done') ?, assignee: principal ?, c: cursor ?):
+  return workTasks where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .createdAt after c
 ```
+
+Optional filters `(status = null or .status = status)` (also `==`, either order)
+choose an indexed plan for each presence combination; reset the cursor when
+filters change, and inspect each variant with `check --cost`.
+At most three optional inputs expand; N_OPTIONAL_FILTER_LIMIT names any extra
+residual filters, which can stay metered or move into separate queries.
 
 `check --cost` displays the residual that still tests each visible candidate,
 including `in` when another predicate supplies the lanes. A predicate fully

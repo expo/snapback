@@ -27,8 +27,10 @@ fn prefix_exists_plain_and_matching_are_scans_but_full_keys_stay_probes() {
     let bound = checked(&format!("{schema}\nquery plain(roomId: rooms):\n  return exists messages[roomId = roomId]\nquery words(roomId: rooms, q: text <=100):\n  return exists (messages[roomId = roomId] matching q)\nquery exact(roomId: rooms):\n  return exists members[roomId, viewer]\n"));
     for name in ["plain", "words"] {
         let program = &bound.programs.iter().find(|p| p.program.name == name).unwrap().program;
-        assert_eq!(ir::scans(program).len(), 1);
-        assert_eq!(ir::scans(program)[0].take.maximum(), 1);
+        let scans = ir::scans(program);
+        assert_eq!(scans.len(), if name == "words" { 2 } else { 1 });
+        assert!(scans.iter().all(|scan| scan.take.maximum() == 1 && scan.existence));
+        assert_eq!(scans.iter().filter(|scan| scan.prefix.iter().any(|key| matches!(key, ir::IndexKeyExpr::WordPrefix(_)))).count(), usize::from(name == "words"));
     }
     let exact = &bound.programs.iter().find(|p| p.program.name == "exact").unwrap().program;
     assert!(ir::scans(exact).is_empty());

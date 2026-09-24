@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 fn structural_admission_stays_on_the_server_and_native_device() {
     let source = "query answer():\n  return 7\n";
     let (_, mut backend) = compile(source);
-    let scan = snapback4_core::ir::Scan { site: "missing".into(), table: "missing".into(), index: "byId".into(), prefix: vec![], order: snapback4_core::ir::Order::Asc, take: snapback4_core::ir::Bound::Literal(1), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: snapback4_core::ir::KeyProvenance::Const };
+    let scan = snapback4_core::ir::Scan { variant: None, site: "missing".into(), table: "missing".into(), index: "byId".into(), prefix: vec![], order: snapback4_core::ir::Order::Asc, take: snapback4_core::ir::Bound::Literal(1), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: snapback4_core::ir::KeyProvenance::Const };
     backend.programs[0].body.insert(0, Stmt::If { condition: Expr::Literal(Value::Bool(false)), then_body: vec![Stmt::Return(Expr::Scan(scan))], else_body: vec![] });
     let program = &backend.programs[0];
     assert_eq!(snapback4_core::engine::admission::check(&backend.schema, program).unwrap_err().code(), "E_UNBOUND_SCAN");

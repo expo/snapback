@@ -11,7 +11,12 @@ impl<'a> Binder<'a> {
         }).collect::<Vec<_>>().join(", ");
         let origin = if self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone())) { "synthesized; " } else { "" };
         let source = if origin.is_empty() { String::new() } else { format!("; read: {}", self.catalog.read_origins.get(&read.site.to_string()).cloned().unwrap_or_else(|| print::read_expr(read))) };
-        self.selections.insert(site.into(), format!("selected {} ({bindings}); result: {result}; {origin}{reason}{source}", index.name));
+        let mut selection = format!("selected {} ({bindings}); result: {result}; {origin}{reason}{source}", index.name);
+        if !self.variants.is_empty() {
+            let when = self.variants.iter().map(|(name, present)| format!("{} {}", name.trim_start_matches("$intentPresent:").trim_start_matches("$intentSearch:"), if *present { "present" } else { "absent" })).collect::<Vec<_>>().join(" and ");
+            selection = format!("when {when}: {selection}");
+        }
+        self.selections.entry(site.into()).and_modify(|prior| { if !prior.contains(&selection) { prior.push_str("; "); prior.push_str(&selection); } }).or_insert(selection);
     }
 
     // @ref LLP 3000.007#10 — a covered total unique key reads one row; additional named equalities check that row.
@@ -94,6 +99,13 @@ impl<'a> Binder<'a> {
 }
 
 impl Binder<'_> {
+    pub(super) fn variant(&self) -> Option<ir::VariantId> {
+        (!self.variants.is_empty()).then(|| {
+            let hash = snapback4_core::value::digest(&self.variants);
+            std::array::from_fn(|i| u32::from_str_radix(&hash[i * 8..i * 8 + 8], 16).expect("hex digest"))
+        })
+    }
+
     // @ref LLP 3000.007#18.5 — a declared page shape after a scalar predicate needs no wrapper or correction loop.
     pub(super) fn page_shape(&self, read: &ReadExpr) -> Option<A> {
         let predicate = read.filter.as_ref()?;

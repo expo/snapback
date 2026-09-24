@@ -273,7 +273,7 @@ impl Runner<'_> {
 
     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let after = cursor.map(|key| Box::new(Expr::Literal(Value::Array(crate::key::decode(key).unwrap_or_default().into_iter().skip(prefix.len()).collect()))));
-        let (rows, keys) = self.scan_with_keys(&Scan { site: format!("timeline/{table}/{index}"), table: table.into(), index: index.into(),
+        let (rows, keys) = self.scan_with_keys(&Scan { variant: None, site: format!("timeline/{table}/{index}"), table: table.into(), index: index.into(),
             prefix: prefix.iter().cloned().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value))).collect(),
             order: if reverse { ir::Order::Desc } else { ir::Order::Asc }, take: ir::Bound::Literal(take),
             existence: false, after, before: None, range: None, filter: None, opaque_cursor: false,
