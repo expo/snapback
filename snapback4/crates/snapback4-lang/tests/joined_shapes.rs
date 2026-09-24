@@ -321,8 +321,12 @@ fn simple_nullable_locals_and_row_reads_keep_nullability_and_laziness() {
                     let data = answer.data;
                     if ready && key == "missing" { assert_eq!(data, Value::Null); }
                     else {
-                        assert_eq!(data.field("id").unwrap(), &Value::Id(if ready { "note" } else { "other" }.into()));
-                        assert_eq!(data.field("title").unwrap(), &Value::String(if ready { "original" } else { "second" }.into()));
+                        let expected = object([
+                            ("id", Value::Id(if ready { "note" } else { "other" }.into())),
+                            ("owner", Value::Id(if ready { "alice" } else { "bob" }.into())),
+                            ("title", Value::String(if ready { "original" } else { "second" }.into())),
+                        ]);
+                        assert_eq!(data, expected, "ready={ready}, key={key}\n{fixed}");
                     }
                 }
             } }
@@ -425,5 +429,10 @@ fn loop_transfers_keep_declared_types_for_later_uses() {
         let source = format!("query run(ready: bool):\n  x = 1\n  for n in [1, 2]:\n    if ready:\n      x = null\n      {transfer}\n  return x + 1\n");
         let bound = compile(&[("schema.q".into(), source)]);
         assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{transfer}: {:?}", bound.diagnostics);
+        for later in ["return 0", "require false else STOP"] {
+            let source = format!("query run(ready: bool, stop: bool):\n  x = 1\n  for n in [1, 2]:\n    if ready:\n      x = null\n      if stop:\n        {transfer}\n      {later}\n  return x + 1\n");
+            let bound = compile(&[("schema.q".into(), source.clone())]);
+            assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{source}\n{:?}", bound.diagnostics);
+        }
     }
 }

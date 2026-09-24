@@ -169,12 +169,14 @@ impl Binder<'_> {
                 let before = self.visible_bindings();
                 let (then_out, then_bindings) = self.branch(condition, true, then_body, completes)?;
                 let (else_out, else_bindings) = self.branch(condition, false, else_body, completes)?;
+                let then_flow = flow::Outcomes::block(&then_out);
+                let else_flow = flow::Outcomes::block(&else_out);
                 // Only continuing paths meet at the join. Branch locals do
                 // not escape, but a fact proved by every survivor does.
                 for (name, mut binding) in before {
                     let then_ty = if then_bindings[&name].runtime == binding.runtime { &then_bindings[&name].ty } else { &binding.ty };
                     let else_ty = if else_bindings[&name].runtime == binding.runtime { &else_bindings[&name].ty } else { &binding.ty };
-                    binding.ty = match (exits(&then_out), exits(&else_out)) {
+                    binding.ty = match (then_flow.exits(), else_flow.exits()) {
                         (false, false) => self.join(then_ty, else_ty, &joins::local(&name, site), &joins::local(&name, site))?,
                         (false, true) => then_ty.clone(),
                         (true, false) => else_ty.clone(),
@@ -182,7 +184,7 @@ impl Binder<'_> {
                     };
                     let then_fields = if then_bindings[&name].runtime == binding.runtime { &then_bindings[&name].fields } else { &binding.fields };
                     let else_fields = if else_bindings[&name].runtime == binding.runtime { &else_bindings[&name].fields } else { &binding.fields };
-                    binding.fields = match (exits(&then_out), exits(&else_out)) {
+                    binding.fields = match (then_flow.exits(), else_flow.exits()) {
                         (false, false) => then_fields.iter().filter_map(|(path, ty)| else_fields.get(path).map(|other| self.join(ty, other, &joins::local(&name, site), &joins::local(&name, site)).map(|ty| (path.clone(), ty)))).collect::<Fallible<_>>()?,
                         (false, true) => then_fields.clone(),
                         (true, false) => else_fields.clone(),
@@ -190,7 +192,7 @@ impl Binder<'_> {
                     };
                     // Break/continue still carry declarations to the loop's
                     // fixed point; return/refusal carry none to any later use.
-                    binding.declared = match (terminates(&then_out), terminates(&else_out)) {
+                    binding.declared = match (then_flow.terminates(), else_flow.terminates()) {
                         (false, false) => self.join(&then_bindings[&name].declared, &else_bindings[&name].declared, &joins::local(&name, site), &joins::local(&name, site))?,
                         (false, true) => then_bindings[&name].declared.clone(),
                         (true, false) => else_bindings[&name].declared.clone(),
@@ -585,26 +587,8 @@ fn helper_returns(statements: Vec<Stmt>, result: &str, done: &str) -> (Vec<Stmt>
     (out, may_return)
 }
 
-/// A loop may be empty. A return, an unconditional refusal, or two exiting
-/// branches leave no path to the following statement.
 pub(super) fn exits(statements: &[Stmt]) -> bool {
-    statements.iter().any(|statement| match statement {
-        Stmt::Return(_) | Stmt::Break | Stmt::Continue => true,
-        Stmt::Require { condition: Expr::Literal(Value::Bool(false)), .. } => true,
-        Stmt::If { then_body, else_body, .. } => exits(then_body) && exits(else_body),
-        _ => false,
-    })
-}
-
-/// Unlike a loop transfer, these paths leave the function entirely. Loop
-/// transfers must keep their declarations for the next iteration/loop exit.
-fn terminates(statements: &[Stmt]) -> bool {
-    statements.iter().any(|statement| match statement {
-        Stmt::Return(_) => true,
-        Stmt::Require { condition: Expr::Literal(Value::Bool(false)), .. } => true,
-        Stmt::If { then_body, else_body, .. } => terminates(then_body) && terminates(else_body),
-        _ => false,
-    })
+    flow::Outcomes::block(statements).exits()
 }
 
 /// Only lexical snapshots have stable fields; repeated database reads do not.

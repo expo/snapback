@@ -50246,3 +50246,81 @@ baseline or environmental failure. Logs: /tmp/lane-k-r11-full-suite.log
 /tmp/lane-k-r11-targeted-final.log and /tmp/lane-k-r11-lowering.log.
 No unresolved round-11 problem. The loop-transfer distinction above is the
 only refinement to the brief; no push or publication.
+
+### 2026-09-24 — LLP 3000.013, Lane K round 12: ordered control outcomes
+
+Replaced round 11's unsound `terminates()` scan. Its later-return search
+could discard a nullable declaration after an earlier conditional break or
+continue, allowing `return x + 1` to reach null at runtime. The binder's
+other exit analysis is a possible-transfer scan for aggregate diagnostics,
+not an every-path reachability proof, so it is not reused for typing.
+
+File by file:
+- `crates/snapback4-lang/src/bind/program/flow.rs` computes each IR block's
+  outcome set: fall-through, break, continue and return/refusal. Only the
+  fall-through paths execute the next statement; earlier transfers remain.
+  Conditionals union their arms. Loops consume their own break/continue and
+  conservatively retain a possibly empty/exhausted path. A block terminates
+  only when its sole outcome is return/refusal. Ordinary unknown conditions
+  keep both paths; the analysis does not attempt constant folding.
+- `bind/program/control.rs` uses those outcomes for the flow type, field
+  refinements and declared type; declarations on loop-transfer paths still
+  feed the existing loop fixed point. It computes each arm once per join.
+  `bind/program.rs` registers the new module. The old independent exit and
+  termination scans are removed; the operation-end exit check shares the
+  same outcome computation.
+- `tests/joined_shapes.rs` extends the loop-transfer regression with both
+  break and continue before each of return and unconditional refusal. All
+  four combinations now refuse `x + 1` with E_QUARRY_TYPE at compile time.
+  Nullable rewrite tests compare the complete independently expected row,
+  including id, title and owner, for every present arm.
+- `tests/control_flow.rs` generates 2,048 bounded programs from four fixed
+  random seeds using assignments, if, for, break, continue, return and
+  require. A quarter emphasize nullable writes before competing exits.
+  Every admitted program runs all eight boolean input combinations. The
+  observed 1,110 clean programs produced 7,843 answers and 1,037 named STOP
+  refusals, with no runtime E_TYPE; 938 programs were refused at compile
+  time. Coverage assertions prevent an all-refused or all-returning pass.
+  Two unit tests in flow.rs separately check statement ordering, unreachable
+  tails, mixed outcomes, empty blocks and nested-loop transfer ownership.
+
+The explicit reproduction failed against round 11. Temporarily restoring
+round 11's control.rs also made the property fail on seed 1, case 0, inputs
+1: `continue` skipped a later `require false`, then arithmetic read null.
+The injection was restored. An initial test-only E_OP came from using a
+module filename with an unqualified query name; the fixture now uses
+schema.q. Logs: /tmp/lane-k-r12-before-fix.log and
+/tmp/lane-k-r12-property-mutant.log.
+
+Final targeted checks passed 40 frontend, 57 guide and 17 joined-shape tests,
+the randomized property, and both flow unit tests. Frozen Bun install
+checked 506 installs with no changes. Reference audit passed 505 LLP docs
+and 9,239 refs, with zero errors/unchecked. All changed source files remain
+under 1,500 lines; git diff --check passes. No new syntax or diagnostic code,
+no IR/device/wire change, and no change to authorization, disclosure,
+durability or runtime meters. The conservative handling of conditions and
+loop emptiness is the engineering choice requested by the soundness-first
+brief; there is no deviation.
+
+The initial full scripts/test.sh run ended `== 1 failure(s) in 147 s`:
+client tests only. `W5c process: pending writes recover by id through sent
+and failed, including settlement before reopen returns` observed `sent`
+where acquisition.test.mjs:375 expected `pending`. Classified environmental:
+this is a timing assertion in an unchanged fixture (its programs contain no
+conditional statement), and the identical test passed in isolation with the
+same build. It passed in the recorded baseline too; it is not classified as
+a recorded baseline failure. No assertion or client implementation was
+changed. Reproduction command: `node --test --test-name-pattern='W5c process:
+pending writes recover by id' packages/snapback4/test/acquisition.test.mjs`
+(on one line); the race appeared during the parallel full suite, not the
+isolated rerun. Evidence: /tmp/lane-k-r12-full-suite.log and
+/tmp/lane-k-r12-acquisition-rerun.log. Every Rust target passed in that run,
+including all lowering golden comparisons and the property test.
+
+The unchanged full-suite rerun finished `== 0 failure(s) in 147 s`.
+Every stage passed; no remaining round-12 code failure. The intermittent
+client timing assertion above remains outside this change. Final evidence:
+/tmp/lane-k-r12-full-suite-final.log; targeted evidence:
+/tmp/lane-k-r12-targeted-final.log and /tmp/lane-k-r12-flow-unit.log.
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. No push or publication.

@@ -13,6 +13,7 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod flow;
 mod conditional;
 mod joins;
 mod returned_shapes;
