@@ -3,7 +3,7 @@
 use snapback4_core::{Value, cursor::{decode_cursor, encode_cursor}, engine::QueryOutcome, ir::Order, schema::Schema};
 
 pub fn source() -> String {
-    format!("{}\nquery searchPair(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    ['r0000']\n    ['r0001']\n    ['r0002']\n\nquery searchLane(q: text <=100, c: cursor ?):\n  return messages['r0000'] matching q after c last 20 by byRoomWords\n", super::fixture::source())
+    format!("{}\nquery searchPair(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    ['r0000']\n    ['r0001']\n    ['r0002']\n\nquery searchLane(q: text <=100, c: cursor ?):\n  return messages['r0000'] matching q after c last 20 by byRoomWords\n", super::fixture::legacy_source())
 }
 
 pub fn seed() -> Vec<(String, Value)> {

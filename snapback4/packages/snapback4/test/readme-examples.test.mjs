@@ -123,10 +123,11 @@ test("README TypeScript examples compile and call every public function", (t) =>
   assert.deepEqual([...diagnostics, ...missing.map(name => `${name} needs a call in a README ts/tsx block`)], []);
 });
 
-test("R1a Queries lists matching merges over scope lanes", () => {
-  const queries = (read(join(root, "../../crates/snapback4-lang/src/guide/reads.rs")).split("- **Reads:")[1]?.split("- **")[0] ?? "").replace(/\s+/g, " ");
-  assert.ok(queries.includes("merge t matching q [after c] last N by wordsIndex:"), "Queries must spell the matching merge");
-  assert.ok(queries.includes("scope lanes"));
+test("Queries teach predicate reads and engine-chosen scope lanes", () => {
+  const queries = read(join(root, "../../crates/snapback4-lang/src/guide/reads.rs")).replace(/\s+/g, " ");
+  assert.ok(queries.includes("messages where .roomId = roomId"));
+  assert.ok(queries.includes("last 20 by .at after c"));
+  assert.ok(queries.includes("the author writes no lane list"));
   assert.ok(read(join(root, "README.md")).includes("`guide reads`"));
 });
 

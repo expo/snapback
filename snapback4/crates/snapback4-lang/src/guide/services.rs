@@ -5,7 +5,7 @@ pub(super) const CARD: &str = r##"# Services: a worker's seat, and accounts the 
 table rankings:
   postId: id
   score: int
-  unique byPost: postId
+  unique postId
   read <- allow
   insert <- viewer = 'service:ranker'     -- a text literal beside viewer names a principal
   update <- viewer = 'service:ranker'

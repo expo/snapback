@@ -61,7 +61,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("clock", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
-    ("maintain", "maintains"), ("aggregates", "maintains"), ("time", "language"),
+    ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "maintains"), ("time", "language"),
     ("replay", "personas"), ("seed", "personas"),
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
@@ -133,17 +133,14 @@ table notices:
   body: text <=200
   author: principal
   at: time
-  by byTime: at, id
-  by byAuthor: author, id
   public 'a public bulletin'
   insert <- .author = viewer
-  sync last 100 by byTime
-maintain noticeCounts: count notices by author
+  sync last 100 by .at
+view noticeCounts: count notices by .author
   read <- allow
   online only
 table audit:
   actor: principal
-  by byActor: actor, id
   read <- .actor = viewer
   online only
 query notice(id: notices):
@@ -155,7 +152,7 @@ mutation post(body: text <=200):
 ```
 
 `check --residency --verbose` prints two tables of facts: each table's audience and
-horizon (inferred audiences say "from the read rule"; maintains name their
+horizon (inferred audiences say "from the read rule"; aggregate views name their
 source), then operations and their read sites: held, horizon, or server.
 Sites name the read, write or rule's file:line:column, including expanded
 helper writes and after-insert rules; a source-less fact names its rule or
@@ -169,7 +166,7 @@ Queries reading `connected` run on the server; mutations stay eligible when pres
 Presence-derived values use only total comparisons, boolean logic and fixed-size field values; fallible work keeps `never`.
 
 `why notice` names its horizon; `why countNotices` names the online-only
-maintain and the rewrite. `why notices` prints the rule that inferred sync.
+view and the rewrite. `why notices` prints the rule that inferred sync.
 Generated api.ts documents arguments, results, runs/predicts, horizon sites
 and require codes. check compares with generated/residency.json; dev compares
 with the generation it serves. N_NOW_SERVER names a newly server-run query.
@@ -184,9 +181,9 @@ site refuses E_NOT_PREDICTABLE at that header. See `guide prediction`.
 
 N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
 with unbounded recipients or multiple values per group. It names mutations
-that would stop predicting if the maintain goes online only. Repeats share one
-note with a line and source location for every maintain. Check prints these
-facts without pre-adoption counts: a new maintain has no stored rows yet. Run
+that would stop predicting if the view goes online only. Repeats share one
+note with a line and source location for every view. Check prints these
+facts without pre-adoption counts: a new view has no stored rows yet. Run
 `test --residency --fixture dir --as alice` to measure cold rows and compact
 JSON row bytes. The default report shows the eight costliest table/persona
 pairs by bytes (then rows), one summed remainder and reconciled totals.
@@ -209,20 +206,18 @@ table stories:
   authorId: principal
   body: text <=500
   expiresAt: time ?                        -- a null time never expires
-  by byAuthorTime: authorId, id
-  by byExpiresAt: expiresAt                -- the sweep finds due rows here, without a walk
   read <- .authorId = viewer
   insert <- .authorId = viewer
   update <- deny
   delete <- .authorId = viewer
   expire at .expiresAt
-  sync to .authorId last 200 by byAuthorTime
+  sync to .authorId last 200 by .id
 
 mutation postStory(body: text <=500, ttl: int ?):
   return insert stories { authorId: viewer, body, expiresAt: now + ttl if ttl != null else null }
 
 query expiringStories(c: cursor ?):
-  return stories[viewer] after c last 20 by byAuthorTime { id, body, expiresAt }
+  return stories where .authorId = viewer after c last 20 by .id { id, body, expiresAt }
 ```
 
 A typing indicator or presence row with a short deadline needs this local
@@ -262,12 +257,12 @@ leaves local stores on the next sync. In development, `snapback4 clock advance 1
 runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync, without changing the device clock (guide clock).
 Disappearing messages are one field on
-insert; there is no purge job to write. A `maintain` over an expiring table
+insert; there is no purge job to write. A maintained `view` over an expiring table
 reads its live source group under the read meter through an internal selected
 contribution index. Physical zero-sum occupancy reads at most one index entry. A rule may probe whether that live group
 exists at one rule-probe unit, regardless of expired sources. A rule equality
 on its `value` is refused at `check` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the
-maintain in the program; its live value cannot be probed at one unit. Value
+view in the program; its live value cannot be probed at one unit. Value
 equalities on non-expiring maintains and ordinary tables remain supported.
 Value-order indexes over expiring sources are refused by check
 (E_QUARRY_MAINTAIN_EXPIRE) and raw schema adoption: use the fresh live bounded query
@@ -301,12 +296,11 @@ table clips:
   photo: image <=10000000 once ?           -- `once`: one view per principal, never cached
   clip: video <=50000000 ?
   at: time
-  by byOwnerTime: ownerId, at, id
   read <- .ownerId = viewer
   insert <- .ownerId = viewer
   update <- deny
   delete <- .ownerId = viewer
-  sync to .ownerId last 100 by byOwnerTime
+  sync to .ownerId last 100 by .at
 
 mutation sendClip(clip: video <=50000000):
   duration = clip.duration                 -- the argument carries the facts the server sniffed: type, bytes, width, height, duration; null where the kind has none

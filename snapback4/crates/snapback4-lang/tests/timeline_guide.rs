@@ -1,10 +1,10 @@
-//! The language card's timeline is part of its single executable program.
+//! Execute the language card's compatibility block and mapped-table invariants.
 use snapback4_core::{Context,Engine,Value,WriteState};
 
 // @ref LLP 3000.007.003#31-f1-maintained-columns — mapped tables are ordinary column parents and sources; owned tables are not.
 #[test]
 fn maintained_columns_refuse_timeline_owned_sources_in_the_binder() {
-    let base = snapback4_lang::guide::language();
+    let base = snapback4_lang::guide::quarry(snapback4_lang::guide::LANGUAGE).pop().unwrap();
     for (source, role, table) in [
         (base.replace("table timelineCards:", "table timelineCards:\n  score: count timelineFeed by postId"), "source", "timelineFeed"),
     ] {
@@ -18,7 +18,7 @@ fn maintained_columns_refuse_timeline_owned_sources_in_the_binder() {
 #[test]
 fn maintained_columns_compose_with_mapped_timeline_tables() {
     // A mapped parent (cards) with an ordinary source (votes), and a mapped source (reposts).
-    let source = snapback4_lang::guide::language().replace("table timelineCards:\n", "table timelineCards:\n  votes: count timelineVotes by postId\n  reposts: count timelineReposts by postId\n")
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::LANGUAGE).pop().unwrap().replace("table timelineCards:\n", "table timelineCards:\n  votes: count timelineVotes by postId\n  reposts: count timelineReposts by postId\n")
         + "\ntable timelineVotes:\n  postId: timelineCards\n  voter: principal\n  unique byPair: postId, voter\n  immutable postId, voter\n  public 'votes'\n  insert <- .voter = viewer\n  delete <- .voter = viewer\n"
         + "\nmutation timelineVote(postId: timelineCards):\n  insert timelineVotes { postId, voter: viewer }\n"
         + "\nmutation timelineUnvote(postId: timelineCards):\n  delete timelineVotes[postId, viewer]\n"
@@ -56,7 +56,7 @@ fn maintained_columns_compose_with_mapped_timeline_tables() {
 /// cards also carry two maintained columns and an index over one of them.
 fn voting_timeline(counted: bool) -> Engine {
     let columns = if counted { "table timelineCards:\n  votes: count timelineVotes by postId\n  reposts: count timelineReposts by postId\n  by byVotes: votes, at, id\n" } else { "table timelineCards:\n" };
-    let source = snapback4_lang::guide::language().replace("table timelineCards:\n", columns)
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::LANGUAGE).pop().unwrap().replace("table timelineCards:\n", columns)
         + "\ntable timelineVotes:\n  postId: timelineCards\n  voter: principal\n  unique byPair: postId, voter\n  immutable postId, voter\n  public 'votes'\n  insert <- .voter = viewer\n  delete <- .voter = viewer\n"
         + "\nmutation timelineVote(postId: timelineCards):\n  insert timelineVotes { postId, voter: viewer }\n"
         + "\nmutation timelineUnvote(postId: timelineCards):\n  delete timelineVotes[postId, viewer]\n"
@@ -128,7 +128,7 @@ fn maintained_columns_on_mapped_tables_leave_timeline_state_identical() {
 
 #[test]
 fn language_timeline_registers_delivers_and_removes_without_helpers() {
-    let b=snapback4_lang::compile(&[("schema.q".into(),snapback4_lang::guide::language())]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),snapback4_lang::guide::quarry(snapback4_lang::guide::LANGUAGE).pop().unwrap())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.notes.is_empty(),"{:?}",b.notes);
     let names:Vec<_>=b.programs.iter().map(|p|p.program.name.as_str()).filter(|name|name.starts_with("timeline")).collect();
     assert_eq!(names,["timelineRegister","timelinePublish","timelineFollow","timelineRemove","timelineHome"]);

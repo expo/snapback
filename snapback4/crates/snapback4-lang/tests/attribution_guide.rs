@@ -5,7 +5,7 @@ use serde_json::json;
 
 fn source() -> String {
     snapback4_lang::guide::quarry(snapback4_lang::guide::card("maintains").unwrap()).into_iter()
-        .find(|s| s.contains("maintain originalLikesReceived:")).unwrap()
+        .find(|s| s.contains("view originalLikesReceived:")).unwrap()
 }
 fn bound(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
@@ -75,7 +75,7 @@ fn nested_credit_follows_immediate_targets_and_surviving_contributions() {
 #[test]
 fn explicit_reference_backfill_precedes_capture_and_doctor_distinguishes_missing_credit() {
     let source = source();
-    let bare = source.split("maintain originalLikesReceived:").next().unwrap().replace("immutable postId, replyTarget, authorId", "immutable postId, authorId");
+    let bare = source.split("view originalLikesReceived:").next().unwrap().replace("immutable postId, replyTarget, authorId", "immutable postId, authorId");
     let mut e = engine(&format!("{bare}\njob repair(target: replies):\n  chunk r in replies first 10 by byId:\n    if r.id = 'nested':\n      update replies[id = r.id] {{ replyTarget: target }}\n"));
     seed(&mut e,"posts",json!({"id":"post","authorId":"alice","body":"original"}));
     for (name,author,target) in [("direct","bob",None),("nested","carol",None),("missing","dana",Some("absent"))] {

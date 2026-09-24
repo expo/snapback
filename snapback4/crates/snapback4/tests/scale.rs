@@ -26,8 +26,8 @@ fn language_operation_classes() {
     // Expiring messages require live filtering and maintained recounts;
     // search expands words; meter domains discover uncapped membership lanes;
     // Following/Trending have residuals. Native bodies have no static proof.
-    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "roomHour", "roomWindow", "sendBrief", "split", "timelineFollow", "timelinePublish", "timelineRegister", "timelineRemove", "today", "tokenDigest", "wholeRoster"],
-        &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "rescoreNative", "search", "thread", "timelineHome"]);
+    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "roomHour", "roomWindow", "sendBrief", "split", "intentCount", "intentDurations", "intentGlobal", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
+        &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "rescoreNative", "search", "thread", "intentDaily", "intentSearch"]);
 }
 
 #[test]

@@ -1360,12 +1360,12 @@ fn w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic() {
 
 #[test]
 fn column_trending_cost_has_one_merge_and_derived_bounds() {
-    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter().find(|s| s.contains("likeCount: count likes by postId")).unwrap();
+    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter().find(|s| s.contains("likeCount: count likes\n")).unwrap();
     let p=Project::new(); p.source(&format!("{recipe}\njob prune():\n  chunk like in likes first 1000 by byId:\n    delete likes[like.id]\n"));
     let out=p.run(&["check","--cost"]);
     assert!(out.status.success(),"{out:?}");
     let text=String::from_utf8(out.stdout).unwrap();
-    assert_eq!(text.matches("merge posts: up to 25 lanes").count(),1,"{text}");
+    assert_eq!(text.matches("merge posts: lanes ≤ meter").count(),1,"{text}");
     assert!(text.contains("maintained columns from likes: posts.likeCount"),"{text}");
     assert!(text.contains("own derived stream bytes") && text.contains("0 row-event bytes"),"{text}");
     assert!(text.contains("8192-row job chunk ceiling") && text.contains("composed job chunk: <= 1638"),"{text}");

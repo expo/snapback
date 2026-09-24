@@ -7,7 +7,7 @@ mod coverage;
 fn held_search<H: Host>(host: &mut H) {
     for memberships in [100, 500, 1000] {
         for horizon in [false, true] {
-            let source = if horizon { source().replace("  sync to members[.roomId]\n\nquery searchHeld", "  sync to members[.roomId] last 10 by byRoomTime\n\nquery searchHeld") } else { source().into() };
+            let source = if horizon { source().replace("  sync to members[.roomId]\n\nquery searchHeld", "  sync to members[.roomId] last 10 by .at\n\nquery searchHeld") } else { source().into() };
             let (mut engine, backend) = compile(&source);
             engine.seed(seed(memberships)).unwrap();
             let name = format!("global-{memberships}-{horizon}");

@@ -43,8 +43,7 @@ effect notify secrets [PUSH_API_KEY] retry 8 backoff 2s deadline 1d cancellation
 table members:
   roomId: id
   principal: principal
-  unique byRoomPrincipal: roomId, principal
-  by byPrincipalRoom: principal, roomId, id
+  unique roomId, principal
   cap 100 by roomId
   read <- exists members[.roomId, viewer]
   insert <- exists members[.roomId, viewer]
@@ -55,15 +54,14 @@ table messages:
   authorId: principal
   body: text <=4000
   at: time
-  by byRoomTime: roomId, at, id
   read <- exists members[.roomId, viewer]
   insert <- .authorId = viewer and exists members[.roomId, viewer]
-  sync last 500 by byRoomTime
+  sync last 500 by .at
 
 mutation send(roomId: id, body: text <=4000):
   require exists members[roomId, viewer] else NOT_MEMBER
   msg = insert messages { roomId, authorId: viewer, body, at: now }
-  for m in members[roomId] by byRoomPrincipal:
+  for m in members where .roomId = roomId by .principal:
     if m.principal != viewer and not exists connected[m.principal]:
       emit notify { targetUserId: m.principal, roomId, preview: slice(body, 0, 80) }
   return { id: msg.id }
@@ -198,8 +196,7 @@ effect notify
 table memberships:
   conversationId: id
   principal: principal
-  unique byConversationPrincipal: conversationId, principal
-  by byPrincipalConversation: principal, conversationId, id
+  unique conversationId, principal
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
   insert <- exists memberships[.conversationId, viewer]
@@ -210,15 +207,14 @@ table messages:
   authorId: principal
   body: text <=4000
   at: time
-  by byConvTime: conversationId, at, id
   read <- exists memberships[.conversationId, viewer]
   insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
-  sync last 500 by byConvTime
+  sync last 500 by .at
 
 mutation send(conversationId: id, body: text <=4000):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   msg = insert messages { conversationId, authorId: viewer, body, at: now }
-  for m in memberships[conversationId] by byConversationPrincipal:
+  for m in memberships where .conversationId = conversationId by .principal:
     if m.principal != viewer and not exists connected[m.principal]:
       emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
   return { id: msg.id }
@@ -226,12 +222,11 @@ mutation send(conversationId: id, body: text <=4000):
 
 For a digest, **seek the period, filter the ordinal**. The complete recipe on `guide jobs` shares `unreadIn` with the viewer's inbox for the same period and walks
 each recipient's own memberships; the job may read expiring messages directly.
-`snapback4 guide jobs` explains the 16,384-examined chunk envelope, the measured
-hub, the single totals-table fallback past it, and restart/re-run behavior.
-Emits commit with the chunk cursor, but queueing a parked run again or manually
-running the same period creates another run. Use `emit … once [targetUserId, periodEnd]`
-to suppress repeat admission, and use
-`(targetUserId, periodEnd)` as the worker's idempotency key, or an emission marker.
+`snapback4 guide jobs` shows a streaming total inside an automatic recipient
+sweep. Each recipient must still fit one transaction's meters. Emit with
+`once [targetUserId, periodEnd]` to deduplicate admission across reruns, and
+use the same business key for provider retries. A zero-unread recipient emits
+nothing and records no key.
 
 ## Effect lifecycle refusals
 

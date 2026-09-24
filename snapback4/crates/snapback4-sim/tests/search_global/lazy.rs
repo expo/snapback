@@ -6,7 +6,7 @@ use std::cell::RefCell;
 type Query<'a> = dyn FnMut(&str, Option<String>, &str) -> QueryOutcome + 'a;
 
 fn source(take: usize, memberships: usize) -> String {
-    format!("{}\nquery wide(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last {take} by byRoomWords:\n    [m.roomId] for m in members[principal = viewer] first {memberships} by byPrincipalRoom\n", fixture::source())
+    format!("{}\nquery wide(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last {take} by byRoomWords:\n    [m.roomId] for m in members[principal = viewer] first {memberships} by byPrincipalRoom\n", fixture::legacy_source())
 }
 
 fn ids(page: &QueryOutcome) -> Vec<String> {

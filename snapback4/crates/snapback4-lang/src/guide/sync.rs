@@ -5,29 +5,26 @@ pub(super) const CARD: &str = r##"# Sync: the viewer's partition is the unit of 
 table notices:
   body: text <=500
   at: time
-  by byTime: at, id
   public 'notices are public'
   insert <- deny
   update <- deny
   delete <- deny
-  sync last 100 by byTime            -- everyone holds the newest 100
+  sync last 100 by .at            -- everyone holds the newest 100
 
 table todos:
   ownerId: principal
   title: text <=200
-  by byOwner: ownerId, id
   read <- .ownerId = viewer                 -- exactly the audience
   insert <- .ownerId = viewer
   update <- .ownerId = viewer
   delete <- .ownerId = viewer
-  sync last 500 by byOwner      -- each row reaches the principal in the column
+  sync last 500 by .id      -- each row reaches the principal in the column
 
 table participants:
   threadId: threads
   personId: principal
   addedBy: principal
-  unique byThreadPerson: threadId, personId
-  by byPersonThread: personId, threadId, id
+  unique threadId, personId
   cap 50 by threadId
   read <- exists participants[.threadId, viewer]
   insert <- exists participants[.threadId, viewer]
@@ -45,21 +42,21 @@ table threads:
 ```
 
 ```text
-sync [last N by index]                           audience inferred from the read rule
-sync public [last N by index]                    everyone holds the same rows
-sync to .col [last N by index]                   each row reaches the principal in .col
-sync to t[.a, .b] [by .col] [last N by index]    each row reaches every principal with a
+sync [last N by .at]                           audience inferred from the read rule
+sync public [last N by .at]                    everyone holds the same rows
+sync to .col [last N by .at]                   each row reaches the principal in .col
+sync to t[.a, .b] [by .col] [last N by .at]    each row reaches every principal with a
                                                  row in t whose (a, b) match; `by .col` names
                                                  the recipient column when t has several
 ```
 
-`sync [last N by index]` infers its audience from the read rule. Explicit
+`sync [last N by .at]` infers its audience from the read rule. Explicit
 `sync public` and `sync to ...` remain valid and must agree with that rule.
 The read rule must be exactly the audience — `public`, `.col = viewer`, or
 `exists t[.a, .b, viewer]` — so a device never holds a row it may not read
 and never misses one it may; a non-service second disjunct or an extra conjunct is
-refused with the rewrite. The target table needs a unique index over
-`(a, b, principal)` and an index leading with `(principal, a, b)`; when it
+refused with the rewrite. Declare `unique a, b, principal` on the target; the compiler supplies
+the recipient lookup index; when it
 has several principal columns, `by .col` names the recipient. Every insert
 rule branch must also prove the caller already has that audience grant, for
 example `exists participants[.threadId, viewer]`, or that this mutation
@@ -71,7 +68,7 @@ group column to be non-optional: `null` cannot name a device partition, so
 Checks also cover insert-if-absent and upsert.
 Read rules may add `or viewer = 'service:pusher'` (or several service grants);
 sync infers its audience without them, so device snapshots and streams stay the same. The horizon
-`last N by index` bounds what a device acquires per group. The server sends
+`last N by .at` bounds what a device acquires per group. The server sends
 an acquisition boundary: a suffix starting at the Nth delivered readable key,
 or `whole` when fewer than N readable rows exist, including an empty group.
 A descending page on that index is complete while it stays at or above that
@@ -224,19 +221,19 @@ left-group read in its own query, since a mixed query without a component
 plan returns the whole server answer online when no predictable write is awaiting observation,
 and the whole device answer offline.
 An inherited aggregate stays until-revoked even when its source retains delivered-history; it has no target horizon.
-A table without `sync` is online-only. A `maintain`
+A table without `sync` is online-only. A maintained `view`
 grouped by the audience columns inherits sync and is delivered as a value row.
-`online only` on a table documents the absence of sync; on a maintain it opts
+`online only` on a table documents the absence of sync; on an aggregate view it opts
 out of inheritance. Both lines absent on a table still means online only.
 See `guide residency` for operation classes and cold acquisition measurements.
 
-`online only` optionally documents a table with no sync. On a `maintain`,
+`online only` optionally documents a table with no sync. On a maintained `view`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group,
-grouped into one note retaining each maintain's source location.
-The note names mutations that would stop predicting if the maintain goes
+grouped into one note retaining each view's source location.
+The note names mutations that would stop predicting if the view goes
 `online only`; `snapback4 test --residency` measures its cold rows. `check`
-prints the facts without pre-adoption counts: a new maintain has no stored rows yet.
+prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
 
 `check --residency --verbose` lists every table's residency, inferred and inherited
 audiences, and each operation's `runs: device | server` or
@@ -301,6 +298,6 @@ E_SYNC means the sync declaration cannot deliver exactly its authorized
 audience. For example, `read <- .ownerId = viewer` cannot pair with
 `sync public`; use `sync` to infer delivery to the owner. For group delivery,
 match the read rule's membership probe, declare its unique group/principal
-index and recipient-leading index, and guard new memberships with existing
+key, and guard new memberships with existing
 membership or creation of the group. Follow the message's rule term,
 column or index; do not make private rows public just to enable sync."##;

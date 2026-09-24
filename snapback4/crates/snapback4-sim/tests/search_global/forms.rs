@@ -1,5 +1,5 @@
 // The two published forms: one cursor per read on every host.
-use super::{fixture, with_fixture, DECODED_STORE};
+use super::{fixture, with_fixture};
 use snapback4_core::{Value, engine::{QueryOutcome, ReadCut}, value::object};
 use std::collections::BTreeSet;
 
@@ -123,10 +123,10 @@ fn w13e_newest_measures_complete_page_and_opening_envelope() {
     for memberships in [1000, 2717, 2718, 2730, 2731, 3000] {
         with_fixture(fixture::source(), fixture::seed(memberships), |q| {
             let page = q("searchNewest", None, "cof");
-            // SQLite now prepays every decoded row, including discarded store
-            // lookahead: heap can precede the old examined-only 2,717 boundary.
-            // Memory shares row images and retains that examined-only control.
-            if DECODED_STORE && memberships >= 2717 {
+            // The current predicate plan reaches the heap ceiling at these large
+            // sampled widths on every host. Legacy drain-cut boundaries have
+            // separate explicit-index controls in lazy.rs.
+            if memberships >= 2717 {
                 assert_eq!(page.data, Value::Null);
                 assert_eq!((page.complete, page.cut, page.next), (false, Some(ReadCut::Meter), None));
                 assert_eq!(page.capped_at.as_ref().unwrap().0, snapback4_core::error::MeterKind::HeapBytes);
@@ -148,7 +148,7 @@ fn w13e_newest_measures_complete_page_and_opening_envelope() {
 
 #[test]
 fn w13e_both_forms_report_unknown_history_at_a_device_horizon() {
-    let source = fixture::source().replace("  sync to members[.roomId]\n\nquery searchHeld", "  sync to members[.roomId] last 10 by byRoomTime\n\nquery searchHeld");
+    let source = fixture::source().replace("  sync to members[.roomId]\n\nquery searchHeld", "  sync to members[.roomId] last 10 by .at\n\nquery searchHeld");
     with_fixture(&source, fixture::seed(100), |q| {
         for op in ["searchGrouped", "searchNewest"] {
             for term in ["cof", "absent"] {
