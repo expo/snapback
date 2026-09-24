@@ -62,7 +62,7 @@ function transport() {
   return { fetcher, sent, online() { offline = false; } };
 }
 
-for (const [a, b] of [["a!b", "a~b"], ["a*b", "a'b"], ["a(b", "a)b"], ["user:01ABC", "user_3A01ABC"]]) test(`generated SecureStore keeps ${a} and ${b} write custody separate`, async t => {
+for (const [a, b] of [["a!b", "a~b"], ["a*b", "a'b"], ["a(b", "a)b"], ["user:01ABC", "user_3A01ABC"], ["ab", "慢"]]) test(`generated SecureStore keeps ${a} and ${b} write custody separate`, async t => {
   const held = storage(), wire = transport(), app = generated(t, held, wire.fetcher);
   await app.ready; await app.auth.login(a, "password");
   const pending = await app.mutate(mutation, { body: "secret from " + a });
@@ -87,7 +87,7 @@ test("generated SecureStore separates formerly colliding backend session keys", 
   assert.equal((await restoreSession(aUrl, held.store)).principal, "alice");
   assert.equal(await restoreSession(bUrl, held.store), null);
   assert.notEqual(sessionKey(aUrl), sessionKey(bUrl));
-  const segments = ["a!b", "a~b", "a*b", "a'b", "a(b", "a)b", "user:01ABC", "user_3A01ABC", "\ud800", "\ufffd"];
+  const segments = ["a!b", "a~b", "a*b", "a'b", "a(b", "a)b", "user:01ABC", "user_3A01ABC", "ab", "慢", "\ud800", "\ufffd"];
   assert.equal(new Set(segments.map(value => storeKey("writes", url, value))).size, segments.length);
 });
 

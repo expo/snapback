@@ -94,6 +94,11 @@ in the background.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
+Logout also advances a persisted session epoch under the same lock as deletion.
+Sign-in and refresh work started in an earlier epoch cannot save a late bearer;
+the app revokes that bearer and retires its client. Invalid or expired stored
+sessions are cleaned up only if their exact bytes still match the read, without
+remote revocation. A concurrent replacement restarts restoration.
 
 Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments

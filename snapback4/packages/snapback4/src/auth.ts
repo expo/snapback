@@ -107,15 +107,12 @@ export async function restoreSession(url: string, store: SessionStore = defaultS
   if (!raw) return null;
   try {
     const session = JSON.parse(raw) as Session;
-    if (!isSession(session)) {
-      await store.delete(key);
-      return null;
-    }
-    return session;
-  } catch {
-    await store.delete(key);
-    return null;
-  }
+    if (isSession(session)) return session;
+  } catch { /* Invalid JSON follows the same cleanup path as an expired session. */ }
+  // A store may condition cleanup on the exact bytes returned by get. Let a
+  // changed-snapshot or storage failure propagate instead of deleting twice.
+  await store.delete(key);
+  return null;
 }
 
 export async function keepSession(url: string, session: Session, store: SessionStore = defaultSessionStore): Promise<void> {
