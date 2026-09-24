@@ -50359,3 +50359,42 @@ remain the available performance evidence. No new language form needs a
 language-card block. All changed source files are below 1,500 lines and
 `git diff --check` passes. `ref-check --verbose`: 505 LLP docs, 9,237 refs,
 0 errors, 0 unchecked. Frozen Bun installation completed without changes.
+
+## 2026-09-24 — Intent integration round 5 part c: refusal evidence and fair delivery
+
+Merged F 11a4cb35a as b320e0f41 and L e68d7a6e2 as a8a36a911, both --no-ff,
+with passing workspace builds after each. Read both lanes' external and
+committed reports first. Conflicts were journal appends and the feeds card;
+all journal entries survive unchanged. Kept F's structure and every compiled
+feed block, added L's lifecycle/fairness/durability guidance, and updated the
+two lifecycle excerpt pins. L's three guide-backed test helpers now select the
+Following declaration because Global is F's first example. Runtime files
+merged cleanly; L's FULL disk policy and atomic retirement remain intact.
+The Bob unrepost regression is byte-identical to the part-a version.
+
+Restored a_single_continuous_holder_cannot_defer_background_forever while
+retaining all exact-bound tests. All eight lock tests pass. Resetting the
+background wait's start to self.clock.now() fails the restored test before
+the sole holder releases its guard; restored the source before qualification.
+
+422 distinct affected tests pass, including 78 guide tests, nine adoption
+tests, both WAL durability tests and all three complete Clique target tests.
+The initial concurrent CLI unit run had one polling-admission timeout; it
+did not reproduce alone, and all 89 unit tests pass with four test threads.
+No assertion or timeout was weakened. Details and reproduction are in
+reports/20260924-intent-integration-r5c.md.
+
+All four ignored performance witnesses passed against this tree. Three
+production-server HTTP runs with SNAPBACK4_BENCH_MAX_RATIO=1.5 measured p95
+ratios 1.256x, 1.234x and 1.406x. Celebrity post p95 was 2.491, 2.499 and
+2.619 ms; all 20 events reached all 900 followers in 4.656, 4.586 and 4.459 s.
+Under eight continuous request streams, delivery completed in 463.985 ms
+while 4,007 reads completed. Empty-fixture copy cost was 129.892 us/copy.
+Production uses the publication SQLite flag and FULL commits; the test-only
+commit profile's NORMAL comparisons do not change that policy.
+
+Reference check: 505 LLP documents, 9,238 references, zero errors/unchecked.
+Whitespace and source budgets pass; README remains 296/300 lines. No new
+syntax, meter or authority change in integration. Historical reconstruction
+remains refused as specified by L round 3. Full scripts/test.sh and WASM
+qualification remain deferred by instruction. No push, publication or bump.

@@ -205,6 +205,19 @@ mod tests {
         assert!(!lock.background().contended());
     }
 
+    #[test]
+    fn a_single_continuous_holder_cannot_defer_background_forever() {
+        let lock = Arc::new(FairMutex::new(()));
+        let request = lock.lock().unwrap();
+        let worker = lock.clone();
+        let background = std::thread::spawn(move || assert!(worker.background().contended()));
+        // No queued second request takes the sustained-contention shortcut.
+        // The deadline must still allocate the next ticket before release.
+        queued(&lock, 2);
+        drop(request);
+        background.join().unwrap();
+    }
+
     struct ManualClock(std::cell::Cell<Instant>);
     impl Clock for ManualClock { fn now(&self) -> Instant { self.0.get() } }
 
