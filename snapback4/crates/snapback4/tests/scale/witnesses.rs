@@ -110,14 +110,19 @@ table posts:
   online only
 mutation page():
   return posts first 20 by byId
+query queryPage():
+  return posts first 20 by byId
 job sweep():
-  chunk p in posts first 20 by byId:
+  chunk p in posts first 4 by byId:
     return p
 "#);
     let c = certificate(&b, "page");
+    let query = certificate(&b, "queryPage");
     let job = certificate(&b, "sweep");
     assert!(job.per_chunk);
-    assert_eq!(job.bounds.rows_examined, 22);
+    assert_eq!(job.bounds.rows_examined, 6);
+    assert_eq!(c.bounds.rows_examined, 22);
+    assert_eq!(query.bounds.rows_examined, 21); // Capping queries have no admission charge.
     let mut e = engine(b);
     e.seed((0..100).map(|i| ("posts".into(), row(&format!("p{i}"), &[])))).unwrap();
     let write = e.mutate("page", None, Context::new("alice", BTreeMap::new())).unwrap();
@@ -125,6 +130,89 @@ job sweep():
     assert_eq!(write.metered.examined, 22);
     assert_eq!(c.class, Class::Constant);
     covers(&c, write.metered);
+    let read = e.query("queryPage", Context::new("alice", BTreeMap::new())).unwrap();
+    assert_eq!(read.metered.examined, 21);
+    covers(&query, read.metered);
+}
+
+#[test]
+fn repeated_mutation_scans_cover_admission_near_and_across_the_ceiling() {
+    let b = bound(r#"
+table posts:
+  public
+  online only
+mutation nearLimit():
+  for i in range(0, 2730):
+    page = posts first 1 by byId
+  return 1
+mutation many():
+  for i in range(0, 4000):
+    page = posts first 1 by byId
+  return 1
+query queryMany():
+  for i in range(0, 4000):
+    page = posts first 1 by byId
+  return 1
+"#);
+    let near = certificate(&b, "nearLimit");
+    let many = certificate(&b, "many");
+    let query = certificate(&b, "queryMany");
+    for c in [&near, &many, &query] { assert_eq!(c.class, Class::Constant); }
+    // Each first-1 mutation scan pays admission + row + lookahead. The
+    // near-limit case completes two rows below the default ceiling; the
+    // reviewer's 4,000-iteration case now certifies 12,000, not 8,000.
+    assert_eq!(near.bounds.rows_examined, 8190);
+    assert_eq!(many.bounds.rows_examined, 12000);
+    assert_eq!(query.bounds.rows_examined, 8000);
+    let mut e = engine(b);
+    e.seed((0..100).map(|i| ("posts".into(), row(&format!("p{i}"), &[])))).unwrap();
+    let write = e.mutate("nearLimit", None, Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(matches!(write.state, WriteState::Sent { .. }), "{write:?}");
+    assert_eq!(write.metered.examined, 8190);
+    covers(&near, write.metered);
+    let write = e.mutate("many", None, Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(matches!(&write.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"), "{write:?}");
+    assert_eq!(write.metered.examined, 8193); // The failing charge is recorded.
+    covers(&many, write.metered);
+    let read = e.query("queryMany", Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(read.capped_at.is_none(), "{read:?}");
+    assert_eq!(read.data, Value::Int(1));
+    assert_eq!(read.metered.examined, 8000);
+    covers(&query, read.metered);
+}
+
+#[test]
+fn non_expiring_public_word_search_grows_with_matching_words() {
+    let b = bound(r#"
+table notes:
+  body: text <=200
+  by byWords: words(body), id
+  public
+  online only
+query search(q: text <=100, c: cursor ?):
+  return notes matching q after c first 20 by byWords
+query page(c: cursor ?):
+  return notes after c first 20 by byId
+"#);
+    assert!(b.notes.is_empty(), "{:?}", b.notes);
+    // Public, non-expiring rows isolate word expansion: no other growth
+    // reason can preserve this verdict when the WordPrefix arm is removed.
+    pin(&b, &["page"], &["search"]);
+    let search = certificate(&b, "search");
+    assert_eq!(search.growth_sites.len(), 1);
+    assert_eq!(search.growth_sites[0].reason,
+        "matching words and candidate notes rows (additional search terms filter)");
+    assert_eq!(search.bounds.lanes, None);
+    assert_eq!(certificate(&b, "page").bounds.rows_examined, 21);
+    let mut e = engine(b);
+    e.seed(["coffee", "coffers", "tea"].into_iter().map(|body|
+        ("notes".into(), row(body, &[("body", Value::String(body.into()))])))).unwrap();
+    let read = e.query("search", Context::new("alice", BTreeMap::from([
+        ("q".into(), Value::String("cof".into())), ("c".into(), Value::Null),
+    ]))).unwrap();
+    assert!(read.complete, "{read:?}");
+    assert_eq!(read.data.as_array().unwrap().len(), 2);
+    covers(&search, read.metered);
 }
 
 #[test]

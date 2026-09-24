@@ -47701,3 +47701,64 @@ certificate above the engine's recorded work even at a cut. Merge admission
 is accounted for in the IR cost model; the current authoring admission still
 refuses mutation merges, so measured mutation coverage uses an admitted plain
 page. No authoring admission was weakened to construct a test.
+
+## 2026-09-24 — intent lane G: review round 2 admission and search witnesses
+
+Confirmed Grok's High finding was already fixed by round 1 commit
+`bc08ca4e5`: `scale.rs` adds one examined admission unit for every mutation
+or job scan and none for queries. The classification uses the program kind,
+so it also applies to that mutation's device prediction; no separate server-
+only exception exists. No production analyzer or runtime change was needed
+in this round, and query bounds remain unchanged.
+
+Extended `crates/snapback4/tests/scale/witnesses.rs` with these measurements
+and assertions against the real engine:
+
+- The full first-20 mutation page charges and certifies **22 examined rows**;
+  the query control charges and certifies **21**.
+- The first-4 job chunk certifies **6 examined rows**, including admission.
+- `mutation nearLimit`, a first-1 scan repeated 2,730 times, completes and
+  both charges and certifies **8,190 examined rows** (two below the ceiling).
+- Grok's `mutation many`, a first-1 scan repeated 4,000 times, certifies
+  **12,000 rows**. Execution refuses with `E_BOUND` after recording the
+  **8,193rd** charge against its unchanged 8,192 ceiling, within the bound.
+- The equivalent 4,000-scan query completes without a meter cut and both
+  charges and certifies **8,000 rows**. Mutation assertions use the shared
+  `metered.examined <= bounds.rows_examined` helper for both complete and
+  refused execution.
+
+Addressed the Low finding with a separate public, non-expiring `notes`
+fixture: `notes matching q after c first 20 by byWords` has exactly one
+growth reason, **matching words and candidate notes rows (additional search
+terms filter)**. Its ordinary first-20 page remains constant at 21 rows.
+The fixture compiles without notes, runs `cof` against coffee/coffers/tea,
+returns two rows, and checks its engine meters against the certificate.
+Temporarily disabling the WordPrefix growth arm makes this test fail;
+restored the analyzer after that negative verification. This avoids expiry
+or another growth reason masking the missing search arm.
+
+Affected suite: `cargo test -p snapback4 --test scale`: **16 passed,
+0 failed**. Negative search-arm check: **0 passed, 1 expected failure**.
+Logs: `/home/ccheever/sb4-intent/lane-g-round2-scale.log` and
+`/home/ccheever/sb4-intent/lane-g-round2-search-mutant.log`.
+
+No new syntax, production changes, scope deviations or deferred review
+findings. Existing authorization, admission and meter ceilings are unchanged.
+No push or package publication. Full-suite verification follows below.
+
+Required full run: `scripts/test.sh` exited 1 with exact summary
+**`== 1 failure(s) in 113 s`**. Only the `cargo test` stage failed;
+all client tests and other stages passed. The restored analyzer passed all
+16 scale tests again in the full run. Log:
+`/home/ccheever/sb4-intent/lane-g-round2-test.log`.
+
+Every failure is present in the host baseline; reproduction commands:
+
+1. **Baseline** — `cargo test -p snapback4-core --test schema_capabilities_legacy genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+2. **Baseline** — `cargo test -p snapback4-device --test device uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+3. **Baseline** — `cargo test -p snapback4-device --test readauth census::authoring_census`.
+4. **Baseline** — `cargo test -p snapback4 --test check w9b_why_operation_keeps_residency_and_cost_output` (67 other check tests passed).
+
+No introduced or environmental failures occurred in this full run. Neither
+of the prior full runs' intermittent client failures recurred. Both round 2
+findings are handled; no additional open problem was found.
