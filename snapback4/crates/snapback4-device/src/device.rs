@@ -1100,6 +1100,9 @@ mod opening_tests;
 mod cap_counts_tests;
 
 #[cfg(all(test, feature = "native"))]
+mod upsert_reservation_tests;
+
+#[cfg(all(test, feature = "native"))]
 mod publication_round5;
 
 #[cfg(all(test, feature = "native"))]

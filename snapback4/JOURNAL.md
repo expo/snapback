@@ -54618,3 +54618,94 @@ baseline or environmental failure remains in this run. Final reference audit:
 earlier failure and the additional fixture correction are recorded in
 reports/20260924-intent-lane-p-round4.md. No requested round 4 item was deferred;
 earlier cap-prediction and secondary-cleanup limits remain. No push or publication.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 5: reserve the insert arm once
+
+Moved ordinary insert/insert-if-absent's read-plus-insert reservation into
+insert_mode. An upsert reaches insert_attempt under the reservation already
+made before target resolution; it no longer asks for a second allowance after
+its device absence proofs spend the two reserved reads. Actual authorization
+checks, expiry charging and all runtime ceilings remain unchanged. Both
+compiled and compatibility upsert callers still reserve before lookup.
+
+Four new device unit tests cover memory and SQLite: 8,190 prior probes at the
+default 8,192 ceiling, and a ceiling equal to the complete two-probe preflight.
+Both reproduce server success/device E_BOUND before the fix and now agree on
+success. The default-ceiling tests exercise admission, the durable outbox and
+predicted row contents; a one-probe negative control still refuses. A new
+readable-but-delete-denied regression compares complete replies and unchanged
+storage with zero and 3,000 hidden expired siblings. Moving only the expiry
+charge ahead of delete denial makes it fail with 3,000 examined instead of
+zero. Restored the production file byte-for-byte after that mutation control.
+
+Targeted checks: four device tests pass (0.37 s), all 30 expiry tests pass
+(13.29 s), including every 9,000-send examined == 1 assertion and all prior
+reservation/disclosure checks. Ref-check passes: 505 LLP documents, 9,239 refs,
+zero errors or unchecked references. Wasm is 1,754,255 B raw / 487,922 B gzip,
++212 / +106 from round 4, within the unchanged 488,000 B budget (78 B spare).
+No new syntax, refusal code, sync protocol or public test API. Custom device
+ceilings are tested through the production prediction adapter/interpreter;
+ordinary admission retains the default ceiling. No round 5 requirement is
+deferred. Earlier cap-prediction deferral, deferred secondary cleanup and the
+separate six-byte presence heap issue retain their documented decisions.
+Full-suite qualification follows below. No push, merge or publication.
+
+The first full Rust inventory exposed one introduced refusal-order regression:
+purge_gates_actual_writes_charges_deletes_and_never_refuses_reads received
+E_SCHEMA instead of E_TIMELINE_OWNED for a purge's forbidden target. The moved
+ordinary preflight consulted the schema ahead of the existing ownership guard.
+Moved that guard to insert_mode too, preserving its original precedence;
+insert_upsert retains its existing insert-and-update ownership guard. All five
+timeline-authority tests now pass (0.19 s), and all four new device boundary
+tests still pass (0.32 s). No assertion was changed. The corrected wasm artifact,
+built separately while the initial client run finishes, is 1,754,267 B raw /
+487,923 B gzip (+224 / +107 from round 4), within the unchanged budget with
+77 B spare. The initial full Rust inventory otherwise passed, including all
+40 device unit tests and 30 expiry regressions. A complete corrected run follows.
+
+First complete harness: == 2 failure(s) in 780 s, exit 1. Besides the introduced
+Rust ownership-order regression above, two client codec-census checks failed
+because the new nested unit fixture used owned typed JSON decoding. The
+scanner does not inherit this nested module's cfg; splitting cfg attributes
+was ineffective and reverted. Renaming the calls to json_codec::from_value
+also failed its owned-decoder restriction. The fixture now uses the existing
+text decoder, like neighboring device tests. All 26 codec-census checks pass
+(9.37 s), with no scanner edits or exceptions; all four device regressions still
+pass (0.32 s). Initial clients: 1,098 tests, 1,086 passes, two failures, ten skips,
+723 s. Every other harness step passed. All three failed tests are ours,
+corrected; no baseline or environmental failure occurred. The initial full
+harness has ended; starting the complete corrected qualification.
+
+The second full Rust inventory passed all 83 core, 40 device and 30 expiry
+tests, but found a pre-existing timing-sensitive clock assertion. The release
+grace/reconnect fixture recorded at=1790283291569 and nextAt=1790283326570,
+a 35,001 ms interval: presence sampled its clock after the mutation's at was
+captured. This effect-only release fixture has no insert/upsert and passed in
+the first full run unchanged. Classified environmental/timing exposure, absent
+from the recorded baseline failures. The two analogous grace assertions now
+bracket the later clock sample by completed admission, preserving the 35-second
+bound and positive deferral; no production timing or timeout changes. All three
+grace-push tests pass (0.06 s), retaining delivery, duplicate suppression, restart
+and reconnect checks. This additional fixture fix is required for qualification;
+the round 5 runtime design is unchanged. The second client run is still finishing.
+
+Second complete harness: == 1 failure(s) in 759 s, exit 1. The sole failure was
+the clock assertion above. Clients passed in 712 s: 1,098 tests, 1,088 passes,
+ten skips, zero failures, including both corrected codec-census tests. Every
+other harness step passed. Started the third complete harness with the clock
+fixture correction, after the second finished, using the same serial-client
+and nonincremental build settings. No full harnesses overlap.
+
+Final round 5 qualification: == 0 failure(s) in 748 s, exit 0, using
+CARGO_INCREMENTAL=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh.
+Rust passed in 129 s, including all 83 core unit tests, 40 device unit tests,
+30 expiry regressions, 18 clock integration tests and 25 simulator review tests.
+Clients passed in 716 s: 1,098 tests, 1,088 passes, ten skips, zero failures.
+Every other harness step passed; no introduced, baseline or environmental
+failure remains in the final run. Final reference audit passes: 505 documents,
+9,239 references in 25,679 files, zero errors or unchecked references. The exact
+three full-suite summaries, every development failure and its classification,
+file-by-file changes, form examples and retained limits are recorded in
+reports/20260924-intent-lane-p-round5.md. No round 5 design change or unmet
+requirement; the additional clock fixture correction is documented. No push,
+merge or publication. Final log: ~/sb4-intent/lane-p-round5-suite-complete.log.
