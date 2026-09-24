@@ -1,6 +1,9 @@
 //! The sync card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Sync: the viewer's partition is the unit of sync
 
+Sync delivers each viewer's authorized rows to their device for live and offline reads.
+A table's sync declaration chooses its audience and acquisition horizon.
+
 ```quarry
 table notices:
   body: text <=500
@@ -173,7 +176,67 @@ Downgrading a device below the store's version is unsupported.
 Backends without these forms keep their existing encoding and remain compatible
 with 0.2.33 devices.
 
-## A restored backend store
+`online only` optionally documents a table with no sync. On a maintained `view`,
+it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
+aggregates and group audiences with unbounded recipients or multiple values per group,
+grouped into one note retaining each view's source location.
+The note names mutations that would stop predicting if the view goes
+`online only`; `snapback4 test --residency` measures its cold rows. `check`
+prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
+
+## Operations
+
+`check --residency --verbose` lists every table's residency, inferred and inherited
+audiences, and each operation's `runs: device | server` or
+`predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
+Each site names its read, write or rule's file:line:column when source is
+available, including helper writes and after-insert rules. A source-less
+fact names its rule or write path instead of an internal compiler site.
+Queries reading `connected` run on the server; mutations stay eligible when presence decides only effects.
+A horizon site stays eligible but may queue without a row past the horizon;
+`E_PREDICT` names the table, index and key. `why <op>` names the reason and
+rewrite; `why <table>` includes the rule used for inference. The generated
+`api.ts` documents arguments, results, these words, horizon sites and
+`require` codes. `check` compares with `snapback/generated/residency.json`;
+`dev` compares with its served generation. `N_NOW_SERVER` and
+`N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
+Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
+and deduplicated sites and rewrites.
+Every text `check` also summarizes mutations that never predict, blocked insert
+arms, and eligible mutations with horizon reads; JSON checks include `predictionSummary`.
+The horizon bucket and `why`'s qualified heading keep every read and site visible
+on unchanged checks. This includes the expiring source behind a live-aggregate
+write-rule probe: prediction needs that source without a horizon.
+`N_HORIZON_GUARD` distinguishes the argument row id from the mutation write id;
+only codes with `DUPLICATE`, `RETRY` or `DEDUPE` words get retry advice.
+Application invariants such as `else EVENT_REMOVED` keep their guards.
+Ordinary mutation pages still get `N_NO_HORIZON` growing-table advice;
+point/exists reads, rule probes and insert proofs that need whole coverage do not.
+When an eligible mutation reads an ascending `first N` page, or a page on
+a different index from the suggested horizon, the note names the mutation
+that would lose prediction instead of recommending that horizon. A descending
+`last N` page on the horizon's own index may keep the rewrite; an exhausted
+horizon can still make that call queue without a predicted row.
+Add `predicts` before
+a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
+eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
+makes it `never`. This asserts eligibility, not that every call will predict;
+a horizon miss can still queue without a row. See `guide prediction`.
+
+`test --residency --fixture dir [--as persona]` reports the eight costliest
+acquired table/persona pairs, ordered by compact JSON row bytes, then rows,
+with all omitted pairs summed into one line and totals that include them.
+It measures the real cold partition snapshot, respecting authorization and
+horizons; byte counts exclude transport framing and are not process RSS.
+`check --residency --fixture dir --as persona` gives the same report where
+builders already check their backend. Without a fixture, `check --residency`
+measures the active dev-store schema read-only, without adopting current
+source; without a dev store it says not measured and names the fixture command.
+Use `--verbose` for all table counts, declared facts and notes; on `test` it
+also runs the query meters as before. The default acquisition report fits
+one screen even for hundreds of tables or personas. No count is extrapolated.
+
+### A restored backend store
 
 A matching
 `store_id` with a lower head refuses `E_STORE_RESTORE`: the backend was
@@ -227,65 +290,7 @@ grouped by the audience columns inherits sync and is delivered as a value row.
 out of inheritance. Both lines absent on a table still means online only.
 See `guide residency` for operation classes and cold acquisition measurements.
 
-`online only` optionally documents a table with no sync. On a maintained `view`,
-it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
-aggregates and group audiences with unbounded recipients or multiple values per group,
-grouped into one note retaining each view's source location.
-The note names mutations that would stop predicting if the view goes
-`online only`; `snapback4 test --residency` measures its cold rows. `check`
-prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
-
-`check --residency --verbose` lists every table's residency, inferred and inherited
-audiences, and each operation's `runs: device | server` or
-`predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
-Each site names its read, write or rule's file:line:column when source is
-available, including helper writes and after-insert rules. A source-less
-fact names its rule or write path instead of an internal compiler site.
-Queries reading `connected` run on the server; mutations stay eligible when presence decides only effects.
-A horizon site stays eligible but may queue without a row past the horizon;
-`E_PREDICT` names the table, index and key. `why <op>` names the reason and
-rewrite; `why <table>` includes the rule used for inference. The generated
-`api.ts` documents arguments, results, these words, horizon sites and
-`require` codes. `check` compares with `snapback/generated/residency.json`;
-`dev` compares with its served generation. `N_NOW_SERVER` and
-`N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
-Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
-and deduplicated sites and rewrites.
-Every text `check` also summarizes mutations that never predict, blocked insert
-arms, and eligible mutations with horizon reads; JSON checks include `predictionSummary`.
-The horizon bucket and `why`'s qualified heading keep every read and site visible
-on unchanged checks. This includes the expiring source behind a live-aggregate
-write-rule probe: prediction needs that source without a horizon.
-`N_HORIZON_GUARD` distinguishes the argument row id from the mutation write id;
-only codes with `DUPLICATE`, `RETRY` or `DEDUPE` words get retry advice.
-Application invariants such as `else EVENT_REMOVED` keep their guards.
-Ordinary mutation pages still get `N_NO_HORIZON` growing-table advice;
-point/exists reads, rule probes and insert proofs that need whole coverage do not.
-When an eligible mutation reads an ascending `first N` page, or a page on
-a different index from the suggested horizon, the note names the mutation
-that would lose prediction instead of recommending that horizon. A descending
-`last N` page on the horizon's own index may keep the rewrite; an exhausted
-horizon can still make that call queue without a predicted row.
-Add `predicts` before
-a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
-eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
-makes it `never`. This asserts eligibility, not that every call will predict;
-a horizon miss can still queue without a row. See `guide prediction`.
-
-`test --residency --fixture dir [--as persona]` reports the eight costliest
-acquired table/persona pairs, ordered by compact JSON row bytes, then rows,
-with all omitted pairs summed into one line and totals that include them.
-It measures the real cold partition snapshot, respecting authorization and
-horizons; byte counts exclude transport framing and are not process RSS.
-`check --residency --fixture dir --as persona` gives the same report where
-builders already check their backend. Without a fixture, `check --residency`
-measures the active dev-store schema read-only, without adopting current
-source; without a dev store it says not measured and names the fixture command.
-Use `--verbose` for all table counts, declared facts and notes; on `test` it
-also runs the query meters as before. The default acquisition report fits
-one screen even for hundreds of tables or personas. No count is extrapolated.
-
-## Refused sync declarations
+## Refusals
 
 E_QUARRY_RETAIN means a table repeats its retention declaration or uses
 an unknown policy. For example, `retain forever` is not a policy; choose

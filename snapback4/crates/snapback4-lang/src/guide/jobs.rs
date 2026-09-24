@@ -3,24 +3,26 @@
 // @ref LLP 3000.013#5 — streamed totals, adaptive sweeps and lifetime emission keys.
 pub(super) const CARD: &str = r##"# Jobs and schedules: the server's own work, on its own clock
 
-For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
-New emits are counted as `suppressed` by `doctor`, with no queued payload:
-they are never delivered, including after restarting with or without `--replay`.
-Mutations and explicitly run jobs keep their writes, results and meters.
-Replay holds schedule admission; restart without it resumes at the next
-boundary, skipping held periods. Already queued jobs still run, with their
-new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
+Jobs do background work on the server, with progress committed as they go.
+Schedules start them at boundaries of the server's clock.
 
-`--hold-effects` only pauses worker claims: effects stay durable and become
-claimable after restarting without the flag. `--hold-schedules` only holds
-schedule admission, skipping held periods on restart. Use `--replay` when
-new effects must never be delivered; use the effect hold to keep them queued.
-The suppression policy stays on the dev store for local `run` invocations
-until the next host start; a restart without `--replay` restores normal
-emission for new writes and keeps the count. `serve` and release commands
-refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
-With `--fresh`, the count dies with the in-memory store; `doctor` and local
-`run` inspect the separate on-disk store.
+```quarry
+table invites:
+  inviteeId: principal
+  sentAt: time
+  reminded: bool
+  immutable sentAt
+  read <- .inviteeId = viewer
+  insert <- deny
+  update <- deny
+  delete <- deny
+
+job remind(periodStart: time, periodEnd: time):
+  for i in invites where .sentAt >= periodStart and .sentAt < periodEnd by .sentAt:
+    if not i.reminded:
+      update invites[i.id] { reminded: true }
+schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
+```
 
 A top-level `for p in recipients:` is an adaptive sweep. The engine chooses
 the iterations per transaction, retries a meter-refused chunk at a smaller size,
@@ -44,33 +46,11 @@ live counts and effect key below commit in one transaction.
 `once` removes the need for a marker table; worker/provider delivery retries
 still need an idempotency key.
 
-
-
-Jobs in `snapback/jobs.q` are named `jobs.<name>` even in that file's schedules;
-`schema.q` jobs use their bare names. `check --fix` qualifies an unambiguous bare module job.
 Effects are global declarations shared by every file; jobs are module-qualified
 operations. The worker dispatches by the declared effect name, while schedules
 and `run` address an operation. If `digest.q` declares `effect notify` and
 `job daily()`, write `emit notify { ... }`, register `effects: { notify: ... }`
 in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: digest.daily`).
-
-```quarry
-table invites:
-  inviteeId: principal
-  sentAt: time
-  reminded: bool
-  immutable sentAt
-  read <- .inviteeId = viewer
-  insert <- deny
-  update <- deny
-  delete <- deny
-
-job remind(periodStart: time, periodEnd: time):
-  for i in invites where .sentAt >= periodStart and .sentAt < periodEnd by .sentAt:
-    if not i.reminded:
-      update invites[i.id] { reminded: true }
-schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
-```
 
 A sweep by id visits every row ever written; a sweep by the period visits
 the period.
@@ -104,38 +84,6 @@ missed while the server was down coalesce into one run for the latest
 period; a schedule first seen fires from its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 
 A schedule may also target an action: `schedule renewal every 1m as service:billing: remind`. The action must declare only `periodStart: time` and `periodEnd: time`, or no arguments. It runs under that service seat and its action rule, never as the system. Jobs cannot declare `as` (guide actions).
-
-In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
-
-```sh
-snapback4 clock advance 36s
-curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
-```
-
-For development and tests, `snapback4 dev --clock-offset +25h` starts the
-server 25 hours ahead of wall time. Mutations at `POST /m/<op>`
-stamp `now` from this clock. The clock keeps ticking monotonically;
-`snapback4 clock advance 2m [--port N]` moves a running dev forward and waits
-for expiry sweeps and queued job chunks to finish. Missed periods fire once,
-not once per skipped boundary; `--hold-schedules` still holds admission.
-The response reports `now`, `advancedMs`, and work counts (including parked
-jobs); if maintenance fails, time remains advanced and the normal tick retries
-pending work, so do not blindly repeat the advance. The offset belongs to
-this process and resets on restart; supply it again when continuing a test.
-Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
-An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
-Clients receive ordinary row times, nextExpiry and sync deletions; their
-own clocks and the application wire do not change.
-
-`snapback4 run <op> --now 1789352669447` pins just that local invocation
-(query, mutation or job) to Unix milliseconds; `--now +25h` pins it relative
-to wall time. Use an absolute past time to create an old post without a seed.
-It does not advance a running host or fire schedules. Durations are positive
-whole numbers with `ms`, `s`, `m`, `h`, `d` or `w`, optionally prefixed `+`;
-a startup offset may also be negative. Backward/zero advances and invalid
-values refuse E_CLOCK_INPUT. `serve` refuses clock flags and the control
-endpoint with E_CLOCK_DEV_ONLY. The endpoint is dev-only loopback
-`POST /dev/clock/advance` with `{"duration":"+2m"}`.
 
 ## A digest is a job that reads
 
@@ -247,7 +195,60 @@ count with `count(messages where .conversationId = conversationId and .at >=
 periodStart and .at < periodEnd)` and its marker with `emit … once` as above.
 The runtime meter still refuses work that cannot finish.
 
-## Refused jobs and schedules
+## Operations
+
+In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
+
+```sh
+snapback4 clock advance 36s
+curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
+```
+
+For development and tests, `snapback4 dev --clock-offset +25h` starts the
+server 25 hours ahead of wall time. Mutations at `POST /m/<op>`
+stamp `now` from this clock. The clock keeps ticking monotonically;
+`snapback4 clock advance 2m [--port N]` moves a running dev forward and waits
+for expiry sweeps and queued job chunks to finish. Missed periods fire once,
+not once per skipped boundary; `--hold-schedules` still holds admission.
+The response reports `now`, `advancedMs`, and work counts (including parked
+jobs); if maintenance fails, time remains advanced and the normal tick retries
+pending work, so do not blindly repeat the advance. The offset belongs to
+this process and resets on restart; supply it again when continuing a test.
+Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
+An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
+Clients receive ordinary row times, nextExpiry and sync deletions; their
+own clocks and the application wire do not change.
+
+`snapback4 run <op> --now 1789352669447` pins just that local invocation
+(query, mutation or job) to Unix milliseconds; `--now +25h` pins it relative
+to wall time. Use an absolute past time to create an old post without a seed.
+It does not advance a running host or fire schedules. Durations are positive
+whole numbers with `ms`, `s`, `m`, `h`, `d` or `w`, optionally prefixed `+`;
+a startup offset may also be negative. Backward/zero advances and invalid
+values refuse E_CLOCK_INPUT. `serve` refuses clock flags and the control
+endpoint with E_CLOCK_DEV_ONLY. The endpoint is dev-only loopback
+`POST /dev/clock/advance` with `{"duration":"+2m"}`.
+
+For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
+New emits are counted as `suppressed` by `doctor`, with no queued payload:
+they are never delivered, including after restarting with or without `--replay`.
+Mutations and explicitly run jobs keep their writes, results and meters.
+Replay holds schedule admission; restart without it resumes at the next
+boundary, skipping held periods. Already queued jobs still run, with their
+new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
+
+`--hold-effects` only pauses worker claims: effects stay durable and become
+claimable after restarting without the flag. `--hold-schedules` only holds
+schedule admission, skipping held periods on restart. Use `--replay` when
+new effects must never be delivered; use the effect hold to keep them queued.
+The suppression policy stays on the dev store for local `run` invocations
+until the next host start; a restart without `--replay` restores normal
+emission for new writes and keeps the count. `serve` and release commands
+refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
+With `--fresh`, the count dies with the in-memory store; `doctor` and local
+`run` inspect the separate on-disk store.
+
+## Refusals
 
 E_JOB_CURSOR_INDEX means a chunk's scan key can move while the job writes.
 For example, a sweep `for t in tasks by .score:` is unsafe

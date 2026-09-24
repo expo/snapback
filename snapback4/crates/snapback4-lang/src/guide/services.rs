@@ -1,6 +1,9 @@
 //! The services card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Services: a worker's seat, and accounts the application authenticates
 
+A service seat gives a worker its own principal for rule-checked operations.
+A service can also mint sessions for accounts the application authenticates.
+
 ```quarry
 table rankings:
   postId: id
@@ -13,25 +16,6 @@ table rankings:
 mutation rank(postId: id, score: int):
   upsert rankings[postId = postId] { postId, score }
 ```
-
-`snapback4 token --service ranker [--days 365] [--release <dir>]` prints,
-once, a bearer session for the principal `service:ranker`.
-The token and one newline are the whole of stdout (even with `--json`), with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service ranker)`.
-The owning store is printed on stderr: the project's `.snapback4/store.sqlite`,
-or `<dir>/store.sqlite` with `--release <dir>`. A token belongs only to that
-store; mint one for each isolated audit or proof store after starting its dev
-server. `--fresh` (also `--memory`) has no disk store for this CLI to mint into.
-Readiness for dev and serve is the first stdout line: the listening URL,
-emitted after store and native-module setup. Wait for that line before sending
-requests; lifecycle logs and the store banner use stderr.
-With an application worker, dev also prints its one-time `service:worker`
-token on stdout after the URL, labelled "printed once"; it stays out of stderr logs.
-Rules name it
-like any principal, so the ranker is admitted and nobody else is; with
-its token a worker claims effects (guide effects) and runs any operation
-a rule admits it to.
-An audience read rule may add `or viewer = 'service:ranker'`; sync ignores
-service grants, and `check --residency --verbose` lists them without changing any device's partition.
 
 An application that authenticates its own accounts — a phone number it
 verified, a member of its own directory — mints their sessions through its
@@ -52,7 +36,28 @@ and a worker.
 For this unbound application mint, an absent or non-string `kind` defaults to
 `account`; an absent or non-integer `days` defaults to 7; integer days clamp to 1–3,650.
 
-## Refused authentication
+## Operations
+
+`snapback4 token --service ranker [--days 365] [--release <dir>]` prints,
+once, a bearer session for the principal `service:ranker`.
+The token and one newline are the whole of stdout (even with `--json`), with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service ranker)`.
+The owning store is printed on stderr: the project's `.snapback4/store.sqlite`,
+or `<dir>/store.sqlite` with `--release <dir>`. A token belongs only to that
+store; mint one for each isolated audit or proof store after starting its dev
+server. `--fresh` (also `--memory`) has no disk store for this CLI to mint into.
+Readiness for dev and serve is the first stdout line: the listening URL,
+emitted after store and native-module setup. Wait for that line before sending
+requests; lifecycle logs and the store banner use stderr.
+With an application worker, dev also prints its one-time `service:worker`
+token on stdout after the URL, labelled "printed once"; it stays out of stderr logs.
+Rules name it
+like any principal, so the ranker is admitted and nobody else is; with
+its token a worker claims effects (guide effects) and runs any operation
+a rule admits it to.
+An audience read rule may add `or viewer = 'service:ranker'`; sync ignores
+service grants, and `check --residency --verbose` lists them without changing any device's partition.
+
+## Refusals
 
 E_AUTH means the request has no live principal or uses the wrong authority
 for its endpoint. For example, a user's bearer token cannot claim effects:
@@ -66,5 +71,4 @@ to the backend the URL actually reaches.
 Action-bound session minting and OIDC: see the package’s [SERVER.md](./SERVER.md).
 For E_OIDC_BINDING, E_OIDC_CALLBACK, E_OIDC_CONFIG, E_OIDC_EXCHANGE,
 E_OIDC_HANDOFF, E_OIDC_MINT, E_OIDC_PROVIDER, E_OIDC_RECIPE, E_OIDC_REPLAY
-and E_OIDC_TRANSACTION, see its Identity refusal reference.
-"##;
+and E_OIDC_TRANSACTION, see its Identity refusal reference."##;

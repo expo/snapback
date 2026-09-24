@@ -1,11 +1,8 @@
 // @ref LLP 3000.009#5.1 — declared routes verify authority before private durable handler admission.
 pub const CARD: &str = r##"# Routes and webhooks
 
-One `use server` in any module (`schema.q` is usual) enables the whole
-project; repeating it is harmless. Actions, routes and schedules naming an
-action require it. Effects (including secrets, retry, backoff, deadline and
-cancellation), jobs, schedules naming a job and service seats need no directive.
-E_SERVER_REQUIRED refuses each gated declaration; its rewrite is `use server`.
+Routes expose declared POST paths for requests and provider webhooks.
+TypeScript handlers run under the authenticated caller or a verified service seat.
 
 ```quarry
 use server
@@ -62,6 +59,8 @@ export default server({ routes: {
 } });
 ```
 
+## Refusals
+
 `RouteHandler<S>` receives `(req, ctx: ServerContext<S>)` and returns a
 `Response` or `Promise<Response>`. `ServiceRoute<S>` requires both `verify`
 and `handle`. The verifier receives only declared `secrets` and an abort
@@ -94,6 +93,8 @@ durable `ctx.step`, and stable `ctx.writeIdFor` labels (guide actions).
 Use provider event IDs and revisions in the application's mutation to handle
 out-of-order events; body deduplication does not order distinct events.
 
+## Operations
+
 The core returns the handler's recorded response if it settles within `wait`.
 Otherwise HTTP 503 with E_ROUTE_PENDING asks the sender to retry the same
 body. Work survives a disconnect or worker crash; a retry collects its settled
@@ -119,4 +120,11 @@ lifetime. Both it and the separate verifier loop rotate through at most 128
 names per claim (at most 1s waits with multiple chunks). Verification and registry
 claims have separate four-slot pools; 16 ingress waits and 32 legacy long polls
 cannot consume them. A large idle registry does not need one poll per handler.
-"##;
+
+### Enabling server declarations
+
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
+E_SERVER_REQUIRED refuses each gated declaration; its rewrite is `use server`."##;

@@ -1,9 +1,8 @@
 //! Index choice and optional tuning. Examples compile in tests/guide.rs.
 pub(super) const CARD: &str = r##"# Indexes: chosen from the read
 
-State the predicate and order. `check` chooses an existing index or creates
-one. Rules, sync, caps and expiry also obtain their access indexes. A table
-needs no `by` declaration for these reads:
+Indexes let reads seek the rows that match a predicate in the requested order.
+The compiler chooses or creates them from your reads and declarations.
 
 ```quarry
 table tasks:
@@ -22,6 +21,10 @@ query open(c: cursor ?):
   return tasks where .ownerId = viewer and .done = false first 20 by .at after c
 ```
 
+State the predicate and order. `check` chooses an existing index or creates
+one. Rules, sync, caps and expiry also obtain their access indexes. A table
+needs no `by` declaration for these reads.
+
 `unique ownerId, projectId` is a product constraint: one row per pair.
 `tasks[id]` always means the row's id. A multi-value positional key needs
 exactly one declared unique key of that arity, in its declared order.
@@ -31,7 +34,7 @@ A visible unique collision uses the optional `else CODE 'message'` hook;
 a hidden collision keeps its ordinary authorization refusal. `if absent`
 returns null on a visible clash. Codes are UPPER_SNAKE and never start with E_.
 
-## See the plan, then tune it
+## Operations
 
 Run `snapback4 check --cost` for chosen and synthesized indexes and the reads
 that need them. `snapback4 why <operation>` shows each source site, selected
@@ -102,5 +105,4 @@ not choose between keys.
 E_SCHEMA_CONSTRAINT means the named declaration violates a schema constraint.
 Keep a product cap such as `cap 50 by conversationId` when it is a real rule;
 the compiler supplies its index. For an audience mismatch, match `sync` to
-the read rule rather than exposing private rows. Rerun `snapback4 check`.
-"##;
+the read rule rather than exposing private rows. Rerun `snapback4 check`."##;

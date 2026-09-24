@@ -1,9 +1,7 @@
 # Views: plan, maintain or materialize
 
-A `view` names derived data. A filter or projection is planned when read.
-Branches form a union without a copied application table. An aggregate is
-maintained in the source write's transaction. Public Following is materialized
-per reader when its source and edge rules admit that disclosure (`guide feeds`).
+A `view` names derived data.
+It can plan a read, maintain an aggregate or materialize a feed for each reader.
 
 ```quarry
 table posts:
@@ -28,6 +26,11 @@ view postCount: count posts by .author
 query total(author: principal):
   return postCount[author]
 ```
+
+A filter or projection is planned when read.
+Branches form a union without a copied application table. An aggregate is
+maintained in the source write's transaction. Public Following is materialized
+per reader when its source and edge rules admit that disclosure (`guide feeds`).
 
 Each union branch runs under its own source's read rule before filtering or
 projection. Branches have compatible fields and types. Identity includes both
@@ -337,7 +340,7 @@ paths, including nulls, stay unchanged. Do not backfill recorded engine fields
 or drop/re-add paths as an accidental history repair. An immutable incorrect
 reference needs an explicit data migration with an author-chosen identity policy.
 
-## Refused aggregate expressions
+## Refusals
 
 E_QUARRY_MAINTAIN means a predicate, grouping expression or read is outside
 the aggregate view forms. For example, `view recent: count posts where .at > now by .authorId`

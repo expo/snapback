@@ -2,21 +2,8 @@
 // @ref LLP 3000.007#20.19 — repeated refusals carry the card paragraph naming their code.
 pub(super) const CARD: &str = r##"# Programs
 
-E_QUARRY_PLACEMENT means a statement is valid only in another context.
-For example, `query add():` cannot contain `insert notes { body: 'hello' }`;
-make that operation `mutation add():` so the write runs in its transaction.
-Queries cannot insert, update, delete or mint ids, even through a helper.
-Keep read-only work in a query, put writes in a mutation or job, and put
-`break` or `continue` inside the loop they control. The rewrite names the
-misplaced statement and where it belongs.
-
-E_EMIT_IN_QUERY means a query tried to enqueue an external effect.
-For example, `query send():` cannot contain `emit notify { body: 'hello' }`;
-declare `effect notify` and change the operation to `mutation send():`.
-Call that mutation for the send intent. Queries may rerun to refresh a
-screen, so they only read; mutations and jobs keep emitted effects in
-their commit for a worker with a service token to perform (guide effects).
-Moving the emit into a helper called by the query does not make it legal.
+Queries read data; mutations change it in one transaction.
+Jobs run background work, and helpers share logic between programs.
 
 ```quarry
 query programForms(roomId: rooms):                             -- reads only; the last expression, or `return`, is the result, typed onto api.ts
@@ -65,30 +52,9 @@ It never repositions or reclassifies an enclosing page.
 Queries cannot write or mint ids, including through a helper; the call site names
 the write that does not belong.
 
-E_INTERNAL means the interpreter reached an undefined compiler temporary.
-It names the operation and statement site, without exposing the generated
-variable name as an input error. Recompile with `snapback4 check`; if it
-recurs, report the operation and site as a compiler defect.
+## Operations
 
-## Calling and naming operations
-
-E_OP means the requested operation or route does not exist, or was called
-through the wrong door. For example, `client.mutate(api.thread, args)`
-cannot run a query; use `client.query(api.thread, args)`. Run
-`snapback4 check` and use the generated API's module-qualified names.
-Call actions with `client.act`; run jobs with `snapback4 run <job> '{}'`
-or a schedule, since jobs are not client operations. Check the HTTP path
-when the message instead names an unknown route.
-
-E_OP_RESERVED means an application's refusal code starts with the
-platform's reserved `E_` prefix. For example,
-`require allowed else E_AUTH` must use
-`require allowed else NOT_MEMBER`. Pick an UPPER_SNAKE application code
-at the use site and handle that code on the client. The same rule applies
-to a unique index's `else` hook; it does not require adding the code to the
-platform registry.
-
-## App files and modules
+### App files and modules
 
 ```
 my-app/
@@ -121,4 +87,45 @@ so Node ESM seed scripts can import `api` from `snapback/generated/api.ts`
 even when the app's package.json says `"type":"commonjs"`. Existing scripts
 under `snapback/` keep their module interpretation. The Expo starter uses
 `worker.mts` so its generated worker is explicitly ESM in a CommonJS app.
-`check` and `dev` rebuild the generated package boundary alongside `api.ts`."##;
+`check` and `dev` rebuild the generated package boundary alongside `api.ts`.
+
+## Refusals
+
+E_INTERNAL means the interpreter reached an undefined compiler temporary.
+It names the operation and statement site, without exposing the generated
+variable name as an input error. Recompile with `snapback4 check`; if it
+recurs, report the operation and site as a compiler defect.
+
+### Calling and naming operations
+
+E_OP means the requested operation or route does not exist, or was called
+through the wrong door. For example, `client.mutate(api.thread, args)`
+cannot run a query; use `client.query(api.thread, args)`. Run
+`snapback4 check` and use the generated API's module-qualified names.
+Call actions with `client.act`; run jobs with `snapback4 run <job> '{}'`
+or a schedule, since jobs are not client operations. Check the HTTP path
+when the message instead names an unknown route.
+
+E_OP_RESERVED means an application's refusal code starts with the
+platform's reserved `E_` prefix. For example,
+`require allowed else E_AUTH` must use
+`require allowed else NOT_MEMBER`. Pick an UPPER_SNAKE application code
+at the use site and handle that code on the client. The same rule applies
+to a unique index's `else` hook; it does not require adding the code to the
+platform registry.
+
+E_QUARRY_PLACEMENT means a statement is valid only in another context.
+For example, `query add():` cannot contain `insert notes { body: 'hello' }`;
+make that operation `mutation add():` so the write runs in its transaction.
+Queries cannot insert, update, delete or mint ids, even through a helper.
+Keep read-only work in a query, put writes in a mutation or job, and put
+`break` or `continue` inside the loop they control. The rewrite names the
+misplaced statement and where it belongs.
+
+E_EMIT_IN_QUERY means a query tried to enqueue an external effect.
+For example, `query send():` cannot contain `emit notify { body: 'hello' }`;
+declare `effect notify` and change the operation to `mutation send():`.
+Call that mutation for the send intent. Queries may rerun to refresh a
+screen, so they only read; mutations and jobs keep emitted effects in
+their commit for a worker with a service token to perform (guide effects).
+Moving the emit into a helper called by the query does not make it legal."##;

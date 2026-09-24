@@ -40,6 +40,18 @@ pub fn nearest(word: &str) -> Vec<&'static str> {
 
 pub(super) const EVOLUTION: &str = r##"# Evolution: adopting a schema
 
+Schema adoption applies a new backend definition to existing data.
+The stored rows must fit the new types, keys and constraints.
+
+```quarry
+table notes:
+  body: text <=200
+  archived: bool default false  -- fills this field in older rows
+  label: text <=40 ?            -- older rows read null
+  read <- .owner = viewer
+  owner: principal
+```
+
 New optional columns, required columns with literal defaults, non-unique
 indexes, tables and operations adopt without ceremony. Literal defaults
 fill older row images on the server and device, including in new indexes,
@@ -48,6 +60,8 @@ without rewriting stored rows or logging partition events.
 Required columns without literal defaults, tighter types, unique indexes
 and stronger constraints need the existing rows to fit. A new required
 `default now` or `default viewer` column needs an empty table.
+
+## Operations
 
 Run `snapback4 check` against the dev store, or `check --store <path>`:
 each failed successor step is E_ADOPT at its column, index or table, with

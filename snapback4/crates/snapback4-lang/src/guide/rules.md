@@ -1,5 +1,8 @@
 # Rules
 
+Rules decide who may read or write each row.
+They apply on the server and when a device reads or predicts local rows.
+
 ```quarry
 table docs:
   ownerId: principal

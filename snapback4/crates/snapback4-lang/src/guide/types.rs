@@ -1,13 +1,8 @@
 //! The types card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Types
 
-E_QUARRY_TYPE means the expression's type does not fit its position.
-The diagnostic names the expected and actual types and the source location.
-A table reference is that table's typed id, not its row: read `table[id]`
-before selecting fields. Narrow an optional value with `if x != null:`,
-`x ! else CODE` or `x ?? default` before using it where a present value is
-required. Use the declared enum type when its variants cannot all widen
-to the helper's text bound; changing a type never converts stored values.
+Types describe the values a column or argument accepts.
+They also set limits on text, lists and uploaded assets.
 
 ```quarry
 table everything:
@@ -78,31 +73,6 @@ rewrite, as `dev` refuses the save. Without a store, check only compiles.
 Pages, lists and shaped collections share the list operations: `sort`, `slice`,
 `count`, `sum`, `group`, `first`, `last`, `at`, `join` and `for`. Their elements
 must still fit the operation: `join` joins texts; `sum(page, .amount)` projects numbers.
-
-## Runtime values that do not fit
-
-E_TYPE means a runtime value has the wrong kind for the operation using it.
-For example, a raw program cannot add the text `'3'` as an integer; supply
-`3` as a number and compile the program against its schema. Read the
-message's expected and actual types, correct seeds or wire inputs, and
-use the generated API types. Changing a declaration does not convert old
-values; repair the values before narrowing their type.
-
-E_OVERFLOW means integer arithmetic left the value model's range of
-−9,007,199,254,740,991 through 9,007,199,254,740,991. For example,
-`9007199254740991 + 1` cannot be represented. Bound the inputs and
-intermediate arithmetic before adding or multiplying. Decimal and money
-columns store integer minor units in that same range; they do not provide
-larger integers. For an overflowing aggregate, reduce its contributions or
-split the grouping; the refusal names the view and value column without
-revealing a hidden computed sum, and the failed write rolls back.
-
-E_FIELD means a runtime field selection has no such field. For example,
-a raw object `{ title: 'hello' }` has no `body`; select `title` or construct
-the declared object instead. Compile the program so field names are checked,
-and narrow an optional row with `row ! else NOT_FOUND` when presence is
-required. Ordinary Quarry field access propagates a null base as null;
-that is not evidence that the row exists.
 
 ## Tables
 
@@ -181,4 +151,37 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,
   so stored top-N can miss a winner. For a window over the entity's own
   immutable time, `guide feeds` gives a predicate over a non-expiring source. A rolling
-  contribution window still needs live counts; a cut makes that answer incomplete."##;
+  contribution window still needs live counts; a cut makes that answer incomplete.
+
+## Refusals
+
+E_TYPE means a runtime value has the wrong kind for the operation using it.
+For example, a raw program cannot add the text `'3'` as an integer; supply
+`3` as a number and compile the program against its schema. Read the
+message's expected and actual types, correct seeds or wire inputs, and
+use the generated API types. Changing a declaration does not convert old
+values; repair the values before narrowing their type.
+
+E_OVERFLOW means integer arithmetic left the value model's range of
+−9,007,199,254,740,991 through 9,007,199,254,740,991. For example,
+`9007199254740991 + 1` cannot be represented. Bound the inputs and
+intermediate arithmetic before adding or multiplying. Decimal and money
+columns store integer minor units in that same range; they do not provide
+larger integers. For an overflowing aggregate, reduce its contributions or
+split the grouping; the refusal names the view and value column without
+revealing a hidden computed sum, and the failed write rolls back.
+
+E_FIELD means a runtime field selection has no such field. For example,
+a raw object `{ title: 'hello' }` has no `body`; select `title` or construct
+the declared object instead. Compile the program so field names are checked,
+and narrow an optional row with `row ! else NOT_FOUND` when presence is
+required. Ordinary Quarry field access propagates a null base as null;
+that is not evidence that the row exists.
+
+E_QUARRY_TYPE means the expression's type does not fit its position.
+The diagnostic names the expected and actual types and the source location.
+A table reference is that table's typed id, not its row: read `table[id]`
+before selecting fields. Narrow an optional value with `if x != null:`,
+`x ! else CODE` or `x ?? default` before using it where a present value is
+required. Use the declared enum type when its variants cannot all widen
+to the helper's text bound; changing a type never converts stored values."##;

@@ -13,6 +13,25 @@ use snapback4_lang::guide::{self, KEYWORDS, LANGUAGE, card, codes, explain_code,
 use std::collections::BTreeMap;
 
 #[test]
+fn every_card_introduces_the_feature_before_examples_and_reference_details() {
+    for name in KEYWORDS {
+        let text = card(name).unwrap();
+        let mut paragraphs = text.split("\n\n");
+        assert!(paragraphs.next().unwrap().starts_with("# "), "{name}: title first");
+        let lead = paragraphs.next().unwrap();
+        assert!(!lead.starts_with(['#', '`']), "{name}: introduce the feature before syntax");
+        assert!(lead.split_whitespace().count() <= 45, "{name}: keep the introduction short");
+        assert!((1..=2).contains(&lead.matches('.').count()), "{name}: one or two sentences");
+        let (opening, _) = text.split_once("```").expect("every card has an example");
+        assert!(!opening.contains("--") && !opening.contains("E_") && !opening.contains("N_"), "{name}: flags and refusals follow the example");
+        if *name != "feeds" {
+            // Feeds introduces its Global example with the named feature section.
+            assert!(paragraphs.next().unwrap().starts_with("```"), "{name}: show the example next");
+        }
+    }
+}
+
+#[test]
 fn time_waiting_cards_point_to_cli_and_http_clock_controls() {
     for name in ["expire", "jobs", "effects"] {
         let card = snapback4_lang::guide::card(name).unwrap();
@@ -60,6 +79,11 @@ fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
     ] {
         let explanation = explain_code(code).unwrap();
         for fact in facts { assert!(explanation.contains(fact), "{code}: missing {fact}"); }
+        if ["E_RECIPE_RETIRED", "E_TIMELINE_FILTER", "E_TIMELINE_READ"].contains(&code) {
+            for old in ["maintain feed: timeline", "events posts where", "NAME[viewer]"] {
+                assert!(!explanation.contains(old), "{code}: why still teaches {old}");
+            }
+        }
     }
     for retired in ["E_RECIPE_BRIDGE", "E_RECIPE_CAPS"] { assert!(!codes().contains(&retired)); }
 }

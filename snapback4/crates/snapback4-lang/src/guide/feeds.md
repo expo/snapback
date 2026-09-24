@@ -1,5 +1,8 @@
 # Feeds: Global, Following and Trending
 
+Feeds present public originals and reposts as Global, Following or Trending.
+Views define the event stream; a predicate read selects the trending posts.
+
 ## Global: a union view
 
 Each original and repost is one event. The union reads each source's rules

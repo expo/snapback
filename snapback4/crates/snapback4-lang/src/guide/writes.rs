@@ -1,6 +1,9 @@
 //! Writes and server-arrival ordering.
 pub(super) const CARD: &str = r##"# Writes
 
+Mutations insert, update and delete rows in one transaction.
+Rules and constraints apply before that transaction commits.
+
 ```quarry
 mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
   a = insert messages { roomId, authorId: viewer, body, at: now }                   -- the row; the id is minted unless given (`id: new`, or one you hold)

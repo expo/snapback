@@ -1,41 +1,8 @@
 //! The effects card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Effects: the outside world, performed by a worker
 
-Effects are global declarations shared by every file; jobs are module-qualified
-operations. The worker dispatches by the declared effect name, while schedules
-and `run` address an operation. If `digest.q` declares `effect notify` and
-`job daily()`, write `emit notify { ... }`, register `effects: { notify: ... }`
-in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: digest.daily`).
-
-`emit notify { … } once [recipient, periodEnd]` admits at most one effect
-for that effect name and canonical Value array for the store's lifetime.
-A repeated key skips the emit and continues the transaction. `once` deduplicates
-emission, not completion: an iteration that emits nothing records no key. Keys survive
-outbox settlement, retries, restarts and replacement runs. The key and emit
-roll back together if the transaction fails. `--replay` also records the key:
-repeating that period after replay cannot deliver the suppressed effect.
-Device prediction discards emits and never claims keys. A key does not
-promise exactly-once provider delivery; the worker still uses provider
-idempotency for an ambiguous external outcome.
-
-For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
-New emits are counted as `suppressed` by `doctor`, with no queued payload:
-they are never delivered, including after restarting with or without `--replay`.
-Mutations and explicitly run jobs keep their writes, results and meters.
-Replay holds schedule admission; restart without it resumes at the next
-boundary, skipping held periods. Already queued jobs still run, with their
-new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
-
-`--hold-effects` only pauses worker claims: effects stay durable and become
-claimable after restarting without the flag. `--hold-schedules` only holds
-schedule admission, skipping held periods on restart. Use `--replay` when
-new effects must never be delivered; use the effect hold to keep them queued.
-The suppression policy stays on the dev store for local `run` invocations
-until the next host start; a restart without `--replay` restores normal
-emission for new writes and keeps the count. `serve` and release commands
-refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
-With `--fresh`, the count dies with the in-memory store; `doctor` and local
-`run` inspect the separate on-disk store.
+Effects record work for a worker to perform outside the database, such as sending a notification.
+The payload commits with the mutation or job that emits it.
 
 ```quarry
 effect notify secrets [PUSH_API_KEY] retry 8 backoff 2s deadline 1d cancellation allow
@@ -67,10 +34,26 @@ mutation send(roomId: id, body: text <=4000):
   return { id: msg.id }
 ```
 
+Effects are global declarations shared by every file; jobs are module-qualified
+operations. The worker dispatches by the declared effect name, while schedules
+and `run` address an operation. If `digest.q` declares `effect notify` and
+`job daily()`, write `emit notify { ... }`, register `effects: { notify: ... }`
+in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: digest.daily`).
+
+`emit notify { … } once [recipient, periodEnd]` admits at most one effect
+for that effect name and canonical Value array for the store's lifetime.
+A repeated key skips the emit and continues the transaction. `once` deduplicates
+emission, not completion: an iteration that emits nothing records no key. Keys survive
+outbox settlement, retries, restarts and replacement runs. The key and emit
+roll back together if the transaction fails. `--replay` also records the key:
+repeating that period after replay cannot deliver the suppressed effect.
+Device prediction discards emits and never claims keys. A key does not
+promise exactly-once provider delivery; the worker still uses provider
+idempotency for an ambiguous external outcome.
+
 This send stays eligible to predict because presence decides only effects. A push guarded by absence is recorded durably at commit even when the recipient looks connected, deferred a few seconds, and cancelled by a new poll only if it arrives within its window. This guarantees durable admission; delivery keeps the effect's ordinary policy deadlines, worker failures, lease retries and `--replay` suppression.
 Prediction also charges the safe untaken presence arms and discards their effects. Effect ids never consume `new` or an insert's ids.
 For a successful effects-only mutation, connection state never changes its rows or result. It can change which effect arms run and therefore the mutation's charges, as live versus absent presence already could. The paved `if not exists connected[p]: emit …` form charges the same whether the recipient is held, graced or absent. Shared boolean payloads and separate positive-presence emits can cost more for held than graced recipients; a held recipient may get both a deferred absence effect and an immediate positive-presence effect.
-A held poll is unconfirmed: its push waits five seconds from the commit for a new poll to arrive. With no live poll but an unexpired presence grace, an absence-conditioned push is queued for the grace deadline: up to 35 seconds. `doctor` shows the deferred count and next deadline; `GET /effects` exposes each deadline as `nextAt`. In tests expire the held-poll deadline with `snapback4 clock advance 6s`; close the grace window with `snapback4 clock advance 36s` or `POST /dev/clock/advance` with `{ "duration": "36s" }`; a real-time poll budget must exceed 35 seconds. Only a poll arriving after the commit within its window cancels it, even if that poll ends before claim or the server restarts. The effect is recorded as `satisfied` with `result: { outcome: 'presence_reconnected' }` and zero attempts; it is never handed to a worker. Without a reconnect it becomes claimable once, using the existing lease protocol. No live poll and no grace means immediate admission. A poll already open at claim does not satisfy the effect.
 Cancellation requires a proven necessary absence guard: `if not exists connected[p]`, its aliases, conjunctions of absence tests or nested absence guards. Several necessary absences wait for the latest deadline; a reconnect within any one principal's own window satisfies that guard. Payload-only reads (`emit audit { online: exists connected[p] }`), `not exists connected[p] or force`, and boolean forms without this proof remain immediate and are never cancelled by reconnect.
 Potential dependency allocation, propagation and emission copies reserve the same heap allowance with or without grace on the server and device; actual allocations stay metered.
 For any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
@@ -96,6 +79,59 @@ refused mutation emits nothing), and a worker with a service token
 import { runWorker } from "snapback4/worker";
 runWorker({ url, token, effects: { notify: async (payload, meta) => { await push(payload); return { providerId: meta.id }; } } });
 ```
+
+## A conversation notification
+
+```quarry
+effect notify
+
+table memberships:
+  conversationId: id
+  principal: principal
+  unique conversationId, principal
+  cap 50 by conversationId
+  read <- exists memberships[.conversationId, viewer]
+  insert <- exists memberships[.conversationId, viewer]
+  sync
+
+table messages:
+  conversationId: id
+  authorId: principal
+  body: text <=4000
+  at: time
+  read <- exists memberships[.conversationId, viewer]
+  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  sync last 500 by .at
+
+mutation send(conversationId: id, body: text <=4000):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  msg = insert messages { conversationId, authorId: viewer, body, at: now }
+  for m in memberships where .conversationId = conversationId by .principal:
+    if m.principal != viewer and not exists connected[m.principal]:
+      emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
+  return { id: msg.id }
+```
+
+For a digest, **seek the period, filter the ordinal**. The complete recipe on `guide jobs` shares `unreadIn` with the viewer's inbox for the same period and walks
+each recipient's own memberships; the job may read expiring messages directly.
+`snapback4 guide jobs` shows a streaming total inside an automatic recipient
+sweep. Each recipient must still fit one transaction's meters. Emit with
+`once [targetUserId, periodEnd]` to deduplicate admission across reruns, and
+use the same business key for provider retries. A zero-unread recipient emits
+nothing and records no key.
+
+## Emit once
+
+```quarry
+effect onceNotify
+mutation remind(recipient: principal, periodEnd: time):
+  emit onceNotify { recipient, periodEnd } once [recipient, periodEnd]
+  return true
+```
+
+## Operations
+
+A held poll is unconfirmed: its push waits five seconds from the commit for a new poll to arrive. With no live poll but an unexpired presence grace, an absence-conditioned push is queued for the grace deadline: up to 35 seconds. `doctor` shows the deferred count and next deadline; `GET /effects` exposes each deadline as `nextAt`. In tests expire the held-poll deadline with `snapback4 clock advance 6s`; close the grace window with `snapback4 clock advance 36s` or `POST /dev/clock/advance` with `{ "duration": "36s" }`; a real-time poll budget must exceed 35 seconds. Only a poll arriving after the commit within its window cancels it, even if that poll ends before claim or the server restarts. The effect is recorded as `satisfied` with `result: { outcome: 'presence_reconnected' }` and zero attempts; it is never handed to a worker. Without a reconnect it becomes claimable once, using the existing lease protocol. No live poll and no grace means immediate admission. A poll already open at claim does not satisfy the effect.
 
 In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
 
@@ -188,47 +224,26 @@ claim/status/step substrate. It is not typed effect-payload, query/mutate/data/
 admin authority, a PostgreSQL adapter, provider qualification, process-crash
 proof, or a completed B milestone.
 
-## A conversation notification
+For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
+New emits are counted as `suppressed` by `doctor`, with no queued payload:
+they are never delivered, including after restarting with or without `--replay`.
+Mutations and explicitly run jobs keep their writes, results and meters.
+Replay holds schedule admission; restart without it resumes at the next
+boundary, skipping held periods. Already queued jobs still run, with their
+new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
 
-```quarry
-effect notify
+`--hold-effects` only pauses worker claims: effects stay durable and become
+claimable after restarting without the flag. `--hold-schedules` only holds
+schedule admission, skipping held periods on restart. Use `--replay` when
+new effects must never be delivered; use the effect hold to keep them queued.
+The suppression policy stays on the dev store for local `run` invocations
+until the next host start; a restart without `--replay` restores normal
+emission for new writes and keeps the count. `serve` and release commands
+refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
+With `--fresh`, the count dies with the in-memory store; `doctor` and local
+`run` inspect the separate on-disk store.
 
-table memberships:
-  conversationId: id
-  principal: principal
-  unique conversationId, principal
-  cap 50 by conversationId
-  read <- exists memberships[.conversationId, viewer]
-  insert <- exists memberships[.conversationId, viewer]
-  sync
-
-table messages:
-  conversationId: id
-  authorId: principal
-  body: text <=4000
-  at: time
-  read <- exists memberships[.conversationId, viewer]
-  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
-  sync last 500 by .at
-
-mutation send(conversationId: id, body: text <=4000):
-  require exists memberships[conversationId, viewer] else NOT_MEMBER
-  msg = insert messages { conversationId, authorId: viewer, body, at: now }
-  for m in memberships where .conversationId = conversationId by .principal:
-    if m.principal != viewer and not exists connected[m.principal]:
-      emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
-  return { id: msg.id }
-```
-
-For a digest, **seek the period, filter the ordinal**. The complete recipe on `guide jobs` shares `unreadIn` with the viewer's inbox for the same period and walks
-each recipient's own memberships; the job may read expiring messages directly.
-`snapback4 guide jobs` shows a streaming total inside an automatic recipient
-sweep. Each recipient must still fit one transaction's meters. Emit with
-`once [targetUserId, periodEnd]` to deduplicate admission across reruns, and
-use the same business key for provider retries. A zero-unread recipient emits
-nothing and records no key.
-
-## Effect lifecycle refusals
+## Refusals
 
 E_EFFECT_CLOSED means a private generated effect context closed with its
 handler lifetime or an authority loss. Do not retain or reuse that context;
@@ -273,12 +288,4 @@ settlements are refused. For example, a worker finishing a push after
 `POST /effects/<id>/cancel` cannot mark that old effect sent. Inspect the
 provider using the effect's idempotency key before creating another effect.
 Cancellation stops further admitted work, but cannot undo a provider call
-already in flight.
-
-```quarry
-effect onceNotify
-mutation remind(recipient: principal, periodEnd: time):
-  emit onceNotify { recipient, periodEnd } once [recipient, periodEnd]
-  return true
-```
-"##;
+already in flight."##;
