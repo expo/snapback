@@ -49278,3 +49278,83 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+## 2026-09-24 — LLP 3000.013 Lane O: first-hour DX evidence and repairs
+
+Implemented on `sb4-intent/o-dx` for the 0.4.1 integration. The symlink-only
+init report is not reproduced: init already checked destinations, not whether
+the directory was empty. The README collision was real. All starter variants
+now preserve an unrelated README and instrument symlink; a UI starter writes
+its instructions to README.snapback.md when README.md exists. Init collects
+all conflicting destinations and owned package entries before writing, with
+E_INIT_CONFLICT and a concrete rewrite. The Expo main entry is owned; existing
+name, module policy and unrelated metadata remain preserved. Owned file
+symlinks refuse; the schema-only starter does not claim package.json. No
+--force switch was added. The existing README-refusal expectation changed
+because preserving the README is now deliberate behavior.
+
+Uploads now retry only an explicit E_RATE_LIMIT with retryable true, and the
+server marks its full two-slot admission refusal retryable. Both clients use
+one implementation: four total attempts, 250/500/1000 ms exponential backoff,
+Retry-After seconds or HTTP dates as a minimum delay, at most 10 seconds of
+retry waits. A longer server wait returns the refusal without retrying early.
+Closing, signing out or rotating the original credentials stops further
+attempts. Other refusals and lost/malformed replies never retry, since a lost
+reply may follow acceptance. These bounds and the README fallback are the
+engineering choices where the brief was silent. Upload capacity, authority,
+asset placement, the interpreter and all engine meters are unchanged.
+
+Neither template typing nor declared expiry required a runtime fix. The two
+fresh starter tests now expose only declared dependency names, copy the built
+SDK's package boundary, run tsc --noEmit, and separately check the generated
+snapback/generated/server.ts with types: [] (no ambient Node globals). Init
+and check do not generate an application entry at snapback/server.ts. The
+reference toolchain supplies cached dependencies without a registry install;
+unused template-only web build packages need not be present to typecheck.
+
+A headless Chromium regression runs real useQuery over a synced typing table
+with expire at .expiresAt and a 4.5-second lifetime. Both the online client
+and the offline web client (Wasm + IndexedDB) remove the row without another
+write. Holding /changes excludes streamed sweep deletion as the cause. The
+final suite observed both DOM subtrees empty 23 ms after the deadline, three
+online queries and zero local server-query fallbacks. This is an observation,
+not a latency guarantee. A column named expiresAt alone does not declare
+expiry; the online tier still needs a connection to evaluate its next read.
+The client reference now states that distinction.
+
+chatDeliveries first 50 by .id already emitted N_NO_CURSOR and truthfully
+returned complete false without next after 50 rows. Its rewrite now names
+both a cursor and a narrower key, with the real schema cap required for a
+whole-group read. A 51-row engine/CLI regression proves the original omission
+and that both continuation and a per-message read retrieve acknowledgement
+51. Both remedies are compiled examples on the language card. The scale
+classification expectation adds those two constant-cost examples.
+
+Validation: 97 focused language/guide tests, 34 focused client tests, the
+server upload-admission test, the delivery-page regression and 21 final init
+tests pass. The 14 new upload tests cover real HTTP refusal/refusal/admission
+on both clients, unchanged bodies, exhaustion, non-retryable and ambiguous
+outcomes, Retry-After, the wait budget and client closure. The full suite also
+passes the existing intent-target tests. All changed source files stay below
+1,500 lines; whitespace checks pass. Wasm is unchanged at 1,744,842 B raw /
+484,967 B gzip under the 486,000 B budget.
+
+First full run: `== 2 failure(s) in 192 s` (cargo test; client tests).
+Mine: language_operation_classes omitted the two new guide examples from its
+expected map; corrected and individually verified. Environmental/inherited
+test race: acquisition.test.mjs's W5c process pending-write recovery test saw
+sent instead of pending at line 375. Its fixture fails sync while allowing
+other network work, so settlement can race the assertion. The upload-only
+client delta is not exercised by that test. It passed unchanged alone and in
+the second full run. Reproduction attempt: `node --test --test-name-pattern=
+'W5c process: pending writes recover' packages/snapback4/test/acquisition.test.mjs`
+from snapback4 (join the wrapped command onto one line). This intermittent
+test race remains for the supervisor; no unrelated acquisition code changed.
+The four Rust failures in the supplied baseline log did not recur.
+
+Final exact full-suite result: `== 0 failure(s) in 145 s`; 1,103 client tests
+passed, 10 skipped, zero failed. Logs: /tmp/lane-o-full-suite.log,
+/tmp/lane-o-full-suite-final.log, /tmp/lane-o-client-targeted.log and
+/tmp/lane-o-acquisition-rerun.log. No new open product defect, new language
+syntax, authorization or meter change, package-version bump, push, publication
+or deployment. The supervisor owns review and integration.
