@@ -3,6 +3,17 @@
 use super::*;
 
 impl Binder<'_> {
+    /// Bare tables are domains only at an aggregate/loop consumer; ordinary
+    /// names keep their lexical meaning and ordinary pages keep their bounds.
+    fn aggregate_domain(&self, value: &A) -> Option<ReadExpr> {
+        match value {
+            A::Read(read) if read.range.is_none() && read.matching.is_none() => Some(read.clone()),
+            A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) =>
+                Some(ReadExpr { table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() }),
+            _ => None,
+        }
+    }
+
     // ----- expressions -----
 
     /// An expression whose value is used (bound, returned, or a final
@@ -480,6 +491,10 @@ impl Binder<'_> {
             }
             "count" => {
                 arity(1, "count(list)")?;
+                if let Some(read) = self.aggregate_domain(&args[0]) && self.is_page(&read, ReadMode::FilteredPoint)? {
+                    let (scan, _) = self.scan_at(&read, out, prefix::Position::Aggregate)?;
+                    return Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![Expr::Scan(scan)] }, Ty::Int));
+                }
                 let (e, t) = self.expr(&args[0], out)?;
                 if matches!(t, Ty::Text(_)) {
                     return Ok((Expr::Builtin { builtin: Builtin::Len, args: vec![e] }, Ty::Int));
@@ -540,9 +555,25 @@ impl Binder<'_> {
                 Ok((Expr::Builtin { builtin: Builtin::Join, args: vec![list, sep] }, Ty::Text(max)))
             }
             "sum" if args.len() == 2 => {
+                let source = if let Some(read) = self.aggregate_domain(&args[0]) {
+                    let (scan, _) = self.scan_at(&read, out, prefix::Position::Aggregate)?;
+                    if scan.take == Bound::Meter {
+                        let saved = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
+                        let mut setup = setup::Body::default();
+                        let projected = self.expr(&args[1], &mut setup);
+                        self.focal = saved;
+                        let (projection, ty) = projected?;
+                        if !ty.is_numeric() || !setup.is_empty() {
+                            return Err(type_error(args[1].site(), "a streaming sum needs a required numeric column", "sum(messages[prefix] by index, .amount)"));
+                        }
+                        return Ok((Expr::Builtin { builtin: Builtin::Sum, args: vec![Expr::Scan(scan), projection] }, ty));
+                    }
+                    let ty = Ty::Page(read.table, scan.take.maximum() as u32);
+                    (Expr::Scan(scan), ty)
+                } else { self.expr(&args[0], out)? };
                 // `sum(page, .x)`: the rows' field, summed — a loop that
                 // pushes each projection, then the sum of the list.
-                let (source, source_ty) = self.expr(&args[0], out)?;
+                let (source, source_ty) = source;
                 let (domain, item_ty) = match (&source, &source_ty) {
                     (Expr::Scan(scan), Ty::Page(table, _)) => (LoopDomain::Page(scan.clone()), Ty::Row(table.clone())),
                     (_, Ty::Page(table, max)) => (LoopDomain::DerivedArray { value: source.clone(), max: *max, bound_source: "sum".into() }, Ty::Row(table.clone())),

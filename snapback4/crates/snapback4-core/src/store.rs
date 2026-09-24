@@ -171,6 +171,7 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _credentials (principal TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _generations (generation INTEGER PRIMARY KEY, schema TEXT NOT NULL, programs TEXT NOT NULL, at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _outbox (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL, at INTEGER NOT NULL);
+             CREATE TABLE IF NOT EXISTS _effect_keys (effect TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(effect, key)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _effect_steps (
                  effect_id TEXT NOT NULL, name TEXT NOT NULL, input_digest TEXT NOT NULL,
                  provider_key TEXT NOT NULL, state TEXT NOT NULL, claim_digest TEXT NOT NULL,
@@ -185,6 +186,11 @@ impl Store {
         )?;
         conn.execute_batch("CREATE INDEX IF NOT EXISTS _sessions_expiry ON _sessions(expires_at);")?;
         crate::identity::initialize(&conn)?;
+        let job_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_jobs')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+        for column in ["chunk_size", "retries", "heap_peak"] {
+            if !job_columns.contains(&column.to_owned()) { conn.execute_batch(&format!("ALTER TABLE _jobs ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0;"))?; }
+        }
+        if !job_columns.iter().any(|column| column == "domain") { conn.execute_batch("ALTER TABLE _jobs ADD COLUMN domain TEXT;")?; }
         let op_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_ops')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
         for (column, kind) in [("name", "TEXT"), ("args_digest", "TEXT"), ("at", "INTEGER")] {
             if !op_columns.iter().any(|name| name == column) {
@@ -799,6 +805,10 @@ mod tests {
 }
 
 impl crate::rows::Rows for Tx<'_> {
+    fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
+        Ok(self.conn().execute("INSERT OR IGNORE INTO _effect_keys(effect, key) VALUES (?1, ?2)", params![effect, key])? != 0)
+    }
+
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         Tx::get(self, table, id)
     }

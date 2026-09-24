@@ -148,6 +148,11 @@ impl<'a> Binder<'a> {
                     // chunk itself is the final statement emitted for this
                     // declaration, so validate that scan directly instead of
                     // zipping the differently-shaped AST and IR vectors.
+                    if decl.kind == ProgramKind::Job && let S::For { site, .. } = statement
+                        && !matches!(body.last(), Some(Stmt::For { domain: LoopDomain::Page(_), .. })) {
+                        diagnostics.push(placement(site, "a job sweep needs a table or prefix domain", "for row in table:"));
+                        failed = true;
+                    }
                     if decl.kind == ProgramKind::Job
                         && let S::For { site, .. } = statement
                         && let Some(Stmt::For { domain: LoopDomain::Page(scan), .. }) = body.last()
@@ -309,7 +314,7 @@ impl<'a> Binder<'a> {
         let scan_site = self.site();
         self.record_selection(&scan_site, read, &index, if position == prefix::Position::Exists { "exists" } else { "page" }, &selection);
         self.sources.insert(scan_site.clone(), (read.site.clone(), print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() })));
-        let scan = Scan {
+        let mut scan = Scan {
             site: scan_site,
             table: read.table.clone(),
             index: index.name,
@@ -325,7 +330,10 @@ impl<'a> Binder<'a> {
             merge_site: None,
             provenance: KeyProvenance::Shape,
         };
-        self.check_meter_prefix(read, &scan)?;
+        if position == prefix::Position::Aggregate && snapback4_core::engine::rules::scan_visibility(self.schema, &scan).uniform {
+            scan.take = Bound::Meter;
+        }
+        if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
         Ok((scan, range.take))
     }
 
@@ -998,7 +1006,7 @@ fn stable_chunk(catalog: &Catalog, site: &Site, scan: &Scan) -> Fallible<()> {
         columns
     });
     if !moving.is_empty() {
-        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("chunk over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or sweep by byId", moving.join(", "), scan.table)).guide("jobs"));
+        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or use `for row in {}:` for stable byId order", moving.join(", "), scan.table, scan.table)).guide("jobs"));
     }
     Ok(())
 }

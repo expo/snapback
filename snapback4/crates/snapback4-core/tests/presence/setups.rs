@@ -8,7 +8,7 @@ mod reference;
 fn family(n: usize, shape: &str) -> Vec<Stmt> {
     let mut body = vec![Stmt::Let { name: "a0".into(), value: Expr::Binary { op: BinaryOp::Gt, left: Box::new(Expr::Builtin { builtin: Builtin::Connected, args: vec![Expr::Variable("p".into())] }), right: Box::new(Expr::Literal(Value::Int(0))) } }];
     for i in 1..=n { body.push(Stmt::Let { name: format!("a{i}"), value: Expr::Variable(format!("a{}", i - 1)) }); }
-    let emit = || Stmt::Emit { effect: "notify".into(), payload: Expr::Literal(Value::Null) };
+    let emit = || Stmt::Emit { effect: "notify".into(), payload: Expr::Literal(Value::Null), once: None };
     let guard = |then_body| Stmt::If { condition: Expr::Variable("flag".into()), then_body, else_body: vec![] };
     let mut guards = Vec::new();
     for _ in 0..n { guards.push(guard(vec![emit()])); }

@@ -1,4 +1,5 @@
-//! Device-only coverage observations. Never reset the interpreter's flags:
+//! Coverage observations for device components and streaming scalars.
+//! Never reset the interpreter's flags:
 //! scans consult earlier cuts while running, even in a cursor-free program.
 use super::runner::Runner;
 use crate::{error::{MeterKind, RuntimeError}, ir::{Expr, Program}, schema::Component, value::Value};
@@ -20,7 +21,7 @@ pub(super) struct Frame {
     pub capped: bool,
 }
 impl Frame {
-    fn coverage(&self) -> Coverage {
+    pub(super) fn coverage(&self) -> Coverage {
         let other = self.unknown || self.non_uniform || self.overflow || self.words || self.presence || self.capped;
         // @ref LLP 3000.007#20.22.1 — presence is server knowledge: a component that waited on it is unknown, not merely incomplete.
         Coverage { complete: !other && !self.beyond, unknown: self.unknown || self.presence, retained: self.retained && !other }
@@ -34,9 +35,13 @@ pub(super) struct Frames {
     pub shared: Frame,
     pub active: Option<usize>,
     pub depth: usize,
+    /// The innermost streaming scalar observes its own reads independently
+    /// of the enclosing page. An unavailable inner scalar unwinds its parent.
+    pub scalar: Option<Frame>,
 }
 impl Frames {
-    pub fn note(&mut self, note: impl FnOnce(&mut Frame)) {
+    pub fn note(&mut self, note: impl Fn(&mut Frame)) {
+        if let Some(scalar) = &mut self.scalar { note(scalar); }
         if !self.plan.is_empty() { note(match self.active { Some(index) => &mut self.frames[index], None => &mut self.shared }); }
     }
 }

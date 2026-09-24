@@ -444,7 +444,8 @@ fn uniform_rewrite(schema: &Schema, scan: &Scan) -> String {
 fn read_emit_only(body: &[Stmt]) -> bool {
     body.iter().all(|stmt| match stmt {
         Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. }
-        | Stmt::Return(value) | Stmt::Emit { payload: value, .. } | Stmt::Require { condition: value, .. } => read_only_expr(value),
+        | Stmt::Return(value) | Stmt::Require { condition: value, .. } => read_only_expr(value),
+        Stmt::Emit { payload, once, .. } => read_only_expr(payload) && once.as_ref().is_none_or(read_only_expr),
         Stmt::Check { condition, current } => read_only_expr(condition) && current.key.iter().all(read_only_expr),
         Stmt::If { condition, then_body, else_body } => read_only_expr(condition) && read_emit_only(then_body) && read_emit_only(else_body),
         Stmt::For { domain, body, .. } => read_only_domain(domain) && read_emit_only(body),

@@ -33,7 +33,9 @@ fn w13c_capped_roster_predicts_and_prefix_existence_has_precise_horizon_coverage
             for (room, expected) in [("r1", true), ("empty", false), ("expired", false), ("hidden", false)] {
                 for op in ["hasMessages", "hasMatches"] {
                     let answer = query(&mut *device, op, "dev:alice", if op == "hasMessages" { json!({"roomId":room}) } else { json!({"roomId":room,"q":"cof"}) }, now + 2000);
-                    assert_eq!(answer["data"], expected, "{answer}");
+                    // Streaming plain-domain exists has no negative verdict beyond coverage.
+                    let data = if op == "hasMessages" && horizon && !expected { serde_json::Value::Null } else { json!(expected) };
+                    assert_eq!(answer["data"], data, "{answer}");
                     assert_eq!(answer["complete"], expected || !horizon, "{answer}");
                     assert!(answer["next"].is_null());
                 }

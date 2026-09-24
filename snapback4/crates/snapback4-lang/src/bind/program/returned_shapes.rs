@@ -58,8 +58,9 @@ impl Census {
                     }
                     self.body(body);
                 }
-                Stmt::Return(value) | Stmt::Require { condition: value, .. } | Stmt::Emit { payload: value, .. }
+                Stmt::Return(value) | Stmt::Require { condition: value, .. }
                 | Stmt::Insert { row: value, .. } => self.expr(value),
+                Stmt::Emit { payload, once, .. } => { self.expr(payload); if let Some(key) = once { self.expr(key); } },
                 Stmt::InsertIfAbsent { row, result, .. } => { self.define(result); self.expr(row); }
                 Stmt::Check { condition, current } => { self.expr(condition); self.read(current); }
                 Stmt::Update { key, patch, .. } => { self.expr(key); self.expr(patch); }

@@ -1,6 +1,6 @@
 //! The jobs card. Quarry examples are compiled by tests/guide.rs.
 // @ref LLP 3000.007#21.1 — digest work seeks the period through each recipient's memberships.
-// @ref LLP 3000.011.001.000#3 — live counts and the durable business marker share one transaction.
+// @ref LLP 3000.013#5 — streamed totals, adaptive sweeps and lifetime emission keys.
 pub(super) const CARD: &str = r##"# Jobs and schedules: the server's own work, on its own clock
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
@@ -21,6 +21,61 @@ emission for new writes and keeps the count. `serve` and release commands
 refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
 With `--fresh`, the count dies with the in-memory store; `doctor` and local
 `run` inspect the separate on-disk store.
+
+A top-level `for p in recipients:` is an adaptive sweep. It starts with 64
+iterations per transaction, retries a meter-refused chunk at half that size,
+and parks if one iteration cannot fit. Each successful chunk commits its
+cursor and writes together. `doctor` and `run` report the chunk size, retry
+count and peak heap. Explicit `chunk … first N by index` keeps its fixed size
+and parks on any refusal. Inner domain loops share the chunk's meter. The sweep index must contain only
+`id` or immutable columns. Its evaluated prefix and seek bounds are persisted
+with the cursor; its prelude runs again before each chunk.
+An explicitly paged `for` before the first sweep stays
+in that prelude and does not create commits of its own. Declare per-item
+locals inside the loop. A prelude local assigned by the sweep is refused
+because it cannot carry a value across independent commits. Rule, constraint
+and generation refusals park immediately, without reducing the chunk size.
+
+A domain `count` or `sum` has no page clause: it authorizes and filters each
+row, folds its value, then releases the transient row. All work remains metered;
+a job or mutation refuses the whole transaction if a total cannot finish.
+Jobs run as the system principal; this example establishes each recipient's
+scope by iterating that recipient's current memberships. Each recipient's
+live counts and effect key below commit in one transaction.
+`once` removes the need for a marker table; worker/provider delivery retries
+still need an idempotency key.
+
+```quarry
+effect periodDigest
+table digestUsers:
+  principal: principal
+  public
+  online only
+table digestMembers:
+  roomId: id
+  principal: principal
+  readOrdinal: int default 0
+  unique byRoomPrincipal: roomId, principal
+  by byPrincipal: principal, roomId, id
+  read <- exists digestMembers[.roomId, viewer]
+  online only
+table digestMessages:
+  roomId: id
+  sender: principal
+  ordinal: int
+  at: time
+  by byRoomTime: roomId, at, id
+  read <- exists digestMembers[.roomId, viewer]
+  online only
+job daily(periodStart: time, periodEnd: time):
+  for p in digestUsers:
+    unread = 0
+    for m in digestMembers[p.principal] by byPrincipal:
+      unread = unread + count(digestMessages[m.roomId, at >= periodStart, at < periodEnd] by byRoomTime where .sender != p.principal and .ordinal > m.readOrdinal)
+    if unread > 0:
+      emit periodDigest { recipient: p.principal, unread } once [p.principal, periodEnd]
+schedule dailyDigest every 1d: daily
+```
 
 Jobs in `snapback/jobs.q` are named `jobs.<name>` even in that file's schedules;
 `schema.q` jobs use their bare names. `check --fix` qualifies an unambiguous bare module job.
@@ -74,7 +129,7 @@ under the job ceilings (guide bounds). The cursor commits with the rows, so
 a chunk is wholly done or not started and a restart resumes at the next
 one; the index's columns are `id` or `immutable`, so nothing moves under
 the cursor, and rows inserted past the key captured when the sweep began
-are not visited, so a sweep over its own table ends. A refused chunk parks
+are not visited, so a sweep over its own table ends. A refused fixed chunk parks
 the job with its refusal (`snapback4 doctor` lists runs). No client calls
 a job: a schedule fires it at a period boundary of the server's clock,
 never twice for the same boundary across restarts, passing `periodStart`

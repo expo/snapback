@@ -36,8 +36,16 @@ until the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ met
 and `lanes ≤ meter` when no fitting schema cap supplies a static bound.
 A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a `maintain`.
 A returned or bound page instead needs a schema cap or an explicit page bound.
-Mutations and jobs may omit the bound only for a schema-capped group that fits
-the examined ceiling; they cannot use a query's meter-bounded prefix domain.
+Jobs may iterate uncapped domains under the chunk's meter. Top-level job
+`for` sweeps adapt their transaction size from 64 down to 1. Mutation loops
+still need a schema-capped group that fits the examined ceiling. Direct
+`count(domain)`, `sum(domain, .column)` and `exists domain` stream under the
+meter without retaining the page. Schema-capped query `count` and `sum` with
+non-uniform read rules keep their bounded page execution and coverage contract.
+Mutations retain their uniform-read and
+plain-prefix admission rules; a cut aborts the transaction, never commits a
+partial total. A streaming query total with a meter cut or unknown device
+coverage returns `data: null`, `complete: false`, never a partial count or sum.
 
 E_QUARRY_BOUND means a boundless prefix is not valid in this position: no
 schema cap covers the group, its cap exceeds the examined ceiling, or a
@@ -74,7 +82,8 @@ not a complete sweep.
 
 ## Allocation, completeness and diagnostic context
 
-Heap is a cumulative allocation and binding budget: constructed values,
+Heap is a cumulative allocation and binding budget except for a streaming
+aggregate's transient row scope, which is released each iteration: constructed values,
 concatenation and other allocating builtins, local bindings, and owned
 copies count. Inspecting a held value's length or sum borrows it; row and
 map clones share their immutable image. A heap cut stops a query immediately

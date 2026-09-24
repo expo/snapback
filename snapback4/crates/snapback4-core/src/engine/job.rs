@@ -50,6 +50,12 @@ pub struct JobRun {
     pub state: JobState,
     pub sweep: u32,
     pub chunks: u64,
+    #[serde(default)]
+    pub chunk_size: u32,
+    #[serde(default)]
+    pub retries: u64,
+    #[serde(default)]
+    pub heap_peak: u64,
     pub rows_written: u64,
     pub created_at: i64,
     pub updated_at: i64,
@@ -63,9 +69,10 @@ struct Head {
     program_hash: String,
     cursor: Option<Vec<u8>>,
     upper: Option<Vec<u8>>,
+    domain: Option<Scan>,
 }
 
-const COLUMNS: &str = "id, name, args, program_hash, state, sweep, cursor, upper, chunks, rows_written, created_at, updated_at, error";
+const COLUMNS: &str = "id, name, args, program_hash, state, sweep, cursor, upper, chunks, rows_written, created_at, updated_at, error, chunk_size, retries, heap_peak, domain";
 
 fn read_head(row: &rusqlite::Row<'_>) -> rusqlite::Result<Head> {
     let state: String = row.get(4)?;
@@ -86,11 +93,15 @@ fn read_head(row: &rusqlite::Row<'_>) -> rusqlite::Result<Head> {
             created_at: row.get(10)?,
             updated_at: row.get(11)?,
             error: row.get(12)?,
+            chunk_size: row.get::<_, i64>(13)? as u32,
+            retries: row.get::<_, i64>(14)? as u64,
+            heap_peak: row.get::<_, i64>(15)? as u64,
         },
         args: args.as_object().map(|fields| fields.clone()).unwrap_or_default(),
         program_hash: row.get(3)?,
         cursor: row.get::<_, Option<String>>(6)?.and_then(|hex| decode_bytes_hex(&hex)),
         upper: row.get::<_, Option<String>>(7)?.and_then(|hex| decode_bytes_hex(&hex)),
+        domain: row.get::<_, Option<String>>(16)?.map(|json| serde_json::from_str(&json).map_err(|error| rusqlite::Error::FromSqlConversionFailure(16, rusqlite::types::Type::Text, Box::new(error)))).transpose()?,
     })
 }
 
@@ -128,12 +139,12 @@ struct Chunk {
 
 /// The sweep's rows from the cursor, at most one page, none past the key
 /// captured when the sweep began; each bound and run through the body.
-fn sweep_chunk(runner: &mut Runner<'_>, scan: &Scan, cursor: Option<&[u8]>, upper: &[u8], binding: &str, body: &[Stmt], site: &str) -> Result<Chunk, RuntimeError> {
+fn sweep_chunk(runner: &mut Runner<'_>, scan: &Scan, cursor: Option<&[u8]>, upper: &[u8], binding: &str, body: &[Stmt], site: &str, adaptive: bool) -> Result<Chunk, RuntimeError> {
     let take = scan.take.maximum() as usize;
     let mut page = scan.clone();
     page.opaque_cursor = false;
     page.after = cursor.map(|key| Box::new(Expr::Literal(Value::Array(crate::key::decode(key).unwrap_or_default().into_iter().skip(scan.prefix.len()).collect()))));
-    let (rows, keys) = runner.scan_with_keys(&page)?;
+    let (rows, keys) = if adaptive { runner.job_page(&page)? } else { runner.scan_with_keys(&page)? };
     let mut chunk = Chunk { last_key: None, visited: 0, ended: false, finished: false };
     for (row, key) in rows.into_iter().zip(keys) {
         if key.as_slice() > upper {
@@ -218,7 +229,7 @@ impl Engine {
         let presence = self.presence.clone();
         let tx = self.store.transaction()?;
         let head = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?;
-        let Some(head) = head else { return Ok(None) };
+        let Some(mut head) = head else { return Ok(None) };
         let program = self.programs.get(&head.run.name).cloned();
         #[cfg(feature = "native")]
         let current_hash = program.as_ref().map(|program| job_admission_hash(program, self.native.as_deref().map(super::native::Module::digest)));
@@ -251,69 +262,93 @@ impl Engine {
             tx.commit()?;
             return self.job(&head.run.id);
         }
-        let (binding, scan, body, setup) = sweeps[sweep];
-        tx.savepoint("job_chunk")?;
-        let seq = tx.next_seq()?;
-        let mut context = Context::system().at(now).with_presence(presence);
-        context.args = head.args.clone();
-        let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+        let (binding, domain, body, setup) = sweeps[sweep];
+        let adaptive = domain.take == crate::ir::Bound::Meter;
+        let mut frozen = head.domain.clone();
+        let mut frozen_upper = head.upper.clone();
+        let mut size = if adaptive { if head.cursor.is_none() || head.run.chunk_size == 0 { 64 } else { head.run.chunk_size } } else { domain.take.maximum() as u32 };
+        loop {
+            tx.savepoint("job_chunk")?;
+            let seq = tx.next_seq()?;
+            let mut context = Context::system().at(now).with_presence(presence.clone());
+            context.args = head.args.clone();
+            let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
 
-        // The sweep's upper key is captured when it begins: a row the body
-        // inserts beyond it is never visited, so a sweep over its own
-        // table ends.
-        let site = format!("{}:{}", program.name, sweep + 1);
-        let authority = super::timeline_authority::Authority::purge(&self.schema, &program.name);
-        let outcome = (|| {
-            // @ref LLP 3000.007#5.2 — replay setup for every chunk, in its transaction and under its meter.
-            if let Flow::Return(_) = runner.statements(setup, &format!("{site}:prelude"))? {
-                return Ok((Chunk { last_key: None, visited: 0, ended: true, finished: true }, None));
-            }
-            let mut guard = runner.timeline_scope(authority);
-            let runner = &mut *guard;
-            let upper = match &head.upper {
-                Some(upper) => Some(upper.clone()),
-                None => {
-                    let prefix = runner.prefix_values(scan)?;
-                    tx.scan(&scan.table, &scan.index, &prefix, &Bounds::default(), Dir::Desc, 1)?.pop().map(|(_, key)| key)
+            // The sweep's upper key is captured when it begins: a row the body
+            // inserts beyond it is never visited, so a sweep over its own
+            // table ends.
+            let site = format!("{}:{}", program.name, sweep + 1);
+            let authority = super::timeline_authority::Authority::purge(&self.schema, &program.name);
+            let outcome = (|| {
+                // @ref LLP 3000.007#5.2 — replay setup for every chunk, in its transaction and under its meter.
+                if let Flow::Return(_) = runner.statements(setup, &format!("{site}:prelude"))? {
+                    return Ok((Chunk { last_key: None, visited: 0, ended: true, finished: true }, None));
                 }
-            };
-            match upper {
-                Some(upper) => sweep_chunk(runner, scan, head.cursor.as_deref(), &upper, binding, body, &site).map(|chunk| (chunk, Some(upper))),
-                None => Ok((Chunk { last_key: None, visited: 0, ended: true, finished: false }, None)),
-            }
-        })();
-        let outcome = outcome.and_then(|chunk| runner.check_final_exists().map(|()| chunk));
-        let events = runner.events.take();
-        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        let outbox = std::mem::take(&mut runner.outbox);
-        let rows_written = runner.rows_written;
-        drop(runner);
-        match outcome {
-            Ok((chunk, upper)) => {
-                if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
-                    tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
-                    partition::append(&tx, seq, &events)?;
-                    super::effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                // @ref LLP 3000.013#5.2 — freeze evaluated prefix/seek bounds once per sweep, alongside the committed cursor.
+                if adaptive && frozen.is_none() { frozen = Some(runner.freeze_job_domain(domain)?); }
+                if let Some(frozen) = &frozen { runner.meter.heap(2 * canonical_json(frozen).len() as u64)?; }
+                let mut scan = frozen.as_ref().unwrap_or(domain).clone();
+                scan.take = crate::ir::Bound::Literal(size);
+                let scan = &scan;
+                let mut guard = runner.timeline_scope(authority);
+                let runner = &mut *guard;
+                let upper = match &frozen_upper {
+                    Some(upper) => Some(upper.clone()),
+                    None if adaptive => runner.job_upper(scan)?,
+                    None => {
+                        let prefix = runner.prefix_values(scan)?;
+                        tx.scan(&scan.table, &scan.index, &prefix, &Bounds::default(), Dir::Desc, 1)?.pop().map(|(_, key)| key)
+                    }
+                };
+                if adaptive {
+                    if let Some(upper) = &upper { runner.meter.heap(2 * crate::rows::word_heap::allocation(upper.len()))?; }
+                    frozen_upper = upper.clone();
                 }
-                let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
-                let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
-                tx.conn().execute(
-                    "UPDATE _jobs SET state = ?2, sweep = ?3, cursor = ?4, upper = ?5, chunks = chunks + 1, rows_written = rows_written + ?6, updated_at = ?7 WHERE id = ?1",
-                    params![head.run.id, state.word(), next_sweep as i64, cursor.as_deref().map(encode_bytes_hex), upper.as_deref().map(encode_bytes_hex), rows_written as i64, now],
-                )?;
-                tx.commit()?;
-                Ok(self.job(&head.run.id)?)
-            }
-            Err(error) if error.is_refusal() => {
-                tx.rollback_to("job_chunk")?;
-                let refusal = error.refusal();
-                tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("{}: {}", refusal.code, refusal.message), now])?;
-                tx.commit()?;
-                self.job(&head.run.id)
-            }
-            Err(error) => {
-                tx.rollback()?;
-                Err(error)
+                match upper {
+                    Some(upper) => sweep_chunk(runner, scan, head.cursor.as_deref(), &upper, binding, body, &site, adaptive).map(|chunk| (chunk, Some(upper))),
+                    None => Ok((Chunk { last_key: None, visited: 0, ended: true, finished: false }, None)),
+                }
+            })();
+            let outcome = outcome.and_then(|chunk| runner.check_final_exists().map(|()| chunk));
+            let events = runner.events.take();
+            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+            let outbox = std::mem::take(&mut runner.outbox);
+            let rows_written = runner.rows_written;
+            head.run.heap_peak = head.run.heap_peak.max(runner.meter.heap_peak);
+            drop(runner);
+            match outcome {
+                Ok((chunk, upper)) => {
+                    if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
+                        tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
+                        partition::append(&tx, seq, &events)?;
+                        super::effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                    }
+                    let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
+                    let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
+                    tx.conn().execute(
+                        "UPDATE _jobs SET state = ?2, sweep = ?3, cursor = ?4, upper = ?5, chunks = chunks + 1, rows_written = rows_written + ?6, updated_at = ?7, chunk_size = ?8, retries = ?9, heap_peak = ?10, domain = ?11 WHERE id = ?1",
+                        params![head.run.id, state.word(), next_sweep as i64, cursor.as_deref().map(encode_bytes_hex), upper.as_deref().map(encode_bytes_hex), rows_written as i64, now, size, head.run.retries as i64, head.run.heap_peak as i64, if next_sweep == sweep { frozen.as_ref().map(canonical_json) } else { None }],
+                    )?;
+                    tx.commit()?;
+                    return Ok(self.job(&head.run.id)?);
+                }
+                Err(error) if error.is_refusal() => {
+                    tx.rollback_to("job_chunk")?;
+                    // @ref LLP 3000.013#5.2 — retry the same atomic chunk; only a one-item meter refusal parks an adaptive sweep.
+                    if adaptive && size > 1 && matches!(error, RuntimeError::Bound { .. }) {
+                        size /= 2;
+                        head.run.retries += 1;
+                        continue;
+                    }
+                    let refusal = error.refusal();
+                    tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3, chunk_size = ?4, retries = ?5, heap_peak = ?6 WHERE id = ?1", params![head.run.id, format!("{}: {}", refusal.code, refusal.message), now, size, head.run.retries as i64, head.run.heap_peak as i64])?;
+                    tx.commit()?;
+                    return self.job(&head.run.id);
+                }
+                Err(error) => {
+                    tx.rollback()?;
+                    return Err(error);
+                }
             }
         }
     }

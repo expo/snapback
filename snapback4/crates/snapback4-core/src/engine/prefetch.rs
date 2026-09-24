@@ -182,8 +182,9 @@ fn children(expr: &Expr, f: &mut impl FnMut(&Expr)) {
 fn expressions(stmt: &Stmt, f: &mut impl FnMut(&Expr)) {
     match stmt {
         Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value)
-        | Stmt::Emit { payload: value, .. } | Stmt::Require { condition: value, .. } | Stmt::If { condition: value, .. }
+        | Stmt::Require { condition: value, .. } | Stmt::If { condition: value, .. }
         | Stmt::Insert { row: value, .. } | Stmt::InsertIfAbsent { row: value, .. } | Stmt::Delete { key: value, .. } => f(value),
+        Stmt::Emit { payload, once, .. } => { f(payload); if let Some(key) = once { f(key); } },
         Stmt::Update { key, patch, .. } | Stmt::Upsert { key, row: patch, .. } => { f(key); f(patch); }
         Stmt::Check { condition, current } => { f(condition); f(&Expr::Get(current.clone())); }
         Stmt::WriteTarget { target, patch, condition, .. } => {

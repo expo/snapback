@@ -488,7 +488,8 @@ fn expected_card_state(expected: &Expected, program: &Program) -> LocalState {
 fn outer_page_limit(body: &[snapback4_core::ir::Stmt], expected: &Expected, owners: &BTreeSet<String>) -> bool {
     use snapback4_core::ir::{LoopDomain, Stmt};
     body.iter().any(|stmt| match stmt {
-        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expression_page_limit(value, expected, owners),
+        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => expression_page_limit(value, expected, owners),
+        Stmt::Emit { payload: value, once, .. } => expression_page_limit(value, expected, owners) || once.as_ref().is_some_and(|value| expression_page_limit(value, expected, owners)),
         Stmt::If { condition, then_body, else_body } => expression_page_limit(condition, expected, owners) || outer_page_limit(then_body, expected, owners) || outer_page_limit(else_body, expected, owners),
         Stmt::For { domain, body, .. } => match domain {
             LoopDomain::Page(scan) => scan_limit(scan, expected, owners.contains(&scan.site), owners),

@@ -104,6 +104,7 @@ pub struct Runner<'a> {
     /// that was `complete` only when few hidden rows were walked would
     /// count them.
     pub(crate) non_uniform: bool,
+    pub(super) scalar_unavailable: bool,
     /// The program's page had more rows than it returned and no cursor to
     /// continue on: the result is not `complete`, and the card says so.
     pub(crate) page_overflow: bool,
@@ -196,6 +197,7 @@ impl<'a> Runner<'a> {
             shape_positions: BTreeMap::new(),
             shape_cursors: BTreeMap::new(),
             non_uniform: false,
+            scalar_unavailable: false,
             page_overflow: false,
             word_cut_at: None,
             device: false,
@@ -244,6 +246,10 @@ impl<'a> Runner<'a> {
             Ok(_) => Ok(Value::Null),
             Err(RuntimeError::Bound { kind, .. }) if self.meter.cut == Cut::Cap
                 && (kind == MeterKind::HeapBytes || self.meter.capped_at.as_ref().is_some_and(|cut| cut.0 == kind)) => {
+                self.page = None;
+                Ok(Value::Null)
+            }
+            Err(RuntimeError::Prediction(_)) if self.meter.cut == Cut::Cap && self.scalar_unavailable => {
                 self.page = None;
                 Ok(Value::Null)
             }
@@ -398,10 +404,21 @@ impl<'a> Runner<'a> {
                     self.delete(table, key.as_str()?)?;
                     Flow::Next
                 }
-                Stmt::Emit { effect, payload } => {
+                Stmt::Emit { effect, payload, once } => {
                     let payload = self.expr(payload)?;
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
+                    }
+                    let key = once.as_ref().map(|key| self.expr(key)).transpose()?;
+                    if let Some(key) = &key { key.as_array()?; }
+                    // @ref LLP 3000.013#5.3 — the permanent key is in the same transaction, including replay suppression.
+                    if !self.discard_effects && !self.device && let Some(key) = key {
+                        self.meter.step(1)?;
+                        let encoded = canonical_json(&Value::Array(vec![Value::String(effect.clone()), key]));
+                        self.meter.heap(encoded.len() as u64)?;
+                        if !self.tx.effect_once(effect, &encoded)? { return Ok(Flow::Next); }
+                        self.meter.charge(MeterKind::RowsWritten, 1)?;
+                        self.rows_written += 1;
                     }
                     // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
                     let presence = self.emission_presence()?;
@@ -621,6 +638,15 @@ impl<'a> Runner<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
+                if matches!(builtin, Builtin::Count | Builtin::Sum) && let Some(Expr::Scan(scan)) = args.first()
+                    && (scan.take == Bound::Meter || scan.existence) && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)))
+                    && ((matches!(builtin, Builtin::Count) && args.len() == 1) || (matches!(builtin, Builtin::Sum) && args.len() == 2)) {
+                    let result = self.stream_aggregate(scan, args.get(1));
+                    if matches!(&result, Err(RuntimeError::Bound { kind: MeterKind::Steps, .. })) && self.meter.cut == Cut::Cap {
+                        self.meter.capped_at.get_or_insert((MeterKind::Steps, scan.site.clone()));
+                    }
+                    return result;
+                }
                 if args.len() != builtin.arity() && !(matches!(builtin, Builtin::Calendar { .. }) && args.len() == 2) {
                     return Err(RuntimeError::Input(format!("builtin {builtin:?} takes {} arguments, received {}", builtin.arity(), args.len())));
                 }

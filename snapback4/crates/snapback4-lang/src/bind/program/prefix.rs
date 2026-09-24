@@ -3,7 +3,7 @@
 use super::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Position { Page, Domain, Exists }
+pub(super) enum Position { Page, Domain, Aggregate, Exists }
 
 impl Binder<'_> {
     pub(super) fn is_page(&self, read: &ReadExpr, point: ReadMode) -> Fallible<bool> {
@@ -38,6 +38,10 @@ impl Binder<'_> {
         let cap = self.schema.group_bound(&read.table, pinned);
         let bound = if position == Position::Exists { Bound::Literal(1) }
         // @ref LLP 3000.007#20.22 — ruling 24: the schema cap supplies the whole group's ordinary literal scan bound.
+        // Queries with a non-uniform rule keep this existing capped path;
+        // scan_at upgrades uniformly decided aggregates to streaming below.
+        else if position == Position::Aggregate && self.caller_kind == ProgramKind::Query && let Some(cap) = cap.filter(|cap| u64::from(*cap) <= ceiling) { Bound::Literal(cap) }
+        else if position == Position::Aggregate || (position == Position::Domain && self.caller_kind == ProgramKind::Job) { Bound::Meter }
         else if let Some(cap) = cap.filter(|cap| u64::from(*cap) <= ceiling) { Bound::Literal(cap) }
         // @ref LLP 3000.007#20.22 — ruling 23: only query loop and lane domains may consume a prefix under the examined meter.
         else if position == Position::Domain && self.caller_kind == ProgramKind::Query { Bound::Meter }
@@ -56,7 +60,7 @@ impl Binder<'_> {
                 placement(&read.site, format!("{message}; meter-bounded prefix loops and lane sources belong in queries"), rewrite).guide("bounds")
             } else { Diagnostic::new(&read.site, "E_QUARRY_BOUND", message, rewrite).guide("bounds") });
         };
-        if !read.seeks.is_empty() {
+        if !read.seeks.is_empty() && !matches!(position, Position::Aggregate | Position::Exists) && !(position == Position::Domain && self.caller_kind == ProgramKind::Job) {
             return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", "a seek needs an explicit page bound", format!("{} first 50 by {}", print::read_expr(read), index.name)).guide("bounds"));
         }
         Ok((ast::RangeSpec { order: ast::Order::Asc, take: bound.maximum() as u32, cursor: None, site: read.site.clone() }, bound))

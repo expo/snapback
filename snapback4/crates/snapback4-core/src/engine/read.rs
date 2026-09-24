@@ -595,7 +595,7 @@ impl Runner<'_> {
     fn take(&self, bound: &Bound) -> Result<usize, RuntimeError> {
         Ok(match bound {
             Bound::Literal(value) => *value as usize,
-            Bound::Meter => bound.maximum() as usize,
+            Bound::Meter => self.meter.ceilings.examined.min(usize::MAX as u64 - 1) as usize,
             Bound::Arg { name, max } => {
                 let value = self.context.args.get(name).ok_or_else(|| RuntimeError::Input(format!("missing take arg {name}")))?.as_int()?;
                 if value < 0 || value > *max as i64 {
@@ -687,6 +687,38 @@ impl Runner<'_> {
         Ok(bounds)
     }
 
+    #[cfg(feature = "sqlite")]
+    pub(super) fn freeze_job_domain(&mut self, scan: &Scan) -> Result<Scan, RuntimeError> {
+        let mut frozen = scan.clone();
+        frozen.prefix = self.prefix_values(scan)?.into_iter().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value))).collect();
+        if let Some(range) = &mut frozen.range {
+            for value in [&mut range.gt, &mut range.gte, &mut range.lt, &mut range.lte] {
+                if let Some(expr) = value { **expr = Expr::Literal(self.expr(expr)?); }
+            }
+        }
+        for value in [&mut frozen.before, &mut frozen.after] {
+            if let Some(expr) = value { **expr = Expr::Literal(self.expr(expr)?); }
+        }
+        Ok(frozen)
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub(super) fn job_page(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        let prefix = self.prefix_values(scan)?;
+        let table = &self.schema.tables[&scan.table];
+        let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
+        self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, None, true)
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub(super) fn job_upper(&mut self, scan: &Scan) -> Result<Option<Vec<u8>>, RuntimeError> {
+        let prefix = self.prefix_values(scan)?;
+        let table = &self.schema.tables[&scan.table];
+        let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
+        self.read_charge(MeterKind::Examined, 1)?;
+        Ok(self.tx.scan_metered(&scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1, &mut self.meter)?.pop().map(|(_, key)| key))
+    }
+
     /// A bounded page. Returns the visible rows, at most `take`, and records
     /// the page position for `next` when this scan is the program's page.
     pub(super) fn scan(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
@@ -745,6 +777,48 @@ impl Runner<'_> {
     /// expressions still govern uniformity; freezing them into literals would
     /// lose facts such as a prefix pinned to `viewer`.
     fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        self.scan_consumed(scan, prefix, bounds, take, word, None, false)
+    }
+
+    // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
+    pub(super) fn stream_aggregate(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
+        // Availability belongs to this scalar's reads. An enclosing page can
+        // already be incomplete while this domain is fully resolved. The
+        // ordinary query/component flags remain monotone throughout the scan.
+        let outer = self.components.scalar.replace(super::components::Frame::default());
+        let result = self.stream_aggregate_scoped(scan, projection);
+        let coverage = self.components.scalar.take().expect("scalar coverage scope");
+        self.components.scalar = outer;
+        let value = result?;
+        if !coverage.coverage().complete {
+            self.scalar_unavailable = true;
+            return Err(RuntimeError::Prediction(format!("{}: streaming aggregate needs complete domain coverage", scan.site)));
+        }
+        Ok(value)
+    }
+
+    fn stream_aggregate_scoped(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
+        self.schema.refuse_private(&scan.table)?;
+        let prefix = self.prefix_values(scan)?;
+        let table = &self.schema.tables[&scan.table];
+        let index = &table.indexes[&scan.index];
+        let bounds = self.bounds(scan, table, index, Some(&prefix))?;
+        let mut total = 0_i128;
+        self.page_depth += 1;
+        let result = self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, Some((&mut total, projection)), false);
+        self.page_depth -= 1;
+        result?;
+        if scan.existence && total == 0 && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
+            let prefix = self.prefix_values(scan)?;
+            let retained = self.retained_group(&scan.table, &scan.index, &prefix)?;
+            self.horizon_coverage(scan, &prefix, retained);
+        }
+        // @ref LLP 3000.013#5.1 — a domain total has no partial scalar answer, including on a device with unknown coverage.
+        self.meter.require_uncapped()?;
+        Value::int(total).map_err(Into::into)
+    }
+
+    fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<(&mut i128, Option<&Expr>)>, job_page: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
@@ -791,10 +865,27 @@ impl Runner<'_> {
         let metered_word = word.is_some_and(|w| w.metered);
         if metered_word { self.meter.heap(word_heap::bounds(&bounds))?; }
         let mut cursor = bounds.clone();
-        let batch = if visibility.uniform { take + 1 } else { (take + 1).max(32) };
+        let streaming = aggregate.is_some();
+        let batch = if streaming { 1 } else if job_page { take } else if visibility.uniform { take + 1 } else { (take + 1).max(32) };
+        let mut row_heap = None;
+        let mut row_bytes = 0;
+        let mut consumed = 0;
+
         'outer: loop {
-            let fetched = if metered_word { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
+            if streaming {
+                if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
+                row_bytes = 0;
+                if !self.read_charge(MeterKind::Steps, 1)? { break; }
+                row_heap = Some(self.meter.mark());
+            }
+            let fetch_heap = self.meter.used.heap_bytes;
+            // Adaptive chunks have no lookahead: even one extra decoded row
+            // can refuse K=1 when each iteration itself fits. A later chunk
+            // establishes exhaustion. Rejected rows leave selected slots open.
+            let batch = if job_page { take - visible.len() } else { batch };
+            let fetched = if metered_word || streaming || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
                 else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
+            if streaming { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
             if fetched.is_empty() {
                 break;
             }
@@ -808,10 +899,12 @@ impl Runner<'_> {
                     break 'outer;
                 }
                 // Decode scratch and the retained seek position, before decoding the key.
-                if metered_word { self.meter.heap(word_heap::key_decode(index.components.len() + 1, key.len()))?; }
+                if metered_word || streaming { self.meter.heap(word_heap::key_decode(index.components.len() + 1, key.len()))?; }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
-                if metered_word { self.meter.heap(word_heap::materialize(&row, table))?; }
+                let materialized = if metered_word || streaming || job_page { word_heap::materialize(&row, table) } else { 0 };
+                if materialized > 0 { self.meter.heap(materialized)?; }
                 materialize_optional_fields(&mut row, table);
+                if streaming { row_bytes += materialized; }
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
                     continue;
@@ -840,7 +933,7 @@ impl Runner<'_> {
                 }
                 if allowed {
                     self.note_expiry(table, &row);
-                    let aggregate = self.live_aggregate(&scan.table, row)?;
+                    let live_row = self.live_aggregate(&scan.table, row)?;
                     // @ref LLP 3000.007#20.21 — a cut aggregate is unavailable, not a
                     // partial contribution presented as a total. The push that used to
                     // happen here matched maintained point reads, which now refuse
@@ -849,9 +942,9 @@ impl Runner<'_> {
                         capped = true;
                         break 'outer;
                     }
-                    let Some(row) = aggregate else { continue; };
+                    let Some(row) = live_row else { continue; };
                     let row = super::recorded::public_image(table, row);
-                    if metered_word { self.meter.heap(word_heap::allocation(key.len()))?; }
+                    if metered_word || streaming { self.meter.heap(word_heap::allocation(key.len()))?; }
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
                         if metered_word { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
@@ -864,10 +957,9 @@ impl Runner<'_> {
                         self.filter_depth -= 1;
                         self.page_depth = page_depth;
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
-                        let matched = matched?.as_bool()?;
                         if metered_word { self.meter.heap(word_heap::text(&scan.site))?; }
                         self.meter.at(&scan.site);
-                        if self.read_capped() {
+                        if self.read_capped() && (matched.is_ok() || matches!(&matched, Err(RuntimeError::Bound { kind, .. }) if *kind != MeterKind::HeapBytes)) {
                             capped = true;
                             // The paved existence predicate has no verdict when its
                             // one-row search starves. Retry that membership; general
@@ -878,7 +970,20 @@ impl Runner<'_> {
                                     if matches!(args.as_slice(), [Expr::Scan(inner)] if inner.existence)));
                             break 'outer;
                         }
+                        let matched = matched?.as_bool()?;
                         if !matched { continue; }
+                    }
+                    if let Some((total, projection)) = &mut aggregate {
+                        let amount = if let Some(projection) = projection {
+                            let prior = self.env.insert("$filter".into(), row.clone());
+                            let value = self.expr(projection);
+                            match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
+                            value?.as_int()? as i128
+                        } else { 1 };
+                        **total += amount;
+                        consumed += 1;
+                        if scan.existence && consumed == take { break 'outer; }
+                        continue;
                     }
                     if visible.len() == take {
                         has_more = true;
@@ -894,7 +999,7 @@ impl Runner<'_> {
                         visible.push(row);
                         keys.push(key.clone());
                     }
-                    if scan.existence && visible.len() == take { break 'outer; }
+                    if (scan.existence || job_page) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 } else {
                     self.next_expiry = row_expiry_mark;
@@ -904,6 +1009,7 @@ impl Runner<'_> {
                 break;
             }
         }
+        if let Some(mark) = row_heap { self.meter.release_row_heap(mark, row_bytes); }
         // @ref LLP 3000.007#20.22 — a device page is complete by its acquisition boundary, carried on the wire, not by a count.
         // An existence probe is exempt (W13c): a held witness below the floor still proves existence.
         if self.device && !scan.existence && horizon.is_some() {

@@ -204,7 +204,7 @@ pub enum Stmt {
     Expr { value: Expr, site: Site },
     Require { condition: Expr, code: String, site: Site },
     Return { value: Expr, site: Site },
-    Emit { effect: String, payload: Expr, site: Site },
+    Emit { effect: String, payload: Expr, once: Option<Expr>, site: Site },
     If { condition: Expr, then_body: Vec<Stmt>, else_body: Vec<Stmt>, site: Site },
     For { name: String, domain: Expr, body: Vec<Stmt>, site: Site },
     /// `break`: the enclosing `for` or `chunk` ends.

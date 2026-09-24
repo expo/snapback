@@ -264,7 +264,7 @@ impl Rename {
             match stmt {
                 Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } => self.expr(value),
                 Stmt::Require { condition, .. } => self.expr(condition),
-                Stmt::Emit { effect, payload, site } => { self.name(site, effect, 1); self.expr(payload); }
+                Stmt::Emit { effect, payload, once, site } => { self.name(site, effect, 1); self.expr(payload); if let Some(key) = once { self.expr(key); } }
                 Stmt::If { condition, then_body, else_body, .. } => { self.expr(condition); self.body(then_body); self.body(else_body); }
                 Stmt::For { domain, body, .. } => { self.expr(domain); self.body(body); }
                 Stmt::Break { .. } | Stmt::Continue { .. } => {},

@@ -307,7 +307,8 @@ impl Scan<'_> {
                     break;
                 }
                 Stmt::Expr { value, .. } => { self.expr(value, env, focal); }
-                Stmt::Emit { payload: value, .. } | Stmt::Require { condition: value, .. } => { self.expr(value, env, focal); }
+                Stmt::Require { condition: value, .. } => { self.expr(value, env, focal); }
+                Stmt::Emit { payload, once, .. } => { self.expr(payload, env, focal); if let Some(key) = once { self.expr(key, env, focal); } }
                 Stmt::If { condition, then_body, else_body, .. } => {
                     let value = self.expr(condition, env, focal);
                     let condition = self.selection(condition, &value);

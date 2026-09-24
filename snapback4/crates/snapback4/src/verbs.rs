@@ -431,7 +431,7 @@ pub fn run(options: &Options) -> i32 {
                 for line in engine.take_native_logs() {
                     eprintln!("native {line}");
                 }
-                let body = json!({ "job": run.name, "id": run.id, "state": run.state, "chunks": run.chunks, "rowsWritten": run.rows_written, "error": run.error });
+                let body = json!({ "job": run.name, "id": run.id, "state": run.state, "chunks": run.chunks, "chunkSize": run.chunk_size, "retries": run.retries, "heapPeak": run.heap_peak, "rowsWritten": run.rows_written, "error": run.error });
                 println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
                 if run.state == snapback4_core::JobState::Done { 0 } else { 1 }
             }
@@ -663,7 +663,7 @@ pub fn doctor(options: &Options) -> i32 {
                     }
                     if let Ok(runs) = engine.jobs(5) {
                         for run in runs {
-                            lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{}{}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
+                            lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{} (chunk size {}, retries {}, peak heap {}){}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.chunk_size, run.retries, run.heap_peak, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
                         }
                     }
                     if let Ok((counts, deferred)) = effect_health(&engine, now) && !counts.is_empty() {
