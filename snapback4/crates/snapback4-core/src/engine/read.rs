@@ -718,8 +718,8 @@ impl Runner<'_> {
     }
 
     /// An aborting domain retains a bounded result vector, but decodes only
-    /// one prepaid row at a time. Transfer each selected image to the retained
-    /// row/vector allowance before releasing that iteration's decode scratch.
+    /// one prepaid row at a time. Each selected image replaces that iteration's
+    /// decode scratch with its retained row/vector allowance.
     pub(super) fn metered_domain(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
         let prefix = self.prefix_values(scan)?;
@@ -801,10 +801,19 @@ impl Runner<'_> {
 
     // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
     pub(super) fn stream_aggregate(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
-        // Availability belongs to this scalar's reads. An enclosing page can
-        // already be incomplete while this domain is fully resolved. The
-        // ordinary query/component flags remain monotone throughout the scan.
-        let outer = self.components.scalar.replace(super::components::Frame::default());
+        // Prefixes may be hoisted, and filter/projection locals evaluated
+        // before this frame. Without input provenance, conservatively retain
+        // earlier unknown coverage. An enclosing page's non-uniformity alone
+        // does not make the scalar's inputs unknown; observe its own scans.
+        // Ordinary query/component flags remain monotone throughout the scan.
+        let inputs = super::components::Frame {
+            beyond: self.beyond_horizon,
+            unknown: self.missing_fact.is_some(),
+            words: self.word_cut_at.is_some(),
+            presence: self.presence_unknown,
+            ..Default::default()
+        };
+        let outer = self.components.scalar.replace(inputs);
         let result = self.stream_aggregate_scoped(scan, projection);
         let coverage = self.components.scalar.take().expect("scalar coverage scope");
         self.components.scalar = outer;
@@ -1029,11 +1038,15 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     if metered_domain {
-                        // The store prepaid decoding; retain the image and both
-                        // result buffers before another row can be decoded.
-                        self.meter.heap(row.heap_bytes() + word_heap::allocation(key.len()))?;
+                        // Decoding is finished: replace its scratch allowance
+                        // with the retained image before fetching another row.
+                        // Domains consume only rows; the live cursor is already
+                        // reserved and no unused result keys need to be kept.
+                        drop(key);
+                        if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
+                        row_bytes = 0;
+                        self.meter.heap(row.heap_bytes())?;
                         word_heap::push(&mut self.meter, &mut visible, row)?;
-                        word_heap::push(&mut self.meter, &mut keys, key.clone())?;
                     } else if metered_payload {
                         // Charge retention of a store-provided row and the emitted raw key
                         // before either output vector grows; moves do not copy row bodies.
