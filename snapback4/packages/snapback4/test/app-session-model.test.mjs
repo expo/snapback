@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
-test("session state machine preserves I1–I7 across 5,000 seeded three-runtime sequences", { timeout: 240_000 }, async t => {
+test("session state machine preserves I1–I8 across 5,000 seeded three-runtime sequences", { timeout: 240_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
   for (let seed = 1; seed <= count; seed++) {
     const sequence = generate(seed);
@@ -17,11 +17,23 @@ test("session state machine preserves I1–I7 across 5,000 seeded three-runtime 
     for (const kind of ["get", "set", "delete"]) assert.ok(coverage[`fault.${kind}`] > 0, `injected ${kind}`);
     for (const path of ["signup", "login", "guest", "refresh", "logout", "logout-all"]) assert.ok(coverage[`held./auth/${path}`] > 0, `held committed ${path} response`);
   }
-  if (count >= 5000) for (const event of ["held.storage.set", "server.revoke", "wire.offline", "interleaving.storage.peer"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
+  if (count >= 5000) for (const event of ["held.storage.set", "held./q/viewer", "held./m/write", "server.revoke", "wire.offline", "interleaving.storage.peer", "fault.rotationSave", "handle.captured", "handle.sessionNotification", "handle.viewerNotification", "handle.hidden.handleQuery", "handle.hidden.handleMutate", "handle.hidden.handleRefresh", "observation.data", "observation.notification", "observation.hidden"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
   t.diagnostic(`sequences=${count} seed=1..${count} coverage=${JSON.stringify(coverage)}`);
 });
 
 for (const [name, sequence] of [
+  ["offline reopening starts after close commits the owned rotation", [
+    { op: "guest", app: 0 }, { op: "reopen", app: 1 }, { op: "refreshFault", app: 1 },
+    { op: "reopenOffline", app: 1, fault: { kind: "get", at: 6 } },
+  ]],
+  ["refusal after a failed rotation save also excludes its consumed predecessor", [
+    { op: "guest", app: 0 }, { op: "refreshFault", app: 0 }, { op: "revokeCurrent", app: 0 }, { op: "reopenOffline", app: 1 },
+  ]],
+  ["failed global fencing revokes retained handles and observations", [
+    { op: "guest", app: 0 }, { op: "capture", app: 0 }, { op: "observeHandle", app: 0 },
+    { op: "logoutEverywhere", app: 0, fault: { kind: "set", at: 1 } },
+    { op: "handleQuery", app: 0 }, { op: "handleMutate", app: 0 }, { op: "handleRefresh", app: 0 }, { op: "readObservation", app: 0 },
+  ]],
   ["a failed read during signup cannot revoke the saved session", [{ op: "signup", app: 2, account: 1, fault: { kind: "get", at: 11 } }]],
   ["close retains custody of a late guest response", [{ op: "guest", app: 1, hold: true }, { op: "close", app: 1 }]],
   ["replacement retires a rotation whose persistence read failed", [{ op: "guest", app: 1 }, { op: "refresh", app: 1, fault: { kind: "get", at: 5 } }, { op: "guest", app: 1, hold: true }]],

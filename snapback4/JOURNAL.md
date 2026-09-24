@@ -49577,3 +49577,64 @@ cannot prove all other sessions were revoked, so retry custody is retained.
 Did not add a server recovery protocol, weaken authorization/disclosure/meters,
 change package versions, push or publish. Full file map, measurements, failure
 classification and reproductions: [round 11 report](./reports/20260924-lane-e-round11.md).
+
+### 2026-09-24 — LLP 3000.013 lane E round 12: I8 and consumed predecessors
+
+Refusal cleanup now compares the rejected bearer and its known consumed kept
+predecessor under the session lock. One failed rotation save cannot leave the
+old consumed token restorable after the successor is refused; an unrelated
+stored replacement is preserved. Public facade validity is now independent of
+private raw session custody. Hiding permanently fences captured clients,
+observations, getters, credentials, refresh, callbacks and lifecycle controls.
+Rollback exposes a new facade. Observations detach and notify refusal after the
+new app view is published. The existing local sync helper is fenced too: the
+real-server probe caught an otherwise hidden client still dispatching /sync.
+Private global-logout retries and ordinary-close rotation persistence remain.
+
+Extended the three-runtime model to I1–I8 and 22 operations, including captured
+handles used later, retained observations, one-shot rotation-save failures,
+revocation of the in-memory successor, and held query/mutation responses. Five
+thousand seeds execute 130,000 commands. Coverage: 16,675 handles, 6,077 hidden;
+1,032 hidden queries, 1,022 hidden mutations and 1,026 hidden refreshes; 5,298
+observations, including 501 that held data across hiding; 6,949 session and
+6,077 viewer notifications; 579 single rotation-save faults, 3,172 get,
+328 set and 98 delete faults; 3,060 held writes, 18,670 intervening peer commands;
+387 held reads and 130 held mutations. All 18 model tests pass, including 16
+reduced cases and the 120-point storage-failure sweep. Five real-server cases
+cover both findings, unrelated replacement, both client tiers, private global
+retry custody, observations and rollback without reactivating handles.
+
+Handle probes also found raw session/refresh/callback bypasses, stale lifecycle
+control of retained owners, reactivation of old facades on rollback, and the
+local sync bypass. All are fixed and covered. No further randomized product
+counterexample remains. Seed 2292 corrected one oracle: reopening comprises a
+successful close (which may persist an owned successor) followed by a separate
+open; a failed open is compared with bytes after the close. Two ordinary-close
+assertions now require E_AUTH from the hidden public refresh while preserving
+and restoring its privately saved successor; captured session subscriptions
+receive only null after hiding.
+
+Measured: 105 affected tests passed; five final focused tests and two callback
+probes passed; 5,000-sequence model passed. Six negative controls fail when the
+relevant predecessor, facade, observation or session-callback protection is
+removed. Chromium separate-tab session locking passed (749 ms); the final
+shell/replica/account offline witness passed with guarded sync (1,490 ms).
+Reference and whitespace checks pass; README stays 296/300 lines. Final full
+scripts/test.sh: **`== 0 failure(s) in 147 s`**, exit 0, with all Rust groups,
+nine fixtures and 1,165 client passes (10 skips), including all 5,000 I1–I8
+sequences and callback checks. An intermediate full run passed in
+152 s. The first full run was `== 1 failure(s) in 145 s`: our new unrelated-
+replacement test's final query had no data, although the saved token matched.
+The original denial was not logged. Forty sequential and 120 concurrent
+reproductions with diagnostics passed. The test now retries only E_OFFLINE
+within its bound and fails immediately on any auth/other refusal. The original
+cause remains unqualified, not waived as environmental or baseline. All other
+development failures were expected failing-before probes, changed I8 assertions,
+or the resolved oracle error.
+
+Recorded I8 and the behavior changes in the client reference and LLP section 6.
+No server protocol, engine authorization/disclosure rule, meter, Quarry form,
+public export, package version or starter changed. Previously documented total-
+storage-failure/process-loss and server-receipt limits remain; returned copies
+of data/credentials cannot be retroactively erased. No push or publication.
+File map, test claims, failures and limits: [round 12 report](./reports/20260924-lane-e-round12.md).

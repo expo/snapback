@@ -263,11 +263,14 @@ for (const tier of ["online", "local"]) test(`ordinary ${tier} app close keeps a
   } });
   t.after(async () => { release(); await app.close(); });
   await app.ready; await app.auth.guest();
+  const published = [];
+  t.after(app.client.onSession(session => published.push(session?.token ?? null)));
   const original = app.client.session().token, refresh = app.client.refreshSession();
   await until(() => rotated);
   const closing = app.close();
   await delay(0); release();
-  assert.equal((await refresh).ok, true); await closing;
+  assert.equal((await refresh).why.code, "E_AUTH", "the hidden facade cannot disclose the successor"); await closing;
+  assert.deepEqual(published, [null], "the old session subscription cannot disclose the privately saved successor");
   assert.equal((await restoreSession(url, store)).token, rotated.token);
   assert.notEqual(rotated.token, original);
   assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${original}` } })).json()).denied?.code, "E_AUTH");

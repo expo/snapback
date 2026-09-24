@@ -5,7 +5,7 @@ import { setImmediate as tick } from "node:timers/promises";
 import { createApp } from "../../dist/app.js";
 import { sessionKey } from "../../dist/auth.js";
 
-export const operations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient"];
+export const operations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent"];
 export function generate(seed, length = 24) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
@@ -19,6 +19,7 @@ export async function execute(commands, coverage = {}) {
   const acknowledgedGlobal = new Set();
   const live = new Map(), minted = new Map(), parents = new Map(), accounts = new Set(), holds = [], tasks = [], apps = [];
   const errors = [], observed = new Map(), identities = [], publishedTokens = new Map(), privateRetries = new Map(), refusedAtOpen = new Map(), refused = new Set(), offline = new Set();
+  const handles = [], observations = [], rotationFaults = new Set();
   let holdStore = false;
   let runtimeSerial = 0;
   let serial = 0, active, fault, hits = 0;
@@ -39,6 +40,9 @@ export async function execute(commands, coverage = {}) {
     async set(k, value) {
       if (holdStore) { holdStore = false; count("held.storage.set"); await new Promise(resolve => holds.push({ resolve, storage: true, value, runtime: id })); }
       inject("set", k);
+      if (k === key && rotationFaults.has(id) && parents.has(JSON.parse(value).token)) {
+        rotationFaults.delete(id); count("fault.rotationSave"); throw Error("one rotation save failed");
+      }
       const before = record(), priorEpoch = BigInt(epoch());
       values.set(k, value);
       if (k === key || k === key + ".epoch") {
@@ -57,7 +61,7 @@ export async function execute(commands, coverage = {}) {
     const session = { principal, token: `token-${++serial}`, kind: "user", expiresAt: Date.now() + 7 * 86400000 };
     live.set(session.token, principal); minted.set(session.token, session); return session;
   }
-  const denied = token => { if (token) refused.add(token); return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "refused" } }, { status: 401 }); };
+  const denied = token => { for (let value = token; value; value = parents.get(value)) refused.add(value); return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "refused" } }, { status: 401 }); };
   const fetcher = (id, slot) => async (input, init) => {
     const path = new URL(input).pathname, token = new Headers(init?.headers).get("authorization")?.slice(7);
     count(`wire.${path}`);
@@ -89,11 +93,32 @@ export async function execute(commands, coverage = {}) {
         await new Promise(resolve => holds.push({ id: slot, token, resolve }));
       }
       return Response.json({ ok: true });
+    } else if (path === "/changes") {
+      // Real observations long-poll. Keep the mock idle until its lifetime is
+      // cancelled; this avoids inventing a fast polling loop in the generator.
+      return new Promise(resolve => {
+        const stop = () => resolve(Response.json({ seq: 0, tables: [] }));
+        if (init?.signal?.aborted) stop(); else init?.signal?.addEventListener("abort", stop, { once: true });
+      });
+    } else if (path === "/probe") return live.has(token) ? Response.json({ ok: true }) : denied(token);
+    else if (path.startsWith("/m/")) {
+      if (!live.has(token)) return denied(token);
+      invariant("I8", !JSON.parse(init.body).args?.hiddenHandle, "hidden handle dispatched a write");
+      count("wire.handleWrite");
+      if (active?.hold && active.app === slot) {
+        count(`held.${path}`); await new Promise(resolve => holds.push({ id: slot, token, resolve }));
+      }
+      return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: 1 });
     } else if (path.startsWith("/q/")) {
+      invariant("I8", !JSON.parse(init.body).args?.hiddenHandle, "hidden handle dispatched a read");
       if (!live.has(token)) return denied(token);
       if (observed.get(id) === epoch()) invariant("I4", live.get(token) === record()?.principal,
         `app ${id} read as ${live.get(token)} while store is ${record()?.principal}`);
-      return Response.json({ data: [{ principal: live.get(token) }], seq: 0, complete: true });
+      const data = [{ principal: live.get(token) }];
+      if (active?.hold && active.app === slot) {
+        count(`held.${path}`); await new Promise(resolve => holds.push({ id: slot, token, resolve }));
+      }
+      return Response.json({ data, seq: 0, complete: true });
     } else throw Error(`unexpected model request ${path}`);
     const owner = active;
     if (owner?.hold && owner.app === slot) {
@@ -111,7 +136,7 @@ export async function execute(commands, coverage = {}) {
       // selected. This capability is checked through subsequent retry/close;
       // fair recovery must still leave no live token on the mock server.
       if (op === "logoutEverywhere") {
-        if (!result.ok && before.client?.session()) privateRetries.set(id, before.client);
+        if (!result.ok && before.token) privateRetries.set(id, before.token);
         else if (result.ok) privateRetries.delete(id);
       }
       if (op === "close" || op === "closeClient" || op === "reopen" || op === "reopenOffline") privateRetries.delete(id);
@@ -129,6 +154,35 @@ export async function execute(commands, coverage = {}) {
     }
     if (publication) publishedTokens.set(id, state === "signed-in" ? client.session()?.token : undefined);
   }
+  function checkHandles() {
+    for (const h of handles) {
+      if (!h.principal) continue;
+      if (!h.hidden && (h.app.auth.state !== "signed-in" || h.app.client !== h.client)) { h.hidden = true; count("handle.hidden"); }
+      if (h.hidden) invariant("I8", h.client.viewer() === null && h.client.session() === null && !h.client.acquired,
+        `retained handle for ${h.principal} still exposes its hidden identity`);
+    }
+    for (const entry of observations) {
+      const read = entry.observed.getSnapshot();
+      if (entry.handle.hidden) invariant("I8", !("data" in read), `observation retained data for hidden ${entry.handle.principal}`);
+      if ("data" in read) { entry.hadData = true; count("observation.data"); }
+      if (entry.handle.hidden && entry.hadData && !entry.countedHidden) { entry.countedHidden = true; count("observation.hidden"); }
+    }
+  }
+  const capture = (app, slot) => {
+    const handle = { app, slot, client: app.client, principal: app.client.viewer(), hidden: false };
+    handles.push(handle); count("handle.captured");
+    handle.stops = [
+      handle.client.onSession(session => {
+        checkHandles(); count("handle.sessionNotification");
+        invariant("I8", !handle.hidden || session === null, "hidden handle published a session credential");
+      }),
+      handle.client.onViewer(viewer => {
+        checkHandles(); count("handle.viewerNotification");
+        invariant("I8", !handle.hidden || viewer === null, "hidden handle published a viewer");
+      }),
+    ];
+    return handle;
+  };
   const open = (slot, disconnected = false) => {
     const id = ++runtimeSerial; identities[slot] = id;
     refusedAtOpen.set(id, new Set(refused));
@@ -137,16 +191,18 @@ export async function execute(commands, coverage = {}) {
     const watched = new WeakSet();
     app.auth.onChange(() => {
       checkPublished(app, id, true);
+      checkHandles();
       const client = app.client;
       if (!watched.has(client)) {
         watched.add(client);
-        const changed = () => checkPublished(app, id);
+        const changed = () => { checkPublished(app, id); checkHandles(); };
         client.onViewer(changed); client.onLink(changed); client.onAcquired(changed); client.onSession(changed);
       }
     });
     apps[slot] = app; return app.ready;
   };
   function check() {
+    checkHandles();
     if (errors.length) assert.fail(errors[0]);
     const journal = (() => { try { return JSON.parse(values.get(key + ".revocations") ?? "null") ?? {}; } catch { return {}; } })();
     const held = new Set([record()?.token, ...(journal.tokens ?? []), ...(journal.all ?? []),
@@ -158,7 +214,11 @@ export async function execute(commands, coverage = {}) {
       for (const token of [value.token, ...(value.tokens ?? []), ...(value.all ?? []), ...(value.snapback4Retired ?? []), ...(value.snapback4LogoutAll ?? [])]) held.add(token);
     }
     for (const app of apps) held.add(app?.client.session()?.token);
-    for (const client of privateRetries.values()) held.add(client.session()?.token);
+    for (const prior of privateRetries.values()) for (const token of live.keys()) {
+      let ancestor = token;
+      while (ancestor && ancestor !== prior) ancestor = parents.get(ancestor);
+      if (ancestor === prior) held.add(token);
+    }
     for (const [id, app] of apps.entries()) {
       checkPublished(app, identities[id]);
       if (!holds.length && !tasks.some(t => t.pending && t.id === id)) invariant("I4", app.auth.state !== "restoring", `app ${id} stuck restoring without an operation`);
@@ -177,19 +237,50 @@ export async function execute(commands, coverage = {}) {
       if (holds.some(held => held.storage && held.runtime !== identities[command.app])) count("interleaving.storage.peer");
       active = command; fault = command.fault; hits = 0; count(`op.${command.op}`);
       const { app: id, op } = command, app = apps[id];
-      const before = { client: app?.client, bytes: values.get(key), epoch: epoch(), concurrent: holds.length > 0 || tasks.some(t => t.pending) };
+      const before = { client: app?.client, token: app?.client.session()?.token, bytes: values.get(key), epoch: epoch(), concurrent: holds.length > 0 || tasks.some(t => t.pending) };
       let promise;
-      if (op === "release") { const held = holds.shift(); held?.resolve(); }
+      if (op === "capture") capture(app, id);
+      else if (["handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation"].includes(op)) {
+        const candidates = handles.filter(h => h.slot === id);
+        const h = (command.account ? candidates.at(-1) : candidates[0]) ?? capture(app, id);
+        if (op === "observeHandle") {
+          const observed = h.client.observe({ kind: "query", name: "viewer" }, {});
+          observations.push({ handle: h, observed }); count("observation.created");
+          observed.subscribe(() => { count("observation.notification"); checkHandles(); });
+        } else if (op === "readObservation") checkHandles();
+        else {
+          const hidden = h.hidden;
+          if (hidden) count(`handle.hidden.${op}`);
+          if (op === "handleQuery") promise = h.client.query({ kind: "query", name: "viewer" }, { hiddenHandle: hidden }).then(result => {
+            invariant("I8", !h.hidden || !("data" in result), "hidden handle returned query data"); return result;
+          });
+          if (op === "handleMutate") promise = h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden }).then(result => {
+            invariant("I8", !h.hidden || result.state === "failed", "hidden handle admitted a write"); return result;
+          });
+          if (op === "handleRefresh") promise = h.client.refreshSession().then(result => {
+            invariant("I8", !h.hidden || !result.ok, "hidden handle returned a refresh credential"); return result;
+          });
+        }
+      }
+      else if (op === "refreshFault") {
+        rotationFaults.add(identities[id]); promise = app.client.refreshSession();
+      }
+      else if (op === "release") { const held = holds.shift(); held?.resolve(); }
       else if (op === "holdStore") holdStore = true;
       else if (op === "closeClient") {
         if (app.auth.state === "signed-in") promise = app.client.close();
       }
-      else if (op === "revoke") {
-        const token = record()?.token; if (token) { live.delete(token); count("server.revoke"); }
-        promise = command.account ? app?.client.refreshSession() : app?.client.query({ kind: "query", name: "viewer" }, {});
+      else if (op === "revoke" || op === "revokeCurrent") {
+        const token = op === "revokeCurrent" ? app.client.session()?.token : record()?.token; if (token) { live.delete(token); count("server.revoke"); }
+        promise = op === "revokeCurrent" || command.account ? app?.client.refreshSession() : app?.client.query({ kind: "query", name: "viewer" }, {});
       }
       else if (op === "reopen" || op === "reopenOffline") {
-        if (!tasks.some(t => t.pending && t.id === id)) promise = app.close().then(() => open(id, op === "reopenOffline"));
+        if (!tasks.some(t => t.pending && t.id === id)) promise = app.close().then(() => {
+          // Close may commit an owned, previously unpersisted rotation. The
+          // following open is a separate operation with that durable baseline.
+          before.bytes = values.get(key); before.epoch = epoch();
+          return open(id, op === "reopenOffline");
+        });
       } else if (op === "close") promise = app?.close();
       else if (op === "refresh") promise = app?.client.refreshSession();
       else if (op === "query") promise = app?.client.query({ kind: "query", name: "viewer" }, {});
@@ -204,7 +295,7 @@ export async function execute(commands, coverage = {}) {
       }
       check();
     }
-    fault = null; active = undefined; holdStore = false; offline.clear();
+    fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear();
     while (holds.length) holds.shift().resolve();
     await settle(); await Promise.all(tasks.map(t => t.promise));
     // Fair recovery: storage/network work again and all responses arrive. Each
@@ -220,9 +311,11 @@ export async function execute(commands, coverage = {}) {
     invariant("retirement", !(record()?.snapback4Retired ?? []).some(token => !global.has(token)), "acknowledged tombstone entries remain");
     check();
   } finally {
-    fault = null; active = undefined; holdStore = false; offline.clear();
+    fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear();
     while (holds.length) holds.shift().resolve();
     await settle();
+    for (const entry of observations) entry.observed.close();
+    for (const handle of handles) for (const stop of handle.stops) stop();
     for (const app of apps) await app?.close();
   }
 }
@@ -230,7 +323,7 @@ export async function execute(commands, coverage = {}) {
 // Deletion-minimal counterexample, replayed with the same deterministic wire
 // and fault indices. Keep the invariant identity while removing commands.
 export async function minimize(commands, failure) {
-  const identity = failure.message.match(/(?:I[1-7]|retirement):/)?.[0] ?? failure.message;
+  const identity = failure.message.match(/(?:I[1-8]|retirement):/)?.[0] ?? failure.message;
   let minimal = commands;
   for (let i = 0; i < minimal.length;) {
     const candidate = minimal.filter((_, index) => index !== i);

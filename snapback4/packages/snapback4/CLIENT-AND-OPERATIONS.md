@@ -91,6 +91,8 @@ explicit. `app.client` changes on restore, sign-in, logout and account switch;
 component state. `useAuth()` returns the current state, viewer, failure and actions.
 Call `app.close()` to stop a runtime while preserving its session for restart;
 an in-flight rotation finishes and saves its replacement before close completes.
+Its previously exposed client is revoked immediately: a pending public refresh
+returns E_AUTH after hiding, while the app privately persists its successor.
 `AppOptions` inherits the local client's application configuration. `assets` and
 `waitSeconds` pass through on every local open, including restore and account
 switch; both are ignored when `device` is omitted. `waitSeconds` sets the change
@@ -132,11 +134,21 @@ session lock:
   client; signed in exposes an open client for that viewer. Closing the current
   `app.client` also closes the app's public view and preserves the kept session.
 - **I7 — refused session exclusion.** A server refusal conditionally replaces
-  the still-stored bearer with a logout tombstone. Later opens, online or
+  the still-stored bearer, or its known consumed predecessor after a failed
+  rotation save, with a logout tombstone. Later opens, online or
   offline, stay signed out without opening that replica. An existing client
   loses access as soon as it learns the refusal. Cleanup cannot delete a
   different stored successor. A transient failed refusal commit is retried
   once under the session lock; any remaining storage error is reported.
+- **I8 — revoked public handles.** Hiding an account permanently fences every
+  exposed client facade and its observations before notifying subscribers.
+  Captured clients can no longer read, write, refresh, expose credentials or
+  control the app lifecycle. The local client's existing `sync()` helper is
+  also inert after its facade is hidden. Held observations return a refusal and notify
+  their subscribers. Raw credentials needed for retry remain private. A failed
+  replacement may restore the prior account through a new facade; it cannot
+  reactivate any handle that was already hidden. This governs future access
+  through handles, not copies of data or credentials already returned to code.
 
 A single atomic `sessionStore.set` commits the session and its epoch together.
 Client opening is provisional: failed device initialization or persistence
@@ -150,7 +162,9 @@ before selecting its bearer. Its logout tombstone keeps that bearer as a private
 global-revocation credential across restart until `/auth/logout-all` succeeds.
 The signed-out client cannot use it for reads, writes or ordinary logout.
 If the tombstone write fails, the runtime keeps private retry custody and reports
-the failure. A successful retry or reopening drains the durable obligation.
+the failure. Captured public clients and observations stay fenced even though
+the private raw credential is still available to `auth.logoutEverywhere()`.
+A successful retry or reopening drains the durable obligation.
 
 Retirement records are backend-bound revocation credentials, never sessions to
 restore. Replay checks the current session under the same lock. Ordinary
