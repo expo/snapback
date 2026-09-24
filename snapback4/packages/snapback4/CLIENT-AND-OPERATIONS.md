@@ -155,6 +155,14 @@ session lock:
   responses have not arrived. It never selects another principal's credential.
   A deliberate new sign-in after that server operation creates a new session;
   global logout is not a ban on future sign-ins.
+- **I10 — attempt-scoped acknowledgement.** Global retirement freezes the
+  credentials covered by each dispatch. Its acknowledgement removes only that
+  snapshot, including on cleanup retry. Tokens attached later retain individual
+  retirement custody; they may have been minted after the server's revocation.
+- **I11 — epoch-scoped authority.** An operation cannot select an account epoch
+  newer than its calling scope. Global logout may adopt another tab's rotated
+  bearer within the same epoch; a later login, even of the same principal, is
+  fenced from the stale caller's authority.
 
 A single atomic `sessionStore.set` commits the session and its epoch together.
 Client opening is provisional: failed device initialization or persistence
@@ -165,8 +173,10 @@ The old separate epoch key remains readable for existing stores.
 
 `logoutEverywhere()` blocks new rotations in its runtime and awaits one already
 running there. Under the session lock it selects the stored bearer for its
-principal, including a successor saved by another tab, or its own known newer
-rotation whose save failed. The atomic tombstone commits the bearer, principal
+principal and calling epoch, including a successor saved by another tab, or its
+own known newer rotation whose save failed. A stored bearer in a newer epoch
+causes an E_AUTH refusal and stays untouched, including a login of the same
+principal. The atomic tombstone commits the bearer, principal
 and generation of the global revocation together. Only then does the app publish
 signed out and fence captured clients and observations. If that write fails,
 the signed-in view and its existing client remain usable and `auth.why` reports
@@ -176,8 +186,11 @@ The tombstone privately owns retry credentials across restart until
 `/auth/logout-all` succeeds. A late successor from an older scope inherits the
 same principal's global obligation; ordinary retirement cannot consume it first.
 Replacement moves these obligations to the retirement journal. A global
-acknowledgement retires the related credentials and leaves a completed generation
-watermark, so another stale tab cannot recreate the obligation or globally revoke
+acknowledgement retires the credentials known to its dispatched attempt and
+leaves a completed generation watermark. Credentials attached while the response
+is pending remain journaled for individual retirement; successful global logout
+does not prove they were minted before that revocation. Another stale tab cannot
+recreate the acknowledged obligation or globally revoke
 a later login. Completed empty watermarks compact to the newest per principal;
 pending obligations retain their retry credentials. A successful retry or
 reopening drains durable work. Signed-out clients cannot use these credentials

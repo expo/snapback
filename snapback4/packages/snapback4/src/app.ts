@@ -91,6 +91,8 @@ export function createApp(options: AppOptions): App {
   // I8: hiding permanently fences exposed facades; raw retry custody is private.
   // I9: global logout fences a principal/generation; a late rotation inherits
   // that obligation. Only a successful logout-all acknowledges global removal.
+  // I10: retirement receipts cover their dispatch snapshot, never later tokens.
+  // I11: global selection may adopt a peer rotation only in the caller's epoch.
   // See CLIENT-AND-OPERATIONS.md, session state-machine invariants.
   const epochKey = sessionKey(url) + ".epoch";
   const readEpoch = async () => {
@@ -120,7 +122,9 @@ export function createApp(options: AppOptions): App {
         if (restoring) throw new RestorationChanged();
         return;
       }
-      const epoch = (BigInt(await readEpoch()) + 1n).toString();
+      const currentEpoch = await readEpoch();
+      if (global && token && currentEpoch !== global.epoch) throw new SessionEpochChanged();
+      const epoch = (BigInt(currentEpoch) + 1n).toString();
       // The tombstone is the single durable logout commit. It carries retirement
       // custody too, so a quota failure cannot split the fence from the bearer.
       const retired = revocations.embedded(text);

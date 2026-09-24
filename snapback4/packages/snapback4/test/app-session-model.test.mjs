@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
-test("session state machine preserves I1–I9 across 5,000 seeded three-runtime sequences", { timeout: 240_000 }, async t => {
+test("session state machine preserves I1–I11 across 5,000 seeded three-runtime sequences", { timeout: 240_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
   for (let seed = 1; seed <= count; seed++) {
     const sequence = generate(seed);
@@ -12,6 +12,7 @@ test("session state machine preserves I1–I9 across 5,000 seeded three-runtime 
       assert.fail(`seed=${seed}: ${error.message}\nminimal sequence=${JSON.stringify(minimal)}`);
     }
   }
+  if (count >= 5000) for (const event of ["global.attempt", "global.attemptRefused", "global.ackWithLaterToken", "global.newerAccountEpoch", "retirement.removed", "wire.retirementOffline", "handle.resultSettled", "held.dispatch/auth/signup", "held.dispatch/auth/login", "held.dispatch/auth/guest"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
   if (count >= 5000) {
     for (const op of operations) assert.ok(coverage[`op.${op}`] > 0, `generated ${op}`);
     for (const kind of ["get", "set", "delete"]) assert.ok(coverage[`fault.${kind}`] > 0, `injected ${kind}`);
@@ -22,6 +23,27 @@ test("session state machine preserves I1–I9 across 5,000 seeded three-runtime 
 });
 
 for (const [name, sequence] of [
+  ["a facade hidden before refresh settlement refuses its held credential", [
+    { op: "guest", app: 0 }, { op: "handleRefresh", app: 0, hold: true }, { op: "close", app: 0 }, { op: "release", app: 0 },
+  ]],
+  ["a refresh result fulfilled before hiding is not a new disclosure by its later handler", [
+    { op: "guest", app: 0 }, { op: "reopen", app: 1 }, { op: "handleRefresh", app: 1, account: 1, hold: true },
+    { op: "holdStore", app: 2 }, { op: "refresh", app: 0 }, { op: "handleQuery", app: 1, account: 1, fault: { kind: "get", at: 8 } },
+  ]],
+  ["storage observation follows delivery, not entry into the backing adapter", [
+    { op: "guest", app: 0 }, { op: "reopen", app: 1 }, { op: "holdStore", app: 1 },
+    { op: "handleRefresh", app: 1, hold: true }, { op: "guest", app: 0 }, { op: "observeHandle", app: 1, account: 1 },
+  ]],
+  ["an acknowledgement cannot retire a login minted after its attempt", [
+    { op: "signup", app: 0 }, { op: "reopen", app: 1 }, { op: "login", app: 1, holdDispatch: true },
+    { op: "logoutEverywhere", app: 0, hold: true }, { op: "retireOffline", app: 0 }, { op: "retireOffline", app: 1 },
+    { op: "release", app: 1 }, { op: "close", app: 1 }, { op: "release", app: 0 },
+    { op: "retireOnline", app: 0 }, { op: "reopen", app: 2 },
+  ]],
+  ["a dormant global caller cannot adopt a later login's account epoch", [
+    { op: "signup", app: 0 }, { op: "reopen", app: 1 }, { op: "logoutEverywhere", app: 1 },
+    { op: "login", app: 1 }, { op: "sibling", app: 1 }, { op: "logoutEverywhere", app: 0, expectOk: false },
+  ]],
   ["a queued login cannot suppress the committed global logout's publication", [
     { op: "guest", app: 0 }, { op: "holdStore", app: 0 }, { op: "logoutEverywhere", app: 0, hold: true },
     { op: "login", app: 0 }, { op: "release", app: 0 },

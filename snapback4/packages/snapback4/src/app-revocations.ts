@@ -5,6 +5,7 @@ import { StorageWarning } from "./app-storage.ts";
 import { globalFences, mergeFences, type GlobalFence, type SessionOrigin } from "./app-global.ts";
 
 type Journal = { tokens: string[]; all: string[]; fences: GlobalFence[] };
+type GlobalAttempt = { principal: string; epoch: string; covered: readonly string[] };
 type Saved = { token?: string; snapback4Retired?: string[]; snapback4LogoutAll?: string[]; snapback4GlobalFences?: GlobalFence[]; snapback4Backend?: string };
 const unique = (tokens: string[]) => [...new Set(tokens)];
 const strings = (tokens: unknown): tokens is string[] => Array.isArray(tokens) && tokens.every(token => typeof token === "string" && token.length > 0);
@@ -17,7 +18,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
   const origins = new Map<string, SessionOrigin>();
   // A successful global revocation consumes its bearer. Retry storage cleanup,
   // not the already-acknowledged remote operation, after a local failure.
-  const acknowledged = new Map<string, { global: boolean; fence?: GlobalFence | undefined }>();
+  const acknowledged = new Map<string, { global: boolean; attempt?: GlobalAttempt | undefined }>();
   const decode = (bytes: string | null): Saved => {
     try { return JSON.parse(bytes ?? "null") ?? {}; } catch { return {}; }
   };
@@ -68,21 +69,31 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
   }
   async function clearAcknowledged(token: string) {
     await locked(async () => {
-      const receipt = acknowledged.get(token)?.fence;
-      const embedded = inline(decode(await store.get(session)));
+      const receipt = acknowledged.get(token)?.attempt;
       const pending = await read();
       const completed = (fence: GlobalFence) => receipt !== undefined && fence.principal === receipt.principal && BigInt(fence.epoch) <= BigInt(receipt.epoch);
-      const retired = new Set([token, ...mergeFences(pending.fences, embedded.fences).filter(completed).flatMap(value => value.tokens)]);
-      const finish = (fences: GlobalFence[]) => fences.map(value => completed(value) ? { ...value, tokens: [], complete: true } : { ...value, tokens: value.tokens.filter(token => !retired.has(token)) });
-      const next = { tokens: pending.tokens.filter(value => !retired.has(value)), all: pending.all.filter(value => !retired.has(value)), fences: finish(pending.fences) };
+      // I10: credentials attached after dispatch may have been minted after the
+      // server's revocation point. Only this attempt's immutable snapshot is
+      // acknowledged; later tokens retain individual retirement custody.
+      const retired = new Set([token, ...(receipt?.covered ?? [])]);
+      const finish = (journal: Journal): Journal => {
+        const individual = new Set(journal.fences.filter(completed).flatMap(value => value.tokens));
+        return {
+          tokens: unique([...journal.tokens, ...individual]).filter(value => !retired.has(value)),
+          all: journal.all.filter(value => !retired.has(value) && !individual.has(value)),
+          fences: journal.fences.map(value => ({ ...value, ...(completed(value) ? { complete: true } : {}), tokens: value.tokens.filter(token => !retired.has(token)) })),
+        };
+      };
+      const next = finish(pending);
       if (JSON.stringify(next) !== JSON.stringify(pending)) {
         if (next.tokens.length || next.all.length || next.fences.length) await write(next); else await store.delete(key);
       }
       const saved = decode(await store.get(session));
       if (saved.snapback4Retired?.some(value => retired.has(value)) || saved.snapback4LogoutAll?.some(value => retired.has(value)) || saved.snapback4GlobalFences?.some(completed)) {
-        if (saved.snapback4Retired) saved.snapback4Retired = saved.snapback4Retired.filter(value => !retired.has(value));
-        if (saved.snapback4LogoutAll) saved.snapback4LogoutAll = saved.snapback4LogoutAll.filter(value => !retired.has(value));
-        if (saved.snapback4GlobalFences) saved.snapback4GlobalFences = finish(saved.snapback4GlobalFences);
+        const next = finish(inline(saved));
+        saved.snapback4Retired = next.tokens;
+        if (saved.snapback4LogoutAll) saved.snapback4LogoutAll = next.all;
+        if (saved.snapback4GlobalFences) saved.snapback4GlobalFences = next.fences;
         await store.set(session, JSON.stringify(saved));
       }
       for (const value of retired) { deferred.delete(value); origins.delete(value); }
@@ -105,7 +116,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
       let outcome: SessionRevocation = { ok: true, revoked: 0 };
       for (const token of unique([...pending.all, ...pending.tokens])) {
         if (acknowledged.has(token)) { await acknowledge(token); continue; }
-        let global = false, confirmed = false, fence: GlobalFence | undefined, work: Promise<unknown> | undefined;
+        let global = false, confirmed = false, attempt: GlobalAttempt | undefined, work: Promise<unknown> | undefined;
         await locked(async () => {
           // I1: compare on EVERY dispatch, including a successful prior barrier.
           if (decode(await store.get(session)).token === token) return;
@@ -119,7 +130,9 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
           const latest = await obligations();
           if (latest.all.includes(token)) {
             global = true;
-            fence = latest.fences.find(value => !value.complete && value.tokens.includes(token));
+            const fence = latest.fences.find(value => !value.complete && value.tokens.includes(token));
+            if (fence) attempt = { principal: fence.principal, epoch: fence.epoch,
+              covered: unique(latest.fences.filter(value => value.principal === fence.principal && BigInt(value.epoch) <= BigInt(fence.epoch)).flatMap(value => value.tokens)) };
             work = logoutAll(url, token, fetcher).then(result => {
               confirmed = result.ok;
               if (!result.ok) outcome = result;
@@ -135,7 +148,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
           }
         });
         await work;
-        if (confirmed) { acknowledged.set(token, { global, fence }); await acknowledge(token); }
+        if (confirmed) { acknowledged.set(token, { global, attempt }); await acknowledge(token); }
       }
       return outcome;
     });

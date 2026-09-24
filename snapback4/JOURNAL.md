@@ -49692,3 +49692,62 @@ README or web-shell implementation changed. Previously documented complete
 storage failure plus process loss and lost server-receipt limitations remain.
 No push or publication. File map, reproductions, qualification and decisions:
 [round 13 report](./reports/20260924-lane-e-round13.md).
+
+## 2026-09-24 — LLP 3000.013 Lane E round 14: epochs and acknowledgement attempts
+
+Global logout now refuses a stored bearer from a newer account epoch than its
+calling scope, even when the principal matches. Peer rotation within the same
+epoch remains adoptable. Global retirement captures an immutable credential
+snapshot at dispatch. Acknowledgement and cleanup retry retire only that
+snapshot; tokens attached later remain journaled for individual retirement.
+This preserves custody of a login minted after remote global revocation while
+its acknowledgement was held. Updated the session reference and LLP section 6
+with I10 (attempt-scoped acknowledgement) and I11 (epoch-scoped authority).
+
+Four real-server regressions cover the late login under a held acknowledgement,
+a failed acknowledgement cleanup write/retry, and dormant-tab refusal on online
+and local clients. All three original reproduction variants failed before the
+fix. Both code fixes fail their real-server and model negative controls when
+removed. A fifth control confirms that removing the public refresh completion
+guard still fails I8 after the model's settlement-boundary correction.
+
+The model now records global operation IDs/calling epochs and dispatched attempt
+IDs/coverage, holds sign-in requests before issuance, and independently fails or
+recovers retirement transport. The affected suite passed 126 tests in 53.466 s,
+including 5,000 seeded sequences (130,000 commands), 25 fixed cases and 120
+indexed storage-fault sweeps. The 25 operations exercised 4,774 global attempts
+(3,966 refused, 808 acknowledged), 22,788 retirement removals, two acknowledgements
+with later live same-principal tokens, six stale-epoch global calls, 1,225 held
+pre-issuance requests and 2,682 retirement transport failures. Faults: 2,775 get,
+313 set, 64 delete and 541 single rotation-save failures; 2,612 held storage
+writes and 16,989 peer interleavings. All I1–I11 checks and prior cases remain.
+
+The wider schedules found two oracle timing errors, now fixed and retained as
+reduced sequences: seed 445 marked a backing-store read observed before its
+asynchronous delivery; seed 432 checked a previously fulfilled result at its
+later queued handler. The adapter now marks delivery after the awaiting consumer
+receives the bytes, and a Node promise hook samples public validity at settlement.
+The adapter returns a native Promise matching SessionStore's declared contract;
+all 25 fixed cases passed after that final wrapper adjustment. No production
+disclosure guard was removed or relaxed, and the final expanded run found no
+additional product defect.
+
+Chromium's separate-page locking witness passed in 1,351 ms. Final full
+scripts/test.sh: **`== 0 failure(s) in 99 s`**, exit 0; all Rust groups, nine
+fixtures, 1,185 client passes (10 skips), including all 5,000 sequences. The first
+full run was **`== 1 failure(s) in 168 s`**: the unchanged store-reset test at
+line 135 saw fresh replacement rows but an old last-recorded sync store ID.
+Classification: pre-existing code-path failure; its test and 18-file static
+dependency closure are unchanged, and the host baseline passed that case. Its
+separate rerun passed 4/4 in 7.049 s; the final full rerun passed it too. The exact
+cause remains unqualified, was not repaired or waived, and is retained in the
+report. All app/model tests passed in both full runs. Development oracle failures
+were ours, not baseline or environmental exceptions.
+
+Reference check: 504 LLPs, 9,237 refs, zero errors/unchecked. Whitespace passes;
+README stays 296/300 lines and source files remain below 1,500 lines. No public
+API, server protocol, engine rule, meter, package version, starter, README or
+web-shell implementation changed. Existing complete-storage-failure/process-loss
+and lost-server-receipt limits remain. No push or publication. File map, exact
+reproductions, qualification and decisions:
+[round 14 report](./reports/20260924-lane-e-round14.md).

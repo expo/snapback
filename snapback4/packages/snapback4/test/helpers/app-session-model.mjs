@@ -2,25 +2,41 @@
 // and a single-key-atomic store. No app implementation helpers are imported.
 import assert from "node:assert/strict";
 import { setImmediate as tick } from "node:timers/promises";
+import { promiseHooks } from "node:v8";
 import { createApp } from "../../dist/app.js";
 import { sessionKey } from "../../dist/auth.js";
 
-export const operations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent", "sibling"];
+export const operations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent", "sibling", "retireOffline", "retireOnline"];
 export function generate(seed, length = 24) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
   return [{ op: "guest", app: 0 }, { op: "reopen", app: 1 }, ...Array.from({ length }, () => ({
     op: operations[choose(operations.length)], app: choose(3), account: choose(2),
     hold: choose(5) === 0, fault: choose(3) === 0 ? { kind: ["get", "set", "delete"][choose(3)], at: 1 + choose(12) } : null,
+    holdDispatch: choose(7) === 0,
   }))];
 }
 export async function execute(commands, coverage = {}) {
   const url = "https://session-model.invalid", key = sessionKey(url), values = new Map();
   const acknowledgedGlobal = new Set();
   const external = new Set(), globalReceipts = [];
+  const attempts = [], globalOperations = [], tokenEpochs = new Map(), runtimeEpochs = new Map(), publishedClients = new Map(), retirementOffline = new Set();
+  const declarations = new Map(); let operationSerial = 0;
   const live = new Map(), minted = new Map(), parents = new Map(), accounts = new Set(), holds = [], tasks = [], apps = [];
   const errors = [], observed = new Map(), identities = [], publishedTokens = new Map(), privateRetries = new Map(), refusedAtOpen = new Map(), refused = new Set(), offline = new Set();
   const handles = [], observations = [], rotationFaults = new Set();
+  const results = new WeakMap();
+  // A result fulfilled before hiding is already returned, even when its user's
+  // .then callback runs after hiding. Audit the actual settlement boundary.
+  const stopSettlements = promiseHooks.onSettled(promise => {
+    const result = results.get(promise);
+    if (result) { result.hidden = result.handle.hidden || result.handle.client.viewer() === null; count("handle.resultSettled"); }
+  });
+  const completed = (handle, promise, check) => {
+    const result = { handle, hidden: handle.hidden };
+    results.set(promise, result);
+    return promise.then(value => { check(value, result.hidden); return value; });
+  };
   let holdStore = false;
   let runtimeSerial = 0;
   let serial = 0, active, fault, hits = 0;
@@ -32,22 +48,55 @@ export async function execute(commands, coverage = {}) {
   };
   const count = name => { coverage[name] = (coverage[name] ?? 0) + 1; };
   const invariant = (id, ok, detail) => { if (!ok) errors.push(`${id}: ${detail}`); };
+  const custody = () => {
+    const journal = JSON.parse(values.get(key + ".revocations") ?? "null"), saved = record();
+    return new Set([...(journal?.tokens ?? []), ...(journal?.all ?? []), ...(saved?.snapback4Retired ?? []), ...(saved?.snapback4LogoutAll ?? [])]);
+  };
+  function checkRetirement(before) {
+    const after = custody();
+    for (const token of before) if (!after.has(token)) {
+      count("retirement.removed");
+      invariant("I10", !live.has(token) && attempts.some(attempt => attempt.acknowledged && attempt.covered.has(token)),
+        `retired ${token} without an acknowledgement covering that credential`);
+    }
+  }
+  const declarationKey = fence => JSON.stringify([fence.principal, fence.epoch]);
   function inject(kind, k) {
     count(`storage.${kind}.${k === key ? "session" : k.endsWith(".epoch") ? "epoch" : k.endsWith(".revocations") ? "retirement" : "writes"}`);
     if (fault?.kind === kind && ++hits === fault.at) { count(`fault.${kind}`); count(`fault.${kind}.${hits}`); throw Error(`injected ${kind} #${hits}`); }
   }
   const store = id => ({
-    async get(k) { inject("get", k); if (k === key) observed.set(id, epoch()); return values.get(k) ?? null; },
+    get(k) {
+      inject("get", k);
+      const bytes = values.get(k) ?? null, readEpoch = epoch();
+      // Delivery, not entry into the backing adapter, is the observation
+      // boundary. Let the await continuation receive the bytes before marking
+      // them observed; another ready callback can run while delivery is pending.
+      return Promise.resolve({ then(resolve) {
+        resolve(bytes);
+        if (k === key) queueMicrotask(() => observed.set(id, readEpoch));
+      } });
+    },
     async set(k, value) {
       if (holdStore) { holdStore = false; count("held.storage.set"); await new Promise(resolve => holds.push({ resolve, storage: true, value, runtime: id })); }
       inject("set", k);
       if (k === key && rotationFaults.has(id) && parents.has(JSON.parse(value).token)) {
         rotationFaults.delete(id); count("fault.rotationSave"); throw Error("one rotation save failed");
       }
-      const before = record(), priorEpoch = BigInt(epoch());
+      const before = record(), priorEpoch = BigInt(epoch()), beforeCustody = custody();
       values.set(k, value);
+      if (k === key || k === key + ".revocations") checkRetirement(beforeCustody);
       if (k === key || k === key + ".epoch") {
         const after = record(), nextEpoch = BigInt(epoch());
+        if (after?.token) tokenEpochs.set(after.token, epoch());
+        for (const fence of after?.snapback4GlobalFences ?? []) if (!declarations.has(declarationKey(fence))) {
+          const operation = globalOperations.findLast(value => value.runtime === id && value.pending);
+          if (operation) {
+            declarations.set(declarationKey(fence), operation);
+            if (before?.token && operation.epoch !== undefined) invariant("I11", priorEpoch <= BigInt(operation.epoch),
+              `global operation ${operation.id} in epoch ${operation.epoch} fenced account epoch ${priorEpoch}`);
+          }
+        }
         let ancestor = after?.token;
         while (ancestor && ancestor !== before?.token) ancestor = parents.get(ancestor);
         const rotation = Boolean(before?.token && ancestor === before.token);
@@ -56,7 +105,7 @@ export async function execute(commands, coverage = {}) {
         if (replacement) invariant("I5", nextEpoch === priorEpoch + 1n, "replacement reused the prior epoch");
       }
     },
-    async delete(k) { inject("delete", k); values.delete(k); },
+    async delete(k) { inject("delete", k); const before = custody(); values.delete(k); checkRetirement(before); },
   });
   function issue(principal) {
     const session = { principal, token: `token-${++serial}`, kind: "user", expiresAt: Date.now() + 7 * 86400000 };
@@ -66,7 +115,13 @@ export async function execute(commands, coverage = {}) {
   const fetcher = (id, slot) => async (input, init) => {
     const path = new URL(input).pathname, token = new Headers(init?.headers).get("authorization")?.slice(7);
     count(`wire.${path}`);
+    const requestEpoch = epoch();
+    if (active?.holdDispatch && active.app === slot && ["/auth/signup", "/auth/login", "/auth/guest"].includes(path)) {
+      count(`held.dispatch${path}`);
+      await new Promise(resolve => holds.push({ id: slot, path, phase: "dispatch", resolve }));
+    }
     if (offline.has(id)) { count("wire.offline"); throw Error("model is offline"); }
+    if (path.startsWith("/auth/logout") && retirementOffline.has(id)) { count("wire.retirementOffline"); throw Error("retirement network is offline"); }
     let session;
     if (path === "/auth/guest") session = issue(`guest:${serial + 1}`);
     else if (path === "/auth/signup" || path === "/auth/login") {
@@ -80,8 +135,16 @@ export async function execute(commands, coverage = {}) {
       parents.set(session.token, token);
     } else if (path === "/auth/logout-all") {
       invariant("I1", record()?.token !== token, `globally revoking stored ${token}`);
-      if (!live.has(token)) return denied(token);
-      const principal = live.get(token); let revoked = 0;
+      const principal = minted.get(token)?.principal; let revoked = 0;
+      const journal = JSON.parse(values.get(key + ".revocations") ?? "null");
+      const fence = [...(journal?.fences ?? []), ...(record()?.snapback4GlobalFences ?? [])].find(value => value.tokens.includes(token));
+      const operation = fence && declarations.get(declarationKey(fence));
+      const attempt = { id: attempts.length + 1, operation: operation?.id, epoch: operation?.epoch,
+        principal, covered: new Set([...minted].filter(([, value]) => value.principal === principal).map(([value]) => value)), acknowledged: false };
+      attempts.push(attempt); count("global.attempt");
+      if (operation?.epoch !== undefined && tokenEpochs.has(token)) invariant("I11", BigInt(tokenEpochs.get(token)) <= BigInt(operation.epoch),
+        `attempt ${attempt.id} selected ${token} from epoch ${tokenEpochs.get(token)} for operation ${operation.id} in epoch ${operation.epoch}`);
+      if (!live.has(token)) { count("global.attemptRefused"); return denied(token); }
       const covered = new Set([...live].filter(([, owner]) => owner === principal).map(([value]) => value));
       for (const [value, owner] of live) if (owner === principal) { live.delete(value); revoked++; }
       // The server linearization point covers every existing session, including
@@ -89,16 +152,21 @@ export async function execute(commands, coverage = {}) {
       globalReceipts.push({ principal, covered }); count("global.acknowledged");
       if (parents.has(token)) count("global.rotatedBearer");
       if ([...covered].some(value => external.has(value))) count("global.externalSiblingRevoked");
-      if (active?.hold && active.app === slot) { count(`held.${path}`); await new Promise(resolve => holds.push({ id: slot, token, resolve })); }
+      if (active?.hold && active.app === slot) { count(`held.${path}`); await new Promise(resolve => holds.push({ id: slot, token, attempt: attempt.id, resolve })); }
+      attempt.acknowledged = true;
+      if ([...live].some(([value, owner]) => owner === principal && !attempt.covered.has(value))) count("global.ackWithLaterToken");
       acknowledgedGlobal.add(token);
       return Response.json({ ok: true, revoked });
     } else if (path === "/auth/logout") {
       invariant("I1", record()?.token !== token, `revoking stored ${token}`);
+      const attempt = { id: attempts.length + 1, covered: new Set([token]), acknowledged: false };
+      attempts.push(attempt);
       live.delete(token);
       if (active?.hold && active.app === slot) {
         count(`held.${path}`);
         await new Promise(resolve => holds.push({ id: slot, token, resolve }));
       }
+      attempt.acknowledged = true;
       return Response.json({ ok: true });
     } else if (path === "/changes") {
       // Real observations long-poll. Keep the mock idle until its lifetime is
@@ -127,6 +195,7 @@ export async function execute(commands, coverage = {}) {
       }
       return Response.json({ data, seq: 0, complete: true });
     } else throw Error(`unexpected model request ${path}`);
+    tokenEpochs.set(session.token, parents.has(session.token) ? tokenEpochs.get(token) ?? requestEpoch : requestEpoch);
     const owner = active;
     if (owner?.hold && owner.app === slot) {
       count(`held.${path}`);
@@ -155,7 +224,7 @@ export async function execute(commands, coverage = {}) {
         if (before.expectOk !== undefined) invariant("I9", result.ok === before.expectOk, `global result was ${result.ok}, expected ${before.expectOk}`);
       }
       if (op === "close" || op === "closeClient" || op === "reopen" || op === "reopenOffline") privateRetries.delete(id);
-    }, error => { task.result = { ok: false, error: String(error) }; }).finally(() => { task.pending = false; });
+    }, error => { task.result = { ok: false, error: String(error) }; }).finally(() => { task.pending = false; if (before.globalOperation) before.globalOperation.pending = false; });
     return task;
   };
   async function settle() { for (let n = 0; n < 4; n++) await tick(); }
@@ -163,6 +232,7 @@ export async function execute(commands, coverage = {}) {
     const { state, viewer } = app.auth, client = app.client;
     if (state === "signed-out") invariant("I6", viewer === null && client.viewer() === null && client.session() === null, `signed-out runtime ${id} exposes a live client`);
     if (state === "signed-in") {
+      if (publication && publishedClients.get(id) !== client) { runtimeEpochs.set(id, epoch()); publishedClients.set(id, client); }
       invariant("I6", viewer !== null && viewer === client.viewer() && viewer === client.session()?.principal && client.link() !== "signed-out", `signed-in runtime ${id} disagrees with its client`);
       if (publication && publishedTokens.get(id) !== client.session()?.token) invariant("I7", !refusedAtOpen.get(id)?.has(client.session()?.token), `runtime ${id} restored refused ${client.session()?.token}`);
       if (observed.get(id) === epoch()) invariant("I4", viewer === record()?.principal, `runtime ${id} published ${viewer} after observing ${record()?.principal}`);
@@ -262,8 +332,13 @@ export async function execute(commands, coverage = {}) {
         globalCovered: new Set([...minted].filter(([, value]) => value.principal === principal).map(([token]) => token)),
         bytes: values.get(key), epoch: epoch(), concurrent: holds.length > 0 || tasks.some(t => t.pending) };
       if (op === "logoutEverywhere" && principal) {
-        if (record()?.principal === principal && record().token !== before.token) count("global.peerPersistedRotation");
+        if (record()?.principal === principal && record().token !== before.token && runtimeEpochs.get(identities[id]) === epoch()) count("global.peerPersistedRotation");
+        if (record()?.principal === principal && runtimeEpochs.get(identities[id]) !== epoch()) count("global.newerAccountEpoch");
         if (holds.some(value => value.path === "/auth/refresh" && value.id !== id && minted.get(value.token)?.principal === principal)) count("global.peerHeldRotation");
+      }
+      if (op === "logoutEverywhere") {
+        before.globalOperation = { id: ++operationSerial, runtime: identities[id], epoch: runtimeEpochs.get(identities[id]), principal, pending: true };
+        globalOperations.push(before.globalOperation);
       }
       let promise;
       if (op === "sibling") {
@@ -282,14 +357,14 @@ export async function execute(commands, coverage = {}) {
         else {
           const hidden = h.hidden;
           if (hidden) count(`handle.hidden.${op}`);
-          if (op === "handleQuery") promise = h.client.query({ kind: "query", name: "viewer" }, { hiddenHandle: hidden }).then(result => {
-            invariant("I8", !h.hidden || !("data" in result), "hidden handle returned query data"); return result;
+          if (op === "handleQuery") promise = completed(h, h.client.query({ kind: "query", name: "viewer" }, { hiddenHandle: hidden }), (result, hidden) => {
+            invariant("I8", !hidden || !("data" in result), "hidden handle returned query data");
           });
-          if (op === "handleMutate") promise = h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden }).then(result => {
-            invariant("I8", !h.hidden || result.state === "failed", "hidden handle admitted a write"); return result;
+          if (op === "handleMutate") promise = completed(h, h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden }), (result, hidden) => {
+            invariant("I8", !hidden || result.state === "failed", "hidden handle admitted a write");
           });
-          if (op === "handleRefresh") promise = h.client.refreshSession().then(result => {
-            invariant("I8", !h.hidden || !result.ok, "hidden handle returned a refresh credential"); return result;
+          if (op === "handleRefresh") promise = completed(h, h.client.refreshSession(), (result, hidden) => {
+            invariant("I8", !hidden || !result.ok, "hidden handle returned a refresh credential");
           });
         }
       }
@@ -297,6 +372,8 @@ export async function execute(commands, coverage = {}) {
         rotationFaults.add(identities[id]); promise = app.client.refreshSession();
       }
       else if (op === "release") { const held = holds.shift(); held?.resolve(); }
+      else if (op === "retireOffline") retirementOffline.add(identities[id]);
+      else if (op === "retireOnline") retirementOffline.delete(identities[id]);
       else if (op === "holdStore") holdStore = true;
       else if (op === "closeClient") {
         if (app.auth.state === "signed-in") promise = app.client.close();
@@ -327,7 +404,7 @@ export async function execute(commands, coverage = {}) {
       check();
       if (command.expectRevoked) invariant("I9", [...external].every(token => !live.has(token)), "late rotation did not globally revoke external siblings");
     }
-    fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear();
+    fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear(); retirementOffline.clear();
     while (holds.length) holds.shift().resolve();
     await settle(); await Promise.all(tasks.map(t => t.promise));
     // Fair recovery: storage/network work again and all responses arrive. Each
@@ -343,19 +420,20 @@ export async function execute(commands, coverage = {}) {
     invariant("retirement", !(record()?.snapback4Retired ?? []).some(token => !global.has(token)), "acknowledged tombstone entries remain");
     check();
   } finally {
-    fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear();
+    fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear(); retirementOffline.clear();
     while (holds.length) holds.shift().resolve();
     await settle();
     for (const entry of observations) entry.observed.close();
     for (const handle of handles) for (const stop of handle.stops) stop();
     for (const app of apps) await app?.close();
+    stopSettlements();
   }
 }
 
 // Deletion-minimal counterexample, replayed with the same deterministic wire
 // and fault indices. Keep the invariant identity while removing commands.
 export async function minimize(commands, failure) {
-  const identity = failure.message.match(/(?:I[1-9]|retirement):/)?.[0] ?? failure.message;
+  const identity = failure.message.match(/(?:I(?:1[01]|[1-9])|retirement):/)?.[0] ?? failure.message;
   let minimal = commands;
   for (let i = 0; i < minimal.length;) {
     const candidate = minimal.filter((_, index) => index !== i);
