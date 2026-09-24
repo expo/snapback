@@ -14,7 +14,7 @@ export class ReadObservation<T> {
   }
 
   async fetch<R extends { read: Read<T>; transportOffline?: boolean }>(run: () => Promise<R>, notify: () => void,
-    { retain = false, publishResult = true, accept = (_: R) => true }: { retain?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R> {
+    { retain = false, publishResult = true, accept = (_: R) => true }: { retain?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R & { retryExhausted?: boolean }> {
     if (retain && "data" in this.snapshot) {
       this.snapshot = { ...this.snapshot, fresh: false, ...(this.since === undefined ? {} : { since: this.since }) };
       this.kept = true;
@@ -24,11 +24,20 @@ export class ReadObservation<T> {
     const revision = this.revision;
     notify();
     try {
-      for (;;) {
-        const result = await run();
+      let result = await run();
+      for (let attempt = 0; ; attempt++) {
         if (revision !== this.revision) return { ...result, read: this.snapshot };
         // Check at publication, after the caller's asynchronous continuation.
-        if (!accept(result)) { await new Promise(resolve => setTimeout(resolve, 0)); continue; }
+        if (!accept(result)) {
+          // One round has at most four requests, with 25/50/100 ms backoff.
+          // A later invalidation can start another round; this one must settle.
+          if (attempt === 3) return { ...result, read: { loading: true }, retryExhausted: true };
+          await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
+          // Close/reset may happen during backoff, before another request starts.
+          if (revision !== this.revision) return { ...result, read: this.snapshot };
+          result = await run();
+          continue;
+        }
         if (publishResult) {
           this.publish(result.transportOffline ? { loading: true } : result.read);
           notify();

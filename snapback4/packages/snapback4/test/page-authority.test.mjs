@@ -223,3 +223,15 @@ test('online revoke fences an already authorized HTTP response held across its c
   assert.ok(f.requests.filter(path => path === '/q/privatePage').length >= 3, 'old response was refetched');
   watch.close();
 });
+
+test('an unavailable HTTP response predating a cost-reducing write must refetch', { timeout: 30_000 }, async t => {
+  const f = await fixture(t, true);
+  await f.post('/m/setCost', { grow: true });
+  f.hold('privatePage');
+  const read = f.client.query(query('privatePage'), {});
+  await until(f.entered, 'heap-aborted response held in transport');
+  assert.equal((await f.client.mutate({ kind: 'mutation', name: 'setCost' }, { grow: false })).state, 'sent');
+  f.release();
+  assert.equal((await read).data?.[0]?.body, 'private', 'stale loading is refetched just like stale ready data');
+  assert.equal(f.requests.filter(path => path === '/q/privatePage').length, 2);
+});

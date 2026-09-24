@@ -51,3 +51,14 @@ test('composition retires the previous answer at HTTP settlement before device c
   assert.deepEqual(publications.at(-1), { loading: true });
   assert.ok(publications.every(read => !read.data?.includes('remote')), 'raw uncomposed HTTP answer is never published');
 });
+
+test('a reset during stale-response backoff prevents the next request', async () => {
+  const watch = new ReadObservation(), rejected = deferred(); let requests = 0;
+  const work = watch.fetch(async () => { requests++; return { read: ready(['old']) }; }, () => {}, {
+    accept: () => { rejected.resolve(); return false; },
+  });
+  await rejected.promise;
+  watch.reset({ loading: true });
+  assert.deepEqual((await work).read, { loading: true });
+  assert.equal(requests, 1);
+});

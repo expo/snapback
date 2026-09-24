@@ -49736,3 +49736,85 @@ other shards, Rust targets, guide checks, builds and typechecks passed. Logs:
 implementation issue or design deviation remains. Existing privatePage(),
 heldPage() held and expiry mutations still compile and run; no new language
 form was added. No iOS simulator, version bump, publication or push was done.
+
+## 2026-09-24 — Lane J round 5: store-scoped read order and bounded retries
+
+The online client's sequence floor and change cursor were process-wide: a
+verified replacement B at sequence 1 inherited A's floor of 100. Every B
+answer then failed the acceptance check, whose direct-query and observation
+loops had no cap or backoff. Closing a watch removed it from the map without
+retiring that loop's fetch revision. Both review reproductions failed before
+the client fix (replacement never settled; closed watch kept requesting).
+
+client.ts now binds the floor and polling cursor to store identity verified by
+authenticated changes/probe replies. Replacement resets both, clears answers
+and expiry timers, and fences outstanding query and head responses. A late
+receipt from the old store cannot raise the new store's floor. A same-store
+head below the floor captured at dispatch reports E_STORE_RESTORE and halts
+reads/polling; a held head that predates a later write is not restore evidence.
+First identity discovery cannot lower a write floor advanced after dispatch.
+A write sent before discovery and received afterward needs a head verified
+after its receipt; reads stay loading until that proof arrives, including
+after a failed probe. Probes coalesce, and later queries or changes can obtain
+the proof. These are engineering decisions where the brief left the initial
+identity race unspecified.
+
+read-observation.ts bounds each stale-read round to four attempts, separated
+by 25/50/100 ms backoff, checking cancellation before another request. Direct
+queries use the same loop. Exhaustion becomes loading, suppresses dirty/expiry
+rearming for that round, and waits for another invalidation. Final-owner close
+increments the revision; one remaining subscribed owner keeps the shared
+fetch alive. Obsolete-credential POST and probe retries have the same cap and
+backoff. Online retention remains absent; the local fallback courtesy,
+composition cleanup, legacy unavailable body and meter omission are intact.
+
+Files/tests:
+- online-store-order.test.mjs adds eleven regressions: replacement/cursor and
+  buffered read/write fences; same-store restore; a pre-write held head;
+  direct and observed retry limits/backoff/recovery; final-owner cancellation;
+  shared-owner survival; reconnect probe replacement; first-head/write races,
+  including failed verification and recovery through a later head.
+- online-session.test.mjs adds query and reconnect-probe credential-churn caps.
+- page-authority.test.mjs adds the real-server heap-abort/cost-reduction case:
+  hold an unavailable privatePage response, commit setCost(false), release it,
+  and require a refetch yielding the private row. Exempting loading from the
+  sequence check now fails this regression.
+- read-observation.test.mjs adds deterministic reset during retry backoff.
+- contract.ts, CLIENT-AND-OPERATIONS.md and guide/reads.rs scope read ordering
+  to the same store; the reference documents restore recovery and retry limits.
+
+Validation: bun install --frozen-lockfile completed. The affected five-file
+suite passed 50/50. Thirteen controlled mutations were caught: floor reset,
+cursor reset, response epoch, restore refusal, retry cap, backoff, close reset,
+pre-retry cancellation, loading sequence checks, both first-identity fences,
+and both credential retry caps. One initial close test did not force entry into
+backoff and let the pre-retry-check mutation survive; its scheduling and the
+new deterministic helper test close that gap. The new probe-cap test initially
+raced its own disconnect (zero probes); its fixture now waits for the initial
+answer before disconnecting. These test-development issues were ours and fixed.
+
+The first two full runs reported `== 1 failure(s) in 183 s` and
+`== 1 failure(s) in 143 s`. Each had only the existing W5c process pending-write
+reopen assertion at acquisition.test.mjs:375: sent instead of pending. This was
+a pre-existing fixture race exposed by scheduling, not a production regression:
+sync-fails still permits mutation requests, so a retry could settle during
+close. The baseline log did not fail this test, and it passed unchanged in
+isolation. The scope extension is a test-only fix in acquisition.test.mjs:
+keep all transport offline throughout the pending phase and close, then enable
+it for the existing recovery assertions. Both WASM and process cases passed
+2/2; committed separately as 0919427b2. No baseline Rust failure was changed.
+
+Final scripts/test.sh: `== 0 failure(s) in 158 s`. Main client shard: 1,113
+tests, 1,103 passed, 10 existing skips, no failures/cancellations; every other
+shard, Rust target, guide check, build and typecheck passed. Logs are
+/tmp/lane-j-r5-affected-final.log, /tmp/lane-j-r5-mutations.log,
+/tmp/lane-j-r5-auth-mutations.log, /tmp/lane-j-r5-acquisition-fixed.log and
+/tmp/lane-j-r5-full-suite-green.log (earlier reds: full-suite.log and
+full-suite-final.log with the same lane-j-r5 prefix).
+
+No Quarry form, Read type or engine semantics changed. Existing privatePage()
+and setCost(grow: bool) forms compile and run in the real-server regression;
+client.query(privatePage, {}) refetches a stale unavailable answer, and
+client.observe(privatePage, {}) settles or stops within one bounded round.
+No open reproduction remains. No native simulator, package publication,
+version bump or push was performed. Changed source files stay below 1,500 lines.
