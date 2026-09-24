@@ -1,5 +1,9 @@
 # Lane C report — 2026-09-24
 
+**Review round 1 update:** The five Astra findings, including the late-follow
+blocker below, are resolved in [the round-1 report](review-round1.md). This original
+report preserves the initial implementation and measurements.
+
 Branch: `sb4-intent/c-following`, base `6d9f3e001`. Local commits only; no push or publication.
 
 **Not ready to merge: the literal fan-out epoch requirement needs a supervisor decision.**

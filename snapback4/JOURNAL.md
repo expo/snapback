@@ -47547,3 +47547,39 @@ of the old card prose. No push, publication, migration or meter increase.
 
 File-by-file work, exact test replacements, failures and the copyable stopped
 counterexample: [lane report](reports/20260924-following-v2/report.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane C review round 1: admission order and metered delivery
+
+Fixed all five Astra findings. Engine-owned private edge admissions now mint
+fresh epochs from commit sequence and intra-transaction write ordinal, so reused
+application edge ids cannot let retired cleanup delete new copies. Backfill owns
+pre-follow events within the 1,000-event window; delivery owns later events.
+Completed delivery records retain admission metadata until removal. Trusted
+restores advance the sequence floor. Reserved `$timeline:` follower indexes
+cannot collide with authored indexes. Timeline scans now precharge decoded
+payload, retained rows and keys under the unchanged heap ceiling. Ordinary jobs
+retain their existing meters; the first full run caught and the fix removed an
+over-broad check of their empty purge grants.
+
+Measured post writes remain 4 for both five and 900 followers; first-page
+examinations remain 61 for both five and 500 follows. Follow preview/unfollow now
+cost at most 53/259 writes, including the owned admission insert/delete. Reused
+`fixed-edge` refollow converges to all 600 unique events. Both drain orders retain
+exactly 1,000 of 1,100 older events; a newer backdated event is delivered separately.
+The 256 × 100,000-character edge-payload probe refuses before materializing the
+batch and parks without copies or cursor progress. Pre-cleanup pagination checks
+the whole sequence; removing the epoch predicate makes its regression fail.
+Fifteen background tests, both device stores, the counted/uncounted oracle,
+reduced Clique, all twelve digest tests and replay delivery pass.
+
+Final `scripts/test.sh`: `== 1 failure(s) in 197 s` (`cargo test`), only the three
+supplied-baseline failures: search Wasm fixture snapshot, read-auth census and
+why-operation output. Client tests: 994 passed, zero failed, ten existing skips.
+Wasm: 1,708,510 bytes raw / 473,320 gzip, below the unchanged 474,000-byte budget.
+The initial round-1 suite's three introduced digest failures were fixed; one
+unrelated HTTP admission timing failure passed isolated retry and the final suite.
+No ceiling, source disclosure rule or device prediction boundary was relaxed.
+FeedView binding still waits for Lane A; no rebase, migration, push or publication.
+The prior epoch/window blocker is resolved by the supervisor's one-producer rule.
+File-by-file changes, tests and reproductions: [round-1 report](reports/20260924-following-v2/review-round1.md).
