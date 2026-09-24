@@ -47495,3 +47495,21 @@ ranking pages. The small fresh-builder lookup comparison had zero corrections
 in both arms (119 s published control, 136 s development candidate); it does
 not demonstrate a time or correction improvement. Evidence and limitations:
 [`reports/20260923-cal18-followups/modeling.md`](./reports/20260923-cal18-followups/modeling.md).
+
+## 2026-09-23 — cal18 scale experiment stopped before a capacity change
+
+The unchanged 5,000-candidate/4,900-hit recipient-heavy control still exceeds
+16 MiB. A test-only borrowed JSON projection avoids bodies and recipients,
+reducing Rust allocation from 44.6 MB to 5.0 MB over 41 alternating pairs.
+It does not qualify an engine capacity change: SQLite work and the full
+meter/authority/coverage contract remain unresolved. No executor or ceiling
+changed and the rejected live accumulator was not reintroduced.
+
+The full delivered-app envelope fixture stopped after three unsuccessful setup
+trials, before a digest ran. Its exact draft and failures are retained; that
+acceptance item remains open. The existing safe jobs-card recipe independently
+passes 12 simulator tests, now including 99/100/101 message and 999/1000/1001
+membership boundaries. Rolling-rank oracle coverage and separate follow-graph
+growth/hub/boundary evidence are recorded without native/acquisition or release
+speedup claims. Details and the completed/unmet ledger:
+[`reports/20260923-cal18-followups/scale.md`](./reports/20260923-cal18-followups/scale.md).

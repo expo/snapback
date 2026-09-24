@@ -1,0 +1,127 @@
+//! The delivered cal18 job, unchanged, against an independent whole-store oracle.
+//! @ref LLP 3000.011.001.001#4 — authored bounds, row width and graph size are separate dimensions.
+use super::*;
+use snapback4_core::{JobState, WriteState, engine::runner::Runner, meter::{Cut, Meter}, value::canonical_json};
+use std::collections::BTreeSet;
+
+fn delivered() -> snapback4_lang::Bound {
+    macro_rules! source { ($file:literal) => { ($file.into(), include_str!(concat!("../../../../benchmarks/runs/2026-09-23-snapback4-clique-astra-0.3.0/astra/source/snapback/", $file)).into()) }; }
+    let b = snapback4_lang::compile(&[source!("schema.q"),source!("chat.q"),source!("social.q"),source!("attribution.q"),source!("config.q"),source!("insights.q"),source!("digest.q"),source!("digest-config.q")]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    b
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Case { chats: usize, per_chat: usize, body: usize, recipients: usize, follows: usize, own_every: usize }
+fn fixture(case: Case) -> Engine {
+    let b = delivered();
+    let mut e = Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut rows = Vec::new();
+    let mut add = |table: &str,row| rows.push((table.into(),wire::row_from_json(e.schema().table(table).unwrap(),&row).unwrap()));
+    for n in 0..=case.follows {
+        let principal = if n == 0 { "reader".into() } else { format!("author{n:04}") };
+        add("profiles",json!({"id":format!("p{n:04}"),"principal":principal,"displayName":principal,"handle":principal,"bio":"","location":"","createdAt":0}));
+        if n > 0 {
+            add("follows",json!({"id":format!("f{n:04}"),"followerId":"reader","followedId":principal,"at":1000}));
+            add("posts",json!({"id":format!("post{n:04}"),"authorId":principal,"body":"post","at":15000}));
+        }
+    }
+    for c in 0..case.chats {
+        let chat = format!("c{c:04}");
+        add("conversations",json!({"id":chat,"kind":"group","name":chat,"description":"","creatorId":"reader","lastAt":0}));
+        add("members",json!({"id":format!("{chat}-reader"),"conversationId":chat,"principal":"reader","role":"member","joinedOrdinal":0}));
+        for n in 0..case.per_chat {
+            add("messages",json!({"id":format!("{c:04}m{n:07}"),"conversationId":chat,"senderId":if case.own_every > 0 && n % case.own_every == 0 {"reader".into()} else {"b".repeat(31)},"body":"x".repeat(case.body),"recipients":(0..case.recipients).map(|i|format!("recipient{i:022}")).collect::<Vec<_>>(),"ordinal":n+1,"at":15000}));
+        }
+    }
+    // Timeline-mapped rows must enter through normal seed writes; import is
+    // deliberately refused because it cannot invent historical feed events.
+    e.seed_at(rows,1000).unwrap();
+    e
+}
+
+fn args() -> BTreeMap<String,Value> { [("periodStart".into(),Value::Int(0)),("periodEnd".into(),Value::Int(120000))].into() }
+
+// No capped query, generated maintain or application helper participates in
+// the oracle. Enumerate physical source rows, apply the authored live policy,
+// and sum all matching sources in Rust, independently of their indexes.
+fn oracle(e: &Engine) -> serde_json::Value {
+    let memberships = e.store().rows("members").unwrap();
+    let messages = e.store().rows("messages").unwrap();
+    let follows = e.store().rows("follows").unwrap();
+    let posts = e.store().rows("posts").unwrap();
+    let mut unread = 0;
+    let mut chats = 0;
+    for m in memberships.iter().filter(|m| m.field("principal").unwrap().as_str().unwrap() == "reader") {
+        let count = messages.iter().filter(|row| {
+            row.field("conversationId") == m.field("conversationId")
+                && row.field("senderId").unwrap().as_str().unwrap() != "reader"
+                && row.field("ordinal").unwrap().as_int().unwrap() > m.field("readOrdinal").unwrap().as_int().unwrap()
+                && row.field("tombstone").unwrap() == &Value::Bool(false)
+                && (0..120000).contains(&row.field("at").unwrap().as_int().unwrap())
+                && row.field("expiresAt").map_or(true,|v| v == &Value::Null || v.as_int().is_ok_and(|at|at > 120000))
+        }).count();
+        unread += count; chats += usize::from(count > 0);
+    }
+    let followed: BTreeSet<_> = follows.iter().filter(|r|r.field("followerId").unwrap().as_str().unwrap() == "reader").map(|r|r.field("followedId").unwrap().as_str().unwrap()).collect();
+    let new_posts = posts.iter().filter(|r|followed.contains(r.field("authorId").unwrap().as_str().unwrap()) && (0..120000).contains(&r.field("at").unwrap().as_int().unwrap())).count();
+    let new_followers = follows.iter().filter(|r|r.field("followedId").unwrap().as_str().unwrap() == "reader" && (0..120000).contains(&r.field("at").unwrap().as_int().unwrap())).count();
+    json!({"targetUserId":"reader","kind":"digest","periodStart":0,"periodEnd":120000,"unreadMessages":unread,"unreadChats":chats,"newPostsInFollowing":new_posts,"newFollowers":new_followers})
+}
+
+#[test]
+#[ignore = "async lane: cal18 delivered digest envelope"]
+fn delivered_recipient_envelope_and_authored_boundaries() {
+    let base = Case { chats:1,per_chat:1000,body:31,recipients:2,follows:0,own_every:0 };
+    let mut cases = vec![Case { per_chat:0,..base }];
+    for per_chat in [4999,5000,5001] { cases.push(Case { per_chat,recipients:50,own_every:50,..base }); }
+    for per_chat in [10000,10001,10002] { cases.push(Case { per_chat,body:6,recipients:0,..base }); }
+    for chats in [999,1000,1001] { cases.push(Case { chats,per_chat:1,body:6,..base }); }
+    for body in [0,31,2000] { cases.push(Case { body,..base }); }
+    for recipients in [0,1,2,25,49,50] { cases.push(Case { per_chat:5000,recipients,..base }); }
+    for follows in [0,999,1000] { cases.push(Case { chats:0,per_chat:0,follows,..base }); }
+    for case in cases {
+        let mut e = fixture(case);
+        let expected = oracle(&e);
+        let program = e.program("digest.daily").unwrap().clone();
+        let schema = e.schema().clone();
+        let tx = e.store_mut().read_transaction().unwrap();
+        let mut context = Context::system().at(120000); context.args = args();
+        let mut runner = Runner::new(&tx,&schema,context,Meter::new(Ceilings::job(),Cut::Abort),0);
+        let (trial,allocated,micros) = measured(||runner.run(&program));
+        let work = runner.metered();
+        drop(runner); tx.rollback().unwrap();
+        e.enqueue_job("digest.daily",args(),120000).unwrap();
+        let (run,job_allocated,job_micros) = measured(||e.run_job_chunk(120000).unwrap().unwrap());
+        let effects = e.effects(None,10).unwrap();
+        let markers = e.store().rows("digestMarkers").unwrap();
+        let actual = effects.first().map(|effect|wire::to_json(&effect.payload));
+        let marker_bytes = markers.iter().map(|r|canonical_json(r).len()).sum::<usize>();
+        println!("CAL18 {}",json!({"case":format!("{case:?}"),"oracle":expected,"actual":actual,"state":run.state,"error":run.error,"meter":work,"trial":format!("{trial:?}"),"rustAllocated":allocated,"micros":micros,"jobRustAllocated":job_allocated,"jobMicros":job_micros,"markers":markers.len(),"markerBytes":marker_bytes,"writes":run.rows_written}));
+        if trial.is_err() {
+            assert_eq!(run.state,JobState::Parked); assert!(effects.is_empty() && markers.is_empty());
+        } else {
+            assert_ne!(run.state,JobState::Parked,"{run:?}"); assert_eq!(markers.len(),1);
+            let empty = expected["unreadMessages"] == 0 && expected["newPostsInFollowing"] == 0 && expected["newFollowers"] == 0;
+            if empty { assert!(actual.is_none()); }
+            else if case.chats > 1000 || case.per_chat > 10001 {
+                // Pin the delivered application's real truncation instead of
+                // mistaking a completed job/marker for an exact whole-domain sum.
+                assert_ne!(actual.as_ref(),Some(&expected),"overflow unexpectedly exact");
+            } else { assert_eq!(actual.as_ref(),Some(&expected)); }
+        }
+    }
+}
+
+#[test]
+#[ignore = "async lane: cal18 follow cap boundary"]
+fn delivered_follow_cap_refuses_1001_without_admitting_a_partial_edge() {
+    let mut e = fixture(Case { chats:0,per_chat:0,body:0,recipients:0,follows:1000,own_every:0 });
+    let row = wire::row_from_json(e.schema().table("profiles").unwrap(),&json!({"id":"extra","principal":"extra","displayName":"Extra","handle":"extra","bio":"","location":"","createdAt":0})).unwrap();
+    e.seed_at(vec![("profiles".into(),row)],120000).unwrap();
+    let before = e.store().rows("follows").unwrap();
+    let out = e.mutate("social.setFollow",None,Context::new("reader",[("owner".into(),Value::Id("extra".into())),("set".into(),Value::Bool(true))].into()).at(120000)).unwrap();
+    println!("CAL18 follow1001: {out:?}");
+    assert!(matches!(out.state,WriteState::Failed {ref why,..} if why.code == "E_CONSTRAINT"));
+    assert_eq!(e.store().rows("follows").unwrap(),before);
+}

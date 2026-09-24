@@ -1,0 +1,15 @@
+{
+  "sha": "877bcaaa23bffd3857073723d9c4c1204c57fefa",
+  "startUTC": "2026-09-24T04:11:14.578501+00:00",
+  "host": "Charlies-MacBook-Air.local",
+  "cpuCount": "10",
+  "memoryBytes": "34359738368",
+  "beforeLoad": "21:11  up 6 days, 11:02, 63 users, load averages: 7.97 13.98 14.64",
+  "samplesPerSeries": 20,
+  "warmupsPerSeries": 3,
+  "percentile": "nearest rank p95, sorted index18 (rank19 of20)",
+  "conditions": "No concurrent build from this run on this machine; shared host, other activity uncontrolled. Existing test runs recipe then F3, not alternating arms. Descriptive only.",
+  "endUTC": "2026-09-24T04:11:47.374094+00:00",
+  "afterLoad": "21:11  up 6 days, 11:03, 63 users, load averages: 7.62 13.30 14.37",
+  "exitCode": 0
+}

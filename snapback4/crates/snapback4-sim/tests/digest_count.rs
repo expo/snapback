@@ -66,13 +66,16 @@ fn dropping_count_results_does_not_remove_sqlite_decode_allocations() {
             ("periodStart".into(), Value::Int(10_000)), ("periodEnd".into(), Value::Int(20_000)), ("readAt".into(), Value::Int(0))].into();
         let op = if quiet == 0 { "countPeriod" } else { args.remove("conversationId"); "countAll" };
         let (control, allocated, elapsed) = measured(|| engine.query(op, Context::new(&principal, args).at(20_000)).unwrap());
-        println!("count control quiet={quiet} rows={rows} body={body} recipients={recipients} heap={} examined={} writes={} rust_allocated={allocated} us={elapsed} state={:?}",
-            control.metered.heap_bytes, control.metered.examined, control.metered.rows_written, control.data);
+        println!("count control quiet={quiet} rows={rows} body={body} recipients={recipients} heap={} examined={} steps={} writes={} rust_allocated={allocated} us={elapsed} complete={} state={:?}",
+            control.metered.heap_bytes, control.metered.examined, control.metered.steps, control.metered.rows_written, control.complete, control.data);
         if (rows == 10_000 && body == 2000) || (rows >= 5000 && recipients == 50) {
             assert_eq!(control.data, Value::Null);
             assert!(!control.complete);
             assert!(control.metered.heap_bytes > Ceilings::job().heap_bytes);
-        } else if rows <= 1000 { assert_eq!(control.data, Value::Int(rows as i64), "{control:?}"); }
+        } else {
+            assert_eq!(control.data, Value::Int(rows as i64), "{control:?}");
+            assert!(control.complete, "{control:?}");
+        }
 
         let tx = engine.store_mut().read_transaction().unwrap();
         for batch in [32, rows + 1] {
