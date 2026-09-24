@@ -47662,3 +47662,45 @@ WASM stays at 1,736,564 B raw / 480,855 B gzip under the unchanged 481,000 B
 budget. Did not change the interpreter or serialized IR, broaden lazy merge
 preparation, relax authorization/admission, raise meters, import integration
 changes, fix baseline failures, push or publish. No design deviation.
+
+## 2026-09-24 — LLP 3000.013 Lane A, guide planner gaps and second delta review
+
+Named after-insert probes now synthesize an exact index over every named
+column in written order, including role beyond a covered unique key. The
+language card no longer needs its explicit role index. An aggregate access-path
+pass chooses a range seek for unpaged count, sum and exists without authored
+order; it prefers finite windows and then canonical column names, preserving
+existing scan admission. View cursors keep a literal id field in its written
+order instead of moving it behind later keys.
+
+Added exact-role transaction/rollback, digest seek, admission, ordering and
+planner tests, plus Memory/SQLite regressions for literal-id pages after reopen
+in both directions and rejected 1 MB source rows. All 114 affected tests pass.
+In an isolated checkout of integration cf803ffcafcb4ce8e1e585fffe70be444679940f,
+all five runtime tests pass, including capped and uncapped count/sum/exists
+using Lane D's existing streaming binder. The live integration checkout was
+not modified. Existing nullable-membership and range regressions still pass.
+
+The rejected-row Memory fixtures cut at 20,012,761 B (residual) and 20,015,237 B
+(second word); SQLite cuts at 18,011,619 B and 18,014,448 B respectively. Moving
+the payload charge after rejection makes both Memory cases incorrectly return
+complete empty pages at 46,681 B and 21,277 B, and the new tests fail. Restored
+the engine byte-for-byte before final verification; this round changes no
+runtime or serialized IR. WASM remains 1,736,564 B raw / 480,855 B gzip under
+the unchanged 481,000 B budget.
+
+Stopped the prescribed table-cursor change under the design-stop instruction.
+For `t first 1 by .id, .at after c`, appending id after dedup produces
+`(id, at, id)`, which core schema validation rejects as duplicate column id.
+Without that append the table form still refuses with E_CURSOR_INDEX. It needs
+a supervisor decision about cursor admission or index schema, recorded with
+both reproductions in `reports/20260924-intent-lane-a-followup-review.md`.
+Did not silently reorder id, alter uniqueness, relax schema validation,
+authorization or admission, increase meters, import Lane D, push or publish.
+
+Exact full-suite result: `== 1 failure(s) in 171 s`. Only the unchanged baseline
+legacy schema equality test in schema_capabilities_legacy fails; there are no
+introduced or environmental failures. All 995 client tests pass, 10 skipped.
+Full log: `/tmp/lane-a-followup-full-suite.log`. Reference and whitespace checks
+pass; changed source files remain below 1,500 lines. The report records the
+file-by-file changes, forms, test proofs, lane boundary and open design stop.
