@@ -325,7 +325,7 @@ impl<'a> Binder<'a> {
             merge_site: None,
             provenance: KeyProvenance::Shape,
         };
-        self.check_meter_prefix(read, &scan)?;
+        if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
         Ok((scan, range.take))
     }
 

@@ -71,12 +71,16 @@ impl Parser {
             let mut probe_stops = stops.to_vec();
             probe_stops.push("<probe-shape>");
             let value = self.prefix(&probe_stops)?;
+            let value = if token.value == "exists" && let Expr::Name { name, site } = &value {
+                Expr::Read(ReadExpr { table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() })
+            } else { value };
             let Expr::Read(read) = value else {
                 return Err(syntax(value.site(), format!("{} requires an indexed read t[key]", token.value)));
             };
-            if read.range.is_some() || !read.seeks.is_empty() || read.filter.is_some() || (token.value == "created" && read.matching.is_some()) {
+            if read.range.is_some() || (token.value == "created" && (!read.seeks.is_empty() || read.filter.is_some() || read.matching.is_some())) {
                 let plain = ReadExpr { range: None, matching: if token.value == "exists" { read.matching.clone() } else { None }, filter: None, seeks: Vec::new(), ..read.clone() };
-                return Err(syntax_with(&read.site, format!("{} takes a plain indexed read{}; no where, first, last, after or seek", token.value, if token.value == "exists" { " or matching read" } else { "" }), format!("{} {}", token.value, print::read_expr(&plain))));
+                let message = if token.value == "exists" { "exists takes a domain read; omit first, last and cursor clauses" } else { "created takes a plain indexed read; no where, first, last, after or seek" };
+                return Err(syntax_with(&read.site, message, format!("{} {}", token.value, print::read_expr(&plain))));
             }
             return self.postfix(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } }, stops);
         }
