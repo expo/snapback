@@ -162,7 +162,7 @@ test("online custody refuses unstored admission and retains committed writes whe
   const memory = memorySessionStore();
   let failIntent = false, failReceipt = false, sends = 0;
   const store = { ...memory, async set(key, value) {
-    if (key.endsWith(":writes")) {
+    if (key.endsWith(".writes")) {
       const journal = JSON.parse(value);
       if (failIntent || (failReceipt && journal.receipts.length)) throw Error("storage unavailable");
     }
@@ -182,17 +182,29 @@ test("online custody refuses unstored admission and retains committed writes whe
   assert.equal(sends, 1);
 });
 
-test("failed session persistence never exposes a half-open authenticated client", async t => {
-  const memory = memorySessionStore(); let sessionWrites = 0;
-  const app = createApp({ url: "https://app.invalid", sessionStore: { ...memory, async set(key, value) {
-    if (key.endsWith(":session") && ++sessionWrites === 2) throw Error("session store failed");
+test("failed session persistence clears and revokes the kept bearer before reporting signed-out", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore();
+  let sessionWrites = 0, issued;
+  const app = createApp({ url, sessionStore: { ...memory, async set(key, value) {
+    if (key.endsWith(".session") && ++sessionWrites === 2) throw Error("session store failed");
     await memory.set(key, value);
-  } }, fetch: async () => Response.json({ session: { principal: "alice", token: "secret", kind: "user", expiresAt: Date.now() + 7 * 86400000 } }) });
+  } }, fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/guest") issued = (await response.clone().json()).session;
+    return response;
+  } });
   t.after(() => app.close());
   await app.ready;
+  const published = [];
+  app.auth.onChange(() => { if (app.auth.state === "signed-out") published.push(restoreSession(url, memory)); });
   assert.equal((await app.auth.guest()).ok, false);
   assert.equal(app.auth.state, "signed-out");
   assert.equal(app.client.viewer(), null);
+  assert.equal(await restoreSession(url, memory), null);
+  assert.deepEqual(await Promise.all(published), [null]);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied?.code === "E_AUTH");
+  const restarted = createApp({ url, sessionStore: memory });
+  await restarted.ready; assert.equal(restarted.auth.state, "signed-out"); await restarted.close();
   assert.equal((await app.mutate(add, { body: "not allowed" })).why.code, "E_AUTH");
   assert.equal((await app.auth.guest()).ok, true, "a repaired session store can sign in again");
 });
@@ -201,7 +213,7 @@ for (const action of ["logout", "logoutEverywhere"]) test(`${action} clears cred
   const memory = memorySessionStore(), url = "https://app.invalid";
   let failDelete = false;
   const app = createApp({ url, sessionStore: { ...memory,
-    async set(key, value) { if (key.endsWith(":writes")) throw Error("outbox store failed"); await memory.set(key, value); },
+    async set(key, value) { if (key.endsWith(".writes")) throw Error("outbox store failed"); await memory.set(key, value); },
     async delete(key) { if (failDelete) throw Error("session delete failed"); await memory.delete(key); },
   }, fetch: async (input) => new URL(input).pathname === "/auth/guest"
     ? Response.json({ session: { principal: "alice", token: "secret", kind: "user", expiresAt: Date.now() + 7 * 86400000 } })
@@ -291,4 +303,34 @@ for (const tier of ["online", "local"]) test(`ordinary ${tier} app close keeps a
   app = createApp(options); assert.equal((await app.ready).ok, true);
   assert.equal(app.auth.viewer, rotated.principal);
   assert.deepEqual((await app.client.query(list, {})).data, []);
+});
+
+
+for (const tier of ["online", "local"]) test(`a stale ${tier} refresh preserves another owner's kept successor`, { timeout: 20_000 }, async t => {
+  const { url, dir } = await server(t), store = memorySessionStore();
+  const options = { url, sessionStore: store };
+  const a = createApp({ ...options, ...(tier === "local" ? { device: processDevice({ dir: join(dir, "tab-a"), binary }) } : {}) });
+  const bOptions = { ...options, ...(tier === "local" ? { device: processDevice({ dir: join(dir, "tab-b"), binary }) } : {}) };
+  t.after(() => a.close());
+  await a.ready; await a.auth.guest();
+  let release, rejected = false;
+  const gate = new Promise(resolve => { release = resolve; });
+  const b = createApp({ ...bOptions, fetch: async (input, init) => {
+    if (new URL(input).pathname === "/auth/refresh") { rejected = true; await gate; }
+    return fetch(input, init);
+  } });
+  t.after(async () => { release(); await b.close(); });
+  await b.ready;
+  const stale = b.client.refreshSession(); await until(() => rejected);
+  const fresh = await a.client.refreshSession(); assert.equal(fresh.ok, true);
+  await until(async () => (await restoreSession(url, store))?.token === fresh.session.token);
+  release(); assert.equal((await stale).ok, false);
+  await until(() => b.auth.state === "signed-out");
+  assert.equal((await restoreSession(url, store))?.token, fresh.session.token);
+  assert.deepEqual((await a.client.query(list, {})).data, []);
+  // Explicit logout can drop a successor absent from this runtime. It must
+  // revoke that dropped token instead of silently orphaning it on the server.
+  assert.equal((await b.auth.logout()).ok, true);
+  assert.equal(await restoreSession(url, store), null);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${fresh.session.token}` } })).json()).denied?.code === "E_AUTH");
 });

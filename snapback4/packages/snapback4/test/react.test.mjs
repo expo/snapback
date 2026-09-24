@@ -102,7 +102,7 @@ import { StrictMode, act, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset } from "snapback4/react";
 import { createApp } from "snapback4/app";
-import { memorySessionStore } from "snapback4/auth";
+import { memorySessionStore, keepSession } from "snapback4/auth";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
@@ -233,7 +233,7 @@ const cases = {
   async "two online owners notify both pending-write hooks when the shared journal settles once"() {
     const store = memorySessionStore(), owners = [], waits = [deferred(), deferred()], entered = [false, false];
     const initial = { principal: "alice", token: "same-session", kind: "user", expiresAt: Date.now() + 7 * 86400000 };
-    await store.set("snapback4:https://shared.invalid:session", JSON.stringify(initial));
+    await keepSession("https://shared.invalid", initial, store);
     let a, b;
     const calls = [0, 0], events = [[], []], id = "00000000000000000000000001";
     function Pending({ index }) {

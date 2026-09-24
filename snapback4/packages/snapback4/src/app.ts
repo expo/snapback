@@ -1,6 +1,7 @@
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
 import { createClient } from "./client.ts";
 import { createLocalClient, type DeviceOpener } from "./local.ts";
+import { storeLock, StorageWarning } from "./app-storage.ts";
 import { onlineCustody } from "./app-online.ts";
 import { signup, login, guest, keepSession, restoreSession, forgetSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
 import type { Client, Principal, Refusal, Session, SessionRevocation, SignIn } from "./contract.ts";
@@ -38,6 +39,7 @@ export interface AppOptions {
 }
 
 function problem(error: unknown): Refusal {
+  if (error instanceof StorageWarning) return error.why;
   const message = error instanceof Error ? error.message : String(error);
   const code = message.includes("E_AUTH:") ? "E_AUTH" : "E_CLIENT";
   return { code, family: code === "E_AUTH" ? "auth" : "client", message,
@@ -55,10 +57,21 @@ export function createApp(options: AppOptions): App {
     persistence = result;
     return result;
   };
+  // Replacement and deletion share one lock across tabs. A server refusal
+  // only owns its rejected token, never a successor kept by another runtime.
+  const removeSession = (expectedToken?: string) => persist(() => storeLock(sessionKey(url), async () => {
+    const text = await storage.get(sessionKey(url));
+    let token: string | undefined;
+    try { const saved = text ? JSON.parse(text) : null; if (typeof saved?.token === "string") token = saved.token; } catch {}
+    if (expectedToken !== undefined && token !== expectedToken) return;
+    await storage.delete(sessionKey(url));
+    // Explicit clearing may drop a successor this runtime never observed.
+    if (token) void revokeSession(url, token, fetcher);
+  }));
   const sessionStore: SessionStore = {
-    get: key => persist(() => storage.get(key)),
-    set: (key, value) => persist(() => storage.set(key, value)),
-    delete: key => persist(() => storage.delete(key)),
+    get: key => persist(() => storeLock(key, () => storage.get(key))),
+    set: (key, value) => persist(() => storeLock(key, () => storage.set(key, value))),
+    delete: key => key === sessionKey(url) ? removeSession() : persist(() => storeLock(key, () => storage.delete(key))),
   };
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
   const listeners = new Set<() => void>();
@@ -105,12 +118,12 @@ export function createApp(options: AppOptions): App {
     scopes.add(scope);
     const scopedStore: SessionStore = {
       get: sessionStore.get,
-      set: (key, value) => persist(async () => {
+      set: (key, value) => persist(() => storeLock(key, async () => {
         if (key === sessionKey(url)) scope.session = JSON.parse(value) as Session;
         if (scope.valid) await storage.set(key, value);
         else if (key === sessionKey(url)) void revokeSession(url, scope.session.token, fetcher);
-      }),
-      delete: key => persist(async () => { if (scope.valid) await storage.delete(key); }),
+      })),
+      delete: key => scope.valid ? (key === sessionKey(url) ? removeSession(scope.session.token) : sessionStore.delete(key)) : Promise.resolve(),
     };
     const scopedFetch: typeof fetch = async (input, init) => {
       // Cancel backend acquisition before a local Client exists. Once open,
@@ -141,16 +154,21 @@ export function createApp(options: AppOptions): App {
       scope.stop = raw.onSession(next => {
         if (next) void keepSession(url, next, scopedStore).catch(report);
         else if (scope.valid && owner === scope) {
+          const rejected = scope.session.token;
           hide("restoring");
           void enqueue(async () => {
             if (owner !== scope) return;
             await release();
-            await forgetSession(url, sessionStore);
+            await removeSession(rejected);
             if (revision === expected) publish("signed-out", null);
           }).catch(report);
         }
       });
-      const custody = options.device ? undefined : await onlineCustody(raw, url, storage, report);
+      let warning: Refusal | undefined;
+      const custody = options.device ? undefined : await onlineCustody(raw, url, storage, error => {
+        warning = problem(error);
+        if (scope.valid) report(error);
+      });
       const client = custody?.client ?? raw;
       if (!scope.valid || closed || revision !== expected) {
         custody?.pause();
@@ -161,7 +179,7 @@ export function createApp(options: AppOptions): App {
       const own = Object.assign(scope, { client, pause: () => { custody?.pause(); } });
       owner = own;
       const next = raw.session();
-      if (!next) { hide(); await release(); await forgetSession(url, sessionStore); return inactive(); }
+      if (!next) { hide("restoring"); await release(); await removeSession(scope.session.token); if (revision === expected) publish("signed-out", null); return inactive(); }
       // Local opening can rotate a near-expiry bearer before returning.
       await keepSession(url, next, scopedStore);
       if (!scope.valid || closed || revision !== expected) {
@@ -170,11 +188,16 @@ export function createApp(options: AppOptions): App {
         return inactive();
       }
       current = client;
-      publish("signed-in", raw.viewer());
+      publish("signed-in", raw.viewer(), warning);
       return { ok: true, session: next };
     } catch (error) {
-      if (revision === expected) hide();
-      // Release a half-open client without exposing it to a screen.
+      if (revision === expected) hide("restoring");
+      // An opener that reports failure must not leave a restorable bearer.
+      // Fence late saves first, then clear only this opener's saved token.
+      scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
+      void revokeSession(url, scope.session.token, fetcher);
+      if (raw) void raw.signOut().catch(() => {});
+      await removeSession(scope.session.token);
       try { if (owner === scope) await release(); else await raw?.close(); } catch {}
       throw error;
     } finally {

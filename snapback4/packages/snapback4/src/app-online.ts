@@ -4,40 +4,22 @@ import type { SessionStore } from "./auth.ts";
 import { mintId } from "./client.ts";
 import { MutationIds, WriteHistory, WRITE_HISTORY_LIMIT } from "./writes.ts";
 
-type Intent = { id: string; op: string; args: unknown };
-type Terminal = Exclude<Write, { state: "pending" }>;
-type Journal = { pending: Intent[]; receipts: Terminal[] };
-const locks = new Map<string, Promise<unknown>>();
-
-// Web Locks cover independent tabs using localStorage adapters. Other hosts
-// serialize within this runtime; a custom store must not have concurrent writers
-// in different processes (SessionStore has no compare-and-swap operation).
-function locked<T>(key: string, work: () => Promise<T>): Promise<T> {
-  const previous = locks.get(key) ?? Promise.resolve();
-  const result = previous.catch(() => {}).then(async () => {
-    if (globalThis.navigator?.locks) return await globalThis.navigator.locks.request(key, work);
-    return await work();
-  });
-  locks.set(key, result);
-  void result.finally(() => { if (locks.get(key) === result) locks.delete(key); }).catch(() => {});
-  return result;
-}
+import { storeKey, storeLock as locked } from "./app-storage.ts";
+import { journalReader, type Journal, type Terminal } from "./app-journal.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void) {
-  const key = `snapback4:${encodeURIComponent(url)}:${encodeURIComponent(raw.viewer()!)}:writes`;
+  const viewer = raw.viewer()!;
+  const key = storeKey("writes", url, viewer);
   let active = true;
   const ids = new MutationIds();
   const emissions = new WriteHistory();
   const listeners = new Set<(write: Terminal) => void>();
   let writes: Promise<unknown> = Promise.resolve();
-  const read = async (): Promise<Journal> => {
-    const text = await store.get(key);
-    return text ? JSON.parse(text) as Journal : { pending: [], receipts: [] };
-  };
+  const read = journalReader(key, viewer, url, store, report);
   const change = <T>(work: (journal: Journal) => T): Promise<T> => {
     const result = locked(key, async () => {
-      const journal = await read();
+      const journal = await read(true);
       const value = work(journal);
       await store.set(key, JSON.stringify(journal));
       return value;
@@ -77,7 +59,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     ...raw,
     mutate<A, R>(op: Mutation<A, R>, args: A, options?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
       const id = options?.id ?? mintId();
-      if (!active || !raw.viewer()) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
+      if (!active || raw.viewer() !== viewer) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
       return ids.run<R>(id, op.name, args, () => client.write(id), async snapshot => {
         const refusal = await change(journal => {
           const previous = journal.pending.find(intent => intent.id === id);
@@ -89,11 +71,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           }
           const receipt = journal.receipts.find(write => write.id === id);
           if (receipt) return Promise.resolve(receipt);
-          journal.pending.push({ id, op: op.name, args: snapshot });
+          journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot });
           return undefined;
         });
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
-        if (!active) return { state: "pending", id };
+        if (!active || raw.viewer() !== viewer) return { state: "pending", id };
         const result = await raw.mutate(op, snapshot as A, { id });
         if (active && terminal(result)) {
           try { await settle(result); }
@@ -103,9 +85,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       });
     },
     async write(id) {
-      if (!active || !raw.viewer()) return undefined;
+      if (!active || raw.viewer() !== viewer) return undefined;
       const journal = await locked(key, read);
-      if (!active || !raw.viewer()) return undefined;
+      if (!active || raw.viewer() !== viewer) return undefined;
       const receipt = journal.receipts.find(write => write.id === id);
       if (receipt) { notify(receipt); return receipt; }
       const known = await raw.write(id);
@@ -126,7 +108,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   function pause() { active = false; stop(); listeners.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
-  const recovery = Promise.all(initial.pending.map(intent =>
+  const recovery = Promise.all(initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent =>
     client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
   void recovery.catch(report);
   return { client, pause };

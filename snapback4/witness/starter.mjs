@@ -8,6 +8,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, symlinkSync, existsSy
 import { tmpdir } from "node:os";
 import { join, extname, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
+import { sessionKey } from "../packages/snapback4/dist/auth.js";
 import { webShell } from "../packages/snapback4/bin/web-shell.js";
 import { binary, root, chromiumExecutable, scaleSeed } from "./lib.mjs";
 
@@ -155,13 +156,14 @@ try {
   const address = `${origin}/chat/`;
   browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true });
   const context = await browser.newContext();
+  const key = sessionKey(api);
   // The starter now restores real sessions. The witness's query parameter
   // chooses a preauthenticated fixture before the app starts; no persona door
   // or authentication controller is added to generated application code.
-  await context.addInitScript(({ api, alice, bob }) => {
+  await context.addInitScript(({ key, alice, bob }) => {
     const as = new URLSearchParams(location.search).get("as");
-    if (as) localStorage.setItem(`snapback4:${api}:session`, JSON.stringify(as === "alice" ? alice : bob));
-  }, { api, alice: aliceSession, bob: bobSession });
+    if (as) localStorage.setItem(key, JSON.stringify(as === "alice" ? alice : bob));
+  }, { key, alice: aliceSession, bob: bobSession });
   let page = await trackedPage(context);
   await page.goto(`${address}?as=alice`);
   await acquired(page); await pick(page);
@@ -266,19 +268,19 @@ try {
   // page restart and clear credentials on offline sign-out without erasing data.
   // Leave the fixture account's open tab alone and start a distinct guest,
   // so the offline reopen owns that guest's original replica store.
-  await page.evaluate(api => localStorage.removeItem(`snapback4:${api}:session`), api);
+  await page.evaluate(key => localStorage.removeItem(key), key);
   let guest = await trackedPage(context);
   await guest.goto(address);
   await guest.getByRole("button", { name: "Continue as a guest" }).click();
   await acquired(guest);
-  const session = await guest.evaluate(api => JSON.parse(localStorage.getItem(`snapback4:${api}:session`)), api);
+  const session = await guest.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
   assert.ok(session?.principal && session?.token);
   await guest.close(); await context.setOffline(true);
   guest = await trackedPage(context); await guest.goto(address); await acquired(guest);
   await guest.getByText(`as ${session.principal}`, { exact: false }).waitFor();
   await guest.getByRole("button", { name: "Sign out", exact: true }).click();
   await until(async () => !(await guest.getByRole("button", { name: "Continue as a guest" }).isDisabled()), "guest offline sign-out completes");
-  assert.equal(await guest.evaluate(api => localStorage.getItem(`snapback4:${api}:session`), api), null);
+  assert.equal(await guest.evaluate(key => localStorage.getItem(key), key), null);
   const guestStores = await guest.evaluate(async () => (await indexedDB.databases()).map(db => db.name));
   assert.ok(guestStores.some(name => name.includes(encodeURIComponent(session.principal))));
   await guest.close(); await context.setOffline(false);
@@ -287,7 +289,7 @@ try {
   // are already gone, even if this page is closed before revocation answers.
   guest = await trackedPage(context); await guest.goto(address);
   await guest.getByRole("button", { name: "Continue as a guest" }).click(); await acquired(guest);
-  const stalledPrincipal = await guest.evaluate(api => JSON.parse(localStorage.getItem(`snapback4:${api}:session`)).principal, api);
+  const stalledPrincipal = await guest.evaluate(key => JSON.parse(localStorage.getItem(key)).principal, key);
   let logoutRequested = false, releaseLogout;
   const heldLogout = new Promise(resolve => { releaseLogout = resolve; });
   await guest.route(`${api}/auth/logout`, async route => {
@@ -299,12 +301,12 @@ try {
     await guest.getByRole("button", { name: "Sign out", exact: true }).click();
     await until(() => logoutRequested, "stalled logout request started");
     await guest.getByRole("heading", { name: "Signed out", exact: true }).waitFor();
-    assert.equal(await guest.evaluate(api => localStorage.getItem(`snapback4:${api}:session`), api), null);
+    assert.equal(await guest.evaluate(key => localStorage.getItem(key), key), null);
     await guest.close(); await context.setOffline(true);
     guest = await trackedPage(context); await guest.goto(address);
     await guest.getByRole("heading", { name: "Signed out", exact: true }).waitFor();
     assert.ok(!(await guest.locator("body").innerText()).includes(stalledPrincipal), "offline reopen cannot restore the signed-out principal");
-    assert.equal(await guest.evaluate(api => localStorage.getItem(`snapback4:${api}:session`), api), null);
+    assert.equal(await guest.evaluate(key => localStorage.getItem(key), key), null);
     await guest.close(); await context.setOffline(false);
   } finally { releaseLogout(); }
   out.guest = { samePrincipalOfflineReopen: true, credentialsCleared: true, replicaPreserved: true, stalledLogoutOfflineReopenRefused: true };

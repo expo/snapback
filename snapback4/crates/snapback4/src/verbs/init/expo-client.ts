@@ -6,9 +6,9 @@ import { nativeAvailable, nativeDevice } from "snapback4-expo";
 import { webDevice } from "snapback4/web";
 
 const sessionStore = {
-  get: (key: string) => SecureStore.getItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
-  set: (key: string, value: string) => SecureStore.setItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_"), value),
-  delete: (key: string) => SecureStore.deleteItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
+  get: (key: string) => SecureStore.getItemAsync(key),
+  set: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  delete: (key: string) => SecureStore.deleteItemAsync(key),
 };
 export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
 export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native" : "online";

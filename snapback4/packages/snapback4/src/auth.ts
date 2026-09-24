@@ -3,6 +3,7 @@
 // device's to keep (in memory, or wherever the app keeps secrets). A
 // deployed server refuses development personas, so this is the only door.
 
+import { storeKey } from "./app-storage.ts";
 import type { Refusal, Session, SignIn, SessionRevocation } from "./contract.ts";
 
 export type { Session, SignIn, SessionRevocation } from "./contract.ts";
@@ -97,7 +98,7 @@ export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "se
   };
 }
 
-export const sessionKey = (url: string) => `snapback4:${url.replace(/\/$/, "")}:session`;
+export const sessionKey = (url: string) => storeKey("session", url.replace(/\/$/, ""));
 
 /** The session kept for a server, if it has not expired. */
 export async function restoreSession(url: string, store: SessionStore = defaultSessionStore): Promise<Session | null> {

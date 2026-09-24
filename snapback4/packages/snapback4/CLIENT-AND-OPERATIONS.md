@@ -95,8 +95,23 @@ Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments
 before dispatch, retains uncertain writes through restart and sign-out, and
 recovers them only under their original backend/account. Terminal receipts keep
-no historical result; `client.write(id)` collects one. Browser Web Locks serialize
-journal updates across tabs. Custom stores shared across independent non-browser
+no historical result; `client.write(id)` collects one. Session and journal keys
+encode backend and principal segments as fixed-width hexadecimal; adapters pass
+keys through unchanged. Journals also record their backend and owner, and each
+pending intent records its owner. A damaged or foreign record is preserved under
+a `.damaged.` side key, replaced with an empty journal, and reported in
+`auth.why`. No saved intent from that record is replayed. If preservation fails,
+sign-in still succeeds but writes stay blocked until storage is repaired.
+
+This pre-release format does not automatically import earlier session keys or
+ownerless app journals: the earlier SecureStore names were ambiguous. Those old
+bytes remain untouched; sign in again after upgrading. Local device outboxes and
+server data are unchanged.
+
+Browser Web Locks serialize journal updates and session replacement/deletion
+across tabs. A refused bearer clears only the same token still in storage; it
+cannot delete a successor saved by another tab. Explicit logout revokes any
+stored successor it clears. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
 primitive. Storage errors remain errors; they never authorize an unstored send. A failed
 startup keeps the client signed out. Logout retries failed credential deletion
@@ -1322,8 +1337,8 @@ exclusions; keep this entry when customizing Metro.
 The same client runs on React Native over the native module — the
 `snapback4-expo` package, §7.1 — in a development or production build.
 Expo Go loads no custom native code and no wasm under Hermes, so an app
-there runs the online tier, with `createApp` keeping the session and pending writes. Normalize session
-keys for SecureStore, as the Expo starter does:
+there runs the online tier, with `createApp` keeping the session and pending writes. Session and journal keys already use an injective SecureStore-safe encoding;
+pass them through unchanged, as the Expo starter does:
 
 ```ts
 import { Platform } from "react-native";
@@ -1334,9 +1349,9 @@ import { nativeAvailable, nativeDevice } from "snapback4-expo";
 import { webDevice } from "snapback4/web";
 
 const sessionStore = {
-  get: (key: string) => SecureStore.getItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
-  set: (key: string, value: string) => SecureStore.setItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_"), value),
-  delete: (key: string) => SecureStore.deleteItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
+  get: (key: string) => SecureStore.getItemAsync(key),
+  set: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  delete: (key: string) => SecureStore.deleteItemAsync(key),
 };
 export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
 export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native" : "online";
