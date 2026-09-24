@@ -129,7 +129,7 @@ impl Requests {
     }
 }
 
-// @ref LLP 3000.013#2.1-predicate-reads — canonical pins and stable, shared schema indexes.
+// @ref LLP 3000.013#2.1 — canonical pins and stable, shared schema indexes.
 pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let tables = catalog.tables.clone();
     let mut requests = Requests::default();

@@ -140,7 +140,8 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
                 if rewrite.starts_with("iterate the original group:") && let Some(page) = error.page_site.as_ref().and_then(|site| bound.sources.get(site))
                     && let Some(scan) = snapback4_core::ir::scans(&bound.program).into_iter().find(|scan| Some(&scan.site) == error.page_site.as_ref()) {
                     let spelling = format!("{}[..]", scan.table);
-                    rewrite = rewrite.replace(&spelling, &page.1);
+                    let group = whole_group_rewrite(&catalog, &page.1, scan);
+                    rewrite = rewrite.replace(&spelling, &group);
                     if scan.index.starts_with("$intent:") { rewrite = rewrite.replace(&format!(" by {}", scan.index), ""); }
                 }
                 diagnostics.push(Diagnostic::new(site, error.code, message, rewrite).guide("programs"));
@@ -468,4 +469,19 @@ pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Me
     let mut out = Vec::new();
     in_stmts(stmts, &mut out);
     out
+}
+
+// Admission rewrites remove the rejected page bound, retaining its exact pins.
+fn whole_group_rewrite(catalog: &Catalog, source: &str, scan: &snapback4_core::ir::Scan) -> String {
+    let (doc, errors) = crate::parse_document("rewrite.q", &format!("query group():\n  return {source}\n"));
+    if errors.is_empty() && let Some(crate::ast::Stmt::Return { value: crate::ast::Expr::Read(read), .. }) = doc.programs.first().and_then(|program| program.body.first()) {
+        let mut read = read.clone();
+        intent::Requests::default().read(&catalog.tables, &mut read, false);
+        read.range = None;
+        read.seeks.clear();
+        read.filter = None;
+        if scan.index.starts_with("$intent:") { read.index = None; read.order_keys = vec!["id".into()]; }
+        return crate::print::read_expr(&read);
+    }
+    source.into()
 }

@@ -3,7 +3,7 @@
 use super::*;
 
 impl Runner<'_> {
-    // @ref LLP 3000.013#3.1-planned-views-filter-projection-union — one interpreter; source rules precede every projection.
+    // @ref LLP 3000.013#3.1 — one interpreter; source rules precede every projection.
     pub(super) fn merge_view(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
         let descriptor = merge.position.as_ref().ok_or_else(|| RuntimeError::Schema("view needs a position descriptor".into()))?;
         let suffix = descriptor.suffix.clone();
