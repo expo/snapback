@@ -229,7 +229,7 @@ query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
 
 query ancestors(roomId: rooms):
-  chain = walk rooms[roomId] up .parentId depth 8                   -- the row, its parent, and so on: at most `depth` rows
+  chain = walk rooms[roomId] up .parentId depth 8                   -- the seed row plus at most eight parent hops
   return chain { id, name }
 
 query digest(roomId: rooms):
