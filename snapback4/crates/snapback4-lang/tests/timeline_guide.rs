@@ -107,6 +107,9 @@ fn maintained_columns_on_mapped_tables_leave_timeline_state_identical() {
             let out = e.mutate(op, None, ctx).unwrap();
             assert!(matches!(out.state, WriteState::Sent { .. }), "{op}: {out:?}");
         }
+        // Delivery is asynchronous; compare both pending work and converged state.
+        assert_eq!(state(&mut plain), state(&mut counted), "pending state after {op}");
+        for e in [&mut plain, &mut counted] { while e.run_timeline_chunk(50).unwrap().is_some() {} }
         assert_eq!(state(&mut plain), state(&mut counted), "timeline state diverged after {op} by {viewer}");
         if (op, viewer) == ("timelineVote", "b") {
             let card = counted.query("timelineCard", Context::new("b", [("id".into(), id("post"))].into()).at(50)).unwrap().data;
@@ -126,7 +129,7 @@ fn language_timeline_registers_delivers_and_removes_without_helpers() {
     let b=snapback4_lang::compile(&[("schema.q".into(),snapback4_lang::guide::language())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.notes.is_empty(),"{:?}",b.notes);
     let names:Vec<_>=b.programs.iter().map(|p|p.program.name.as_str()).filter(|name|name.starts_with("timeline")).collect();
-    assert_eq!(names,["timelineRegister","timelinePublish","timelineFollow","timelineRemove","timelineHome","timelinePurgeRemoved"]);
+    assert_eq!(names,["timelineRegister","timelinePublish","timelineFollow","timelineRemove","timelineHome"]);
     let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     for (op,viewer,args,ids) in [
         ("timelineRegister","a",vec![],vec!["pa","ma"]),

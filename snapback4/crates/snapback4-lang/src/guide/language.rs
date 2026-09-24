@@ -393,7 +393,6 @@ table timelineCards:
   authorId: principal
   at: time
   removed: bool default false
-  cap 60000
   immutable authorId, at
   public 'cards'
   insert <- .authorId = viewer
@@ -404,7 +403,6 @@ table timelineReposts:
   postId: timelineCards
   at: time
   unique byActorPost: actorId, postId
-  cap 60000
   immutable actorId, postId, at
   public 'timelineReposts'
   insert <- .actorId = viewer
@@ -417,20 +415,15 @@ table timelineFollows:
   unique byPair: followerId, followedId
   by byFollowed: followedId, followerId
   immutable followerId, followedId, at
-  cap 1000 by followerId
-  cap 1000 by followedId
-  cap 5921
   public 'edges'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
   sync public
 
 maintain timeline: timeline
-  authors timelineProfiles by principal
   events timelineCards by authorId, at removed by removed
   reposts timelineReposts by actorId, postId, at
   edges timelineFollows by followerId, followedId
-  size authors 1008, edges 5921
 
 mutation timelineRegister():
   insert timelineProfiles { principal: viewer }
@@ -587,6 +580,6 @@ actions` for durable invocation collection and `guide writes` for mutations.
 
 ## Timelines
 
-For a public Following feed, use `maintain name: timeline`. The optional `size` clause defaults to 1,000 authors and 100,000 edges; `size authors 1008, edges 5921` fits the Clique fixture. `guide feeds` covers the complete program, caps, devices and lifecycle.
+For a public Following feed, use `maintain name: timeline`. The engine delivers in durable background chunks. No authors mapping, size clause or graph cap is required; `guide feeds` covers devices and lifecycle.
 
 "##;

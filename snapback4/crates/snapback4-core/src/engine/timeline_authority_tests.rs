@@ -3,12 +3,12 @@ use crate::{Context, Ceilings, Value, Store, ir::{Expr, Read, KeyProvenance}, me
     schema::{Schema, Table, ColumnType, Index, Rules, RuleExpr, timeline::{Timeline, OWNED_SUFFIXES}}, value::object};
 
 pub(in crate::engine) fn schema() -> Schema {
-    let t = Timeline { name: "feed".into(), authors: ["profiles", "principal"].map(String::from),
+    let t = Timeline { name: "feed".into(), version: 2, filter: None, authors: ["profiles", "principal"].map(String::from),
         posts: ["posts", "authorId", "at", "removed"].map(String::from),
         reposts: ["reposts", "actorId", "postId", "at"].map(String::from),
         edges: ["follows", "followerId", "followedId"].map(String::from), author_cap: 1000, edge_cap: 100000, followed_index: "byFollowed".into(),
         purge: "feedPurgeRemoved".into(), owned: OWNED_SUFFIXES.iter().map(|s| format!("feed{s}")).collect(),
-        mapped: ["profiles", "posts", "reposts", "follows"].map(String::from).into() };
+        mapped: ["posts", "reposts", "follows"].map(String::from).into() };
     let table = Table { recorded: Default::default(), maintained: Default::default(), residency: Default::default(), defaults: Default::default(),
         columns: [("id".into(), ColumnType::Id), ("value".into(), ColumnType::Int)].into(),
         indexes: [("byId".into(), Index::of(&["id"], true))].into(),

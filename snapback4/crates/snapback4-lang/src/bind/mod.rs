@@ -215,7 +215,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
     // holds reaches it, and stays. Say so once per table, with the index a
     // horizon would name, before the table grows.
     for (name, table, sync) in schema.synced() {
-        if sync.horizon.is_some() || schema.maintain_for(name).is_some() || residency::needs_whole_partition(schema, name) {
+        if sync.horizon.is_some() || schema.maintain_for(name).is_some() || residency::needs_whole_partition(schema, name)
+            || schema.timelines.iter().any(|t| t.maps(name) || t.owns(name)) {
             continue;
         }
         let prefix: Vec<String> = match &sync.audience {

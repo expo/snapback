@@ -323,6 +323,7 @@ impl Engine {
             .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))?;
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
+        timeline::check_version(&schema)?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;

@@ -129,7 +129,7 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
 /// The guide card a diagnostic points at; `language` is the language card.
 pub fn guide_for(code: &str) -> &'static str {
     match code {
-        code if code.starts_with("E_TIMELINE_") || code == "N_TIMELINE_PROFILE_CAP" => "feeds",
+        code if code.starts_with("E_TIMELINE_") || code == "N_TIMELINE_PROFILE_CAP" || code == "N_TIMELINE_COMPAT" => "feeds",
         "N_PUBLIC_AGGREGATE_COPY" => "feeds",
         "E_QUARRY_SYNTAX" => "language",
         "E_QUARRY_UNSUPPORTED" => "language",

@@ -6,7 +6,7 @@ use std::{sync::Arc, time::Duration};
 use tiny_http::Request;
 
 #[derive(Default, serde::Serialize)]
-struct Work { expired: u64, schedules: usize, chunks: usize, parked: usize }
+struct Work { delivery_chunks: usize, expired: u64, schedules: usize, chunks: usize, parked: usize }
 
 fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bool, name: &str) -> Result<T, RuntimeError> {
     match result {
@@ -18,6 +18,7 @@ fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bo
 // @ref LLP 3000#7-decisions-during-execution — lifetimes are swept into the partition log; missed schedule boundaries fire once.
 fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     let mut work = Work::default();
+    work.delivery_chunks = delivery(shared, drain)?;
     loop {
         let swept = phase(shared, lock(&shared.engine).sweep_expired(shared.now(), 2_000), drain, "the expiry sweep")?;
         work.expired += swept;
@@ -64,14 +65,38 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     Ok(work)
 }
 
+fn delivery(shared: &Shared, drain: bool) -> Result<usize, RuntimeError> {
+    let mut chunks = 0;
+    while drain || chunks < 500 {
+        if crate::lifecycle::stopping() { break; }
+        if phase(shared, lock(&shared.engine).run_timeline_chunk(shared.now()), drain, "timeline delivery")?.is_none() { break; }
+        chunks += 1;
+        bump_seq(shared);
+        std::thread::yield_now();
+    }
+    Ok(chunks)
+}
+
 pub(super) fn maintain(shared: Arc<Shared>) {
     let mut tick: u64 = 0;
+    let mut last_tick = std::time::Instant::now() - Duration::from_secs(1);
     loop {
-        std::thread::sleep(Duration::from_secs(1));
         if crate::lifecycle::stopping() { return; }
-        tick += 1;
-        let _maintenance = lock(&shared.maintenance);
-        if let Err(error) = work(&shared, false, tick) { eprintln!("snapback4: maintenance failed: {error}"); }
+        let observed = *lock(&shared.seq);
+        {
+            let _maintenance = lock(&shared.maintenance);
+            let result = if last_tick.elapsed() >= Duration::from_secs(1) {
+                tick += 1; last_tick = std::time::Instant::now();
+                work(&shared, false, tick).map(|_| ())
+            } else { delivery(&shared, false).map(|_| ()) };
+            if let Err(error) = result { eprintln!("snapback4: maintenance failed: {error}"); }
+        }
+        // Mutation, action and adoption commits already notify this condition.
+        // Startup/recovery also runs immediately; replay holds only schedules.
+        let seq = lock(&shared.seq);
+        if *seq == observed {
+            drop(shared.committed.wait_timeout(seq, Duration::from_millis(100)).unwrap_or_else(|e| e.into_inner()));
+        }
     }
 }
 
