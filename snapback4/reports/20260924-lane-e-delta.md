@@ -1,5 +1,9 @@
 # Lane E delta review — restoration, auth cleanup, exported routes and journal proof
 
+Follow-up: the [Grok delta](./20260924-lane-e-grok-delta.md) adds shared logout
+epochs, conditional garbage cleanup and a stronger hex-encoding test.
+The results below remain this earlier round's historical record.
+
 Date: 2026-09-24. Review base: `213a20cdd`; branch: `sb4-intent/e-client`.
 Implementation commit: `134867486`. No push or publication.
 
