@@ -795,8 +795,8 @@ use identity
 table profiles:
   principal: principal
   handle: text 3..20 format handle
-  unique byPrincipal: principal
-  unique byHandle: handle
+  unique principal
+  unique handle
   public 'handles are discoverable before signup'
   insert <- .principal = viewer
   online only
@@ -1031,7 +1031,7 @@ step.
   reference app: Expo **57.0.22**, React Native **0.86.3**, React **19.2.3**, expo-sqlite **57.0.3**,
   babel-preset-expo **57.0.11**. Keep Expo and its Babel preset on the same major; a mismatch can leave
   private fields in the bundle that Hermes cannot compile. The generated README gives the install and run
-  commands. For Following, declare `maintain feed: timeline` with `size authors N, edges N` before adding
+  commands. For Following, declare `maintain feed: timeline` before adding
   events or edges; `guide feeds` has the complete program.
 
 - **`snapback4 dev [--port N] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules]

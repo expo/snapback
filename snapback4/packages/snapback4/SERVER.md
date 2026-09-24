@@ -136,9 +136,8 @@ table oidcTransactions:
   verifiedSubject: text <=1024 ?
   email: text <=320 ?
   emailVerified: bool ?
-  unique byBeginInvocation: beginInvocation
-  unique byState: state
-  by byExpiry: expiresAt
+  unique beginInvocation
+  unique state
   expire at .expiresAt
   read <- viewer = 'service:worker'
   insert <- viewer = 'service:worker'
@@ -148,7 +147,7 @@ table oidcTransactions:
 table identityCounters:
   name: text <=64
   value: int
-  unique byName: name
+  unique name
   read <- viewer = 'service:worker'
   insert <- viewer = 'service:worker'
   update <- viewer = 'service:worker'
@@ -165,7 +164,7 @@ table oidcTrustedProfiles:
   proofStartedAt: time
   proofExpiresAt: time
   loginOrder: int
-  unique byPrincipal: principal
+  unique principal
   read <- .principal = viewer or viewer = 'service:worker'
   insert <- viewer = 'service:worker'
   update <- viewer = 'service:worker'
