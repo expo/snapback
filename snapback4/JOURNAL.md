@@ -52005,3 +52005,69 @@ SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1. The complete Rust inventory passed in
 no baseline or environmental failure remains. Final wasm stayed at
 1,753,421 B raw / 487,644 B gzip. Log:
 ~/sb4-intent/lane-p-round1-suite-final.log. Implementation commit: 39864279e.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 5 part f: K, P and cross-lane qualification
+
+Merged K `a8a3b7595` with `--no-ff` as `0faed903f`, then P `39cdac19d`
+as `d087fa873`; the workspace built after each merge. Preserve A's presence
+variants and shared purity checker, K's conditional shape authorization and
+constraint diagnostics, H's single source-aware precedence printer, F's guide
+structure, and every lane's examples and journal entries. The original and
+imported journal entries were checked for verbatim preservation. The detailed
+conflict and file map is in `reports/20260924-intent-integration-r5f.md`.
+
+Added the exact issue-tracker fixture and four certificate/server/device
+regressions. All four board presence variants, including both filters absent,
+are constant; overdue and counts are constant; withLabel grows with skipped
+issues; find grows for search and is constant for empty-query browsing.
+Every operation runs on the original server and on acquired/reopened memory
+and SQLite devices using a companion with explicit membership sync audiences.
+The supplied fixture itself has no sync declarations. Rules and caps were not
+changed. The requested card constant verdict is stopped: label.org is
+independent of issue.org, so 9,000 hidden labels before one visible label
+exhaust the original card's meter. A separate explicitly org-scoped control
+is constant and examines fewer than ten rows. The original certificate keeps
+its per-row authorization growth warning; the report contains the reproduction.
+
+Clique adopts mixed admin probes and spread profiles; its old wildcard shape
+and explicit empty-search branch still return identical results. The full
+simulator target retains Following and the 5,000-input digest sweep. Added a
+compiled/typechecked complete usePage list against the current client and
+README scale-certificate guidance; README remains 300/300 lines. No J client
+semantics were changed. All 80 guide tests pass with clean compiled blocks.
+All 97 changed source files remain under 1,500 lines.
+
+The integrated latency witness passed all four tests: post p95 was 2.255 ms
+for five followers and 2.166 ms for 900, ratio 0.961 (below 3x and 1.5x).
+All twenty posts reached 900 followers in 10,130.065 ms. Under eight sustained
+request streams, 901 copies completed in 1,526.991 ms. Isolated delivery cost
+166.002 microseconds/copy. Production synchronous=FULL remains unchanged.
+
+WASM on Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt is 1,760,451 B raw
+and 490,643 B gzip, reproduced by the full suite. Versus part e's recorded
+1,751,888 / 488,046 artifact, this is +8,563 raw / +2,597 gzip for the whole
+integrated device containing P's physical-cap occupancy, deferred expiring-cap
+prediction and private alternate-delete resolution with authorization before
+expiry charges. Compiler/CLI changes are outside the device. This compares
+recorded whole artifacts, not independent component measurements or a freshly
+rebuilt control. The inherited 489,000 B ceiling was exceeded by 1,643 B;
+record 491,000 B, leaving 357 B. Runtime meter ceilings are unchanged.
+
+The first full run ended `== 1 failure(s) in 347 s` (cargo test): six assertions
+across five targets. All were integration work: two redundant-parenthesis
+expectations, the omitted followerCount declaration in the abridged target
+used by two tests, 44 source-caption leaves in the WASM fixture, and H's stale
+expectation that A would infer buckets under nonuniform authorization. Retests
+preserve IR, acquired snapshots, provenance and authorization; the window test
+also retains the explicit-merge edge-bucket assertion. Earlier new-fixture seed
+and guide-order/inventory/link failures and a transient test type error were
+fixed and are classified in the report. No old-baseline exemption was used.
+No intermittent client failure occurred. The final normal-parallel full run
+exited 0: `== 0 failure(s) in 350 s`. Reference audit: 505 documents, 9,253
+references, zero errors and zero unchecked.
+
+Follow-up commits `e15d67613` and `29de33694` contain the reviewed expectation
+repairs and cross-lane witnesses/docs. J, K round 8+ and P round 2 remain for
+their requested incremental merges. No native simulator or PostgreSQL runtime
+qualification, version bump, push or publication was performed.
