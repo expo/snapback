@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-24T11:58:03.526625+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.0",
+      "integrity": "sha512-mOso3FXTTsKgKeatmOe3mBX8wm9nEoCmEXf4fFMicxveUFo4IiM9IZ7xevcQ6uziThgvr8b+5w95ZRb9jbl+8A=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.0",
+      "integrity": "sha512-uhPlRv2+piSZw0x1eKMC2o/dlskwE+OnxW4FakNmT3ao7cmzA6IDeStv11kdZsj1t9DfoisCch68NVbMDqKQ6A=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.0",
+      "integrity": "sha512-PtZPvTcF7FtLy+RMMyWgsekPuW9igYqwzAS8QC0SFnCi1k5Rwm2i/Sx6A9JrdrsoF/JL0IeOQRU6+SU4yxKZTA=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "One comparable Astra medium continuous M1\u2013M6/M8 lane, independent Opus 5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; Hermes export required; installed native proof optional.",
+  "runPurpose": "First 0.4-pinned run: LLP 3000.013 (Quarry states intent). Frozen instrument, prompts, templates and scripts copied byte-for-byte from cal18.",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-09-24T11:58:03.527127+00:00"
+  },
+  "load": "4:58  up 21 days, 17:22, 73 users, load averages: 7.91 9.30 21.68",
+  "node": "v24.18.0",
+  "host": "Charlies-MacBook-Pro-M5Max-Black.local"
+}

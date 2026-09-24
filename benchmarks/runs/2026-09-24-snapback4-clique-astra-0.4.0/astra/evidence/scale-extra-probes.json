@@ -1,0 +1,70 @@
+{
+  "start": 1790256919.489,
+  "url": "http://127.0.0.1:49364",
+  "pass": true,
+  "timings": {
+    "ordinary-following": {
+      "p50": 2.1967500000000655,
+      "p95": 2.441708999999946,
+      "max": 3.903041999999914,
+      "samples": 20
+    },
+    "celebrity-follower-following": {
+      "p50": 2.1779589999998734,
+      "p95": 2.2996669999999995,
+      "max": 3.7105410000001484,
+      "samples": 20
+    },
+    "ordinary-post-create": {
+      "p50": 2.1466250000000855,
+      "p95": 2.4662499999999454,
+      "max": 2.466374999999971,
+      "samples": 20
+    },
+    "celebrity-post-create": {
+      "p50": 2.2112919999999576,
+      "p95": 6.43120799999997,
+      "max": 21.493791999999985,
+      "samples": 20
+    },
+    "busy-group-send": {
+      "p50": 4.451708999999937,
+      "p95": 11.582540999999992,
+      "max": 12.296583000000055,
+      "samples": 20
+    },
+    "busy-group-history-render-data": {
+      "p50": 19.07512500000007,
+      "p95": 20.07791700000007,
+      "max": 20.42687499999988,
+      "samples": 20
+    }
+  },
+  "note": "Mutating probes use a separate copy after exact final invariant verification; primary scale store remains unchanged.",
+  "ordinaryWriteAuthor": "u0001",
+  "ordinaryWriteAuthorFollowers": 5,
+  "celebrityFollowers": 900,
+  "memoryBefore": {
+    "rss": 184434688,
+    "heapTotal": 67387392,
+    "heapUsed": 34742448,
+    "external": 11817845,
+    "arrayBuffers": 745312
+  },
+  "devicePid": 22962,
+  "deviceRssKb": 50176,
+  "coldSyncMs": 12582.319791,
+  "memoryAfter": {
+    "rss": 275726336,
+    "heapTotal": 165511168,
+    "heapUsed": 28595872,
+    "external": 11408370,
+    "arrayBuffers": 274384
+  },
+  "coldConversationCount": 100,
+  "ratios": {
+    "celebrityWrite": 2.6076869741510844,
+    "celebrityRead": 0.9418268106478086
+  },
+  "end": 1790256934.034
+}
