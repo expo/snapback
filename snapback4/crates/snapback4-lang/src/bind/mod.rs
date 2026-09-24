@@ -15,6 +15,13 @@ mod key_bound;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
+mod intent;
+mod intent_walk;
+mod intent_views;
+mod view_predicate;
+mod intent_lanes;
+mod intent_windows;
+mod intent_sync;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -24,6 +31,7 @@ pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {
+    pub view_types: std::collections::BTreeMap<String, crate::types::Ty>,
     /// Authoring-only opt-in; never stored in the core schema, IR or wire.
     pub server: bool,
     pub schema: Schema,
@@ -41,7 +49,10 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     server::admit(&mut documents, &mut diagnostics);
     let documents = timeline::expand(documents, &mut diagnostics);
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
-    let catalog = Catalog::build(documents, &mut diagnostics);
+    let mut catalog = Catalog::build(documents, &mut diagnostics);
+    intent_views::expand(&mut catalog, &mut diagnostics);
+    intent::plan(&mut catalog, &mut diagnostics);
+    intent::pending(&catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
     // Timeline ownership is resolved after the ordinary schema checks.
@@ -49,6 +60,16 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         diagnostics.push(columns::refusal(&catalog.site_for(&issue.path), issue.message));
     }
     key_bound::check(&catalog, &schema, &mut diagnostics);
+    let mut view_types = std::collections::BTreeMap::new();
+    for doc in &catalog.documents {
+        for decl in doc.programs.iter().filter(|decl| decl.name.starts_with("$view:")) {
+            if let Some(bound) = program::Binder::bind(&catalog, &schema, "schema", decl, &mut diagnostics) {
+                view_types.extend(bound.view_types);
+            }
+        }
+    }
+    catalog.view_types = view_types.clone();
+    for doc in &mut catalog.documents { doc.programs.retain(|decl| !decl.name.starts_with("$view:")); }
     let mut programs = Vec::new();
     let mut names = std::collections::BTreeMap::new();
     let mut api_roots = std::collections::BTreeMap::new();
@@ -120,6 +141,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
                     && let Some(scan) = snapback4_core::ir::scans(&bound.program).into_iter().find(|scan| Some(&scan.site) == error.page_site.as_ref()) {
                     let spelling = format!("{}[..]", scan.table);
                     rewrite = rewrite.replace(&spelling, &page.1);
+                    if scan.index.starts_with("$intent:") { rewrite = rewrite.replace(&format!(" by {}", scan.index), ""); }
                 }
                 diagnostics.push(Diagnostic::new(site, error.code, message, rewrite).guide("programs"));
                 false
@@ -136,14 +158,14 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     }
     schema.operations.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name));
     schema.action_specs.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name && bound.program.kind == snapback4_core::ir::ProgramKind::Action));
-    let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).collect();
+    let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).chain(catalog.planner_notes.clone()).collect();
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
     notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
-    Bound { server, schema, programs, personas, diagnostics, notes }
+    Bound { view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 fn operation_name(module: &str, name: &str) -> String {
@@ -241,7 +263,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     || table.columns.get(column.as_str()) == Some(&snapback4_core::schema::ColumnType::Time)
             })
         };
-        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len() && orders_by_mint_time(index)).map(|(index_name, _)| index_name.clone());
+        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.is_plain() && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len() && orders_by_mint_time(index)).map(|(index_name, _)| index_name.clone());
         // A `cap` over columns that are not the sync group bounds rows per group, not
         // what a device acquires. An author who wrote one has already tried to bound
         // this table and will read an unqualified note as not having noticed.
@@ -251,6 +273,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         });
         let site = catalog.site_for(&format!("tables.{name}"));
         let rewrite = match ordered {
+            Some(ref index) if index.starts_with("$intent:") => format!("{} last 500 by .{}", sync.line(), table.indexes[index].columns()[prefix.len()]),
             Some(ref index) => format!("{} last 500 by {index}", sync.line()),
             None => format!("by by{}At: {}at, id  -- then: {} last 500 by by{}At", if prefix.is_empty() { "".to_owned() } else { "Group".to_owned() }, prefix.iter().map(|c| format!("{c}, ")).collect::<String>(), sync.line(), if prefix.is_empty() { "" } else { "Group" }),
         };
@@ -287,7 +310,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 } else {
                     "read the whole group: `t[..]`, when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
                 };
-                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>; {cap}", bound.program.name, table)).guide("reads"));
+                let ordered = if page.index.starts_with("$intent:") { format!("{table} last {take} by .{} after c", schema.tables[table].indexes[&page.index].columns().get(page.prefix.len()).cloned().unwrap_or_else(|| "id".into())) }
+                    else { format!("{table}[..] after c last {take} by <index>") };
+                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {ordered}; {cap}", bound.program.name)).guide("reads"));
             }
         }
         // Wide merges still pay for lane discovery and authorization, even

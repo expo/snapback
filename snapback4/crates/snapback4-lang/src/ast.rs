@@ -104,6 +104,10 @@ pub struct SeekBound {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReadExpr {
+    /// Computed lane keys introduced by the planner, never written as fields.
+    pub computed: std::collections::BTreeMap<String, Expr>,
+    /// Column order in the intent spelling; an index name remains `index`.
+    pub order_keys: Vec<String>,
     pub table: String,
     pub keys: Vec<KeyPart>,
     pub seeks: Vec<SeekBound>,
@@ -118,6 +122,10 @@ pub struct ReadExpr {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeLane {
+    pub distinct: Option<Expr>,
+    pub branch: Option<String>,
+    pub planned: Option<Box<ReadExpr>>,
+    pub project: Option<Vec<ShapeField>>,
     pub table: Option<String>,
     pub prefix: Vec<Expr>,
     pub columns: Option<Vec<Option<String>>>,
@@ -127,6 +135,7 @@ pub struct MergeLane {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeExpr {
+    pub view_order: Vec<String>,
     pub table: String,
     pub matching: Option<Box<Expr>>,
     pub filter: Option<Box<Expr>>,
@@ -309,6 +318,7 @@ pub struct CapDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TableDecl {
+    pub search: Vec<String>,
     pub name: String,
     pub columns: Vec<ColumnDecl>,
     pub indexes: Vec<IndexDecl>,
@@ -430,6 +440,8 @@ pub struct Document {
     pub tables: Vec<TableDecl>,
     pub maintains: Vec<MaintainDecl>,
     pub timelines: Vec<TimelineDecl>,
+    pub views: Vec<ViewDecl>,
+    pub feed_views: Vec<FeedView>,
     pub effects: Vec<EffectDecl>,
     pub shapes: Vec<ShapeDecl>,
     pub functions: Vec<FunctionDecl>,
@@ -449,5 +461,27 @@ pub struct TimelineDecl {
     pub reposts: [String; 4],
     pub edges: [String; 3],
     pub size: crate::recipe::FollowingCaps,
+    pub site: Site,
+}
+
+/// Planned union branches retain their source sites for type/order diagnostics.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewDecl {
+    pub name: String,
+    pub branches: Vec<ViewBranch>,
+    pub site: Site,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewBranch {
+    pub source: String,
+    pub predicate: Option<Expr>,
+    pub fields: Vec<ShapeField>,
+    pub site: Site,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FeedView {
+    pub name: String,
+    pub source: String,
+    pub predicate: Expr,
     pub site: Site,
 }

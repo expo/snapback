@@ -7,7 +7,7 @@ pub(super) enum Position { Page, Domain, Exists }
 
 impl Binder<'_> {
     pub(super) fn is_page(&self, read: &ReadExpr, point: ReadMode) -> Fallible<bool> {
-        if read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() { return Ok(true); }
+        if !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() { return Ok(true); }
         // Speculation cannot emit setup or consume compiler names. The selected
         // form binds its key expressions exactly once in the caller's body.
         let mut probe = self.clone();
@@ -25,6 +25,7 @@ impl Binder<'_> {
                 match probe.select_index(info, read, ReadMode::Range, &mut setup::Body::default()) {
                     Ok(_) => Ok(true),
                     Err(error) if error.code == "E_QUARRY_AMBIGUOUS" => Err(error),
+                    Err(error) if error.code == "E_QUARRY_POSITIONAL_SCAN" => Err(error),
                     Err(_) => Err(point_error),
                 }
             },
@@ -56,7 +57,7 @@ impl Binder<'_> {
                 placement(&read.site, format!("{message}; meter-bounded prefix loops and lane sources belong in queries"), rewrite).guide("bounds")
             } else { Diagnostic::new(&read.site, "E_QUARRY_BOUND", message, rewrite).guide("bounds") });
         };
-        if !read.seeks.is_empty() {
+        if !read.seeks.is_empty() && read.order_keys.is_empty() {
             return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", "a seek needs an explicit page bound", format!("{} first 50 by {}", print::read_expr(read), index.name)).guide("bounds"));
         }
         Ok((ast::RangeSpec { order: ast::Order::Asc, take: bound.maximum() as u32, cursor: None, site: read.site.clone() }, bound))

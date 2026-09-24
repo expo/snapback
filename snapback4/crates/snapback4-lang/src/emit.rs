@@ -27,6 +27,8 @@ pub fn typescript(bound: &Bound) -> String {
         out.push_str("    /** True on this device's own unconfirmed change (the card). */\n    pending?: boolean;\n");
         out.push_str("  };\n");
     }
+    let views = &bound.view_types;
+    for (name, ty) in views { out.push_str(&format!("  {}: {};\n", property(name), ty_ts(ty))); }
     out.push_str("};\n\n");
     if bound.schema.visible_tables().any(|(_,table)| !table.maintained.is_empty()) {
         out.push_str("export type WriteRows = {\n");

@@ -9,7 +9,9 @@ impl<'a> Binder<'a> {
             let key = if named { read.keys.iter().find(|key| key.column.as_ref() == Some(column)) } else { read.keys.get(position) }?;
             Some(format!("{column} = {}", print::expression(&key.value)))
         }).collect::<Vec<_>>().join(", ");
-        self.selections.insert(site.into(), format!("selected {} ({bindings}); result: {result}; {reason}", index.name));
+        let origin = if self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone())) { "synthesized; " } else { "" };
+        let source = if origin.is_empty() { String::new() } else { format!("; read: {}", self.catalog.read_origins.get(&read.site.to_string()).cloned().unwrap_or_else(|| print::read_expr(read))) };
+        self.selections.insert(site.into(), format!("selected {} ({bindings}); result: {result}; {origin}{reason}{source}", index.name));
     }
 
     // @ref LLP 3000.007#10 — a covered total unique key reads one row; additional named equalities check that row.
@@ -122,7 +124,7 @@ impl Binder<'_> {
             } else { "sparse matches can exhaust the row meter and return short `complete: false` pages" };
             self.notes.push(Diagnostic::new(predicate.site(), "N_SPARSE_FILTER",
                 format!("{} by {}: this unscoped `where` pins no index prefix; {consequence}", read.table, index.name),
-                "pin a leading index key, or declare `maintain feed: timeline` (see `snapback4 guide feeds`) for Following (followed authors, own posts and reposts)").guide("feeds"));
+                "pin a column with `where .col = value`, choose `by .col`, or read a `view` (see `snapback4 guide feeds`)").guide("feeds"));
         }
         let prior = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
         let kind = std::mem::replace(&mut self.kind, ProgramKind::Query);

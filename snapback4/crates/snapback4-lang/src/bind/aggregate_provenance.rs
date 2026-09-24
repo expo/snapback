@@ -404,7 +404,7 @@ impl Scan<'_> {
 
     fn read(&mut self, read: &ast::ReadExpr, env: &mut Env, focal: &Value) -> Value {
         // A key selects WHICH group is counted — its size is a fact about the data, so
-        // `count(likes[postId])` is derived (the maintain-copy footgun) and a key's bits
+        // `count(likes[postId = postId])` is derived (the maintain-copy footgun) and a key's bits
         // stay control. Seek bounds, `matching` text, the cursor and the filter decide
         // HOW MANY rows the page holds: their bits enter its cardinality (L28) —
         // `count(posts[] matching q …)` with an argument `q` stores a caller-controlled

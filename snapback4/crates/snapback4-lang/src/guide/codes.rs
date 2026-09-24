@@ -1,4 +1,6 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_QUARRY_POSITIONAL_SCAN", "positional reads select id or a full unique key; write a predicate read such as posts where .authorId = owner last 20 by .at for a population. guide reads."),
+    ("E_VIEW_FEED_PENDING", "the feed view is parsed but awaits the feed binder; read its source planned view directly. guide feeds."),
     ("E_MAINTAINED_COLUMN", "a maintained column belongs to the engine; omit submitted values and write the source rows. Parent and source must be ordinary tables outside timelines. Authority, identity, lifetime, delivery and other aggregates cannot depend on it. Use an ordinary column or a separate maintain; guide maintains."),
     ("E_POSTGRES_MAINTAINED_COLUMN", "the Postgres evaluation backend does not support maintained columns or their private maintains. Use the SQLite engine for maintained columns; guide maintains."),
     ("E_MAINTAINED_COLUMN_PRIVATE", "no program, native call, rule, constraint, seed, fixture, import, or raw IR or schema can name the parent column's private storage, not even as the system. Read the parent row or write its source rows; guide maintains."),
