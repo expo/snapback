@@ -49442,3 +49442,50 @@ baseline or environmental test failure remains. Wasm is unchanged at
 cluster was stopped after its two passing adapter tests. Implementation:
 e589c0866. Full report: reports/20260924-intent-lane-p-round2.md. Full log:
 ~/sb4-intent/lane-p-round2-suite.log. No push or publication.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 3: reserve authority before target resolution
+
+The round 1 DeleteTarget retained alternate-key delete's read gate but omitted
+the old Get's read-probe reservation. With read <- exists grants[.id, viewer]
+and no probe allowance, an absent row returned NOT_FOUND while a hidden live
+row could reach E_BOUND. Added one shared, schema-derived authorization-room
+check before target resolution. Delete by id and alternate key reserve read
+plus delete; insert and insert-if-absent reserve read plus insert before any
+primary/secondary collision or expiry walk. Update/upsert, including raw
+compatibility IR, use the same helper with their unchanged worst-case probe
+amounts. Room checks do not charge twice. Existing authority gates remain:
+alternate-key delete needs read and delete; raw by-id delete keeps its previous
+delete-only gate. No source population is inspected to choose this reservation.
+
+Audited primary fetches, unique target lookups, if-absent, secondary constraints,
+upsert insert arms and expiry resolution. The existing column/maintain
+reservations use schema-only facts. Expiring targets are excluded from
+speculative prefetch; non-expiring prefetch is optional cache work that returns
+no refusal and changes no logical meter. Engine-owned cleanup and final-exists
+postconditions retain their distinct authority contracts. No new syntax,
+refusal code, lifecycle policy or runtime ceiling was added.
+
+Added paired complete-outcome/storage checks across 13 target paths, including
+raw Update, Upsert and by-id DeleteTarget IR. There are 78 executions at
+rule_probes 0 and 78 after a real 8,192-probe prelude under default ceilings,
+covering non-expiring tables, live rows with null expiry, expired ids and 9,000
+expired siblings. Another 26 executions prove the worst-case allowance includes
+a conjunction's second read probe even when the first would deny. A live
+unreadable alternate-key delete with delete allowed refuses without changing
+storage; granting read allows it. Removing the read gate made that new test
+fail with a successful deletion; the production gate was restored.
+
+Measured: all 26 expiry tests pass in 11.31 s; 9,000 sends still examine exactly
+one row each with either zero or 3,000 unrelated expired rows. All 35 existing
+write-authority tests and 25 disclosure reviews pass. The reference audit found
+505 LLP documents and 9,237 refs, zero errors or unchecked refs. Wasm measures
+1,753,894 B raw / 487,627 B gzip, versus round 2's 1,753,421 / 487,644 (+473 raw,
+-17 gzip); the 488,000 B ratchet stays unchanged. This is a whole-artifact delta.
+
+The first new-test run had my fixture error: positional id addresses were
+ambiguous beside a one-column unique key. Named id = 'target' addresses fixed
+all three compilation failures. The corrected pre-fix run then demonstrated
+the intended two reservation failures; the deliberate read-gate removal
+produced its expected failure too. No baseline failure is being repaired.
+The required full harness is running; its result will be appended after it
+finishes. No push or publication.

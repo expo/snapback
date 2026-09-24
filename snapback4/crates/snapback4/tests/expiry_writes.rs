@@ -115,6 +115,8 @@ mod stores;
 mod devices;
 #[path = "expiry_writes/review.rs"]
 mod review;
+#[path = "expiry_writes/authorization.rs"]
+mod authorization;
 
 #[test]
 fn cli_certifies_keyed_expiry_writes_with_the_actual_sweep_policy() {

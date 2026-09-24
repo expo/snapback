@@ -145,6 +145,10 @@ immutable columns in a patch are ignored. A readable immutable mismatch still
 names the column. Before target lookup, the engine reserves room for the rule
 probes and the largest merged image allowed by the schema and supplied patch;
 if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
+Delete targets and insert/if-absent collision lookups also reserve authorization
+before resolving a row, including expired rows. The allowance covers the read
+rule's worst case, including probes that could short-circuit; execution still
+charges the rule work once.
 
 
 The table names are the language card's. A final write is the implicit

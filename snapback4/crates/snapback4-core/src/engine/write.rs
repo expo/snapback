@@ -34,6 +34,10 @@ impl Runner<'_> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
+        let table = self.schema.table(table_name).expect("defaults validated the table").clone();
+        // A collision can need read authority even when insertion is allowed.
+        // Reserve before primary/secondary lookups, including expired siblings.
+        self.reserve_write_rules(&table, &[Effect::Read, Effect::Insert])?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
@@ -41,7 +45,6 @@ impl Runner<'_> {
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
         validate_row(self.schema, table_name, &row)?;
-        let table = self.schema.table(table_name).expect("validated").clone();
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
@@ -185,6 +188,7 @@ impl Runner<'_> {
     fn delete_attempt(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Delete)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
+        self.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, &table)?;
         let Some(old) = self.fetch(table_name, id)? else {
