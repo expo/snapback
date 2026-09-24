@@ -108,18 +108,44 @@ fn enum_complement(predicate: &Expr, table: &TableInfo) -> Option<(String, Expr)
 // does not change the source rule or the merge runtime's disclosure contract.
 pub(super) fn prefixes_decide_rules(tables: &BTreeMap<String, TableInfo>, merge: &MergeExpr) -> bool {
     merge.lanes.iter().all(|lane| lane.planned.iter().map(Box::as_ref)
-        .chain(lane.nulls.iter().map(|(_, read)| read.as_ref())).all(|read| {
-            let Some(table) = tables.get(&read.table) else { return false; };
-            // Derived readability is resolved later, so it has no proof here.
-            if table.maintained.is_some() { return false; }
-            let pinned = read.keys.iter().filter_map(|key| key.column.as_ref()).collect::<std::collections::BTreeSet<_>>();
-            table.decl.rules.iter().filter(|rule| rule.effect == Effect::Read).all(|rule| {
-                let mut predicate = rule.value.clone();
-                let mut decided = true;
-                super::intent_walk::expression(&mut predicate, &mut |value| {
-                    if let Some(column) = intent::column(value) && !pinned.iter().any(|name| name.as_str() == column) { decided = false; }
-                });
-                decided
-            })
-        }))
+        .chain(lane.nulls.iter().map(|(_, read)| read.as_ref()))
+        .chain(lane.loop_.iter().filter_map(|(_, source)| if let Expr::Read(read) = source { Some(read) } else { None }))
+        .all(|read| prefix_decides_rule(tables, read)))
+}
+
+fn prefix_decides_rule(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> bool {
+    let Some(table) = tables.get(&read.table) else { return false; };
+    if table.maintained.is_some() { return false; }
+    let pinned = read.keys.iter().filter_map(|key| key.column.as_ref().map(|name| (name.as_str(), &key.value))).collect::<BTreeMap<_, _>>();
+    table.decl.rules.iter().filter(|rule| rule.effect == Effect::Read).all(|rule| {
+        let mut predicate = rule.value.clone();
+        // An exact probe of this very row is true, even when some of its
+        // fields vary. This is the existing membership self-witness proof.
+        super::intent_walk::expression(&mut predicate, &mut |value| {
+            if let Expr::Exists { read: probe, site } = value && self_witness(table, probe, &pinned) {
+                *value = Expr::Literal { value: Literal::Bool(true), site: site.clone() };
+            }
+        });
+        let mut decided = true;
+        super::intent_walk::expression(&mut predicate, &mut |value| {
+            if let Some(column) = intent::column(value) && !pinned.contains_key(column) { decided = false; }
+        });
+        decided
+    })
+}
+
+fn self_witness(table: &TableInfo, probe: &ReadExpr, pins: &BTreeMap<&str, &Expr>) -> bool {
+    if probe.table != table.decl.name || probe.filter.is_some() || probe.matching.is_some() || !probe.seeks.is_empty() { return false; }
+    let columns = if probe.keys.iter().all(|key| key.column.is_some()) {
+        let columns: Vec<_> = probe.keys.iter().filter_map(|key| key.column.clone()).collect();
+        if !table.indexes.iter().any(|index| table.total_unique(index) && index.columns.iter().all(|name| columns.contains(name))) { return false; }
+        columns
+    } else {
+        let indexes: Vec<_> = table.indexes.iter().filter(|index| table.total_unique(index) && index.columns.len() == probe.keys.len()
+            && probe.index.as_ref().is_none_or(|name| name == &index.name)).collect();
+        let [index] = indexes.as_slice() else { return false; };
+        index.columns.clone()
+    };
+    probe.keys.iter().zip(columns).all(|(key, column)| intent::column(&key.value) == Some(column.as_str())
+        || pins.get(column.as_str()).is_some_and(|value| crate::print::expression(value) == crate::print::expression(&key.value)))
 }
