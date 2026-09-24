@@ -49489,3 +49489,18 @@ the intended two reservation failures; the deliberate read-gate removal
 produced its expected failure too. No baseline failure is being repaired.
 The required full harness is running; its result will be appended after it
 finishes. No push or publication.
+
+The first full Rust inventory exposed three old-budget expectations: the
+50-member presence prediction pinned minimum rule_probes at 2 (now 3), and
+reading_probe_meter_memory/sqlite constructed their provisional rows with a
+zero-probe allowance. Updated these because the new required reservation
+applies to potential insert collisions too; actual execution charges and query
+budgets remain unchanged. The read fixtures now assert zero-budget prediction
+refuses, then construct with one available probe before their unchanged
+zero/one-probe query checks. All ten timing tests pass. Both fifty-member tests
+pass, including the previously ignored rule-probe boundary: server and device
+accept at 3 and refuse at 2 for held/graced presence. Enabled that scoped test
+and recorded its resolution in the existing issue; the separate six-byte heap
+issue remains open. These three full-suite failures were introduced expectation
+drift, not baseline or environmental defects. Runtime code did not change in
+this follow-up; no meter ceiling was raised.
