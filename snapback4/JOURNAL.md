@@ -48341,3 +48341,58 @@ are in [the delta report](./reports/20260924-lane-e-delta.md).
 Did not change the Client contract, engine authorization/disclosure, meters,
 ceilings or Quarry forms. Did not run a native Expo simulator or integrated
 Clique qualification, fix unrelated baseline/timing failures, push or publish.
+
+## 2026-09-24 — LLP 3000.013 integration: intent lanes and Clique qualification
+
+Integrated B, D, G, E, A and C with separate no-ff merges in the commissioned
+order and a successful workspace build after each. Then merged the available
+D `2f9afbb13`, G `542df62f4` and E `4e21d8688` review fixes, again building
+between merges. Preserved each lane's journal and all features, diagnostics
+and regression tests. The actual existing worktree is `~/sb4-intent/lane-i`,
+branch `sb4-intent/integration`; the named integration directory was absent.
+
+Combined predicate planning inside permanent emission keys with structural
+scale analysis of projected/cross-table/bucketed merges, streamed aggregates
+and adaptive job sweeps. Six certificate tests cover conservative work bounds;
+two tests execute the supplied Clique target with all nine derived views,
+authorized search/history and predicate streaming, restartable digest chunks
+and durable once keys. Only Following/home remain excluded as commissioned:
+the full target reports E_VIEW_FEED_PENDING and the dependent E_QUARRY_UNKNOWN.
+Trending uses the requested `.at <= now` upper bound.
+
+Measured the 67-profile/5,000-period-row Clique digest at two chunks, K=64,
+zero retries and 311,014 B peak heap, down from 6,612,305 B before D's key-scratch
+fix. The count returns 4,949 authorized rows and reports 650 B retained heap
+after transient release, not a peak. Reopen resumes the sweep; rerunning emits
+no duplicate effects. The 16,777,216 B runtime heap ceiling is unchanged.
+The original recipient-heavy streaming fixture peaks at 370,216 B; all 24
+focused digest/work/review/integration tests passed.
+
+Final WASM on Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt:
+1,743,957 B raw / 484,640 B gzip. Against the same-host unmodified baseline
+1,707,362 / 472,890 this is +36,595 raw / +11,750 gzip. The combined projected
+merge, streaming/prepaid domain and metered timeline paths exceed the inherited
+481,000 B ratchet by 3,640 B. Raise it to 485,000 B, leaving 360 B. These are
+whole-artifact deltas, not independent per-feature attribution; no runtime
+meter ceiling changed. The measurement, reason and budget land together.
+
+Audited the four pre-existing main failures: schema/word fixtures changed only
+intentional diagnostic metadata before C's intentional v2 capability change;
+w9b gained intended lookup-selection detail; the remaining integrated census
+changed only inspected feeds-card occurrences. Refreshed that census without
+changing authorization assertions. First full run: `== 1 failure(s) in 730 s`,
+only that integration expectation mismatch, then corrected. Final full run:
+**`== 0 failure(s) in 307 s`**. All stages pass, including all four named baseline
+tests, 81 readauth, 68 CLI check, 23 scale tests and 1,075 client tests (10 skips).
+E's timing-sensitive W5c acquisition case also passes alone, 1/1; it did not
+reproduce here. The historical scheduling counterexample remains documented.
+Reference audit: 504 LLP documents, 9,226 refs, zero errors or unchecked refs.
+Every changed source file stays within 1,500 lines.
+
+Did not bind Following's new view form (C's next increment), redesign the
+language, relax authorization/disclosure/durability/meters, run a new browser
+or native-device witness, deliver through a real provider, make a calibration
+score claim, push or publish. File-by-file changes, merge resolutions, target
+forms, baseline reasoning and reproduction commands are in
+[the integration report](./reports/20260924-intent-integration.md). Full logs:
+`~/sb4-intent/integration-suite-{1,final}.log`.

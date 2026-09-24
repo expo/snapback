@@ -19,6 +19,16 @@ merge before starting the next. Build logs are
 | E `213a20cdd` | `5d6728366` | Journal only: retain every entry. Guide-test edits compose automatically. App auth, durable custody and the offline shell. |
 | A `7dc85b6b7` | `0a6d5820a` | Details below. Predicate planner, synthesized indexes and projected views. |
 | C `47ebcf127` | `514f3bda5` | Details below. Durable Following delivery without author caps. |
+| D review `2f9afbb13` | `0eab30bea` | Journal and `engine/read.rs`: retain C's prepaid timeline payload scans while adding D's transient key-scratch release, retained cursor reservation, single-candidate adaptive pages and prepaid retained domains. |
+| G review `542df62f4` | `b120cccf0` | Journal only; preserve all entries. The new refused-write witness combines automatically with the named-key fixtures. |
+| E review `4e21d8688` | `b01b6cacf` | Journal only; preserve all entries. Conditional auth restoration and cached exported-page routing combine without source conflicts. |
+
+The three available review-fix heads were incorporated incrementally after the
+first complete run. Each was followed by a successful workspace build before
+the next merge; logs end in `integration-build-{d,g,e}-review.log`. Their external
+reports were `lane-d.r4.final.md`, `lane-g.r3.final.md` and `lane-e.r3.final.md`.
+Committed follow-up reports are [work round 2](20260924-intent-work-r2.md) and
+[client delta](20260924-lane-e-delta.md); G records its witness in the journal.
 
 A conflicts, file by file:
 
@@ -79,10 +89,11 @@ Paths are relative to `snapback4/`.
 | `crates/snapback4/src/scale/display.rs` | Bound common clock-relative bucket ranges through the floor/ceiling relation; unknown ranges retain the meter allowance. |
 | `crates/snapback4/tests/scale.rs` | Remove generated purge jobs that C intentionally replaces with durable internal work. |
 | `crates/snapback4/tests/scale/witnesses.rs` | Name the intended grant columns in G's formerly ambiguous one-key fixtures; the authority and meter assertions remain. |
+| `crates/snapback4-device/tests/readauth/census.txt` | Refresh only the inspected feeds-card occurrence changes; retain read-rule and prediction evidence. |
 | `crates/snapback4/tests/scale_intent.rs` | Six cross-lane certificate tests, described below. |
 | `crates/snapback4-sim/tests/fixtures/intent-clique.q` | Exact supplied target except deferred Following/home and the requested Trending upper bound. |
 | `crates/snapback4-sim/tests/intent_integration.rs` | Two executable target scenarios, including streamed predicates, authorized search, restart and once-key persistence. |
-| `metrics/wasm-budget.json` | Combined measurement and justified 484,000-byte gzip ratchet. |
+| `metrics/wasm-budget.json` | Combined measurement and justified 485,000-byte gzip ratchet. |
 | `JOURNAL.md` | One dated integration entry with measurements and exclusions. |
 | `reports/20260924-intent-integration.md` | This handoff and verification record. |
 
@@ -109,7 +120,7 @@ N_MAINTAINED_COLUMN_STREAM for posts. No note was suppressed to make it pass.
 | Mutations | createPost, setLike and setFollow execute under their author rules. |
 | Streaming predicate count | `count(messages where .conversationId = c and .at >= s and .at < e and not .tombstone)`; exact authorized total, expiry, endpoints and a meter-cut null result are asserted. |
 | Automatic sweep / once | `for p in profiles:` and `emit push { … } once [p.principal, periodEnd]`; target daily completes across reopen and rerun emits no duplicates. |
-| Following/home | Deferred exactly as commissioned. The full target's `view following: activity …` still reports E_VIEW_FEED_PENDING until C's next binding increment. Existing `maintain feed: timeline` executes the merged v2 engine. |
+| Following/home | Deferred exactly as commissioned. The full target's `view following: activity …` reports E_VIEW_FEED_PENDING at schema.q:79:1; its dependent `home` query reports E_QUARRY_UNKNOWN at schema.q:95:10 for unknown table following. Existing `maintain feed: timeline` executes the merged v2 engine. |
 | Client app and shell | E's `createApp({ url, device, sessionStore })`, `AppProvider`, `useAuth()` and `snapback4 web-shell dist` are merged; their integration qualification is the full client suite. |
 
 ## Added tests and measurements
@@ -144,18 +155,26 @@ N_MAINTAINED_COLUMN_STREAM for posts. No note was suppressed to make it pass.
    history/search, durable chunk resumption and lifetime emission deduplication.
    Alice receives 4,899 unread messages; Bob 4,949; both have one unread chat.
 
-Measured target digest: **two chunks, K=64, zero retries, 6,612,305 B peak heap**.
-Streaming count uses **3,179,166 B** charged heap. The runtime limit remains
-16,777,216 B. D's original retained recipient-heavy fixture and all 17 work/review
-scenarios pass after the read-path merge. Focused language validation: 11 derived,
-21 intent, 55 guide and 10 prefix tests pass. Scale validation: 16 existing plus
-six new tests pass.
+Measured final target digest: **two chunks, K=64, zero retries, 311,014 B peak
+heap**, down from 6,612,305 B before D's follow-up. Streaming count reports
+**650 B** retained heap after transient release (this query field is not a
+peak measurement), previously 3,179,166 B. The runtime limit remains
+16,777,216 B. D's original retained recipient-heavy fixture measures 370,216 B
+peak; the ordinal variant measures 372,756 B. All 24 focused tests pass: the
+original digest, 12 work, five first-review, four second-review and two target
+tests. D's 16,370-row wide-key fixture measures 22,233 B peak and its denied-row,
+prepaid-decode and non-uniform adaptive-page regressions pass. Focused language
+validation before the follow-up merges: 11 derived, 21 intent, 55 guide and
+10 prefix tests pass. The complete run below rechecks these and all 17 existing
+plus six new scale tests.
 
-WASM: **1,742,590 B raw / 483,983 B gzip**, Rust 1.97.0, wasm-bindgen 0.2.127,
-without wasm-opt. Same-host baseline: 1,707,362 / 472,890; delta +35,228 raw /
-+11,093 gzip. A alone: 1,735,736 / 480,624; delta +6,854 / +3,359. The inherited
-481,000-byte ratchet is exceeded by 2,983; the next 1,000-byte step is **484,000**,
-leaving 17 bytes. These are whole-artifact measurements, not feature attribution.
+Final WASM: **1,743,957 B raw / 484,640 B gzip**, Rust 1.97.0,
+wasm-bindgen 0.2.127, without wasm-opt. Same-host baseline:
+1,707,362 / 472,890; delta +36,595 raw / +11,750 gzip. A alone:
+1,735,736 / 480,624; delta +8,221 / +4,016. The initial integrated artifact was
+1,742,590 / 483,983; D's follow-up adds +1,367 / +657. The inherited
+481,000-byte ratchet is exceeded by 3,640; the next 1,000-byte step is **485,000**,
+leaving 360 bytes. These are whole-artifact measurements, not feature attribution.
 
 ## Baseline audit and complete suite
 
@@ -183,14 +202,54 @@ The four original main failures were stale expectations, not runtime regressions
   private read-rule strings remain. All 80 behavioral companions passed in
   the first full run.
 
-Final full-suite results follow after incremental review-fix merges.
+First complete run: **`== 1 failure(s) in 730 s`**, category `cargo test`.
+The sole failed test was `readauth::census::authoring_census`: an integration
+expectation mismatch in the already-baselined census family, corrected in
+`a3944aaf1` after reviewing the delta. All 1,066 client tests passed, with ten
+skips; no intermittent client failure occurred. Log:
+`~/sb4-intent/integration-suite-1.log`.
+
+Final complete run after the review-fix merges: **`== 0 failure(s) in 307 s`**,
+exit 0. Every stage passed: workspace build, WASM build/budget, docs budget,
+release guard, package typecheck/build, chat check, Rust tests, chat/Expo
+typechecks, fixture wrappers and client tests. Rust took 284 seconds; client
+tests took 168 seconds and totaled **1,075 passed, zero failed, ten skipped**
+across the eight processes. All four named baseline tests pass, including all
+81 readauth tests, 68 CLI check tests, 17 scale tests and six new scale tests.
+There are **no remaining integration, baseline or environmental failures in
+this run**. Log: `~/sb4-intent/integration-suite-final.log`.
+
+The W5c process acquisition case reported as timing-sensitive by E also passes
+alone on this final integration tree: **1 passed, zero failed**, with no timing
+modification or retry inside the test:
+
+```sh
+node --test --test-name-pattern='W5c process: pending writes recover' packages/snapback4/test/acquisition.test.mjs
+```
+
+Its failure did not reproduce. Log:
+`~/sb4-intent/integration-client-intermittent-rerun.log`. The fixture remains
+unchanged; E's prior scheduling counterexample is described in its linked delta
+report. In a disposable copy, inserting `await sleep(1500)` immediately before
+that case's first `await client.close()` reproduced `sent` instead of `pending`
+in E's investigation: `/probe` and `/m/*` remain available while `/sync` is
+blocked. That historical test timing sensitivity remains unmodified; no
+intermittent client failure occurred in either integration suite.
+
+Reference audit: `ref-check: ok — 504 LLP docs, 9226 refs in 25495 files,
+0 errors, 0 unchecked`. All changed source files are at most 1,500 lines; every
+lane's journal is preserved as an ordered subsequence of the integrated journal.
 
 ## Scope and limitations
 
 No authorization, disclosure, durability or runtime meter ceiling was relaxed.
 No new refusal code or replacement language design was introduced. Following
-view recognition remains assigned to C, and later lane fix commits will be
-merged when supplied; these merges record the heads actually received.
+view recognition remains assigned to C; the merge table records the final
+available heads incorporated here. Reproduce its two diagnostics by copying
+`~/sb4-intent/target-clique.q` into an empty app's `snapback/schema.q`, adding
+Trending's `.at <= now`, and running this tree's `target/debug/snapback4 check
+--json` from that app directory. Output is recorded in
+`~/sb4-intent/integration-following-pending.json`. No other target form is blocked.
 
 The named integration directory was absent, so the existing branch/worktree was
 used. The llp-orient symlink points into an absent vendor checkout; orientation
@@ -200,8 +259,10 @@ sets the instructed GPT-6 Astra identity without changing shared git config.
 The nearly full shared disk prompted debug-symbol-free native builds and
 non-incremental artifacts in this worktree's own target directory. Runtime
 ceilings and production build configuration are unchanged. JS dependencies were
-installed with `bun install --frozen-lockfile`; full-suite client files run
-serially to reduce contention on this shared host.
+installed with `bun install --frozen-lockfile`; the first full run used serial
+client files to reduce contention. The final run uses the script's ordinary
+load-aware parallelism after host load fell below two on 96 CPUs. Both runs
+limit Rust test processes and build jobs to 12.
 
 No push, package publication, external worker/provider delivery, new browser or
 native-device witness, full calibration or performance-score claim.
