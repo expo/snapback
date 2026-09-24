@@ -49719,3 +49719,26 @@ No design deviation or open review item. The span implementation uses the
 actual prefix start and current postfix end rather than inferring boundaries
 from the table's site. No authorization, disclosure, durability, execution,
 certificate-bound or meter change. No version bump, push or publication.
+
+## 2026-09-24 — Intent integration round 5 part b: H source-quoting certificate
+
+Read H's rounds 1–2 final reports and committed journal reports, then merged
+63cb318c5 with --no-ff as 6877a67e5. Only the journal conflicted; preserved
+every entry from both parents unchanged. Bounds and indexes cards keep all
+F paragraphs alongside H's additions. Imported implementation and test files
+match the reviewed H head byte-for-byte; no integration code fix was needed.
+
+Workspace build passed. Requested CLI checks: 93 passed (check 68, source/cost
+8, scale 17). Guide: 67 passed, including the part-a unrepost test. Also ran
+the one changed JavaScript cost-display assertion: passed. Total 161 passed,
+zero failed or skipped; no intermittent failure. Reference check: 505 LLP
+documents, 9,235 references, zero errors and zero unchecked. Whitespace and
+source line budgets pass. README is unchanged at 296/300 lines.
+
+No new Quarry form, code, runtime meter or authorization change. Kept numeric
+certificate allowances and canonical verbose/JSON identities while importing
+H's authored source display. Full scripts/test.sh and WASM qualification stay
+deferred by instruction until the later lanes arrive. No push, publication or
+version bump. The complete target fixture is unchanged and its dedicated
+integration target was not rerun. Merge details, imported behavior and exact
+affected commands are in reports/20260924-intent-integration-r5b.md.
