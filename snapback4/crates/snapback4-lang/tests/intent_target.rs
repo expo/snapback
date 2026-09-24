@@ -239,7 +239,7 @@ fn aggregate_and_feed_view_syntax_has_the_shared_ast() {
     assert_eq!(doc.maintains.len(), 2);
     assert_eq!(doc.feed_views[0].source, "activity");
     let b = compile(&[("schema.q".into(), "view following: activity where .actor = viewer\n".into())]);
-    assert!(b.diagnostics.iter().any(|d| d.code == "E_VIEW_FEED_PENDING" && d.guide == "feeds"));
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_VIEW_FEED_SHAPE" && d.guide == "feeds"));
 }
 
 #[test]

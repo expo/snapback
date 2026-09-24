@@ -11,6 +11,7 @@ pub fn expand(mut documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -
         let all = doc.tables.iter().map(|v| &v.name).chain(doc.maintains.iter().map(|v| &v.name))
             .chain(doc.programs.iter().map(|v| &v.name)).chain(doc.functions.iter().map(|v| &v.name))
             .chain(doc.schedules.iter().map(|v| &v.name)).chain(doc.timelines.iter().map(|v| &v.name))
+            .chain(doc.views.iter().map(|v| &v.name))
             .chain(doc.effects.iter().map(|v| &v.name)).chain(doc.shapes.iter().map(|v| &v.name))
             .chain(doc.actions.iter().map(|v| &v.name)).chain(doc.routes.iter().map(|v| &v.name));
         for name in all { *names.entry(name.clone()).or_default() += 1; }
@@ -80,8 +81,8 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             if posts.rules.delete != RuleExpr::Deny {
                 return Err(refusal(decl, "E_TIMELINE_SHAPE", "original cards must survive removal for independent reposts", "deny post deletion and set removed: true instead"));
             }
-            if posts.columns.get(&decl.posts[3]) != Some(&ColumnType::Bool)
-                || posts.defaults.get(&decl.posts[3]) != Some(&ColumnDefault::Literal(snapback4_core::Value::Bool(false))) {
+            if !decl.posts[3].is_empty() && (posts.columns.get(&decl.posts[3]) != Some(&ColumnType::Bool)
+                || posts.defaults.get(&decl.posts[3]) != Some(&ColumnDefault::Literal(snapback4_core::Value::Bool(false)))) {
                 return Err(refusal(decl, "E_TIMELINE_REMOVAL", "removal needs a bool default false", format!("table {}:\n  {}: bool default false", decl.posts[0], decl.posts[3])));
             }
             let filter = decl.filter.as_ref().map(|expr| {

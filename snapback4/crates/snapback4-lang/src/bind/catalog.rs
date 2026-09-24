@@ -24,6 +24,7 @@ impl TableInfo {
 
 #[derive(Default)]
 pub struct Catalog {
+    pub feed_views: BTreeMap<String, super::feed_view::Plan>,
     pub read_origins: BTreeMap<String, String>,
     pub view_reads: BTreeMap<String, crate::ast::MergeExpr>,
     pub view_types: BTreeMap<String, crate::types::Ty>,
@@ -170,7 +171,7 @@ impl Catalog {
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }
         }
-        let mut catalog = Self { read_origins: BTreeMap::new(), view_reads: BTreeMap::new(), view_types: BTreeMap::new(), documents, tables, maintains, shapes, functions, effects, synthesized: Default::default(), planner_notes: Vec::new() };
+        let mut catalog = Self { feed_views: BTreeMap::new(), read_origins: BTreeMap::new(), view_reads: BTreeMap::new(), view_types: BTreeMap::new(), documents, tables, maintains, shapes, functions, effects, synthesized: Default::default(), planner_notes: Vec::new() };
         for maintain in catalog.maintains.values().filter(|m| m.read.is_none()) {
             // A colliding ordinary table can exist even when target generation failed.
             if !catalog.tables.get(&maintain.name).is_some_and(|info| info.maintained.is_some()) { continue; }

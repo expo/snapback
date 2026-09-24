@@ -1,0 +1,79 @@
+Following view validation, 2026-09-24
+Integration base 2bbae4740; implementation 151b5d7af; cost 49876e86c
+
+Focused log: /tmp/lane-c-feed-lang.log
+     Running tests/following_view.rs (target/debug/deps/following_view-19f44dc28d318742)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/guide.rs (target/debug/deps/guide-f1fbd9f6d0c676a9)
+test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+     Running tests/intent_target.rs (target/debug/deps/intent_target-7ab17664c1a4119c)
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+Focused log: /tmp/lane-c-feed-final-targeted.log
+     Running tests/following_view.rs (target/debug/deps/following_view-19f44dc28d318742)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/guide.rs (target/debug/deps/guide-f1fbd9f6d0c676a9)
+test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+Focused log: /tmp/lane-c-feed-regression.log
+     Running tests/clique_03.rs (target/debug/deps/clique_03-84ca8b54acfddd35)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+     Running tests/following_view.rs (target/debug/deps/following_view-19f44dc28d318742)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/timeline_background.rs (target/debug/deps/timeline_background-a5d6cecb67e5ed3e)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.77s
+     Running tests/timeline_guide.rs (target/debug/deps/timeline_guide-7fb089d1cdb6ef5a)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+Focused log: /tmp/lane-c-feed-device.log
+     Running tests/following_view.rs (target/debug/deps/following_view-0c66e2e400f38f69)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+Focused log: /tmp/lane-c-feed-sim.log
+     Running tests/intent_integration.rs (target/debug/deps/intent_integration-40cfca78656b12bb)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+Focused log: /tmp/lane-c-feed-cost.log
+     Running tests/check.rs (target/debug/deps/check-ed0f7a73da694934)
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.68s
+     Running tests/following_view.rs (target/debug/deps/following_view-9aebd211d35180ad)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/scale.rs (target/debug/deps/scale-9a1b15637e38eb77)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+     Running tests/scale_intent.rs (target/debug/deps/scale_intent-2ff76b13d8a652bf)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+ref-check: ok — 504 LLP docs, 9227 refs in 25499 files, 0 errors, 0 unchecked
+bun install v1.3.14 (0d9b296a)
+
+Checked 506 installs across 500 packages (no changes) [87.00ms]
+
+Full suite: /home/ccheever/sb4-intent/lane-c-feed-view-test.log
+== cargo build
+-- ok: cargo build (18 s)
+== wasm build
+wasm 1743912 B raw, 484496 B gzip (budget 485000: ok)
+-- ok: wasm build (20 s)
+== docs budget
+-- ok: docs budget (2 s)
+== release guard
+-- ok: release guard (3 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (2 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- ok: cargo test (128 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- ok: fixture wrapper tests (16 s)
+== client tests
+-- ok: client tests (156 s)
+== 0 failure(s) in 204 s
+Client aggregate: {'tests': 1085, 'pass': 1075, 'fail': 0, 'skipped': 10}
+No failing tests or suite steps.

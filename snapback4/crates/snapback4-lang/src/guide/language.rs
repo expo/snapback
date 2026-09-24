@@ -380,7 +380,7 @@ query roomWindow(roomId: id, c: cursor ?):
 mutation checkin():
   return insert checkins { principal: viewer, at: now }
 
--- For Following, declare `maintain timeline: timeline`; `guide feeds` has the complete app.
+-- Following materializes this public activity view; `guide feeds` has the complete app.
 table timelineProfiles:
   principal: principal
   unique byPrincipal: principal
@@ -421,10 +421,10 @@ table timelineFollows:
   delete <- .followerId = viewer
   sync public
 
-maintain timeline: timeline
-  events timelineCards where .parentId = null and not .removed by authorId, at removed by removed
-  reposts timelineReposts by actorId, postId, at
-  edges timelineFollows by followerId, followedId
+view timelineActivity:
+  timelineCards where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }
+  timelineReposts { post: .postId, actor: .actorId, at, repost: true }
+view timeline: timelineActivity where .actor = viewer or exists timelineFollows[viewer, .actor]
 
 mutation timelineRegister():
   insert timelineProfiles { principal: viewer }
@@ -435,7 +435,7 @@ mutation timelineFollow(authorId: principal):
 mutation timelineRemove(postId: timelineCards):
   update timelineCards[postId] { removed: true }
 query timelineHome(c: cursor ?):
-  return timeline[viewer] after c last 20 { *, post: timelineCards[.postId] }
+  return timeline last 20 by .at after c { *, post: timelineCards[.post] }
 
 ```
 
@@ -604,7 +604,7 @@ actions` for durable invocation collection and `guide writes` for mutations.
 
 ## Timelines
 
-For a public Following feed, use `maintain name: timeline`. The engine delivers in durable background chunks. No authors mapping, size clause or graph cap is required; `guide feeds` covers devices and lifecycle.
+For a public Following feed, use `view following: activity where .actor = viewer or exists follows[viewer, .actor]`. The engine delivers in durable background chunks. No authors mapping, size clause or graph cap is required; `guide feeds` covers devices and lifecycle.
 
 ## Reads and planned views
 

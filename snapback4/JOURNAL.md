@@ -48608,3 +48608,59 @@ IR fields, widen lazy-merge or mutation admission, relax authorization or
 coverage, raise a meter, fix baseline failures, import integration changes,
 push or publish. Ordinary filtered null scans may examine more rows; the
 existing meter bounds that work.
+
+
+## 2026-09-24 — LLP 3000.013 lane C: Following view binding on integration
+
+Fetched and fast-forward merged `sb4-intent/integration` at `2bbae4740`. Bound
+`view following: activity where .actor = viewer or exists follows[viewer, .actor]`
+by union structure and declared column/key types. Every mapping still passes the
+existing public/full-sync, owner, immutability and unique-key admission. Reads
+page the same delivered inbox, map the view's field names, then apply ordinary
+shapes. A negative boolean conjunct identifies the optional one-way removal
+flag; views without that flag need no invented source column. Invalid shapes
+now explain `E_VIEW_FEED_SHAPE`; unsupported orders name the chronological page
+rewrite. The compiled feeds and language cards show the view form.
+
+Restored the exact target Clique fixture. It passes Following lifecycle and
+pagination alongside aggregates, Global, search and the restartable digest.
+Both device stores prove offline shaped pages, reopen, pending completeness,
+invalidation dependencies, immediate revocation/removal and own-copy prediction;
+follow/unfollow still queue without prediction. Existing timeline and independent
+Clique oracles pass. Post/read assertions remain 4/4 writes for five/900 followers
+and 61/61 examinations for five/500 follows. `check --cost` reports one inbox scan
+and a truthful grows verdict for retired-epoch/tombstone skips; its scan label now
+preserves descending `last` order. No runtime bound was raised.
+
+All 203 distinct affected tests passed. Required `scripts/test.sh` completed with
+`== 0 failure(s) in 204 s`: no introduced, baseline or environmental failures.
+Client totals: 1085 tests, 1075 passed, 0 failed, 10 existing skips. Wasm is
+1,743,912 bytes raw / 484,496 gzip, below the integrated 485,000-byte ratchet.
+The reference check passes; changed source files remain below 1,500 lines.
+No scheduler change, private feed materialization, migration, push or publication.
+No remaining Following dependency gate or review-request deviation. The existing
+wide-payload task parking limit remains; adaptive retry is outside this binding.
+Implementation `151b5d7af`, cost correction `49876e86c`; file-by-file work, tests,
+boundaries and reproductions: [Following view report](reports/20260924-following-view/report.md).
+
+### 2026-09-24 — LLP 3000.013 lane C: Following view delta-review proofs
+
+Closed both review gaps with tests. The repost lifecycle now explicitly requires
+Bob as the actor when Bob reposts Alice's post. New server, memory-device and
+SQLite-device tests deliver 600 events, unfollow, then refollow before background
+cleanup: 344 old-epoch copies coexist with the new epoch's 50-copy preview. They
+prove the view's first page contains 20 distinct event ids backed by the new
+epoch, and all pages return exactly the newest 50 events once each while
+`complete` remains false. The device tests apply both transitions through sync.
+
+Confirmed sensitivity by temporarily changing the view's actor projection to
+the original author (the assertion fails with Alice versus Bob), then removing
+only the view path's epoch check (all three new refollow tests fail with 16
+distinct ids in 20 rows). Restored both mutations; runtime sources are unchanged.
+All 11 affected tests pass afterward. Required `scripts/test.sh`:
+`== 0 failure(s) in 97 s`; no introduced, baseline or environmental failures.
+Reference check: zero errors, zero unchecked references. Wasm remains 484,496
+gzip bytes against the unchanged 485,000-byte budget. No language, runtime,
+meter, migration or scheduling changes; no push or publication. The existing
+wide-payload parking limit is unchanged. Details and reproductions:
+[delta review report](reports/20260924-following-view/delta-review.md).

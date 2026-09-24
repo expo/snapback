@@ -345,7 +345,7 @@ impl Analysis<'_> {
         if let Some(filter) = &scan.filter {
             let timeline = self.schema.timelines.iter().find(|t| ["Feed", "Broadcast"].iter().any(|suffix| t.table(suffix) == scan.table));
             let reason = if let Some(t) = timeline {
-                format!("Following `{}` entries skipped by removal tombstones before {} match", t.name, display::bound(&scan.take))
+                format!("Following `{}` entries skipped by retired follow epochs or removal tombstones before {} match", t.name, display::bound(&scan.take))
             } else { format!("{} skipped by `{}` before {} match", scan.table, display::expr(filter), display::bound(&scan.take)) };
             self.growth(&scan.site, reason,
                 "pin the filter column in the read, or add a view indexed by that predicate");

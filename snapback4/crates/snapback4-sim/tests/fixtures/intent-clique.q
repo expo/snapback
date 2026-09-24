@@ -76,7 +76,7 @@ view activity:                     -- planned at read time: Global
   posts where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }
   reposts { post: .postId, actor: .actorId, at, repost: true }
 
--- Following and home are bound in Lane C after this integration.
+view following: activity where .actor = viewer or exists follows[viewer, .actor]   -- materialized per reader
 
 view replyCount: count posts by .parentId
 view followerCount: count follows by .followedId
@@ -91,10 +91,12 @@ view dailyPosts: count posts where .parentId = null by .authorId, day(.at)
 shape postCard = { *, author: profiles[principal = .authorId], replyCount: replyCount[.id], liked: exists likes[.id, viewer], reposted: exists reposts[viewer, .id] }
 shape activityCard = { *, post: posts[.post] postCard, actor: profiles[principal = .actor] }
 
+query home(c: cursor ?):
+  return following last 20 by .at after c activityCard
 query global(c: cursor ?):
   return activity last 20 by .at after c activityCard
 query trending():
-  return posts where .parentId = null and not .removed and .at > now - 24h and .at <= now last 10 by .likeCount, .at postCard
+  return posts where .parentId = null and not .removed and .at > now - 24h last 10 by .likeCount, .at postCard
 query userPosts(owner: principal, c: cursor ?):
   return posts where .authorId = owner and .parentId = null last 20 by .at after c postCard
 query thread(postId: posts, c: cursor ?):

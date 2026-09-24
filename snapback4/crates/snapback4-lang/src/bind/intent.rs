@@ -299,12 +299,6 @@ fn comparison(value: &Expr) -> Option<(String, String, Expr)> {
     None
 }
 
-pub(super) fn pending(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) {
-    for view in catalog.documents.iter().flat_map(|doc| &doc.feed_views) {
-        diagnostics.push(Diagnostic::new(&view.site, "E_VIEW_FEED_PENDING", format!("feed view {} is awaiting feed binding", view.name), "read the source view directly; see `snapback4 guide feeds`").guide("feeds"));
-    }
-}
-
 fn computed_descriptor(table: &TableInfo, computed: &BTreeMap<String, Expr>) -> Vec<snapback4_core::maintain::CalendarKey> {
     computed.iter().filter_map(|(name, value)| super::time_indexes::key(&table.decl.name, &table.columns, name, value).ok()).collect()
 }

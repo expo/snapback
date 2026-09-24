@@ -15,6 +15,7 @@ mod key_bound;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
+mod feed_view;
 mod intent;
 mod intent_walk;
 mod intent_views;
@@ -47,12 +48,13 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
+    let feeds = feed_view::expand(&mut documents, &mut diagnostics);
     let documents = timeline::expand(documents, &mut diagnostics);
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
+    catalog.feed_views = feeds;
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
-    intent::pending(&catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
     // Timeline ownership is resolved after the ordinary schema checks.
@@ -60,7 +62,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         diagnostics.push(columns::refusal(&catalog.site_for(&issue.path), issue.message));
     }
     key_bound::check(&catalog, &schema, &mut diagnostics);
-    let mut view_types = std::collections::BTreeMap::new();
+    let mut view_types: std::collections::BTreeMap<_, _> = catalog.feed_views.iter().map(|(name, plan)| (name.clone(), plan.ty())).collect();
     for doc in &catalog.documents {
         for decl in doc.programs.iter().filter(|decl| decl.name.starts_with("$view:")) {
             if let Some(bound) = program::Binder::bind(&catalog, &schema, "schema", decl, &mut diagnostics) {
