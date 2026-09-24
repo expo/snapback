@@ -49418,3 +49418,45 @@ The inherited full-history search example's asserted N_NO_HORIZON note remains;
 all feed examples are silent and no note exception was added. The file map,
 regression evidence, reproduction for that inherited note and exact results
 are in reports/20260924-guide-review-r3.md. Logs: ~/sb4-intent/lane-f-r3-*.log.
+
+
+## 2026-09-24 — Lane F round 4: why states write visibility and recovery
+
+Commit 10927d7d3 makes both E_RULE explanations distinguish hidden collisions
+by the pre-write target's readability. Ordinary insert, including if-absent,
+and a readable update/upsert target return E_RULE; an unreadable update/upsert
+target returns NOT_FOUND without row, index, column or branch details. The
+selected paragraph includes the readable-target detail policy and blind-write
+recovery advice, without referring to a later table. The existing engine
+regression confirms the update/upsert distinction and rollback unchanged.
+
+Reviewed every registered code's selected paragraph for the facts a client
+needs to act. The census now pins 384 recovery and boundary facts for all 195
+codes alongside their definitions, excluding the registry summary. Added
+missing recovery advice to the selected card paragraphs. The guide regression
+pins E_RULE's complete visibility contract; the CLI regression checks its
+summary and excerpt separately. Eight negative controls failed as intended,
+including removing recovery facts while keeping the definition. A positive
+control deleting the later matrix still passed because the excerpt is now
+self-contained. Every temporary mutation was restored byte-for-byte.
+
+Frozen Bun install passed. Final guide tests: 67 passed; CLI check/why tests:
+69 passed; existing hidden-collision engine regression: 1 passed. One full
+scripts/test.sh run: `== 0 failure(s) in 375 s`, exit 0. No introduced,
+baseline or environmental suite failures. Client tests: 1,088 passed, 10
+skipped. The census caught missing step-code entries and literal wording
+mismatches during test-data authoring; corrected them before qualification.
+
+All 25 Quarry blocks in the 14 edited guide sources and all 29 card leads are
+unchanged. All 195 CLI explanations fit the 4,096-byte bound (largest 4,094;
+E_RULE 1,495). README stays 292/300 lines. WASM stays 1,744,842 B raw /
+484,967 B gzip under the unchanged 486,000 B budget. Whitespace checks pass;
+the largest changed Rust source is 1,454 lines.
+
+No new form, engine or compiler behavior, authority, disclosure, durability,
+meter, package version, push or publication change. No new open problem or
+round-4 scope deviation. Bob's unrepost test remains integration's work as
+requested. The inherited full-history search N_NO_HORIZON note and its exact
+test exception remain unchanged. File-by-file changes, regression evidence,
+that note's reproduction and exact qualification are in
+reports/20260924-guide-review-r4.md. Logs: ~/sb4-intent/lane-f-r4-*.log.
