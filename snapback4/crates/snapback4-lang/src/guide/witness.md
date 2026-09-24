@@ -1,5 +1,51 @@
 # Proving it on an iOS simulator
 
+Prove the native runtime of an installed app with **no app code**:
+
+```sh
+# UDID is your dedicated, booted simulator. Build from the Expo project:
+npx expo run:ios --configuration Release --device "$UDID"
+# Quit the app, then run from the backend project:
+npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --artifacts artifacts/native-smoke
+```
+
+Use the matching `snapback4` and `snapback4-expo` packages, with `createApp`
+and `AppProvider` using `nativeDevice`. The older `createLocalClient` path
+also works. Release embeds JavaScript; no Metro server is needed. Sign in
+through the app normally first if it requires user interaction; smoke waits
+for the app's own session and never invents a guest or bypasses authentication.
+The app must point at `http://127.0.0.1:4400` (or pass `--port N` for its
+configured port). Quit the app before starting. The driver builds nothing,
+refuses a busy port, and owns its `snapback4 dev` process.
+
+Read `artifacts/native-smoke/smoke-ios-run.json`: `exitStatus: 0` and all
+three `segments` marked `passed` mean:
+- `prime`: the own client is online and acquisition is complete. The receipt
+  records the device's held counts per synced table, backend store identity,
+  generation, watermark and link, with no uncaught JS errors.
+- `offline`: after termination and verified backend connection refusal, the
+  cold app opens its kept store, reports offline and holds the same counts.
+  Every query whose arguments are all optional (including no arguments) runs
+  through the app's client. `queries` records ready/count/completeness or an
+  explained refusal. A thrown query, loading result or uncaught JS error fails.
+- `restart`: after another termination and backend restart, the cold app is
+  online and its watermark is strictly past prime. For a quiet backend the
+  driver inserts one zero-write commit while the backend is stopped; the
+  manifest names this `syncBarrier`. It changes no application data.
+
+Each segment has timings, a receipt and a screenshot (`smoke-ios-prime.png`,
+`smoke-ios-offline.png`, `smoke-ios-restart.png`). The same driver also keeps
+video, receipts JSONL and logs with hashes. A failed or unrun segment is never
+reported as passed; exit is nonzero. Preserve failed artifacts and choose a
+fresh directory when retrying. Receipts contain counts, not query row contents;
+video and screenshots show the actual app and may contain its visible data.
+An empty partition proves opening and lifecycle only; seed/sign in with the
+history you want to qualify before running. Required-argument queries, writes,
+media and application-specific correctness need the deeper runner below.
+Ordinary launches do not load the smoke runner or install its error handler.
+
+## Deeper application scenarios
+
 `snapback4 witness ios` drives an installed Release app on macOS. It builds
 nothing. Add `snapback4-expo/witness` to the app and rebuild its native module.
 The helper is null on ordinary launches. Mount this runner beside the chat

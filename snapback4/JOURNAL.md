@@ -49278,3 +49278,73 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+
+## 2026-09-24 — Lane N: no-app-code native smoke witness
+
+Added `snapback4 witness ios --smoke` as a mode of the installed-app driver.
+An explicit smoke launch lazily loads the Expo runner, installs the native
+uncaught-error handler and binds to the application's own local client through
+an optional device-host hook. Ordinary launches do not load the runner. No
+contract change, new endpoint, privileged read or application mutation was
+added. The deeper app-specific witness remains available and stays inactive
+on smoke launches.
+
+Prime proves restored/signed-in session, online link and full partition
+acquisition. Native SQLite supplies counts of synced tables without decoding
+rows. A terminated/relaunched offline app must keep those counts and identity;
+all queries with no required arguments return ready counts or explained
+refusals through that same client. Restart must reconnect and advance the
+watermark. A quiet backend cannot advance a commit clock from reads: while
+both owned processes are stopped, the driver adds one identified zero-write
+commit through existing store APIs. It changes no application row, index,
+stream event or operation receipt, and the manifest records the sync barrier.
+The existing ownership, connection-refusal, capture, receipt and cleanup
+protocols carry all three cold segments and screenshots.
+
+The Release chat app now uses ordinary createApp/AppProvider startup and
+SecureStore; its persona and deeper witness paths remain available. On the
+M5 Air's actual macOS 27.0 / Xcode 27.0 toolchain, the dedicated iOS 26.4
+simulator passed in 8.521 s: counts 1 conversation, 1 membership, 1 derived
+message count, 3 messages and 1 profile survived all launches; offline inbox
+was ready with one complete local result; no uncaught errors; watermark 1→2.
+A separately rebuilt Release throwing on offline JS entry failed as intended
+in 5.538 s, with the fatal error in the receipt and restart unrun. The injected
+source was restored. Both manifests, their hashed screenshots/video/logs,
+negative-control patch, fixture preparation and detailed commands are retained
+under `reports/20260924-native-smoke/`.
+
+Used headless prebuild/xcodebuild/simctl instead of Expo's UI-opening launch
+step. One build job and a 40 GiB disk watchdog respected the in-use host;
+free disk stayed above 70 GiB. The dedicated simulator was shut down/deleted.
+An initial unsigned build exposed SecureStore's entitlement requirement;
+normal simulator signing resolved it without an application workaround.
+The initial host-hook test's open long poll caused a Node teardown socket
+error; explicitly closing the app before fixture teardown resolved it.
+Affected verification passed: 21 driver tests, 45 client/app/runner/helper
+tests, native SQLite counts/reopen test, package and Expo typechecks, docs
+budget, reference validation (505 LLPs / 9,236 refs, zero errors/unchecked).
+WASM is 485,463 B gzip under the unchanged 486,000 B ceiling. The runner never
+writes application data; screenshots naturally retain visible app data while
+receipts retain counts only. Native smoke does not claim Android, physical
+devices, required-argument queries or deeper application behavior. Versions
+remain inherited 0.4.0 for the supervisor's 0.4.2 integration; no packages
+were published and no independent review is claimed.
+
+The complete suite exposed a stale React browser fixture exporting only
+openClient after the Expo reference app adopted openApp. Updated that fixture
+to return an app-shaped owner and exercise AppProvider on the controlled
+client. All 17 actual React hook/lifecycle tests passed in the focused rerun;
+no production change or native rebuild was needed for this correction.
+
+Complete suite result: `== 1 failure(s) in 1572 s`, client tests only. All
+857 Rust executions from 140 binaries passed (2,716 tests, 13 ignored), and
+doctests, builds, typechecks, docs budget, release guard and fixture wrappers
+passed. Initial clients: 1,032 passed, 48 failed, nine skipped. In addition
+to the corrected React fixture, 47 failures shared a 600-second timeout of
+the wire-fixture export waiting on cold single-job Cargo compilation. Both
+complete failure files then passed 99/99 with no skips in 42.705 s; the
+strengthened populated-store barrier test passed separately. The whole suite
+was not rerun and its initial nonzero result remains in the report. Cold
+serial build-lock contention remains a suite-harness limitation, not a
+claimed green full-suite run. Final reference and whitespace checks pass.

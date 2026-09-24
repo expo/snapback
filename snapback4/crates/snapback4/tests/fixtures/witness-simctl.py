@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import sqlite3
 import sys
 import time
 
@@ -45,7 +46,23 @@ elif a[0] == 'launch':
     def emit(step):
         with receipt.open('a') as f:
             f.write(json.dumps({'own': {'keep': True}, 'witness': {'at': '2026-09-14T00:00:00.000Z', 'step': step}}) + '\n')
-    if config['segment'] == 'prime':
+    if config.get('smoke'):
+        segment = config['segment']
+        with sqlite3.connect(root / '.snapback4/store.sqlite') as db:
+            store_id = db.execute("SELECT value FROM _meta WHERE key='store_id'").fetchone()[0]
+            watermark = db.execute('SELECT COALESCE(MAX(seq),0) FROM _commits').fetchone()[0]
+        smoke = dict(segment=segment, pass_=True, rows={}, errors=[], acquired=True, backendRequired=False,
+                     origin='test-origin', viewer='dev:alice', storeId=store_id, generation=1, watermark=watermark,
+                     link='offline' if segment == 'offline' else 'online', queries=[])
+        smoke['pass'] = smoke.pop('pass_')
+        if mode == 'smoke-broken' and segment == 'offline':
+            smoke['pass'] = False
+            smoke['errors'] = [{'message': 'deliberate offline crash', 'fatal': True}]
+        step = {'prime': 'primed', 'offline': 'offline-done', 'restart': 'done'}[segment]
+        with receipt.open('a') as f:
+            f.write(json.dumps({'smoke': smoke, 'witness': {'at': '2026-09-14T00:00:00.000Z', 'step': step + ':running'}}) + '\n')
+        emit(step if smoke['pass'] else step + ':failed')
+    elif config['segment'] == 'prime':
         emit('primed')
     elif mode == 'json':
         with receipt.open('a') as f:
@@ -70,6 +87,8 @@ elif a[0] == 'launch':
 elif a[0] == 'io':
     if mode != 'empty-video':
         Path(a[-1]).write_bytes(b'fake video for process tests only')
+    if a[2] == 'screenshot':
+        sys.exit(0)
     print('Recording started', file=sys.stderr, flush=True)
     signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
     while True:

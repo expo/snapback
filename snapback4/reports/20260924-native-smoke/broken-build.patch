@@ -1,0 +1,13 @@
+diff --git a/snapback4/apps/chat-expo/index.js b/snapback4/apps/chat-expo/index.js
+index b9a161588..8af720123 100644
+--- a/snapback4/apps/chat-expo/index.js
++++ b/snapback4/apps/chat-expo/index.js
+@@ -1,3 +1,8 @@
+ import { registerRootComponent } from "expo";
+ import { App } from "./App";
++// Deliberate negative control; restored after the Release witness.
++const launch = require("expo-modules-core").requireOptionalNativeModule("Snapback4")?.witnessLaunch;
++if (launch && JSON.parse(launch).smoke && JSON.parse(launch).segment === "offline") {
++  throw new Error("Lane N deliberate offline start failure");
++}
+ registerRootComponent(App);

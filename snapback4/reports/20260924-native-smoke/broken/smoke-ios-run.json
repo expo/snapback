@@ -1,0 +1,232 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/16A106F8-4197-413E-88E4-0E73CA2B6D77/data/Containers/Bundle/Application/520897C9-82AF-4DA1-B7BF-5F3B5D212C13/Snapback4chat.app",
+  "artifacts": {
+    "device.log": {
+      "bytes": 2420940,
+      "path": "../../reports/20260924-native-smoke/broken/smoke-ios-device.log",
+      "sha256": "53e4c1c824e59d42f03fa8bd32e87fac1f1442b23fb252099356b2e6d8abd42e"
+    },
+    "offline.png": {
+      "bytes": 71795,
+      "path": "../../reports/20260924-native-smoke/broken/smoke-ios-offline.png",
+      "sha256": "cbe95bc7ec51940261e7985a6cb73e771a3be2bc8c1a3c6c2943e6dea6ffc6ef"
+    },
+    "prime.png": {
+      "bytes": 98185,
+      "path": "../../reports/20260924-native-smoke/broken/smoke-ios-prime.png",
+      "sha256": "50f417eea70b9c3325c936e42d62db265a181fc6c0a3d79e87bad0a2974ed63d"
+    },
+    "receipts.jsonl": {
+      "bytes": 747,
+      "path": "../../reports/20260924-native-smoke/broken/smoke-ios-receipts.jsonl",
+      "sha256": "fe2a5f41fc519e1dc0a96b953cbd9bb16817cf656d97b93d8a845c20b2f1ddf7"
+    },
+    "screen.mp4": {
+      "bytes": 4964527,
+      "path": "../../reports/20260924-native-smoke/broken/smoke-ios-screen.mp4",
+      "sha256": "70db68173964874704d17df14444dba446c5ac5a90d312ad2757b5f40b0b9c23"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/../../target/debug/snapback4",
+      "dev",
+      "--port",
+      "4448",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat",
+    "origin": "http://127.0.0.1:4448",
+    "port": 4448,
+    "store": "/Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "cliVersion": "0.4.0",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/16A106F8-4197-413E-88E4-0E73CA2B6D77/data/Containers/Data/Application/B3523CB6-C1BB-4F9E-917D-5297F8FA0E07",
+  "endedAt": 1790259917176,
+  "error": "E_WITNESS_STEP: app step smoke:failed; see receipts and device log",
+  "events": [
+    {
+      "at": 1790259912063,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790259912277,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790259912929,
+      "pid": 14337,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790259912929,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790259913451,
+      "step": "primed"
+    },
+    {
+      "at": 1790259914745,
+      "pid": 14337,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790259914911,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790259915451,
+      "pid": 14763,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790259915451,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790259917063,
+      "pid": 14763,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790259917176,
+      "step": "recording-stopped"
+    }
+  ],
+  "exitStatus": 1,
+  "installed": {
+    "executable": {
+      "bytes": 5503760,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/16A106F8-4197-413E-88E4-0E73CA2B6D77/data/Containers/Bundle/Application/520897C9-82AF-4DA1-B7BF-5F3B5D212C13/Snapback4chat.app/Snapback4chat",
+      "sha256": "4345edbc1277c586e44e3cb818e00e3158a689d585aec1ce40226579d2d69d9e"
+    },
+    "javascript": {
+      "bytes": 1781032,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/16A106F8-4197-413E-88E4-0E73CA2B6D77/data/Containers/Bundle/Application/520897C9-82AF-4DA1-B7BF-5F3B5D212C13/Snapback4chat.app/main.jsbundle",
+      "sha256": "62c9444b030646eb5068ed26604a11c2c82d1fba5572abe88a594e7f857e2ffd"
+    }
+  },
+  "mode": "smoke",
+  "outputs": [
+    "../../reports/20260924-native-smoke/broken/smoke-ios-run.json",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-screen.mp4",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-receipts.jsonl",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-device.log",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-video.log",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-launch.log",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-backend.log",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-backend-stdout.log",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-log-stderr.log",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-prime.png",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-offline.png",
+    "../../reports/20260924-native-smoke/broken/smoke-ios-restart.png"
+  ],
+  "prime": true,
+  "relaunch": false,
+  "reservation": "../../reports/20260924-native-smoke/broken/smoke-ios-reserved",
+  "run": "1790259911637-13981",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+  "segment": "smoke",
+  "segments": {
+    "offline": {
+      "durationMs": 2152,
+      "endedAt": 1790259917063,
+      "error": "E_WITNESS_STEP: app step smoke:failed; see receipts and device log",
+      "receipt": {
+        "errors": [
+          {
+            "fatal": true,
+            "message": "Lane N deliberate offline start failure"
+          }
+        ],
+        "pass": false,
+        "segment": "offline"
+      },
+      "receipts": [
+        {
+          "errors": [
+            {
+              "fatal": true,
+              "message": "Lane N deliberate offline start failure"
+            }
+          ],
+          "pass": false,
+          "segment": "offline"
+        }
+      ],
+      "startedAt": 1790259914911,
+      "status": "failed"
+    },
+    "prime": {
+      "durationMs": 2468,
+      "endedAt": 1790259914745,
+      "error": null,
+      "receipt": {
+        "acquired": true,
+        "backendRequired": false,
+        "durationMs": 150,
+        "endedAt": 1790259913400,
+        "errors": [],
+        "generation": 1,
+        "link": "online",
+        "origin": "http://127.0.0.1:4448",
+        "pass": true,
+        "queries": [],
+        "rows": {
+          "conversations": 1,
+          "memberships": 1,
+          "messageCounts": 1,
+          "messages": 3,
+          "profiles": 1
+        },
+        "segment": "prime",
+        "startedAt": 1790259913250,
+        "storeId": "9597e3116d38236eb12af70336949e65",
+        "viewer": "guest:01M39WS2D8RJEFGWDKSEF50NRY",
+        "watermark": 2
+      },
+      "receipts": [
+        {
+          "acquired": true,
+          "backendRequired": false,
+          "durationMs": 150,
+          "endedAt": 1790259913400,
+          "errors": [],
+          "generation": 1,
+          "link": "online",
+          "origin": "http://127.0.0.1:4448",
+          "pass": true,
+          "queries": [],
+          "rows": {
+            "conversations": 1,
+            "memberships": 1,
+            "messageCounts": 1,
+            "messages": 3,
+            "profiles": 1
+          },
+          "segment": "prime",
+          "startedAt": 1790259913250,
+          "storeId": "9597e3116d38236eb12af70336949e65",
+          "viewer": "guest:01M39WS2D8RJEFGWDKSEF50NRY",
+          "watermark": 2
+        }
+      ],
+      "startedAt": 1790259912277,
+      "status": "passed"
+    },
+    "restart": {
+      "status": "not-run"
+    }
+  },
+  "startedAt": 1790259911638,
+  "timestampUnit": "unix-ms",
+  "udid": "16A106F8-4197-413E-88E4-0E73CA2B6D77"
+}

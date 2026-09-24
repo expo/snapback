@@ -51,6 +51,8 @@ interface SyncPage extends Record<string, unknown> {
 
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
+  /** Native host instrumentation, absent on ordinary launches. Uses this client, never a second one. */
+  onClient?(client: LocalClient, url: string): void;
   readonly media?: MediaStorage;
   /** Web recovery may acquire an orphan outbox without a backend change. */
   onOutbox?(listener: () => void): () => void;
@@ -1463,6 +1465,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   follow();
   void flush();
   scheduleRefresh();
+  core.onClient?.(client, base);
   return client;
   } catch (error) {
     stopSuspend?.();

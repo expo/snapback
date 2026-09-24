@@ -69,6 +69,16 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
     };
     answer((|| -> Result<Json, RuntimeError> {
         Ok(match op.as_str() {
+            // @ref LLP 3000.011.005.000#2 — native smoke records counts, never row contents.
+            #[cfg(not(target_arch = "wasm32"))]
+            "witness_state" => {
+                let rows = device.schema().tables.iter().filter(|(_, table)| table.sync.is_some())
+                    .map(|(name, _)| device.store().witness_count(name).map(|count| (name.clone(), count)))
+                    .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?;
+                let state = device.sync_state_read()?;
+                json!({ "rows": rows, "watermark": state.watermark, "generation": state.generation,
+                    "storeId": state.store_id, "acquired": state.acquired, "backendRequired": state.backend_required })
+            }
             "state" => {
                 let (watermark, generation) = device.state()?;
                 json!({ "watermark": watermark, "generation": generation, "native": device.native_digest() })

@@ -622,3 +622,25 @@ test("near-expiry restoration retries a successor after automatic refresh is rej
   assert.deepEqual((await a.client.query(list, {})).data, []);
   assert.deepEqual((await b.client.query(list, {})).data, [], "retry must not revoke the winning session family");
 });
+
+test("the native instrumentation hook receives createApp's own restored client", async t => {
+  const { url, dir } = await server(t);
+  const storage = memorySessionStore();
+  const native = processDevice({ dir: join(dir, "device"), binary });
+  const attached = [];
+  const device = { async open(...args) {
+    const core = await native.open(...args);
+    return { ...core, onClient(client, origin) { attached.push({ client, origin }); } };
+  } };
+  let app = createApp({ url, device, sessionStore: storage });
+  t.after(() => app.close());
+  await app.ready; assert.equal(attached.length, 0);
+  assert.equal((await app.auth.guest()).ok, true);
+  assert.equal(attached.length, 1); assert.equal(attached[0].client, app.client); assert.equal(attached[0].origin, url);
+  await app.close();
+  app = createApp({ url, device, sessionStore: storage });
+  await app.ready;
+  assert.equal(attached.length, 2); assert.equal(attached[1].client, app.client);
+  assert.notEqual(attached[1].client, attached[0].client);
+  await app.close(); // Stop its long poll before the server fixture tears down.
+});
