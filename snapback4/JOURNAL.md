@@ -49430,3 +49430,15 @@ fixture filename to schema.q; both tests pass. This was mine, not baseline or
 environmental. The reference audit passed (505 LLP docs, 9,236 refs, zero errors
 or unchecked refs). The required full harness is running; its exact result and
 final report will be appended after completion. No push or publication.
+
+Final round 2 qualification: `scripts/test.sh` returned
+`== 0 failure(s) in 790 s`, exit 0, with CARGO_INCREMENTAL=0 and
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1. The full Rust inventory passed in 160 s,
+including 22 expiry tests, 57 guide tests and 25 disclosure reviews. Client
+inventory: 1,098 tests, 1,088 passes, 10 skips, zero failures (714 s). Every
+build, docs, release-guard, typecheck and fixture step passed. No introduced,
+baseline or environmental test failure remains. Wasm is unchanged at
+1,753,421 B raw / 487,644 B gzip (budget 488,000). The private PostgreSQL
+cluster was stopped after its two passing adapter tests. Implementation:
+e589c0866. Full report: reports/20260924-intent-lane-p-round2.md. Full log:
+~/sb4-intent/lane-p-round2-suite.log. No push or publication.
