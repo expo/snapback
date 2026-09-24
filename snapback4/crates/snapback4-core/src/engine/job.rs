@@ -260,9 +260,15 @@ impl Engine {
         // @ref LLP 3000.013#5.2 — only recorded table sweeps commit resumable work.
         // A conditional/list loop is not a registered resumable sweep. Never
         // certify skipped work as done, including for hand-authored/stored IR.
-        if sweeps.is_empty() {
+        let unsupported = program.body.iter().enumerate().find_map(|(position, statement)| match statement {
+            Stmt::For { binding, domain, .. } if !matches!(domain, LoopDomain::Page(_)) => Some((position + 1, binding)),
+            _ => None,
+        });
+        if sweeps.is_empty() || unsupported.is_some() {
+            let reason = unsupported.map_or_else(|| "has no recorded table sweep".to_owned(),
+                |(position, binding)| format!("has an unsupported top-level loop at statement {position} (`for {binding}`)"));
             tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id,
-                format!("E_JOB_SWEEP: job {} has no recorded table sweep; bind its work as `for row in table:` and put optional filters inside the loop", program.name), now])?;
+                format!("E_JOB_SWEEP: job {} {reason}; bind its work as `for row in table:` and put optional filters inside the loop", program.name), now])?;
             tx.commit()?;
             return self.job(&head.run.id);
         }

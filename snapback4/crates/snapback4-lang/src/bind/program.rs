@@ -308,9 +308,27 @@ impl<'a> Binder<'a> {
             if !matches!(t.required(), Ty::Cursor) {
                 return Err(type_error(cursor.site(), format!("after expects a cursor, got {}", t.name()), "declare c: cursor ? and pass after c"));
             }
-            let last = index.columns.last().map(String::as_str);
-            if last != Some("id") && !index.unique {
-                return Err(Diagnostic::new(&range.site, "E_CURSOR_INDEX", format!("index {}.{} cannot carry a cursor: it neither ends in id nor is unique", read.table, index.name), format!("by {}: {}, id", index.name, index.columns.join(", "))).guide("indexes").mechanical());
+            if !info.total_cursor(&index) {
+                let columns = index.columns.iter().map(|column| index.computed.get(column)
+                    .map(print::expression).unwrap_or_else(|| column.clone())).collect::<Vec<_>>().join(", ");
+                if index.unique {
+                    // Do not add id to the unique constraint: that would
+                    // weaken it. Plan a separate pageable index from the read.
+                    let mut planned = read.clone();
+                    let rewrite = if index.computed.is_empty() {
+                        planned.index = None;
+                        for (key, column) in planned.keys.iter_mut().zip(&index.columns) { key.column.get_or_insert_with(|| column.clone()); }
+                        planned.order_keys = index.columns.iter().skip(prefix.len()).cloned().collect();
+                        print::read_expr(&planned)
+                    } else {
+                        let mut name = format!("{}Page", index.name);
+                        while info.indexes.iter().any(|index| index.name == name) { name.push('_'); }
+                        planned.index = Some(name.clone());
+                        format!("add `by {name}: {columns}, id` to {}; read `{}`", read.table, print::read_expr(&planned))
+                    };
+                    return Err(Diagnostic::new(&range.site, "E_CURSOR_INDEX", format!("index {}.{} cannot carry a cursor: its nullable unique key allows tied null rows without an id tiebreak", read.table, index.name), rewrite).guide("indexes"));
+                }
+                return Err(Diagnostic::new(&range.site, "E_CURSOR_INDEX", format!("index {}.{} cannot carry a cursor: it has no declared id or total unique key", read.table, index.name), format!("by {}: {columns}, id", index.name)).guide("indexes").mechanical());
             }
             after = Some(Box::new(e));
         }

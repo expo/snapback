@@ -20,6 +20,16 @@ impl TableInfo {
     pub fn total_unique(&self, index: &IndexDecl) -> bool {
         index.unique && index.is_plain() && index.columns.iter().all(|column| column == "id" || self.columns.get(column).is_some_and(|ty| !ty.optional))
     }
+
+    // @ref LLP 3000.013#2.1 — a scan cursor carries declared components only;
+    // uniqueness with a nullable component cannot resolve ties between nulls.
+    pub fn total_cursor(&self, index: &IndexDecl) -> bool {
+        index.columns.iter().any(|column| column == "id") || index.unique && index.words.is_none()
+            && index.columns.iter().all(|column| match index.computed.get(column) {
+                Some(expr) => super::time_indexes::key(&self.decl.name, &self.columns, column, expr).is_ok(),
+                None => self.columns.get(column).is_some_and(|ty| !ty.optional),
+            })
+    }
 }
 
 #[derive(Default)]

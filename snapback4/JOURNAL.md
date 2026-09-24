@@ -49374,3 +49374,56 @@ inherited store.rs:809 anchor `LLP 3000.013#5.3-effects-keyed-once`; reproduce
 with ./ref-check --verbose. No new reference errors. File-by-file details,
 examples, decisions and test evidence are in
 [the round report](reports/20260924-intent-lane-a-r12.md).
+
+
+## 2026-09-24 — Lane A round 13: null ties and mixed stored jobs
+
+Fixed all three review findings. Empty-search browse selection and ordinary
+cursor-bearing index planning now require a declared id or a unique key whose
+components are all required (including validated calendar keys). A nullable
+unique key cannot omit the id tiebreak; byTime wins or a separate index is
+synthesized. Explicit unsafe cursors refuse E_CURSOR_INDEX with a compiling
+column-order rewrite or a separate index preserving computed parameters; the
+original unique constraint remains. Reads without
+cursors keep their existing prefix reuse. Merge cursors and internal job/aggregate
+positions already carry the physical id; their format did not change.
+
+The selection audit also found nullable epoch in the generated Following
+inbox's unique byReaderTime. Added separate byReaderPage with declared id,
+retaining all old unique constraints and both pending-work hooks (runtime
+completeness and live-query/residency dependency). The CLI's chosen-index
+expectation was deliberately updated; its cost assertions remain.
+
+The job runner validates every direct top-level For domain before any chunk.
+Unsupported domains mixed before, between or after valid sweeps park with
+E_JOB_SWEEP and an offending statement/binding. The existing no-sweep guard
+remains. Supported preludes and inner loops still run; native jobs retain
+their own runner. No resumable conditional sweep was introduced.
+
+Regressions cover nullable and required indexes in both declaration orders,
+one-row pagination in both directions on server and reopened memory/SQLite
+devices, hidden rows, ordinary/named/value-lane/view selection with reuse and
+synthesis, a rewrite that preserves uniqueness, mixed raw-IR jobs with zero
+chunks/writes/effects, and valid prelude/body loops. Competing calendar indexes
+spell identical columns but differ in duration or offset; deleting the descriptor
+comparison made the new test fail (aWrongPeriod versus zBrowse), then the source
+was restored. The strengthened tests reproduced three failures on round-12 code.
+
+**`scripts/test.sh`: `== 0 failure(s) in 706 s`**, exit 0, with eight Rust processes and serialized client files on 16 assigned CPUs. Every suite group ran; Rust passed in 195 s and clients in 691 s (1,088 passed, 0 failed, 10 inventory skips). Affected checks passed: 57 guide, 21 intent-target,
+9 intent-variant, 7 review, 4 time-index, 4 device variants, 4 device Following,
+15 admission, 12 work-intent and 1 CLI Following tests. Frozen Bun install,
+docs budget and git diff --check passed. Initial affected failures from an
+overly broad restriction on non-cursor reuse and the generated Following
+cursor were ours, corrected and rerun. An initial full run was stopped (exit
+143, no summary) to repair a computed-key diagnostic: by .hour was not a valid
+row-column rewrite. It now proposes a separate page index preserving hour/bucket
+parameters and the original unique constraint; both hour and offset-bucket
+rewrites compile in the new regression. The full suite restarted afterward.
+The completed full run had no failures; no baseline or environmental test failure remains.
+
+Device artifact: **1,751,333 B raw / 487,832 B gzip**, +15 B raw / +27 B gzip versus round 12, below the unchanged 488,000-byte ratchet. No engine ceiling, authorization, disclosure or residency
+relaxation; no version bump, publication or push. The separate ref audit still
+reports only the inherited store.rs:809 anchor error (LLP 3000.013#5.3-effects-keyed-once);
+reproduce with ./ref-check --verbose. No new reference error. File-by-file
+changes, audit decisions, examples and evidence are in
+[the round report](reports/20260924-intent-lane-a-r13.md).

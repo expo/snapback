@@ -144,13 +144,15 @@ impl Requests {
         read.order_keys = order.clone();
         columns.extend(order);
         columns.dedup();
-        // The store appends id even when an authored index leaves it implicit.
-        // Compare that actual ordering before introducing a duplicate index.
+        // The physical id suffix can be omitted from a scan cursor only when
+        // the declared components already totally order its rows. Reads with
+        // no cursor retain their existing physical-prefix index reuse.
+        let cursor = read.range.as_ref().is_some_and(|range| range.cursor.is_some());
         let computed = computed_descriptor(table, &read.computed);
         let candidates: Vec<_> = table.indexes.iter().filter(|index| {
             let mut ordered = index.columns.clone();
             if ordered.last().map(String::as_str) != Some("id") { ordered.push("id".into()); }
-            ordered == columns && index.words == words && computed_descriptor(table, &index.computed) == computed
+            (!cursor || table.total_cursor(index)) && ordered == columns && index.words == words && computed_descriptor(table, &index.computed) == computed
         }).collect();
         if candidates.len() > 1 {
             self.errors.push(crate::diag::ambiguous(&read.site, format!("{} has several declared indexes covering this predicate read", read.table),

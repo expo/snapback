@@ -290,7 +290,7 @@ fn browse_leaf(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>) {
     read.computed = index.computed.clone();
     // The authored words index already resolved the intended ordering. Its
     // generated browse alternative deterministically reuses an equivalent
-    // plain index, including a unique index with an implicit id suffix.
+    // plain index. Only a total unique key can leave id implicit in its cursor.
     let table = &tables[&read.table];
     let ordered = |index: &IndexDecl| {
         let mut columns = index.columns.clone();
@@ -298,7 +298,7 @@ fn browse_leaf(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>) {
         columns
     };
     let computed = super::intent::computed_descriptor(table, &index.computed);
-    read.index = table.indexes.iter().filter(|candidate| candidate.words.is_none()
+    read.index = table.indexes.iter().filter(|candidate| candidate.words.is_none() && table.total_cursor(candidate)
         && ordered(candidate) == ordered(index)
         && super::intent::computed_descriptor(table, &candidate.computed) == computed)
         .min_by_key(|candidate| &candidate.name).map(|candidate| candidate.name.clone());

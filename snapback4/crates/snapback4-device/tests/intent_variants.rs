@@ -58,3 +58,34 @@ fn variants<H: Host>(host: &mut H) {
 }
 #[test] fn presence_and_search_variants_memory() { variants(&mut Memory::new()); }
 #[test] fn presence_and_search_variants_sqlite() { variants(&mut Sqlite::new("presence-variants")); }
+
+fn nullable_browse<H: Host>(host: &mut H) {
+    for direction in ["first", "last"] {
+        let source = format!("table t:\n  owner: principal\n  at: time ?\n  body: text <=40\n  unique byOwnerAt: owner, at\n  by byTime: owner, at, id\n  by byWords: owner, words(body), at, id\n  read <- .owner = viewer\n  sync to .owner\nquery page(q: text <=40, c: cursor ?):\n  return t[viewer] matching q {direction} 1 by byWords after c\n");
+        let (mut server, backend) = compile(&source);
+        server.seed([("a", "alice", Value::Null), ("b", "alice", Value::Null), ("c", "alice", Value::Int(1)), ("hidden", "bob", Value::Null)]
+            .map(|(key, owner, at)| ("t".into(), object([("id", id(key)), ("owner", id(owner)), ("at", at), ("body", Value::String("word".into()))])))).unwrap();
+        let name = format!("nullable-browse-{direction}");
+        let mut device = host.open(&name, Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        host.close(&name, device);
+        let mut device = host.open(&name, None).unwrap();
+        for q in ["", " \t", "word"] {
+            let mut cursor = None;
+            let mut expected = vec!["a", "b", "c"]; if direction == "last" { expected.reverse(); }
+            for key in expected {
+                let page = device.query("page", "alice", &json!({"q":q, "c":cursor}), 10).unwrap();
+                assert!(page.complete, "{page:?}");
+                assert_eq!(page.data.as_array().unwrap().len(), 1);
+                assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &id(key));
+                cursor = page.next;
+                if q != "word" && let Some(token) = &cursor {
+                    assert_eq!(snapback4_core::cursor::decode_cursor(server.schema(), token).unwrap().index, "byTime");
+                }
+            }
+            assert!(cursor.is_none());
+        }
+    }
+}
+#[test] fn nullable_search_browse_memory() { nullable_browse(&mut Memory::new()); }
+#[test] fn nullable_search_browse_sqlite() { nullable_browse(&mut Sqlite::new("nullable-browse")); }

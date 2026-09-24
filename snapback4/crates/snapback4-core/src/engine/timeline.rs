@@ -293,7 +293,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn timeline_read_pending(&mut self, table: &str, index: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
-        if self.meter.cut != crate::meter::Cut::Cap || index != "byReaderTime" || prefix.len() != 1 { return Ok(()); }
+        if self.meter.cut != crate::meter::Cut::Cap || !matches!(index, "byReaderTime" | "byReaderPage") || prefix.len() != 1 { return Ok(()); }
         let Some(t) = self.schema.timelines.iter().find(|t| table == t.table("Feed")).cloned() else { return Ok(()); };
         let pending = self.timeline_get(&t.table("Work"), "byReader", prefix.to_vec())?.is_some();
         if pending { self.timeline_pending = true; self.components.note(|frame| frame.pending = true); }
