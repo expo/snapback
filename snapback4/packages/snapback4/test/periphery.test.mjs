@@ -167,7 +167,9 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   assert.equal(transform({ src, options: { platform: "ios" } }).src, src);
   const shipped = read(join(root, "packages/snapback4/dist/web.js"));
   assert.ok(transform({ src: shipped, options: { platform: "web" } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
-  assert.equal(read(join(dir, "src/client.ts")), read(join(reference, "src/client.ts")));
+  assert.match(read(join(dir, "src/client.ts")), /createApp/);
+  assert.match(read(join(dir, "App.tsx")), /AppProvider|useAuth/);
+  assert.equal(actual.scripts["build:web"], "expo export -p web && snapback4 web-shell dist");
   const schema = read(join(dir, "snapback/schema.q"));
   assert.doesNotMatch(schema, /^\s*(?:use\s+server\b|action\s|route\s)/m);
   assert.doesNotMatch(schema, /^\s*schedule\b.*:\s*invite\b/m);
@@ -500,25 +502,26 @@ test("processDevice defaults to Node spawn and file writing in a new directory",
 });
 
 
-test("W5c Expo starter waits for online acquisition and opens offline without syncing", async (t) => {
+test("Expo starter selects web, native and online app devices with explicit session stores", (t) => {
   const { dir, run } = fixture(t);
   run("init", "--expo");
-  const text = read(join(dir, "src/client.ts"));
-  const compiled = ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
-  for (const link of ["online", "offline"]) {
-    let release, syncs = 0, opened = false;
-    const barrier = new Promise(resolve => { release = resolve; });
-    const client = { link: () => link, sync: () => { syncs++; return barrier; } };
-    const context = { exports: {}, process: { env: { EXPO_PUBLIC_SNAPBACK_PERSONA: "alice" } }, require: name => {
-      if (name === "snapback4/local") return { createLocalClient: async () => client };
-      if (name === "snapback4-expo") return { nativeAvailable: () => true, nativeDevice: {} };
+  const compiled = ts.transpileModule(read(join(dir, "src/client.ts")), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  for (const [platform, native, tier] of [["web", false, "web"], ["ios", true, "native"], ["ios", false, "online"]]) {
+    const nativeDevice = {}, webDevice = {}, webStore = {};
+    let options;
+    const context = { exports: {}, process: { env: {} }, require: name => {
+      if (name === "react-native") return { Platform: { OS: platform } };
+      if (name === "snapback4/app") return { createApp: value => { options = value; return value; } };
+      if (name === "snapback4/auth") return { localStorageSessionStore: () => webStore };
+      if (name === "snapback4/web") return { webDevice: () => webDevice };
+      if (name === "snapback4-expo") return { nativeAvailable: () => native, nativeDevice };
       return {};
     } };
     vm.runInNewContext(compiled, context);
-    const opening = context.exports.openClient().then(value => { opened = true; return value; });
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal(syncs, link === "online" ? 1 : 0);
-    assert.equal(opened, link === "offline");
-    release(); assert.equal(await opening, client);
+    assert.equal(context.exports.tier, tier);
+    assert.equal(options.device, tier === "web" ? webDevice : native ? nativeDevice : undefined);
+    assert.ok(options.sessionStore);
+    if (tier === "web") assert.equal(options.sessionStore, webStore);
+    else assert.equal(typeof options.sessionStore.get, "function");
   }
 });
