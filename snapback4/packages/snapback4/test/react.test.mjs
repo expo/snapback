@@ -497,6 +497,26 @@ const cases = {
     check(active(client).length === 1, "new arguments close every old page");
     await unmount(); allClosed(client);
   },
+  async "usePage keeps the oldest stale timestamp across fresh and stale pages"() {
+    const client = controlled();
+    let latest;
+    function Screen() { latest = usePage(query, {}); return null; }
+    await mount(h(Screen), client);
+    try {
+      await act(async () => active(client)[0].set(ready(["a"], "a", { fresh: false, since: 80 })));
+      await act(async () => latest.loadMore());
+      await act(async () => active(client)[1].set(ready(["b"], "b", { since: undefined })));
+      check(latest.read.since === 80 && !latest.read.fresh, "fresh page without since preserves the stale timestamp");
+      await act(async () => latest.loadMore());
+      await act(async () => active(client)[2].set(ready(["c"], null, { fresh: false, since: 40 })));
+      check(latest.read.since === 40, "minimum of stale pages");
+      await act(async () => active(client)[1].set(ready(["b"], "b", { since: 1 })));
+      check(latest.read.since === 40, "fresh pages do not contribute old timestamps");
+      await act(async () => active(client)[2].set(ready(["c"], null, { fresh: false, since: undefined })));
+      check(latest.read.since === undefined, "unknown stale timestamp remains unknown");
+    } finally { await unmount(); }
+  },
+
   async "real observations retain every unavailable page, preserve since, and clear on refusal and close"() {
     let phase = "ready", seq = 0, latest;
     const client = createClient({ url: "http://observation.test", persona: "alice", fetch: async (input, init) => {

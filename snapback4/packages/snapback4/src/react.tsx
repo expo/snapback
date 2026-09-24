@@ -155,8 +155,10 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
       complete &&= read.complete;
       if (read.cut === "meter" || (cut === null && read.cut === "words")) cut = read.cut;
       fresh &&= read.fresh;
-      if (read.since == null) knownSince = false;
-      else since = Math.min(since ?? read.since, read.since);
+      if (!read.fresh) {
+        if (read.since == null) knownSince = false;
+        else since = Math.min(since ?? read.since, read.since);
+      }
     }
     const hasMore = isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
     const read: Read<R> = isReady(last)

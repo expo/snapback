@@ -178,8 +178,12 @@ test("unavailable server list reruns keep published answers in both clients", { 
   for (const watch of watches) await until(() => watch.getSnapshot().fresh === false, "heap-aborted rerun keeps the last answer");
   const kept = watches.map(watch => watch.getSnapshot());
   for (const read of kept) { assert.equal(read.data.length, 1); assert.ok(Number.isFinite(read.since)); }
-  for (const client of clients) assert.deepEqual(await client.query(query("costly"), {}), { loading: true });
-  assert.ok(fetched.some(reply => reply.loading === true && !("data" in reply)), "HTTP never encodes the abort placeholder as data");
+  await until(() => fetched.some(reply => reply.loading === true), "server evaluated the new heap-aborting control");
+  for (const client of clients) {
+    await client.query(query("ping"), {}); // End the earlier deliberate transport failure before testing HTTP loading.
+    assert.deepEqual(await client.query(query("costly"), {}), { loading: true });
+  }
+  assert.ok(fetched.some(reply => reply.loading === true && reply.data === null && reply.complete === false), "legacy clients see an incomplete placeholder; current clients see loading");
   queryOffline = true;
   // Invalidate the online observation once more while its next query fails.
   await setCost(false);

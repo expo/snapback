@@ -994,7 +994,9 @@ fn handle(mut request: Request, shared: &Shared) {
                             json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut })
                         });
                         if outcome.unavailable {
-                            respond(request, 200, json!({ "loading": true, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "tables": outcome.tables, "viewer": viewer, "meter": meter }));
+                            let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "tables": outcome.tables, "viewer": viewer });
+                            if let Some(meter) = meter { reply["meter"] = meter; }
+                            respond(request, 200, reply);
                         } else {
                             respond(request, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer, meter });
                         }

@@ -19,6 +19,23 @@ mod sync_generation_tests;
 mod timeline_tests;
 
 
+#[test]
+fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters() {
+    for dev in [true, false] {
+        let host = Host::with_store(dev, snapback4_core::Store::memory().unwrap(),
+            "use identity\nquery costly():\n  text = ''\n  for n in range(0, 10000):\n    text = text + 'an allocation that stays bounded by the heap meter'\n  return [text]\n");
+        let session = body(&host.request("POST", "/auth/guest", "", "{}"));
+        let headers = format!("Authorization: Bearer {}\r\n", session["session"]["token"].as_str().unwrap());
+        let response = host.request("POST", "/q/costly", &headers, r#"{"args":{}}"#);
+        assert_eq!(status(&response), 200, "{response}");
+        let reply = body(&response);
+        assert_eq!(reply["loading"], true);
+        assert!(reply.get("data").is_some_and(Json::is_null), "legacy data placeholder");
+        assert_eq!(reply["complete"], false, "legacy clients must not cache a complete undefined answer");
+        assert_eq!(reply.get("meter").is_some(), dev, "production omits the field entirely");
+    }
+}
+
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
 
 struct Host {

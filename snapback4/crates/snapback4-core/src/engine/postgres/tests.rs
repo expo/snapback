@@ -286,3 +286,23 @@ fn legacy_keys_can_shrink_and_open_reports_the_index_and_count() {
     let client = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap();
     PostgresEngine::open(client, &name).unwrap();
 }
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn query_availability_propagates_heap_abort_without_confusing_null_or_lists() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), "query costly():\n  text = ''\n  for n in range(0, 10000):\n    text = text + 'an allocation that stays bounded by the heap meter'\n  return [text]\nquery empty():\n  return []\nquery nullable():\n  return null\n".into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let client = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap();
+    let schema: Schema = serde_json::from_value(serde_json::to_value(bound.schema).unwrap()).unwrap();
+    let programs = bound.programs.into_iter().map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap());
+    let mut engine = PostgresEngine::create(client, &format!("sb4_eval_availability_{:x}", crate::ids::seed()), schema, programs).unwrap();
+    let aborted = engine.query("costly", Context::new("dev:alice", BTreeMap::new())).unwrap();
+    assert!(aborted.unavailable, "heap-aborted list is unavailable, not a ready null");
+    assert!(!aborted.complete);
+    let empty = engine.query("empty", Context::new("dev:alice", BTreeMap::new())).unwrap();
+    assert!(!empty.unavailable);
+    assert_eq!(empty.data, Value::Array(vec![]));
+    let nullable = engine.query("nullable", Context::new("dev:alice", BTreeMap::new())).unwrap();
+    assert!(!nullable.unavailable);
+    assert_eq!(nullable.data, Value::Null);
+}
