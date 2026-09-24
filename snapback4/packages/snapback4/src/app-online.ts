@@ -2,20 +2,10 @@
 import type { Client, Mutation, Refusal, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
 import { mintId } from "./client.ts";
-import { MutationIds, WriteHistory, WRITE_HISTORY_LIMIT } from "./writes.ts";
+import { MutationIds, WriteHistory } from "./writes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
-import { journalReader, type Journal, type Terminal } from "./app-journal.ts";
-
-// Unknown store outcomes cannot evict known sent ids during bulk retirement.
-// Keep the same bounded window, discarding the oldest unknown failures first.
-function keepReceipts(receipts: Terminal[]): Terminal[] {
-  let excess = Math.max(0, receipts.length - WRITE_HISTORY_LIMIT);
-  return receipts.filter(write => {
-    if (excess && write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code)) { excess--; return false; }
-    return true;
-  }).slice(-WRITE_HISTORY_LIMIT);
-}
+import { journalReader, keepReceipts, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void) {
@@ -54,7 +44,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
         : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
       journal.receipts.push(receipt);
-      journal.receipts = keepReceipts(journal.receipts);
+      keepReceipts(journal, new Set([write.id]));
       return true;
     });
     // Durable retirement belongs to the shared journal; notification and
@@ -62,10 +52,16 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     notify(write);
   };
   const stop = raw.onWrite(write => {
-    if (active && terminal(write)) void settle(write).catch(report);
+    if (active && terminal(write)) {
+      // The raw client emits one refusal per queued write. Retire that store's
+      // queue once, so all newly failed receipts share the same pinned save.
+      const retiring = write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
+      void (retiring ? refuseStore(write.why) : settle(write)).catch(report);
+    }
   });
   const initial = await locked(key, read);
   for (const receipt of initial.receipts) ids.remember(receipt.id);
+  for (const id of initial.retired ?? []) ids.remember(id);
 
   const refusedStore = async (id: string): Promise<Write> => {
     // UI custody may already be paused. A terminal outcome still owns its
@@ -96,7 +92,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
             check.remember(id, previous.op, previous.args);
             return check.run(id, op.name, snapshot, async () => ({ state: "pending", id }), async () => ({ state: "pending", id }));
           }
-          const receipt = journal.receipts.find(write => write.id === id);
+          const receipt = journal.receipts.find(write => write.id === id) ?? retiredReceipt(journal, id);
           if (receipt) return Promise.resolve(receipt);
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot });
           return undefined;
@@ -119,6 +115,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (!active || raw.viewer() !== viewer) return undefined;
       const receipt = journal.receipts.find(write => write.id === id);
       if (receipt) { notify(receipt); return receipt; }
+      const retired = retiredReceipt(journal, id);
+      if (retired && !journal.pending.some(intent => intent.id === id)) return retired;
       const known = await raw.write(id);
       if (journal.pending.some(intent => intent.id === id)) {
         if (known && terminal(known)) {
@@ -150,7 +148,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
       journal.pending = [];
       journal.receipts.push(...failed);
-      journal.receipts = keepReceipts(journal.receipts);
+      keepReceipts(journal, new Set(failed.map(write => write.id)));
       return failed;
     }).then(failed => { for (const write of failed) notify(write); });
     return retirement;

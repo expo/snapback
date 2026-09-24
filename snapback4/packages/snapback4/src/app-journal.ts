@@ -6,12 +6,49 @@ import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 
 export type Intent = { owner: string; id: string; op: string; args: unknown };
 export type Terminal = Exclude<Write, { state: "pending" }>;
-export type Journal = { owner: string; backend: string; pending: Intent[]; receipts: Terminal[] };
+export type Journal = { owner: string; backend: string; pending: Intent[]; receipts: Terminal[]; retired?: string[]; retirementFull?: boolean };
+// Unknown outcomes have no safe expiry. Keep about 116 KiB of JSON ids at most;
+// saturation permanently fences new admissions instead of forgetting an id.
+export const RETIRED_ID_LIMIT = 4096;
+const unknown = (write: Terminal) => write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
+
+export function keepReceipts(journal: Journal, pinned: Set<string>): void {
+  const removed = new Set<Terminal>();
+  let excess = Math.max(0, journal.receipts.length - WRITE_HISTORY_LIMIT);
+  // Compact old unknown outcomes first, then evict old ordinary receipts.
+  // A bulk retirement exceeding the body window still keeps every retired id.
+  for (const eligible of [
+    (write: Terminal) => unknown(write) && !pinned.has(write.id),
+    (write: Terminal) => !pinned.has(write.id),
+    (_write: Terminal) => true,
+  ]) for (const write of journal.receipts) {
+    if (!excess) break;
+    if (!removed.has(write) && eligible(write)) { removed.add(write); excess--; }
+  }
+  const retired = new Set(journal.retired);
+  for (const write of removed) if (unknown(write) && !journal.retirementFull) {
+    if (retired.has(write.id)) continue;
+    if (retired.size === RETIRED_ID_LIMIT) journal.retirementFull = true;
+    else retired.add(write.id);
+  }
+  if (retired.size) journal.retired = [...retired];
+  journal.receipts = journal.receipts.filter(write => !removed.has(write));
+}
+
+export function retiredReceipt(journal: Journal, id: string): Terminal | undefined {
+  if (!journal.retirementFull && !journal.retired?.includes(id)) return undefined;
+  return { state: "failed", id, why: { code: "E_WRITE_RECEIPT_EXPIRED", family: "input", guide: "writes", site: "app.mutate",
+    message: journal.retirementFull ? "the online journal's retirement id limit is full; new admissions are blocked rather than risking replay of an unknown outcome"
+      : "this write was retired after a store change; its outcome is unknown and its receipt body is no longer retained",
+    rewrite: "reconcile the unknown outcomes with the backend before explicitly replacing this account's write journal; do not retry automatically" } };
+}
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const id = (value: unknown) => typeof value === "string" && /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(value);
 
 function valid(value: unknown, owner: string, backend: string): value is Journal {
   if (!record(value) || value.owner !== owner || value.backend !== backend || !Array.isArray(value.pending) || !Array.isArray(value.receipts) || value.receipts.length > WRITE_HISTORY_LIMIT) return false;
+  if (value.retired !== undefined && (!Array.isArray(value.retired) || value.retired.length > RETIRED_ID_LIMIT || !value.retired.every(id))) return false;
+  if (value.retirementFull !== undefined && typeof value.retirementFull !== "boolean") return false;
   if (!value.pending.every(item => record(item) && item.owner === owner && id(item.id) && typeof item.op === "string" && item.op.length > 0 && Object.hasOwn(item, "args"))) return false;
   if (new Set(value.pending.map(item => item.id)).size !== value.pending.length) return false;
   return value.receipts.every(item => record(item) && id(item.id) && (item.state === "sent"

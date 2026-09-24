@@ -114,7 +114,7 @@ for (const fail of [false, true]) test(`replacement waits for durable retirement
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/probe') return Response.json({ ok: true, store_id: store, seq: 1 });
-    if (path.startsWith('/m/')) { posts++; return blocked(init.signal); }
+    if (path.startsWith('/m/')) { posts++; return store === 'A' ? blocked(init.signal) : Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 2, store_id: store }); }
     return Response.json({ data: [], store_id: store, seq: 1 });
   };
   app = createApp({ url, sessionStore, fetch: fetcher });
@@ -147,7 +147,7 @@ for (const fail of [false, true]) test(`replacement waits for durable retirement
   }
 });
 
-for (const unknown of [0, 8]) test(`replacement preserves sent receipt ids at the history limit (${unknown} older unknown failures)`, async t => {
+for (const unknown of [0, 8]) test(`replacement pins retired receipt ids at the history limit (${unknown} older unknown failures)`, async t => {
   const sessionStore = memorySessionStore(), key = storeKey('writes', url, 'alice');
   await keepSession(url, session, sessionStore);
   const id = n => String(n).padStart(26, '0');
@@ -159,7 +159,7 @@ for (const unknown of [0, 8]) test(`replacement preserves sent receipt ids at th
   const app = createApp({ url, sessionStore, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/probe') return Response.json({ ok: true });
-    if (path.startsWith('/m/')) { posts++; return blocked(init.signal); }
+    if (path.startsWith('/m/')) { posts++; return store === 'A' ? blocked(init.signal) : Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 2, store_id: store }); }
     return Response.json({ data: [], store_id: store, seq: 1 });
   } });
   t.after(() => app.close()); await app.ready; const prior = app.client;
@@ -168,9 +168,16 @@ for (const unknown of [0, 8]) test(`replacement preserves sent receipt ids at th
   await until(() => app.auth.state === 'signed-in' && app.client !== prior);
   const journal = JSON.parse(await sessionStore.get(key));
   assert.deepEqual(journal.pending, []); assert.equal(journal.receipts.length, WRITE_HISTORY_LIMIT);
-  assert.deepEqual(journal.receipts.filter(write => write.state === 'sent'), sent);
+  for (const intent of pending) {
+    const result = await app.mutate(m, {}, { id: intent.id });
+    assert.equal(result.why?.code, 'E_STORE_REPLACED', 'the just-retired id must not execute on the replacement');
+  }
+  assert.deepEqual(journal.receipts.filter(write => write.state === 'sent'), unknown ? sent : sent.slice(4));
+  if (unknown) for (const receipt of failures.slice(0, 4)) {
+    assert.equal((await app.mutate(m, {}, { id: receipt.id })).why?.code, 'E_WRITE_RECEIPT_EXPIRED', 'compacted retirement ids still refuse replay');
+  }
   if (unknown) assert.ok(failures.slice(0, 4).every(f => !journal.receipts.some(r => r.id === f.id)), 'oldest unknown outcomes leave first');
-  const result = await app.mutate(m, {}, { id: sent[0].id });
-  assert.equal(result.state, 'sent'); assert.equal(result.replayed, true); assert.equal(result.seq, 1);
+  const result = await app.mutate(m, {}, { id: sent.at(-1).id });
+  assert.equal(result.state, 'sent'); assert.equal(result.replayed, true); assert.equal(result.seq, sent.at(-1).seq);
   assert.equal(posts, 1, 'retrying a known sent id never executes on the replacement store');
 });
