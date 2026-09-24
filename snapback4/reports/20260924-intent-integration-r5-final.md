@@ -559,3 +559,230 @@ All part-g logs are `~/sb4-intent/integration-r5g-*.log`; earlier part reports
 retain their exact run names and failure dispositions. Part-h logs use
 `~/sb4-intent/integration-r5h-*.log`; the final qualification supersedes the
 historical blocked results without rewriting the journal.
+
+## Round 6 — part-h review fixes for the 0.4.2 candidate (2026-09-25)
+
+This round starts from part i's `ada963b9e`; it merges no lane and changes no
+version. Implementation commits: `deb8f12da` (store ownership and server guard
+regressions) and `19cc959f5` (caller outcomes, bounded close and model oracles). The supervisor's two part-h rulings remain the contract. Both reviews
+were read in full; Grok's completed report was checked again immediately before
+running the final suite. All Astra High/Medium findings, its server test gap,
+and both Grok High findings are addressed. Neither review contains another
+unaddressed High or Medium.
+
+### Implementation and files
+
+- `packages/snapback4/src/closing-responses.ts`: replace the ID-keyed,
+  consume-once map with a response ticket for each request invocation. A private
+  owner registry lets the app hold the response cutoff through its own local
+  session cleanup without making raw close wait on the awaiting callers.
+- `packages/snapback4/src/client.ts`: associate each action invocation and each
+  submitted mutation with its own ticket, retaining the ticket across transport
+  retries. Undecided callers use the public cutoff. Close detaches unread
+  refreshes, consumes their eventual responses and retires unkept successors.
+- `packages/snapback4/src/local.ts`: apply the same ticket/cutoff behavior to
+  wasm and native devices. Close awaits session persistence and session ending
+  that already started, rather than unread rotation transport. A rotation that
+  becomes known between its completion callback and adoption is also retired
+  if close won that race. Device cleanup releases caller capture even on error.
+  Close and sign-out share the rotation's once-only retirement callback.
+  The file remains 1,494 lines, below the 1,500-line ceiling.
+- `packages/snapback4/src/app.ts`: retain raw-client capture through public
+  `app.close()`'s session save and retirement cleanup. Repeated close calls share
+  one promise, installed before callbacks can reenter close. Capture stops and
+  that public promise settles together, without an intervening asynchronous gap.
+  A close signal also releases an auth-queue wait on rotation or global
+  revocation; the existing transport keeps consuming and persisting late
+  acknowledgements. Its wait listener is removed when either side completes.
+- `packages/snapback4/src/app-online.ts`: preserve that private close ownership
+  through the durable online-custody wrapper.
+- `packages/snapback4/src/writes.ts`: overlapping identical mutation invocations
+  share the running submission's full outcome. A later invocation still recovers
+  a receipt summary; different arguments still refuse `E_WRITE_ID_REUSE`.
+- `packages/snapback4/src/app-journal.ts`: apply the first-observed-store rule to
+  every unbound intent, including `dispatched: false`. A crash after recording
+  first store A but before binding the intent can no longer rebind it to B.
+- `packages/snapback4/CLIENT-AND-OPERATIONS.md` and
+  `llp/3000.013-quarry-states-intent.rfc.md`: clarify per-invocation full outcomes,
+  the public close cutoff, unread rotation retirement, already-started
+  persistence and unbound admission ownership. The storage admission limit
+  required in part h remains documented. No Quarry spelling or refusal code is
+  added, and no guide example is removed.
+
+### Tests and review dispositions
+
+- New `packages/snapback4/test/close-boundary.test.mjs` has 37 cases:
+  concurrent identical/different-input same-ID actions and mutations on wasm
+  and native; overlapping pending and known-refusal mutation callers on all
+  three tiers; success/refusal mutation/action bodies delivered during app
+  session cleanup after device cleanup; held real `/auth/refresh` responses on
+  online/wasm/native, with actual server rejection of their late successors;
+  and wasm/native raw-close controls that preserve already-started rotation
+  persistence and its still-live successor. Six additional cases cover queued
+  global logout waiting on refresh and held committed logout-all responses on
+  all three tiers. They require prompt close and eventual acknowledgement
+  cleanup without reconsuming the global bearer. The effect-body race cases inject
+  exact replies; authentication, native processes and wasm devices are real.
+  Identical mutations coalesce to one request. Conflicting mutations refuse
+  before dispatch, preserving the original caller's outcome. Actions have
+  separate responses, delivered in reverse invocation order.
+- `packages/snapback4/test/helpers/app-session-model.mjs`: restore I12 full
+  structural equality for every received terminal outcome, including the
+  complete refusal. Capture delivered IDs at actual public-close settlement
+  as well as caller settlement; the only pending exception is an unknown
+  response at that cutoff. I13's deliberately redacted historical receipt
+  comparisons remain unchanged.
+- `packages/snapback4/test/app-session-model.test.mjs`: on both online and real
+  wasm tiers, corrupt a received refusal's message in memory and require I12 to
+  fail; the unmodified control passes. This closes Astra's weakened-oracle High.
+- `packages/snapback4/test/online-intent-store.test.mjs`: run all four unbound
+  journal cases both as legacy records and as `dispatched: false, storeId: null`:
+  first store, same first store, replacement, and return to A after observing B.
+  This closes Grok's unbound-admission High. Same-store recovery remains allowed.
+- `packages/snapback4/test/online-session.test.mjs`, `app.test.mjs` and
+  `local-signout.test.mjs`: update the old expectations
+  that ordinary close adopts an unread successor. They now expect a closed
+  refresh, no successor publication and retention of the old local credential.
+  Reopening rejects that consumed predecessor on its first protected request;
+  explicit sign-in can recover. Principal
+  mismatch refusal remains tested. The real held-refresh regressions above
+  prove successor retirement. This closes Astra's refresh Medium and Grok's
+  matching High without waiting for the network.
+- `packages/snapback4/test/helpers/online-client-model.mjs` and
+  `packages/snapback4/test/online-client-model.test.mjs`: preserve R3's full
+  execution/store oracles and coverage assertions. Add a scheduled prefix to
+  selected latest-vocabulary seeds and a standalone case for terminal response,
+  failed receipt save, close and same-store reopen. Faster close changed random
+  scheduling, so the original full run missed this coverage label; the explicit
+  schedule requires a deduplicated replay and prevents silently losing it.
+- `crates/snapback4/tests/serve_store/mod.rs`: add an ID-less wrong-store mutation.
+  It must refuse before commit (head stays zero); the correctly addressed
+  ID-less request then succeeds. All four server store tests pass.
+
+Negative controls were executed and restored: ID-keyed consume-once capture
+fails all four concurrent-action cases; omitting the app cutoff fails all twelve
+session-cleanup outcome cases; rereading a closed receipt instead of sharing the
+submission fails five overlap cases; restoring Grok's dispatched exemption fails
+the two replacement cases; removing the final mutation store guard fails the new
+ID-less test. In-memory refusal corruption is rejected on both E model tiers.
+These intentional mutation failures are evidence, not suite failures.
+
+### Qualification and failure classification
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 345 s`**.
+Every blocking stage passes; the main client process reports 1,522 tests,
+1,512 pass, zero failures and ten existing explicit skips. Separate shards pass.
+E online 5,000, E real-wasm local 5,000 and J 3,000 sequences all pass on the
+final implementation, including the auth-queue close fix. Guide 80/80,
+Clique Following/digest 3/3 and issue tracker server/device 4/4 pass. README is
+300/300 lines. Wasm is unchanged at 1,765,796 bytes raw / 491,640 gzip; keep the
+492,000-byte ratchet (360 bytes headroom), since this round changes no device
+code. `ref-check`: 507 LLP documents, 9,269 refs, zero errors and zero unchecked
+references. Full evidence: `~/sb4-intent/integration-r6-suite-clean.log`.
+
+The final run used the normal suite command, with
+`CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0`,
+`CARGO_BUILD_JOBS=12 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8`,
+`SNAPBACK4_SESSION_SEQUENCES=5000 SNAPBACK4_ONLINE_SEQUENCES=3000`, and private
+`TMPDIR=/dev/shm/sb4-intent-i-r6-tests`. The final clean suite supersedes all
+intermediate failures; no failure is waived.
+
+Separate full-count evidence: E online 5,000 sequences and E real-wasm local
+5,000 sequences passed. J's first 3,000-sequence run completed its invariants
+but failed the `write.unpersisted-replayed` coverage assertion; the scheduled
+witness above restores the missing coverage, and the repeated full run passes
+all 25 tests, including all 3,000 sequences. No oracle or required coverage label
+was removed. Focused close tests pass 37/37, online-session passes 13/13, and
+server store tests pass 4/4. Logs use `~/sb4-intent/integration-r6-*.log`.
+
+During test development, two identical-mutation cases initially closed the app
+before their second call's asynchronous authorization had completed, correctly
+returning `E_AUTH`. They now admit both overlapping calls before close. The
+broader focused run's sole failure was the obsolete unread-refresh expectation
+explained above. These were this round's test/expectation issues, not baseline
+waivers. J's coverage failure was also this round's scheduler/coverage issue.
+
+The first complete suite reported **`== 3 failure(s) in 355 s`**:
+`package typecheck`, `package build` and `client tests`. Every failure is mine;
+none is excused as baseline or environmental. The client stage had ten failed
+tests, with these dispositions:
+
+- `README first account: online, generated API, password, avatar, reopen and denied read`,
+  its `local` counterpart, and `README TypeScript examples compile and call every public function`:
+  a broad local edit accidentally copied the refresh retirement expression into
+  `logoutAll()`, causing TS2304 for `retire` and `refreshed`. The same mistake
+  caused the package typecheck/build failures. The stray expression is removed;
+  typecheck, build and these three tests pass.
+- `ordinary online app close keeps an in-flight rotation for the next runtime`,
+  its `local` counterpart, and
+  `ordinary close still preserves a rotated session that completes after close begins`:
+  obsolete expectations of adoption after close. Updated to the unchanged
+  supervisor ruling, with late-successor retirement and explicit recovery
+  assertions. The online reopen assertion initially expected an eager refusal;
+  it now triggers the first protected read, which is where that tier checks the
+  bearer. All 78 app tests pass.
+- `sign-out revokes a server-committed rotation whose reply arrives after local completion`,
+  `sign-out revokes a delayed refresh request without adopting it`,
+  `sign-out revokes a delayed refresh request ignoring abort without adopting it`,
+  and `sign-out revokes a delayed refresh body ignoring abort without adopting it`:
+  duplicate retirement from close and sign-out made the logout count three
+  rather than two (the real-server test timed out waiting for exactly two).
+  Sharing the once-only retirement callback fixes the regression without
+  changing these tests. The real-server test also passes alone in 551 ms;
+  its timeout was this deterministic regression, not an intermittent waiver.
+
+The post-fix affected run passes the other 131/132 cases; its one over-eager
+online-reopen assertion is corrected as above and the complete app file rerun
+passes 78/78. No remaining intermittent failure or baseline waiver.
+
+
+The second complete run, before the auth-queue extension, reported
+**`== 1 failure(s) in 424 s`**, with `cargo test` as its sole failed stage.
+The runner printed `printf: write error: No space left on device` while writing
+its Rust status file; this is an environmental infrastructure failure, not a
+Rust test assertion. Its complete client stage passed, including all 13,000
+model sequences. That run does not qualify the Rust stage. The final run uses
+`TMPDIR=/dev/shm/sb4-intent-i-r6-tests` for its private scratch files. This host's
+126-GiB tmpfs permits execution and had 126 GiB free; Initially Cargo artifacts stayed in the
+worktree. No test, SQLite durability setting, meter or budget is relaxed. Other
+lanes' files were not deleted. The auth-queue extension's 37 boundary cases and
+100-sequence smoke models passed together (111 tests) before the final full run.
+
+
+The third run reported **`== 2 failure(s) in 248 s`**: `cargo test` and
+`client tests`. The shared root filesystem filled again during Cargo artifact
+writes (`rustc-LLVM ERROR: IO failure on output stream: No space left on device`);
+its artifact build could not qualify Rust. The 47 client failures were all in
+`horizon-boundary.test.mjs`, whose shared fixture-export Cargo command could not
+write `full.rmeta`. Every failing case is in this exact matrix:
+
+| Test name and parameters | Failed cases | Classification |
+| --- | ---: | --- |
+| `wasm review renewal {cold,gap,revoke} horizon={false,true} split={false,true}` | 12 | Environmental: fixture compiler ENOSPC |
+| `wasm review renewal unlimited horizon=true split=true` | 1 | Same |
+| `wasm review same-commit {later,rejoin,renew,twice} horizon={false,true} split={false,true} retained={false,true}` | 32 | Same |
+| `wasm review mixed-readable generated pages snapshot={false,true}` | 2 | Same |
+
+All E online 5,000, E wasm 5,000 and J 3,000 sequences passed on this run,
+including the auth-queue extension. To remove the remaining storage dependency,
+this lane's generated `snapback4/target` was moved to
+`/dev/shm/sb4-intent-i-r6-target`, keeping an ignored symlink at `target` so
+hard-coded fixture paths still work. This freed approximately 5 GiB on the
+shared root; no other lane's files were removed. The final suite writes its
+log in `/dev/shm` before preserving it under `~/sb4-intent/`. After qualification, root space was available again: the same cache was copied
+back to the ordinary `snapback4/target` directory, the temporary symlink and
+memory copy were removed, and the CLI SHA256 matched before/after:
+`4a4657fa307e738cba2e101f5782653bdf993e3d26f314018919a98f75a9523b`.
+No ephemeral build-cache dependency remains. The scratch change was not a source
+change or a qualification of power-loss durability on tmpfs.
+
+### Scope and limits
+
+No design deviation or unresolved High/Medium remains from these reviews.
+Per-request tickets, a private close-owner registry and sharing the running
+submission are implementation choices within the two rulings. Terminal results
+remain full only for their own live invocation; receipt recovery still redacts
+historical result values and refusal details. The existing receipt, storage,
+process-loss and permanently lost refresh-response limits above remain. Seeded
+models and process-device tests are regression evidence, not an exhaustive proof
+or an iOS simulator qualification. No version bump, push or publication was done.
