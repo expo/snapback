@@ -285,28 +285,5 @@ fn discovery_edit(sources: &[(String, String)], index: usize, d: &Diagnostic, st
         if colon.value != ":" { return None; }
         return Some((index, end, end, "()".into()));
     }
-    if d.code == "E_QUARRY_UNKNOWN" && d.message.starts_with("shape wildcard already includes field ") {
-        let name = d.message.strip_prefix("shape wildcard already includes field ")?;
-        let actual = tokens(source);
-        let field = actual.iter().position(|t| offset(source, t.site.line, t.site.col) == Some(start))?;
-        if actual[field].value != name || actual.get(field + 1).is_none_or(|t| ![",", "}"].contains(&t.value.as_str())) { return None; }
-        // Verify the entire enclosing shape against the rewrite, so stale or
-        // mismatched sites do not edit. A first field uses its following comma.
-        let preceding = actual.get(field.checked_sub(1)?)?.value == ",";
-        let comma = if preceding { field - 1 } else { field + 1 };
-        if actual.get(comma)?.value != "," { return None; }
-        let mut depth = 0;
-        let open = (0..field).rev().find(|i| { if actual[*i].kind != Kind::Symbol { return false; } match actual[*i].value.as_str() { "}" => depth += 1, "{" if depth == 0 => return true, "{" => depth -= 1, _ => {} } false })?;
-        depth = 0;
-        let close = (open..actual.len()).find(|i| { if actual[*i].kind != Kind::Symbol { return false; } match actual[*i].value.as_str() { "{" => depth += 1, "}" => depth -= 1, _ => {} } depth == 0 })?;
-        let mut candidate = actual[open..=close].to_vec();
-        candidate.drain(field.min(comma) - open..=field.max(comma) - open);
-        if !same(&candidate, &tokens(&d.rewrite)) { return None; }
-        let comma_at = offset(source, actual[comma].site.line, actual[comma].site.col)?;
-        let (from, end, gap) = if preceding { (comma_at, start + name.len(), &source[comma_at + 1..start]) }
-            else { (start, comma_at + 1, &source[start + name.len()..comma_at]) };
-        if gap.chars().any(|c| !c.is_whitespace()) { return None; }
-        return Some((index, from, end, String::new()));
-    }
     None
 }

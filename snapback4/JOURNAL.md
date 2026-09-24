@@ -49417,3 +49417,74 @@ whitespace checks pass. No engine/wire redesign, authorization relaxation,
 meter ceiling change, package publication or push. General residual write
 targets remain for the supervisor's design decision; the two intermittent
 suite races remain outside this lane's changes.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 2: explicit shape fields replace inherited columns
+
+Continuation of Lane K's entries above. Fetched origin and merged
+origin/main at 0ee488999 (merge a3a9cf0f5) before editing. A shape's explicit
+field can now replace a same-named column from `*` or a named spread, with
+the explicit field's inferred/generated type. The requested bookings page
+runs with `listing: listings[.listing] { title, city }` in place of the id.
+Object spread keeps this behavior. Everything lowers to existing Object,
+Shape, Let and loop IR; Shape retains its original base row, and scans keep
+the original rule/filter/order/cursor inputs. No engine, device or wire
+format change was needed. Replaced expressions still execute once and pay
+their meters, including expressions that fail or call writing helpers.
+
+Two explicit fields now refuse E_QUARRY_DUPLICATE_FIELD in shapes, object
+literals and write payloads, even across an intervening spread. Its site,
+message and rewrite identify both explicit locations. Registered its code,
+why text and shapes-card routing; the language and shapes cards contain
+compiled replacing projections. Removed the obsolete CLI wildcard repair:
+`check --fix` leaves accepted `{ *, field }` forms alone and does not choose
+which duplicate explicit value to delete.
+
+Engineering decisions where the brief was silent: a bare shape column is
+an explicit field, so `{ *, field }` is accepted but `{ field, field }`
+refuses. Named-shape fields are inherited in the receiving shape. Preserve
+the existing explicit-before-wildcard behavior for an already-shaped row;
+this round's explicit-after-wildcard rule does not change that accepted
+program's meaning. The round-0 tests that allowed two explicit object fields
+were updated deliberately to follow round 2's stricter requirement. Ordinary
+spread override order is still tested. Six previously refused frozen census
+programs now compile; their digests live in intent-shape-overrides.sha256.
+All 3,219 historical digests and all original census inputs stay unchanged.
+
+Added five language tests: inferred and emitted replacing types (including
+nullable nested listings); duplicate explicit fields in shapes, objects and
+writes with both source sites; wildcard/named-spread/object-shape merging;
+overridden division still failing and exhausting an eight-step ceiling that
+fits the equivalent plain projection; and overwritten writing helpers running
+once in source order. Added a bare-column acceptance regression. Two device
+tests use the shared booking fixture on memory and SQLite, including reopen
+and wire backend round-trip. They traverse all 25 visible bookings, exclude
+Bob's booking, keep hidden/missing listings null, and interchange server and
+device cursors across tied start values. Replacing start, id and guest in the
+output does not change source ordering, disclosure or continuation. Server
+and device answers and meters agree. The existing explicit projection is the
+control for device completeness: a negative parent lookup outside known
+coverage stays incomplete. No coverage or authorization rule was relaxed.
+
+Development-only targeted failures were ours and resolved: the accepted old
+repair fixture needed a cursor to assert no notes; the new fixture needed
+sync horizons for that assertion; negative device lookups needed the existing
+explicit-projection completeness control; the tiny-step query returns E_BOUND
+rather than an incomplete value; cross-operation heap equality was too strict
+(the test now compares identical-operation server/device meters and source
+examinations against the explicit projection); and four golden shards needed
+the six newly admitted programs pinned separately. These were test expectation
+updates, not baseline failures or runtime fixes. Final scoped checks passed:
+5 shape language tests, 2 device shape tests, 15 language/4 device natural-form
+tests, 10 repairs tests, 27 CLI fix tests and all 57 guide tests. The full suite
+also passed every lowering shard with the original digests unchanged.
+
+Ran scripts/test.sh once with eight Rust build/test workers, after frozen Bun
+install (no dependency changes). Exact result: `== 0 failure(s) in 260 s`.
+No full-suite failures: none ours, baseline or environmental. Client tests:
+1,054 passed, 10 skipped, zero failed. The supplied baseline failures and the
+round-1 timing flakes did not recur. Evidence: /tmp/lane-k-r2-full-suite.log.
+Wasm remains 1,744,842 B raw / 484,967 B gzip (unchanged 486,000 B budget).
+Reference validation: 505 LLP documents, 9,236 references, zero errors and
+zero unchecked. All changed source files stay below 1,500 lines. No push,
+publication, meter-ceiling increase or runtime redesign. No open round-2
+problem; round 1's residual write-target design gap remains as recorded above.

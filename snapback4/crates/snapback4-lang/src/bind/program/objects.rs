@@ -4,10 +4,24 @@ use super::*;
 
 type Field = (String, Expr, Ty, Site);
 
+/// Inherited fields may be replaced; writing a name explicitly twice is a
+/// separate authoring error, even when a spread sits between the two sites.
+pub(super) fn explicit_fields<'a>(fields: impl Iterator<Item = (&'a str, &'a Site)>) -> Fallible<()> {
+    let mut names = BTreeMap::new();
+    for (name, site) in fields {
+        if let Some(first) = names.insert(name, site) {
+            return Err(Diagnostic::new(site, "E_QUARRY_DUPLICATE_FIELD",
+                format!("field {name} is explicit twice: {first} and {site}"),
+                format!("rename {name} at {site} to {name}Detail or remove it; the first explicit {name} is at {first}")).guide("shapes"));
+        }
+    }
+    Ok(())
+}
+
 impl Binder<'_> {
     pub(super) fn object(&mut self, fields: &[ObjectField], out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        let mut names = std::collections::BTreeSet::new();
-        if fields.iter().all(|field| !field.spread && names.insert(&field.name)) {
+        explicit_fields(fields.iter().filter(|f| !f.spread).map(|f| (f.name.as_str(), &f.site)))?;
+        if fields.iter().all(|field| !field.spread) {
             return self.plain_object(fields, out);
         }
         let fields = self.object_fields(fields, None, out)?;
@@ -38,9 +52,6 @@ impl Binder<'_> {
             // Object IR stores fields by name. Minted ids still follow source
             // field order when no child needs a statement-producing expansion.
             let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
-            if types.contains_key(&field.name) {
-                return Err(unknown(&field.site, format!("duplicate field {}", field.name), "keep one"));
-            }
             exprs.push((field.name.clone(), e));
             types.insert(field.name.clone(), t);
         }

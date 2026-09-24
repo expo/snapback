@@ -12,13 +12,35 @@ query shapeForms(roomId: rooms, messageId: messages, c: cursor ?):
 ```
 
 `{ ...p, extra: true }` copies a present row or object's known fields. Fields
-combine left to right; a later value replaces an earlier field of the same
-name. A row contributes the same columns as `p { *, extra: true }`.
+can replace inherited fields: `{ ...p, handle: { value: p.handle } }` and
+`p { *, handle: { value: .handle } }` return an object in place of the handle
+text. The replacing field determines the generated type. A row contributes
+the same columns as `p { *, extra: true }`. This changes only the output;
+rules, ordering and cursors still use the original row.
+E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name, even
+with a spread between them. Rename or remove the second field; the rewrite
+names both locations. A bare column is an explicit field too.
 E_QUARRY_SPREAD refuses nullable operands and values without statically known
 fields. Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`,
 then `return { ...p, extra: true }`.
 
-The table and shape names are the language card's. A shape over a page is
+```quarry
+table listings:
+  title: text
+  city: text
+  public
+table bookings:
+  guest: principal
+  listing: listings
+  start: time
+  read <- .guest = viewer
+query myBookings(c: cursor ?):
+  return bookings where .guest = viewer last 20 by .start after c { *, listing: listings[.listing] { title, city } }
+```
+
+Here `listing` is the expanded object, or null for a missing or hidden listing.
+
+In the first example, table and shape names are the language card's. A shape over a page is
 a bounded loop; its fields are the row's columns by bare name, `*` for all
 of them, `...shape` for a named shape's fields, and `name: expr` with `.`
 as the row. There is no `select` spelling.

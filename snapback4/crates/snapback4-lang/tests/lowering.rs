@@ -9,6 +9,10 @@ mod snapshot;
 use snapback4_lang::{ast, bind::{catalog::Catalog, program::Binder}, Diagnostic};
 use std::collections::BTreeMap;
 
+// The six wildcard replacements were refused by the historical compiler.
+// Pin their newly admitted IR separately; preserve every original digest.
+const GOLDEN: &str = concat!(include_str!("lowering/ce15819ad.sha256"), include_str!("lowering/intent-shape-overrides.sha256"));
+
 fn without_ownership(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram> {
     let schema = snapback4_lang::bind::schema::bind_schema(catalog, diagnostics);
     Binder::bind_with_ownership(catalog, &schema, module, decl, diagnostics, false)
@@ -26,7 +30,7 @@ fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: 
     let disabled = snapshot::snapshot(inputs, without_ownership, true);
     // The baseline golden keeps one SHA-256 per executed program's serialized IR
     // (derived from the ce15819ad serialization; see lowering/README.md).
-    let golden: BTreeMap<String, String> = include_str!("lowering/ce15819ad.sha256").lines().map(|line| { let (name, digest) = line.split_once('\t').unwrap(); (name.to_owned(), digest.to_owned()) }).filter(|(name, _)| selected.iter().any(|prefix| name.starts_with(prefix))).collect();
+    let golden: BTreeMap<String, String> = GOLDEN.lines().map(|line| { let (name, digest) = line.split_once('\t').unwrap(); (name.to_owned(), digest.to_owned()) }).filter(|(name, _)| selected.iter().any(|prefix| name.starts_with(prefix))).collect();
     let digest = |ir: &str| { use sha2::{Digest, Sha256}; Sha256::digest(ir.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>() };
     assert_eq!(enabled.keys().collect::<Vec<_>>(), golden.keys().collect::<Vec<_>>(), "the corpus must neither lose nor gain a compiled program");
     assert_eq!(enabled.keys().collect::<Vec<_>>(), disabled.keys().collect::<Vec<_>>());
@@ -82,7 +86,7 @@ fn golden_and_r1p_catalogs_keep_the_complete_source_census_pinned() {
     let mut inputs = cases::generated();
     inputs.extend(cases::census());
     let prefixes: Vec<_> = inputs.keys().map(|key| format!("{key}:")).collect();
-    let golden: std::collections::BTreeSet<_> = include_str!("lowering/ce15819ad.sha256")
+    let golden: std::collections::BTreeSet<_> = GOLDEN
         .lines()
         .map(|line| line.split_once('\t').unwrap().0)
         .collect();

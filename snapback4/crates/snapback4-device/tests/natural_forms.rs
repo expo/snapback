@@ -36,7 +36,7 @@ query inline(h: text 3..20):
 query objects():
   a = { value: 1, keep: true }
   b = { value: 'second', tail: 2 }
-  return { value: false, ...a, ...b, tail: 3, value: 'last' }
+  return { ...{ value: false }, ...a, ...b, tail: 3, value: 'last' }
 query note(key: notes):
   p = notes[key] ! else NOT_FOUND
   return { ...p, extra: true }

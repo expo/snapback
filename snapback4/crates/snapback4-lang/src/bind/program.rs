@@ -688,38 +688,38 @@ impl<'a> Binder<'a> {
 
     /// Build the object of a shape over a focal row variable.
     fn shape_object(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        objects::explicit_fields(fields.iter().filter_map(|f| match f {
+            ShapeField::Bare { name, site } | ShapeField::Field { name, site, .. } => Some((name.as_str(), site)),
+            _ => None,
+        }))?;
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
         let result = (|| {
-            if fields.iter().any(|f| matches!(f, ShapeField::Spread { .. })) {
-                let carried = self.row_fields(&row_ty, site)?;
-                for (at, field) in fields.iter().enumerate() {
-                    if let ShapeField::Bare { name, site } = field {
-                        if carried.iter().any(|(column, _)| column == name) {
-                            let kept: Vec<_> = fields.iter().enumerate().filter(|(i, _)| *i != at).map(|(_, f)| f.clone()).collect();
-                            return Err(unknown(site, format!("shape wildcard already includes field {name}"), format!("{{ {} }}", print::shape_fields(&kept))).guide("shapes").mechanical());
-                        }
-                    }
-                }
-            }
             let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
-            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, site: &Site, setup: setup::Body, out: &mut setup::Body| -> Fallible<()> {
+            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, setup: setup::Body, out: &mut setup::Body| {
+                if types.contains_key(&name) {
+                    // A replaced value still runs and pays its meter. Freeze
+                    // preceding fields before dropping one from the output,
+                    // including failures/reads with no setup statements.
+                    for (_, value) in &mut exprs {
+                        *value = binder.snapshot(std::mem::replace(value, Expr::Literal(Value::Null)), out);
+                    }
+                    exprs.retain(|(field, _)| field != &name);
+                }
                 binder.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                 let e = if expr::allocates(&e) { binder.snapshot(e, out) } else { e };
-                if types.contains_key(&name) {
-                    return Err(unknown(site, format!("shape repeats field {name}"), "keep one"));
-                }
                 exprs.push((name.clone(), e));
                 types.insert(name, t);
-                Ok(())
             };
             for field in fields {
                 match field {
                     ShapeField::Spread { site } => {
                         for (name, ty) in self.row_fields(&row_ty, site)? {
+                            // Keep the existing re-shaping behavior: explicit
+                            // computed fields win over a RowShape's wildcard.
                             if matches!(row_ty, Ty::RowShape(_)) && fields.iter().any(|field| matches!(field, ShapeField::Field { name: explicit, .. } if explicit == &name)) { continue; }
-                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, site, setup::Body::default(), out)?;
+                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, setup::Body::default(), out);
                         }
                     }
                     ShapeField::NamedSpread { name, site } => {
@@ -731,18 +731,18 @@ impl<'a> Binder<'a> {
                         if let (Expr::Object(nested_fields) | Expr::Shape { fields: nested_fields, .. }, Ty::Object(nested_types) | Ty::RowShape(nested_types)) = (nested, nested_ty) {
                             for (name, e) in nested_fields {
                                 let t = nested_types[&name].clone();
-                                add(self, name, e, t, site, std::mem::take(&mut setup), out)?;
+                                add(self, name, e, t, std::mem::take(&mut setup), out);
                             }
                         }
                     }
                     ShapeField::Bare { name, site } => {
                         let (e, t) = self.member(ir::var(row_var), row_ty.clone(), name, site)?;
-                        add(self, name.clone(), e, t, site, setup::Body::default(), out)?;
+                        add(self, name.clone(), e, t, setup::Body::default(), out);
                     }
-                    ShapeField::Field { name, value, site } => {
+                    ShapeField::Field { name, value, .. } => {
                         let mut setup = setup::Body::default();
                         let (e, t) = self.expr(value, &mut setup)?;
-                        add(self, name.clone(), e, t, site, setup, out)?;
+                        add(self, name.clone(), e, t, setup, out);
                     }
                 }
             }
@@ -887,6 +887,7 @@ impl<'a> Binder<'a> {
     }
 
     fn write_row(&mut self, info: &'a TableInfo, fields: &[ObjectField], current: Option<&str>, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        objects::explicit_fields(fields.iter().filter(|f| !f.spread).map(|f| (f.name.as_str(), &f.site)))?;
         let expanded;
         let fields = if fields.iter().any(|field| field.spread) {
             expanded = self.expand_object_fields(fields, Some(info), out)?;

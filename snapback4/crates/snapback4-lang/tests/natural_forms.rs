@@ -10,7 +10,7 @@ fn checked(source: &str) -> snapback4_lang::Bound {
 
 #[test]
 fn object_spreads_merge_rows_objects_and_types_left_to_right() {
-    let source = "table profiles:\n  principal: principal\n  handle: text 3..20\n  bio: text\n  public\nquery row(h: profiles):\n  p = profiles[h] ! else NOT_FOUND\n  return { ...p, bio: 42, extra: true }\nquery objects():\n  a = { n: 1, keep: true }\n  b = { n: 'second', tail: 2 }\n  return { n: false, ...a, ...b, tail: 3, n: 'last' }\nquery duplicate():\n  return { x: 1, x: 'last' }\n";
+    let source = "table profiles:\n  principal: principal\n  handle: text 3..20\n  bio: text\n  public\nquery row(h: profiles):\n  p = profiles[h] ! else NOT_FOUND\n  return { ...p, bio: 42, extra: true }\nquery objects():\n  a = { n: 1, keep: true }\n  b = { n: 'second', tail: 2 }\n  return { ...{ n: false }, ...a, ...b, tail: 3, n: 'last' }\n";
     let compiled = checked(source);
     let types = &compiled.programs.iter().find(|p| p.program.name == "row").unwrap().result;
     assert_eq!(types, &Ty::Object(BTreeMap::from([
@@ -24,7 +24,6 @@ fn object_spreads_merge_rows_objects_and_types_left_to_right() {
     let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
     let objects = engine.query("objects", Context::new("alice", BTreeMap::new())).unwrap();
     assert_eq!(snapback4_core::wire::to_json(&objects.data), serde_json::json!({"n":"last", "keep":true, "tail":3}));
-    assert_eq!(engine.query("duplicate", Context::new("alice", BTreeMap::new())).unwrap().data.field("x").unwrap(), &Value::String("last".into()));
 }
 
 #[test]
@@ -145,7 +144,7 @@ fn new_codes_have_why_entries_and_cards() {
 
 #[test]
 fn spread_operands_and_overridden_fields_execute_once_in_source_order() {
-    let source = "table logs:\n  label: text\n  public\n  insert <- allow\nfn record(label: text):\n  insert logs { label }\n  return { label, twice: label }\nmutation run():\n  return { ...record('first'), ...record('second'), label: 'last' }\nquery rows(c: cursor ?):\n  return logs first 10 after c\nquery fail(n: int):\n  return { x: 1 / n, ...{ x: 2 } }\nquery failPlain(n: int):\n  return { x: 1 / n, x: 2 }\n";
+    let source = "table logs:\n  label: text\n  public\n  insert <- allow\nfn record(label: text):\n  insert logs { label }\n  return { label, twice: label }\nmutation run():\n  return { ...record('first'), ...record('second'), label: 'last' }\nquery rows(c: cursor ?):\n  return logs first 10 after c\nquery fail(n: int):\n  return { x: 1 / n, ...{ x: 2 } }\n";
     let compiled = checked(source);
     let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
     let result = engine.mutate("run", None, Context::new("alice", BTreeMap::new()).with_ids(["a".into(), "b".into()])).unwrap();
@@ -156,10 +155,8 @@ fn spread_operands_and_overridden_fields_execute_once_in_source_order() {
     assert_eq!(rows.len(), 2, "each helper operand ran once");
     assert_eq!(rows[0].field("label").unwrap(), &Value::String("first".into()));
     assert_eq!(rows[1].field("label").unwrap(), &Value::String("second".into()));
-    for name in ["fail", "failPlain"] {
-        let error = engine.query(name, Context::new("alice", BTreeMap::from([("n".into(), Value::Int(0))]))).unwrap_err();
-        assert_eq!(error.code, "E_DIV_ZERO", "overridden work must still run");
-    }
+    let error = engine.query("fail", Context::new("alice", BTreeMap::from([("n".into(), Value::Int(0))]))).unwrap_err();
+    assert_eq!(error.code, "E_DIV_ZERO", "overridden work must still run");
 }
 
 #[test]

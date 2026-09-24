@@ -154,12 +154,12 @@ fn check_fix_repairs_equality_and_keeps_the_independent_error() {
 }
 
 #[test]
-fn check_fix_applies_the_four_reproduced_repairs_byte_exact() {
+fn check_fix_applies_repairs_and_preserves_accepted_forms_byte_exact() {
     for (source, corrected) in [
         (MISSING_INDEX, MISSING_INDEX.into()),
         (MISSING_PROBE, MISSING_PROBE.into()),
         (ARG_ONCE, ARG_ONCE.replace(" once", "")),
-        (WILDCARD, WILDCARD.replace("*, tombstone", "*")),
+        (WILDCARD, WILDCARD.into()),
         (EMPTY_ARGS, EMPTY_ARGS.replace("trending:", "trending():")),
     ] { check_fix(&[("schema.q", source, &corrected)], true); }
 }
@@ -220,9 +220,9 @@ fn repair_variants_preserve_surrounding_source() {
         // A newline inside the argument list is already legal; the comment survives.
         check_fix(&[("schema.q", &source, &source.replace(" once", ""))], true);
     }
-    for shape in ["{ tombstone, * }", "{ *, tombstone, extra: 1 }", "{ *, extra: 1, tombstone }", "{ *, tombstone, tombstone }"] {
+    for shape in ["{ tombstone, * }", "{ *, tombstone, extra: 1 }", "{ *, extra: 1, tombstone }"] {
         let source = WILDCARD.replace("{ *, tombstone }", shape);
-        let expected = source.replace("tombstone, *", " *").replace(", tombstone", "");
+        let expected = source.clone();
         check_fix(&[("schema.q", &source, &expected)], true);
     }
     for kind in ["query", "mutation"] {
@@ -236,11 +236,11 @@ fn non_applicable_repairs_leave_source_and_exit_unchanged() {
     for source in [
         MISSING_INDEX.replace("room = room, principal = p", "room, p"),
         "table photos:\n  movie: video <=10000000 once\n".into(),
-        WILDCARD.replace("*, tombstone", "*, tombstone: false"),
+        WILDCARD.replace("*, tombstone", "*, tombstone: false, tombstone: true"),
         EMPTY_ARGS.replace("trending:", "trending x:"),
     ] { check_fix(&[("schema.q", &source, &source)], false); }
     // A stale diagnostic cannot remove a different token or insert parentheses twice.
-    for source in [ARG_ONCE, WILDCARD, EMPTY_ARGS] {
+    for source in [ARG_ONCE, EMPTY_ARGS] {
         let d = snapback4_lang::compile(&[("schema.q".into(), source.into())]).diagnostics.remove(0);
         let corrected = source.replace(" once", "").replace(", tombstone", "").replace("trending:", "trending():");
         assert!(fix::edit(&[("schema.q".into(), corrected.clone())], 0, &d).is_none());
