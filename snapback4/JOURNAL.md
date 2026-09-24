@@ -47602,3 +47602,45 @@ clients still refuse new work. Exact test names, logs and reproductions are in
 Did not alter authorization, disclosure, meters, Client vocabulary or ceilings;
 did not run a native Expo simulator, push or publish. The second review family
 is still pending. The original handoff report links forward to this result.
+
+
+## 2026-09-24 — LLP 3000.013 lane E review round 2: storage ownership
+
+Addressed all four Grok findings in `3bbb80328`. Session and journal key
+segments now use injective fixed-width hexadecimal encoding before reaching
+any store; generated and documented SecureStore adapters pass keys through
+unchanged. Journals record backend and owner and every pending intent carries
+its owner. Foreign or malformed records are preserved under a separate key,
+then an empty owned journal opens with an `auth.why` warning. If preservation
+fails, original bytes remain, sign-in succeeds, and writes stay blocked until
+preservation is possible.
+
+Failed app opens now revoke and clear their kept bearer before publishing
+signed-out. Session replacement and deletion use the same Web Lock, and a
+server refusal deletes only the same token still stored, preserving another
+tab's rotated successor. Explicit clearing revokes a successor it drops.
+
+Measured: all 73 final affected tests passed. The generated Expo Go adapter
+keeps four formerly colliding principal pairs and colliding backend URLs
+separate. A foreign recorded intent never dispatches even at the correct safe
+key. Real-server tests prove failed-open cleanup before state publication and
+stale-refresh preservation for online and local clients. Corrupt JSON, invalid
+shapes, unavailable preservation and quarantine-name entropy failure are
+covered. Both generated starters and README examples typecheck. Both Chromium
+witnesses pass, including offline account/replica reopen with both servers
+stopped (1,498 ms, not a performance claim) and full starter deployment updates.
+
+Complete suite: **`== 1 failure(s) in 145 s`**, cargo aggregate only. Client
+results: 1,030 passed, 10 skipped, zero failed. The same four Rust tests fail
+in the untouched baseline: legacy schema capabilities, search wasm fixture,
+authoring census and why cost output. A final quarantine-name failure guard
+and its test were verified by the 73-test affected run after that snapshot.
+Exact names, reproduction commands and the corrected initial focused failure
+are in [the review report](./reports/20260924-lane-e-review2.md).
+
+The pre-release storage format changes: ambiguous old keys and ownerless
+journals cannot be safely imported automatically. Their bytes remain untouched;
+sign in again after upgrading and recover old records only with verified
+ownership. Local device outboxes and server data do not change. Did not change
+engine authorization, disclosure, meters, Client vocabulary or ceilings; did
+not run a native Expo simulator, push or publish.

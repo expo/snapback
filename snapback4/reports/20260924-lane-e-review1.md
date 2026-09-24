@@ -1,5 +1,9 @@
 # Lane E review round 1 — five Astra findings
 
+Latest follow-up: [review round 2](./20260924-lane-e-review2.md) fixes the
+storage ownership, cleanup, shared-session and damaged-journal findings.
+Earlier results below remain the historical handoff record.
+
 Date: 2026-09-24. Base for this review round: `54eb98707` on
 `sb4-intent/e-client`. Implementation commit: `cfadff4d9`. No push or publication.
 

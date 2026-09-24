@@ -1,5 +1,9 @@
 # LLP 3000.013 lane E — paved client
 
+Latest follow-up: [review round 2](./20260924-lane-e-review2.md) fixes the
+storage ownership, cleanup, shared-session and damaged-journal findings.
+Earlier results below remain the historical handoff record.
+
 Date: 2026-09-24. Branch: `sb4-intent/e-client`; base: `6d9f3e001`.
 This is implementation and local qualification, not integration or publication.
 
