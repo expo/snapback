@@ -381,6 +381,15 @@ impl Parser {
     fn parse_column(&mut self) -> Fallible<ColumnDecl> {
         let name = self.word()?;
         self.take(":")?;
+        if self.maybe("sequence") {
+            self.take("by")?;
+            let parent = if self.at_kind(Kind::Word) { self.word()?.value } else {
+                return Err(crate::diag::Diagnostic::new(&name.site, "E_SEQUENCE_PARENT", "sequence by needs a parent reference column", "ordinal: sequence by conversationId; declare conversationId: conversations").guide("types"));
+            };
+            self.newline()?;
+            return Ok(ColumnDecl { sequence: Some(parent), maintained: None, name: name.value,
+                type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
+        }
         let aggregate = (self.peek_at(2).kind == Kind::Word
             && ((self.at("count") && matches!(self.peek_at(2).value.as_str(), "by" | "where"))
                 || (self.at("sum") && self.peek_at(2).value == "of")))
@@ -392,7 +401,7 @@ impl Parser {
             let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
             let by = if self.maybe("by") { self.maybe("."); self.word()?.value } else { String::new() };
             self.newline()?;
-            return Ok(ColumnDecl { maintained: Some(ColumnAggregate { source, of, filter, by }),
+            return Ok(ColumnDecl { sequence: None, maintained: Some(ColumnAggregate { source, of, filter, by }),
                 name: name.value, type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
         }
         let type_ = self.parse_type(true)?;
@@ -401,7 +410,7 @@ impl Parser {
         }
         let default = if self.maybe("default") { Some(self.expression(0, &[])?) } else { None };
         self.newline()?;
-        Ok(ColumnDecl { maintained: None, name: name.value, type_, default, site: name.site })
+        Ok(ColumnDecl { sequence: None, maintained: None, name: name.value, type_, default, site: name.site })
     }
 
     fn parse_index(&mut self, unique: bool) -> Fallible<IndexDecl> {

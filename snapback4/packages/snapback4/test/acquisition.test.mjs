@@ -56,11 +56,11 @@ async function until(check, message) {
 }
 const query = (name) => ({ kind: "query", name });
 
-async function fixture(t, tier, empty = false) {
+async function fixture(t, tier, empty = false, schemaSource = source) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-acquisition-"));
   mkdirSync(join(directory, "snapback"));
   const schemaPath = join(directory, "snapback/schema.q");
-  writeFileSync(schemaPath, source);
+  writeFileSync(schemaPath, schemaSource);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   let child, exit, url;
   async function start() {
@@ -507,3 +507,33 @@ for (const size of [256, 128]) test(`W5R2a web: adopting 256 orphan receipts pre
   const reopened = await f.open();
   for (const receipt of own) assert.deepEqual(await reopened.write(receipt.id), receipt);
 });
+
+
+for (const tier of ["wasm", "process"]) {
+  test(`sequence by ${tier}: two offline Write results remain pending until settled`, { timeout: 30000 }, async t => {
+    const sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
+    const f = await fixture(t, tier, true, `use personas alice\n${sequence}`);
+    f.mode("online"); const client = await f.open();
+    await until(() => client.acquired, "sequence partition was not acquired");
+    f.mode("offline");
+    const writes = [];
+    for (const body of ["first offline", "second offline"]) {
+      const write = await client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c", body });
+      assert.equal(write.state, "pending");
+      assert.equal((await client.write(write.id)).state, "pending");
+      writes.push(write);
+    }
+    const before = await client.query(query("history"), { conversationId: "c" });
+    assert.deepEqual(before.data.map(row => row.ordinal), [2, 1]);
+    assert.ok(before.data.every(row => row.pending === true));
+    f.mode("online");
+    await client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c", body: "online flush" });
+    await until(async () => (await Promise.all(writes.map(write => client.write(write.id)))).every(write => write?.state === "sent"), "sequence writes did not settle");
+    await until(async () => {
+      const page = await client.query(query("history"), { conversationId: "c" });
+      return page.data?.length === 2 && page.data.every(row => row.pending !== true);
+    }, "settled images retained provisional flags");
+    const settled = await client.query(query("oldest"), { conversationId: "c" });
+    assert.deepEqual(settled.data.map(row => [row.body, row.ordinal]), [["first offline", 1], ["second offline", 2]]);
+  });
+}

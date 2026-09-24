@@ -91,7 +91,7 @@ impl Store {
                 return Err(step.refusal(schema));
             }
         }
-        if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i;")?; }
+        if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i; DELETE FROM _sequences;")?; }
         if schema_changed {
             // Removed names retain only their catalog number, never live row
             // images. Reintroducing a name starts empty, without resurrection.

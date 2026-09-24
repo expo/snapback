@@ -207,6 +207,10 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Table {
+    /// Engine-assigned ordinal → required parent reference column.
+    // @ref LLP 3000.015#2 — one counter per parent row across child tables.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sequences: BTreeMap<String, String>,
     /// Engine-maintained readable fields, with their derivation identity.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub maintained: BTreeMap<String, String>,
@@ -739,11 +743,14 @@ impl Auth {
 /// The intrinsic index every table carries.
 pub const BY_ID: &str = "byId";
 
+/// Bounded suffix lookup for sequence prediction, shared by every device store.
+pub fn sequence_index(column: &str) -> String { format!("$sequence:{column}") }
+
 /// A table with public rules, for fixtures and tests.
 pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
-        maintained: BTreeMap::new(), recorded: BTreeMap::new(),
+        sequences: BTreeMap::new(), maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         residency: Residency::default(),
         defaults: BTreeMap::new(),
         columns,
@@ -781,6 +788,15 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     }
     for (table_name, table) in &schema.tables {
         let path = format!("tables.{table_name}");
+        for (column, parent) in &table.sequences {
+            let valid = table.columns.get(column) == Some(&ColumnType::Int)
+                && matches!(table.columns.get(parent), Some(ColumnType::Ref { table }) if schema.tables.contains_key(table))
+                && !table.defaults.contains_key(column) && !table.maintained.contains_key(column)
+                && !table.recorded.contains_key(column)
+                && [column, parent].iter().all(|field| table.constraints.iter().any(|c| matches!(c, Constraint::Immutable { fields } if fields.contains(field))))
+                && table.indexes.get(&sequence_index(column)) == Some(&Index::of(&[parent, column], false));
+            if !valid { issue(&mut issues, format!("{path}.sequences.{column}"), "sequence by requires an int column, a required table reference, immutable ordinal and parent, and its sequence index; compile the declaration (guide types)".into()); }
+        }
         for (field, capture) in &table.recorded {
             let target = schema.table(&capture.table);
             let valid = !table.defaults.contains_key(field) && field == &format!("{}.{}", capture.reference, capture.column)

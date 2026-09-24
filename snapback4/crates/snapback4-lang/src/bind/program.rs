@@ -791,6 +791,10 @@ impl<'a> Binder<'a> {
             return Err(unknown(site, format!("{table} is a maintained aggregate; write its source rows instead"), format!("{} {}", op.word(), info.maintained.as_ref().map(|m| m.source.clone()).unwrap_or_default())));
         }
         for field in fields {
+            if info.decl.columns.iter().any(|c| c.name == field.name && c.sequence.is_some()) {
+                return Err(Diagnostic::new(&field.site, "E_SEQUENCE_SUPPLIED", format!("{table}.{} is assigned by the engine", field.name),
+                    format!("omit {} from the {} payload", field.name, op.word())).guide("writes"));
+            }
             if super::columns::fields(info).any(|name|name == field.name) {
                 return Err(super::columns::refusal(&field.site,format!("{table}.{} is engine-maintained; write its source rows instead",field.name)));
             }
@@ -960,7 +964,7 @@ impl<'a> Binder<'a> {
                 given.insert(column.name.clone());
             }
         }
-        let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !super::columns::fields(info).any(|f|f == *name) && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
+        let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !info.decl.columns.iter().any(|c| c.name == **name && c.sequence.is_some()) && !super::columns::fields(info).any(|f|f == *name) && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
         if !missing.is_empty() {
             return Err(type_error(site, format!("insert into {} omits required column{} {}", info.decl.name, if missing.len() == 1 { "" } else { "s" }, missing.join(", ")), format!("insert {} {{ {} }}", info.decl.name, given.iter().cloned().chain(missing.iter().map(|m| format!("{m}: <{}>", info.columns.get(*m).map(print::scalar_type).unwrap_or_default()))).collect::<Vec<_>>().join(", "))));
         }

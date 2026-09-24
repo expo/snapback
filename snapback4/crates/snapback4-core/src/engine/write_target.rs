@@ -127,6 +127,7 @@ impl Runner<'_> {
         let key = target.key.iter().map(|e| self.expr(e)).collect::<Result<Vec<_>, _>>()?;
         let patch = self.expr(patch)?;
         self.refuse_recorded(&target.table, &patch)?;
+        super::sequences::refuse_fields(&self.schema.tables[&target.table], &target.table, &patch)?;
         let definition = self.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?.clone();
         let index = definition.index(&target.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", target.table, target.index)))?;
         if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }

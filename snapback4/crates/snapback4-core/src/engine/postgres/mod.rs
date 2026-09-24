@@ -93,6 +93,7 @@ impl PostgresEngine {
         )?.first() {
             return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
         }
+        client.batch_execute("CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));")?;
         Self::attach(client, schema, programs)
     }
 
@@ -290,6 +291,8 @@ impl PostgresEngine {
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table_name, row) in rows {
+            let old = tx.get(&table_name, row.field("id")?.as_str()?)?;
+            let row = runner.import_sequences(&table_name, row, old.as_ref(), false)?;
             validate::validate_row(&self.schema, &table_name, &row)?;
             let table = self.schema.table(&table_name).expect("validated").clone();
             let id = row.field("id")?.as_str()?.to_owned();

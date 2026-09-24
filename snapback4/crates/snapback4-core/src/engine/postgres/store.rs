@@ -24,6 +24,7 @@ CREATE TABLE i (t TEXT COLLATE \"C\" NOT NULL, ix TEXT COLLATE \"C\" NOT NULL, k
 CREATE TABLE _commits (seq BIGINT PRIMARY KEY, at BIGINT NOT NULL, program TEXT NOT NULL, principal TEXT NOT NULL, kind TEXT NOT NULL, touched TEXT NOT NULL, writes BIGINT NOT NULL);
 CREATE TABLE _log (partition TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL REFERENCES _commits(seq), ord BIGINT NOT NULL, t TEXT NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(partition,seq,ord));
 CREATE TABLE _ops (principal TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL, outcome TEXT NOT NULL, name TEXT NOT NULL, args_digest TEXT NOT NULL, at BIGINT NOT NULL, PRIMARY KEY(principal,id));
+CREATE TABLE _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));
 CREATE TABLE _effect_keys (effect TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(effect, key));
 CREATE TABLE _outbox (id TEXT PRIMARY KEY, seq BIGINT NOT NULL REFERENCES _commits(seq), effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts BIGINT NOT NULL, at BIGINT NOT NULL);
 CREATE TABLE _principal_generations (principal TEXT COLLATE \"C\" PRIMARY KEY, generation BIGINT NOT NULL);
@@ -228,6 +229,14 @@ impl Tx<'_> {
 }
 
 impl Rows for Tx<'_> {
+    fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        Ok(self.query("SELECT value FROM _sequences WHERE parent = $1 AND id = $2", &[&parent, &id])?.first().map_or(0, |r| r.get(0)))
+    }
+    fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
+        self.execute("INSERT INTO _sequences VALUES ($1, $2, $3) ON CONFLICT(parent, id) DO UPDATE SET value = EXCLUDED.value", &[&parent, &id, &value])?;
+        Ok(())
+    }
+
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
         Ok(!self.query("INSERT INTO _effect_keys(effect, key) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING effect", &[&effect, &key])?.is_empty())
     }

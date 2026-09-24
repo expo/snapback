@@ -386,13 +386,23 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::InsertIfAbsent { table, row, result } => {
                     let row = self.expr(row)?;
-                    let value = if self.insert_if_absent(table, row.clone())? { row } else { Value::Null };
+                    let value = if self.insert_if_absent(table, row.clone())? { self.sequence_result(table, row)? } else { Value::Null };
                     self.bind(result, value);
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {
-                    let row = self.expr(row)?;
-                    self.insert(table, row)?;
+                    let image = self.expr(row)?;
+                    if self.schema.tables[table].sequences.is_empty() {
+                        self.insert(table, image)?;
+                    } else {
+                        self.meter.heap(image.heap_bytes())?;
+                        self.insert(table, image.clone())?;
+                        // A bound insert keeps its engine-filled image in the result local.
+                        if let Expr::Variable(name) = row {
+                            let result = self.sequence_result(table, image)?;
+                            self.bind(name, result);
+                        }
+                    }
                     Flow::Next
                 }
                 Stmt::Update { table, key, patch } => {

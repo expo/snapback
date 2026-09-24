@@ -218,22 +218,21 @@ application's, in its mutations and rules.
 ## Server-arrival order within a conversation
 
 `at` has millisecond ties; client-minted ids order creation, not arrival at
-the server. Keep a per-conversation ordinal in the same mutation as the
-message insert. Transactions serialize the increment, so committed ordinals
-order accepted writes within that conversation; they do not order groups.
+the server. Declare an engine sequence. A client-supplied integer can pin
+the history forever by writing the largest value; `sequence by` refuses
+such values with E_SEQUENCE_SUPPLIED, including on updates and upserts.
 
 ```quarry
 table conversations:
-  lastOrdinal: int default 0
   creator: principal
-  public 'shared conversation counters'
+  public 'shared conversation'
   insert <- .creator = viewer
-  update <- exists members[.id, viewer]
   online only
 
 table members:
   conversationId: conversations
   principal: principal
+  joinedAt: sequence by conversationId
   unique conversationId, principal
   public 'shared conversation membership'
   insert <- exists conversations[id = .conversationId, creator = viewer]
@@ -241,12 +240,10 @@ table members:
 
 table messages:
   conversationId: conversations
-  ordinal: int
+  ordinal: sequence by conversationId
   body: text <=200
-  at: time
-  immutable conversationId, ordinal
   public 'shared message history'
-  insert <- exists conversations[id = .conversationId, lastOrdinal = .ordinal]
+  insert <- exists members[.conversationId, viewer]
   online only
 
 mutation createConversation():
@@ -258,20 +255,33 @@ mutation addMember(conversationId: conversations, principal: principal):
   insert members { conversationId, principal } if absent
 
 mutation send(conversationId: conversations, body: text <=200):
-  conversation = conversations[conversationId] ! else NOT_FOUND
-  ordinal = conversation.lastOrdinal + 1
-  upsert conversations[conversationId] { lastOrdinal: ordinal }
-  insert messages { conversationId, ordinal, body, at: now }
+  return insert messages { conversationId, body }
 
 query history(conversationId: conversations, c: cursor ?):
   return messages where .conversationId = conversationId after c last 50 by .ordinal
 ```
 
-Pass the returned `next` as `c` to page newest first by ordinal. Reusing the
-mutation id on retry neither increments again nor inserts twice. This short
-shared-history example is online-only and only members can advance its counter;
-private conversations also need membership read rules. If you sync and predict it, a local ordinal is provisional until the
-server commits and reconciles concurrent sends.
+Clique's `messages.ordinal` and `members.joinedAt` draw from one counter
+per conversation, starting at 1. Allocation is dense across the participating
+columns, rather than within messages alone: membership insertion takes the
+next position too. Each successful insertion takes a position; deletion does
+not reuse it. A rolled-back transaction, an `if absent` no-op, or retry of the
+same write id consumes no position. Different conversations have independent
+counters. Multiple sequence columns in one inserted row allocate in column-name
+order. Ordinals and their parent reference are immutable; listing the ordinal
+in `immutable` is accepted and redundant.
+
+`first N by .ordinal` and `last N by .ordinal` give a total order within a
+conversation. Pass the returned `next` cursor to continue as for any int column.
+These public, online-only examples use membership to authorize writes;
+private chats also need membership read rules and their sync declarations.
+A predicted insert in a synced table takes a provisional value above every
+held value for that parent, including other pending inserts. Its row carries
+`pending: true`; the Write remains `pending` until the server settles it.
+The settled image replaces the provisional ordinal and reorders local pages.
+Two offline inserts keep their outbox order when they reach the server.
+If no provisional value fits above the device's held integers, the write queues
+without prediction; the server decides whether its counter has room.
 
 ## Write authority
 

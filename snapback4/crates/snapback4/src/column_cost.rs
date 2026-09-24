@@ -63,6 +63,8 @@ pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<Str
 }
 
 pub(crate) fn description(schema: &Schema, parent: &str) -> Vec<String> {
-    schema.maintains.iter().filter(|m|m.private.as_ref().is_some_and(|o|o.table == parent)).map(|m|
-        format!("  maintained column {}: {:?} from {} by {}; parent residency: {}; server-derived, no device prediction; event-free activation reacquires snapshots",m.label(),m.kind,m.source,m.by.join(", "),snapback4_lang::bind::residency::table_line(schema,parent))).collect()
+    schema.tables[parent].sequences.iter().map(|(column, reference)|
+        format!("  sequence {parent}.{column}: counter per {} row through .{reference}; shared across child tables; provisional while pending", schema.tables[parent].columns[reference]))
+        .chain(schema.maintains.iter().filter(|m|m.private.as_ref().is_some_and(|o|o.table == parent)).map(|m|
+        format!("  maintained column {}: {:?} from {} by {}; parent residency: {}; server-derived, no device prediction; event-free activation reacquires snapshots",m.label(),m.kind,m.source,m.by.join(", "),snapback4_lang::bind::residency::table_line(schema,parent)))).collect()
 }

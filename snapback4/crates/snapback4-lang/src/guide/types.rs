@@ -79,6 +79,46 @@ Pages, lists and shaped collections share the list operations: `sort`, `slice`,
 `count`, `sum`, `group`, `first`, `last`, `at`, `join` and `for`. Their elements
 must still fit the operation: `join` joins texts; `sum(page, .amount)` projects numbers.
 
+## Engine-assigned per-parent sequences
+
+`ordinal: sequence by conversationId` is an `int` assigned by the engine
+inside the write transaction. The named column must be a required reference
+on this table, such as `conversationId: conversations`. E_SEQUENCE_PARENT
+names a missing, optional or non-reference parent column and gives the rewrite.
+The ordinal and parent reference are immutable; an explicit `immutable ordinal`
+is redundant and accepted. Do not supply a value or default.
+
+```quarry
+table conversations:
+  public 'shared chat identities'
+  online only
+
+table messages:
+  conversationId: conversations
+  ordinal: sequence by conversationId
+  public 'shared chat history'
+  online only
+
+table members:
+  conversationId: conversations
+  joinedAt: sequence by conversationId
+  public 'shared chat membership positions'
+  online only
+```
+
+Clique's messages and members share a single counter per conversation row.
+A client-supplied integer could pin history forever; engine ownership refuses
+that with E_SEQUENCE_SUPPLIED. References retain their ordinary typed-id
+semantics: require a visible parent explicitly when the operation needs it.
+Counters remain keyed by parent table and id across deletions and reopen.
+An explicit store reset clears them with its rows. Adding or rebinding a sequence
+on a populated table refuses E_ADOPT with an empty-table rewrite; there is no
+implicit historical backfill. An empty table may adopt the declaration.
+E_SEQUENCE_EXHAUSTED refuses a transaction that would exceed the maximum int.
+The generated schema carries the `sequence-by` engine capability; upgrade
+older engines and devices that refuse it with E_SCHEMA_CAPABILITY.
+See `guide writes` for prediction, ordering and the complete chat example.
+
 ## Runtime values that do not fit
 
 E_TYPE means a runtime value has the wrong kind for the operation using it.

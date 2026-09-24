@@ -28,16 +28,29 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
-        self.target_attempt(table_name, |runner|runner.insert_attempt(table_name, row, if_absent))
+        self.target_attempt(table_name, |runner|runner.insert_attempt(table_name, row, if_absent, None))
     }
 
-    fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+    fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool, upsert_index: Option<&str>) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
+        let (row, sequence_full) = self.sequence_fields(table_name, row)?;
+        if let Some(index) = upsert_index {
+            if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
+            // Preserve upsert's target preflight before the ordinary insert checks;
+            // only this first authority refusal is an undisclosed target miss.
+            if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
+            if sequence_full { return Err(super::sequences::exhausted()); }
+            if let Err(error) = validate_row(self.schema, table_name, &row) {
+                return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
+            }
+        }
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
+        if sequence_full { return Err(super::sequences::exhausted()); }
         let row = self.record_insert(table_name, row)?;
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
@@ -74,6 +87,7 @@ impl Runner<'_> {
             self.remove(table_name, &existing)?;
         }
         self.check_constraints(table_name, None, &row, Effect::Insert)?;
+        self.commit_sequences(table_name, &row)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
         self.charge_source_indexes(&table, None, Some(&row), entries)?;
         self.row_changed(table_name, None, Some(&row), Origin::Source)?;
@@ -87,6 +101,7 @@ impl Runner<'_> {
     fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, &patch)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &patch)?;
         if patch.as_object()?.contains_key("id") {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
         }
@@ -109,6 +124,7 @@ impl Runner<'_> {
     fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         self.refuse_recorded(table_name, &row)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
@@ -129,16 +145,7 @@ impl Runner<'_> {
 
     pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
-        // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
-        let row = self.with_defaults(table_name, row)?;
-        if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
-        // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
-        if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
-        // An incomplete insert patch has the same word as a refused hidden target.
-        if let Err(error) = validate_row(self.schema, table_name, &row) {
-            return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
-        }
-        match self.insert_attempt(table_name, row, false).map(|_| ()) {
+        match self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()) {
             Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
             result => result,
         }
@@ -160,6 +167,7 @@ impl Runner<'_> {
     pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, patch)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, patch)?;
         for path in self.schema.tables[table_name].recorded.keys() {
             if old.field(path).ok() != new.field(path).ok() {
                 return Err(if readable { RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("engine replacement changed stored attribution at {table_name}.{path} (guide maintains)") } } else { self.no_write_target() });

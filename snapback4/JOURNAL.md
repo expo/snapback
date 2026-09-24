@@ -49278,3 +49278,124 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+
+## 2026-09-24 — LLP 3000.015 Lane B2: engine-assigned `sequence by`
+
+Implemented `ordinal: sequence by conversationId` as a required engine-owned
+int. The binder validates the same-table parent reference, preserves redundant
+explicit immutability, and supplies an index for bounded per-parent suffix
+reads. `check` and column explanations name the parent counter. The types,
+writes and language cards carry the form; the executable Clique recipe now
+shares one conversation counter between messages and memberships instead of
+accepting an application-supplied integer that can pin history forever.
+
+The engine allocates across every declaring table/column inside the write's
+transaction. Memory rows, in-memory/file SQLite and PostgreSQL have counter
+storage; PostgreSQL uses the existing serialized-head/serializable retry
+boundary, not a SQL SEQUENCE. Failed transactions, if-absent no-ops and write
+retries consume no position. Deletion does not reuse a position; reopen
+preserves the counter, explicit reset clears it, imports allocate omitted
+ordinals and trusted restoration advances to the largest restored value.
+Native and Quarry insert results include assigned fields. Device prediction
+uses metered indexed suffixes across all declaring tables, including pending
+rows and the settled image beneath a pending deletion. Predicted rows carry
+pending, Write results remain pending, and settled images replace ordinals
+and reorder pages. Device-only floor exhaustion queues through E_PREDICT.
+
+E_SEQUENCE_PARENT and E_SEQUENCE_SUPPLIED have rewrites and explanations;
+E_SEQUENCE_EXHAUSTED covers the positive int ceiling. The derived sequence-by
+capability prevents older engines/devices from silently ignoring ownership.
+Legacy Recorded markers infer only historical capabilities, so they cannot
+substitute for the new capability carrier. Review found and closed device
+floor budgeting, dropped-table import panic, and legacy-carrier bypass cases.
+Full-suite upsert tests also caught a refactor regression; the original
+preflight, double insert-rule accounting and collision disclosure are restored.
+
+The smallest necessary extension to the spec is that the parent reference is
+also immutable: moving an immutable ordinal 1 from parent A into parent B
+already containing ordinal 1 would destroy the promised total order. Optional
+parent references are refused. Multiple sequence columns in one row allocate
+in column-name order. The checkout has no cap_count occupancy ledger; caps
+use transaction-scoped index reads, so the new ledger follows the same write
+transaction boundary. For populated-table addition/rebinding, the explicitly
+allowed migration choice is E_ADOPT with an empty-table rewrite; there is no
+implicit historical backfill. Empty tables may adopt the declaration.
+
+Verification: nine focused core tests, three device tests covering both stores
+online/offline, two language tests, the capability regressions and the tested
+guide recipe pass. Real web and SQLite-backed clients prove two offline Write
+results remain pending until settlement. PostgreSQL 16 tests pass in both
+transaction modes, including four concurrent writers: 12 store tests and 18
+corpus tests, zero failures. The optional test-postgres.sh experiment wrapper
+stopped on its inherited stale experiments/postgres/Cargo.lock; the affected
+core store and corpus commands ran directly without changing that lockfile.
+The private PostgreSQL PIDs were recorded as 757126 and 891419; the first
+exited during setup, and 891419 was stopped with a targeted SIGTERM and
+confirmed shut down. Test harnesses manage their own recorded child handles.
+
+Final blocking suite: `== 0 failure(s) in 740 s`, log /tmp/b2-suite-4.log.
+Node 24.18.0 led PATH. CARGO_INCREMENTAL=0 and test/dev debug info disabled
+limited this lane's disk use; SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 and
+SNAPBACK4_RUST_TEST_PROCESSES=8 avoided loaded-host timing races without
+skipping tests or changing their assertions. Earlier runs exposed the fixed
+upsert/guide/test-fixture issues, disk exhaustion, and timing failures in
+long-poll admission and worker shutdown; the final complete run is green.
+
+Final build-wasm.sh artifact: 1,761,795 B raw / 489,029 B gzip on Rust 1.97.0
+and wasm-bindgen 0.2.127, without wasm-opt. This exceeds the inherited 486,000 B
+ratchet by 3,029 B; raise it to 490,000 B, leaving 971 B. The measured whole
+artifact includes sequence metadata, shared interpreter allocation/results,
+provisional floors and the capability fence; no independent component byte
+attribution is claimed. Server counter storage is outside the web artifact.
+Runtime meter ceilings and package versions are unchanged. All changed source
+files stay below 1,500 lines; whitespace checks pass. This is a local branch
+implementation: no push, publication or deployment.
+
+
+## 2026-09-25 — Lane B2 review closure: exhaustion respects authority
+
+The broader Grok review found one real boundary disclosure after the first
+complete green run: a denied insert at an exhausted parent counter returned
+E_SEQUENCE_EXHAUSTED before E_RULE (or NOT_FOUND for upsert). The new regression
+failed with exactly that difference before the fix. A server allocation now
+carries a sticky exhaustion flag and uses the last representable value only
+as an authorization candidate. A denied writer gets the ordinary authority
+refusal; an authorized exhausted attempt is refused before validation,
+collision checks, asset work or persistence. No clamped row is published or
+stored, and it cannot manufacture an if-absent collision. Authorized exhausted
+if-absent attempts retain the prior E_SEQUENCE_EXHAUSTED behavior; ordinary
+no-ops are unchanged. Imports refuse exhaustion immediately.
+
+A device cannot decide server exhaustion from its held provisional suffix.
+At the integer ceiling it now queues through E_PREDICT without publishing a
+clamped image. The added memory/SQLite regression predicts one pending row
+at I53_MAX and retains the next write unpredicted in the outbox. The writes
+card documents this case. All ten core and four device sequence tests pass.
+
+Two other Grok findings were closed with existing code and executed evidence:
+Serialized PostgreSQL transactions lock _head FOR UPDATE before the counter
+read, Serializable transactions retry the whole mutation on serialization
+failure, and the postgres Cargo feature explicitly enables sqlite. The actual
+concurrent test had run with --include-ignored; it passed again in both modes
+after this fix (/tmp/b2-pg-range.log). The no-default-features/postgres-only
+cargo check also passes (/tmp/b2-pg-feature-check.log). The private PostgreSQL
+server for this rerun, PID 1933869, was recorded and stopped with targeted
+SIGTERM; shutdown was confirmed. No manual server remains running.
+
+Astra's final delta review is READY, with ten core and four device tests
+passed. Grok's review closure is READY and explicitly closes all three
+findings (target/b2-grok-closure-review.txt). The supplementary integration
+review was stopped after the complete review and closure superseded it.
+No outstanding review finding remains.
+
+Final blocking suite: `== 0 failure(s) in 847 s`, /tmp/b2-suite-5.log. All blocking steps
+ran with the same Node 24.18.0, serial-client/eight-Rust-process configuration
+recorded above. Final wasm: 1,762,110 B raw / 489,084 B gzip, within the
+490,000 B ratchet with 916 B headroom; the original 486,000 B ceiling is
+exceeded by 3,084 B. This final whole artifact is 315 B raw / 55 B gzip above
+the earlier green snapshot. Its measured reason is in the metrics file and
+commit message; no runtime meter ceiling or package version changed.
+Whitespace and source-size checks pass. The complete file map, compiling
+forms, deviations and verification record are in the requested external
+lane-b2.r0.final.md report. No push, publication or deployment.

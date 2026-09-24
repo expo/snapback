@@ -35,6 +35,7 @@ mod maintains;
 pub(crate) mod timeline;
 mod timeline_authority;
 mod recorded;
+mod sequences;
 pub(crate) mod columns;
 #[cfg(feature = "sqlite")]
 mod column_activation;
@@ -1063,8 +1064,9 @@ impl Engine {
             self.schema.refuse_private(&name)?;
             let row = columns::write_result(table, row);
             if mode == LoadMode::Import { recorded::refuse_fields(table, &name, &row)?; }
-            validate::validate_row(&self.schema, &name, &row)?;
             let old = tx.get(&name, row.field("id")?.as_str()?)?;
+            let row = runner.import_sequences(&name, row, old.as_ref(), false)?;
+            validate::validate_row(&self.schema, &name, &row)?;
             // Importing an existing source cannot erase its contribution history.
             let mut row = row;
             if mode == LoadMode::Import && let (Some(old), Value::Row(fields) | Value::Map(fields)) = (&old, &mut row) {
@@ -1111,6 +1113,8 @@ impl Engine {
         let mut count = 0;
         for (table_name, row) in rows {
             if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
+            let old = tx.get(&table_name, row.field("id")?.as_str()?)?;
+            let row = runner.import_sequences(&table_name, row, old.as_ref(), mode == LoadMode::Restore)?;
             validate::validate_row(&self.schema, &table_name, &row)?;
             if mode == LoadMode::Restore { seq = seq.max(timeline::restored_sequence(&self.schema, &table_name, &row)?); }
             let table = self.schema.table(&table_name).expect("validated").clone();

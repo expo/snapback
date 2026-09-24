@@ -53,6 +53,7 @@ table members:
 
 table messages:
   roomId: rooms
+  ordinal: sequence by roomId         -- engine-assigned; provisional while the row is pending
   authorId: principal
   body: text <=4000 ?
   search body
