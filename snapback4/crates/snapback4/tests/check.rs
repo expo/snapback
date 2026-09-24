@@ -834,7 +834,7 @@ fn b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text()
         else { assert_eq!(String::from_utf8_lossy(&output.stdout).matches(summary).count(), 1); }
     }
     let output = p.run(&["why", "repost"]);
-    assert!(String::from_utf8_lossy(&output.stdout).contains("remove `online only` from maintain entryCounts"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("remove `online only` from view entryCounts"));
 }
 
 #[test]
