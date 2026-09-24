@@ -177,6 +177,11 @@ for (const unknown of [0, 8]) test(`replacement pins retired receipt ids at the 
     assert.equal((await app.mutate(m, {}, { id: receipt.id })).why?.code, 'E_WRITE_RECEIPT_EXPIRED', 'compacted retirement ids still refuse replay');
   }
   if (unknown) assert.ok(failures.slice(0, 4).every(f => !journal.receipts.some(r => r.id === f.id)), 'oldest unknown outcomes leave first');
+  const oldest = await app.mutate(m, {}, { id: sent[0].id });
+  if (unknown) {
+    assert.equal(oldest.state, 'sent'); assert.equal(oldest.replayed, true); assert.equal(oldest.seq, 1);
+  } else assert.equal(oldest.why?.code, 'E_WRITE_RECEIPT_EXPIRED', 'the oldest sent id displaced by retirement must not be admitted again');
+  assert.equal(posts, 1, 'retrying the displaced oldest sent id never posts to the replacement');
   const result = await app.mutate(m, {}, { id: sent.at(-1).id });
   assert.equal(result.state, 'sent'); assert.equal(result.replayed, true); assert.equal(result.seq, sent.at(-1).seq);
   assert.equal(posts, 1, 'retrying a known sent id never executes on the replacement store');

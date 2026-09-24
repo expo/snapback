@@ -472,13 +472,16 @@ login, guest, mutations, actions and uploads still consume their replies;
 unkept bearers are revoked and cancelled uploads remain unplaced.
 Only queries, polls and asset fetches may abort their network requests.
 Retirement pins newly failed receipts in the 256-body window, compacting older
-store-failure receipts to ids before evicting the oldest sent receipts. Those
+store-failure receipts to ids before evicting the oldest sent receipts. Every
+id displaced by retirement, including a sent id, enters the compact set. Those
 compact ids never expire while the journal remains: retrying one returns
 `E_WRITE_RECEIPT_EXPIRED` without dispatch, including after reopening.
 The journal holds at most 4,096 compact retirement ids (about 116 KiB); if more
 are needed, a durable flag blocks new admissions instead of forgetting an id.
-Reconcile unknown outcomes before explicitly replacing a saturated journal;
-ordinary successful writes do not consume this retirement-id allowance.
+Reconcile prior outcomes before explicitly replacing a saturated journal;
+ordinary successful-write eviction keeps its existing policy and does not
+consume this retirement-id allowance. Saturation blocks new admissions;
+an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;

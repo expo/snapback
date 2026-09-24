@@ -48,11 +48,13 @@ if a known id has lost its receipt and left the outbox, it refuses
 `E_WRITE_RECEIPT_EXPIRED` instead of admitting it again. Reopen to recover that
 outcome through the server. The server guarantee belongs to that backend store.
 An online `createApp` journal separately preserves ids retired after a store
-change, so reopening cannot retry an unknown outcome on the replacement store:
+change, including sent ids displaced to make room for retirement receipts,
+so reopening cannot replay those writes on the replacement store:
 evicted bodies return `E_WRITE_RECEIPT_EXPIRED` without dispatch. It keeps up to
 4,096 compact retirement ids; saturation durably blocks new admissions until
-the application reconciles the unknown outcomes and explicitly replaces that
-journal, rather than forgetting ids automatically.
+the application reconciles prior outcomes and explicitly replaces that journal,
+rather than forgetting ids automatically. Already-admitted intents remain
+recoverable as pending while their outcomes are unresolved.
 For a caller-supplied id with no local outcome, a prediction or validation refusal
 queues the write without a row so the server can answer from its replay record.
 The journal preserves this replay eligibility through navigation. If the server

@@ -32,6 +32,8 @@ for (const code of ['E_STORE_REPLACED', 'E_STORE_RESTORE']) test(`settle pins ${
   const saved = JSON.parse(await store.get(key));
   assert.equal(saved.receipts.length, WRITE_HISTORY_LIMIT);
   assert.ok(saved.retired.includes(id(1000)), 'receipt churn must keep the retired id');
+  assert.ok(saved.retired.includes(id(1)), 'settlement of a store failure must preserve the sent id it displaced');
+  assert.ok(!saved.retired.includes(id(2)), 'ordinary successful-write history keeps its existing eviction policy');
   assert.ok(!saved.receipts.some(write => write.id === id(1000)), 'the regression reaches body eviction');
   await custody.client.close(); custody = await onlineCustody(wire.raw, url, store, error => { throw error; });
   assert.equal((await custody.client.write(id(1000))).why.code, 'E_WRITE_RECEIPT_EXPIRED');
@@ -56,10 +58,10 @@ test('bulk retirement larger than the receipt window preserves every id on reope
   await reopened.client.close();
 });
 
-test('retirement saturation fences new admissions durably instead of evicting an id', async () => {
+for (const sentHistory of [false, true]) test(`retirement saturation fences new admissions durably; displaced sent id: ${sentHistory}`, async () => {
   const store = memorySessionStore(), retired = Array.from({ length: RETIRED_ID_LIMIT }, (_, i) => id(10_000 + i));
   await store.set(key, JSON.stringify({ owner: viewer, backend: url, retired,
-    pending: [intent(1000)], receipts: Array.from({ length: 256 }, (_, i) => failed(i + 1)) }));
+    pending: [intent(1000)], receipts: Array.from({ length: 256 }, (_, i) => sentHistory ? sent(i + 1) : failed(i + 1)) }));
   const wire = transport(value => ({ state: 'pending', id: value }));
   const custody = await onlineCustody(wire.raw, url, store, error => { throw error; });
   await custody.refuseStore(why('E_STORE_RESTORE')); await custody.client.close();
@@ -74,4 +76,25 @@ test('retirement saturation fences new admissions durably instead of evicting an
   assert.equal(wire.posts.length, posts, 'saturation cannot dispatch either an old or an unprovable new id');
   assert.deepEqual(JSON.parse(await store.get(key)).pending, []);
   await reopened.client.close();
+});
+
+
+test('a saturated journal recovers an already-admitted intent as pending while its delivery is held', async () => {
+  const store = memorySessionStore(), pending = intent(1000);
+  await store.set(key, JSON.stringify({ owner: viewer, backend: url, retirementFull: true,
+    retired: Array.from({ length: RETIRED_ID_LIMIT }, (_, n) => id(10_000 + n)), pending: [pending], receipts: [] }));
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  const wire = transport(async value => { await held; return { state: 'pending', id: value }; });
+  const custody = await onlineCustody(wire.raw, url, store, error => { throw error; });
+  try {
+    assert.deepEqual(await custody.client.write(pending.id), { state: 'pending', id: pending.id });
+    assert.equal(wire.posts.length, 1, 'the held request belongs to the durable intent admitted before saturation');
+    const duplicate = custody.client.mutate(op, {}, { id: pending.id });
+    release();
+    assert.equal((await duplicate).state, 'pending', 'recovery must not replace a pending intent with receipt expiry');
+    assert.deepEqual(JSON.parse(await store.get(key)).pending, [pending]);
+    assert.equal((await custody.client.mutate(op, {}, { id: id(9999) })).why.code, 'E_WRITE_RECEIPT_EXPIRED');
+    assert.equal(wire.posts.length, 1, 'saturation still blocks new admissions');
+  } finally { release(); await custody.client.close(); }
 });

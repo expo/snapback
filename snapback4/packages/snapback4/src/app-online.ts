@@ -44,7 +44,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
         : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
       journal.receipts.push(receipt);
-      keepReceipts(journal, new Set([write.id]));
+      keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
     // Durable retirement belongs to the shared journal; notification and
@@ -116,6 +116,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const receipt = journal.receipts.find(write => write.id === id);
       if (receipt) { notify(receipt); return receipt; }
       const retired = retiredReceipt(journal, id);
+      // Saturation fences new admissions, not recovery of an admitted intent.
       if (retired && !journal.pending.some(intent => intent.id === id)) return retired;
       const known = await raw.write(id);
       if (journal.pending.some(intent => intent.id === id)) {
@@ -148,7 +149,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
       journal.pending = [];
       journal.receipts.push(...failed);
-      keepReceipts(journal, new Set(failed.map(write => write.id)));
+      keepReceipts(journal, new Set(failed.map(write => write.id)), true);
       return failed;
     }).then(failed => { for (const write of failed) notify(write); });
     return retirement;
