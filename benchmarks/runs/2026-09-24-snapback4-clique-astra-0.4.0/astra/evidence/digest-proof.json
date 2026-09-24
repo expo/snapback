@@ -1,0 +1,22 @@
+{
+  "start": 1790255576.641,
+  "pass": true,
+  "config": "shortened 120 seconds, anchored UTC midnight",
+  "target": "user:01M39RRDKE4QVYGDZCFKCRSFJM",
+  "periodStart": 1790255520000,
+  "periodEnd": 1790255640000,
+  "allClientsClosed": 1790255576.746,
+  "payload": {
+    "kind": "digest",
+    "newFollowers": 1,
+    "newPostsInFollowing": 1,
+    "periodEnd": 1790255640000,
+    "periodStart": 1790255520000,
+    "targetUserId": "user:01M39RRDKE4QVYGDZCFKCRSFJM",
+    "unreadChats": 1,
+    "unreadMessages": 1
+  },
+  "duplicateJobSuppressed": true,
+  "quietPeriodSuppressed": true,
+  "end": 1790255765.003
+}

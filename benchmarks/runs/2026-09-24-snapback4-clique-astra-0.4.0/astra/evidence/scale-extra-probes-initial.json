@@ -1,0 +1,66 @@
+{
+  "start": 1790255135.415,
+  "url": "http://127.0.0.1:49364",
+  "pass": false,
+  "timings": {
+    "ordinary-post-create": {
+      "p50": 3.8425419999998667,
+      "p95": 16.605374999999867,
+      "max": 50.73649999999998,
+      "samples": 20
+    },
+    "celebrity-post-create": {
+      "p50": 471.4522500000003,
+      "p95": 526.642042,
+      "max": 561.6000839999997,
+      "samples": 20
+    },
+    "ordinary-following": {
+      "p50": 2.120582999999897,
+      "p95": 2.3556660000012926,
+      "max": 2.404000000000451,
+      "samples": 20
+    },
+    "celebrity-follower-following": {
+      "p50": 2.164458999999624,
+      "p95": 2.432582999999795,
+      "max": 2.6747919999997976,
+      "samples": 20
+    },
+    "busy-group-send": {
+      "p50": 3.88366600000154,
+      "p95": 4.511082999999417,
+      "max": 7.524917000000642,
+      "samples": 20
+    },
+    "busy-group-history-render-data": {
+      "p50": 18.93237500000032,
+      "p95": 19.27666599999975,
+      "max": 19.3426670000008,
+      "samples": 20
+    }
+  },
+  "note": "Mutating probes use a separate copy after exact final invariant verification; primary scale store remains unchanged.",
+  "ordinaryWriteAuthor": "u0001",
+  "ordinaryWriteAuthorFollowers": 5,
+  "celebrityFollowers": 900,
+  "memoryBefore": {
+    "rss": 170344448,
+    "heapTotal": 43532288,
+    "heapUsed": 36139472,
+    "external": 13475737,
+    "arrayBuffers": 2403204
+  },
+  "devicePid": 76122,
+  "deviceRssKb": 50096,
+  "coldSyncMs": 13686.066707999998,
+  "memoryAfter": {
+    "rss": 262782976,
+    "heapTotal": 164724736,
+    "heapUsed": 28577160,
+    "external": 11408389,
+    "arrayBuffers": 274403
+  },
+  "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert('data'in q)\n",
+  "end": 1790255162.591
+}
