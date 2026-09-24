@@ -40,10 +40,11 @@ impl Project {
 impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
 #[test]
-fn board_quotes_residual_filter_and_source_read_with_planner_columns() {
+fn board_quotes_source_read_with_four_planner_variants() {
     let p = Project::new(SOURCE);
     let cost = p.run(&["check", "--cost"]);
-    assert!(cost.contains(&format!("scale: grows with issues skipped by `{FILTER}` before 50 match")), "{cost}");
+    assert!(cost.contains("when status and assignee are both absent: constant"), "{cost}");
+    assert!(!cost.contains("issues skipped by"), "{cost}");
     let read = format!("read: issues where .org = org and {FILTER} last 50 by .at after c");
     assert!(cost.contains(&read), "{cost}");
     assert!(cost.contains("scan issues using index (org, at), chosen by the planner last 50"), "{cost}");
@@ -60,12 +61,27 @@ fn board_quotes_residual_filter_and_source_read_with_planner_columns() {
     assert!(plans.values().any(|p| p.as_str().unwrap().contains("selected $intent:byOrgAt:")));
     assert!(plans.values().any(|p| p.as_str().unwrap().contains(&read)));
     let c = json["scale"].as_array().unwrap().iter().find(|c| c["operation"] == "board").unwrap();
-    assert!(c["growth_sites"][0]["reason"].as_str().unwrap().contains(FILTER));
+    assert_eq!(c["class"], "constant");
+    assert!(c["growth_sites"].as_array().unwrap().is_empty());
+    let variants = c["variants"].as_array().unwrap();
+    assert_eq!(variants.len(), 4);
+    assert!(variants.iter().all(|v| v["class"] == "constant" && v["indexes"].as_array().unwrap().len() == 1));
+}
+
+#[test]
+fn presence_variants_keep_the_authored_read_before_expansion() {
+    let authored = "(status=null  or  .status=status) and (assignee = null or .assignee = assignee)";
+    let source = SOURCE.replace(FILTER, authored).replace(".org = org and", ".org=org  and");
+    let cost = Project::new(&source).run(&["check", "--cost"]);
+    assert!(cost.contains("when status and assignee are both absent: constant"), "{cost}");
+    assert!(cost.contains(&format!("read: issues where .org=org  and {authored} last 50")), "{cost}");
 }
 
 #[test]
 fn source_spans_keep_spacing_parentheses_and_duration_spelling() {
-    let authored = "(status=null  or  .status=status) and (assignee = null or .assignee = assignee)";
+    // Negation keeps this predicate residual after presence planning, so the
+    // residual quote still proves exact whitespace and grouping preservation.
+    let authored = "not ((status=null  or  .status=status) and (assignee = null or .assignee = assignee))";
     let source = SOURCE.replace(FILTER, authored).replace(".org = org and", ".org=org  and");
     let cost = Project::new(&source).run(&["check", "--cost"]);
     assert!(cost.contains(&format!("skipped by `{authored}` before 50")), "{cost}");
@@ -110,7 +126,7 @@ fn builder_comments_are_opaque_to_friendly_index_labels() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     let index = bound.schema.tables["issues"].indexes.keys().find(|name| name.starts_with("$intent:byOrgAt:")).unwrap();
     // Unclosed quote characters inside the comment must not consume the next line.
-    let filter = format!("(status = null -- ; synthesized; explicit by {index} ' \"\n    or .status = status) and (assignee = null or .assignee = assignee)");
+    let filter = format!("not ((status = null -- ; synthesized; explicit by {index} ' \"\n    or .status = status) and (assignee = null or .assignee = assignee))");
     let cost = Project::new(&SOURCE.replace(FILTER, &filter)).run(&["check", "--cost"]);
     let board = cost.split("  query board:\n").nth(1).unwrap().split("  query heldBoard:\n").next().unwrap();
     assert!(board.contains(&format!("scale: grows with issues skipped by `{filter}`")), "{board}");
@@ -169,12 +185,13 @@ fn fallback_printer_preserves_boolean_arithmetic_and_conditional_precedence() {
         let result = engine.query("q", Context::new("alice", BTreeMap::new())).unwrap();
         assert_eq!(result.data, expected, "{expression} => {printed}");
     }
-    let (mut doc, errors) = snapback4_lang::parse_document("schema.q", SOURCE);
+    let residual = format!("not ({FILTER})");
+    let (mut doc, errors) = snapback4_lang::parse_document("schema.q", &SOURCE.replace(FILTER, &residual));
     assert!(errors.is_empty());
     doc.source = Default::default();
     let b = snapback4_lang::bind(vec![doc]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     let p = b.programs.iter().find(|p| p.program.name == "board").unwrap();
     assert!(p.selections().values().any(|s| s.contains(FILTER)), "{:?}", p.selections());
-    assert_eq!(p.filter_source("programs.board.0"), Some(FILTER));
+    assert_eq!(p.filter_source("programs.board.0"), Some(residual.as_str()));
 }

@@ -108,10 +108,13 @@ fn w11_every_registered_code_quotes_its_definition() {
     assert!(missing.is_empty(), "first card paragraph lacks its defining fact:\n{}", missing.join("\n"));
 }
 
-// Hand-reviewed defining facts from all 195 default-card excerpts. Keep these
+// Hand-reviewed defining facts from every default-card excerpt. Keep these
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_INIT_CONFLICT", "E_INIT_CONFLICT means `init` found files or package entries it would overwrite, and wrote nothing."),
+    ("E_JOB_SWEEP", "E_JOB_SWEEP parks stored job IR with no recorded table sweep or an unsupported top-level work loop before running a chunk, including when valid sweeps appear alongside that loop."),
+    ("N_OPTIONAL_FILTER_LIMIT", "At most three optional inputs expand; N_OPTIONAL_FILTER_LIMIT names any extra residual filters, which can stay metered or move into separate queries."),
     ("DIGEST_CHAT_BOUND", "DIGEST_CHAT_BOUND belongs to the older bounded digest recipe. That refusal rolled back the recipient without an effect or marker."),
     ("E_ACTION_ATTEMPTS", "E_ACTION_ATTEMPTS means every admitted attempt was used, including the first."),
     ("E_ACTION_AUTHORITY", "Before a claim, revoking that session, logout-all, principal revocation or expiry fails the request terminally with `E_ACTION_AUTHORITY`: \"the authority that admitted this action was revoked or has expired\"."),
@@ -295,7 +298,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_NEVER_COMPLETE", "A page's read rule is checked once when the prefix decides it, else per row, and a page whose rule still depends on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names the missing equality columns and an existing compatible index when one is available)."),
     ("N_NOT_PREDICTABLE", "N_NOT_PREDICTABLE groups distinct root causes and deduplicated sites into one note per mutation for lost eligibility or an added horizon risk, explicitly distinguishing a call that may queue from an operation that never predicts."),
     ("N_NOW_SERVER", "N_NOW_SERVER names a newly server-run query."),
-    ("N_NO_CURSOR", "A page a query returns without a cursor cannot be continued: an unfiltered page with more rows reads `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and page with `after c`, or declare `cap 50 by conversationId` on the table then read the whole group: `t where .conversationId = conversationId`, if 50 is the intended group limit and no existing cap already bounds that group."),
+    ("N_NO_CURSOR", "A page a query returns without a cursor cannot be continued: an unfiltered page with more rows reads `complete: false` with no `next` (N_NO_CURSOR)"),
     ("N_NO_HORIZON", "A synced table with no horizon delivers every row of every group a device holds, at every cold start, as the table grows; `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per group, or a `cap` over the group), or its whole partition supplies an eligible mutation's reads or insert proof (`guide prediction`)."),
     ("N_PUBLIC_AGGREGATE_COPY", "N_PUBLIC_AGGREGATE_COPY names a public derived column whose ordinary write rules allow arbitrary values."),
     ("N_SEEK", "N_SEEK is advice for an older explicit-index read whose residual filter can seek."),

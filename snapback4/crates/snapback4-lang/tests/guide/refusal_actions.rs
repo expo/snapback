@@ -2,6 +2,9 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_INIT_CONFLICT", &["Rename the listed files or reconcile the named package.json entries, then rerun `snapback4 init --expo` (or `--web`).", "An existing README.md stays intact"]),
+    ("E_JOB_SWEEP", &["both their domains and bodies are write-free and emit-free", "They run again under each chunk's meter", "Rebind unsupported work as ordinary sweeps and queue the job again"]),
+    ("N_OPTIONAL_FILTER_LIMIT", &["reset the cursor when filters change", "residual filters, which can stay metered or move into separate queries", "a presence-selected read cannot supply that loop domain"]),
     ("DIGEST_CHAT_BOUND", &["Replace its paged count with `count(messages where .conversationId = conversationId and .at >= periodStart and .at < periodEnd)`", "its marker with `emit … once`"]),
     ("E_ACTION_ATTEMPTS", &["repair the failure, and reconcile any external work before submitting new intent", "retry policy only for future work"]),
     ("E_ACTION_AUTHORITY", &["Inspect recorded steps and provider outcomes before starting new intent under a new live session", "a fresh sign-in does not revive the old admission"]),
@@ -189,7 +192,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_NEVER_COMPLETE", &["Keep the current equality prefix when adding those pins", "choosing a conversation narrows the answer to that scope"]),
     ("N_NOT_PREDICTABLE", &["Inspect `snapback4 why <op>`", "follow the named site rewrite to restore local execution, or keep the server dependency and handle queued writes and unavailable offline reads"]),
     ("N_NOW_SERVER", &["Inspect `snapback4 why <op>`", "follow the named site rewrite to restore local execution, or keep the server dependency and handle queued writes and unavailable offline reads"]),
-    ("N_NO_CURSOR", &["declare `c: cursor ?` and page with `after c`", "if 50 is the intended group limit and no existing cap already bounds that group"]),
+    ("N_NO_CURSOR", &["declare `c: cursor ?` and page with `after c`", "`chatDeliveries where .messageId = messageId` without a page clause when a declared cap bounds that message's acknowledgements", "if 50 is the intended group limit and no existing cap already bounds that group", "A cap refuses writes beyond its limit: it is a data constraint, not a hint"]),
     ("N_NO_HORIZON", &["Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`", "An absent note does not certify bounded acquisition or a safe cold-start size"]),
     ("N_PUBLIC_AGGREGATE_COPY", &["Use `likeCount: count likes` for an engine-owned count", "pin its source in both write rules"]),
     ("N_SEEK", &["write `messages where .roomId = roomId and .at >= start first 20 by .at after c`", "the planner makes that comparison a seek"]),
