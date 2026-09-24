@@ -50070,3 +50070,89 @@ No unresolved reproduction or deviation from round 8. This is test coverage
 for existing round-7 behavior. No new language forms, source fixes, native
 simulator run, push, or package publication were needed/performed. Both changed
 test files remain below 1,500 lines.
+
+## 2026-09-24 — Lane J round 9: terminal return fences and durable retirement model
+
+Closed both Astra Highs. A direct online query could pass fetch's acceptance
+check, then return its captured ready value after another response terminated
+the client. client.query now rechecks store refusal, close/credentials and the
+sequence/epoch fence immediately after await. A stale result becomes loading;
+this outer boundary starts no additional retry loop. Observations also recheck
+the result before installing metadata or expiry work, clear an invalid result,
+and preserve terminal denial.
+
+The durable-write race was in onlineCustody: createApp's synchronous hide paused
+the owner, so active && terminal(result) skipped persistence. Its other return
+path could refuse just-admitted work before the separately queued retirement
+saved. Custody now owns one retirement promise. Admitted dispatch, admission,
+and repeated-id refusal paths await it even after pause; a failed save returns
+pending. Ordinary terminal settlement also persists independently of active UI
+ownership. Retirement is idempotent. Automatic app reopening still waits for
+retirement, and a persistence failure prevents that recovery from proceeding.
+
+Files and regressions:
+
+- packages/snapback4/src/client.ts: final direct-query and observation fences;
+  no extra retry round, no retention, and no Read type change.
+- packages/snapback4/src/app-online.ts: shared durable retirement barrier and
+  persistence after pause; failed terminal saves remain pending.
+- packages/snapback4/CLIENT-AND-OPERATIONS.md: two lines describe the durable
+  outcome boundary and pending result when persistence fails.
+- packages/snapback4/test/online-read-order.test.mjs: five exact continuation
+  races after fetch accepts its answer: replacement, regression, acknowledged
+  revoke, close and sign-out. Terminal/cancelled answers refuse; the stale
+  post-revocation answer becomes loading without another request.
+- packages/snapback4/test/app-store-replacement.test.mjs: both an in-flight write
+  and a second admitted write wait while retirement storage is blocked; retry
+  of the first id also waits. Successful retirement leaves receipts and never
+  replays on reopen; failed persistence leaves both intents/outcomes pending.
+  Added login during a stalled replacement probe: it cancels the old probe and
+  publishes Bob. Round 7's signIn cancellation already handled it; no app.ts
+  change was necessary.
+- packages/snapback4/test/helpers/online-client-model.mjs: real createClient and
+  online createApp driven by a seeded wire/storage scheduler and virtual timers.
+  Operations include direct/observed queries, writes, revocations, polls, held
+  and reordered bodies, held accepted returns, replacement, regression, heap
+  unavailability, close, sign-out, login, reopen and storage failures. The oracle
+  checks R1 revocation/publication, R2 terminal reads/requests, R3 persisted
+  terminal writes/no replay, and R4 per-read requests, timer/step caps and fair
+  drain. ReadObservation is intercepted only to schedule the final await seam;
+  the oracle does not use implementation authority or journal helpers.
+- packages/snapback4/test/online-client-model.test.mjs: 3,000 seeded sequences
+  (1,500 raw online / 1,500 app), required coverage checks, and two named replay
+  seeds. Each failure reports its seed, tier, full sequence and executed trace.
+- JOURNAL.md: this append-only record.
+
+Validation and model findings:
+
+- Frozen Bun install, package build/typecheck and docs-budget check passed;
+  the initial focused run passed 20 tests, and the broader run passed all 55.
+- The model passed 3,000 seeds before and after adding onWrite emission checks;
+  its final coverage run is part of the full suite below. No additional product
+  defect was found after the two reviewed fixes. Mutation validation restores
+  each reviewed bug separately: seed 1615 detects R2 (data after terminal state),
+  seed 142 detects R3 (terminal outcome while durable intent is still pending).
+  Both seeds are now named regressions and pass with the fixes.
+- Focused mutation checks also caught the unfenced direct return, premature
+  retirement failures, and deletion of signIn's recoveryAbort.abort call.
+  All generated-file mutations were restored before the full build. Logs:
+  /tmp/lane-j-r9-mutant-*.log and /tmp/lane-j-r9-model-*.log.
+- `scripts/test.sh`: `== 0 failure(s) in 144 s`. Main client shard: 1,151
+  tests, 1,141 passed, 10 existing skips, no failures/cancellations. The final
+  3,000-sequence model and both named replay seeds passed. No baseline or
+  environmental failure occurred; the baseline tail was read and its unrelated
+  cargo-test failure was not changed. Logs: /tmp/lane-j-r9-full-suite.log and
+  /tmp/lane-j-r9-affected.log.
+
+No open round-9 reproduction or deviation. The engineering choice at the final
+read boundary is to discard to loading rather than add retries. The model uses
+controlled HTTP/storage/timer adapters around the real clients, not a separate
+client implementation or a browser/native witness. No Quarry form, engine
+semantics, meter, package version, or retention policy changed. All changed
+source/test files remain under 1,500 lines. No push or publication was performed.
+
+Final model measurements: 37.97 s in the full suite; 4,673 reordered releases,
+216 acknowledged revocations, 459 observed replacement refusals, 322 observed
+restore refusals, 450 durable-terminal checks, 57 held retirement saves, 55
+injected retirement-save failures, and 17 direct-query refetches. These are
+scheduler coverage counts, not throughput or production performance claims.

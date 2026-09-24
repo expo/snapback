@@ -1,0 +1,255 @@
+// Seeded wire/storage scheduler around the real clients. The oracle tracks
+// disclosed rows, acknowledged revocations, durable intents, and lifetimes;
+// it does not import the client's authority or journal implementation.
+import assert from 'node:assert/strict';
+import { createClient } from '../../dist/client.js';
+import { createApp } from '../../dist/app.js';
+import { keepSession } from '../../dist/auth.js';
+import { ReadObservation } from '../../dist/read-observation.js';
+
+export const operations = ['query', 'observe', 'write', 'revoke', 'release', 'poll', 'replace', 'regress', 'unavailable', 'close', 'signOut', 'reopen', 'login', 'holdStorage', 'failStorage', 'tick'];
+export function generate(seed, length = 32) {
+  let x = seed >>> 0;
+  const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
+  return [{ op: 'query' }, { op: 'release' }, { op: 'observe' },
+    ...Array.from({ length }, () => ({ op: operations[choose(operations.length)], pick: choose(100), holdReturn: choose(4) === 0 }))];
+}
+const microtasks = async () => { for (let i = 0; i < 100; i++) await Promise.resolve(); };
+
+export async function execute(commands, tier, coverage = {}) {
+  const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
+  const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
+  const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
+  let store = 'A', head = 10, privateRow = true, unavailable = false, stores = 0, ticket = 0, serial = 0, writeId = 0;
+  let app, client, holdStorage = false, failStorage = false, draining = false, currentOwner, requests = 0;
+  const count = key => { coverage[key] = (coverage[key] ?? 0) + 1; };
+  const invariant = (id, ok, why) => { if (!ok) errors.push(`${id}: ${why}`); };
+  const journal = () => [...values.entries()].filter(([key]) => key.endsWith('.writes')).map(([, value]) => JSON.parse(value));
+  const durable = id => journal().some(j => j.receipts.some(write => write.id === id)) && !journal().some(j => j.pending.some(write => write.id === id));
+  function hold(kind, detail, release) {
+    count('held.' + kind);
+    return new Promise(resolve => holds.push({ kind, ...detail, release: () => { release?.(); resolve(); } }));
+  }
+  const storage = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) {
+      if (key.endsWith('.writes')) {
+        const next = JSON.parse(value), prior = JSON.parse(values.get(key) ?? '{"pending":[]}');
+        const retiring = prior.pending.some(p => !next.pending.some(n => n.id === p.id));
+        if (retiring && holdStorage && !draining) { holdStorage = false; await hold('storage', {}, null); }
+        if (retiring && failStorage && !draining) { count('failed.storage'); throw Error('injected terminal persistence failure'); }
+        values.set(key, value);
+        for (const entry of next.pending) admitted.add(entry.id);
+      } else values.set(key, value);
+    },
+    async delete(key) { values.delete(key); },
+  };
+  // Virtual timers let randomized schedules cross retry deadlines without
+  // seconds of real waiting. Each turn has a hard bound on fired timers.
+  const originalTimeout = globalThis.setTimeout, originalClear = globalThis.clearTimeout, timers = new Map();
+  let time = 0, timerId = 0;
+  globalThis.setTimeout = (fn, ms = 0, ...args) => {
+    const handle = { id: ++timerId, unref() { return this; } };
+    timers.set(handle, { at: time + Number(ms), fn: () => fn(...args) }); return handle;
+  };
+  globalThis.clearTimeout = handle => { timers.delete(handle); };
+  async function advance(ms) {
+    time += ms;
+    for (let n = 0; ; n++) {
+      const next = [...timers].filter(([, timer]) => timer.at <= time).sort((a, b) => a[1].at - b[1].at)[0];
+      if (!next) return;
+      assert.ok(n < 64, 'R4: timer loop exceeds 64 callbacks in one turn');
+      timers.delete(next[0]); next[1].fn(); await microtasks();
+    }
+  }
+  function ownerFor(c) {
+    let owner = owners.find(o => o.client === c);
+    if (!owner) {
+      owner = { client: c, terminal: false, id: owners.length }; owners.push(owner);
+      c.onWrite(value => {
+        if (['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes(value.why?.code)) owner.terminal = true;
+        count('write.emitted'); write(value);
+      });
+    }
+    return owner;
+  }
+  function read(owner, value, site) {
+    count('read.' + site);
+    if (value.denied?.code === 'E_STORE_REPLACED' || value.denied?.code === 'E_STORE_RESTORE') {
+      owner.terminal = true; count('terminal.' + value.denied.code);
+    }
+    invariant('R2', !owner.terminal || !('data' in value), `owner ${owner.id} returned data after terminal refusal at ${site}`);
+    for (const row of value.data ?? []) invariant('R1', !(value.fresh && revoked.has(row.secret)), `revoked ${row.secret} was fresh at ${site}`);
+  }
+  function write(value) {
+    if (value.state === 'pending') return;
+    if (['E_CLOSED', 'E_AUTH'].includes(value.why?.code)) return; // cancellation does not retire a durable intent
+    if (tier === 'app' && admitted.has(value.id)) {
+      count('check.durable-terminal');
+      invariant('R3', durable(value.id), `terminal ${value.id} still has durable pending intent`);
+    }
+    if (admitted.has(value.id) || tier === 'client') terminalWrites.add(value.id);
+    if (value.state === 'sent') {
+      const mutation = mutations.get(value.id);
+      if (mutation?.revoke) { if (!revoked.has(mutation.store)) count('ack.revocation'); revoked.add(mutation.store); }
+    }
+  }
+  function track(promise, label, owner, kind) {
+    const task = { label, pending: true };
+    tasks.push(task);
+    Promise.resolve(promise).then(result => {
+      task.result = result;
+      if (kind === 'read') read(owner, result, 'direct');
+      if (kind === 'write') write(result);
+    }, error => { errors.push(`unexpected rejection ${label}: ${error.message}`); }).finally(() => { task.pending = false; });
+    return task;
+  }
+  function issue() {
+    const session = { principal: 'alice', token: `token-${++serial}`, kind: 'user', expiresAt: Date.now() + 30 * 86400_000 };
+    sessions.set(session.token, session); return session;
+  }
+  const fetcher = async (input, init = {}) => {
+    const path = new URL(input).pathname, args = init.body ? JSON.parse(init.body) : {}, token = new Headers(init.headers).get('authorization')?.slice(7);
+    count('wire.' + path); requests++;
+    if (path.startsWith('/auth/')) {
+      if (path === '/auth/login') return Response.json({ session: issue() });
+      if (path === '/auth/logout') { sessions.delete(token); return Response.json({ ok: true }); }
+      throw Error('unexpected auth route ' + path);
+    }
+    invariant('R2', !init.signal?.aborted, `sent ${path} with a retired lifetime`);
+    // Query/mutation requests share the raw client's lifetime signal. Change
+    // requests have their own watchdog; they remain explicitly scheduled.
+    let owner = roots.get(init.signal);
+    if (!owner && path !== '/changes') {
+      owner = currentOwner ?? (tier === 'app' ? ownerFor(app.client) : ownerFor(client));
+      roots.set(init.signal, owner);
+    }
+    if (owner) invariant('R2', !owner.terminal, `owner ${owner.id} sent ${path} after terminal refusal`);
+    let body;
+    if (tier === 'app' && !sessions.has(token)) body = { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in' } };
+    else if (path === '/probe') body = { ok: true, store_id: store, seq: head };
+    else if (path === '/changes') body = { store_id: store, seq: head, generation: 1, tables: ['secrets'] };
+    else if (path.startsWith('/m/')) {
+      invariant('R3', !terminalWrites.has(args.id), `terminal write ${args.id} replayed on ${store}`);
+      const receiptKey = `${store}/${args.id}`;
+      if (receipts.has(receiptKey)) body = { ...receipts.get(receiptKey), replayed: true, head };
+      else {
+        if (path === '/m/revoke') privateRow = false;
+        head++;
+        mutations.set(args.id, { store, revoke: path === '/m/revoke' });
+        body = { state: 'sent', id: args.id, seq: head, head, store_id: store };
+        receipts.set(receiptKey, body);
+      }
+    } else if (path.startsWith('/q/')) {
+      body = { seq: head, store_id: store, tables: ['secrets'], ...(unavailable ? { loading: true, data: null, complete: false }
+        : { data: privateRow ? [{ secret: store, request: args.args.ticket }] : [], complete: true }) };
+      if (args.args.holdReturn) returnHolds.add(args.args.ticket);
+      const key = `query.requests.${args.args.ticket}`;
+      count(key);
+      if (args.args.direct && coverage[key] > 1) count('query.refetch');
+      if (args.args.direct) invariant('R4', coverage[key] <= 4, `direct read ${args.args.ticket} exceeded four requests`);
+    } else throw Error('unexpected route ' + path);
+    // Headers arrive now; bodies may finish out of order, even after abort.
+    return { ok: !body.denied, status: body.denied ? 401 : 200, body: null, async json() {
+      if (!draining || path === '/changes') await hold('body', { path, owner, body, signal: init.signal }, null);
+      return body;
+    } };
+  };
+  const originalFetch = ReadObservation.prototype.fetch;
+  ReadObservation.prototype.fetch = async function (...args) {
+    const result = await originalFetch.apply(this, args);
+    const id = result.read.data?.[0]?.request;
+    if (returnHolds.delete(id) && !draining) await hold('return', { id }, null);
+    return result;
+  };
+  async function open() {
+    if (tier === 'app') {
+      app = createApp({ url, sessionStore: storage, fetch: fetcher }); apps.push(app);
+      track(app.ready, 'ready');
+      app.auth.onChange(() => { ownerFor(app.client); });
+      await microtasks(); client = app.client;
+    } else { client = createClient({ url, persona: 'alice', fetch: fetcher }); }
+    currentOwner = undefined; ownerFor(client);
+  }
+  function check() { if (errors.length) assert.fail(errors[0] + '\ntrace=' + JSON.stringify(trace)); }
+  function release(pick = 0, onlyPoll = false) {
+    const candidates = holds.filter(h => !onlyPoll || h.path === '/changes');
+    if (!candidates.length) return;
+    const chosen = candidates[pick % candidates.length];
+    if (holds.indexOf(chosen) > 0) count('released.reordered');
+    holds.splice(holds.indexOf(chosen), 1); chosen.release(); count('released.' + chosen.kind);
+  }
+  async function command(step) {
+    trace.push(step); count('op.' + step.op);
+    if (tier === 'app') client = app.client;
+    const owner = ownerFor(client); currentOwner = owner;
+    const before = requests;
+    switch (step.op) {
+      case 'query': {
+        const args = { ticket: ++ticket, direct: true, holdReturn: step.holdReturn };
+        track(client.query({ kind: 'query', name: 'page' }, args), 'query', owner, 'read'); break;
+      }
+      case 'observe': {
+        const watch = client.observe({ kind: 'query', name: 'page' }, { ticket: ++ticket, holdReturn: step.holdReturn });
+        watches.push(watch); watch.subscribe(() => read(owner, watch.getSnapshot(), 'observed')); break;
+      }
+      case 'write': case 'revoke': {
+        const id = String(++writeId).padStart(26, '0');
+        track(client.mutate({ kind: 'mutation', name: step.op === 'revoke' ? 'revoke' : 'charge' }, {}, { id }), step.op, owner, 'write'); break;
+      }
+      case 'release': release(step.pick); break;
+      case 'poll': release(step.pick, true); break;
+      case 'replace': store = 'B' + (++stores); head = 1; privateRow = true; break;
+      case 'regress': head = Math.max(0, head - 5); break;
+      case 'unavailable': unavailable = !unavailable; break;
+      case 'close': track(tier === 'app' ? app.close() : client.close(), 'close'); break;
+      case 'signOut': track(tier === 'app' ? app.auth.logout() : client.signOut(), 'signOut'); break;
+      case 'reopen': {
+        const prior = tier === 'app' ? app.close() : client.close();
+        track(prior.then(open), 'reopen'); break;
+      }
+      case 'login': if (tier === 'app') track(app.auth.login('alice@example.com', 'password'), 'login'); break;
+      case 'holdStorage': holdStorage = true; break;
+      case 'failStorage': failStorage = !failStorage; break;
+      case 'tick': await advance(1000); break;
+    }
+    await microtasks(); currentOwner = undefined;
+    invariant('R4', requests - before <= 64, `one ${step.op} step sent ${requests - before} requests`);
+    check();
+  }
+  try {
+    if (tier === 'app') await keepSession(url, issue(), storage);
+    await open();
+    for (const step of commands) await command(step);
+    // Fair drain: release every held body, stop observers, allow persistence,
+    // and advance retry timers. Work may not remain without an external hold.
+    draining = true; failStorage = false; holdStorage = false;
+    for (const watch of watches) watch.close();
+    for (let round = 0; round < 40; round++) {
+      for (const h of holds.splice(0)) h.release();
+      await microtasks(); await advance(1000); check();
+      if (!tasks.some(task => task.pending) && !holds.some(h => h.path !== '/changes')) break;
+      assert.ok(round < 39, 'R4: fair drain did not settle within 40 rounds\n' + JSON.stringify(trace));
+    }
+    // Reopen over the same durable store, proving terminal intents do not
+    // replay. Restorable pending outcomes may settle during this final drain.
+    for (const a of apps) track(a.close(), 'final-close');
+    for (const owner of owners) if (tier === 'client') track(owner.client.close(), 'final-close');
+    for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
+    if (tier === 'app') {
+      await open();
+      for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
+      track(app.close(), 'reopened-close');
+    }
+    for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
+    check();
+    assert.ok(tasks.every(task => !task.pending), 'R4: pending tasks after cleanup: ' + tasks.filter(t => t.pending).map(t => t.label));
+  } finally {
+    draining = true; failStorage = false;
+    for (const a of apps) void a.close();
+    for (const owner of owners) if (tier === 'client') void owner.client.close();
+    for (let n = 0; n < 15; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
+    ReadObservation.prototype.fetch = originalFetch;
+    globalThis.setTimeout = originalTimeout; globalThis.clearTimeout = originalClear;
+  }
+}
