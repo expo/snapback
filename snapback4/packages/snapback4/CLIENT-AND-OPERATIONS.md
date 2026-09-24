@@ -31,8 +31,9 @@ worker's cached HTML even online, so its HTML and lazy assets stay together
 until a waiting build activates after the old tabs close. This command also works on
 `expo export -p web` output: it precaches every file in a content-hashed cache,
 registers `snapback4-sw.js` in every HTML file idempotently, and resolves exported
-subpages (`/about/` to `about/index.html`, `/contact` to `contact.html`) online and
-offline before falling back to the root `index.html`. Pass `--base /chat/` when serving a subpath;
+subpages (`/contact` and `/contact/` to `contact.html`, then `/about/` to
+`about/index.html` when `about.html` is absent) online and offline before falling
+back to the root `index.html`. Pass `--base /chat/` when serving a subpath;
 use the same base in the bundler. For Vite run
 `npx vite build --base=/chat/ && npx snapback4 web-shell dist --base /chat/`.
 It waits for old tabs to close before switching builds. Development has no worker.
@@ -94,7 +95,11 @@ an in-flight rotation finishes and saves its replacement before close completes.
 `waitSeconds` pass through on every local open, including restore and account
 switch; both are ignored when `device` is omitted. `waitSeconds` sets the change
 feed's long-poll duration (default 25 seconds). `assets` controls ordinary viewed
-media retention as described below. Identity and sessions remain owned by
+media retention as described below. Its `maxBytes` must be a nonnegative safe
+integer. Invalid local asset configuration reports `E_CLIENT` at `app.assets`
+through `ready`, sign-in results and `auth.why` before any session or network
+work; correct the options and create the app again. Kept credentials remain intact.
+Identity and sessions remain owned by
 `app.auth` and its `sessionStore`; `persona`, `session` and `guest` are lower-level
 client options, not app configuration.
 `app.auth.logout()` fences restoration and session writes immediately, deletes
@@ -103,9 +108,14 @@ in the background.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
-Logout also advances a persisted session epoch under the same lock as deletion.
-If the marker write fails, logout still deletes the bearer and retries the marker
-after freeing that space; a remaining storage error is returned and sets `auth.why`.
+Logout advances a persisted session epoch under the same lock as credential removal.
+If the marker cannot be stored, logout overwrites the bearer with a smaller
+noncredential tombstone carrying that epoch, then retries the marker. The
+tombstone remains through restoration and counts as successful local logout
+even if the separate marker still cannot be written. A later sign-in must save
+the marker before replacing the tombstone. If neither fence can be stored,
+logout returns a storage error and sets `auth.why`; it leaves the saved bearer
+untouched and does not revoke it. Repair storage and retry logout.
 Sign-in and refresh work started in an earlier epoch cannot save a late bearer;
 the app revokes that bearer and retires its client. Invalid or expired stored
 sessions are cleaned up only if their exact bytes still match the read, without
@@ -676,7 +686,8 @@ if (app.auth.state === "signed-out") await app.auth.guest();
 
 `keep: "none"` is the default and purges previously retained media on open.
 `keep: "viewed"` retains successfully fetched ordinary assets, evicting the
-least recently used to stay within `maxBytes` of payload bytes. Storage belongs
+least recently used to stay within `maxBytes` of payload bytes (a nonnegative
+safe integer; zero retains no bytes). Storage belongs
 to this server, principal and device: IndexedDB on the web, files in Documents
 with the Expo opener, and device metadata with the process opener. `client.asset`
 and `useAsset` use retained bytes offline and revalidate every online fetch.

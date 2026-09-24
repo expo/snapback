@@ -49315,3 +49315,50 @@ No scope deviation or new open problem. Did not change the Client contract,
 Quarry, authorization/disclosure, retention rules, native APIs or meters; did not
 modify the calibration app or starter templates, run an Expo/browser witness,
 bump package versions, push or publish. This is candidate code for 0.4.1.
+
+## 2026-09-24 — Lane E round 7: durable logout fallback and local option validation
+
+Closed the 0.4.1 delta findings. Logout now requires a durable fence before
+bearer deletion or revocation. When the separate epoch key is unwritable, it
+shrinks the session into a noncredential tombstone, retries the marker with the
+freed space, and keeps the tombstone. Epoch comparisons honor both locations;
+restoration never cleans away the tombstone. A later sign-in saves the epoch
+separately before replacing it. If neither fence can be written, logout reports
+the storage error and preserves the bearer for a retry. This deliberately
+replaces the earlier delete-first quota behavior and its test expectations.
+
+Local asset configuration is validated and snapshotted before restoration or
+sign-in touches storage or the network. Invalid negative/fractional budgets
+report E_CLIENT at app.assets with a concrete rewrite and leave the saved bearer
+live. Both app and lower-level clients share validation; maxBytes remains a
+number documented and enforced as a nonnegative safe integer. The online tier
+continues to ignore local settings. Trailing-slash navigation tries the exported
+slash-stripped HTML before a directory index, online and offline.
+
+Measured: seven new real-server regressions cover held refresh/login responses
+against both epoch-only failures and quota stores, failure of both fence writes,
+and invalid asset budgets with a live restored account. Strengthened polling
+assertions require wait=30 after sign-in and after online restoration; forced
+constant-1 forwarding fails both initial and restoration-only mutation probes.
+Ignoring the tombstone also fails the race tests. Both subpath/root navigation
+fixtures exercise contact/ and query strings with an overlapping directory
+index. All 160 affected tests pass; package build/typecheck and real Chromium
+cross-tab session and offline-shell/replica witnesses pass. README stays at
+296/300 lines; the largest modified source stays below 1,500 lines.
+
+Final scripts/test.sh: **`== 0 failure(s) in 154 s`**, exit 0, with 1,100 client
+passes, 10 skips and nine fixture passes. The first full run reported
+**`== 1 failure(s) in 185 s`**: the unchanged worker presence test saw an
+AbortError when stopped after settlement committed but before its response was
+consumed. This is a baseline shutdown race, independently reproduced with the
+byte-identical worker; both worker cases passed in isolation and the full rerun
+passed without changes or weakened assertions. Evidence, reproduction and the
+complete file map are in [the round 7 report](./reports/20260924-lane-e-round7.md).
+The unrelated worker behavior remains unchanged under the lane's baseline rule.
+
+No deviation from round 7 scope and no open problem in these fixes. Did not
+change Quarry, the Client contract, authorization/disclosure rules, meters,
+retention semantics, native APIs, starters or package versions; did not push or
+publish. A durable tombstone is successful logout even if its separate marker
+still fails; a subsequent sign-in waits for storage repair rather than erase
+that sole fence.

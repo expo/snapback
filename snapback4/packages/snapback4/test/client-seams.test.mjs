@@ -517,7 +517,7 @@ for (const [keep, maxBytes] of [["viewed", png.length], ["viewed", png.length - 
 
 test("createApp forwards local waitSeconds while retaining app-owned identity", { timeout: 15_000 }, async t => {
   const f = await fixture(t), waits = [];
-  const app = createApp({ url: f.url, device: f.device, sessionStore: memorySessionStore(), waitSeconds: 1,
+  const options = { url: f.url, device: f.device, sessionStore: memorySessionStore(), waitSeconds: 30,
     // Excess properties from an untyped caller must not bypass app.auth.
     persona: "bob", guest: true, session: { principal: "dev:bob", token: "untrusted", kind: "user", expiresAt: Date.now() + 86400000 },
     fetch: (input, init) => {
@@ -525,14 +525,23 @@ test("createApp forwards local waitSeconds while retaining app-owned identity", 
       if (url.pathname === "/changes") waits.push(url.searchParams.get("wait"));
       return fetch(input, init);
     },
-  });
+  };
+  let app = createApp(options);
   f.clients.push(app);
   await app.ready; assert.equal(app.auth.state, "signed-out");
   const signedIn = await app.auth.guest(); assert.equal(signedIn.ok, true);
   assert.equal(app.client.viewer(), signedIn.session.principal);
   const sent = await app.mutate(mutation("record"), { n: 1 }); assert.equal(sent.state, "sent");
   await until(() => waits.length > 0);
-  assert.ok(waits.every(wait => wait === "1"), JSON.stringify(waits));
+  assert.ok(waits.every(wait => wait === "30"), JSON.stringify(waits));
+  await app.close();
+  app = createApp(options); f.clients.push(app);
+  assert.equal((await app.ready).ok, true);
+  assert.equal(app.client.viewer(), signedIn.session.principal);
+  waits.length = 0;
+  assert.equal((await app.mutate(mutation("record"), { n: 2 })).state, "sent");
+  await until(() => waits.length > 0);
+  assert.ok(waits.every(wait => wait === "30"), JSON.stringify(waits));
 });
 
 test("online createApp ignores settings that apply only with a device", { timeout: 15_000 }, async t => {
