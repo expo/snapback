@@ -49353,3 +49353,46 @@ Delivery encountered an inapplicable root Snapback 1 pre-push hook failing
 its acorn import in this fresh worktree. Under the explicit Snapback 4 fence,
 the branch push uses command-local `-c core.hooksPath=/dev/null`; no persistent
 hook configuration or package installation/publication is changed.
+
+
+## 2026-09-24 — Lane N round 1: close native-smoke review findings
+
+Addressed all six supplied Astra/Grok findings. Restart launch configuration
+now names the exact zero-write barrier sequence; both JS and driver validation
+require reaching it, so prime 7 / persisted tail 8 cannot pass barrier 9.
+Successful segments require their owned PID to remain present until deliberate
+termination, including after a successful done receipt. Final receipts reread
+device state after the render pause and repeat readiness, identity, offline
+counts and restart barrier checks.
+
+The native hook now receives createApp's client only after publication, with
+synchronous host detachment on close. The runner follows replacements under
+one step and discards obsolete samples without failure receipts. A real
+SQLite/session test restores a bearer one hour from expiry and introduces a
+competing rotation during construction: the discarded candidate closes,
+only its published replacement reaches the hook, and smoke completes. Added
+isolated generation-mismatch and real required-Ref argument selection cases.
+
+Eight deliberate mutations were rejected, covering both barrier validators,
+the missing-process check, first-client latching, unpublished notification,
+the final snapshot, generation identity and Optional selection. All mutations
+were restored before final verification and native qualification. One initial
+mutation test asserted inside construction and hung on cleanup; moving the
+assertion after restoration produced a clean two-versus-one attachment failure.
+
+Final affected checks pass: 66 JS tests, 22 witness driver tests, two smoke
+unit tests, 57 guide tests, package/Expo typechecks, docs budget and references
+(505 documents / 9,236 refs, zero errors/unchecked). The whole suite was not
+repeated; the preceding round's nonzero full-suite result remains documented.
+No unchanged full-suite or WASM rebuild is claimed.
+
+Fresh signed Release runs on dedicated headless iOS 26.4 simulator
+92367552-2B65-40D8-9697-E0C33793F72C: positive exit 0 in 8.523 s, all counts
+preserved and no errors, restart watermark 2 consuming barrier 2; deliberately
+broken offline startup exit 1 in 5.831 s, fatal error retained and restart not
+run. The app-specific runner remains unmounted. Restored the injected source,
+verified every artifact hash, and shut down/deleted the dedicated simulator.
+Evidence and exact commands: reports/20260924-native-smoke/round1/. Earlier
+manifests remain historical. Unchanged native framework hashes match the
+initial round. No remaining failure in the supplied review scope, no version
+bump, no package publication, and no independent re-review verdict claimed.

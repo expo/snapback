@@ -29,13 +29,18 @@ three `segments` marked `passed` mean:
   through the app's client. `queries` records ready/count/completeness or an
   explained refusal. A thrown query, loading result or uncaught JS error fails.
 - `restart`: after another termination and backend restart, the cold app is
-  online and its watermark is strictly past prime. For a quiet backend the
-  driver inserts one zero-write commit while the backend is stopped; the
-  manifest names this `syncBarrier`. It changes no application data.
+  online and its watermark has reached the exact `syncBarrier.seq` passed
+  by the driver, not merely a tail persisted after prime. The driver inserts
+  this zero-write commit while the backend is stopped; it changes no
+  application data.
 
 Each segment has timings, a receipt and a screenshot (`smoke-ios-prime.png`,
 `smoke-ios-offline.png`, `smoke-ios-restart.png`). The same driver also keeps
-video, receipts JSONL and logs with hashes. A failed or unrun segment is never
+video, receipts JSONL and logs with hashes. Counts and identity are reread
+after the render pause; the owned process must remain alive until deliberate
+termination, even after a success receipt. The runner follows the published
+client when session restoration replaces a constructor candidate.
+A failed or unrun segment is never
 reported as passed; exit is nonzero. Preserve failed artifacts and choose a
 fresh directory when retrying. Receipts contain counts, not query row contents;
 video and screenshots show the actual app and may contain its visible data.

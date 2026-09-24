@@ -6,8 +6,9 @@ import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { createApp } from "../dist/app.js";
-import { memorySessionStore, restoreSession, keepSession, sessionKey, logout as revokeSession } from "../dist/auth.js";
+import { memorySessionStore, restoreSession, keepSession, sessionKey, refreshSession, logout as revokeSession } from "../dist/auth.js";
 import { processDevice } from "../dist/native.js";
+import { createSmoke } from "../../snapback4-expo/src/smoke.ts";
 
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
 const add = { kind: "mutation", name: "add" }, list = { kind: "query", name: "list" };
@@ -643,4 +644,57 @@ test("the native instrumentation hook receives createApp's own restored client",
   assert.equal(attached.length, 2); assert.equal(attached[1].client, app.client);
   assert.notEqual(attached[1].client, attached[0].client);
   await app.close(); // Stop its long poll before the server fixture tears down.
+});
+
+test("native smoke observes only the published replacement of a near-expiry restored session", { timeout: 20_000 }, async t => {
+  const { url, dir } = await server(t);
+  const storage = memorySessionStore();
+  const initial = createApp({ url, sessionStore: storage });
+  await initial.ready; assert.equal((await initial.auth.guest()).ok, true);
+  const saved = initial.client.session(); await initial.close();
+  await keepSession(url, { ...saved, expiresAt: Date.now() + 3600_000 }, storage);
+  const receipts = [], published = [];
+  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment: 'prime', timeoutMs: 5000 }),
+    witnessAppend: line => receipts.push(JSON.parse(line)), witnessSignaled: () => false }, {
+    errors: { getGlobalHandler: () => () => {}, setGlobalHandler: () => {} },
+  });
+  const native = processDevice({ dir: join(dir, 'device'), binary });
+  let opens = 0, closes = 0, detached = 0, constructing = false, replaced = false;
+  const racedStore = { ...storage, async get(key) {
+    if (key === sessionKey(url) && constructing && !replaced) {
+      replaced = true;
+      // Another owner rotates the saved successor while this constructor is
+      // finishing. The real guarded keepSession must discard this candidate.
+      const kept = await restoreSession(url, storage);
+      const successor = await refreshSession(url, kept.token);
+      assert.equal(successor.ok, true);
+      await keepSession(url, successor.session, storage);
+    }
+    return storage.get(key);
+  } };
+  const device = { async open(...args) {
+    const core = await native.open(...args);
+    opens++;
+    return { ...core, async call(request, ...rest) {
+      const result = await core.call(request, ...rest);
+      if (request.op === 'state') constructing = true;
+      return result;
+    }, close: async () => { closes++; await core.close(); }, onClient(client, origin) {
+      published.push({ client, isPublished: app.client === client && app.auth.state === 'signed-in' });
+      const stop = runner.attach(client, core, origin);
+      return () => { detached++; stop(); };
+    } };
+  } };
+  const app = createApp({ url, device, sessionStore: racedStore });
+  t.after(async () => { await app.close(); runner.dispose(); });
+  assert.equal((await app.ready).ok, true);
+  assert.equal(opens, 2, 'the rotated restoration must retry with its saved successor');
+  assert.equal(closes, 1, 'the unpublished candidate was closed');
+  assert.equal(published.length, 1);
+  assert.ok(published.every(entry => entry.isPublished), 'a constructor candidate must never reach the witness');
+  assert.notEqual(app.client.session().token, saved.token);
+  await until(() => receipts.some(row => row.witness.step === 'primed'), 'replacement smoke receipt');
+  assert.ok(!receipts.some(row => row.witness.step.endsWith(':failed')));
+  assert.equal(receipts.find(row => row.smoke).smoke.pass, true);
+  await app.close(); assert.equal(detached, 1);
 });

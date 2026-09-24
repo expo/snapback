@@ -136,6 +136,26 @@ mod driver {
         }
     }
     #[test]
+    fn smoke_rejects_unconsumed_barrier_and_native_crash_after_done() {
+        for (mode, code) in [("smoke-stale-restart", "E_WITNESS_STEP"), ("smoke-crash-after-done", "E_WITNESS_APP")] {
+            let fixture = Fixture::new(); let port = Fixture::port(); let output = fixture.run(mode, port);
+            assert!(!output.status.success(), "{mode} incorrectly passed");
+            assert!(String::from_utf8_lossy(&output.stderr).contains(code), "{}", String::from_utf8_lossy(&output.stderr));
+            let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(manifest["exitStatus"], 1);
+            assert_eq!(manifest["segments"]["restart"]["status"], "failed");
+            let receipt = &manifest["segments"]["restart"]["receipt"];
+            assert_eq!(receipt["pass"], true, "failure is in driver validation, after app success");
+            assert!(receipt["watermark"].as_u64() > manifest["segments"]["prime"]["receipt"]["watermark"].as_u64());
+            if mode == "smoke-crash-after-done" {
+                let events = fs::read_to_string(fixture.0.join("process-events.jsonl")).unwrap();
+                assert!(!events.contains("\"terminate\": 7003"), "crashed PID was not deliberately terminated");
+            }
+            assert!(protocol::refused(port).unwrap());
+            assert!(!fixture.0.join("app-pid").exists());
+        }
+    }
+    #[test]
     fn cli_missing_app_and_ambiguous_simulator_never_start_a_backend() {
         for (mode, code) in [("missing", "E_WITNESS_APP"), ("ambiguous", "E_WITNESS_SIMULATOR")] {
             let fixture = Fixture::new(); let output = fixture.run(mode, Fixture::port());

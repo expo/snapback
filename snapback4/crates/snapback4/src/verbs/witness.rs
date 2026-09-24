@@ -117,10 +117,10 @@ impl Run {
         Ok(())
     }
     // @ref LLP 3000.007#20.10 — the launch PID owns cleanup, never the bundle alone
-    fn terminate(&mut self) -> Result<()> {
-        let Some(pid) = self.app_pid else { return Ok(()); };
+    fn terminate(&mut self, require_alive: bool) -> Result<()> {
+        let Some(pid) = self.app_pid else { return if require_alive { Err(error("E_WITNESS_APP", "successful segment lost its owned PID")) } else { Ok(()) }; };
         match self.running_app()? {
-            None => { self.app_pid = None; return Ok(()); }
+            None => { self.app_pid = None; return if require_alive { Err(error("E_WITNESS_APP", format!("app PID {pid} exited before deliberate termination"))) } else { Ok(()) }; }
             Some(current) if current != pid => {
                 self.app_pid = None;
                 return Err(error("E_WITNESS_APP", format!("{} on {} was replaced by PID {current}; leaving that instance running", self.options.bundle, self.udid)));
@@ -141,7 +141,7 @@ impl Run {
     fn launch(&mut self, segment: &str) -> Result<()> {
         self.require_stopped()?;
         let config = json!({ "run": self.run, "segment": segment, "timeoutMs": self.options.timeout.as_millis(),
-            "smoke": self.options.smoke, "baseline": self.manifest["segments"]["prime"]["receipt"] });
+            "smoke": self.options.smoke, "barrierSeq": self.manifest["syncBarrier"]["seq"], "baseline": self.manifest["segments"]["prime"]["receipt"] });
         let mut command = Command::new("xcrun");
         command.args(["simctl", "launch", &self.udid, &self.options.bundle])
             .env("SIMCTL_CHILD_SNAPBACK4_WITNESS", config.to_string())
@@ -276,12 +276,12 @@ impl Run {
         if self.options.smoke { return self.execute_smoke(); }
         self.require_stopped()?;
         self.start_backend()?;
-        if self.options.prime { self.launch("prime")?; self.wait_step("primed", false)?; self.terminate()?; }
+        if self.options.prime { self.launch("prime")?; self.wait_step("primed", false)?; self.terminate(false)?; }
         self.stop_backend()?;
         self.capture()?;
         self.launch(&self.options.segment.clone())?;
         if self.options.relaunch {
-            self.wait_step("relaunch", true)?; self.terminate()?;
+            self.wait_step("relaunch", true)?; self.terminate(false)?;
             self.launch(&self.options.segment.clone())?; self.event("offline-relaunched");
         }
         self.wait_step("offline-done", true)?;
@@ -290,7 +290,7 @@ impl Run {
         self.event("reconnect-signaled");
         self.wait_step("done", false)?;
         self.finish_capture()?;
-        self.terminate()?;
+        self.terminate(false)?;
         self.stop_backend()?;
         Ok(())
     }
@@ -330,7 +330,7 @@ impl Run {
 impl Drop for Run {
     fn drop(&mut self) {
         let _ = self.finish_capture();
-        if self.app_pid.is_some() { let _ = self.terminate(); }
+        if self.app_pid.is_some() { let _ = self.terminate(false); }
         if let Some(mut backend) = self.backend.take() { let _ = backend.stop(libc::SIGTERM); }
     }
 }
@@ -384,7 +384,7 @@ pub fn run(args: &[String]) -> i32 {
         INTERRUPTED.store(false, Ordering::Relaxed);
         // On failure finalize capture before collecting and hashing artifacts.
         let cleanup = run.finish_capture();
-        let app = if run.app_pid.is_some() { run.terminate() } else { Ok(()) };
+        let app = if run.app_pid.is_some() { run.terminate(false) } else { Ok(()) };
         let backend = if run.backend.is_some() { run.stop_backend() } else { Ok(()) };
         let result = result.and(cleanup).and(app).and(backend);
         let saved = run.save(&result);

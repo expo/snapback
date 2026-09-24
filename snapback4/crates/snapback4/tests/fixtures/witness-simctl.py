@@ -55,6 +55,10 @@ elif a[0] == 'launch':
                      origin='test-origin', viewer='dev:alice', storeId=store_id, generation=1, watermark=watermark,
                      link='offline' if segment == 'offline' else 'online', queries=[])
         smoke['pass'] = smoke.pop('pass_')
+        if segment == 'restart':
+            assert config['barrierSeq'] == watermark
+            if mode == 'smoke-stale-restart':
+                smoke['watermark'] = watermark - 1
         if mode == 'smoke-broken' and segment == 'offline':
             smoke['pass'] = False
             smoke['errors'] = [{'message': 'deliberate offline crash', 'fatal': True}]
@@ -62,6 +66,13 @@ elif a[0] == 'launch':
         with receipt.open('a') as f:
             f.write(json.dumps({'smoke': smoke, 'witness': {'at': '2026-09-14T00:00:00.000Z', 'step': step + ':running'}}) + '\n')
         emit(step if smoke['pass'] else step + ':failed')
+        if segment == 'prime':
+            # A tail committed after prime's receipt can already be on disk at
+            # restart. It must not substitute for consuming the later barrier.
+            with sqlite3.connect(root / '.snapback4/store.sqlite') as db:
+                db.execute("INSERT INTO _commits VALUES (?, 0, 'test-tail', 'system', 'witness', '[]', 0)", (watermark + 1,))
+        if mode == 'smoke-crash-after-done' and segment == 'restart':
+            (root / 'app-pid').unlink()
     elif config['segment'] == 'prime':
         emit('primed')
     elif mode == 'json':

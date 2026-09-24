@@ -47,74 +47,108 @@ export function createSmoke(container: WitnessContainer, environment: Environmen
     } finally { previous?.(error, fatal); }
   };
   errorUtils?.setGlobalHandler(handler);
-  let attached = false;
-  const attach = (client: Client, device: DeviceCore, origin: string): void => {
-    if (attached) return;
-    attached = true;
-    void run(client, device, origin).catch(() => { /* step already durably recorded the failure */ });
+  type Attachment = { client: Client; device: DeviceCore; origin: string };
+  const superseded = Symbol("superseded smoke client");
+  let latest: Attachment | undefined;
+  let running: Promise<void> | undefined;
+  const checkTime = () => {
+    assert(errors.length === 0, "uncaught JavaScript error");
+    assert(now() - startedAt < config.timeoutMs, "timed out waiting for smoke client or sync watermark");
   };
-  async function run(client: Client, device: DeviceCore, origin: string) {
-    const step = { prime: "primed", offline: "offline-done", restart: "done" }[w.segment]!;
+  const start = () => running ??= w.step({ prime: "primed", offline: "offline-done", restart: "done" }[w.segment]!, async () => {
+    for (;;) {
+      checkTime();
+      if (!latest) { await pause(); continue; }
+      const attached = latest;
+      try { await sample(attached); return; }
+      catch (error) { if (error !== superseded) throw error; }
+    }
+  });
+  const attach = (client: Client, device: DeviceCore, origin: string): (() => void) => {
+    const attached = latest = { client, device, origin };
+    void start().catch(() => { /* step already durably recorded the failure */ });
+    return () => { if (latest === attached) latest = undefined; };
+  };
+  async function sample(attached: Attachment) {
+    const { client, device, origin } = attached;
+    const current = () => { if (latest !== attached) throw superseded; };
     let state: State | undefined;
     const queries: Record<string, unknown>[] = [];
     const read = async <T>(op: string): Promise<T> => {
-      const result = await device.call({ op });
+      current();
+      let result: Record<string, unknown>;
+      try { result = await device.call({ op }); } finally { current(); }
       assert(!result.denied && result.ok, `${op} refused: ${JSON.stringify(result.denied)}`);
       return result.ok as T;
     };
-    const wait = async (condition: () => Promise<boolean>, description: string) => {
-      while (!(await condition())) {
-        assert(errors.length === 0, "uncaught JavaScript error");
-        assert(now() - startedAt < config.timeoutMs, `timed out waiting for ${description}`);
-        await pause();
+    const wait = async (condition: () => Promise<boolean>) => {
+      while (!(await condition())) { checkTime(); await pause(); current(); }
+    };
+    const snapshot = async () => {
+      state = await read<State>("witness_state");
+      assert(state && typeof state.storeId === "string" && state.storeId.length > 0
+        && Number.isSafeInteger(state.watermark) && state.watermark >= 0
+        && state.rows && Object.values(state.rows).every(n => Number.isSafeInteger(n) && n >= 0), "invalid device smoke state");
+    };
+    const ready = () => client.viewer() !== null && client.link() === (w.segment === "offline" ? "offline" : "online")
+      && client.acquired && state!.acquired && !state!.backendRequired;
+    const identity = () => {
+      if (w.segment === "prime") return;
+      const baseline = config.baseline as Baseline | undefined;
+      assert(baseline && baseline.origin === origin && baseline.viewer === client.viewer()
+        && baseline.storeId === state!.storeId && baseline.generation === state!.generation,
+      "prime's backend/session identity does not match this launch");
+      if (w.segment === "offline") {
+        assert(JSON.stringify(Object.entries(state!.rows).sort()) === JSON.stringify(Object.entries(baseline.rows).sort()), "held row counts differ from prime");
       }
     };
-    return w.step(step, async () => {
-      const receipt = (pass: boolean, error?: unknown) => w.receipt({ smoke: {
-        segment: w.segment, pass, startedAt, endedAt: now(), durationMs: now() - startedAt,
-        origin, viewer: client.viewer(), link: client.link(), ...state, queries, errors: [...errors],
-        ...(error ? { error: error instanceof Error ? error.message : String(error) } : {}),
-      } });
-      try {
-        assert(errorUtils, "the native JavaScript error handler is unavailable");
-        await wait(async () => {
-          state = await read<State>("witness_state");
-          assert(state && typeof state.storeId === "string" && state.storeId.length > 0
-            && Number.isSafeInteger(state.watermark) && state.watermark >= 0
-            && state.rows && Object.values(state.rows).every(n => Number.isSafeInteger(n) && n >= 0), "invalid device smoke state");
-          return client.viewer() !== null && client.link() === (w.segment === "offline" ? "offline" : "online")
-            && client.acquired && state.acquired && !state.backendRequired;
-        }, "session, link and complete partition acquisition");
-        if (w.segment !== "prime") {
-          const baseline = config.baseline as Baseline | undefined;
-          assert(baseline && baseline.origin === origin && baseline.viewer === client.viewer()
-            && baseline.storeId === state!.storeId && baseline.generation === state!.generation,
-          "prime's backend/session identity does not match this launch");
-          if (w.segment === "offline") {
-            assert(JSON.stringify(Object.entries(state!.rows).sort()) === JSON.stringify(Object.entries(baseline.rows).sort()), "held row counts differ from prime");
-            const backend = await read<Backend>("backend");
-            for (const program of backend.programs) {
-              if (program.kind !== "Query" || !Object.values(program.args).every(type => type !== null && typeof type === "object" && "Optional" in type)) continue;
-              const fact = backend.schema.operations?.[program.name] ?? {};
-              const op = { kind: "query", name: program.name, ...(fact.runs ? { runs: fact.runs } : {}), ...(fact.held ? { held: true } : {}) } as Query<{}, unknown>;
-              const result = await client.query(op, {});
-              if ("data" in result) {
-                queries.push({ name: program.name, state: "ready", count: Array.isArray(result.data) ? result.data.length : result.data == null ? 0 : 1,
-                  complete: result.complete, fresh: result.fresh, cut: result.cut });
-              } else if ("denied" in result && result.denied.code && result.denied.message) {
-                queries.push({ name: program.name, state: "refused", code: result.denied.code, message: result.denied.message });
-              } else { throw new Error(`query ${program.name} returned neither ready nor an explained refusal`); }
-            }
-          } else {
-            await wait(async () => { state = await read<State>("witness_state"); return client.link() === "online" && state!.watermark > baseline.watermark; }, "sync watermark past prime");
-          }
+    const barrier = () => {
+      assert(Number.isSafeInteger(config.barrierSeq) && config.barrierSeq > config.baseline?.watermark, "invalid restart sync barrier");
+      return state!.watermark >= config.barrierSeq;
+    };
+    const receipt = (pass: boolean, error?: unknown) => w.receipt({ smoke: {
+      segment: w.segment, pass, startedAt, endedAt: now(), durationMs: now() - startedAt,
+      origin, viewer: client.viewer(), link: client.link(), ...state, queries, errors: [...errors],
+      ...(w.segment === "restart" ? { barrierSeq: config.barrierSeq } : {}),
+      ...(error ? { error: error instanceof Error ? error.message : String(error) } : {}),
+    } });
+    try {
+      assert(errorUtils, "the native JavaScript error handler is unavailable");
+      await wait(async () => { await snapshot(); return ready(); });
+      identity();
+      if (w.segment === "offline") {
+        const backend = await read<Backend>("backend");
+        for (const program of backend.programs) {
+          if (program.kind !== "Query" || !Object.values(program.args).every(type => type !== null && typeof type === "object" && "Optional" in type)) continue;
+          const fact = backend.schema.operations?.[program.name] ?? {};
+          const op = { kind: "query", name: program.name, ...(fact.runs ? { runs: fact.runs } : {}), ...(fact.held ? { held: true } : {}) } as Query<{}, unknown>;
+          const result = await client.query(op, {});
+          current();
+          if ("data" in result) {
+            queries.push({ name: program.name, state: "ready", count: Array.isArray(result.data) ? result.data.length : result.data == null ? 0 : 1,
+              complete: result.complete, fresh: result.fresh, cut: result.cut });
+          } else if ("denied" in result && result.denied.code && result.denied.message) {
+            queries.push({ name: program.name, state: "refused", code: result.denied.code, message: result.denied.message });
+          } else { throw new Error(`query ${program.name} returned neither ready nor an explained refusal`); }
         }
-        // Give the mounted app a turn to render and run its startup effects.
-        await pause();
-        assert(errors.length === 0, "uncaught JavaScript error");
-        await receipt(true);
-      } catch (error) { await receipt(false, error); throw error; }
-    });
+      } else if (w.segment === "restart") {
+        await wait(async () => { await snapshot(); identity(); return ready() && barrier(); });
+      }
+      // Give the mounted app a turn, then attest the state that exists now.
+      await pause();
+      await snapshot();
+      assert(ready(), "session, link or acquisition changed before receipt");
+      identity();
+      if (w.segment === "restart") assert(barrier(), "sync watermark is below the restart barrier");
+      assert(errors.length === 0, "uncaught JavaScript error");
+      current();
+      await receipt(true);
+    } catch (error) {
+      current(); // A closed or replaced candidate cannot emit failure evidence.
+      await receipt(false, error); throw error;
+    }
   }
-  return { attach, run, dispose: () => { if (previous) errorUtils?.setGlobalHandler(previous); } };
+  return { attach, run: (client: Client, device: DeviceCore, origin: string) => {
+    attach(client, device, origin); return running!;
+  }, dispose: () => { latest = undefined; if (previous) errorUtils?.setGlobalHandler(previous); } };
 }

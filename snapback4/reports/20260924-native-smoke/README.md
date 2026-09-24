@@ -1,5 +1,8 @@
 # Lane N — generic native smoke
 
+**Latest: [round-one review fixes and native evidence](./round1/README.md).**
+The results below are the initial round; its manifests remain historical.
+
 Implemented on `sb4-native/n-smoke`, based on `ghssh/main` at the commit in
 [`qualification.json`](./qualification.json). No packages were published or
 versions changed; this lane's inherited package version is 0.4.0, for the

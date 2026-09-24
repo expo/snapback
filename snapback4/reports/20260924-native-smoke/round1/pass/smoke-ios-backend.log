@@ -1,0 +1,15 @@
+snapback4 dev: http://127.0.0.1:4448  (schema: snapback/, types: /Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/snapback/generated/api.ts)
+store: /Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 worker: /Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/snapback/worker.ts (pid 16419)
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="maintenance" reason="shutdown"
+snapback4 dev: http://127.0.0.1:4448  (schema: snapback/, types: /Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/snapback/generated/api.ts)
+store: /Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 worker: /Users/ccheever/projects/snapback-n-smoke/snapback4/apps/chat/snapback/worker.ts (pid 17231)
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15

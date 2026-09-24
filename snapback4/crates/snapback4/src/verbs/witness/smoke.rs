@@ -40,7 +40,7 @@ impl Run {
         // Capture failures too, while the process/screen is still present.
         let picture = self.path(&format!("{segment}.png"));
         let screenshot = simctl(&["io", &self.udid, "screenshot", picture.to_str().unwrap()], self.options.timeout).map(|_| ());
-        let stopped = self.terminate();
+        let stopped = self.terminate(result.is_ok() && screenshot.is_ok());
         let result = result.and(screenshot).and(stopped);
         let ended = now();
         let entry = &mut self.manifest["segments"][segment];
@@ -53,7 +53,7 @@ impl Run {
             (receipt["segment"] == segment && receipt["pass"] == true).then(|| receipt.clone())
         }) { entry["receipt"] = receipt; }
         result?;
-        validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"])
+        validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())
     }
 
     pub(super) fn save_smoke(&mut self, problem: &mut Option<String>) {
@@ -83,7 +83,7 @@ impl Run {
                 Err(e) => { problem.get_or_insert(e); },
             }
             if self.manifest["segments"][segment]["status"] == "passed" {
-                if let Err(e) = validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"]) {
+                if let Err(e) = validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64()) {
                     self.manifest["segments"][segment]["status"] = json!("failed");
                     problem.get_or_insert(e);
                 }
@@ -92,7 +92,7 @@ impl Run {
     }
 }
 
-fn validate_receipt(segment: &str, value: &Value, prime: &Value) -> Result<()> {
+fn validate_receipt(segment: &str, value: &Value, prime: &Value, barrier: Option<u64>) -> Result<()> {
     let valid = value["segment"] == segment && value["pass"] == true
         && value["errors"].as_array().is_some_and(Vec::is_empty)
         && value["rows"].as_object().is_some_and(|rows| rows.values().all(|count| count.as_u64().is_some()))
@@ -104,8 +104,8 @@ fn validate_receipt(segment: &str, value: &Value, prime: &Value) -> Result<()> {
         return Err(error("E_WITNESS_STEP", "smoke backend/session identity changed since prime"));
     }
     if segment == "offline" && value["rows"] != prime["rows"] { return Err(error("E_WITNESS_STEP", "offline held counts differ from prime")); }
-    if segment == "restart" && value["watermark"].as_u64() <= prime["watermark"].as_u64() {
-        return Err(error("E_WITNESS_STEP", "restart watermark did not advance past prime"));
+    if segment == "restart" && !barrier.is_some_and(|seq| Some(seq) > prime["watermark"].as_u64() && value["watermark"].as_u64() >= Some(seq)) {
+        return Err(error("E_WITNESS_STEP", "restart watermark did not consume the restart barrier"));
     }
     Ok(())
 }
@@ -128,6 +128,16 @@ fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn restart_requires_its_barrier_even_if_newer_than_prime() {
+        let prime = json!({ "segment": "prime", "pass": true, "errors": [], "rows": {}, "storeId": "store",
+            "watermark": 7, "acquired": true, "backendRequired": false, "link": "online" });
+        let mut restart = prime.clone(); restart["segment"] = json!("restart"); restart["watermark"] = json!(8);
+        assert!(validate_receipt("restart", &restart, &prime, Some(9)).unwrap_err().contains("restart barrier"));
+        assert!(validate_receipt("restart", &restart, &prime, None).is_err());
+        restart["watermark"] = json!(9);
+        assert!(validate_receipt("restart", &restart, &prime, Some(9)).is_ok());
+    }
     #[test]
     fn smoke_barrier_advances_only_the_commit_clock() {
         let dir = std::env::temp_dir().join(format!("smoke-barrier-{}", std::process::id()));
