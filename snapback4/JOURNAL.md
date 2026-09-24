@@ -47513,3 +47513,102 @@ membership boundaries. Rolling-rank oracle coverage and separate follow-graph
 growth/hub/boundary evidence are recorded without native/acquisition or release
 speedup claims. Details and the completed/unmet ledger:
 [`reports/20260923-cal18-followups/scale.md`](./reports/20260923-cal18-followups/scale.md).
+
+## 2026-09-24 — intent lane G: per-operation scale certificates
+
+Lane G implements the scale certificate for LLP 3000.013 on
+`sb4-intent/g-scale` (implementation commit `829a21e25`). Every successful
+`check` prints a scale summary. Each `check --cost` operation starts with
+its verdict, while all previous cost lines remain. `check --json --cost`
+adds `scale`, an array of operation certificates containing `class`,
+`bounds`, `growth_sites`, `per_chunk`, `per_write` and `whole_job`, plus
+`scaleSummary`. The existing human cost report remains on stderr in JSON
+mode. `why <operation>` receives the same added verdict.
+
+The analysis walks the program IR and schema, including nested shapes,
+loops, lane discovery/setup, rule probes and implicit maintained reads.
+It uses the engine's `scan_visibility` analysis. Residual predicates,
+non-uniform read rules, uncapped domains, word expansion, expiry skips,
+expiring aggregate recounts and data-derived ranges report their growth
+sites and rewrites. Compiler boolean temporaries are rendered as Quarry
+expressions. Jobs are assessed per chunk and name whole-sweep work
+separately. Recorded attribution, maintained aggregates/columns and the
+existing Following delivery cost are included in the verdict.
+
+Engineering choices where the lane brief was silent:
+
+- Bounds are conservative admitted meter work, with lookahead and nested
+  multiplicity included. Writes use the shared runtime ceilings because
+  constraints, prediction authority, derived writes and partition work
+  compose with the authored writes. A failed charge may appear above those
+  ceilings in a trace. No static bytes/steps admission was introduced.
+- Native modules and external actions conservatively use `grows`, naming
+  the absent Quarry body; this is lack of a static independence proof,
+  not a measured claim that every handler scales with the corpus.
+- A range depending only on arguments or the clock is independent of
+  corpus size; its admitted iterations remain bounded by the step meter.
+- This lane adds no Quarry grammar or refusal code. Its compiled bounds-card
+  examples use the existing spellings. Predicate reads from lane A use the
+  same Scan/Merge analysis, including synthesized index names. New IR from
+  other lanes still needs integration: in particular, a new MergeLane
+  projection must be traversed with candidate multiplicity, and streaming
+  or self-chunking variants must preserve their domain's growth facts.
+
+Measured/verified:
+
+- `cargo test -p snapback4 --test scale`: **9 passed**, including explicit
+  class pins for all 45 core language-card operations (34 constant, 11
+  grows), all 11 chat operations (10 constant, external `invite` grows),
+  and all 15 clique-03 operations (13 constant, `following` and `trending`
+  grow because they filter removal/timestamp candidates). Jobs in these
+  counts are per chunk.
+- Additional certificate tests check residual versus pinned reads, uncapped
+  lane discovery versus bounded lists, stored-data versus input ranges,
+  hidden rows, expiring rule probes and live aggregate recounts, a schema
+  cap repairing a whole-domain read, and a renamed/synthesized IR index
+  with an argument page bound. CLI tests retain the old cost lines and
+  verify ordinary-check summaries and structured JSON.
+- Engine witnesses seed **100 then 1,200 rows** and check **pages 1–50**
+  against row/probe bounds, including nested point and page shapes. A
+  sparse filter and a whole-domain count both examine the growing corpus.
+  These are logical-work witnesses, not latency or benchmark-score claims.
+- `cargo test -p snapback4-lang --test guide`: **55 passed**, including the
+  new bounds-card examples without diagnostics or notes.
+- `cargo test -p snapback4 --test check`: **67 passed, 1 baseline failure**
+  (`w9b_why_operation_keeps_residency_and_cost_output`, the same assertion
+  at check.rs:413 as the host baseline).
+- Actual clique-03 CLI output: `scale: 13 of 15 operations are constant; 2
+  grow with data (following, trending); 1 job(s) assessed per chunk — check
+  --cost explains`.
+- Required `scripts/test.sh`: **`== 2 failure(s) in 257 s`**, exit 1.
+  Failed stages: `cargo test`, `client tests`. The build, wasm, docs budget,
+  release guard, package typecheck/build, chat check/typecheck, Expo
+  typecheck and fixture-wrapper tests passed. Full log:
+  `/home/ccheever/sb4-intent/lane-g-test.log`.
+
+Every full-suite failure and its attribution:
+
+1. **Baseline** — core `schema_capabilities_legacy`:
+   `genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+2. **Baseline** — device `device`:
+   `uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+3. **Baseline** — device `readauth`: `census::authoring_census`.
+4. **Baseline** — CLI `check`:
+   `w9b_why_operation_keeps_residency_and_cost_output`.
+5. **Environmental/timing-dependent, inferred** — client
+   `web-navigation.test.mjs:225`, `mutate waits for outbox persistence
+   before the exit transport can see it`: two exit requests versus one.
+   It passed in the host baseline and passed the isolated rerun:
+   `node --test --test-name-pattern='mutate waits for outbox persistence before the exit transport can see it' packages/snapback4/test/web-navigation.test.mjs`
+   (**1 passed, 0 failed**, log
+   `/home/ccheever/sb4-intent/lane-g-client-recheck.log`). No client or engine
+   runtime source changed. Its precise scheduling cause was not proven or
+   repaired. Reproduce the observed concurrent run with `scripts/test.sh`.
+
+For the four baseline Rust failures, reproduce with
+`cargo test -p <crate> --test <target> <test-name>` using the crate/target/name
+above. No new certificate failure remains. No changes were made to runtime
+meters, authorization, disclosure, storage, delivery or publication. The
+new-form target-clique program awaits the other implementation lanes; this
+lane tested its relevant residual/pinned reads, domains and lane shapes
+through the current compiler and IR. No push or package publication.
