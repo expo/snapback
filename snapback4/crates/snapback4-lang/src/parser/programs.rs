@@ -124,6 +124,15 @@ impl Parser {
             if self.at_kind(Kind::Dedent) {
                 break;
             }
+            if self.at("for") {
+                let sweep = self.parse_for()?;
+                if let Stmt::For { domain: Expr::Read(read), site, .. } = &sweep
+                    && (read.range.is_some() || read.matching.is_some()) {
+                    return Err(syntax_with(site, "an automatic sweep needs a plain table or prefix domain, without a page or matching clause", format!("for row in {}:  -- or use chunk row in {} first 64 by byId:", read.table, read.table)));
+                }
+                chunks.push(sweep);
+                continue;
+            }
             if !self.at("chunk") && chunks.is_empty() {
                 prelude.push(self.parse_statement()?);
                 continue;

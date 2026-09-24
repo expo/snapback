@@ -186,6 +186,11 @@ impl Store {
         )?;
         conn.execute_batch("CREATE INDEX IF NOT EXISTS _sessions_expiry ON _sessions(expires_at);")?;
         crate::identity::initialize(&conn)?;
+        let job_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_jobs')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+        for column in ["chunk_size", "retries", "heap_peak"] {
+            if !job_columns.contains(&column.to_owned()) { conn.execute_batch(&format!("ALTER TABLE _jobs ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0;"))?; }
+        }
+        if !job_columns.iter().any(|column| column == "domain") { conn.execute_batch("ALTER TABLE _jobs ADD COLUMN domain TEXT;")?; }
         let op_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_ops')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
         for (column, kind) in [("name", "TEXT"), ("args_digest", "TEXT"), ("at", "INTEGER")] {
             if !op_columns.iter().any(|name| name == column) {

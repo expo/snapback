@@ -148,6 +148,11 @@ impl<'a> Binder<'a> {
                     // chunk itself is the final statement emitted for this
                     // declaration, so validate that scan directly instead of
                     // zipping the differently-shaped AST and IR vectors.
+                    if decl.kind == ProgramKind::Job && let S::For { site, .. } = statement
+                        && !matches!(body.last(), Some(Stmt::For { domain: LoopDomain::Page(_), .. })) {
+                        diagnostics.push(placement(site, "a job sweep needs a table or prefix domain", "for row in table:"));
+                        failed = true;
+                    }
                     if decl.kind == ProgramKind::Job
                         && let S::For { site, .. } = statement
                         && let Some(Stmt::For { domain: LoopDomain::Page(scan), .. }) = body.last()
@@ -998,7 +1003,7 @@ fn stable_chunk(catalog: &Catalog, site: &Site, scan: &Scan) -> Fallible<()> {
         columns
     });
     if !moving.is_empty() {
-        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("chunk over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or sweep by byId", moving.join(", "), scan.table)).guide("jobs"));
+        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} orders by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("for row in {}:  -- stable byId order; or declare immutable {} on table {}", scan.table, moving.join(", "), scan.table)).guide("jobs"));
     }
     Ok(())
 }

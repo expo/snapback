@@ -560,6 +560,28 @@ table votes:
   online only
 ```
 
+```quarry
+effect digest
+table recipients:
+  principal: principal
+  public
+  online only
+table events:
+  recipient: principal
+  amount: int
+  at: time
+  by byRecipientTime: recipient, at, id
+  public
+  online only
+job daily(periodStart: time, periodEnd: time):
+  for p in recipients:
+    n = count(events[p.principal, at >= periodStart, at < periodEnd] by byRecipientTime)
+    amount = sum(events[p.principal, at >= periodStart, at < periodEnd] by byRecipientTime, .amount)
+    if exists events[p.principal] by byRecipientTime:
+      emit digest { recipient: p.principal, n, amount } once [p.principal, periodEnd]
+schedule dailyDigest every 1d: daily
+```
+
 Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why

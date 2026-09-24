@@ -57,7 +57,7 @@ fn prefix_positions_refuse_with_working_page_rewrites() {
     checked(&format!("{}\n{}", schema(), helper.replace("members[viewer]", "members[viewer] first 50").replace("mutation bad():", "mutation bad(): server")));
     rejected(schema(), &helper.replace("return total()", "return members[viewer] first 50 where total() > 0"), "E_QUARRY_PLACEMENT");
     let job = "job sweep():\n  chunk r in rooms first 10 by byId:\n    for m in members[viewer]:\n      continue\n";
-    rejected(schema(), job, "E_QUARRY_PLACEMENT");
+    checked(&format!("{}\n{job}", schema())); // LLP 3000.013: inner job domains use the chunk meter.
     checked(&format!("{}\n{}", schema(), job.replace("members[viewer]", "members[r.id]")));
     let job_schema = schema().replace("cap 100 by roomId", "cap 10000 by roomId");
     checked(&format!("{job_schema}\n{}", job.replace("members[viewer]", "members[r.id]")));
@@ -97,12 +97,13 @@ fn explicit_caps_stay_silent_and_predicting_short_pages_stay_refused() {
 
 #[test]
 fn exists_modifiers_and_rule_probes_keep_their_boundaries() {
-    for suffix in ["first 1", "last 1", "after c", "after c first 1", "where .body != ''"] {
+    for suffix in ["first 1", "last 1", "after c", "after c first 1"] {
         let body = format!("query bad(roomId: rooms, c: cursor ?):\n  return exists (messages[roomId] {suffix})\n");
         let error = rejected(schema(), &body, "E_QUARRY_SYNTAX");
         assert_eq!(error.rewrite, "exists messages[roomId]");
         checked(&format!("{}\nquery good(roomId: rooms):\n  return {}\n", schema(), error.rewrite));
     }
+    checked(&format!("{}\nquery filtered(roomId: rooms):\n  return exists messages[roomId] where .body != ''\n", schema()));
     let body = "query grouped(q: text <=100, c: cursor ?):\n  return members[viewer] after c first 20 where exists messages[.roomId] matching q\n";
     let error = rejected(schema(), body, "E_QUARRY_MODIFIER_SCOPE");
     assert_eq!(error.rewrite, "(messages[.roomId] matching q)");

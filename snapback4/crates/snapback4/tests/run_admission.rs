@@ -189,3 +189,17 @@ fn uncontended_run_keeps_the_short_path() {
     assert!(!String::from_utf8_lossy(&out.stderr).contains("waiting before admission"));
     println!("uncontended_run_ms={}", started.elapsed().as_millis());
 }
+
+#[test]
+fn adaptive_job_run_and_doctor_report_chunk_size_and_retries() {
+    let p = Project::new();
+    p.source("table items:\n  n: int default 0\n  public 'test'\n  insert <- allow\n  update <- allow\n  online only\nmutation put():\n  insert items { n: 0 }\njob sweep():\n  for item in items:\n    update items[item.id] { n: item.n + 1 }\n");
+    p.initialize();
+    let out = p.run(&["run", "sweep", "--json"]);
+    assert!(out.status.success(), "{out:?}");
+    let run: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(run["chunkSize"], 64); assert_eq!(run["retries"], 0); assert!(run["heapPeak"].as_u64().unwrap() > 0);
+    let doctor = p.run(&["doctor"]);
+    let text = String::from_utf8(doctor.stdout).unwrap();
+    assert!(text.contains("chunk size 64, retries 0"), "{text}");
+}
