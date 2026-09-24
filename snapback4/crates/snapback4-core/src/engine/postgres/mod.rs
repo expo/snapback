@@ -238,6 +238,7 @@ impl PostgresEngine {
             Ok(value)
         });
         let metered = runner.meter.used;
+        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value));
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let events = runner.events.take();
         let outbox = std::mem::take(&mut runner.outbox);

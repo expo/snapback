@@ -25,6 +25,20 @@ pub(super) enum Flow {
     Return(Value),
 }
 
+/// What a commit's retirement of its already-expired births
+/// (`retire_expired_births`) shares across the rows it removes.
+#[cfg(feature = "sqlite")]
+#[derive(Default)]
+pub(crate) struct Retiring {
+    /// Net aggregate changes by (target, canonical key), applied once at the
+    /// end: the order of removal must not reach a total no commit would hold.
+    pub(crate) aggregates: BTreeMap<(String, String), (Vec<Value>, i128)>,
+    /// Whether an audience key keeps a live row, by (table, group index,
+    /// canonical key). Removing expired rows cannot change the answer, so each
+    /// key is scanned once.
+    pub(crate) live_keys: HashMap<(String, String, String), bool>,
+}
+
 /// One evaluated cursor-bearing page; the return plan selects its owner.
 #[derive(Clone, Debug)]
 pub(crate) struct PagePosition {
@@ -81,6 +95,9 @@ pub struct Runner<'a> {
     pub(crate) born_rows: HashMap<(String, String), usize>,
     #[cfg(feature = "sqlite")]
     pub(crate) born_grants: HashMap<(String, String, String), usize>,
+    /// Set only while a commit retires the rows it inserted already expired.
+    #[cfg(feature = "sqlite")]
+    pub(crate) retiring: Option<Retiring>,
     /// Queued effects with their grace dependencies.
     pub(crate) outbox: Vec<super::presence::Emission>,
     pub(super) effect_presence: super::presence::EffectPresence,
@@ -192,6 +209,8 @@ impl<'a> Runner<'a> {
             born_rows: HashMap::new(),
             #[cfg(feature = "sqlite")]
             born_grants: HashMap::new(),
+            #[cfg(feature = "sqlite")]
+            retiring: None,
             outbox: Vec::new(),
             effect_presence: Default::default(),
             page_depth: 0,

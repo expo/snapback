@@ -437,6 +437,7 @@ pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &B
     })();
     let host = store.into_data();
     let mut runner = host.runner.expect("the chunk's runner");
+    let step = step.and_then(|step| runner.retire_expired_births().map(|_| step));
     ChunkOutcome {
         step,
         events: runner.events.take(),

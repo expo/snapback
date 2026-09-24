@@ -206,6 +206,38 @@ impl Runner<'_> {
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
 
+    /// At a program commit's end, retire every row the commit inserted whose
+    /// lifetime has already ended: it was never live at a commit boundary, so
+    /// it leaves no row for a later sweep to announce. Inside the commit the
+    /// row existed as written (an insert-then-update still works). Engine
+    /// bookkeeping, unmetered: the device's prediction does not do it, and
+    /// the program's metering is already recorded. Its work, returned, stays
+    /// linear in the rows retired: each aggregate row takes one net change
+    /// and each audience key is scanned for a live row once. Seeds and loads
+    /// keep their rows for the sweep.
+    // @ref LLP 3000#7-decisions-during-execution — a row whose lifetime ended by its own commit's end never exists at a commit boundary.
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn retire_expired_births(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
+        let Some(now) = self.context.now else { return Ok(Default::default()) };
+        let mut born: Vec<(String, String)> = self.born_rows.keys().filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.expire.is_some())).cloned().collect();
+        if born.is_empty() {
+            return Ok(Default::default());
+        }
+        // The log's order must not depend on a map's iteration order.
+        born.sort();
+        let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
+        self.retiring = Some(Default::default());
+        let retired = born.iter().try_for_each(|(table_name, id)| {
+            let Some(row) = self.tx.get(table_name, id)? else { return Ok(()) };
+            let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+            if table.expired(&row, now) { self.remove(table_name, &row) } else { Ok(()) }
+        });
+        let aggregates = self.retiring.take().map(|retiring| retiring.aggregates).unwrap_or_default();
+        let retired = retired.and_then(|()| self.apply_retired_aggregates(aggregates));
+        let work = std::mem::replace(&mut self.meter, meter).used;
+        retired.map(|()| work)
+    }
+
     /// A column with a declared default takes it when the written row leaves
     /// it out, before validation and before the asset facts, so the row the
     /// rules and the constraints see is the complete one.

@@ -333,6 +333,10 @@ mutation add():
   return null
 mutation joinUntil(person: principal, until: time):
   return insert members {group: 'g', person, until}
+mutation joinRevived(person: principal):
+  row = insert members {group: 'g', person, until: 100}
+  upsert members[row] {group: 'g', person, until: 300}
+  return null
 mutation blink(person: principal):
   row = insert members {group: 'g', person, until: 100}
   update members[row] {until: 200}
@@ -541,7 +545,7 @@ fn two_born_siblings_share_their_birth() {
     }
 }
 
-// ---- a grant inserted already expired (issues/20260923-snapback4-already-expired-grant-names-ids.md) ----
+// ---- a grant inserted already expired (issues/closed/20260923-snapback4-already-expired-grant-names-ids.md) ----
 
 fn drained(engine: &mut Engine, viewer: &str, from: u64, limit: usize, now: i64) -> Vec<snapback4_core::store::LogEvent> {
     let (mut from, mut events) = (from, Vec::new());
@@ -655,3 +659,149 @@ fn a_live_chain_still_revokes_when_a_page_ends_at_its_never_live_join() {
         assert!(scoped, "limit {limit}: resuming at the never-live join lost the live grant's revocation");
     }
 }
+
+// ---- a row whose lifetime ended by its own commit's end is retired in it ----
+
+/// The ticket's sweep reproduction: the already-expired grant is retired in
+/// its own commit, so no later sweep has a row to announce, and its grantee
+/// learns nothing then or after.
+#[test]
+fn an_already_expired_grant_is_retired_in_its_commit() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["expired-member"], 150);
+    assert!(engine.store().rows("members").unwrap().is_empty(), "the expired row outlived its commit");
+    assert_eq!(engine.sweep_expired(152, 100).unwrap(), 0);
+    for limit in [1, 1_000] {
+        let events = drained(&mut engine, "dev:alice", before, limit, 153);
+        assert!(events.is_empty(), "limit {limit}: {events:?}");
+    }
+}
+
+/// Inside its commit the row exists as written: revived to a live lifetime
+/// before the commit ends, it survives and its grant reaches the grantee.
+#[test]
+fn a_row_revived_within_its_commit_survives() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "j1", "joinRevived", &[("person", id("dev:alice"))], &["member"], 150);
+    let members = engine.store().rows("members").unwrap();
+    assert_eq!(members.len(), 1, "{members:?}");
+    let events = drained(&mut engine, "dev:alice", before, 1_000, 151);
+    assert!(events.iter().any(|e| e.kind == "put" && e.id == "note"), "{events:?}");
+}
+
+/// Any synced table with an expiry, not only memberships: a content row
+/// inserted already expired is retired in its commit, its maintained count
+/// never moves, and neither its reader nor a later sweep names it.
+#[test]
+fn an_already_expired_content_row_is_retired_and_counts_stay_true() {
+    let schema = "table notes:
+  owner: principal
+  body: text <=10
+  expires: time ?
+  by byOwner: owner, id
+  by byExpiry: expires
+  expire at .expires
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner
+maintain counts: count notes by owner
+  read <- .owner = viewer
+mutation write(body: text <=10, expires: time ?):
+  return insert notes {owner: viewer, body, expires}
+";
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), schema.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    let before = engine.seq().unwrap();
+    let write = |engine: &mut Engine, op: &str, id_: &str, expires: i64, now: i64| {
+        let context = Context::new("dev:alice", args(&[("body", Value::String("b".into())), ("expires", Value::Int(expires))])).at(now).with_ids([id_.to_owned()]);
+        assert!(matches!(engine.mutate("write", Some(op), context).unwrap().state, WriteState::Sent { .. }));
+    };
+    write(&mut engine, "w1", "live", 1_000, 100);
+    write(&mut engine, "w2", "dead", 50, 100);
+    let notes = engine.store().rows("notes").unwrap();
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    let counts = engine.store().rows("counts").unwrap();
+    assert_eq!(counts.len(), 1, "{counts:?}");
+    assert_eq!(counts[0].field("value").unwrap(), &Value::Int(1), "{counts:?}");
+    assert_eq!(engine.sweep_expired(200, 100).unwrap(), 0);
+    for limit in [1, 1_000] {
+        let events = drained(&mut engine, "dev:alice", before, limit, 201);
+        assert!(events.iter().all(|e| e.id != "dead"), "limit {limit}: {events:?}");
+        assert!(events.iter().any(|e| e.kind == "put" && e.id == "live"), "limit {limit}: {events:?}");
+    }
+}
+
+const EXPIRING_SUM: &str = "table entries:
+  owner: principal
+  amount: int
+  until: time
+  by byOwner: owner, id
+  by byExpiry: until
+  expire at .until
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner
+view totals: sum entries of .amount by .owner
+  read <- .owner = viewer
+mutation add(amount: int, until: time):
+  return insert entries {owner: viewer, amount, until}
+mutation pair():
+  insert entries {owner: viewer, amount: -1, until: 0}
+  insert entries {owner: viewer, amount: 1, until: 0}
+  return null
+";
+
+/// Astra's round-1 finding on retirement at commit: removing a commit's
+/// expired births one at a time, in id order, reached `MAX + 1` although
+/// no commit held that total. Retirement applies one net change per
+/// aggregate row.
+#[test]
+fn retirement_reaches_no_total_the_commit_never_held() {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), EXPIRING_SUM.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    let run = |engine: &mut Engine, op: &str, mutation: &str, args_: BTreeMap<String, Value>, ids: &[&str], now: i64| {
+        let context = Context::new("dev:alice", args_).at(now).with_ids(ids.iter().map(|s| (*s).to_owned()));
+        engine.mutate(mutation, Some(op), context).unwrap().state
+    };
+    let max = 9_007_199_254_740_991;
+    let big = run(&mut engine, "a1", "add", args(&[("amount", Value::Int(max)), ("until", Value::Int(1_000_000))]), &["big"], 5);
+    assert!(matches!(big, WriteState::Sent { .. }), "{big:?}");
+    // The program's totals are MAX - 1, then MAX; retiring `a` alone first would be MAX + 1.
+    let pair = run(&mut engine, "p1", "pair", BTreeMap::new(), &["a", "z"], 100);
+    assert!(matches!(pair, WriteState::Sent { .. }), "{pair:?}");
+    assert_eq!(engine.store().rows("entries").unwrap().len(), 1);
+    let totals = engine.store().rows("totals").unwrap();
+    assert_eq!(totals.len(), 1, "{totals:?}");
+    assert_eq!(totals[0].field("value").unwrap(), &Value::Int(max), "{totals:?}");
+}
+
+/// Astra's round-1 finding: the sweep, and a commit's retirement, delete an
+/// expired row as a source write, which a maintained row refuses. A schema
+/// cannot give a maintained table a lifetime.
+#[test]
+fn a_maintained_table_cannot_expire() {
+    let schema = "table tasks:
+  deadline: time
+  read <- allow
+  insert <- allow
+view due: count tasks by .deadline
+  read <- allow
+";
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), schema.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut raw = bound.schema.clone();
+    let due = raw.tables.get_mut("due").unwrap();
+    assert!(due.expiry_index().is_none());
+    due.expire = Some("deadline".into());
+    assert!(due.expiry_index().is_some(), "the group index leads with the lifetime");
+    let refused = Engine::memory(raw, bound.programs.iter().map(|p| p.program.clone())).err().expect("an expiring maintained table is refused");
+    assert!(refused.to_string().contains("maintain due cannot expire; give its source tasks the lifetime"), "{refused}");
+    Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+}
+

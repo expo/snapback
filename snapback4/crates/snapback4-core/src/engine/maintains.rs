@@ -52,6 +52,26 @@ impl Runner<'_> {
             else { changes.push((key, change)); }
         }
         for (key, change) in changes {
+            #[cfg(feature = "sqlite")]
+            if let Some(retiring) = self.retiring.as_mut() {
+                let entry = retiring.aggregates.entry((maintain.target.clone(), canonical_json(&key))).or_insert_with(|| (key, 0));
+                entry.1 = entry.1.checked_add(change).ok_or_else(|| aggregate_overflow(maintain))?;
+                continue;
+            }
+            if change != 0 || self.live_sum(maintain) {
+                self.apply_aggregate(maintain, key, change, None)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Apply a retirement's net aggregate changes, one per target row, in
+    /// key order. Only a total the commit really ends with can overflow.
+    #[cfg(feature = "sqlite")]
+    pub(super) fn apply_retired_aggregates(&mut self, changes: BTreeMap<(String, String), (Vec<Value>, i128)>) -> Result<(), RuntimeError> {
+        let schema = self.schema;
+        for ((target, _), (key, change)) in changes {
+            let maintain = schema.maintain_for(&target).ok_or_else(|| RuntimeError::Schema(format!("missing maintain for {target}")))?;
             if change != 0 || self.live_sum(maintain) {
                 self.apply_aggregate(maintain, key, change, None)?;
             }

@@ -49278,3 +49278,93 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+## 2026-09-24 — a row born already expired is retired in its commit
+
+This closes `issues/closed/20260923-snapback4-already-expired-grant-names-ids.md`.
+The entry above left one case open. A row inserted with its lifetime already
+over was later swept, and the sweep logged a `del` naming it and a scope
+naming its group. The grantee never held either at a commit boundary.
+Deciding at sweep time needed the principal's log history. I recommended
+retiring such rows at the end of their own commit instead, and Charlie
+approved it ("do it now"). The rule is in LLP 3000 §7.
+
+**The change.** `Runner::retire_expired_births` runs at the end of every
+program commit:
+
+- `Engine::mutate`;
+- job chunks;
+- native job chunks;
+- the Postgres adapter.
+
+It removes each row born in the commit, in an expiring table, whose image is
+expired at `now`. It uses the sweep's `remove`, so no rules apply, while
+aggregates and events do. The rows are born, so their events are withdrawn
+and a born grant logs no scope. A replacement beside a pre-commit
+predecessor is not born, so it keeps the predecessor's owed scope. A row
+revived to a live lifetime before the commit ends survives.
+
+Retirement runs after the program's metering is recorded, under an unbounded
+meter. The device's prediction does not retire. Seeds, loads and activation
+are exempt and keep such rows for the sweep.
+
+**Review.** Astra, blind (`llp/reviews/3000-retire-expired-births.astra.md`):
+
+- **Round 1: NOT READY**, with no disclosure finding. It raised three
+  problems:
+  - **Medium, aggregate overflow.** Removal in id order could reach a sum
+    total no commit held. The reproduction was a sum at `MAX`, then −1 and
+    +1 born expired: retiring the −1 first overflows. Retirement now defers
+    aggregate changes and applies one net change per target row.
+  - **Medium, quadratic cost.** n expired siblings of one grant cost
+    n(n−1)/2 replacement-scan visits, unmetered. Removing expired rows cannot
+    change whether a key keeps a live row, so retirement memoizes it per
+    key. 200 siblings now examine 199 rows, not 19,900.
+  - **Low, expiring maintained table.** A raw schema could give a
+    maintained table an `expire`, and retirement and the sweep would both be
+    refused. The schema now refuses that shape.
+- **Round 2: READY.** No new findings. Astra traced the memo's invariant: nothing
+  reachable from the removal loop writes a live audience row. It traced the
+  deferred aggregates, including keep-zero presence, mirrored columns and
+  event order. It scanned 600 maintain declarations in the fixtures and
+  found none with an expiring target.
+
+**Mutation proof.** Each production hunk was disabled in the lane, its test
+was run, and the file was restored byte-for-byte:
+
+- **The memo: caught.** 19,900 rows examined.
+- **Aggregate deferral: caught.** `E_OVERFLOW`.
+- **The schema rule: caught.** The schema was admitted.
+- **Retirement, in round 1: caught.** Disabling it fails the grant and
+  content-row tests. Retiring every born row in an expiring table fails the
+  revived-row guard.
+
+**Rebase.** Main moved 123 commits during the work, including LLP 3000.013's
+integration. `job.rs`'s chunk loop was restructured, and the call sits after
+`check_final_exists` in the new loop.
+
+**Verification.** Most runs were on `expo-build-450b`; the Mac was at load
+80–100.
+
+- **Full suite.** `run-rust-tests.mjs` ran all 858 targets on the rebased
+  tree with the fixes, in 10.5 minutes. The four failures are the known
+  environmental ones, with no `node_modules` on the host: the lang
+  TypeScript typecheck tests and `check.rs` w11r1c.
+- **An earlier red, before the rebase.** A run on the pre-rebase base
+  showed five more failures: `schema_capabilities_legacy`,
+  `uniform_word_expansion`, `census`, `application_fixture` and w9b. None
+  touched the engine's write path. All five pass after the rebase:
+  `application_fixture` needed the `benchmarks/fixtures` mirror, and main
+  had fixed the rest.
+- **Hot-path check, retirement on and off on the same host** (the lesson of
+  `issues/closed/20260923-snapback4-born-row-tracking-is-quadratic.md`):
+
+  | Target | Retirement on | Retirement off |
+  |---|---|---|
+  | `maintains::hidden_filter_work*` | 197.0 s, 195.0 s | 195.8 s, 195.5 s |
+  | Clique `following_is_full_and_complete_at_the_envelope` | 17.6 s, 17.6 s | 17.7 s, 17.9 s |
+
+  The device `following::calibration` measured 39.3 s in the full run.
+- **Locally.** Core (84 lib tests and every integration target), sim
+  `reviews` (30), `exhaustive`, `review_corrections`, `security` and
+  `membership`, and lang `maintains` pass. `ref-check` is clean.

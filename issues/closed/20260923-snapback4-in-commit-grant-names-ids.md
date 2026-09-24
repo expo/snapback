@@ -84,7 +84,7 @@ and each is a test. Round 5 was READY.
 - **A pinned behavior changed.** The W13g same-commit `rejoin` fixture and
   its JS twin had pinned the old log. They now expect one join and no scope.
 - **One inherited Medium is fix-forward:**
-  `issues/20260923-snapback4-already-expired-grant-names-ids.md`.
+  `issues/closed/20260923-snapback4-already-expired-grant-names-ids.md`.
 
 Tests:
 

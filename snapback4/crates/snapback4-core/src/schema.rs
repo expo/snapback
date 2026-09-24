@@ -1008,6 +1008,11 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     if source.expire.is_some() && target.indexes.values().any(|index| index.columns().iter().any(|column| column == "value")) {
         issue(issues, format!("maintain {} cannot order by value because source {} expires", maintain.target, maintain.source));
     }
+    // The sweep, and a commit retiring its expired births, delete expired
+    // rows as source writes; a maintained row is the engine's to write.
+    if target.expire.is_some() {
+        issue(issues, format!("maintain {} cannot expire; give its source {} the lifetime", maintain.target, maintain.source));
+    }
     if maintain.by.is_empty() {
         issue(issues, "maintain by needs at least one source column".into());
     }
