@@ -260,6 +260,22 @@ A larger `first` alone neither proves an exact total nor removes the heap
 cost of decoding stored message bodies. Read projections still fetch the
 stored rows before shaping them.
 
+The membership limit is enforced by `cap 1000 by principal` in this schema.
+A `first 1000` loop without that matching cap is not a proof that it visited
+every chat. The per-chat helper uses a different proof: read one beyond its
+100-message product limit and explicitly refuse. Keep the schema cap or the
+overflow check when adapting either part; a completed job and durable marker
+alone do not certify that an authored bounded count covered the whole domain.
+
+Row width matters even when the result is just an integer. The retained
+recipient-heavy count fixture has 5,000 candidates, 4,900 qualifying messages,
+31-byte bodies and 50 recipient IDs per message; it exceeds the unchanged
+16 MiB heap ceiling. That is not a 5,000-message universal limit: the existing
+small-row fixture counts 10,000, while 10,000 rows with 2,000-byte bodies refuse.
+Measure your stored message shape and all components of one recipient together.
+Selecting fewer fields in a returned shape does not avoid decoding those
+stored fields. No projected-count execution path is promised by this recipe.
+
 The previous `digestLarge` example accumulated membership chunks and deleted
 its totals after emitting. It was not a correct alternative for a live unread
 digest: between counting and emission a message can expire, be deleted or

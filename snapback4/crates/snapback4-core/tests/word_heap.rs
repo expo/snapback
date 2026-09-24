@@ -119,6 +119,9 @@ fn cursor_decode_and_canonical_reencode_fit_the_preparse_allowance() {
 #[path = "common/meter.rs"]
 mod fixture;
 
+#[path = "word_heap/cal18_projection.rs"]
+mod cal18_projection;
+
 const PREFLIGHT: &str = "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5";
 const SQL: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5";
 

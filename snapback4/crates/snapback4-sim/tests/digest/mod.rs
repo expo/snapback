@@ -265,21 +265,54 @@ fn two_queued_runs_share_markers_and_an_empty_period_stays_silent() {
 
 #[test]
 fn chat_overflow_refuses_before_admitting_a_partial_total() {
-    for count in [100, 101] {
+    for count in [99, 100, 101] {
         let mut e = engine(&source());
         let mut rows = vec![("profiles", json!({"id":"p","principal":"alice"})), ("conversations", json!({"id":"c","title":"c"})),
             ("members", json!({"id":"m","conversationId":"c","principal":"alice","readOrdinal":0}))];
         rows.extend((1..=count).map(|n| ("messages", message("c", n, "bob", 15_000))));
         seed(&mut e, rows);
         let run = e.run_job("digest", period(10_000, 20_000), 20_000).unwrap();
-        if count == 100 {
+        if count <= 100 {
             assert_eq!(run.state, JobState::Done);
-            assert_eq!(payloads(&e)[0]["unread"], 100);
+            assert_eq!(payloads(&e)[0]["unread"], count);
         } else {
             assert_eq!(run.state, JobState::Parked);
             assert!(run.error.unwrap().contains("DIGEST_CHAT_BOUND"));
             assert!(payloads(&e).is_empty());
             assert!(e.store().rows("digestMarkers").unwrap().is_empty());
+        }
+    }
+}
+
+// @ref LLP 3000.011.001.001#5 — the refusal recipe proves membership completeness with a schema cap, not merely first 1000.
+#[test]
+fn membership_bound_is_enforced_before_a_digest_can_skip_a_chat() {
+    for count in [999, 1000] {
+        let mut e = engine(&source());
+        let mut rows = vec![("profiles",json!({"id":"p","principal":"alice"}))];
+        for n in 0..count {
+            let chat = format!("c{n:04}");
+            rows.push(("conversations",json!({"id":chat,"title":chat})));
+            rows.push(("members",json!({"id":format!("m{n:04}"),"conversationId":chat,"principal":"alice","readOrdinal":0})));
+            rows.push(("messages",message(&chat,1,"bob",15000)));
+        }
+        seed(&mut e,rows);
+        let start = Instant::now();
+        let run = e.run_job("digest",period(10000,20000),20000).unwrap();
+        assert_eq!((run.state,run.rows_written),(JobState::Done,1));
+        assert_eq!(payloads(&e)[0]["unread"],count);
+        assert_eq!(payloads(&e)[0]["chats"],count);
+        let markers = e.store().rows("digestMarkers").unwrap();
+        println!("bounded guide memberships={count} messages={count} writes=1 markers={} marker_bytes={} elapsed_us={}",markers.len(),markers.iter().map(|r|snapback4_core::value::canonical_json(r).len()).sum::<usize>(),start.elapsed().as_micros());
+        if count == 1000 {
+            seed(&mut e,vec![("conversations",json!({"id":"another-chat","title":"one more"}))]);
+            let next = wire::row_from_json(e.schema().table("members").unwrap(),&json!({"id":"overflow","conversationId":"another-chat","principal":"alice","readOrdinal":0})).unwrap();
+            let refused = e.seed_at(vec![("members".into(),next)],20001).unwrap_err();
+            assert!(matches!(&refused,RuntimeError::Constraint(message) if message == "members holds at most 1000 rows per group by principal"),"{refused:?}");
+            assert_eq!(e.store().rows("members").unwrap().len(),1000);
+            assert_eq!(e.store().rows("digestMarkers").unwrap(),markers);
+            assert_eq!(payloads(&e).len(),1);
+            println!("bounded guide membership1001: {refused}");
         }
     }
 }
