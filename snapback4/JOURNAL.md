@@ -50473,3 +50473,81 @@ choice of a compact-id bound; saturation refuses instead of weakening
 at-most-once protection. No package version or public contract type changed,
 all modified source/test files remain below 1,500 lines, and no push or
 publication was performed.
+
+## 2026-09-24 — Lane J round 13: retirement preserves displaced sent ids
+
+Round 12 pinned the failed pending charge but only compacted unknown-outcome
+ids. At a full 256-receipt window, the sent receipt displaced to make room for
+that failure disappeared. Reopening admitted its id to the replacement store.
+The restored oldest-sent retry and both single-settlement variants failed on
+the round-12 build; the oldest retry actually returned a new sent result.
+
+Files and behavior:
+
+- packages/snapback4/src/app-journal.ts takes an explicit retirement mode.
+  Every receipt id displaced by store retirement enters the compact set,
+  regardless of sent/failed state, in the same save as pending retirement.
+  The code states R6: an id the server may have executed is never admitted
+  again by this app while its record might matter. Ordinary successful-write
+  eviction retains its existing policy. The 256-body window, 4,096 compact-id
+  bound and durable saturation fence are unchanged. Compact receipts refuse
+  E_WRITE_RECEIPT_EXPIRED without dispatch; they do not invent a seq or result.
+- packages/snapback4/src/app-online.ts passes retirement mode for both a store
+  failure returned through settle and the bulk store-refusal path. The existing
+  pending exception is retained and explained: saturation fences new admission,
+  not recovery of already-admitted intent.
+- packages/snapback4/CLIENT-AND-OPERATIONS.md and
+  crates/snapback4-lang/src/guide/writes.rs document displaced sent ids and
+  saturated pending recovery. Refusal wording now covers known sent outcomes
+  as well as unknown outcomes after the body is compacted.
+- test/app-store-replacement.test.mjs retries the oldest sent id again, in
+  addition to the newly retired ids and a still-retained sent receipt. With no
+  older unknown failures it gets E_WRITE_RECEIPT_EXPIRED and sends no POST;
+  where its body remains it gets the original value-free replay confirmation.
+- test/app-retirement.test.mjs covers single-settlement displacement for both
+  store-failure codes, preservation after normal churn/reopen, unchanged
+  ordinary-success eviction, and saturation caused by either a sent or unknown
+  displaced id. A held, already-admitted intent in a saturated journal returns
+  pending from write(id) and overlapping mutate recovery; new ids still refuse.
+- test/helpers/online-client-model.mjs and test/online-client-model.test.mjs
+  add R6, track ids displaced by retirement independently of the compact set,
+  retry those ids after reopening, and seed saturated journals with previously
+  admitted intents. Receipt recovery is an asynchronous scheduled operation,
+  allowing later commands to release held storage. Historical replay seeds
+  retain their original operation vocabulary. Two named R6 schedules protect
+  the review reproductions independently of random coverage.
+
+Verification and measurements:
+
+- Frozen Bun install, build and typecheck passed. Three pre-fix regressions
+  failed as expected. The affected app/custody/storage tests: 68 passed.
+- All 17 model tests passed, including 3,000 seeded sequences under R1-R6:
+  1,500 raw online sequences, 750 app sequences starting with 255 receipts,
+  and 750 starting with 256 receipts; 150 app sequences also start saturated
+  with an admitted intent. Standalone model time: 39.04 s.
+- Coverage: 113 displaced sent receipts, 26 displaced failed receipts,
+  129 retries of displaced ids after reopen, 1,484 retirement-admission checks,
+  433 held-pending recovery checks, 3,319 durable-terminal checks and 9,017
+  bearer-custody checks. These are scheduler counts, not throughput claims.
+- Six generated-dist mutations were caught: compacting only unknown ids (R6
+  reports a protected id readmitted), disabling retirement in settle, disabling
+  it in the bulk path, treating ordinary success eviction as retirement, and
+  the exact pending-exception deletion in both the unit test and the model.
+  The latter reports R6: held admitted intent recovered as E_WRITE_RECEIPT_EXPIRED.
+  Dist was restored before the full suite.
+- During model development an initial run waited on the new receipt-read
+  operation behind deliberately held storage. This was a harness scheduling
+  error, not a client deadlock; that run was stopped and receipt reads were
+  changed to tracked tasks so subsequent release commands could run. The
+  completed seeded run found no additional client defect beyond the reviewed
+  paths verified by the regressions and deliberate mutations.
+- scripts/test.sh: `== 0 failure(s) in 159 s`. Main client shard: 1,201 tests,
+  1,191 passed, 10 existing skips, zero failures or cancellations. No baseline
+  or environmental failure in this run. The baseline log's unrelated cargo
+  failure was read and left alone. Full log: /tmp/lane-j-r13-full-suite.log;
+  focused/model/mutant logs use /tmp/lane-j-r13-*.log.
+
+No open round-13 finding or deviation from the requested design remains. No
+Quarry form, public contract type, engine semantics, meter, receipt/id cap or
+package version changed. All modified source/test files remain below 1,500
+lines. No push or publication was performed.

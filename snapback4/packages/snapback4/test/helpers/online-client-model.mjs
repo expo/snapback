@@ -11,7 +11,8 @@ import { ReadObservation } from '../../dist/read-observation.js';
 
 export const round9Operations = ['query', 'observe', 'write', 'revoke', 'release', 'poll', 'replace', 'regress', 'unavailable', 'close', 'signOut', 'reopen', 'login', 'holdStorage', 'failStorage', 'tick'];
 export const round10Operations = [...round9Operations, 'upload', 'asset', 'act', 'refresh'];
-export const operations = [...round10Operations, 'guest', 'duplicate'];
+export const round12Operations = [...round10Operations, 'guest', 'duplicate'];
+export const operations = [...round12Operations, 'recoverPending'];
 export function generate(seed, length = 32, vocabulary = operations) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
@@ -20,11 +21,15 @@ export function generate(seed, length = 32, vocabulary = operations) {
 }
 const microtasks = async () => { for (let i = 0; i < 100; i++) await Promise.resolve(); };
 
-export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0 } = {}) {
+export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0, saturated = false } = {}) {
   const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
   const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
   const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
   const rotations = [], submissions = [], minted = new Set(), retiredWrites = new Set();
+  // R6: an id the server may have executed is never admitted again by this app
+  // while its record might matter. Track displacement independently of whether
+  // the implementation remembered the id in its compact set.
+  const displacedByRetirement = new Set();
   const settlements = new WeakMap();
   const stopSettlements = promiseHooks.onSettled(promise => settlements.get(promise)?.());
   let store = 'A', head = 10, privateRow = true, unavailable = false, stores = 0, ticket = 0, serial = 0, writeId = 0;
@@ -41,12 +46,24 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
     async get(key) { return values.get(key) ?? null; },
     async set(key, value) {
       if (key.endsWith('.writes')) {
-        const next = JSON.parse(value), prior = JSON.parse(values.get(key) ?? '{"pending":[]}');
+        const next = JSON.parse(value), prior = JSON.parse(values.get(key) ?? '{"pending":[],"receipts":[]}');
         const retiring = prior.pending.some(p => !next.pending.some(n => n.id === p.id));
         if (retiring && holdStorage && !draining) { holdStorage = false; await hold('storage', {}, null); }
         if (retiring && failStorage && !draining) { count('failed.storage'); throw Error('injected terminal persistence failure'); }
         if (next.receipts.length === 256) count('journal.full');
         if (next.retired?.length) count('journal.compact');
+        const storeRetirement = prior.pending.some(p => !next.pending.some(n => n.id === p.id)
+          && next.receipts.some(r => r.id === p.id && ['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes(r.why?.code)));
+        if (storeRetirement) for (const receipt of prior.receipts) {
+          if (!next.receipts.some(r => r.id === receipt.id)) {
+            displacedByRetirement.add(receipt.id); count('retirement.displaced.' + receipt.state);
+          }
+        }
+        for (const entry of next.pending) if (!prior.pending.some(p => p.id === entry.id)) {
+          count('check.retirement-admission');
+          invariant('R6', !prior.retirementFull && !retiredWrites.has(entry.id) && !displacedByRetirement.has(entry.id),
+            `readmitted protected id ${entry.id} after retirement or saturation`);
+        }
         values.set(key, value);
         for (const entry of next.pending) admitted.add(entry.id);
       } else values.set(key, value);
@@ -110,7 +127,7 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
       if (mutation?.revoke) { if (!revoked.has(mutation.store)) count('ack.revocation'); revoked.add(mutation.store); }
     }
   }
-  function track(promise, label, owner, kind) {
+  function track(promise, label, owner, kind, pendingId) {
     const task = { label, pending: true };
     tasks.push(task);
     // Promise callbacks may run after a later refusal. Check authority when
@@ -121,6 +138,11 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
       task.result = result;
       if (kind === 'read') read(owner, result, 'direct', task.at);
       if (kind === 'write') write(result);
+      if (kind === 'receipt' && app.client === owner.client && app.auth.state === 'signed-in' && owner.client.link() === 'online'
+        && journal().some(j => j.pending.some(p => p.id === pendingId)) && holds.some(h => h.path?.startsWith('/m/') && h.body.id === pendingId)) {
+        count('check.admitted-pending');
+        invariant('R6', result?.state === 'pending', `held admitted intent ${pendingId} recovered as ${result?.why?.code ?? result?.state}`);
+      }
       if (['upload', 'asset', 'act', 'refresh'].includes(kind)) {
         if (['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes((result.denied ?? result.why)?.code)) owner.terminal = true;
         invariant('R2', !task.at.terminal || !(result.ok || 'url' in result || result.state === 'done' || result.state === 'pending'), `${kind} succeeded or remained pending after terminal refusal`);
@@ -166,6 +188,7 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
     else if (path === '/probe') body = { ok: true, store_id: store, seq: head };
     else if (path === '/changes') body = { store_id: store, seq: head, generation: 1, tables: ['secrets'] };
     else if (path.startsWith('/m/')) {
+      invariant('R6', !displacedByRetirement.has(args.id), `id ${args.id} displaced by retirement posted to ${store}`);
       invariant('R3', !terminalWrites.has(args.id), `terminal write ${args.id} replayed on ${store}`);
       const receiptKey = `${store}/${args.id}`;
       if (receipts.has(receiptKey)) body = { ...receipts.get(receiptKey), replayed: true, head };
@@ -263,6 +286,15 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
         if (entry) { count('write.duplicate'); track(entry.client.mutate(entry.op, {}, { id: entry.id }), 'duplicate', entry.owner, 'write'); }
         break;
       }
+      case 'recoverPending': {
+        const pending = journal().flatMap(j => j.pending).find(entry => holds.some(h => h.path === '/m/' + entry.op && h.body.id === entry.id));
+        if (tier === 'app' && app.auth.state === 'signed-in' && client.viewer() && !owner.terminal && pending) {
+          // A journal read can wait behind a held persistence operation. Keep
+          // the scheduler free to release it, just as for queries and writes.
+          track(client.write(pending.id), 'recoverPending', owner, 'receipt', pending.id);
+        }
+        break;
+      }
       case 'upload': track(client.upload(new Uint8Array([1])), 'upload', owner, 'upload'); break;
       case 'asset': track(client.asset('photo'), 'asset', owner, 'asset'); break;
       case 'act': track(client.act({ kind: 'action', name: 'charge' }, {}), 'act', owner, 'act'); break;
@@ -291,18 +323,26 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
   try {
     if (tier === 'app') {
       await keepSession(url, issue(), storage);
-      if (journalSize) {
+      if (journalSize || saturated) {
         count('journal.preloaded.' + journalSize);
-        const receipts = Array.from({ length: journalSize }, (_, n) => {
+        const history = Array.from({ length: journalSize }, (_, n) => {
           const id = String(100_000 + n).padStart(26, '0');
           if (n < journalSize - unknownReceipts) return { state: 'sent', id, seq: 1, replayed: true };
           retiredWrites.add(id); admitted.add(id); terminalWrites.add(id);
           return { state: 'failed', id, why: { code: 'E_STORE_RESTORE', family: 'store', message: 'unknown prior outcome' } };
         });
-        await storage.set(storeKey('writes', url, 'alice'), JSON.stringify({ owner: 'alice', backend: url, pending: [], receipts }));
+        const pending = saturated ? [{ owner: 'alice', id: '00000000000000000000090000', op: 'charge', args: {} }] : [];
+        const full = saturated ? { retirementFull: true, retired: Array.from({ length: 4096 }, (_, n) => String(200_000 + n).padStart(26, '0')) } : {};
+        if (saturated) {
+          count('journal.saturated');
+          // This intent was admitted, and may have executed, before saturation.
+          receipts.set(`${store}/${pending[0].id}`, { state: 'sent', id: pending[0].id, seq: 1, store_id: store });
+        }
+        await storage.set(storeKey('writes', url, 'alice'), JSON.stringify({ owner: 'alice', backend: url, pending, receipts: history, ...full }));
       }
     }
     await open();
+    if (saturated) await command({ op: 'recoverPending' });
     for (const step of commands) await command(step);
     // Fair drain: release every held body, stop observers, allow persistence,
     // and advance retry timers. Work may not remain without an external hold.
@@ -325,8 +365,9 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
     if (tier === 'app') {
       await open();
       for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
-      if (app.client.viewer()) for (const id of retiredWrites) {
+      if (app.client.viewer()) for (const id of new Set([...retiredWrites, ...displacedByRetirement])) {
         count('write.retired-retry');
+        if (displacedByRetirement.has(id)) count('write.displaced-retry');
         track(app.mutate({ kind: 'mutation', name: 'charge' }, {}, { id }), 'retired-retry', ownerFor(app.client), 'write');
       }
       for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
