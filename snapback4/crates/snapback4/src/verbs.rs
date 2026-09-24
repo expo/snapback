@@ -277,7 +277,9 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
             let digits = snapback4_core::Ceilings::default().examined.to_string();
             let examined = digits.chars().enumerate().map(|(i, c)| format!("{}{c}", if i > 0 && (digits.len() - i) % 3 == 0 { "," } else { "" })).collect::<String>();
             format!(" rows ≤ meter ({examined} examined)")
-        } else if site.kind == "scan" { format!(" first {}", site.take) } else { String::new() };
+        } else if site.kind == "scan" {
+            format!(" {} {}", if scan.is_some_and(|scan| scan.order == ir::Order::Desc) { "last" } else { "first" }, site.take)
+        } else { String::new() };
         let kind = if scan.is_some_and(|s| s.range.is_some()) { "prefix seek" } else { site.kind };
         lines.push(format!("    {kind} {}.{}{take} — {hoist}", site.table, site.index));
         if let Some(selection) = bound.programs.iter().find(|bound| bound.program.name == program.name).and_then(|bound| bound.selection(&site.site))
