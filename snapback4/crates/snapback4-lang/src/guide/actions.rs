@@ -99,6 +99,8 @@ request terminally with `E_ACTION_AUTHORITY`: "the authority that admitted
 this action was revoked or has expired". No delegated session is minted.
 Service-session admissions have the same binding. Development personas and
 legacy requests without a recorded binding retain their existing behavior.
+Inspect recorded steps and provider outcomes before starting new intent under
+a new live session; a fresh sign-in does not revive the old admission.
 
 `POST /a/<name> { id, args }` under a live viewer session records the
 request durably, once per id, then waits up to 25 seconds. A settled reply
@@ -139,6 +141,8 @@ and `SNAPBACK_SERVICE_TOKEN` for `service:worker`.
 It restarts a crashed worker with backoff and stops it on dev exit.
 The child environment is constructed explicitly, with runtime variables and
 the declared secrets; a missing secret refuses startup with E_SECRET_MISSING.
+Supply the declared environment variable to the host before restarting; keep
+its value out of Quarry, generated files and logs.
 
 `snapback4 serve <release-dir> --worker <path>` supervises that Node 24 entry
 with the same restart backoff and shutdown. Its environment contains only

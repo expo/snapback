@@ -80,6 +80,8 @@ INT, TERM and HUP report immediately; with an application worker they clean
 it up and exit 128 + signal. Otherwise, and for fatal signals, the process
 terminates immediately with its OS signal status. SIGKILL,
 power loss and an unwritable stderr cannot report from inside the process.
+Inspect the verb, generation, reason and any panic stack before restarting;
+a normal requested stop needs no repair.
 
 ## Refusals
 

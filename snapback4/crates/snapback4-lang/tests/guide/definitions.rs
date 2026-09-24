@@ -1,5 +1,7 @@
 //! Editorial regressions exercise rendered cards and the actual `why` selector.
 use snapback4_lang::guide::{KEYWORDS, card, explain_code};
+#[path = "refusal_actions.rs"]
+mod refusal_actions;
 
 fn normalize(text: &str) -> String { text.split_whitespace().collect::<Vec<_>>().join(" ") }
 
@@ -17,6 +19,39 @@ fn why_bound_defines_the_ceiling_and_withheld_count() {
         assert!(text.contains(fact), "why E_BOUND excerpt omits {fact}: {text}");
     }
     assert!(!text.contains("as above"));
+}
+
+#[test]
+fn why_rule_carries_the_target_visibility_contract() {
+    let text = excerpt(&explain_code("E_RULE").unwrap());
+    // Each sentence is paired with a write-executing test in rules.rs.
+    let facts = [
+        // [rules::insert_rule_refusals](rules.rs)
+        "`insert` and `insert ... if absent` return E_RULE when the insert rule denies the viewer.",
+        // [rules::insert_collision_visibility](rules.rs)
+        "A unique clash with a hidden row returns E_RULE for either insert form.",
+        // [rules::insert_collision_visibility](rules.rs)
+        "For a readable secondary unique clash without a custom refusal, ordinary insert returns E_CONSTRAINT naming the index, while `insert ... if absent` succeeds with null.",
+        // [rules::update_rule_refusals](rules.rs)
+        "If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target.",
+        // [rules::admitted_hidden_updates](rules.rs)
+        "A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null.",
+        // [rules::update_collision_visibility](rules.rs)
+        "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_CONSTRAINT naming the index if both are readable.",
+        // [rules::update_rule_refusals / update_conditions / update_collision_visibility](rules.rs)
+        "For rule denial, an update condition or a secondary unique clash on an unreadable target, NOT_FOUND carries no row, index, column or branch detail.",
+        // [rules::missing_update_and_incomplete_upsert](rules.rs)
+        "A missing update target or an incomplete upsert insert patch returns NOT_FOUND.",
+        // [rules::update_conditions](rules.rs)
+        "An update condition on an unreadable target returns NOT_FOUND even if it would match; on a readable target, a false condition returns E_CONFLICT with a read-rule `current`.",
+        // [rules::delete_rule_refusals](rules.rs)
+        "Delete returns NOT_FOUND for a missing id, and E_RULE if an existing row's delete rule refuses, whether that row is readable or hidden.",
+        // [rules::admitted_hidden_updates](rules.rs)
+        "Reading a hidden row returns null.",
+        // [rules::update_rule_refusals / admitted_hidden_updates / missing_update_and_incomplete_upsert](rules.rs)
+        "Use a write admitted by its rule; NOT_FOUND on an update or upsert-patch does not prove absence.",
+    ];
+    assert_eq!(text, format!("# Rules {}", facts.join(" ")), "every sentence needs a write-executing witness");
 }
 
 #[test]
@@ -52,6 +87,9 @@ fn w11_every_registered_code_quotes_its_definition() {
     let pinned = DEFINITIONS.iter().map(|(code, _)| *code).collect::<BTreeSet<_>>();
     assert_eq!(registered, pinned, "review a defining fact for each registered code");
     assert_eq!(pinned.len(), DEFINITIONS.len(), "duplicate definition pin");
+    let actionable = refusal_actions::ACTIONS.iter().map(|(code, _)| *code).collect::<BTreeSet<_>>();
+    assert_eq!(registered, actionable, "review recovery and boundary facts for every code");
+    assert_eq!(actionable.len(), refusal_actions::ACTIONS.len(), "duplicate action pin");
     let mut missing = Vec::new();
     for &(code, fact) in DEFINITIONS {
         let why = explain_code(code).unwrap();
@@ -59,6 +97,13 @@ fn w11_every_registered_code_quotes_its_definition() {
             .explanation_section().unwrap();
         assert_eq!(why, inline, "{code}: CLI and repeated diagnostics must agree");
         if !excerpt(&why).contains(fact) { missing.push(format!("{code}: {fact}")); }
+    }
+    for &(code, facts) in refusal_actions::ACTIONS {
+        assert!(!facts.is_empty(), "{code}: no recovery facts");
+        let text = excerpt(&explain_code(code).unwrap());
+        for fact in facts {
+            if !text.contains(fact) { missing.push(format!("{code} action/boundary: {fact}")); }
+        }
     }
     assert!(missing.is_empty(), "first card paragraph lacks its defining fact:\n{}", missing.join("\n"));
 }
@@ -172,7 +217,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_ROUTE_RESULT", "Invalid responses refuse E_ROUTE_RESULT terminally, because external effects may already have happened."),
     ("E_ROUTE_UNKNOWN", "A changed route declaration refuses E_ROUTE_GENERATION; unavailable work or authority refuses E_ROUTE_UNKNOWN."),
     ("E_ROUTE_VERIFY", "Return `false` for an invalid signature: HTTP 403 with E_ROUTE_VERIFY, with no durable admission."),
-    ("E_RULE", "E_RULE means a write rule denied the viewer, or a unique key collided with a hidden row."),
+    ("E_RULE", "`insert` and `insert ... if absent` return E_RULE when the insert rule denies the viewer."),
     ("E_RUN_BUSY", "E_RUN_BUSY means local `run` spent its 15-second contention deadline waiting for SQLite BUSY/LOCKED during store opening or schema adoption."),
     ("E_RUN_SOURCE_CHANGED", "E_RUN_SOURCE_CHANGED means `run` saw a source edit or could no longer read its source before admission."),
     ("E_SCHEDULE", "E_SCHEDULE means the clock cannot call the named target with its supplied authority and arguments."),

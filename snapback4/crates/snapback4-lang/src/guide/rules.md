@@ -39,12 +39,28 @@ For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
 
-E_RULE means a write rule denied the viewer, or a unique key collided with a
-hidden row. Reads hide rows instead of raising this refusal. Keep the rule and
-make the write satisfy it; use an admitted `upsert` to patch another
-principal's row. The table below describes refusals for hidden targets.
+`insert` and `insert ... if absent` return E_RULE when the insert rule denies
+the viewer. A unique clash with a hidden row returns E_RULE for either insert
+form. For a readable secondary unique clash without a custom refusal, ordinary
+insert returns E_CONSTRAINT naming the index, while `insert ... if absent`
+succeeds with null. If the update rule denies an update or upsert-patch, it
+returns E_RULE for a readable target and NOT_FOUND for an unreadable target. A
+valid update or upsert-patch admitted by the update rule can change a hidden
+row; if the resulting row remains hidden, it returns null. Without a custom
+unique refusal, an update or upsert-patch with a secondary unique clash returns
+NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is
+unreadable, and E_CONSTRAINT naming the index if both are readable. For rule
+denial, an update condition or a secondary unique clash on an unreadable target,
+NOT_FOUND carries no row, index, column or branch detail. A missing update
+target or an incomplete upsert insert patch returns NOT_FOUND. An update
+condition on an unreadable target returns NOT_FOUND even if it would match; on a
+readable target, a false condition returns E_CONFLICT with a read-rule
+`current`. Delete returns NOT_FOUND for a missing id, and E_RULE if an existing
+row's delete rule refuses, whether that row is readable or hidden. Reading a
+hidden row returns null. Use a write admitted by its rule; NOT_FOUND on an
+update or upsert-patch does not prove absence.
 
-| Target before the write | Refusal details |
+| Update/upsert target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
 | Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
@@ -64,7 +80,8 @@ probes and the largest merged image allowed by the schema and supplied patch;
 if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
 A readable aggregate view over a hidden source is a declared read channel: its
 delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
-wider update authority under a separately readable aggregate view.
+wider update authority under a separately readable aggregate view. Restrict its
+read audience or source write authority if that delta is private.
 
 Omitted asset columns keep their placement. An explicit asset id on a row you
 cannot read must be your own upload, even if it equals the retained id. A rule

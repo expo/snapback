@@ -135,6 +135,8 @@ head-read failure fails the request. The client adopts `/schema` only when that
 watermark is a finite, nonnegative integer at or above its retained image-head
 evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing
 or invalid head is a retryable failure that neither adopts nor clears the evidence.
+For a confirmed restore, stop the client and use a fresh device store and outbox
+for that restored backend; retry and adoption do not repair a regressed store identity.
 After adopting, it retries from the device's resulting position with its pending
 IDs intact. This refusal is never applied
 as a delivered page: its watermark is head evidence, not delivered progress, and

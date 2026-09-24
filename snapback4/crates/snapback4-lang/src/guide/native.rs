@@ -81,6 +81,8 @@ answers and logs also have byte bounds. A queued native job binds the exact wasm
 bytes: changing or removing the module parks it with E_JOB_GENERATION before
 another chunk can use its saved state. Legacy native runs without that binding
 also park; already committed chunks remain committed. Identical bytes resume.
+For a trap, fix the module and run `snapback4 check`; inspect the committed
+chunks before queueing a replacement job. The failed chunk rolled back.
 The module imports one host function and nothing else: no clock, no randomness,
 no network — `chunk.now` is the host's — so a native job runs under the simulator
 like any job. Quarry still declares

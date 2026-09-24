@@ -75,7 +75,9 @@ rechecks every submitted mutation before committing it.
 the call still needs its facts on this device and must fit the meter and rules.
 `mutation name(args) predicts:` asserts this eligibility: `check` refuses
 `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with
-the reason and rewrite. It does not promise prediction on every call.
+the reason and rewrite. It does not promise prediction on every call. Remove
+the named server dependency to keep `predicts`, or remove that assertion and let the client queue
+without prediction.
 Every `check` summarizes mutations that never predict, insert arms that
 never predict, and eligible mutations whose reads can queue without a row
 past a horizon, even on an unchanged program. `why` qualifies the heading:

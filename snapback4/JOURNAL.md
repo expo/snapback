@@ -49742,3 +49742,96 @@ deferred by instruction until the later lanes arrive. No push, publication or
 version bump. The complete target fixture is unchanged and its dedicated
 integration target was not rerun. Merge details, imported behavior and exact
 affected commands are in reports/20260924-intent-integration-r5b.md.
+
+
+## 2026-09-24 — Lane F round 4: why states write visibility and recovery
+
+Commit 10927d7d3 makes both E_RULE explanations distinguish hidden collisions
+by the pre-write target's readability. Ordinary insert, including if-absent,
+and a readable update/upsert target return E_RULE; an unreadable update/upsert
+target returns NOT_FOUND without row, index, column or branch details. The
+selected paragraph includes the readable-target detail policy and blind-write
+recovery advice, without referring to a later table. The existing engine
+regression confirms the update/upsert distinction and rollback unchanged.
+
+Reviewed every registered code's selected paragraph for the facts a client
+needs to act. The census now pins 384 recovery and boundary facts for all 195
+codes alongside their definitions, excluding the registry summary. Added
+missing recovery advice to the selected card paragraphs. The guide regression
+pins E_RULE's complete visibility contract; the CLI regression checks its
+summary and excerpt separately. Eight negative controls failed as intended,
+including removing recovery facts while keeping the definition. A positive
+control deleting the later matrix still passed because the excerpt is now
+self-contained. Every temporary mutation was restored byte-for-byte.
+
+Frozen Bun install passed. Final guide tests: 67 passed; CLI check/why tests:
+69 passed; existing hidden-collision engine regression: 1 passed. One full
+scripts/test.sh run: `== 0 failure(s) in 375 s`, exit 0. No introduced,
+baseline or environmental suite failures. Client tests: 1,088 passed, 10
+skipped. The census caught missing step-code entries and literal wording
+mismatches during test-data authoring; corrected them before qualification.
+
+All 25 Quarry blocks in the 14 edited guide sources and all 29 card leads are
+unchanged. All 195 CLI explanations fit the 4,096-byte bound (largest 4,094;
+E_RULE 1,495). README stays 292/300 lines. WASM stays 1,744,842 B raw /
+484,967 B gzip under the unchanged 486,000 B budget. Whitespace checks pass;
+the largest changed Rust source is 1,454 lines.
+
+No new form, engine or compiler behavior, authority, disclosure, durability,
+meter, package version, push or publication change. No new open problem or
+round-4 scope deviation. Bob's unrepost test remains integration's work as
+requested. The inherited full-history search N_NO_HORIZON note and its exact
+test exception remain unchanged. File-by-file changes, regression evidence,
+that note's reproduction and exact qualification are in
+reports/20260924-guide-review-r4.md. Logs: ~/sb4-intent/lane-f-r4-*.log.
+
+
+## 2026-09-24 — Lane F round 5: refusal sentences have execution witnesses
+
+Commit c797add6e corrects the round-4 E_RULE excerpt. Visibility alone does
+not prevent a write: admitted hidden updates/upsert-patches can succeed with
+null; collision outcomes depend on the target and colliding row; readable
+ordinary secondary collisions name their index, while if-absent returns null.
+Delete returns NOT_FOUND for a missing id and E_RULE for a refused existing
+row even when hidden. The first paragraph states these cases, and each of
+its 12 sentence pins links to a write-executing test. Eight new tests perform
+33 writes, checking success, refusal details, hidden reads and rollback.
+The accurate registry summary and later collision paragraph stay unchanged.
+
+Corrected cancelled-effect recovery to inspect recorded steps and reconcile
+each with its stored provider key. Fixed the same assumption in the adjacent
+attempt-exhaustion and general-worker advice. meta.id is advice only for
+legacy handlers without steps that used it as their provider key. A new
+runtime witness verifies keys differ by effect and step name, survive claim
+takeover and remain recorded after cancellation. A fake provider models lost
+acknowledgements; no real provider was contacted or qualified.
+
+Audited every round-4 added instruction/behavioral clause against code or a
+runtime test. Clarified that unavailable-read advice applies on E_OFFLINE,
+while cached server answers remain usable but stale. Separated asset upload
+ownership from download readability, including unplaced-owner preview. The
+new asset witness shows a public download does not grant placement authority
+in another row and that the caller's own upload succeeds. Other advice was
+confirmed and retained; the report records each check. These corrections
+supersede the overbroad claims in the historical round-4 entry and report.
+
+Six negative controls failed as intended; all temporary edits were restored.
+Frozen Bun install passed. Final guide tests: 77 passed; CLI why/check tests:
+69 passed; existing write-authority tests: 35 passed; effect-policy tests:
+12 passed. One full scripts/test.sh run: `== 0 failure(s) in 406 s`, exit 0.
+No introduced, baseline or environmental suite failures. Client tests: 1,088
+passed, 10 skipped. During test authoring, corrected unsupported fixture
+syntax, a missing constructor, an outdated pin and an asset no-op mistaken
+for a new placement. No engine defect was found.
+
+All eight Quarry blocks in the three edited guide sources and all 29 card
+introductions remain unchanged. The 195-code census pins 391 recovery facts;
+all CLI explanations fit 4,096 bytes (largest 4,094; E_RULE 2,111). README stays
+292/300 lines. WASM stays 1,744,842 B raw / 484,967 B gzip under the unchanged
+486,000 B budget. Whitespace checks pass; largest changed Rust source: 1,459
+lines. No new form, compiler or engine behavior, authority, disclosure,
+durability, meter, package version, push or publication change. Bob's unrepost
+test stays with integration. No new open problem or scope deviation. The
+inherited full-history search N_NO_HORIZON exception remains unchanged.
+Full file map, sentence audit, test evidence and that exception's reproduction:
+reports/20260924-guide-review-r5.md. Logs: ~/sb4-intent/lane-f-r5-*.log.

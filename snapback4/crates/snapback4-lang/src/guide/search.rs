@@ -82,7 +82,9 @@ it); use the grouped or newest form below, or read on the device.
 The newest form below merges the viewer's rooms by `at` and `id`, with
 one verdict per scope when its prefix decides the rule. Its uniform lane
 source runs under the examined meter: `check --cost` prints `lanes ≤ meter`;
-an explicit `first N` above 50 still emits N_WIDE_MERGE.
+an explicit `first N` above 50 still emits N_WIDE_MERGE. Use the grouped form,
+which pages memberships and includes each chat's hits, when opening all rooms
+cannot fit.
 A pinned conjunct such as `exists members[.roomId, viewer]` can deny a scope
 before word discovery even when another conjunct needs each row. Admitted
 non-uniform scopes keep per-row costs and remain incomplete; hidden rows
@@ -96,7 +98,9 @@ report `cut: null`: their reason is withheld, with `complete: false` still truth
 for `complete: false` with `cut: null`, even when empty; never "no matches".
 The precise reason remains in development-only `Read.meter.cut`; `serve` never
 returns that meter. If the server cannot answer the query, declare `query … held:`
-to answer from the device; the server refuses it with E_QUERY_HELD.
+to answer from the device; the server refuses it with E_QUERY_HELD. Call a held
+query through a local client over acquired partitions; it has no server fallback. Use the grouped
+membership read for a server answer.
 Uniform word expansion is bounded by the meter. A cut during discovery or
 opening returns `complete: false, cut: 'meter'` with no continuation.
 Heap exhaustion clears the page: `data: null`, `complete: false`,
@@ -184,4 +188,6 @@ still prevent fallback.
 
 ## Refusals
 
-The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries."##);
+The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries.
+Use a browser with standard `String.prototype.normalize`; do not substitute a
+different normalization or bypass the check."##);

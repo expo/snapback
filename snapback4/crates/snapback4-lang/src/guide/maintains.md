@@ -185,7 +185,8 @@ repair a recorded null.
 
 Recorded fields belong to the engine. Any payload naming one refuses with
 E_RECORDED_FIELD, including no-op updates, jobs, native jobs, seeds and fixture
-imports. Trusted persistence restores keep them. They travel on the sync wire
+imports. Trusted persistence restores keep them. Omit recorded fields from
+application payloads; write the ordinary source columns instead. They travel on the sync wire
 with the source's retention policy, but are absent from query rows, * shapes
 and generated row types; sql and why expose them for inspection.
 A predicted insert needs a live target covered by the device's current
@@ -449,6 +450,8 @@ overflow. The meter reserves the same schema-bounded ceiling for private
 aggregation and both mirror attempts whether the parent is present, absent,
 expired or differently valued. These are equal charged ceilings, not equal
 physical storage work.
+Restrict the parent audience or use a separate aggregate view when that
+disclosure is unwanted.
 
 A contributing commit streams the whole parent image to each parent
 partition, coalesced once per row. N_MAINTAINED_COLUMN_STREAM names that cost

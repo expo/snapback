@@ -160,8 +160,9 @@ in `x-snapback-effect-lease`; old same-service attempts cannot settle successors
 Legacy unfenced claims retain their compatibility protocol. A service can
 `POST /effects/<id>/cancel` when the declaration permits it; this cannot
 undo provider I/O already in flight. Work ids have no automatic expiry or reuse.
-Two workers never hold one effect. `meta.id` is the
-idempotency key a provider should see. A scheduled job that `emit`s once
+Two workers never hold one effect. Legacy handlers without steps use `meta.id`
+as the provider idempotency key; generated `ctx.step` handlers use the key
+passed to each step callback. A scheduled job that `emit`s once
 per period is the digest recipe.
 
 The optional `declarationContract` is only legal with one nonempty `effect`
@@ -174,6 +175,8 @@ retains low-level `runWorker` behavior. Generated output embeds the Rust-compute
 contract per exact effect name and full work declaration; TypeScript never
 recomputes it. E_EFFECT_GENERATION or a successful claim with a missing or
 mismatched contract stops that generated worker before handler or settlement.
+Run `snapback4 check` and restart the worker built for the current declaration;
+inspect durable steps and provider outcomes before creating replacement intent.
 
 A fenced claim may call `POST /effects/<id>/steps/<name>/begin` with
 `{ input, reconcile? }`, `/done` with `{ result }`, or `/park` with
@@ -183,7 +186,11 @@ refuses; uncertain work reconciles under its existing provider key or parks
 the parent effect. Oversized results park it with E_STEP_RESULT, while unknown
 provider outcome parks it with E_STEP_PARKED. Parked effects are not reclaimed
 or expired. Explicit policy-allowed cancellation may move one to failed with
-E_EFFECT_CANCELLED; it never resumes the effect.
+E_EFFECT_CANCELLED; it never resumes the effect. Cancellation cannot undo a
+provider call already in flight. Inspect the recorded steps and reconcile each
+with its stored provider key before creating replacement intent. Each key belongs to that effect and step
+name; it is not `meta.id`. Use `meta.id` only for legacy handlers without steps
+that used it as their provider key.
 
 `POST /effects/<percent-encoded-id>/status` requires exactly one nonempty
 `x-snapback-effect-lease` and a current deployment-trusted service. A running
@@ -265,10 +272,10 @@ new mutation; restarting does not recreate suppressed effects.
 
 E_EFFECT_ATTEMPTS means an expired lease exhausted the effect's admitted
 attempt limit. For example, a worker that repeatedly crashes after sending
-mail can use all eight attempts without recording success. Inspect the
-provider with `meta.id` as its idempotency key and repair the worker before
-emitting replacement work. Reusing that key at the provider prevents a
-lost acknowledgement from becoming another delivery.
+mail can use all eight attempts without recording success. Inspect recorded steps and reconcile each with its stored provider key, then
+repair the worker before emitting replacement work. Use `meta.id` only for
+legacy handlers without steps that used it as their provider key. Whether the
+provider accepted the request must be established before repeating it.
 
 E_EFFECT_DEADLINE means this effect's admitted deadline passed; it is
 terminal and no worker will claim it again. For example, `deadline 1m`
