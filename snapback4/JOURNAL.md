@@ -47560,3 +47560,37 @@ cross-lane target-clique integration, publication, or pushes. Full-text matching
 keeps its existing merge consumer. The report records file-by-file changes,
 forms, tests, decisions, exact results and baseline reproductions:
 `reports/20260924-intent-work.md`.
+
+## 2026-09-24 — LLP 3000.013 lane D, Astra review round 1
+
+Addressed all five findings. Streaming scalar availability now observes only
+its own reads through a scoped coverage frame; enclosing query/component
+flags stay monotone, so an inner resolved count, sum or existence test keeps
+the outer non-uniform page and continuation. Adaptive pages stop after K
+selected rows without fetching a lookahead row. Schema-capped non-uniform
+query counts/sums retain their existing bounded path, and explicitly paged
+job prelude loops remain ordinary loops. Added five simulator regressions,
+including 1,025 distinct permanent effect keys refusing with E_BOUND and
+rolling back all keys/effects. Deliberately removing the write-meter charge
+makes that regression fail; the charge was restored before verification.
+
+All 156 affected tests pass. Two 1,500,000-character rows now finish in two
+chunks at K=1 after six retries, with exactly two effects; the reported
+21,011,158 B peak includes refused larger attempts, not a successful chunk.
+The original retained recipient-heavy fixture still completes in one chunk
+at 4,102,784 B peak under the unchanged 16 MiB ceiling. Scheduled scale still
+emits 50 digests in 26 chunks, K=2 after five retries, peak 13,188,641 B.
+The varying-cost first chunk's peak falls from 137,081 to 128,645 B.
+
+scripts/test.sh: `== 1 failure(s) in 187 s` (`cargo test`). All four failing
+tests are baseline: schema-capability legacy comparison, word-expansion
+fixture, authoring census and CLI why-text assertion. The census difference
+is exactly the baseline's 12 actual-only / 1 expected-only entries. No new
+or environmental suite failures remain. WASM: 1,713,043 B raw / 475,320 B
+gzip, +968 / +319 from the preceding lane commit, within the unchanged
+476,000 B budget. Ref-check: 504 LLP docs, 9,211 refs, zero errors/unchecked.
+
+No new syntax, diagnostics, admission relaxation, runtime ceiling increase,
+outbox behavior change, or work on the inherited failures. No push or
+publication. File-by-file changes, executable forms, test evidence and
+baseline reproductions: `reports/20260924-intent-work-r1.md`.

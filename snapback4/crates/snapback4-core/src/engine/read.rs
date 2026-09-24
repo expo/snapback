@@ -782,6 +782,22 @@ impl Runner<'_> {
 
     // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
     pub(super) fn stream_aggregate(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
+        // Availability belongs to this scalar's reads. An enclosing page can
+        // already be incomplete while this domain is fully resolved. The
+        // ordinary query/component flags remain monotone throughout the scan.
+        let outer = self.components.scalar.replace(super::components::Frame::default());
+        let result = self.stream_aggregate_scoped(scan, projection);
+        let coverage = self.components.scalar.take().expect("scalar coverage scope");
+        self.components.scalar = outer;
+        let value = result?;
+        if !coverage.coverage().complete {
+            self.scalar_unavailable = true;
+            return Err(RuntimeError::Prediction(format!("{}: streaming aggregate needs complete domain coverage", scan.site)));
+        }
+        Ok(value)
+    }
+
+    fn stream_aggregate_scoped(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
         let prefix = self.prefix_values(scan)?;
         let table = &self.schema.tables[&scan.table];
@@ -799,10 +815,6 @@ impl Runner<'_> {
         }
         // @ref LLP 3000.013#5.1 — a domain total has no partial scalar answer, including on a device with unknown coverage.
         self.meter.require_uncapped()?;
-        if self.beyond_horizon || self.presence_unknown || self.non_uniform || self.word_cut_at.is_some() {
-            self.scalar_unavailable = true;
-            return Err(RuntimeError::Prediction(format!("{}: streaming aggregate needs complete domain coverage", scan.site)));
-        }
         Value::int(total).map_err(Into::into)
     }
 
@@ -854,7 +866,7 @@ impl Runner<'_> {
         if metered_word { self.meter.heap(word_heap::bounds(&bounds))?; }
         let mut cursor = bounds.clone();
         let streaming = aggregate.is_some();
-        let batch = if streaming { 1 } else if visibility.uniform { take + 1 } else { (take + 1).max(32) };
+        let batch = if streaming { 1 } else if job_page { take } else if visibility.uniform { take + 1 } else { (take + 1).max(32) };
         let mut row_heap = None;
         let mut row_bytes = 0;
         let mut consumed = 0;
@@ -867,6 +879,10 @@ impl Runner<'_> {
                 row_heap = Some(self.meter.mark());
             }
             let fetch_heap = self.meter.used.heap_bytes;
+            // Adaptive chunks have no lookahead: even one extra decoded row
+            // can refuse K=1 when each iteration itself fits. A later chunk
+            // establishes exhaustion. Rejected rows leave selected slots open.
+            let batch = if job_page { take - visible.len() } else { batch };
             let fetched = if metered_word || streaming || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
                 else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
             if streaming { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
@@ -983,7 +999,7 @@ impl Runner<'_> {
                         visible.push(row);
                         keys.push(key.clone());
                     }
-                    if scan.existence && visible.len() == take { break 'outer; }
+                    if (scan.existence || job_page) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 } else {
                     self.next_expiry = row_expiry_mark;

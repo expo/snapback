@@ -314,7 +314,7 @@ impl<'a> Binder<'a> {
         let scan_site = self.site();
         self.record_selection(&scan_site, read, &index, if position == prefix::Position::Exists { "exists" } else { "page" }, &selection);
         self.sources.insert(scan_site.clone(), (read.site.clone(), print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() })));
-        let scan = Scan {
+        let mut scan = Scan {
             site: scan_site,
             table: read.table.clone(),
             index: index.name,
@@ -330,6 +330,9 @@ impl<'a> Binder<'a> {
             merge_site: None,
             provenance: KeyProvenance::Shape,
         };
+        if position == prefix::Position::Aggregate && snapback4_core::engine::rules::scan_visibility(self.schema, &scan).uniform {
+            scan.take = Bound::Meter;
+        }
         if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
         Ok((scan, range.take))
     }

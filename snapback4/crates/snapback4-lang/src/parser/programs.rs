@@ -128,7 +128,7 @@ impl Parser {
             if self.at("for") {
                 let sweep = self.parse_for()?;
                 let automatic = match &sweep {
-                    Stmt::For { domain: Expr::Read(_), .. } => true,
+                    Stmt::For { domain: Expr::Read(read), .. } => read.range.is_none(),
                     Stmt::For { domain: Expr::Name { name, .. }, .. } => !locals.contains(name),
                     _ => false,
                 };

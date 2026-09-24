@@ -38,6 +38,9 @@ impl Binder<'_> {
         let cap = self.schema.group_bound(&read.table, pinned);
         let bound = if position == Position::Exists { Bound::Literal(1) }
         // @ref LLP 3000.007#20.22 — ruling 24: the schema cap supplies the whole group's ordinary literal scan bound.
+        // Queries with a non-uniform rule keep this existing capped path;
+        // scan_at upgrades uniformly decided aggregates to streaming below.
+        else if position == Position::Aggregate && self.caller_kind == ProgramKind::Query && let Some(cap) = cap.filter(|cap| u64::from(*cap) <= ceiling) { Bound::Literal(cap) }
         else if position == Position::Aggregate || (position == Position::Domain && self.caller_kind == ProgramKind::Job) { Bound::Meter }
         else if let Some(cap) = cap.filter(|cap| u64::from(*cap) <= ceiling) { Bound::Literal(cap) }
         // @ref LLP 3000.007#20.22 — ruling 23: only query loop and lane domains may consume a prefix under the examined meter.

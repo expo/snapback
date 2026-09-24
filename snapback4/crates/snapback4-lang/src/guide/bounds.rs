@@ -40,7 +40,9 @@ Jobs may iterate uncapped domains under the chunk's meter. Top-level job
 `for` sweeps adapt their transaction size from 64 down to 1. Mutation loops
 still need a schema-capped group that fits the examined ceiling. Direct
 `count(domain)`, `sum(domain, .column)` and `exists domain` stream under the
-meter without retaining the page. Mutations retain their uniform-read and
+meter without retaining the page. Schema-capped query `count` and `sum` with
+non-uniform read rules keep their bounded page execution and coverage contract.
+Mutations retain their uniform-read and
 plain-prefix admission rules; a cut aborts the transaction, never commits a
 partial total. A streaming query total with a meter cut or unknown device
 coverage returns `data: null`, `complete: false`, never a partial count or sum.

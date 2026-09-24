@@ -29,7 +29,9 @@ cursor and writes together. `doctor` and `run` report the chunk size, retry
 count and peak heap. Explicit `chunk … first N by index` keeps its fixed size
 and parks on any refusal. Inner domain loops share the chunk's meter. The sweep index must contain only
 `id` or immutable columns. Its evaluated prefix and seek bounds are persisted
-with the cursor; its prelude runs again before each chunk. Declare per-item
+with the cursor; its prelude runs again before each chunk.
+An explicitly paged `for` before the first sweep stays
+in that prelude and does not create commits of its own. Declare per-item
 locals inside the loop. A prelude local assigned by the sweep is refused
 because it cannot carry a value across independent commits. Rule, constraint
 and generation refusals park immediately, without reducing the chunk size.
