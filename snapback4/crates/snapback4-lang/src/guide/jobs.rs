@@ -249,6 +249,12 @@ The runtime meter still refuses work that cannot finish.
 
 ## Refused jobs and schedules
 
+Optional presence filters belong inside a sweep body: `for row in tasks:`
+followed by `if status = null or row.status = status:`. A conditional read
+cannot be the sweep domain. E_JOB_SWEEP parks stored job IR with no recorded
+table sweep instead of reporting that skipped work finished; rebind the job
+with an ordinary sweep and queue it again.
+
 E_JOB_CURSOR_INDEX means a chunk's scan key can move while the job writes.
 For example, a sweep `for t in tasks by .score:` is unsafe
 when `score` is mutable: moving a row could skip or revisit it. Use `for t in tasks:` to sweep by id, or declare its order columns `immutable` when they truly

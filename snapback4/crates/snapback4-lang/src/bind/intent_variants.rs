@@ -162,7 +162,7 @@ fn rewrite(value: &mut Expr, inputs: &Inputs, functions: &BTreeMap<String, Funct
                 browse.matching = None;
                 for lane in &mut browse.lanes {
                     lane.planned = Some(Box::new(ReadExpr {
-                        table: merge.table.clone(), index: None, computed: index.computed.clone(),
+                        table: merge.table.clone(), index: Some(merge.index.clone()), computed: index.computed.clone(),
                         keys: lane.prefix.iter().enumerate().map(|(i, value)| KeyPart {
                             column: lane.columns.as_ref().and_then(|names| names.get(i).cloned().flatten()).or_else(|| index.columns.get(i).cloned()),
                             value: value.clone(), site: value.site().clone(),
@@ -170,6 +170,7 @@ fn rewrite(value: &mut Expr, inputs: &Inputs, functions: &BTreeMap<String, Funct
                         order_keys: index.columns[*position..].to_vec(), seeks: Vec::new(), matching: None,
                         filter: merge.filter.clone(), range: Some(RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), site: lane.site.clone(),
                     }));
+                    browse_leaf(lane.planned.as_mut().unwrap(), tables);
                 }
                 let (condition, needle) = search_condition(*merge.matching.clone().unwrap(), &merge.site);
                 let mut matching = merge.clone(); matching.matching = Some(Box::new(needle));
@@ -263,10 +264,7 @@ fn variants(read: &ReadExpr, exists: bool, inputs: &Inputs, tables: &BTreeMap<St
             } else { Some(original.clone()) }
         }).collect());
         if read.matching.is_some() && !bits[names.len()] {
-            read.matching = None;
-            // The empty branch needs an ordinary index, including when the
-            // nonempty branch explicitly names an authored words index.
-            read.index = None;
+            browse_leaf(&mut read, tables);
         }
         if exists {
             let mut required = required.clone();
@@ -276,15 +274,32 @@ fn variants(read: &ReadExpr, exists: bool, inputs: &Inputs, tables: &BTreeMap<St
         } else { Expr::Read(read) }
     }
     let required = inputs.iter().filter(|(_, optional)| !**optional).map(|(name, _)| name.clone()).collect();
-    let mut result = build(&read, exists, &parts, &candidates, &names, &tests, &mut Vec::new(), tables, &required);
-    if let Some(index) = read.index.as_ref().and_then(|name| tables.get(&read.table)?.indexes.iter().find(|index| &index.name == name))
-        && let Some((position, _)) = &index.words {
-        walk::expression(&mut result, &mut |value| {
-            if let Expr::Read(browse) | Expr::Exists { read: browse, .. } = value && browse.matching.is_none() {
-                for (key, column) in browse.keys.iter_mut().zip(&index.columns) { key.column.get_or_insert_with(|| column.clone()); }
-                if browse.order_keys.is_empty() { browse.order_keys = index.columns[*position..].to_vec(); }
-            }
-        });
-    }
-    Some(result)
+    Some(build(&read, exists, &parts, &candidates, &names, &tests, &mut Vec::new(), tables, &required))
+}
+
+// Normalize this generated read only. Its predicates, needle and key values
+// may contain unrelated point reads whose columns and order must not change.
+// @ref LLP 3000.013#2.1 — an explicit words order disambiguates its browse alternative only.
+fn browse_leaf(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>) {
+    read.matching = None;
+    let authored = read.index.take().and_then(|name| tables.get(&read.table)?.indexes.iter().find(|index| index.name == name));
+    let Some(index) = authored else { return; };
+    let Some((position, _)) = &index.words else { return; };
+    for (key, column) in read.keys.iter_mut().zip(&index.columns) { key.column.get_or_insert_with(|| column.clone()); }
+    if read.order_keys.is_empty() { read.order_keys = index.columns[*position..].to_vec(); }
+    read.computed = index.computed.clone();
+    // The authored words index already resolved the intended ordering. Its
+    // generated browse alternative deterministically reuses an equivalent
+    // plain index, including a unique index with an implicit id suffix.
+    let table = &tables[&read.table];
+    let ordered = |index: &IndexDecl| {
+        let mut columns = index.columns.clone();
+        if columns.last().map(String::as_str) != Some("id") { columns.push("id".into()); }
+        columns
+    };
+    let computed = super::intent::computed_descriptor(table, &index.computed);
+    read.index = table.indexes.iter().filter(|candidate| candidate.words.is_none()
+        && ordered(candidate) == ordered(index)
+        && super::intent::computed_descriptor(table, &candidate.computed) == computed)
+        .min_by_key(|candidate| &candidate.name).map(|candidate| candidate.name.clone());
 }

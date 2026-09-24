@@ -257,6 +257,15 @@ impl Engine {
             }
         }
         let sweep = head.run.sweep as usize;
+        // @ref LLP 3000.013#5.2 — only recorded table sweeps commit resumable work.
+        // A conditional/list loop is not a registered resumable sweep. Never
+        // certify skipped work as done, including for hand-authored/stored IR.
+        if sweeps.is_empty() {
+            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id,
+                format!("E_JOB_SWEEP: job {} has no recorded table sweep; bind its work as `for row in table:` and put optional filters inside the loop", program.name), now])?;
+            tx.commit()?;
+            return self.job(&head.run.id);
+        }
         if sweep >= sweeps.len() {
             tx.conn().execute("UPDATE _jobs SET state = 'done', sweep = ?2, cursor = NULL, upper = NULL, updated_at = ?3 WHERE id = ?1", params![head.run.id, sweeps.len() as i64, now])?;
             tx.commit()?;

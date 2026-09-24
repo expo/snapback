@@ -158,7 +158,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_STRUCTURAL_FANOUT" | "E_OP" | "E_OP_RESERVED" => "programs",
         "E_BOUND" | "E_FANOUT" => "bounds",
         "E_QUERY_HELD" => "search",
-        "DIGEST_CHAT_BOUND" | "E_CLOCK_DEV_ONLY" | "E_CLOCK_INPUT" | "E_SCHEDULE" | "E_JOB_CURSOR_INDEX" | "E_JOB_GENERATION" => "jobs",
+        "DIGEST_CHAT_BOUND" | "E_CLOCK_DEV_ONLY" | "E_CLOCK_INPUT" | "E_SCHEDULE" | "E_JOB_CURSOR_INDEX" | "E_JOB_GENERATION" | "E_JOB_SWEEP" => "jobs",
         "E_REPLAY_DEV_ONLY" | "E_SQL_READ_ONLY" | "E_SQL_INTERNAL" | "E_RATE_LIMIT" => "personas",
         "E_AUTH" => "services",
         "E_SERVER_REQUIRED" => "actions",

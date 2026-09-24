@@ -55,7 +55,8 @@ table messages:
   room: text <=40
   at: time
   body: text <=40
-  unique byTime: room, at
+  unique byRoomAt: room, at
+  by byTime: room, at, id
   by byWords: room, words(body), at, id
   read <- exists members[.room, viewer]
   retain delivered-history

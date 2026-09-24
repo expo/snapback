@@ -588,6 +588,12 @@ pub fn scans(program: &Program) -> Vec<&Scan> {
     read_structure(program).0
 }
 
+pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
+    let mut out = Vec::new();
+    expr_scans(expr, &mut out, &mut false);
+    out
+}
+
 pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {
     let mut out = Vec::new();
     let mut has_merge = false;

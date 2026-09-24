@@ -340,6 +340,6 @@ pub(super) fn comparison(value: &Expr) -> Option<(String, String, Expr)> {
     None
 }
 
-fn computed_descriptor(table: &TableInfo, computed: &BTreeMap<String, Expr>) -> Vec<snapback4_core::maintain::CalendarKey> {
+pub(super) fn computed_descriptor(table: &TableInfo, computed: &BTreeMap<String, Expr>) -> Vec<snapback4_core::maintain::CalendarKey> {
     computed.iter().filter_map(|(name, value)| super::time_indexes::key(&table.decl.name, &table.columns, name, value).ok()).collect()
 }

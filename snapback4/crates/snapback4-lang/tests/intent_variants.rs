@@ -39,6 +39,7 @@ fn board_variants_pin_arguments_and_page_every_matching_row() {
     let mut actual = scans.iter().map(|s| b.schema.tables["issues"].indexes[&s.index].columns()).collect::<Vec<_>>(); actual.sort();
     assert_eq!(actual, vec![vec!["assignee", "org", "at", "id"], vec!["assignee", "org", "status", "at", "id"], vec!["org", "at", "id"], vec!["org", "status", "at", "id"]].into_iter().map(|v| v.into_iter().map(str::to_owned).collect::<Vec<_>>()).collect::<Vec<_>>());
     let mut e = engine();
+    e.seed([("issues".into(), object([("id", id("secret")), ("org", id("hidden")), ("status", text("todo")), ("assignee", id("x")), ("at", Value::Int(6))]))]).unwrap();
     for (status, assignee, expected) in [(None, None, vec!["e", "d", "c", "b", "a"]), (Some("todo"), None, vec!["e", "c", "a"]), (None, Some("x"), vec!["e", "b", "a"]), (Some("todo"), Some("x"), vec!["e", "a"])] {
         let first = e.query("board", Context::new("alice", args(status, assignee))).unwrap();
         let position = snapback4_core::cursor::decode_cursor(e.schema(), first.next.as_ref().unwrap()).unwrap();
@@ -47,6 +48,10 @@ fn board_variants_pin_arguments_and_page_every_matching_row() {
         assert_eq!(columns.contains(&"assignee".into()), assignee.is_some());
         assert!(position.scope.unwrap().variant.is_some());
         assert_eq!(pages(&mut e, "board", args(status, assignee)), expected);
+        let mut hidden = args(status, assignee); hidden.insert("org".into(), id("hidden"));
+        let denied = e.query("board", Context::new("alice", hidden)).unwrap();
+        assert!(denied.data.as_array().unwrap().is_empty(), "{denied:?}");
+        assert!(denied.next.is_none());
     }
 }
 #[test]
@@ -74,6 +79,16 @@ fn aggregate_and_argument_only_local_choose_the_same_presence_branch() {
 }
 #[test]
 fn exact_exists_stays_a_ruled_probe_when_discovery_is_not_admitted() {
+    let b = bound(SOURCE);
+    for name in ["withLabel", "withNamedLabel"] {
+        let p = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
+        let probes: Vec<_> = snapback4_core::ir::read_sites(p).into_iter().filter(|site| site.table == "issueLabels").collect();
+        assert_eq!(probes.len(), 1);
+        assert_eq!(probes[0].kind, "point");
+        assert!(b.schema.tables["issueLabels"].indexes[&probes[0].index].unique);
+        assert!(snapback4_lang::bind::merges(&p.body).is_empty());
+        assert!(snapback4_core::ir::scans(p).iter().all(|scan| scan.table == "issues" && scan.merge_site.is_none()));
+    }
     let mut e = engine();
     for name in ["withLabel", "withNamedLabel"] {
         assert_eq!(pages(&mut e, name, BTreeMap::from([("org".into(), id("org")), ("label".into(), id("label")), ("c".into(), Value::Null)])), ["c", "a"]);
@@ -124,6 +139,10 @@ fn optional_ranges_lists_helpers_and_streaming_totals_keep_their_consumers() {
         assert_eq!(scans.iter().filter(|s| s.range.is_some()).count(), 1, "{name}: {scans:?}");
     }
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    for start in [Value::Null, Value::Int(6)] {
+        let absent = e.query("has", Context::new("alice", BTreeMap::from([("start".into(), start)]))).unwrap();
+        assert!(absent.complete); assert_eq!(absent.data, Value::Bool(false));
+    }
     e.seed((1..=5).map(|n| ("t".into(), object([("id", id(&n.to_string())), ("at", Value::Int(n))])))).unwrap();
     for (start, expected) in [(Value::Null, vec!["1", "2", "3", "4", "5"]), (Value::Int(3), vec!["3", "4", "5"])] {
         assert_eq!(pages(&mut e, "window", BTreeMap::from([("start".into(), start.clone()), ("c".into(), Value::Null)])), expected);
@@ -136,6 +155,13 @@ fn optional_ranges_lists_helpers_and_streaming_totals_keep_their_consumers() {
     let absent = e.query("list", Context::new("alice", BTreeMap::from([("values".into(), Value::Null), ("c".into(), Value::Null)]))).unwrap();
     let error = e.query("list", Context::new("alice", BTreeMap::from([("values".into(), Value::Array(vec![])), ("c".into(), text(&absent.next.unwrap()))]))).unwrap_err();
     assert_eq!(error.code, "E_CURSOR_INDEX", "empty discovery still validates presence");
+    let absent = e.query("has", Context::new("alice", BTreeMap::from([("start".into(), Value::Int(6))]))).unwrap();
+    assert!(absent.complete); assert_eq!(absent.data, Value::Bool(false));
+    e.set_ceilings(snapback4_core::Ceilings { examined: 0, ..Default::default() });
+    for start in [Value::Null, Value::Int(3)] {
+        let cut = e.query("has", Context::new("alice", BTreeMap::from([("start".into(), start)]))).unwrap();
+        assert!(!cut.complete && cut.next.is_none()); assert_eq!(cut.data, Value::Null, "{cut:?}");
+    }
     e.set_ceilings(snapback4_core::Ceilings { examined: 1, ..Default::default() });
     for name in ["total", "sum"] {
         for start in [Value::Null, Value::Int(3)] {

@@ -126,7 +126,7 @@ struct Flow<'a> {
 impl Flow<'_> {
     fn expr(&self, expr: &Expr) -> Origin {
         match expr {
-            Expr::Block { .. } => Origin::Unknown(Vec::new()),
+            Expr::Block { .. } => Origin::Unknown(crate::ir::expression_scans(expr).into_iter().cloned().collect()),
             Expr::Merge(merge) => {
                 Origin::Merge(merge.lanes.iter().map(|lane| lane.scan.clone()).collect())
             }
@@ -217,7 +217,13 @@ impl Flow<'_> {
                     let site = format!("for/{binding}");
                     let origin = self.domain(domain);
                     // @ref LLP 3000.007#5.7 — complete-population proof protects row fanout; a bounded read/emit list need not preserve a whole group.
-                    let read_emit_list = matches!(domain, LoopDomain::DerivedArray { .. } | LoopDomain::ArgList { .. }) && read_emit_only(body);
+                    let variants = origin.scans();
+                    let variant = variants.iter().find(|scan| scan.variant.is_some());
+                    if self.error.is_none() && let Some(scan) = variant {
+                        self.error = Some(fanout(Some(scan), &site, "argument-presence alternatives cannot supply a mutation population",
+                            &format!("iterate the complete capped group with `for row in {}:` and put the optional filter and work inside that loop; or move this pass to a job sweep", scan.table)));
+                    }
+                    let read_emit_list = variant.is_none() && matches!(domain, LoopDomain::DerivedArray { .. } | LoopDomain::ArgList { .. }) && read_emit_only(body);
                     if !read_emit_list { self.admit(&origin, &site); }
                     let before = self.env.clone();
                     // The head is the only local binding path we admit. A body write

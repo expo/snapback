@@ -49319,3 +49319,58 @@ store.rs:809 `LLP 3000.013#5.3-effects-keyed-once` anchor error, reproduced on t
 starting commit; no new reference error. Full file inventory, compatibility
 migrations, test evidence, decisions and reproductions:
 [round report](reports/20260924-intent-lane-a-r11.md).
+
+
+## 2026-09-24 — Lane A round 12: isolate browse planning and close conditional-loop admission
+
+Fixed every round-12 finding. Empty-search normalization now runs only on the
+generated outer browse leaf while constructing it; it never retargets nested
+point reads in predicates, needles or keys. An explicit words ordering chooses
+the lexicographically first plain index with the same effective ordering and
+computed-key identity for browsing, or synthesizes its ordinary index. Authored
+predicate ambiguity checks remain. Restored unique byRoomAt plus byTime in both
+the native device and JavaScript retained-history compatibility fixtures.
+
+Chose the supervisor's permitted refusal path for presence-selected population
+loops, rather than adding resumable conditional sweeps. Top-level job loops
+refuse with a body-filter rewrite. Mutation admission preserves the conditional
+scan provenance through blocks and aliases and refuses the bounded-list emit
+exemption. An ordinary capped loop or stable job sweep, with the optional filter
+inside its body, remains supported. The engine parks stored non-native jobs
+with no recorded sweep as E_JOB_SWEEP instead of reporting skipped work done;
+this includes malformed empty jobs and does not alter native-job execution.
+The code is registered, routed and explained in the guide.
+
+Four new regressions cover nested id probes and inline needles, explicit-index
+compatibility independent of declaration order, direct/aliased emit-population
+refusals plus an ordinary sweep that runs, and the engine guard over raw IR.
+Strengthened existing tests prove all four board variants hide actual rows from
+a non-member, keyed existence uses unique point probes with no discovery merge,
+and optional exists is false on missing/empty domains but null/incomplete when
+cut before a witness. A count >= 0 substitution now fails the absence checks.
+
+Validation: **`== 0 failure(s) in 690 s`**, using the supported serialized-client-files setting with eight Rust test processes (16 assigned CPUs); all groups ran. Rust passed in 171 s; clients passed in 670 s (1,088 passed, 0 failed, 10 inventory skips). Affected checks: 9 intent variants, 4 review
+regressions, 57 guide, 15 simulator admission, 12 work-intent and 12 device
+search-merge tests passed. Frozen Bun installation and git diff --check passed.
+The new tests initially had two Result-versus-Option assertion compile errors
+and an incorrect false-versus-null cut expectation; corrected and rerun.
+The first full run reported `== 1 failure(s) in 286 s` (client tests), with
+all Rust/build checks green. Its logout socket-closure and restore done/parked
+race passed unchanged in a two-test isolated rerun; classified environmental,
+not baseline, and documented with reproductions in the report. No client code
+or test expectation was changed for these failures.
+
+The second full run reported `== 1 failure(s) in 305 s` (client tests),
+again with all Rust/build checks passing. The signed-out session request lacked
+E_AUTH and the store-replacement test observed the old identity. Both passed
+unchanged in isolation, 2 passed / 0 failed; classified environmental/timing-sensitive,
+not baseline, with reproductions in the report.
+
+Device artifact: 1,751,318 B raw / 487,805 B gzip, the same sizes as round 11,
+under the unchanged 488,000-byte ratchet. No runtime meter ceiling, residency,
+authorization or disclosure relaxation; no IR serialization change, version
+bump, publication or push. The separate ref-check audit still reports only the
+inherited store.rs:809 anchor `LLP 3000.013#5.3-effects-keyed-once`; reproduce
+with ./ref-check --verbose. No new reference errors. File-by-file details,
+examples, decisions and test evidence are in
+[the round report](reports/20260924-intent-lane-a-r12.md).
