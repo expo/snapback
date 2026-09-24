@@ -79,6 +79,7 @@ export function createApp(options: AppOptions): App {
   const inactive = (): SignIn => ({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this app operation was superseded", site: "app.auth", rewrite: "await app.auth.login(email, password)" } });
   const hide = (state: AuthState = "signed-out") => {
     owner?.pause();
+    if (current !== owner?.client) void current.close();
     current = createClient({ url, fetch: fetcher });
     publish(state, null);
   };
@@ -87,44 +88,55 @@ export function createApp(options: AppOptions): App {
     owner = undefined;
     if (!previous) return;
     previous.pause();
-    await previous.client.close();
-    previous.stop();
-    await persistence;
+    try { await previous.client.close(); }
+    finally { previous.stop(); await persistence.catch(() => {}); }
   }
   async function open(session: Session, expected: number): Promise<SignIn> {
-    if (closed || revision !== expected) { void revokeSession(url, session.token, fetcher); return inactive(); }
+    if (closed || revision !== expected) { if (!closed) void revokeSession(url, session.token, fetcher); return inactive(); }
     hide("restoring");
     await release();
-    if (closed || revision !== expected) { void revokeSession(url, session.token, fetcher); return inactive(); }
+    if (closed || revision !== expected) { if (!closed) void revokeSession(url, session.token, fetcher); return inactive(); }
     await keepSession(url, session, sessionStore);
     const raw = options.device
       ? await createLocalClient({ url, session, sessionStore, device: options.device, fetch: fetcher })
       : createClient({ url, session, fetch: fetcher });
     if (closed || revision !== expected) { await (closed ? raw.close() : raw.signOut()); return inactive(); }
-    const custody = options.device ? undefined : await onlineCustody(raw, url, storage, report);
-    const client = custody?.client ?? raw;
-    const own = { client, pause: () => { custody?.pause(); }, stop: () => {} };
-    owner = own;
-    own.stop = raw.onSession(next => {
-      if (owner !== own) return;
-      if (next) void keepSession(url, next, sessionStore).catch(report);
-      else {
-        hide();
-        void enqueue(async () => {
-          if (owner !== own) return;
-          await release();
-          await forgetSession(url, sessionStore);
-        }).catch(report);
+    try {
+      const custody = options.device ? undefined : await onlineCustody(raw, url, storage, report);
+      const client = custody?.client ?? raw;
+      const own = { client, pause: () => { custody?.pause(); }, stop: () => {} };
+      owner = own;
+      own.stop = raw.onSession(next => {
+        if (owner !== own) return;
+        if (next) void keepSession(url, next, sessionStore).catch(report);
+        else {
+          hide();
+          void enqueue(async () => {
+            if (owner !== own) return;
+            await release();
+            await forgetSession(url, sessionStore);
+          }).catch(report);
+        }
+      });
+      const next = raw.session();
+      if (!next) { hide(); await release(); await forgetSession(url, sessionStore); return inactive(); }
+      // Local opening can rotate a near-expiry bearer before returning.
+      await keepSession(url, next, sessionStore);
+      if (closed || revision !== expected) {
+        if (!closed) await client.signOut();
+        await release();
+        return inactive();
       }
-    });
-    current = client;
-    const next = raw.session();
-    if (!next) { hide(); await release(); await forgetSession(url, sessionStore); return inactive(); }
-    // Local opening can rotate a near-expiry bearer before returning.
-    await keepSession(url, next, sessionStore);
-    if (closed || revision !== expected) { await release(); return inactive(); }
-    publish("signed-in", raw.viewer());
-    return { ok: true, session: next };
+      current = client;
+      publish("signed-in", raw.viewer());
+      return { ok: true, session: next };
+    } catch (error) {
+      hide();
+      // A failed journal read or session save never exposes the half-open
+      // authenticated client, and must release its transport/device lifetime.
+      try { if (owner) await release(); else await raw.close(); } catch {}
+      throw error;
+    }
   }
   const signIn = (work: () => Promise<SignIn>): Promise<SignIn> => {
     const expected = ++revision;
@@ -157,16 +169,16 @@ export function createApp(options: AppOptions): App {
       ++revision;
       hide();
       return enqueue(async () => {
-        try {
-          const previous = owner;
-          // Stop app persistence callbacks before signOut emits null or close
-          // emits synthetic failures for uncertain online writes.
-          previous?.stop();
-          await previous?.client.signOut();
-          await release();
-          await forgetSession(url, sessionStore);
-          return { ok: true };
-        } catch (error) { report(error); return { ok: false, why: problem(error) }; }
+        const previous = owner;
+        // Credential clearing must remain retryable even if an earlier outbox
+        // save failed. Drain old work before the final session deletion.
+        let failure: unknown;
+        previous?.stop();
+        try { await previous?.client.signOut(); } catch (error) { failure = error; }
+        try { await release(); } catch (error) { failure ??= error; }
+        try { await forgetSession(url, sessionStore); } catch (error) { failure ??= error; }
+        if (failure) { report(failure); return { ok: false, why: problem(failure) }; }
+        return { ok: true };
       });
     },
     logoutEverywhere() {

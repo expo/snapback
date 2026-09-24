@@ -190,9 +190,9 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   assertCoreTree(dir);
 });
 
-test("Expo generated template typechecks against the reference toolchain", (t) => {
+for (const starter of ["expo", "web"]) test(`${starter} generated template typechecks against the reference toolchain`, (t) => {
   const { dir, run } = fixture(t);
-  run("init", "--expo"); run("check");
+  run("init", `--${starter}`); run("check");
   symlinkSync(join(root, "node_modules"), join(dir, "node_modules"), "dir");
   const config = ts.readConfigFile(join(dir, "tsconfig.json"), ts.sys.readFile);
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, dir);

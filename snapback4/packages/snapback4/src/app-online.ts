@@ -112,8 +112,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       return known;
     },
     onWrite(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    async close() { pause(); await raw.close(); await writes; },
-    async signOut() { pause(); await raw.signOut(); await writes; },
+    async close() { pause(); await raw.close(); await writes.catch(report); },
+    async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
   function pause() { active = false; stop(); listeners.clear(); }

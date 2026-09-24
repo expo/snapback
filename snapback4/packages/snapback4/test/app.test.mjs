@@ -181,3 +181,38 @@ test("online custody refuses unstored admission and retains committed writes whe
   assert.equal((await app.client.write(write.id)).state, "sent");
   assert.equal(sends, 1);
 });
+
+test("failed session persistence never exposes a half-open authenticated client", async t => {
+  const memory = memorySessionStore(); let sessionWrites = 0;
+  const app = createApp({ url: "https://app.invalid", sessionStore: { ...memory, async set(key, value) {
+    if (key.endsWith(":session") && ++sessionWrites === 2) throw Error("session store failed");
+    await memory.set(key, value);
+  } }, fetch: async () => Response.json({ session: { principal: "alice", token: "secret", kind: "user", expiresAt: Date.now() + 7 * 86400000 } }) });
+  t.after(() => app.close());
+  await app.ready;
+  assert.equal((await app.auth.guest()).ok, false);
+  assert.equal(app.auth.state, "signed-out");
+  assert.equal(app.client.viewer(), null);
+  assert.equal((await app.mutate(add, { body: "not allowed" })).why.code, "E_AUTH");
+  assert.equal((await app.auth.guest()).ok, true, "a repaired session store can sign in again");
+});
+
+test("logout still clears credentials after a journal failure, and credential deletion itself is retryable", async t => {
+  const memory = memorySessionStore(), url = "https://app.invalid";
+  let failDelete = false;
+  const app = createApp({ url, sessionStore: { ...memory,
+    async set(key, value) { if (key.endsWith(":writes")) throw Error("outbox store failed"); await memory.set(key, value); },
+    async delete(key) { if (failDelete) throw Error("session delete failed"); await memory.delete(key); },
+  }, fetch: async (input) => new URL(input).pathname === "/auth/guest"
+    ? Response.json({ session: { principal: "alice", token: "secret", kind: "user", expiresAt: Date.now() + 7 * 86400000 } })
+    : Response.json({ ok: true }) });
+  t.after(() => app.close());
+  await app.ready; await app.auth.guest();
+  await assert.rejects(app.mutate(add, { body: "not sent" }), /outbox store/);
+  failDelete = true;
+  assert.equal((await app.auth.logout()).ok, false);
+  assert.equal(app.client.viewer(), null);
+  failDelete = false;
+  assert.equal((await app.auth.logout()).ok, true);
+  assert.equal(await restoreSession(url, memory), null);
+});

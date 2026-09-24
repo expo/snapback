@@ -92,7 +92,9 @@ recovers them only under their original backend/account. Terminal receipts keep
 no historical result; `client.write(id)` collects one. Browser Web Locks serialize
 journal updates across tabs. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
-primitive. Storage errors remain errors; they never authorize an unstored send.
+primitive. Storage errors remain errors; they never authorize an unstored send. A failed
+startup keeps the client signed out. Logout retries failed credential deletion
+even when a prior outbox save failed.
 
 The lower-level clients remain available for development personas and hosts that
 already manage their own session lifetime:
