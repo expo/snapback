@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { createApp } from "../dist/app.js";
-import { memorySessionStore, restoreSession, keepSession } from "../dist/auth.js";
+import { memorySessionStore, restoreSession, keepSession, logout as revokeSession } from "../dist/auth.js";
 import { processDevice } from "../dist/native.js";
 
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
@@ -333,4 +333,63 @@ for (const tier of ["online", "local"]) test(`a stale ${tier} refresh preserves 
   assert.equal((await b.auth.logout()).ok, true);
   assert.equal(await restoreSession(url, store), null);
   await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${fresh.session.token}` } })).json()).denied?.code === "E_AUTH");
+});
+
+for (const [tier, stage] of [["online", "first save"], ["local", "first save"], ["online", "final save"], ["local", "backend acquisition"]]) test(`stale ${tier} restoration restarts when another app rotates before its ${stage}`, { timeout: 20_000 }, async t => {
+  const { url, dir } = await server(t), memory = memorySessionStore(), saved = [];
+  const store = { ...memory, async set(key, value) {
+    if (key.endsWith(".session")) saved.push(JSON.parse(value).token);
+    await memory.set(key, value);
+  } };
+  const b = createApp({ url, sessionStore: store }); t.after(() => b.close());
+  await b.ready; await b.auth.guest();
+  const old = b.client.session().token;
+  let held = false, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const a = createApp({ url, sessionStore: { ...store, async get(key) {
+    const value = await store.get(key);
+    if (!held && stage !== "backend acquisition" && key.endsWith(stage === "first save" ? ".session" : ".writes")) {
+      held = true; await gate;
+    }
+    return value;
+  } }, fetch: async (input, init) => {
+    if (!held && stage === "backend acquisition" && new URL(input).pathname === "/schema") { held = true; await gate; }
+    return fetch(input, init);
+  }, ...(tier === "local" ? { device: processDevice({ dir: join(dir, "restoring-device"), binary }) } : {}) });
+  t.after(async () => { release(); await a.close(); });
+  await until(() => held, "A captured the old session");
+  // Online refresh reports its successor before its async onSession save
+  // completes. Queue that save behind A's read, ahead of A's opening saves.
+  const fresh = await b.client.refreshSession(); assert.equal(fresh.ok, true);
+  assert.notEqual(fresh.session.token, old);
+  if (stage !== "first save") await until(async () => (await restoreSession(url, memory))?.token === fresh.session.token);
+  release();
+  assert.equal((await a.ready).ok, true);
+  const nextAt = saved.indexOf(fresh.session.token);
+  assert.notEqual(nextAt, -1);
+  assert.ok(saved.slice(nextAt).every(token => token === fresh.session.token), "no stale opening may save old after next");
+  assert.equal(a.client.session().token, fresh.session.token, "A restarts with the stored successor");
+  assert.equal((await restoreSession(url, memory)).token, fresh.session.token);
+  assert.equal(a.auth.state, "signed-in"); assert.equal(a.auth.why, undefined);
+  assert.deepEqual((await a.client.query(list, {})).data, []);
+  assert.deepEqual((await b.client.query(list, {})).data, [], "restarting A must not revoke B's successor family");
+});
+
+for (const tier of ["online", "local"]) test(`${tier} auth rejection after a failed login completes signed-out cleanup`, { timeout: 15_000 }, async t => {
+  const { url, dir } = await server(t), store = memorySessionStore();
+  const app = createApp({ url, sessionStore: store,
+    ...(tier === "local" ? { device: processDevice({ dir: join(dir, "rejected-device"), binary }) } : {}),
+  });
+  t.after(() => app.close());
+  await app.ready;
+  assert.equal((await app.auth.signup("reject@example.com", "password-a")).ok, true);
+  const original = app.client;
+  assert.equal((await app.auth.login("reject@example.com", "wrong-password")).ok, false);
+  assert.equal(app.client, original); assert.equal(app.auth.state, "signed-in");
+  await revokeSession(url, original.session().token);
+  const refusal = await original.refreshSession();
+  assert.equal(refusal.ok, false); assert.equal(refusal.why.code, "E_AUTH");
+  await until(() => app.auth.state === "signed-out", "rejected original session publishes signed-out");
+  assert.equal(app.auth.viewer, null); assert.equal(app.client.session(), null);
+  assert.equal(await restoreSession(url, store), null);
 });

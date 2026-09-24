@@ -46,6 +46,10 @@ function problem(error: unknown): Refusal {
     site: "app.auth", rewrite: "await app.auth.login(email, password)" };
 }
 
+// A restored snapshot lost its compare-and-save race to another app. Opening
+// must retry from storage without revoking the winning session's family.
+class RestorationChanged extends Error {}
+
 export function createApp(options: AppOptions): App {
   const url = options.url.replace(/\/$/, "");
   const fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
@@ -59,11 +63,14 @@ export function createApp(options: AppOptions): App {
   };
   // Replacement and deletion share one lock across tabs. A server refusal
   // only owns its rejected token, never a successor kept by another runtime.
-  const removeSession = (expectedToken?: string) => persist(() => storeLock(sessionKey(url), async () => {
+  const removeSession = (expectedToken?: string, restoring = false) => persist(() => storeLock(sessionKey(url), async () => {
     const text = await storage.get(sessionKey(url));
     let token: string | undefined;
     try { const saved = text ? JSON.parse(text) : null; if (typeof saved?.token === "string") token = saved.token; } catch {}
-    if (expectedToken !== undefined && token !== expectedToken) return;
+    if (expectedToken !== undefined && token !== expectedToken) {
+      if (restoring) throw new RestorationChanged();
+      return;
+    }
     await storage.delete(sessionKey(url));
     // Explicit clearing may drop a successor this runtime never observed.
     if (token) void revokeSession(url, token, fetcher);
@@ -107,7 +114,7 @@ export function createApp(options: AppOptions): App {
     try { await previous.client.close(); }
     finally { previous.stop(); await persistence.catch(() => {}); previous.valid = false; scopes.delete(previous); }
   }
-  async function open(session: Session, expected: number): Promise<SignIn> {
+  async function open(session: Session, expected: number, restoring = false): Promise<SignIn> {
     if (closed || revision !== expected) { if (!closed) void revokeSession(url, session.token, fetcher); return inactive(); }
     hide("restoring");
     await release();
@@ -116,14 +123,31 @@ export function createApp(options: AppOptions): App {
     // Logout invalidates this guard synchronously, ahead of any network work.
     const scope: Scope = { valid: true, session, aborter: new AbortController(), stop() {}, pause() {} };
     scopes.add(scope);
+    let restoreToken = restoring ? session.token : undefined;
     const scopedStore: SessionStore = {
       get: sessionStore.get,
       set: (key, value) => persist(() => storeLock(key, async () => {
-        if (key === sessionKey(url)) scope.session = JSON.parse(value) as Session;
+        if (key === sessionKey(url)) {
+          const next = JSON.parse(value) as Session;
+          if (scope.valid && restoreToken !== undefined) {
+            const saved = await storage.get(key);
+            let token: unknown;
+            try { token = saved ? JSON.parse(saved)?.token : undefined; } catch {}
+            if (scope.valid && token !== restoreToken) {
+              // A constructor may have rotated before finding a different
+              // saved account. Revoke only its unkept replacement, never a
+              // stale ancestor of the session another app now owns.
+              if (next.token !== scope.session.token && next.token !== token) void revokeSession(url, next.token, fetcher);
+              throw new RestorationChanged();
+            }
+          }
+          scope.session = next;
+        }
         if (scope.valid) await storage.set(key, value);
         else if (key === sessionKey(url)) void revokeSession(url, scope.session.token, fetcher);
+        if (key === sessionKey(url) && restoreToken !== undefined) restoreToken = scope.session.token;
       })),
-      delete: key => scope.valid ? (key === sessionKey(url) ? removeSession(scope.session.token) : sessionStore.delete(key)) : Promise.resolve(),
+      delete: key => scope.valid ? (key === sessionKey(url) ? removeSession(scope.session.token, restoreToken !== undefined) : sessionStore.delete(key)) : Promise.resolve(),
     };
     const scopedFetch: typeof fetch = async (input, init) => {
       // Cancel backend acquisition before a local Client exists. Once open,
@@ -155,12 +179,13 @@ export function createApp(options: AppOptions): App {
         if (next) void keepSession(url, next, scopedStore).catch(report);
         else if (scope.valid && owner === scope) {
           const rejected = scope.session.token;
+          const rejectionRevision = revision;
           hide("restoring");
           void enqueue(async () => {
             if (owner !== scope) return;
             await release();
             await removeSession(rejected);
-            if (revision === expected) publish("signed-out", null);
+            if (revision === rejectionRevision) publish("signed-out", null);
           }).catch(report);
         }
       });
@@ -187,6 +212,7 @@ export function createApp(options: AppOptions): App {
         await release();
         return inactive();
       }
+      restoreToken = undefined;
       current = client;
       publish("signed-in", raw.viewer(), warning);
       return { ok: true, session: next };
@@ -195,9 +221,11 @@ export function createApp(options: AppOptions): App {
       // An opener that reports failure must not leave a restorable bearer.
       // Fence late saves first, then clear only this opener's saved token.
       scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
-      void revokeSession(url, scope.session.token, fetcher);
-      if (raw) void raw.signOut().catch(() => {});
-      await removeSession(scope.session.token);
+      if (!(error instanceof RestorationChanged)) {
+        void revokeSession(url, scope.session.token, fetcher);
+        if (raw) void raw.signOut().catch(() => {});
+        await removeSession(scope.session.token);
+      }
       try { if (owner === scope) await release(); else await raw?.close(); } catch {}
       throw error;
     } finally {
@@ -274,13 +302,16 @@ export function createApp(options: AppOptions): App {
   const ready = enqueue(async (): Promise<AppResult> => {
     const expected = 0;
     try {
-      const session = await restoreSession(url, sessionStore);
-      if (closed || revision !== expected) {
-        if (session && !closed) void revokeSession(url, session.token, fetcher);
-        return { ok: true };
+      while (!closed && revision === expected) {
+        const session = await restoreSession(url, sessionStore);
+        if (closed || revision !== expected) {
+          if (session && !closed) void revokeSession(url, session.token, fetcher);
+          return { ok: true };
+        }
+        if (!session) { publish("signed-out", null); return { ok: true }; }
+        try { return await open(session, expected, true); }
+        catch (error) { if (!(error instanceof RestorationChanged)) throw error; }
       }
-      if (session) return await open(session, expected);
-      publish("signed-out", null);
       return { ok: true };
     } catch (error) {
       if (revision !== expected) return { ok: true };

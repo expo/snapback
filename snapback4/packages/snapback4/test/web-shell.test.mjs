@@ -120,3 +120,21 @@ test("active shell keeps its HTML and unused lazy chunk together while a new bui
   assert.equal((await waiting.fetch("/chat/", { mode: "navigate" })).deployment, "B");
   assert.equal((await waiting.fetch("/chat/assets/lazy-B.js")).deployment, "B");
 });
+
+for (const base of ["/", "/chat/"]) test(`cached navigation resolves exported directory and extensionless pages at ${base}`, async t => {
+  const { dir } = await fixture(t, "vite");
+  await mkdir(join(dir, "about"));
+  await writeFile(join(dir, "about/index.html"), "<body>About</body>");
+  await writeFile(join(dir, "contact.html"), "<body>Contact</body>");
+  await webShell(dir, base);
+  const sw = runtime(await readFile(join(dir, "snapback4-sw.js"), "utf8"));
+  await sw.event("install");
+  const requests = sw.requests.length;
+  for (const offline of [false, true]) {
+    sw.offline(offline);
+    for (const [path, exported] of [["about/", "about/index.html"], ["about", "about/index.html"], ["contact", "contact.html"], ["contact?from=home", "contact.html"], ["contact.html", "contact.html"], ["unknown/route", "index.html"]]) {
+      assert.equal((await sw.fetch(base + path, { mode: "navigate" })).url, "https://app.test" + base + exported, `${path}, offline=${offline}`);
+    }
+  }
+  assert.equal(sw.requests.length, requests, "exported HTML always comes from the active build");
+});

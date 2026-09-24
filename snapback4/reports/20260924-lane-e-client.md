@@ -1,7 +1,9 @@
 # LLP 3000.013 lane E — paved client
 
-Latest follow-up: [review round 2](./20260924-lane-e-review2.md) fixes the
-storage ownership, cleanup, shared-session and damaged-journal findings.
+Latest follow-up: [delta review](./20260924-lane-e-delta.md) fixes the remaining
+restoration race, auth cleanup and exported-page routing, and strengthens the
+backend-journal proof. [Review round 2](./20260924-lane-e-review2.md) records the
+earlier storage ownership, cleanup, shared-session and damaged-journal fixes.
 Earlier results below remain the historical handoff record.
 
 Date: 2026-09-24. Branch: `sb4-intent/e-client`; base: `6d9f3e001`.

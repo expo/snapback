@@ -109,6 +109,29 @@ test("recovery refuses an intent with a foreign recorded owner even at the corre
   assert.deepEqual(wire.sent.map(write => write.args.body), ["B's own intent"]);
 });
 
+test("recovery quarantines a valid same-principal journal transplanted from another backend", async t => {
+  const held = storage(), wire = transport(), otherUrl = "https://other.invalid";
+  const a = generated(t, held, wire.fetcher);
+  await a.ready; await a.auth.login("alice", "password");
+  const pending = await a.mutate(mutation, { body: "private to backend A" });
+  assert.equal(pending.state, "pending");
+  const aKey = storeKey("writes", url, "alice"), bKey = storeKey("writes", otherUrl, "alice");
+  const bytes = await held.store.get(aKey);
+  await a.close();
+  await held.store.set(bKey, bytes); // Valid owner, arguments and ID; only backend differs.
+  wire.online();
+  const b = generated(t, held, wire.fetcher, otherUrl);
+  await b.ready;
+  assert.equal((await b.auth.login("alice", "password")).ok, true);
+  assert.equal(b.auth.why?.code, "E_CLIENT");
+  assert.equal(await b.client.write(pending.id), undefined);
+  assert.equal(wire.sent.length, 0);
+  assert.ok([...held.values].some(([key, value]) => key.startsWith(bKey + ".damaged.") && value === bytes));
+  assert.equal(await held.store.get(aKey), bytes, "A's original custody remains intact");
+  assert.equal((await b.mutate(mutation, { body: "own intent on backend B" })).state, "sent");
+  assert.deepEqual(wire.sent.map(write => write.args.body), ["own intent on backend B"]);
+});
+
 for (const bytes of ["{", "null", '{"pending":[],"receipts":[]}', JSON.stringify({ owner: "alice", backend: url, pending: {}, receipts: [] })]) test(`damaged journal ${bytes.slice(0, 24)} is preserved without blocking restore or login`, async t => {
   const held = storage(), wire = transport(); wire.online();
   const key = storeKey("writes", url, "alice");

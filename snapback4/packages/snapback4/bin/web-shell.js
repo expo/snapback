@@ -81,7 +81,13 @@ self.addEventListener("fetch", event => {
     if (navigation) {
       // HTML and lazy assets must belong to the active build, even online.
       // A waiting worker switches both together after the old tabs close.
-      return (await cache.match(url(address.pathname))) || (await cache.match(url(ENTRY))) || Response.error();
+      const path = address.pathname;
+      const pages = path.endsWith("/") ? [path + "index.html"] : [path, path + ".html", path + "/index.html"];
+      for (const page of [...pages, ENTRY]) {
+        const response = await cache.match(url(page));
+        if (response) return response;
+      }
+      return Response.error();
     }
     return (await cache.match(url(address.pathname))) || fetch(request);
   })());

@@ -30,8 +30,9 @@ The build ends with `snapback4 web-shell dist`. Navigations use the active
 worker's cached HTML even online, so its HTML and lazy assets stay together
 until a waiting build activates after the old tabs close. This command also works on
 `expo export -p web` output: it precaches every file in a content-hashed cache,
-registers `snapback4-sw.js` in every HTML file idempotently, and falls back to
-`index.html` for offline navigations. Pass `--base /chat/` when serving a subpath;
+registers `snapback4-sw.js` in every HTML file idempotently, and resolves exported
+subpages (`/about/` to `about/index.html`, `/contact` to `contact.html`) online and
+offline before falling back to the root `index.html`. Pass `--base /chat/` when serving a subpath;
 use the same base in the bundler. For Vite run
 `npx vite build --base=/chat/ && npx snapback4 web-shell dist --base /chat/`.
 It waits for old tabs to close before switching builds. Development has no worker.
@@ -90,6 +91,9 @@ an in-flight rotation finishes and saves its replacement before close completes.
 `app.auth.logout()` fences restoration and session writes immediately, deletes
 local credentials without waiting for network requests, and revokes remotely
 in the background.
+When another app replaces the stored session during restoration, opening restarts
+with that session. A stale restoration or rejected bearer cannot overwrite or
+delete the other app's stored successor.
 
 Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments
