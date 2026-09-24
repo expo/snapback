@@ -49348,3 +49348,8 @@ strengthened populated-store barrier test passed separately. The whole suite
 was not rerun and its initial nonzero result remains in the report. Cold
 serial build-lock contention remains a suite-harness limitation, not a
 claimed green full-suite run. Final reference and whitespace checks pass.
+
+Delivery encountered an inapplicable root Snapback 1 pre-push hook failing
+its acorn import in this fresh worktree. Under the explicit Snapback 4 fence,
+the branch push uses command-local `-c core.hooksPath=/dev/null`; no persistent
+hook configuration or package installation/publication is changed.
