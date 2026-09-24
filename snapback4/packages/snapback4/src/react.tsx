@@ -4,9 +4,31 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
+import type { App, AppAuth, AuthSnapshot } from "./app.ts";
 import { isReady } from "./contract.ts";
 
 const ClientContext = createContext<Client | null>(null);
+
+const AppContext = createContext<App | null>(null);
+
+/** Own the app outside render; changing accounts replaces the client context. */
+export function AppProvider({ app, children }: { app: App; children: ReactNode }) {
+  const snapshot = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
+  return <AppContext.Provider value={app}><ClientContext.Provider value={app.client}>
+    <AppAccount key={`${snapshot.state}:${snapshot.viewer ?? ""}`}>{children}</AppAccount>
+  </ClientContext.Provider></AppContext.Provider>;
+}
+
+// Remount account-owned component state, including drafts and asset handles.
+function AppAccount({ children }: { children: ReactNode }) { return children; }
+
+export function useAuth(): AuthSnapshot & Pick<AppAuth, "signup" | "login" | "guest" | "logout" | "logoutEverywhere"> {
+  const app = useContext(AppContext);
+  if (!app) throw new Error("useAuth: no <AppProvider> above this component");
+  const snapshot = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
+  return { ...snapshot, signup: app.auth.signup, login: app.auth.login, guest: app.auth.guest,
+    logout: app.auth.logout, logoutEverywhere: app.auth.logoutEverywhere };
+}
 
 export function SnapbackProvider({ client, children }: { client: Client; children: ReactNode }) {
   return <ClientContext.Provider value={client}>{children}</ClientContext.Provider>;
@@ -14,7 +36,7 @@ export function SnapbackProvider({ client, children }: { client: Client; childre
 
 export function useClient(): Client {
   const client = useContext(ClientContext);
-  if (!client) throw new Error("useClient: no <SnapbackProvider> above this component");
+  if (!client) throw new Error("useClient: no <AppProvider> or <SnapbackProvider> above this component");
   return client;
 }
 

@@ -24,15 +24,22 @@ its production app shell, account-bound saved route and write IDs. Default
 `init` remains schema-only. Run `npm install`, `npx snapback4 check`, then
 `npx snapback4 dev` and `npm run dev` in separate terminals. Build with
 `VITE_SNAPBACK_URL=https://your-backend npm run build`; serve `dist/` over HTTPS.
-For a subpath use `npm run build -- --base=/chat/`. Routes use `#room=<id>`.
+Routes use `#room=<id>`.
 
-The production shell caches only the generic entry and build-known hashed
-assets. It waits for old tabs to close before switching builds. Development
-has no worker. Keep the entry nonpersonalized; SSR, arbitrary navigation
-paths and other bundlers are unsupported. API responses, tokens and uploaded
-media never enter this shell cache. The starter explicitly uses
-`localStorageSessionStore()` for page-restart identity continuity; any script
-on that origin can read the token. Choose this persistence deliberately.
+The build ends with `snapback4 web-shell dist`. Navigations use the active
+worker's cached HTML even online, so its HTML and lazy assets stay together
+until a waiting build activates after the old tabs close. This command also works on
+`expo export -p web` output: it precaches every file in a content-hashed cache,
+registers `snapback4-sw.js` in every HTML file idempotently, and falls back to
+`index.html` for offline navigations. Pass `--base /chat/` when serving a subpath;
+use the same base in the bundler. For Vite run
+`npx vite build --base=/chat/ && npx snapback4 web-shell dist --base /chat/`.
+It waits for old tabs to close before switching builds. Development has no worker.
+Keep all exported files nonpersonalized; this is a static export, not SSR.
+Cross-origin requests and non-exported API/media requests pass through untouched.
+The worker never caches network navigation responses. The starter explicitly uses
+`localStorageSessionStore()` for page-restart continuity; any script on that
+origin can read the token. Choose this persistence deliberately.
 
 Held room navigation reads conversation and membership before rendering the
 thread; unknown offline rooms remain uncertain. Write references are saved
@@ -46,6 +53,72 @@ production offline-reopen journey; fixture residency remains
 `test --residency --fixture <directory> --as <principal>`.
 
 ## 4. The client
+
+`createApp` is the ordinary entry point. Construct it once outside React render.
+Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
+`ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
+guest return `SignIn`; refusals are `{ ok: false, why }`. Logout clears local
+credentials and attempts server revocation; `logoutEverywhere` revokes every
+session after server confirmation. `auth.why` exposes a restore/storage failure.
+
+```tsx
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { webDevice } from "snapback4/web";
+import { AppProvider, useAuth } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+const app = createApp({ url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore() });
+function Account() {
+  const auth = useAuth();
+  return <button onClick={() => void (auth.state === "signed-in" ? auth.logout() : auth.guest())}>{auth.state}</button>;
+}
+function Root() { return AppProvider({ app, children: <Account /> }); }
+async function send(conversationId: string) {
+  await app.ready;
+  return app.mutate(api.send, { conversationId, body: "Hello" });
+}
+```
+
+Omit `device` for the online tier; pass `nativeDevice` or `processDevice()` for
+other local hosts. `fetch` injects the transport. Omit `sessionStore` for memory
+only; browsers explain that choice in the console. Web persistence is always
+explicit. `app.client` changes on restore, sign-in, logout and account switch;
+`AppProvider` supplies that client to all existing hooks and resets account-owned
+component state. `useAuth()` returns the current state, viewer, failure and actions.
+Call `app.close()` to stop a runtime while preserving its session for restart;
+an in-flight rotation finishes and saves its replacement before close completes.
+`app.auth.logout()` fences restoration and session writes immediately, deletes
+local credentials without waiting for network requests, and revokes remotely
+in the background.
+
+Local writes use the existing device outbox. Online `app.mutate` (also
+`app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments
+before dispatch, retains uncertain writes through restart and sign-out, and
+recovers them only under their original backend/account. Terminal receipts keep
+no historical result; `client.write(id)` collects one. Session and journal keys
+encode backend and principal segments as fixed-width hexadecimal; adapters pass
+keys through unchanged. Journals also record their backend and owner, and each
+pending intent records its owner. A damaged or foreign record is preserved under
+a `.damaged.` side key, replaced with an empty journal, and reported in
+`auth.why`. No saved intent from that record is replayed. If preservation fails,
+sign-in still succeeds but writes stay blocked until storage is repaired.
+
+This pre-release format does not automatically import earlier session keys or
+ownerless app journals: the earlier SecureStore names were ambiguous. Those old
+bytes remain untouched; sign in again after upgrading. Local device outboxes and
+server data are unchanged.
+
+Browser Web Locks serialize journal updates and session replacement/deletion
+across tabs. A refused bearer clears only the same token still in storage; it
+cannot delete a successor saved by another tab. Explicit logout revokes any
+stored successor it clears. Custom stores shared across independent non-browser
+processes need one active app writer because `SessionStore` has no atomic update
+primitive. Storage errors remain errors; they never authorize an unstored send. A failed
+startup keeps the client signed out. Logout retries failed credential deletion
+even when a prior outbox save failed.
+
+The lower-level clients remain available for development personas and hosts that
+already manage their own session lifetime:
 
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
 
@@ -146,8 +219,8 @@ Successful publication likewise preserves its affected-watch reruns before
 host recovery. Failed startup releases the store lock. Runtime bytes
 become the offline entry only after initialization and cache persistence; if
 that save fails, the same bytes may retry, while changing the initialized
-runtime requires reloading the page. The application still owns its offline
-HTML/JavaScript shell.
+runtime requires reloading the page. `snapback4 web-shell <dir>` supplies the static offline
+HTML/JavaScript shell for exported apps.
 
 The client owns the session, link, transport and read observation. Its options: `url`; `device`;
 one of `persona` (development), `session` (from `snapback4/auth`, kept
@@ -1255,8 +1328,8 @@ ESM package): wasm is a Metro asset, and the transformer
 turns the web device's module-relative wasm URL into an asset dependency.
 On web, `webDevice()` then finds the emitted wasm URL without a manual
 `wasm` option, in development and in an Expo web export. Keep both generated
-files when customizing Metro. The starter selects native or online on phones;
-select `webDevice()` when adding a local-first web client.
+files when customizing Metro. The starter selects native or online on phones and `webDevice()` on web.
+`npm run build:web` runs `expo export -p web && snapback4 web-shell dist`.
 The resolver blockList excludes `.snapback4/` store trees (including SQLite
 sidecars, assets and generated runtime files) while preserving Expo's existing
 exclusions; keep this entry when customizing Metro.
@@ -1264,34 +1337,29 @@ exclusions; keep this entry when customizing Metro.
 The same client runs on React Native over the native module — the
 `snapback4-expo` package, §7.1 — in a development or production build.
 Expo Go loads no custom native code and no wasm under Hermes, so an app
-there runs the online tier with a session it keeps itself. Normalize session
-keys for SecureStore, as the Expo starter does:
+there runs the online tier, with `createApp` keeping the session and pending writes. Session and journal keys already use an injective SecureStore-safe encoding;
+pass them through unchanged, as the Expo starter does:
 
 ```ts
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { createLocalClient } from "snapback4/local";
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
-import { createClient } from "snapback4/client";
-import { guest, keepSession, restoreSession } from "snapback4/auth";
-const url = "http://127.0.0.1:4400";
+import { webDevice } from "snapback4/web";
+
 const sessionStore = {
-  get: (key: string) => SecureStore.getItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
-  set: (key: string, value: string) => SecureStore.setItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_"), value),
-  delete: (key: string) => SecureStore.deleteItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
+  get: (key: string) => SecureStore.getItemAsync(key),
+  set: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  delete: (key: string) => SecureStore.deleteItemAsync(key),
 };
-async function kept() {
-  const restored = await restoreSession(url, sessionStore);
-  if (restored) return restored;
-  const signedIn = await guest(url);
-  if (!signedIn.ok) throw new Error(signedIn.why.message);
-  await keepSession(url, signedIn.session, sessionStore);
-  return signedIn.session;
-}
-const local = nativeAvailable()
-  ? await createLocalClient({ url, guest: true, sessionStore, device: nativeDevice })
-  : null;
-if (local?.link() === "online") await local.sync();
-const client = local ?? createClient({ url, session: await kept() });   // Expo Go
+export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
+export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native" : "online";
+// Browser persistence is explicit: scripts on the page can read the token.
+export const app = createApp({ url,
+  sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
+  device: tier === "web" ? webDevice() : tier === "native" ? nativeDevice : undefined,
+});
 ```
 
 `snapback4/react` works unchanged. Pass `assets: { keep: "viewed", maxBytes }`

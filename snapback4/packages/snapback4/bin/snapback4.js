@@ -7,6 +7,12 @@
 import { spawn } from "node:child_process";
 import { resolveBinary } from "../dist/resolve-binary.js";
 
+if (process.argv[2] === "web-shell") {
+  try { await (await import("./web-shell.js")).runWebShell(process.argv.slice(3)); }
+  catch (error) { console.error(`E_INPUT at web-shell: ${error.message}\n  rewrite: export a static app, then run snapback4 web-shell dist --base /`); process.exit(2); }
+  process.exit(0);
+}
+
 let binary;
 try { binary = resolveBinary(); }
 catch (error) { console.error(error.message); process.exit(2); }

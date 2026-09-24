@@ -141,12 +141,18 @@ export function createClient(options: ClientOptions): Client {
 
   let credentialRevision = 0;
   let refreshing: Promise<SignIn> | null = null;
+  let rotatingSession: Promise<SignIn> | null = null;
+  let stopRefresh!: () => void;
+  const refreshStopped = new Promise<SignIn>(resolve => {
+    stopRefresh = () => resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
+  });
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   const refreshBeforeExpiry = 24 * 60 * 60 * 1000;
 
   const endCredentials = () => {
     if (!credentials) return;
     session = null;
+    stopRefresh();
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
@@ -215,9 +221,12 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
+    const rotation = rotateSession(base, token, doFetch);
+    rotatingSession = rotation;
     const work = (async (): Promise<SignIn> => {
-      const refreshed = await rotateSession(base, token, doFetch);
-      if (closed) return { ok: false, why: ended() };
+      const refreshed = await Promise.race([rotation, refreshStopped]);
+      // An ordinary close still owns an in-flight rotation's replacement.
+      // Sign-out separately ends credentials and cancels adoption.
       if (!credentials) return { ok: false, why: auth() };
       credentialRevision += 1;
       if (!refreshed.ok) {
@@ -233,13 +242,15 @@ export function createClient(options: ClientOptions): Client {
       headers.authorization = `Bearer ${session.token}`;
       setViewer(session.principal as Principal);
       for (const listener of [...sessionListeners]) listener(session);
-      setLink("online");
-      for (const watch of watches.values()) void refresh(watch);
-      scheduleRefresh();
+      if (!closed) {
+        setLink("online");
+        for (const watch of watches.values()) void refresh(watch);
+        scheduleRefresh();
+      }
       return refreshed;
     })();
     refreshing = work;
-    void work.finally(() => { if (refreshing === work) refreshing = null; }).catch(() => {});
+    void work.finally(() => { if (refreshing === work) refreshing = null; if (rotatingSession === rotation) rotatingSession = null; }).catch(() => {});
     return work;
   }
 
@@ -592,9 +603,14 @@ export function createClient(options: ClientOptions): Client {
       return revoked;
     },
     async signOut() {
-      if (refreshing) await refreshing;
       const bearer = headers.authorization?.slice("Bearer ".length);
+      const rotation = rotatingSession;
       endCredentials();
+      // A committed rotation may still deliver its successor. Revoke it without
+      // adopting it or letting a stalled response delay local sign-out.
+      if (rotation) void rotation.then(result => {
+        if (result.ok && result.session.token !== bearer) return logout(base, result.session.token, doFetch);
+      }).catch(() => {});
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
       if (bearer) await logout(base, bearer, doFetch);
@@ -610,14 +626,13 @@ export function createClient(options: ClientOptions): Client {
       watches.clear();
       linkListeners.clear();
       viewerListeners.clear();
-      sessionListeners.clear();
       for (const entry of pending) {
         const outcome = { state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } } as const;
         entry.resolve(outcome);
         emitWrite(outcome);
       }
       writeListeners.clear();
-      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; });
+      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); });
       return closing;
     },
   };

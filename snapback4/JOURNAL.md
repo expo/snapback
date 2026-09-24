@@ -47944,3 +47944,133 @@ Every failure is present in the host baseline; reproduction commands:
 No introduced or environmental failures occurred in this full run. Neither
 of the prior full runs' intermittent client failures recurred. Both round 2
 findings are handled; no additional open problem was found.
+
+## 2026-09-24 — LLP 3000.013 lane E: app-owned accounts and exported shells
+
+Implemented `snapback4/app` with auth state/actions, session restoration and
+rotation, account-fenced client replacement, local-device outbox reuse, and
+per-account durable online intents recovered with their original IDs and
+arguments. Added `AppProvider`/`useAuth` without changing the Client contract.
+Credential-storage failures keep authenticated clients hidden, preserve
+uncertain writes, and allow logout cleanup to be retried; signed-out completion
+waits for credential deletion. Web persistence remains explicit.
+
+The JS CLI shim now owns `snapback4 web-shell`: every exported static file is
+precached in a content-hashed cache, every HTML entry registers idempotently,
+and offline navigations recover the shell. Cross-origin requests pass through;
+API responses do not enter the shell cache. The JS implementation needs no
+platform binary. Generated Expo and Vite starters use the app API and finish
+their web builds with that command. The README first screen replaces its
+handwritten account controller with the same forms.
+
+Measured: 29 focused app/React/shell tests passed; the final cleanup follow-up
+passed all 10 app tests. Generated Expo/web entrypoints typecheck, the language
+guide passed 55 tests, and the Rust initializer passed 18. Chromium restored a
+fresh offline page, then reloaded, with shell, account and replica intact after
+both backend and shell server stopped (1,483 ms witness, not a speed claim).
+The broader starter journey passed account isolation, original-ID ordered
+replay with no duplicate rows, receipt persistence and guest credential
+clearing. Its failed worker-only update step remains unqualified after three
+attempts: the fixture did not observe the expected failed asset download, and
+no installing/waiting worker appeared. The 3-round fix-loop rule stops that
+investigation; the worker's unit cases pass. Reproduction and logs are in the
+[lane report](./reports/20260924-lane-e-client.md).
+
+Latest complete `scripts/test.sh`: **`== 1 failure(s) in 100 s`** (cargo test).
+All four failures also occur in the untouched host baseline: legacy schema
+capabilities, the search wasm fixture, authoring census and the why-operation
+cost-output assertion. Client tests: 1,009 passed, 10 skipped, zero failed.
+The final small logout-everywhere storage-error change was checked with the
+10-test targeted app run afterward. An earlier full run also had a raw-HTTP
+action-settlement socket closure; its targeted rerun and later full runs
+passed. This is recorded as intermittent/environmental, not a proven baseline
+failure. No affected suite failure remains attributable to this lane.
+
+Did not alter engine authority, disclosure, meters, the Client contract, Quarry
+syntax or reference-app calibration modes. Did not run a native Expo simulator
+on Linux, claim integrated target-Clique qualification, push or publish. Custom
+SessionStores shared concurrently by separate non-browser processes remain
+unsupported because the existing store card has no compare-and-swap; browser
+tabs use Web Locks. Detailed files, examples, decisions and open reproductions
+are in the same lane report.
+
+
+## 2026-09-24 — LLP 3000.013 lane E review round 1
+
+Addressed all five Astra Medium findings in `cfadff4d9`. Logout invalidates
+per-opener session persistence and deletes credentials outside the network
+queue; late restoration cannot restore them. Ordinary close retains rotation
+ownership until the replacement is persisted. Shared online journal owners
+notify their own hooks independently and finish their argument reservations
+after durable settlement. Shell navigations now use the active build's cached
+HTML online too, so waiting-deployment HTML cannot escape its asset set.
+
+Measured: 37 focused app/custody/React/shell tests passed, plus all 11 online
+session tests. Real-server races hold schema/logout/rotation responses and
+prove credential deletion or successor preservation as appropriate. The shared
+300-write test measures at most 256 retained argument identities and zero
+pending reservations for each owner; the React test proves both pending hooks
+settle after only one durable retirement. Both Chromium witnesses pass. The
+expanded starter witness now qualifies its previously timed-out failed-update
+phase, old-tab asset retention, activation, and an unused lazy chunk loaded
+offline after online navigation while the next deployment waits. No assertion
+was skipped. The earlier timeout's exact cause remains unisolated; it is not
+claimed to be a pre-existing witness defect. Cold-offline shell/account/replica
+reopen passed with both servers stopped (1,431 ms, not a performance claim).
+
+Final complete suite: **`== 2 failure(s) in 123 s`**, cargo and client aggregates.
+The four Rust failures match the untouched host baseline (legacy schema
+capabilities, search wasm fixture, authoring census, why cost output). Client
+results were 1,016 passed, 10 skipped and one intermittent `ECONNRESET` in the
+unchanged retained-history test's raw HTTP request to its restarted fixture
+server; that exact test passed an isolated rerun. An earlier 149-second full
+run also caught the old assertion that ordinary close discards a rotation;
+it was deliberately updated and now passes, including proof that closed
+clients still refuse new work. Exact test names, logs and reproductions are in
+[the review report](./reports/20260924-lane-e-review1.md).
+
+Did not alter authorization, disclosure, meters, Client vocabulary or ceilings;
+did not run a native Expo simulator, push or publish. The second review family
+is still pending. The original handoff report links forward to this result.
+
+
+## 2026-09-24 — LLP 3000.013 lane E review round 2: storage ownership
+
+Addressed all four Grok findings in `3bbb80328`. Session and journal key
+segments now use injective fixed-width hexadecimal encoding before reaching
+any store; generated and documented SecureStore adapters pass keys through
+unchanged. Journals record backend and owner and every pending intent carries
+its owner. Foreign or malformed records are preserved under a separate key,
+then an empty owned journal opens with an `auth.why` warning. If preservation
+fails, original bytes remain, sign-in succeeds, and writes stay blocked until
+preservation is possible.
+
+Failed app opens now revoke and clear their kept bearer before publishing
+signed-out. Session replacement and deletion use the same Web Lock, and a
+server refusal deletes only the same token still stored, preserving another
+tab's rotated successor. Explicit clearing revokes a successor it drops.
+
+Measured: all 73 final affected tests passed. The generated Expo Go adapter
+keeps four formerly colliding principal pairs and colliding backend URLs
+separate. A foreign recorded intent never dispatches even at the correct safe
+key. Real-server tests prove failed-open cleanup before state publication and
+stale-refresh preservation for online and local clients. Corrupt JSON, invalid
+shapes, unavailable preservation and quarantine-name entropy failure are
+covered. Both generated starters and README examples typecheck. Both Chromium
+witnesses pass, including offline account/replica reopen with both servers
+stopped (1,498 ms, not a performance claim) and full starter deployment updates.
+
+Complete suite: **`== 1 failure(s) in 145 s`**, cargo aggregate only. Client
+results: 1,030 passed, 10 skipped, zero failed. The same four Rust tests fail
+in the untouched baseline: legacy schema capabilities, search wasm fixture,
+authoring census and why cost output. A final quarantine-name failure guard
+and its test were verified by the 73-test affected run after that snapshot.
+Exact names, reproduction commands and the corrected initial focused failure
+are in [the review report](./reports/20260924-lane-e-review2.md).
+
+The pre-release storage format changes: ambiguous old keys and ownerless
+journals cannot be safely imported automatically. Their bytes remain untouched;
+sign in again after upgrading and recover old records only with verified
+ownership. Local device outboxes and server data do not change. Did not change
+engine authorization, disclosure, meters, Client vocabulary or ceilings; did
+not run a native Expo simulator, push or publish.
