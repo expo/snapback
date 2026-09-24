@@ -77,31 +77,86 @@ fn source_heap<H: Host>(host: &mut H) {
 #[test] fn view_source_heap_sqlite() { source_heap(&mut Sqlite::new("intent-review-heap")); }
 
 fn nullable_membership<H: Host>(host: &mut H) {
-    let source = "table posts:\n  owner: principal ?\n  reader: principal\n  at: time\n  read <- .reader = viewer\n  sync to .reader\nview events:\n  posts { owner, reader, at }\nquery page(c: cursor ?):\n  return posts where .reader = viewer and .owner in [null, viewer, viewer] first 1 by .at after c\nquery projected(c: cursor ?):\n  return events where .reader = viewer and .owner in [null, viewer, viewer] first 1 by .at after c\n";
-    let (mut server, backend) = compile(source);
-    server.seed([("a", Value::Null, "alice"), ("b", id("alice"), "alice"), ("hidden", Value::Null, "bob")]
-        .map(|(key, owner, reader)| ("posts".into(), object([("id", id(key)), ("owner", owner), ("reader", id(reader)), ("at", Value::Int(1))])))).unwrap();
-    let mut device = host.open("intent-null", Some(backend)).unwrap();
-    for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
-    host.close("intent-null", device);
-    let mut device = host.open("intent-null", None).unwrap();
-    for query in ["page", "projected"] {
-        let mut cursor = None;
-        for key in ["a", "b"] {
-            let page = device.query(query, "alice", &json!({"c": cursor}), 10).unwrap();
-            assert!(page.complete, "{query}: {page:?}");
-            assert_eq!(page.data.as_array().unwrap().len(), 1);
-            assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &id(key));
-            cursor = page.next;
+    for (direction, expected) in [("first", ["a", "b", "c"]), ("last", ["c", "b", "a"])] {
+        let source = "table posts:\n  owner: principal ?\n  reader: principal\n  at: time\n  read <- .reader = viewer\n  sync to .reader\nview events:\n  posts { owner, reader, at }\nquery page(other: principal, c: cursor ?):\n  return posts where .reader = viewer and .owner in [null, viewer, other, viewer, other] first 1 by .owner after c\nquery projected(other: principal, c: cursor ?):\n  return events where .reader = viewer and .owner in [null, viewer, other, viewer, other] first 1 by .owner after c\n";
+        let source = source.replace("first 1 ", &format!("{direction} 1 "));
+        let (mut server, backend) = compile(&source);
+        server.seed([("a", Value::Null, "alice"), ("b", id("alice"), "alice"), ("c", id("bob"), "alice"),
+            ("hidden", Value::Null, "bob"), ("hiddenAlice", id("alice"), "bob"), ("hiddenBob", id("bob"), "bob")]
+            .map(|(key, owner, reader)| ("posts".into(), object([("id", id(key)), ("owner", owner), ("reader", id(reader)), ("at", Value::Int(1))])))).unwrap();
+        let name = format!("intent-null-{direction}");
+        let mut device = host.open(&name, Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        host.close(&name, device);
+        let mut device = host.open(&name, None).unwrap();
+        for query in ["page", "projected"] {
+            let mut cursor = None;
+            for key in expected {
+                let page = device.query(query, "alice", &json!({"c": cursor, "other": "bob"}), 10).unwrap();
+                assert!(page.complete, "{query}: {page:?}");
+                assert_eq!(page.data.as_array().unwrap().len(), 1);
+                assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &id(key));
+                cursor = page.next;
+            }
+            assert!(cursor.is_none());
         }
-        assert!(cursor.is_none());
-    }
-    let (_, backend) = compile(&source.replace("sync to .reader", "online only"));
-    let mut unknown = host.open("intent-null-unknown", Some(backend)).unwrap();
-    for query in ["page", "projected"] {
-        let page = unknown.query(query, "alice", &json!({"c": null}), 10).unwrap();
-        assert!(!page.complete && page.next.is_none(), "{query}: {page:?}");
+        let (_, backend) = compile(&source.replace("sync to .reader", "online only"));
+        let mut unknown = host.open(&format!("{name}-unknown"), Some(backend)).unwrap();
+        for query in ["page", "projected"] {
+            let page = unknown.query(query, "alice", &json!({"c": null, "other": "bob"}), 10).unwrap();
+            assert!(!page.complete && page.next.is_none(), "{query}: {page:?}");
+        }
     }
 }
 #[test] fn nullable_membership_memory() { nullable_membership(&mut Memory::new()); }
 #[test] fn nullable_membership_sqlite() { nullable_membership(&mut Sqlite::new("intent-null")); }
+
+fn literal_id_order<H: Host>(host: &mut H) {
+    for (direction, expected) in [("first", ["a", "b", "c"]), ("last", ["c", "b", "a"])] {
+        let source = format!("table t:\n  at: time\n  public 't'\n  sync public\nview v:\n  t {{ id, at }}\nquery page(c: cursor ?):\n  return v {direction} 1 by .id, .at after c\n");
+        let (mut server, backend) = compile(&source);
+        server.seed([("a", 3), ("b", 2), ("c", 1)].map(|(key, at)| ("t".into(), object([("id", id(key)), ("at", Value::Int(at))])))).unwrap();
+        let name = format!("intent-literal-id-{direction}");
+        let mut device = host.open(&name, Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        host.close(&name, device);
+        let mut device = host.open(&name, None).unwrap();
+        let mut cursor = None;
+        for (position, key) in expected.iter().enumerate() {
+            let page = device.query("page", "alice", &json!({"c": cursor}), 10).unwrap();
+            assert!(page.complete, "{direction}: {page:?}");
+            assert_eq!(page.data.as_array().unwrap().len(), 1);
+            assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &id(key));
+            assert_eq!(page.next.is_some(), position < 2);
+            cursor = page.next;
+        }
+    }
+}
+#[test] fn literal_id_order_memory() { literal_id_order(&mut Memory::new()); }
+#[test] fn literal_id_order_sqlite() { literal_id_order(&mut Sqlite::new("intent-literal-id")); }
+
+fn rejected_source_heap<H: Host>(host: &mut H) {
+    let source = "table posts:\n  body: text <=1000000\n  terms: text <=100\n  rank: int\n  search terms\n  public 'posts'\n  sync public\nview events:\n  posts { id, rank }\nquery filtered():\n  return events where .rank != 0 first 20\nquery words():\n  return events matching 'hello absent' first 20\n";
+    for size in [1, 1_000_000] {
+        let (mut server, backend) = compile(source);
+        server.seed((0..20).map(|n| ("posts".into(), object([
+            ("id", id(&format!("p{n:02}"))), ("body", Value::String("x".repeat(size))),
+            ("terms", Value::String("hello present".into())), ("rank", Value::Int(0)),
+        ])))).unwrap();
+        let mut device = host.open(&format!("intent-rejected-heap-{size}"), Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        for query in ["filtered", "words"] {
+            let page = device.query(query, "alice", &json!({}), 10).unwrap();
+            println!("{} {query}, rejected {size}-byte payloads: heap={}, complete={}", host.label(), page.metered.heap_bytes, page.complete);
+            assert!(page.next.is_none(), "{query}: {page:?}");
+            if size == 1 {
+                assert!(page.complete && page.data.as_array().unwrap().is_empty(), "every row must be rejected: {query}: {page:?}");
+            } else {
+                assert!(!page.complete && page.data == Value::Null, "{query}: {page:?}");
+                assert!(page.metered.heap_bytes >= snapback4_core::Ceilings::default().heap_bytes, "{query}: {page:?}");
+            }
+        }
+    }
+}
+#[test] fn view_rejected_heap_memory() { rejected_source_heap(&mut Memory::new()); }
+#[test] fn view_rejected_heap_sqlite() { rejected_source_heap(&mut Sqlite::new("intent-rejected-heap")); }

@@ -12,7 +12,9 @@ fn bound(source: &str) -> snapback4_lang::Bound {
 }
 fn seed() -> Vec<(String, Value)> {
     [("a", None, "alice", 1), ("b", Some("alice"), "alice", 1), ("c", None, "alice", 2),
-        ("d", Some("alice"), "alice", 2), ("hidden", None, "bob", 0), ("other", Some("bob"), "alice", 0)]
+        ("d", Some("alice"), "alice", 2), ("e", Some("bob"), "alice", 1), ("f", Some("bob"), "alice", 2),
+        ("hidden", None, "bob", 0), ("hiddenAlice", Some("alice"), "bob", 0),
+        ("hiddenBob", Some("bob"), "bob", 0), ("other", Some("charlie"), "alice", 0)]
         .into_iter().map(|(key, owner, reader, at)| ("posts".into(), object([
             ("id", Value::Id(key.into())), ("owner", owner.map(|v| Value::Id(v.into())).unwrap_or(Value::Null)),
             ("reader", Value::Id(reader.into())), ("at", Value::Int(at)), ("body", Value::String("hello".into())),
@@ -29,7 +31,7 @@ fn context(owners: Vec<Value>, cursor: Option<String>) -> Context {
     let owners = owners.into_iter().filter(|value| *value != Value::Null).collect();
     Context::new("alice", BTreeMap::from([("withNull".into(), Value::Bool(with_null)), ("owners".into(), Value::Array(owners)), ("c".into(), cursor.map(Value::String).unwrap_or(Value::Null))]))
 }
-fn owners() -> Vec<Value> { vec![Value::Null, Value::Id("alice".into()), Value::Null, Value::Id("alice".into())] }
+fn owners() -> Vec<Value> { vec![Value::Null, Value::Id("alice".into()), Value::Id("bob".into()), Value::Null, Value::Id("alice".into()), Value::Id("bob".into())] }
 fn ids(data: &Value) -> Vec<String> { data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()).collect() }
 
 #[test]
@@ -38,19 +40,24 @@ fn nullable_value_lanes_page_in_both_directions_with_words_and_projection() {
         assert_eq!(snapback4_core::ir::scans(&program.program).len(), 2,
             "{} must exercise value and null lanes", program.program.name);
     }
-    for direction in ["first", "last"] {
-        let mut engine = engine(&SOURCE.replace("first 1 ", &format!("{direction} 1 ")));
-        for query in ["page", "words", "projected"] {
-            let mut cursor = None;
-            let mut actual = Vec::new();
-            for _ in 0..6 {
-                let page = engine.query(query, context(owners(), cursor)).unwrap();
-                assert!(page.complete, "{query}: {page:?}");
-                actual.extend(ids(&page.data));
-                cursor = page.next;
-                if cursor.is_none() { break; }
+    for (order, expected) in [("at", vec!["a", "b", "e", "c", "d", "f"]), ("owner", vec!["a", "c", "b", "d", "e", "f"])] {
+        for direction in ["first", "last"] {
+            let mut engine = engine(&SOURCE.replace("first 1 ", &format!("{direction} 1 ")).replace("by .at", &format!("by .{order}")));
+            for query in ["page", "words", "projected"] {
+                let mut cursor = None;
+                let mut actual = Vec::new();
+                for _ in 0..6 {
+                    let page = engine.query(query, context(owners(), cursor)).unwrap();
+                    assert!(page.complete, "{query}: {page:?}");
+                    actual.extend(ids(&page.data));
+                    cursor = page.next;
+                    if cursor.is_none() { break; }
+                }
+                assert!(cursor.is_none(), "{query} {order} {direction}: final page still has a cursor");
+                let mut expected = expected.clone();
+                if direction == "last" { expected.reverse(); }
+                assert_eq!(actual, expected, "{query} {order} {direction}");
             }
-            assert_eq!(actual, if direction == "first" { vec!["a", "b", "c", "d"] } else { vec!["d", "c", "b", "a"] }, "{query}");
         }
     }
 }
@@ -74,7 +81,7 @@ fn nullable_value_discovery_cuts_never_publish_a_prefix_cursor() {
 fn nullable_lists_preserve_membership_deduplication_authorization_and_cuts() {
     let mut engine = engine(SOURCE);
     for (values, expected) in [(vec![], vec![]), (vec![Value::Null, Value::Null], vec!["a", "c"]),
-        (vec![Value::Id("alice".into())], vec!["b", "d"]), (owners(), vec!["a", "b", "c", "d"])] {
+        (vec![Value::Id("alice".into())], vec!["b", "d"]), (owners(), vec!["a", "b", "e", "c", "d", "f"])] {
         let page = engine.query("all", context(values, None)).unwrap();
         assert!(page.complete && page.next.is_none(), "{page:?}");
         assert_eq!(ids(&page.data), expected);
@@ -83,7 +90,7 @@ fn nullable_lists_preserve_membership_deduplication_authorization_and_cuts() {
     let distinct = engine.query("all", context(vec![Value::Id("alice".into())], None)).unwrap();
     assert_eq!(repeated.metered.examined, distinct.metered.examined, "duplicates cannot open extra scans");
     let private = engine.query("nonuniform", context(owners(), None)).unwrap();
-    assert_eq!(ids(&private.data), ["a", "b", "c", "d"]);
+    assert_eq!(ids(&private.data), ["a", "b", "e", "c", "d", "f"]);
     assert!(!private.complete && private.next.is_none(), "{private:?}");
     engine.set_ceilings(snapback4_core::Ceilings { examined: 1, ..Default::default() });
     let cut = engine.query("all", context(owners(), None)).unwrap();
@@ -119,5 +126,81 @@ fn nullable_membership_never_sends_a_null_prefix_to_the_store() {
         let meter = Meter::new(Default::default(), snapback4_core::meter::Cut::Cap);
         let mut runner = snapback4_core::engine::runner::Runner::new(&rows, &bound.schema, context(owners(), None), meter, 0);
         assert!(!runner.run(program).unwrap().as_array().unwrap().is_empty());
+    }
+}
+
+fn numeric_source(optional: bool, values: &str, order: &str, direction: &str, take: usize) -> String {
+    format!("table t:\n  at: int{}\n  public 'values'\nquery page(lo: int, c: cursor ?):\n  return t where .at in {values} {direction} {take} by .{order} after c\n", if optional { " ?" } else { "" })
+}
+
+fn numeric_rows(engine: &mut Engine, optional: bool) {
+    engine.seed((0..4).filter(|n| optional || *n != 0).map(|n| ("t".into(), object([
+        ("id", Value::Id(n.to_string())), ("at", if n == 0 { Value::Null } else { Value::Int(n) }),
+    ])))).unwrap();
+}
+
+fn numeric_pages(engine: &mut Engine) -> Vec<String> {
+    let mut cursor = None;
+    let mut actual = Vec::new();
+    for _ in 0..5 {
+        let page = engine.query("page", Context::new("alice", BTreeMap::from([
+            ("lo".into(), Value::Int(1)), ("c".into(), cursor.map(Value::String).unwrap_or(Value::Null)),
+        ]))).unwrap();
+        assert!(page.complete, "{page:?}");
+        actual.extend(ids(&page.data));
+        cursor = page.next;
+        if cursor.is_none() { return actual; }
+    }
+    panic!("cursor did not exhaust: {actual:?}");
+}
+
+#[test]
+fn ordered_nullable_membership_preserves_every_distinct_value() {
+    for (values, expected) in [("[null, 1, 2]", vec!["0", "1", "2"]), ("[1, 2]", vec!["1", "2"]), ("[2, 1, 2, null]", vec!["0", "1", "2"])] {
+        for direction in ["first", "last"] {
+            for take in [1, 10] {
+                let b = bound(&numeric_source(true, values, "at", direction, take));
+                let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+                numeric_rows(&mut engine, true);
+                let mut expected = expected.clone();
+                if direction == "last" { expected.reverse(); }
+                assert_eq!(numeric_pages(&mut engine), expected, "{values} {direction} {take}");
+            }
+        }
+    }
+}
+
+#[test]
+fn nullable_membership_accepts_nonnull_range_sources_without_a_fallback() {
+    for optional in [false, true] {
+        for values in ["range(1, 3)", "range(lo, lo + 2)", "range(3, 3)"] {
+            for order in ["id", "at"] {
+                for direction in ["first", "last"] {
+                    for take in [1, 10] {
+                        let b = bound(&numeric_source(optional, values, order, direction, take));
+                        assert_eq!(snapback4_core::ir::scans(&b.programs[0].program).len(), 1, "range cannot open a null fallback");
+                        let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+                        numeric_rows(&mut engine, optional);
+                        let mut expected = if values == "range(3, 3)" { vec![] } else { vec!["1", "2"] };
+                        if direction == "last" { expected.reverse(); }
+                        assert_eq!(numeric_pages(&mut engine), expected, "{optional} {values} {order} {direction} {take}");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn nullable_membership_mutations_preserve_both_authorized_owners() {
+    for direction in ["first", "last"] {
+        let source = format!("{SOURCE}\nmutation selected(owners: [principal] <=10):\n  return posts where .reader = viewer and .owner in [null, first(owners), last(owners)] {direction} 10 by .owner\n");
+        let mut engine = engine(&source);
+        let input = Context::new("alice", BTreeMap::from([("owners".into(), Value::Array(vec![Value::Id("alice".into()), Value::Id("bob".into())]))]));
+        let outcome = engine.mutate("selected", Some(direction), input).unwrap();
+        let snapback4_core::WriteState::Sent { result, .. } = outcome.state else { panic!("{outcome:?}") };
+        let mut expected = vec!["a", "c", "b", "d", "e", "f"];
+        if direction == "last" { expected.reverse(); }
+        assert_eq!(ids(&result), expected);
     }
 }

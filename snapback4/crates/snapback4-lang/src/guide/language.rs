@@ -43,7 +43,6 @@ table members:
   principal: principal
   role: enum('member', 'admin')
   joinedAt: time
-  by byRoomPrincipalRole: roomId, principal, role -- after-insert probes currently require this exact index
   unique roomId, principal else MEMBER_EXISTS -- one row per key
   cap 100 by roomId                                    -- at most N rows per group; a product limit
   immutable roomId, principal                          -- columns no update may change
@@ -407,6 +406,8 @@ view intentActivity:
   intentReposts { actor, at, repost: true }
 query intentPage(owner: principal, c: cursor ?):
   return intentPosts where .author = owner and not .removed last 20 by .at after c
+query intentIds(c: cursor ?):
+  return intentPosts first 20 by .id, .at after c -- table keys after id are redundant; uses byId
 query intentSearch(q: text <=100, c: cursor ?):
   return intentPosts matching q last 20 by .at after c
 query intentGlobal(c: cursor ?):

@@ -48766,3 +48766,105 @@ provider, push or publish. Existing compiler handoffs and metered task-parking
 limits remain documented. The complete file inventory, conflicts, forms,
 measurements and reproductions are in
 [the round 1 report](./reports/20260924-intent-integration-r1.md).
+
+## 2026-09-24 — LLP 3000.013 Lane A, nullable membership delta review
+
+Fixed both supplied Astra delta findings. Planned lanes now use the existing
+authored-merge dependency check and preserve lane-dependent residual selectors
+in eager setup. Deduplication remains bound to the original discovered value;
+each scan sees its own selector instead of the last lane's value. Range sources
+cannot produce null, so they bypass null fallback planning and binding.
+
+Before the fix, the scalar regression paged ids 0, 2 instead of 0, 1, 2,
+nullable-owner ordering omitted Alice's authorized rows, and optional-column
+range membership refused with E_QUARRY_TYPE. Added three language regressions
+for scalar list ordering, literal/dynamic/empty ranges and multi-owner mutation
+results. Expanded the shared fixture to two authorized owners, matching hidden
+rows and an authorized nonmatch. Plain, word and projected queries now test
+one-row pages ordered by the optional membership column in both directions.
+Strengthened the Memory and SQLite device tests with the same distinct-owner
+case after sync/reopen, retaining missing-coverage and disclosure assertions.
+
+All 93 affected language tests and 10 device view tests passed. The exact
+`scripts/test.sh` result is `== 1 failure(s) in 141 s`: only the unchanged
+baseline legacy schema equality assertion in `schema_capabilities_legacy`.
+There are no introduced or environmental failures. All 995 client tests passed,
+10 skipped. Full log: `/tmp/lane-a-delta-full-suite.log`; file-by-file evidence,
+examples and the baseline reproduction are in
+`reports/20260924-intent-lane-a-delta-review.md`. Reference and whitespace checks
+pass; changed source files stay below 1,500 lines.
+
+WASM stays at 1,736,564 B raw / 480,855 B gzip under the unchanged 481,000 B
+budget. Did not change the interpreter or serialized IR, broaden lazy merge
+preparation, relax authorization/admission, raise meters, import integration
+changes, fix baseline failures, push or publish. No design deviation.
+
+## 2026-09-24 — LLP 3000.013 Lane A, guide planner gaps and second delta review
+
+Named after-insert probes now synthesize an exact index over every named
+column in written order, including role beyond a covered unique key. The
+language card no longer needs its explicit role index. An aggregate access-path
+pass chooses a range seek for unpaged count, sum and exists without authored
+order; it prefers finite windows and then canonical column names, preserving
+existing scan admission. View cursors keep a literal id field in its written
+order instead of moving it behind later keys.
+
+Added exact-role transaction/rollback, digest seek, admission, ordering and
+planner tests, plus Memory/SQLite regressions for literal-id pages after reopen
+in both directions and rejected 1 MB source rows. All 114 affected tests pass.
+In an isolated checkout of integration cf803ffcafcb4ce8e1e585fffe70be444679940f,
+all five runtime tests pass, including capped and uncapped count/sum/exists
+using Lane D's existing streaming binder. The live integration checkout was
+not modified. Existing nullable-membership and range regressions still pass.
+
+The rejected-row Memory fixtures cut at 20,012,761 B (residual) and 20,015,237 B
+(second word); SQLite cuts at 18,011,619 B and 18,014,448 B respectively. Moving
+the payload charge after rejection makes both Memory cases incorrectly return
+complete empty pages at 46,681 B and 21,277 B, and the new tests fail. Restored
+the engine byte-for-byte before final verification; this round changes no
+runtime or serialized IR. WASM remains 1,736,564 B raw / 480,855 B gzip under
+the unchanged 481,000 B budget.
+
+Stopped the prescribed table-cursor change under the design-stop instruction.
+For `t first 1 by .id, .at after c`, appending id after dedup produces
+`(id, at, id)`, which core schema validation rejects as duplicate column id.
+Without that append the table form still refuses with E_CURSOR_INDEX. It needs
+a supervisor decision about cursor admission or index schema, recorded with
+both reproductions in `reports/20260924-intent-lane-a-followup-review.md`.
+Did not silently reorder id, alter uniqueness, relax schema validation,
+authorization or admission, increase meters, import Lane D, push or publish.
+
+Exact full-suite result: `== 1 failure(s) in 171 s`. Only the unchanged baseline
+legacy schema equality test in schema_capabilities_legacy fails; there are no
+introduced or environmental failures. All 995 client tests pass, 10 skipped.
+Full log: `/tmp/lane-a-followup-full-suite.log`. Reference and whitespace checks
+pass; changed source files remain below 1,500 lines. The report records the
+file-by-file changes, forms, test proofs, lane boundary and open design stop.
+
+## 2026-09-24 — LLP 3000.013 Lane A, final table-order ruling
+
+Implemented the supervisor's ruling resolving the prior table-cursor design
+stop. Authored table orders truncate at the first id before view expansion and
+predicate/index planning. `t first 1 by .id, .at after c` now uses only byId
+and has identical executable IR, table/index schema, pages and opaque cursor
+tokens to `by .id`; both ascending and descending pages are verified. Keys
+before id remain effective. View orders retain keys after id because separate
+branches can carry the same source id. Original read spellings remain available
+for diagnostics and cost explanations.
+
+Added three regressions for table plan/page equality (plain, middle-id, pinned,
+value-lane and word reads), nested reads including view projection expressions,
+and union pages whose branch ids collide. The latter verifies later timestamps
+still order equal ids in both directions. The language card includes a compiled
+example; the reads card and LLP record the ruling. All 117 affected tests pass,
+including prior nullable/range and Memory/SQLite view regressions. No runtime,
+IR, uniqueness, schema-validation, authorization, admission or meter changes;
+no design deviation, push or publication.
+
+Exact full-suite result: `== 1 failure(s) in 142 s`, only the unchanged baseline
+schema_capabilities_legacy equality test. No introduced or environmental
+failures. All 995 client tests pass, 10 skipped; WASM remains 1,736,564 B raw /
+480,855 B gzip under the unchanged budget. Reference and whitespace checks pass;
+changed source files remain below 1,500 lines. Full log:
+`/tmp/lane-a-final-order-full-suite.log`; file-by-file report and reproductions:
+`reports/20260924-intent-lane-a-final-order.md`.

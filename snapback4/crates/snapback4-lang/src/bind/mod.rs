@@ -17,6 +17,7 @@ mod time_indexes;
 mod timeline;
 mod feed_view;
 mod intent;
+mod intent_aggregates;
 mod intent_walk;
 mod intent_views;
 mod view_predicate;
@@ -53,6 +54,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
     catalog.feed_views = feeds;
+    intent::table_order(&mut catalog);
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);

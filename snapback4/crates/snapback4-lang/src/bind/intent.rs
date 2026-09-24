@@ -12,6 +12,30 @@ pub(super) struct Requests {
     errors: Vec<Diagnostic>,
 }
 
+// @ref LLP 3000.013#2.1 — intrinsic id resolves every table-local tie.
+// Normalize authored table reads before view expansion: a view's shared order
+// must retain later keys because different branches can carry the same id.
+pub(super) fn table_order(catalog: &mut Catalog) {
+    let mut normalize = |value: &mut Expr| {
+        if let Expr::Read(read) | Expr::Exists { read, .. } = value
+            && catalog.tables.contains_key(&read.table)
+            && let Some(id) = read.order_keys.iter().position(|column| column == "id")
+            && id + 1 < read.order_keys.len() {
+            catalog.read_origins.entry(read.site.to_string()).or_insert_with(|| crate::print::read_expr(read));
+            read.order_keys.truncate(id + 1);
+        }
+    };
+    for doc in &mut catalog.documents {
+        walk::document(doc, &mut normalize);
+        for view in &mut doc.views {
+            for branch in &mut view.branches {
+                if let Some(predicate) = &mut branch.predicate { walk::expression(predicate, &mut normalize); }
+                walk::shape(&mut branch.fields, &mut normalize);
+            }
+        }
+    }
+}
+
 impl Requests {
     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {
         self.index_computed(table, columns, words, BTreeMap::new(), site, exact)
@@ -137,6 +161,7 @@ impl Requests {
 
 // @ref LLP 3000.013#2.1 — canonical pins and stable, shared schema indexes.
 pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
+    super::intent_aggregates::order(catalog);
     let tables = catalog.tables.clone();
     let mut requests = Requests::default();
     for table in catalog.tables.values_mut() {
@@ -156,7 +181,15 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         }
         for (value, _) in &mut table.decl.final_exists {
             walk::expression(value, &mut |value| {
-                if let Expr::Exists { read, .. } | Expr::Created { read, .. } = value { requests.read(&tables, read, true); }
+                // @ref LLP 3000.013#2.3 — FinalExistsOnInsert has no residual-equality carrier: every
+                // named condition must be part of the exact key, in written order.
+                if let Expr::Exists { read, .. } = value
+                    && read.index.is_none() && !read.keys.is_empty()
+                    && read.keys.iter().all(|key| key.column.is_some())
+                    && let Some(target) = tables.get(&read.table)
+                    && super::validate_key_names(read).is_ok() {
+                    read.index = Some(requests.index(target, read.keys.iter().filter_map(|key| key.column.clone()).collect(), None, &read.site, true));
+                }
             });
         }
         // An audience's content prefix must be enumerable too. The target's
@@ -280,7 +313,7 @@ pub(super) fn independent(value: &Expr) -> bool {
         _ => false,
     }
 }
-fn equality(value: &Expr, table: &TableInfo) -> Option<(String, Expr)> {
+pub(super) fn equality(value: &Expr, table: &TableInfo) -> Option<(String, Expr)> {
     if let Expr::Binary { op, left, right, .. } = value && op == "=" {
         if let Some(column) = column(left) && independent(right) { return Some((column.into(), *right.clone())); }
         if let Some(column) = column(right) && independent(left) { return Some((column.into(), *left.clone())); }
@@ -289,7 +322,7 @@ fn equality(value: &Expr, table: &TableInfo) -> Option<(String, Expr)> {
     let column = column(value)?;
     (table.columns.get(column)?.kind == TypeKind::Bool).then(|| (column.into(), Expr::Literal { value: Literal::Bool(boolean), site: value.site().clone() }))
 }
-fn comparison(value: &Expr) -> Option<(String, String, Expr)> {
+pub(super) fn comparison(value: &Expr) -> Option<(String, String, Expr)> {
     let Expr::Binary { op, left, right, .. } = value else { return None; };
     if !matches!(op.as_str(), "<" | "<=" | ">" | ">=") { return None; }
     if let Some(column) = column(left) && independent(right) { return Some((column.into(), op.clone(), *right.clone())); }

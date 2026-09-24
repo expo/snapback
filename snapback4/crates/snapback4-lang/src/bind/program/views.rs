@@ -26,6 +26,15 @@ impl Binder<'_> {
             } else { (None, String::new()) };
             let distinct = lane.distinct.as_ref().map(|value| self.expr(value, out).map(|(value, _)| value)).transpose()?;
             let mut setup = setup::Body::default();
+            // @ref LLP 3000.007#20.12 — as with authored merges, a lane-dependent
+            // residual needs its own selector in eager setup. Deduplication
+            // above still reads the original discovery binding.
+            if let Some((name, _)) = &lane.loop_
+                && read.filter.as_ref().is_some_and(|filter| lanes::filter_uses_lane(filter, name)) {
+                let selector = self.temp("selector");
+                self.scopes.last_mut().expect("lane scope").get_mut(name).expect("lane binding").runtime = selector.clone();
+                setup.push(Stmt::Let { name: selector, value: ir::var(&binding) });
+            }
             let (mut scan, _) = self.scan_at(&read, &mut setup, position)?;
             scan.after = cursor.as_ref().map(|(value, _)| Box::new(value.clone()));
             scan.opaque_cursor = cursor.is_some();
@@ -81,7 +90,9 @@ impl Binder<'_> {
             Some(Ty::RowShape(fields)) => fields.clone(), _ => result.unwrap_or_default(),
         };
         let mut names = merge.view_order.clone();
-        names.retain(|name| name != "id"); names.push("id".into());
+        // Keep the projected order aligned with each branch's source scan,
+        // including an explicitly ordered id before another field.
+        if !names.iter().any(|name| name == "id") { names.push("id".into()); }
         let mut suffix = names.into_iter().map(|name| {
             let kind = fields.get(&name).and_then(cursor_kind).ok_or_else(|| type_error(&merge.site,
                 format!("view order .{name} has no scalar column type"), "order by a field projecting a scalar source column in every branch"))?;
@@ -96,7 +107,8 @@ impl Binder<'_> {
     // @ref LLP 3000.013#2.1 — nullable membership is an ordinary filtered lane,
     // below source authorization; no null value is used as an index prefix.
     fn push_value_lane(&mut self, lanes: &mut Vec<MergeLane>, ast: &ast::MergeLane, mut lane: MergeLane, position: prefix::Position) -> Fallible<()> {
-        if let Some((_, read)) = &ast.nulls {
+        if let Some((_, read)) = &ast.nulls
+            && !matches!(&lane.source, Some(ir::LaneSource::Range { .. })) {
             let Some(ir::LaneSource::List { value, max }) = lane.source.take() else {
                 return Err(type_error(&ast.site, "nullable in needs a bounded list", "use a bounded list argument or expression after in"));
             };
