@@ -39,7 +39,10 @@ async function fixture(t, tier, respond, refresh = async () => {}, store = async
       storeName = args[0];
       const core = await device.open(...args);
       return { ...core, call: async request => {
-        if (request.op === "forget_upload_facts") await forget();
+        if (request.op === "forget_upload_facts") {
+          const injected = await forget();
+          if (injected) return injected;
+        }
         const result = await core.call(request);
         if (request.op === "upload_facts") { facts.push(request.asset); await store(); }
         return result;
@@ -205,6 +208,36 @@ test("web close waits until interrupted upload receipt deletion finishes", { tim
     why: { code: "E_CLOSED", family: "client", message: "this client is closed" } } });
   assert.equal(results[1].status, "fulfilled");
   assert.equal(await receipt(), null);
+});
+
+for (const ending of ["rotation", "close"]) test(`web upload keeps the session refusal when receipt deletion is denied after ${ending}`, { timeout: 10_000 }, async t => {
+  const entered = deferred(), stored = deferred(), forgetting = deferred(), removed = deferred();
+  let deletions = 0;
+  const storageRefusal = { code: "E_STORE", family: "store", message: "injected receipt deletion refusal" };
+  const { client, requests, receipt } = await fixture(t, "web", async () => Response.json({ asset }), undefined,
+    async () => { entered.resolve(); await stored.promise; },
+    async () => { deletions++; forgetting.resolve(); await removed.promise; return { denied: storageRefusal }; });
+  t.after(() => { stored.resolve(); removed.resolve(); });
+  const uploading = client.upload(bytes);
+  const settled = Promise.allSettled([uploading]);
+  await entered.promise;
+  assert.deepEqual(JSON.parse(await receipt()), asset);
+  let closing;
+  if (ending === "close") closing = client.close();
+  else assert.equal((await client.refreshSession()).ok, true);
+  stored.resolve();
+  await forgetting.promise;
+  // Also close the rotated owner while the refused cleanup is pending.
+  closing ??= client.close();
+  removed.resolve();
+  const [result] = await settled;
+  await closing;
+  assert.deepEqual(result, { status: "fulfilled", value: { ok: false, why: ending === "close"
+    ? { code: "E_CLOSED", family: "client", message: "this client is closed" }
+    : { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } } });
+  assert.equal(deletions, 1);
+  assert.deepEqual(requests, ["Bearer old"]);
+  assert.deepEqual(JSON.parse(await receipt()), asset, "the injection really refused deletion; it did not silently clean up");
 });
 
 test("web upload fences close in every microtask between receipt persistence and upload settlement", { timeout: 10_000 }, async t => {

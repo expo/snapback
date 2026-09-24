@@ -681,8 +681,10 @@ in-flight result. A changed bearer or a refresh still in
 progress returns `E_AUTH` with a request to start the upload again. A completed
 failed refresh that kept the same bearer preserves the upload result and
 admission retries. An upload never returns an old session's success or replays
-its bytes under the replacement bearer. Refused local upload receipts are
-removed before returning the refusal.
+its bytes under the replacement bearer. The local client attempts receipt
+removal before returning a session refusal. If storage refuses that cleanup,
+`upload()` still returns `{ ok: false, why }` with the session refusal, and
+`close()` waits for the cleanup attempt to finish.
 
 ```ts
 import type { Client } from "snapback4/contract";

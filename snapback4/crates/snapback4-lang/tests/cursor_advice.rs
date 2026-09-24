@@ -56,12 +56,12 @@ fn a_page_without_a_cap_does_not_invent_one_from_a_reference() {
 }
 
 #[test]
-fn two_caps_choose_the_first_declared_group_not_the_smallest_cap() {
-    let schema = SCHEMA.replace("cap 10 by messageId", "cap 10 by messageId\n  cap 3 by assetId");
+fn multiple_caps_choose_the_first_declared_group_not_an_extreme_cap() {
+    let schema = SCHEMA.replace("cap 10 by messageId", "cap 10 by messageId\n  cap 3 by assetId\n  cap 100 by assetId");
     let bound = compile(&[("chat.q".into(), format!("{schema}query page():\n  return attachments first 50 by .id\n"))]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let rewrite = &bound.notes.iter().find(|note| note.code == "N_NO_CURSOR").unwrap().rewrite;
     assert!(rewrite.contains("attachments where .messageId = messageId"), "{rewrite}");
     assert!(rewrite.contains("cap 10 by messageId"), "{rewrite}");
-    assert!(!rewrite.contains("assetId") && !rewrite.contains("cap 3"), "{rewrite}");
+    assert!(!rewrite.contains("assetId") && !rewrite.contains("cap 3") && !rewrite.contains("cap 100"), "{rewrite}");
 }

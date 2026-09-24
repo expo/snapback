@@ -1325,8 +1325,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // No helper-promise gap between this check and settling upload().
           why = interrupted();
           if (why) {
-            const removed = await core.call({ op: "forget_upload_facts", viewer: principal, id: uploaded.asset.id });
-            if (removed.denied) throw new Error(JSON.stringify(removed.denied));
+            // A cleanup refusal cannot replace the upload's session refusal.
+            await core.call({ op: "forget_upload_facts", viewer: principal, id: uploaded.asset.id });
             return { ok: false, why };
           }
           return stored.denied ? { ok: false, why: stored.denied } : uploaded;

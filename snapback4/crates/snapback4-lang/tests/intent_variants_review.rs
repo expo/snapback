@@ -185,6 +185,10 @@ fn engine_parks_an_unrecorded_conditional_sweep_instead_of_skipping_it() {
                 else { LoopDomain::DerivedArray { value, max: 1, bound_source: "list".into() } };
             unsupported.push(Stmt::For { binding: "row".into(), domain, body: Vec::new() });
         }
+        unsupported.push(Stmt::For { binding: "row".into(), domain: LoopDomain::ExpressionRange {
+            start: lit(Value::Int(0)),
+            end_exclusive: Expr::Block { body: vec![statement.clone()], value: Box::new(lit(Value::Int(1))) },
+        }, body: Vec::new() });
         // Inlined helpers may also place work inside a body's expression.
         unsupported.push(Stmt::For { binding: "row".into(), domain: LoopDomain::LiteralRange { start: 0, end_exclusive: 1 }, body: vec![Stmt::Let {
             name: "value".into(), value: Expr::Block { body: vec![statement.clone()], value: Box::new(lit(Value::Int(0))) },
