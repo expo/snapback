@@ -39,20 +39,28 @@ For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
 
-E_RULE reports a write-rule refusal or a hidden unique-key collision, subject
-to the target's readability. For a collision with another hidden row, ordinary
-`insert` and `insert ... if absent` return E_RULE. An update or upsert-patch
-returns E_RULE when its target was readable before the write, and NOT_FOUND
-when its target was unreadable. For an unreadable target, rule denial, a failed
-update condition or a secondary unique clash returns NOT_FOUND without row,
-index, column or branch detail. A missing point-write target or an incomplete
-upsert insert patch also returns NOT_FOUND. A readable target permits E_CONFLICT
-with a read-rule `current`, named E_CONSTRAINT and E_INPUT details. Reads hide
-rows instead of raising E_RULE. Keep the rule and make the write satisfy it;
-use an admitted `upsert` to patch another principal's row. Do not infer absence
-from NOT_FOUND on a blind write.
+`insert` and `insert ... if absent` return E_RULE when the insert rule denies
+the viewer. A unique clash with a hidden row returns E_RULE for either insert
+form. For a readable secondary unique clash without a custom refusal, ordinary
+insert returns E_CONSTRAINT naming the index, while `insert ... if absent`
+succeeds with null. If the update rule denies an update or upsert-patch, it
+returns E_RULE for a readable target and NOT_FOUND for an unreadable target. A
+valid update or upsert-patch admitted by the update rule can change a hidden
+row; if the resulting row remains hidden, it returns null. Without a custom
+unique refusal, an update or upsert-patch with a secondary unique clash returns
+NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is
+unreadable, and E_CONSTRAINT naming the index if both are readable. For rule
+denial, an update condition or a secondary unique clash on an unreadable target,
+NOT_FOUND carries no row, index, column or branch detail. A missing update
+target or an incomplete upsert insert patch returns NOT_FOUND. An update
+condition on an unreadable target returns NOT_FOUND even if it would match; on a
+readable target, a false condition returns E_CONFLICT with a read-rule
+`current`. Delete returns NOT_FOUND for a missing id, and E_RULE if an existing
+row's delete rule refuses, whether that row is readable or hidden. Reading a
+hidden row returns null. Use a write admitted by its rule; NOT_FOUND on an
+update or upsert-patch does not prove absence.
 
-| Target before the write | Refusal details |
+| Update/upsert target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
 | Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |

@@ -285,11 +285,16 @@ fn why_rule_distinguishes_readable_and_unreadable_collision_targets() {
     assert!(summary.contains("An unreadable update/upsert target instead returns NOT_FOUND"), "{summary}");
     assert!(summary.contains("without row, index, column or branch detail"), "{summary}");
     let section = text.split_once("\n\n").unwrap().1.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Write-executing witnesses: snapback4-lang/tests/guide/rules.rs:
+    // insert_collision_visibility, update_rule_refusals, admitted_hidden_updates,
+    // update_collision_visibility and delete_rule_refusals.
     for fact in [
-        "ordinary `insert` and `insert ... if absent` return E_RULE",
-        "returns E_RULE when its target was readable before the write, and NOT_FOUND when its target was unreadable",
-        "NOT_FOUND without row, index, column or branch detail",
-        "Do not infer absence from NOT_FOUND on a blind write",
+        "A unique clash with a hidden row returns E_RULE for either insert form.",
+        "For a readable secondary unique clash without a custom refusal, ordinary insert returns E_CONSTRAINT naming the index, while `insert ... if absent` succeeds with null.",
+        "If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target.",
+        "A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null.",
+        "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_CONSTRAINT naming the index if both are readable.",
+        "Delete returns NOT_FOUND for a missing id, and E_RULE if an existing row's delete rule refuses, whether that row is readable or hidden.",
     ] {
         assert!(section.contains(fact), "{fact}: {section}");
     }

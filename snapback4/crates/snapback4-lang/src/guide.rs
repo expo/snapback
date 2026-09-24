@@ -158,7 +158,7 @@ An observed server-run query re-runs after commits touching its tables.
 Offline it returns its last server answer, held in memory for this client's
 lifetime, with fresh: false and since. Without one it refuses E_OFFLINE
 (family link, retryable). It never answers an empty device page as server data.
-Show the read as unavailable and reconnect before refreshing the server query.
+On E_OFFLINE, show the read as unavailable and reconnect before refreshing the server query.
 
 ## Operations
 
@@ -349,8 +349,10 @@ the engine mutex. Uploads are online only; there is nothing to queue.
 Upload a supported kind within the column bound; downscale oversized uploads,
 resize images or shorten videos to fit the media limits. Upload the bytes again
 for a second home. Fetch a once asset without Range; a consumed view cannot be
-retried by that principal. For an unknown asset, use the intended viewer's live
-session and a readable home row; missing and hidden stay indistinguishable."##,
+retried by that principal. For an unknown asset on download, use the intended
+viewer's live session; a placed asset also needs a live, readable home row.
+Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
+a readable home row does not grant upload ownership."##,
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,
         "programs" => programs::CARD,

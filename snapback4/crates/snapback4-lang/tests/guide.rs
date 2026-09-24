@@ -1190,3 +1190,8 @@ mod intent;
 
 #[path = "guide/definitions.rs"]
 mod definitions;
+
+#[path = "guide/rules.rs"]
+mod rules;
+#[path = "guide/recovery.rs"]
+mod recovery;

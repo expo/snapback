@@ -24,19 +24,34 @@ fn why_bound_defines_the_ceiling_and_withheld_count() {
 #[test]
 fn why_rule_carries_the_target_visibility_contract() {
     let text = excerpt(&explain_code("E_RULE").unwrap());
-    for fact in [
-        "For a collision with another hidden row, ordinary `insert` and `insert ... if absent` return E_RULE.",
-        "An update or upsert-patch returns E_RULE when its target was readable before the write, and NOT_FOUND when its target was unreadable.",
-        "For an unreadable target, rule denial, a failed update condition or a secondary unique clash returns NOT_FOUND without row, index, column or branch detail.",
-        "A missing point-write target or an incomplete upsert insert patch also returns NOT_FOUND.",
-        "A readable target permits E_CONFLICT with a read-rule `current`, named E_CONSTRAINT and E_INPUT details.",
-        "Reads hide rows instead of raising E_RULE.",
-        "use an admitted `upsert` to patch another principal's row",
-        "Do not infer absence from NOT_FOUND on a blind write.",
-    ] {
-        assert!(text.contains(fact), "E_RULE excerpt omits {fact}: {text}");
-    }
-    assert!(!text.contains("table below"), "the excerpt must stand alone");
+    // Each sentence is paired with a write-executing test in rules.rs.
+    let facts = [
+        // [rules::insert_rule_refusals](rules.rs)
+        "`insert` and `insert ... if absent` return E_RULE when the insert rule denies the viewer.",
+        // [rules::insert_collision_visibility](rules.rs)
+        "A unique clash with a hidden row returns E_RULE for either insert form.",
+        // [rules::insert_collision_visibility](rules.rs)
+        "For a readable secondary unique clash without a custom refusal, ordinary insert returns E_CONSTRAINT naming the index, while `insert ... if absent` succeeds with null.",
+        // [rules::update_rule_refusals](rules.rs)
+        "If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target.",
+        // [rules::admitted_hidden_updates](rules.rs)
+        "A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null.",
+        // [rules::update_collision_visibility](rules.rs)
+        "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_CONSTRAINT naming the index if both are readable.",
+        // [rules::update_rule_refusals / update_conditions / update_collision_visibility](rules.rs)
+        "For rule denial, an update condition or a secondary unique clash on an unreadable target, NOT_FOUND carries no row, index, column or branch detail.",
+        // [rules::missing_update_and_incomplete_upsert](rules.rs)
+        "A missing update target or an incomplete upsert insert patch returns NOT_FOUND.",
+        // [rules::update_conditions](rules.rs)
+        "An update condition on an unreadable target returns NOT_FOUND even if it would match; on a readable target, a false condition returns E_CONFLICT with a read-rule `current`.",
+        // [rules::delete_rule_refusals](rules.rs)
+        "Delete returns NOT_FOUND for a missing id, and E_RULE if an existing row's delete rule refuses, whether that row is readable or hidden.",
+        // [rules::admitted_hidden_updates](rules.rs)
+        "Reading a hidden row returns null.",
+        // [rules::update_rule_refusals / admitted_hidden_updates / missing_update_and_incomplete_upsert](rules.rs)
+        "Use a write admitted by its rule; NOT_FOUND on an update or upsert-patch does not prove absence.",
+    ];
+    assert_eq!(text, format!("# Rules {}", facts.join(" ")), "every sentence needs a write-executing witness");
 }
 
 #[test]
@@ -202,7 +217,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_ROUTE_RESULT", "Invalid responses refuse E_ROUTE_RESULT terminally, because external effects may already have happened."),
     ("E_ROUTE_UNKNOWN", "A changed route declaration refuses E_ROUTE_GENERATION; unavailable work or authority refuses E_ROUTE_UNKNOWN."),
     ("E_ROUTE_VERIFY", "Return `false` for an invalid signature: HTTP 403 with E_ROUTE_VERIFY, with no durable admission."),
-    ("E_RULE", "E_RULE reports a write-rule refusal or a hidden unique-key collision, subject to the target's readability."),
+    ("E_RULE", "`insert` and `insert ... if absent` return E_RULE when the insert rule denies the viewer."),
     ("E_RUN_BUSY", "E_RUN_BUSY means local `run` spent its 15-second contention deadline waiting for SQLite BUSY/LOCKED during store opening or schema adoption."),
     ("E_RUN_SOURCE_CHANGED", "E_RUN_SOURCE_CHANGED means `run` saw a source edit or could no longer read its source before admission."),
     ("E_SCHEDULE", "E_SCHEDULE means the clock cannot call the named target with its supplied authority and arguments."),
