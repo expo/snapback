@@ -147,6 +147,15 @@ fn expression_origin(value: &Expr, bindings: &Bindings, include_cursorless: bool
         Expr::Scan(scan) if include_cursorless || scan.opaque_cursor => {
             Some(Origin::Page(scan.site.clone(), scan_cursor(scan, bindings)))
         }
+        Expr::Merge(merge) if merge.position.is_some() => {
+            // Projected lanes clear their source cursors: the view owns the
+            // shared position, including when the page is nested in a record.
+            let after = merge.position.as_ref().unwrap().after.as_deref();
+            let cursor = match after.and_then(|value| expression_origin(value, bindings, false)) {
+                Some(Origin::Cursor(name)) => Some(name), _ => None,
+            };
+            (include_cursorless || after.is_some()).then(|| Origin::Page(merge.site.clone(), cursor))
+        }
         Expr::Merge(merge) if include_cursorless || merge.lanes.iter().all(|lane| lane.scan.opaque_cursor) => {
             let mut cursor = None;
             for lane in &merge.lanes {

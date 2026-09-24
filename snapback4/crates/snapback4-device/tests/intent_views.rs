@@ -36,3 +36,42 @@ fn unknown_branch<H: Host>(host: &mut H) {
 }
 #[test] fn union_unknown_branch_memory() { unknown_branch(&mut Memory::new()); }
 #[test] fn union_unknown_branch_sqlite() { unknown_branch(&mut Sqlite::new("intent-unknown")); }
+
+fn ordered_wrapped<H: Host>(host: &mut H) {
+    let source = "table posts:\n  at: time\n  public 'posts'\n  sync public\nview events:\n  posts { source: .id, at }\nquery page(c: cursor ?):\n  return { events: events first 1 by .source, .at after c }\n";
+    let (mut server, backend) = compile(source);
+    server.seed([("a", 3), ("b", 2), ("c", 1)].map(|(key, at)| ("posts".into(), object([("id", id(key)), ("at", Value::Int(at))])))).unwrap();
+    let mut device = host.open("intent-review-order", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+    host.close("intent-review-order", device);
+    let mut device = host.open("intent-review-order", None).unwrap();
+    let mut cursor = None;
+    for key in ["a", "b", "c"] {
+        let page = device.query("page", "alice", &json!({"c": cursor}), 10).unwrap();
+        assert!(page.complete, "{page:?}");
+        assert_eq!(page.data.field("events").unwrap().as_array().unwrap()[0].field("id").unwrap(), &id(key));
+        cursor = page.next;
+    }
+    assert!(cursor.is_none());
+}
+#[test] fn ordered_wrapped_view_memory() { ordered_wrapped(&mut Memory::new()); }
+#[test] fn ordered_wrapped_view_sqlite() { ordered_wrapped(&mut Sqlite::new("intent-review-order")); }
+
+fn source_heap<H: Host>(host: &mut H) {
+    let source = "table posts:\n  body: text <=1000000\n  public 'posts'\n  sync public\nview events:\n  posts { id }\nquery page():\n  return events first 20\nquery small():\n  return events first 1\n";
+    let (mut server, backend) = compile(source);
+    server.seed((0..20).map(|n| ("posts".into(), object([("id", id(&format!("p{n:02}"))), ("body", Value::String("x".repeat(1_000_000)))])))).unwrap();
+    let mut device = host.open("intent-review-heap", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "alice", 1).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+    let page = device.query("page", "alice", &json!({}), 10).unwrap();
+    println!("{} projected 20 MB source: heap={}, complete={}, next={:?}", host.label(), page.metered.heap_bytes, page.complete, page.next);
+    assert!(!page.complete && page.next.is_none(), "{page:?}");
+    assert!(page.metered.heap_bytes >= snapback4_core::Ceilings::default().heap_bytes, "{page:?}");
+    // Even the one-row shape fetches and retains source lookahead. The memory
+    // store shares its row bodies; they still belong to this read's heap bound.
+    let small = device.query("small", "alice", &json!({}), 10).unwrap();
+    println!("{} one-row projection with source lookahead: heap={}", host.label(), small.metered.heap_bytes);
+    assert!(small.metered.heap_bytes >= 3_000_000, "{small:?}");
+}
+#[test] fn view_source_heap_memory() { source_heap(&mut Memory::new()); }
+#[test] fn view_source_heap_sqlite() { source_heap(&mut Sqlite::new("intent-review-heap")); }

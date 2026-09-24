@@ -11,6 +11,11 @@ impl Binder<'_> {
         let mut lanes = Vec::new();
         let mut result: Option<BTreeMap<String, Ty>> = None;
         let mut first_site = None;
+        // Queries retain the view's shared cursor identity. A non-query with
+        // one source is an ordinary admitted scan followed by a row shape;
+        // representing it as a merge would reject safe capped mutations.
+        let plain = self.caller_kind != ProgramKind::Query && merge.lanes.len() == 1
+            && merge.lanes[0].project.is_some() && merge.lanes[0].loop_.is_none();
         for lane in &merge.lanes {
             let mut read = *lane.planned.clone().expect("planned lane");
             if let Some(range) = &mut read.range { range.cursor = None; }
@@ -38,7 +43,20 @@ impl Binder<'_> {
             let guard = super::super::intent::conjunction(conjuncts.into_iter().filter(super::super::intent::independent).collect());
             let guard = guard.map(|guard| self.expr(&guard, out).map(|(value, _)| value)).transpose()?;
             let mut projection_setup = setup::Body::default();
-            let (project, ty) = self.shape_object("$project", Ty::Row(read.table.clone()), lane.project.as_ref().expect("view projection"), &lane.site, &mut projection_setup)?;
+            let project_binding = if plain { self.temp("view_row") } else { "$project".into() };
+            let (project, ty) = self.shape_object(&project_binding, Ty::Row(read.table.clone()), lane.project.as_ref().expect("view projection"), &lane.site, &mut projection_setup)?;
+            if plain {
+                scan.merge_site = None;
+                scan.after = cursor.as_ref().map(|(value, _)| Box::new(value.clone()));
+                let max = scan.take.maximum() as u32;
+                let target = self.temp("view_rows");
+                out.extend(setup);
+                out.push(Stmt::Let { name: target.clone(), value: Expr::Array(Vec::new()) });
+                projection_setup.push(Stmt::Push { target: target.clone(), value: project });
+                out.push_for(project_binding, LoopDomain::Page(scan), projection_setup);
+                self.pop_scope();
+                return Ok((ir::var(&target), Ty::Collection(Box::new(ty), max)));
+            }
             let fields = match ty { Ty::RowShape(fields) | Ty::Object(fields) => fields, _ => unreachable!("shape object") };
             if let Some(prior) = &mut result {
                 if prior.keys().ne(fields.keys()) {

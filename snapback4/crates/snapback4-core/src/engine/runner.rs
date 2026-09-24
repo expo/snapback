@@ -92,6 +92,8 @@ pub struct Runner<'a> {
     /// Matching scopes share one validated cursor image within a query.
     /// Validated view position translated to one source index, scoped to its scan.
     pub(super) view_seek: Option<(String, crate::cursor::CursorPosition)>,
+    /// Projected source scans pay for fetched payloads before discarding fields.
+    pub(super) view_scan_active: bool,
     pub(super) word_cursor: Option<(String, crate::cursor::CursorPosition)>,
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,
@@ -195,6 +197,7 @@ impl<'a> Runner<'a> {
             pages: BTreeMap::new(),
             word_cursor: None,
             view_seek: None,
+            view_scan_active: false,
             discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),

@@ -795,13 +795,18 @@ impl Runner<'_> {
         let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
         let mut crossed = false;
-        let metered_word = word.is_some_and(|w| w.metered);
-        if metered_word { self.meter.heap(word_heap::bounds(&bounds))?; }
+        let metered_payload = word.is_some_and(|w| w.metered) || self.view_scan_active;
+        if metered_payload { self.meter.heap(word_heap::bounds(&bounds))?; }
         let mut cursor = bounds.clone();
         let batch = if visibility.uniform { take + 1 } else { (take + 1).max(32) };
         'outer: loop {
-            let fetched = if metered_word { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
+            let fetched = if metered_payload { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
                 else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
+            // The store ledger prices allocation (shared memory row handles
+            // are cheap). A view also retains the full source payload while
+            // scanning, even for rejected rows and fields its shape omits.
+            // Charge the entire fetched buffer before filtering or projecting.
+            if self.view_scan_active { self.meter.heap(fetched.iter().map(|(row, _)| row.heap_bytes()).sum())?; }
             if fetched.is_empty() {
                 break;
             }
@@ -815,9 +820,9 @@ impl Runner<'_> {
                     break 'outer;
                 }
                 // Decode scratch and the retained seek position, before decoding the key.
-                if metered_word { self.meter.heap(word_heap::key_decode(index.components.len() + 1, key.len()))?; }
+                if metered_payload { self.meter.heap(word_heap::key_decode(index.components.len() + 1, key.len()))?; }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
-                if metered_word { self.meter.heap(word_heap::materialize(&row, table))?; }
+                if metered_payload { self.meter.heap(word_heap::materialize(&row, table))?; }
                 materialize_optional_fields(&mut row, table);
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
@@ -827,7 +832,7 @@ impl Runner<'_> {
                 // first word still has to carry the rest.
                 let unmatched = if let Some(word) = word.filter(|word| !word.terms.is_empty()) {
                     let texts = word.fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok()));
-                    let tokens = if metered_word { word_heap::tokenize(&mut self.meter, texts)? } else { crate::words::row_tokens(texts) };
+                    let tokens = if metered_payload { word_heap::tokenize(&mut self.meter, texts)? } else { crate::words::row_tokens(texts) };
                     !crate::words::row_matches(&tokens, &word.terms)
                 } else { false };
                 if unmatched {
@@ -858,10 +863,10 @@ impl Runner<'_> {
                     }
                     let Some(row) = aggregate else { continue; };
                     let row = super::recorded::public_image(table, row);
-                    if metered_word { self.meter.heap(word_heap::allocation(key.len()))?; }
+                    if metered_payload { self.meter.heap(word_heap::allocation(key.len()))?; }
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
-                        if metered_word { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
+                        if metered_payload { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
                         let prior = self.env.insert("$filter".into(), row.clone());
                         // @ref LLP 3000.007#20.22 — predicate reads are below the page; restore depth even when evaluating one fails.
                         let page_depth = self.page_depth;
@@ -872,7 +877,7 @@ impl Runner<'_> {
                         self.page_depth = page_depth;
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
                         let matched = matched?.as_bool()?;
-                        if metered_word { self.meter.heap(word_heap::text(&scan.site))?; }
+                        if metered_payload { self.meter.heap(word_heap::text(&scan.site))?; }
                         self.meter.at(&scan.site);
                         if self.read_capped() {
                             capped = true;
@@ -891,7 +896,7 @@ impl Runner<'_> {
                         has_more = true;
                         break 'outer;
                     }
-                    if metered_word {
+                    if metered_payload {
                         // Charge retention of a store-provided row and the emitted raw key
                         // before either output vector grows; moves do not copy row bodies.
                         self.meter.heap(word_heap::allocation(key.len()))?;

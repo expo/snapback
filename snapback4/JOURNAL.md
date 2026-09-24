@@ -47562,3 +47562,34 @@ after the needed id get a separate canonical index. The inherited expression
 printer's omitted grouping in some cost explanations remains a presentation
 issue; execution is covered. These limits and concrete reproductions are in
 the report. No package was published and no commit was pushed.
+
+## 2026-09-24 — LLP 3000.013 Lane A, first review corrections
+
+Fixed all six supplied Astra findings: preserve projected id aliases in source
+ordering and cursor seeks; assign wrapped projected pages to ViewPosition.after;
+charge projected scans' store allocations, fetched source payloads, materialization
+and retention before projection; retain ordered nullable equality as a residual;
+lower one-source non-query views through ordinary admitted scans plus shapes;
+and restore the audience-uniqueness test with named probes and a compiling
+positive control. Audited the 70 pre-existing test/fixture files changed by the
+lane for refusal assertions masked by positional resolution. Added seven language
+regressions and four device regressions (memory and SQLite, including reopen).
+
+Focused checks passed: 7 review regressions, 8 device view tests, 25 simulator
+review tests and 94 affected language tests. `scripts/test.sh` ended exactly
+`== 1 failure(s) in 198 s`; the only failure is the baseline legacy schema
+round-trip assertion in `schema_capabilities_legacy`, with no introduced or
+environmental failures. All 995 client tests passed (10 skipped). Full evidence
+and the baseline's script-step versus Rust-target count correction are in
+`reports/20260924-intent-lane-a-review-1.md`; full log:
+`/tmp/lane-a-review-full-suite.log`.
+
+The 20 MB id-only view now hits heap with no continuation: 18,010,681 B on the
+server, 20,009,121 B on a memory device and 18,010,683 B on SQLite. A one-row
+memory projection charges 3,004,795 B including fetched source lookahead.
+WASM is 1,736,220 B raw / 480,743 B gzip, +484 / +119 over the reviewed artifact;
+the 481,000 B budget is unchanged. These are whole-artifact deltas. Did not
+change authorization, raise a meter, import Lane D's streaming implementation,
+redesign query view cursors, fix baseline failures, push or publish. Integration
+must combine the projected-scan metering condition with Lane D's existing
+metered-payload conditions. Grok findings were not supplied in this turn.

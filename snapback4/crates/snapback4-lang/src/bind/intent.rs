@@ -63,7 +63,8 @@ impl Requests {
                     // Keep the full ordered suffix in every projected branch,
                     // even when the predicate fixes one of its order fields.
                     if read.order_keys.contains(&column) || column == "id" {
-                        if read.order_keys.first().map(String::as_str).unwrap_or("id") == column {
+                        if read.order_keys.first().map(String::as_str).unwrap_or("id") == column
+                            && !table.columns.get(&column).is_some_and(|ty| ty.optional) {
                             for op in [">=", "<="] {
                                 residual.push(Expr::Binary { op: op.into(), left: Box::new(Expr::Member { base: Box::new(Expr::Focal { site: predicate.site().clone() }), name: column.clone(), site: predicate.site().clone() }), right: Box::new(value.clone()), site: predicate.site().clone() });
                             }
@@ -82,8 +83,11 @@ impl Requests {
         columns.extend(pins.keys().filter(|column| read.computed.contains_key(*column)).cloned());
         let mut order = read.order_keys.clone();
         if order.is_empty() { order.push("id".into()); }
-        order.retain(|column| column != "id" && !pins.contains_key(column));
-        order.push("id".into());
+        // A projected field may alias id before another order key. Moving it
+        // changes the lane's order relative to the view's shared cursor.
+        let mut seen = std::collections::BTreeSet::new();
+        order.retain(|column| !pins.contains_key(column) && seen.insert(column.clone()));
+        if !order.iter().any(|column| column == "id") { order.push("id".into()); }
         let words = if read.matching.is_some() {
             let fields = if !table.decl.search.is_empty() { table.decl.search.clone() }
                 else {

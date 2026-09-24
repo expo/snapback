@@ -97,7 +97,10 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
     // 8: a second disjunct admits viewers the sync never delivers to.
     refused(CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and"), "sync cannot infer an audience");
     // 7: a non-unique audience index would revoke a group another row still grants.
-    refused(CHAT.replace("memberships[.conversationId, viewer]", "memberships[conversationId = .conversationId, principal = viewer]").replace("unique byConversationPrincipal: conversationId, principal", "by byConversationPrincipal: conversationId, principal"), "positional rule probe");
+    let audience = "table memberships:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  read <- exists memberships[conversationId = .conversationId, principal = viewer]\n  sync to memberships[.conversationId]\n";
+    let valid = snapback4_lang::compile(&[("schema.q".into(), audience.into())]);
+    assert!(valid.diagnostics.is_empty(), "{:?}", valid.diagnostics);
+    refused(audience.replace("unique byConversationPrincipal:", "by byConversationPrincipal:"), "must be unique");
     // 2: the recipient column is the probe's, not any principal column of the target.
     refused(
         CHAT.replace("  role: enum('member', 'admin')\n", "  role: enum('member', 'admin')\n  invitedBy: principal\n")
