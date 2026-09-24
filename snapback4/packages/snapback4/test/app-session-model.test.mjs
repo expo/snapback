@@ -184,3 +184,13 @@ test("I12 local close retains a body delivered while cleanup awaits another runt
   { op: "refreshFault", app: 0, account: 1, hold: true, fault: { kind: "get", at: 7 } },
   { op: "handleQuery", app: 1, fault: { kind: "delete", at: 10 } }, { op: "close", app: 1 },
 ], {}, "local"));
+
+for (const tier of ["online", "local"]) test(`I12 ${tier}: the full terminal oracle catches an in-memory refusal-message corruption`, async () => {
+  const commands = [{ op: "guest", app: 0 }, { op: "handleMutate", app: 0, refuse: true }];
+  await execute(commands, {}, tier);
+  let mutated = false;
+  await assert.rejects(execute(commands, {}, tier, { mutateOutcome(result) {
+    if (result.state === "failed") { result.why.message = "corrupted refusal message"; mutated = true; }
+  } }), /I12.*corrupted refusal message/);
+  assert.equal(mutated, true);
+});

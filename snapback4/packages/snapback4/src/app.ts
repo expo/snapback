@@ -1,5 +1,7 @@
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
 import { createClient } from "./client.ts";
+import { holdClose } from "./closing-responses.ts";
+import { waitForCaller } from "./request-wait.ts";
 import { prepareClient, waitForRotation } from "./client-start.ts";
 import { createLocalClient, type DeviceOpener, type LocalOptions, type LocalClient } from "./local.ts";
 import { storeLock, sessionEpoch, StorageWarning } from "./app-storage.ts";
@@ -188,6 +190,7 @@ export function createApp(options: AppOptions): App {
   let owner: (Scope & { client: Client }) | undefined;
   let operations: Promise<unknown> = Promise.resolve();
   let closed = false;
+  const closeWaits = new AbortController();
   let revision = 0;
   let cancelSignIn: (() => void) | undefined;
   let recoveryAbort: AbortController | undefined;
@@ -631,7 +634,7 @@ export function createApp(options: AppOptions): App {
             // Block new rotations, but let the one already dispatched adopt
             // and persist its successor before selecting the global bearer.
             selected.sealing = true;
-            await selected.waitRotation?.();
+            await waitForCaller(selected.waitRotation?.() ?? Promise.resolve(), closeWaits.signal);
             if (closed || revision !== expected || owner !== selected || !selected.valid) return inactive();
             const session = selected.client.session();
             if (!session) return inactive();
@@ -654,7 +657,8 @@ export function createApp(options: AppOptions): App {
             if (revision === expected) hide();
             if (!await revocations.hasGlobal()) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions", site: "app.auth.logoutEverywhere", rewrite: "await app.auth.login(email, password)" } };
           }
-          const result = await revocations.drain();
+          // Close detaches this network wait; drain still owns its late acknowledgement.
+          const result = await waitForCaller(revocations.drain(), closeWaits.signal) ?? inactive();
           if (revision === expected && !closed) reportResult(result);
           return result;
         } catch (error) {
@@ -692,14 +696,21 @@ export function createApp(options: AppOptions): App {
       publish("signed-out", null, problem(error)); return { ok: false, why: problem(error) };
     }
   });
+  let closingApp: Promise<void> | undefined;
   function closeApp(): Promise<void> {
+    if (closingApp) return closingApp;
+    let resolve!: () => void, reject!: (error: unknown) => void;
+    closingApp = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
+    const finish = [...scopes].map(scope => holdClose(scope.client));
     cancelSignIn?.(); recoveryAbort?.abort();
-    closed = true; ++revision; hide();
-    return enqueue(async () => {
+    closed = true; closeWaits.abort(); ++revision; hide();
+    void enqueue(async () => {
       await release(); await current.close();
       await revocations.flushAcknowledged().catch(report);
       listeners.clear();
-    });
+    }).then(() => { for (const release of finish) release(); resolve(); },
+      error => { for (const release of finish) release(); reject(error); });
+    return closingApp;
   }
   return {
     auth, ready,

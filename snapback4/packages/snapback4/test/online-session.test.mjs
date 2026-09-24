@@ -203,7 +203,7 @@ test("online session: near-expiry rotates before a protected read; concurrent re
   assert.equal(refreshes, 1);
 });
 
-test("online session: a refresh rejects principal changes and preserves a replacement through ordinary close", async t => {
+test("online session: a refresh rejects principal changes and never adopts an unread replacement after close", async t => {
   for (const close of [false, true]) {
     const entered = deferred(), release = deferred();
     const client = createClient({ url: "https://principal.invalid", session: session("old"), fetch: async () => {
@@ -220,9 +220,10 @@ test("online session: a refresh rejects principal changes and preserves a replac
     const result = await refreshing;
     await closing;
     if (close) {
-      assert.equal(result.ok, true);
-      assert.equal(client.session()?.token, "next");
-      assert.deepEqual(observed, [result.session]);
+      assert.equal(result.ok, false);
+      assert.equal(result.why.code, "E_CLOSED");
+      assert.equal(client.session()?.token, "old", "ordinary close cannot adopt an unread successor");
+      assert.deepEqual(observed, []);
       assert.equal((await client.query(query, {})).denied.code, "E_CLOSED");
       assert.equal((await client.refreshSession()).why.code, "E_CLOSED");
     } else {

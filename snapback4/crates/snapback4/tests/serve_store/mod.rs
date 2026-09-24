@@ -79,3 +79,18 @@ fn query_and_mutation_replies_identify_the_evaluated_store_and_replay_head() {
         assert_eq!(recollected["head"], failed["head"]);
     }
 }
+
+#[test]
+fn an_idless_mutation_cannot_execute_on_the_wrong_store() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\nmutation change():\n  return 1\n");
+    let headers = "x-snapback-persona: alice\r\n";
+    let identity = body(&host.request("GET", "/probe", headers, ""))["store_id"].clone();
+    let payload = |store: Json| json!({ "args": {}, "store_id": store }).to_string();
+    let refused = body(&host.request("POST", "/m/change", headers, &payload(json!("another-store"))));
+    assert_eq!(refused["why"]["code"], "E_STORE_REPLACED");
+    assert_eq!(refused["head"], 0, "the idless request cannot commit on the replacement");
+    let accepted = body(&host.request("POST", "/m/change", headers, &payload(identity)));
+    assert_eq!(accepted["state"], "sent");
+    assert!(accepted["seq"].as_u64().unwrap() > 0);
+}

@@ -1,6 +1,7 @@
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
 import type { Client, Mutation, Refusal, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
+import { inheritClose } from "./closing-responses.ts";
 import { mintId } from "./client.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 
@@ -171,6 +172,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
+  inheritClose(client, raw);
   function pause() { active = false; stop(); listeners.clear(); unpersisted.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.

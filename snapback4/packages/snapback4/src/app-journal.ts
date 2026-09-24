@@ -16,9 +16,11 @@ export function observeJournalStore(journal: Journal, store: string): void {
 // @ref LLP 3000.013#6 — persist dispatch ownership before the request can execute.
 export function bindIntentStore(journal: Journal, intent: Intent, store: string | undefined): Terminal | undefined {
   if (store) observeJournalStore(journal, store);
+  // Admission may have survived a crash before dispatch binding. Even then,
+  // an unbound intent cannot migrate past the first observed store.
   const mismatched = intent.storeId
     ? intent.storeId !== store
-    : intent.dispatched !== false && (journal.changedStore || (journal.firstStore !== undefined && journal.firstStore !== store));
+    : journal.changedStore || (journal.firstStore !== undefined && journal.firstStore !== store);
   if (mismatched) {
     const refused: Terminal = { state: "failed", id: intent.id, why: { code: "E_STORE_REPLACED", family: "store",
       message: "the intent belongs to a different or unprovable store; whether it executed is unknown; do not retry automatically",

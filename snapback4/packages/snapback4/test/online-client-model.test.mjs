@@ -89,3 +89,11 @@ for (const seed of [774, 2592]) test(`integrated store fence survives an awaited
 
 test("R3 concurrent settlement retains the dispatch's previously persisted store binding", () => execute(
   generate(2140), 'app', {}, { journalSize: 256, oldestFailure: true, saturated: true }));
+
+test('R3 scheduled replay: a known terminal with a failed receipt save dedupes after same-store reopen', async () => {
+  const coverage = {};
+  await execute(['query', 'release', 'failStorage', 'write', 'release', 'close', 'failStorage', 'reopen', 'release'].map(op => ({ op })), 'app', coverage);
+  assert.ok(coverage['check.unpersisted-terminal'] > 0);
+  assert.ok(coverage['write.unpersisted-replayed'] > 0);
+  assert.ok(coverage['write.deduped'] > 0);
+});

@@ -218,7 +218,7 @@ test("media cleanup cannot postpone durable credential deletion", async t => {
   await promptly(ending);
 });
 
-test("ordinary close still preserves a rotated session that completes after close begins", async t => {
+test("ordinary close detaches an unread rotation and retires its later successor", async t => {
   const entered = deferred(), release = deferred();
   const f = await fixture(t, { release: () => release.resolve(), refresh: async () => {
     entered.resolve(); await release.promise;
@@ -226,10 +226,10 @@ test("ordinary close still preserves a rotated session that completes after clos
   } });
   const rotating = f.client.refreshSession();
   await entered.promise;
-  const closing = f.client.close();
-  release.resolve();
-  assert.equal((await rotating).ok, true);
-  await closing;
-  assert.ok((await f.reload())?.token === "fixture-after-close", "ordinary close keeps the server's replacement credential");
-  assert.equal(f.logoutCalls(), 0);
+  await promptly(f.client.close());
+  assert.equal((await rotating).ok, false);
+  assert.equal((await f.reload())?.token, "fixture-original");
+  release.resolve(); await tick();
+  assert.equal((await f.reload())?.token, "fixture-original", "the unread successor is never installed after close");
+  assert.equal(f.logoutCalls(), 1, "the late unkept successor is retired once");
 });

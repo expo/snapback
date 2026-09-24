@@ -16,7 +16,11 @@ export const operations = [...round12Operations, 'recoverPending', 'refreshUnrea
 export function generate(seed, length = 32, vocabulary = operations) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
-  return [{ op: 'query' }, { op: 'release' }, { op: 'observe' },
+  // Preserve a scheduled I13/R3 witness when faster close changes the random
+  // interleavings: known terminal, failed receipt save, same-store reopen.
+  const receiptRestart = vocabulary === operations && seed % 32 === 2
+    ? ['query', 'release', 'failStorage', 'write', 'release', 'close', 'failStorage', 'reopen', 'release'].map(op => ({ op })) : [];
+  return [...receiptRestart, { op: 'query' }, { op: 'release' }, { op: 'observe' },
     ...Array.from({ length }, () => ({ op: vocabulary[choose(vocabulary.length)], pick: choose(100), holdReturn: choose(4) === 0 }))];
 }
 const microtasks = async () => { for (let i = 0; i < 100; i++) await Promise.resolve(); };

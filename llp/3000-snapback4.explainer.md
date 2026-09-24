@@ -1562,10 +1562,10 @@ time-ordered 128-bit form.
 
   Integration round 5 merged the lanes in nine parts. Where two lanes' client
   invariants conflicted, the supervisor ruled. The integrated suite has 0
-  failures, with 13,000 model sequences. Astra's blind review of the ruled
-  close and replay code found narrow defects: two concurrent calls with one
-  id, a held refresh at close, and a weakened oracle. Integration round 6
-  fixes them for 0.4.2. `snapback4@0.4.1` and `snapback4-expo@0.4.1`
+  failures, with 13,000 model sequences. The blind reviews of the ruled close
+  and replay code found narrow defects: two concurrent calls with one id, a
+  held refresh at close, an unbound intent after a crash, and a weakened
+  oracle. Integration round 6 fixed them before publication. `snapback4@0.4.1` and `snapback4-expo@0.4.1`
   follow, then calibration #20.
 
 ## 8. Implementation map

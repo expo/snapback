@@ -54981,3 +54981,53 @@ retirement was added. Did not push, publish, bump versions or run an iOS
 simulator on Linux. The complete file map, failure classification and release
 results are in reports/20260924-intent-integration-r5-final.md; evidence logs use
 ~/sb4-intent/integration-r5i-*.log.
+
+## 2026-09-24 — LLP 3000.013 integration round 6: part-h review fixes for 0.4.2
+
+Implemented all High/Medium findings in the completed Astra and Grok part-h
+reviews under the unchanged supervisor rulings. Each request invocation now
+retains its own response, and private close ownership extends its cutoff through
+public app.close's session cleanup. Close also releases queued auth network
+waits while background revocation keeps its late acknowledgement custody.
+Overlapping identical mutations share their
+submission's full outcome; conflicting arguments still refuse locally. Close
+stops waiting on unread refresh transport while consuming its late response and
+retiring the unkept successor. Local close awaits session persistence already in
+progress; close and sign-out use one retirement callback. Unbound online intent,
+including dispatched:false admission surviving a crash, cannot cross the
+journal's first observed store.
+
+Restored the session model's full terminal-outcome comparison and public-close
+cutoff observation. In-memory refusal-message corruption fails I12 on both
+online and real-wasm tiers. Added 37 online/wasm/native close-boundary cases,
+four undispatched journal cases and an ID-less wrong-store server test. Negative
+controls fail when ID-based consume-once capture, an early cutoff, closed receipt
+lookup, the unbound-admission exemption or the missing final server guard are
+reintroduced. The full J model retains every invariant and coverage requirement;
+a scheduled same-store replay prefix restores coverage lost to the faster close.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 345 s`**. E online 5,000,
+E real-wasm local 5,000 and J 3,000 sequences all pass. Main client process:
+1,522 tests, 1,512 pass, no failures, ten inherited explicit skips; separate
+shards pass. Guide 80/80, Clique Following/digest 3/3 and issue tracker 4/4 pass.
+README remains 300/300 lines. Wasm is unchanged at 1,765,796 raw / 491,640 gzip
+bytes, within the 492,000-byte ratchet with 360 bytes headroom. No device code
+or ratchet change. Ref-check: 507 LLP docs, 9,269 refs, zero errors and zero
+unchecked. Full suite evidence: ~/sb4-intent/integration-r6-suite-clean.log.
+
+The first complete suite was `== 3 failure(s) in 355 s`: package typecheck,
+package build and client tests. Fixed my misplaced TypeScript expression,
+duplicate successor revocation and obsolete unread-rotation expectations. The
+report names all ten client failures and their repairs. The real-server sign-out
+timeout passes alone after fixing its duplicate revocation. Two further full runs encountered shared-root
+ENOSPC: one lost its Rust status file (one failed stage in 424 s); another failed
+Cargo artifacts and 47 dependent client fixture cases (two stages in 248 s).
+Private test scratch and this lane's generated Cargo target used /dev/shm for
+qualification. After success and root-space recovery, the cache was restored
+to the normal target directory with its CLI checksum unchanged. No other lane's files
+were removed, and no environmental or baseline waiver substitutes for the
+final clean run. No new Quarry form, refusal code, engine behavior or limit was
+added. Existing process-loss, permanently lost refresh reply and bounded receipt
+history limits remain. No version bump, push, package publication or iOS simulator
+run. The report's round-6 section has the file map and review dispositions;
+evidence logs use ~/sb4-intent/integration-r6-*.log.

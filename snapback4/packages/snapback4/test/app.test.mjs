@@ -251,7 +251,7 @@ for (const tier of ["online", "local"]) test(`logout ${tier} deletes the bearer 
   await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${session.token}` } })).json()).denied?.code === "E_AUTH");
 });
 
-for (const tier of ["online", "local"]) test(`ordinary ${tier} app close keeps an in-flight rotation for the next runtime`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`ordinary ${tier} app close retires an unread rotation and reopening refuses its consumed predecessor`, { timeout: 20_000 }, async t => {
   const { url, dir } = await server(t), store = memorySessionStore();
   let release, rotated;
   const gate = new Promise(resolve => { release = resolve; });
@@ -269,16 +269,19 @@ for (const tier of ["online", "local"]) test(`ordinary ${tier} app close keeps a
   t.after(app.client.onSession(session => published.push(session?.token ?? null)));
   const original = app.client.session().token, refresh = app.client.refreshSession();
   await until(() => rotated);
-  const closing = app.close();
-  await delay(0); release();
-  assert.equal((await refresh).ok, true, "closing cannot replace the dispatched rotation's outcome"); await closing;
-  assert.deepEqual(published, [null], "the old session subscription cannot disclose the privately saved successor");
-  assert.equal((await restoreSession(url, store)).token, rotated.token);
+  await app.close();
+  assert.equal((await refresh).ok, false, "close ends the unread rotation's caller without waiting for its body");
+  release();
+  assert.deepEqual(published, [null], "the hidden session subscription cannot disclose a late successor");
+  assert.equal((await restoreSession(url, store)).token, original);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${rotated.token}` } })).json()).denied?.code === "E_AUTH");
   assert.notEqual(rotated.token, original);
   assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${original}` } })).json()).denied?.code, "E_AUTH");
-  app = createApp(options); assert.equal((await app.ready).ok, true);
-  assert.equal(app.auth.viewer, rotated.principal);
-  assert.deepEqual((await app.client.query(list, {})).data, []);
+  app = createApp(options); await app.ready;
+  assert.equal((await app.client.query(list, {})).denied?.code, "E_AUTH");
+  await until(() => app.auth.state === "signed-out", "the first protected read fences the consumed predecessor");
+  assert.equal(app.auth.viewer, null);
+  assert.equal((await app.auth.guest()).ok, true, "an explicit new sign-in can recover");
 });
 
 
