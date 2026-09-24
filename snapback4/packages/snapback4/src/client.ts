@@ -302,8 +302,9 @@ export function createClient(options: ClientOptions): Client {
     const json = result.json;
     if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq, nextExpiry: null };
     const at = Number(json.seq ?? 0);
-    const next = (json.next as Cursor | null | undefined) ?? null;
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
+    if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
+    const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
     return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
   }
@@ -347,6 +348,7 @@ export function createClient(options: ClientOptions): Client {
       } else if ("denied" in read && read.denied.code === "E_OFFLINE" && watch.lastServer) {
         watch.snapshot = { ...watch.lastServer, fresh: false, since: watch.lastServerAt };
       } else {
+        if ("loading" in read) watch.lastServer = null;
         watch.snapshot = read;
       }
       scheduleExpiry(watch, nextExpiry);

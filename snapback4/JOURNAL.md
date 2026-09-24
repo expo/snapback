@@ -49278,3 +49278,93 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+## 2026-09-24 — LLP 3000.013 Lane J: unavailable query values and safe pages
+
+Reproduced the ready-null failure with a live `snapback4 dev`, password
+accounts, `createApp` restoration and the real SQLite process device. The
+fixture starts a DM on the server before acquisition and observes history
+and the shell inbox together. Its cold snapshot keeps two of three messages
+(to make the builder's 10,000-row horizon inexpensive to cross). The inbox's
+streaming unread count cannot establish its entire domain. Before the fix,
+the device replies `data: null, complete: false, unknown: true`; `local()`
+turns that into a ready read and `first.result` exposes it offline or while
+a predictable write prevents online fallback. The regression now asserts
+both offline and online-with-prediction states. A plain unacquired/new-chat
+history scan returned an array; the concrete crash reproduction is the
+concurrent inbox. The retained calibration files do not identify which
+page produced the historical exception, so this does not claim that its
+history query itself produced null.
+
+Root cause: `Runner::run` catches a query meter abort (heap or a capped
+maintained/scalar lookup), or an unavailable streaming scalar, and returns
+an internal `Value::Null` placeholder. The device and HTTP encoders used to
+publish that placeholder as data regardless of the declared result. The
+HTTP path can also remember it; the JavaScript adapters could manufacture
+ready `undefined` from a response without a data field. Neither the web
+JSON bridge nor account replacement is needed to produce the problem.
+`worker.ts` is the effects worker in this checkout, not a device-query
+bridge. Store reset/adoption already invalidate observations to loading,
+clear remembered answers and fence in-flight replies by incarnation.
+Account changes replace clients and remount account-owned React state.
+
+The runner now records `query_unavailable`, and every `QueryOutcome`
+constructor carries it as `unavailable`. This deliberately preserves the
+engine's internal placeholder, exact work, cut flags, partial-page behavior
+and legitimate nullable results; it changes whether that placeholder can
+be published as an answer. Device, HTTP and CLI query encoders publish
+`loading` without `data` when it is set. No reason or private meter count
+is newly disclosed. `Read`, Quarry syntax, rules, the meter and its ceilings
+are unchanged. A query that remains over budget stays loading until its
+inputs/data change; the cards advise narrowing it or using a maintained
+view for a total.
+
+The online/local clients recognize unavailable and missing-data replies,
+retain expiry-driven reevaluation, and clear obsolete remembered server
+answers. Composition stops on an unavailable second local observation;
+an aborted record has no components to combine. `usePage` also treats all
+non-array ready values as loading, stops at that page, preserves earlier
+items, refuses its cursor and restores requested depth when it recovers.
+`useQuery` itself is unchanged. The bounds and reads cards describe the
+public unavailable state; no language form or refusal code was added.
+
+Tests added: `query_unavailable.rs` runs unknown aggregate/list and reopen
+checks on both device stores, and checks server heap/aggregate aborts
+against genuine nullable points and valid partial arrays. `page-ready.q`
+and `page-ready.test.mjs` exercise restored authentication/new-chat history,
+inbox coverage offline and with a pending prediction, real HTTP heap
+exhaustion, online/local remembered-answer invalidation, expiry retries and
+missing-data replies. `react.test.mjs` checks null, undefined, object,
+string, number and bool page values at the first/middle page, prefix
+retention, suffix disposal and recovery in Chromium. The existing wasm
+heap-exhaustion test now requires loading with no data, rather than its old
+null placeholder. The Node reproduction did not require a browser worker;
+the real wasm boundary remains covered by the wasm test and complete suite.
+
+Validation: targeted Rust regression tests 2/2, page-read client tests 3/3,
+React harness including its new regression, and guide tests 57/57 pass.
+The final full suite reports `== 0 failure(s) in 178 s`. The earlier full
+run reported `== 1 failure(s) in 181 s`: my documentation wording broke
+`w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation`,
+which pins "Heap exhaustion clears the whole page". Restoring that phrase
+while retaining the loading explanation fixed it. The next full run passed
+with `== 0 failure(s) in 144 s`; the final run includes the strengthened
+test below. No baseline or environmental failure occurred in these runs;
+none of the four supplied
+baseline Rust failures recurred. Full-suite client shards all report zero
+failures (10 existing skips). Strengthening the online-state assertion
+exposed a test-harness error: a failed sync kept the supposedly online
+case offline, and stalling its queued write could prevent reconnection.
+The final test holds a write while already online, checks that pending
+prediction prevents fallback, then disconnects and checks the offline
+case separately. All three client targets pass with these explicit states.
+
+Wasm measures 1,749,325 B raw / 485,718 B gzip against the unchanged
+486,000 B budget. Changed source files remain below 1,500 lines (local.ts
+is 1,490); whitespace checks pass. Evidence is in
+`/tmp/lane-j-repro-before.log`, `/tmp/lane-j-rust-targeted.log`,
+`/tmp/lane-j-pages-final.log`, `/tmp/lane-j-js-targeted.log`,
+`/tmp/lane-j-guide.log`, `/tmp/lane-j-full-suite-first.log`,
+`/tmp/lane-j-full-suite-second.log` and
+`/tmp/lane-j-full-suite.log`. No open implementation problem found. No
+version bump, publication, push, acquisition redesign or benchmark rerun.

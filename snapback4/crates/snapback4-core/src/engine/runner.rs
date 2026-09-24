@@ -110,6 +110,8 @@ pub struct Runner<'a> {
     /// count them.
     pub(crate) non_uniform: bool,
     pub(super) scalar_unavailable: bool,
+    /// An interrupted evaluation's null placeholder is not an application value.
+    pub(crate) query_unavailable: bool,
     /// The program's page had more rows than it returned and no cursor to
     /// continue on: the result is not `complete`, and the card says so.
     pub(crate) page_overflow: bool,
@@ -208,6 +210,7 @@ impl<'a> Runner<'a> {
             shape_cursors: BTreeMap::new(),
             non_uniform: false,
             scalar_unavailable: false,
+            query_unavailable: false,
             page_overflow: false,
             discovering_values: false,
             value_source_incomplete: false,
@@ -247,8 +250,8 @@ impl<'a> Runner<'a> {
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
         // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
         // A heap or maintained-value cut cannot invent a scalar/shape or a
-        // continuation. Both Quarry query hosts publish null, incomplete,
-        // with the private capped_at recorded by the meter (LLP 3000 §7).
+        // continuation. Keep the internal null placeholder and private meter
+        // detail, but mark it unavailable so transports cannot publish ready null.
         let result = (|| {
             self.prepare_effect_presence(program)?;
             for value in self.context.args.values() { self.meter.heap(value.clone_heap_bytes())?; }
@@ -260,10 +263,12 @@ impl<'a> Runner<'a> {
             Err(RuntimeError::Bound { kind, .. }) if self.meter.cut == Cut::Cap
                 && (kind == MeterKind::HeapBytes || self.meter.capped_at.as_ref().is_some_and(|cut| cut.0 == kind)) => {
                 self.page = None;
+                self.query_unavailable = true;
                 Ok(Value::Null)
             }
             Err(RuntimeError::Prediction(_)) if self.meter.cut == Cut::Cap && self.scalar_unavailable => {
                 self.page = None;
+                self.query_unavailable = true;
                 Ok(Value::Null)
             }
             Err(error) => Err(error),

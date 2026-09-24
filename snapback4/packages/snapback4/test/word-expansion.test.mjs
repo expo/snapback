@@ -88,7 +88,10 @@ for (const phase of ['index', 'examined', 'heap']) test(`wasm ${phase} budget ex
     assert.equal(ok.complete, false);
     assert.equal(ok.cut, 'meter');
     assert.ok(!ok.next);
-    if (phase === 'heap') assert.equal(ok.data, null);
+    if (phase === 'heap') {
+      assert.equal(ok.loading, true);
+      assert.ok(!('data' in ok), 'an aborted page has no ready null placeholder');
+    }
     else assert.equal(ok.data.length, phase === 'examined' ? 10 : 0);
   } finally { device.free(); }
 });

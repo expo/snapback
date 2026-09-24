@@ -111,6 +111,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 match result {
                     Ok(outcome) => {
                         let mut reply = json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown, "retained": retained });
+                        if outcome.unavailable {
+                            reply.as_object_mut().expect("query reply").remove("data");
+                            reply["loading"] = Json::Bool(true);
+                        }
                         if !components.is_empty() { reply["components"] = encoded(&components)?; }
                         reply
                     },

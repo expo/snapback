@@ -475,7 +475,8 @@ pub fn run(options: &Options) -> i32 {
     if program.kind == ProgramKind::Query {
         match engine.query(op, context) {
             Ok(outcome) => {
-                let body = json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "cut": outcome.cut, "next": outcome.next, "metered": outcome.metered });
+                let body = if outcome.unavailable { json!({ "loading": true, "metered": outcome.metered }) }
+                    else { json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "cut": outcome.cut, "next": outcome.next, "metered": outcome.metered }) };
                 println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
                 0
             }
