@@ -44,7 +44,7 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage or a page without continuation. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
-Online observations retain nothing and discard responses older than observed commits in the same store.
+Online observations retain nothing, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
 A local observation may keep its previous answer with `fresh: false` and `since`
 only during an unavailable device read's server fallback, ending at fetch
 settlement or any local commit, reset, adoption, generation, account change or close.

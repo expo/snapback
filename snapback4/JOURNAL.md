@@ -49889,3 +49889,130 @@ fields; mutation revoke(room) removes the viewer's membership. Both
 client.observe(mixed, {}) and client.query(mixed, {}) pass the new race.
 No open reproduction remains. No package publication, push or native simulator
 run was performed; both changed test files remain below 1,500 lines.
+
+## 2026-09-24 — Lane J round 7: store replacement terminates the online client
+
+Round 7 supersedes round 5's cross-store reconciliation. The old online client
+only verified identities through poll/probe heads, so direct queries could keep
+retrying below the old floor; a replacement-store mutation receipt could lose
+its fence; and an in-flight write could schedule another attempt after a
+restore refusal. Store identity is now checked before receipt sequences or
+query publications, and replacement or regression permanently ends that client.
+
+File by file:
+
+- crates/snapback4/src/serve.rs includes the evaluated reader's store_id in ready,
+  unavailable and refused query replies, and store_id plus the current head in
+  original/replayed mutation receipts and authenticated validation refusals.
+  Identity/head metadata comes from one read snapshot on the operation's owner;
+  its shared engine lock is released before the HTTP response is written. Query
+  data, the legacy unavailable placeholder and release meter omission are unchanged.
+- packages/snapback4/src/client.ts replaces rebasing, store epochs and head
+  re-verification with one terminal transition. E_STORE_REPLACED or
+  E_STORE_RESTORE fences all observations, aborts transport, settles every queued
+  and in-flight write as failed/unknown, cancels retries, and guards later calls.
+  Within-store monotonic reads, bounded refetches and close cancellation remain.
+  Refusal replies' head participates in the read floor as well as query seq.
+- packages/snapback4/src/app.ts reopens only the online tier on E_STORE_REPLACED,
+  using the existing serialized auth ownership and persistence fences. It retires
+  outstanding intents before closing/reopening, verifies the kept session on the
+  replacement, republishes the client, and cancels verification on logout/close.
+  E_STORE_RESTORE remains terminal and requires explicit recovery.
+- packages/snapback4/src/app-online.ts fences durable admissions and retires the
+  whole outbox, including an intent awaiting its admission write before raw
+  dispatch; no automatic reopen or later restart replays those failed intents.
+  Retirement also runs if another auth operation already superseded that owner.
+- packages/snapback4/src/writes.ts preserves the unknown-execution warning in
+  redacted terminal receipts; app-online.ts does the same for durable receipts.
+- packages/snapback4/src/contract.ts, packages/snapback4/CLIENT-AND-OPERATIONS.md
+  and crates/snapback4-lang/src/guide/reads.rs document the narrowed terminal
+  behavior. guide/sync.rs explains recovery and distinguishes local restoration;
+  guide/codes.rs registers E_STORE_REPLACED and updates E_STORE_RESTORE;
+  crates/snapback4-lang/src/diag.rs routes both codes to their dedicated sync text.
+- crates/snapback4/tests/serve_store/mod.rs is a new real HTTP test on memory and
+  pooled SQLite stores: ready/refused/validation query bodies, new/failed/replayed
+  mutation receipts, identical identity across endpoints, and historical replay
+  seq versus current head. serve_tests.rs registers it and checks identity on
+  unavailable replies in dev/release. tests/serve_timeline/mod.rs validates and
+  removes only each fixture's random store_id before its paired disclosure test.
+- packages/snapback4/test/online-store-terminal.test.mjs adds 15 regressions:
+  query/mutation/change/probe replacement and regression (eight); direct-only
+  ready/unavailable/denied replacement (three); B/2 revocation with buffered B/1
+  private data; same-head/same-generation replacement; historical replay head;
+  and a buffered refusal preceding a newer grant. The matrix also checks new,
+  queued and in-flight writes, immediate settlement before body release, exactly
+  one terminal event, no retry, and no later HTTP request.
+- packages/snapback4/test/app-store-replacement.test.mjs adds four regressions:
+  replacement accepting/rejecting the session, plus logout/close during recovery.
+  Admission of a second durable intent is paused across replacement; its receipt
+  is failed and the queue is empty before reopening, with no resend after restart.
+- packages/snapback4/test/online-store-order.test.mjs removes five superseded
+  reconciliation expectations. The new terminal tests cover their replacement
+  races; replay floors, stale-response bounds, initial identity and owner-close
+  tests remain. client-seams.test.mjs, write-authority.test.mjs and
+  write-ids.test.mjs assert the expanded wire envelope while preserving the public
+  Write shape, historical-result withholding, and paired disclosure checks.
+
+No new Quarry form or Read variant was introduced. Existing forms compile/run:
+query page() returns [1], mutation change() returns 1, and the private-row
+revocation fixtures still run. API examples: client.query(page, {}) on A/100
+then B/1 returns denied E_STORE_REPLACED; A/100 then A/1 returns
+E_STORE_RESTORE. A racing client.mutate(revoke, {}) returns failed with that
+code, even if its receipt later arrives. createApp({ url, sessionStore }) opens
+another client after replacement and keeps a session accepted by the new store.
+
+Engineering decisions where the brief was silent: first authenticated response
+identity binds the client; an actual regression compares its head with the floor
+at request dispatch, so a buffered response preceding a later write is refetched
+rather than falsely classified as restoration. Replay uses a separate current
+head because its seq names a historical commit. Identity-less legacy replies
+remain compatible; identity detection on direct queries/receipts requires the
+updated server envelope. A store-change callback connects createClient to the
+app owner without changing Client or Read. Retirement must persist before app
+reopening; persistence failure reports an error and prevents that automatic reopen.
+
+Validation and failures:
+
+- bun install --frozen-lockfile, build/typecheck and docs budget passed.
+- Initial affected JavaScript run: 90 passed. Final client/store/app set: 36
+  passed. HTTP target: 59 passed; guide target: 57 passed; the dedicated why
+  renderer and why CLI tests passed. The final full run covers all changed tests.
+- Eight deliberate mutations were caught: ignoring query identity; ignoring
+  receipt identity; ignoring same-head replacement; excluding the sending write
+  from terminal retirement; removing storeRefusal from new-mutation admission;
+  omitting app recovery notification; leaving the durable queue behind; and
+  ignoring a refused query's head. Generated files were restored before builds.
+- Preliminary failures, resolved: our private Tx::meta access did not compile
+  (use the public transaction connection); our change-feed regression fixture
+  captured a pre-floor poll (establish the initial head first); and our paired
+  timeline test needed the new per-fixture store identity normalized. An unchanged
+  full_poll_admission_preserves_short_request_progress test timed out under load
+  (environmental/pre-existing timing): it passed alone, all 59 HTTP tests passed
+  with four test threads, and every full run passed that case. A mutation-test
+  mock originally spun on repeated immediate change replies; bounding that mock
+  let the same-head mutant fail on its assertion instead of the harness timeout.
+- First scripts/test.sh: `== 2 failure(s) in 151 s`, both categories ours. Three
+  Rust cases lacked dedicated E_STORE_REPLACED guide text:
+  w11_every_registered_code_has_a_dedicated_section,
+  w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code, and
+  w11_why_every_registered_code_returns_its_dedicated_section. Thirteen JS cases
+  pinned the old wire: W6d two-POST replay (online/web/native); lost-first-ACK
+  replay (online/process-device, immediate/queued); W7r1 hidden/absent (dev/serve);
+  W8R1a hidden population cuts (dev/serve); write-authority's /m replay; and
+  write-ids' independent-client raw-argument binding. Fixed the guide routing/
+  section and explicit identity/head expectations. A focused rerun exposed one
+  remaining dev-only hidden/absent comparison (ours), then both modes passed.
+- Second scripts/test.sh: `== 0 failure(s) in 147 s`, 1,124 main-client passes
+  and 10 existing skips. Final audit then added the refused-head ordering test.
+- Final scripts/test.sh: `== 0 failure(s) in 143 s`. Main client shard: 1,135
+  tests, 1,125 passed, 10 existing skips, zero failures/cancellations.
+  No baseline or environmental failure occurred in either successful full run.
+  Logs: /tmp/lane-j-r7-full-suite.log, /tmp/lane-j-r7-full-suite-green.log,
+  /tmp/lane-j-r7-full-suite-final.log, /tmp/lane-j-r7-final-affected.log and
+  /tmp/lane-j-r7-mutant-*.log. The unrelated baseline check failure was read and
+  was not changed by this lane.
+
+No unresolved round-7 reproduction remains. No engine semantics, ceilings,
+local/native/web device read path, package versions, or Read type were changed.
+No new retention policy was introduced. All changed source files are below
+1,500 lines. No push, package publication, or native simulator run was performed.

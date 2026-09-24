@@ -131,6 +131,7 @@ export function createApp(options: AppOptions): App {
   let operations: Promise<unknown> = Promise.resolve();
   let closed = false;
   let revision = 0;
+  let recoveryAbort: AbortController | undefined;
   const publish = (state: AuthState, viewer: Principal | null, why?: Refusal) => {
     snapshot = { state, viewer, ...(why ? { why } : {}) };
     for (const listener of listeners) listener();
@@ -233,12 +234,52 @@ export function createApp(options: AppOptions): App {
       finally { for (const signal of signals) signal.removeEventListener("abort", abort); }
     };
     let raw: Client | undefined;
+    let custody: Awaited<ReturnType<typeof onlineCustody>> | undefined;
+    let changedStore: Refusal | undefined;
+    let recovering = false;
+    let retirement: Promise<void> | undefined;
+    const recoverStore = () => {
+      if (!changedStore || !custody) return;
+      // Retire intents even when another auth operation has superseded this
+      // owner. No later sign-in may replay them against the replacement.
+      if (!retirement) {
+        retirement = custody.refuseStore(changedStore);
+        void retirement.catch(error => { if (scope.valid && owner === scope) report(error); });
+      }
+      if (changedStore.code !== "E_STORE_REPLACED" || recovering || owner !== scope || !scope.valid || closed || revision !== expected) return;
+      recovering = true;
+      const retired = retirement;
+      hide("restoring");
+      void enqueue(async () => {
+        await retired;
+        if (owner !== scope || closed || revision !== expected) return;
+        await release();
+        if (closed || revision !== expected) return;
+        const restored = await restore();
+        if (closed || revision !== expected) return;
+        if (!restored.session) { publish("signed-out", null); return; }
+        // Reuse the kept session only if the replacement backend accepts it.
+        recoveryAbort = scope.aborter;
+        const response = await fetcher(url + "/probe", { headers: { authorization: `Bearer ${restored.session.token}` }, signal: scope.aborter.signal });
+        const json = await response.json() as { ok?: boolean; denied?: Refusal };
+        if (closed || revision !== expected) return;
+        if (!response.ok || json.ok !== true) {
+          if (json.denied?.code === "E_AUTH") await removeSession(restored.session.token);
+          if (revision === expected) publish("signed-out", null, json.denied ?? { code: "E_OFFLINE", family: "link", message: "the replacement backend is unreachable", retryable: true });
+          return;
+        }
+        await open(restored.session, expected, restored.epoch, true);
+      }).catch(error => { if (!closed && revision === expected) publish("signed-out", null, problem(error)); })
+        .finally(() => { if (recoveryAbort === scope.aborter) recoveryAbort = undefined; });
+    };
     try {
       await keepSession(url, session, scopedStore);
       if (!scope.valid || revision !== expected) return inactive();
       raw = options.device
         ? await createLocalClient({ url, session, sessionStore: scopedStore, device: options.device, fetch: scopedFetch })
-        : createClient({ url, session, fetch: scopedFetch });
+        : createClient({ url, session, fetch: scopedFetch, onStoreChange: why => {
+          changedStore = why; recoverStore();
+        } });
       scope.client = raw;
       if (!scope.valid || closed || revision !== expected) {
         if (scope.valid && closed) await raw.close();
@@ -260,10 +301,11 @@ export function createApp(options: AppOptions): App {
         }
       });
       let warning: Refusal | undefined;
-      const custody = options.device ? undefined : await onlineCustody(raw, url, storage, error => {
+      custody = options.device ? undefined : await onlineCustody(raw, url, storage, error => {
         warning = problem(error);
         if (scope.valid) report(error);
       });
+      recoverStore();
       const client = custody?.client ?? raw;
       if (!scope.valid || closed || revision !== expected) {
         custody?.pause();
@@ -285,6 +327,7 @@ export function createApp(options: AppOptions): App {
       restoreToken = undefined;
       current = client;
       publish("signed-in", raw.viewer(), warning);
+      recoverStore();
       return { ok: true, session: next };
     } catch (error) {
       if (revision === expected) hide("restoring");
@@ -305,6 +348,7 @@ export function createApp(options: AppOptions): App {
 
   const signIn = (work: () => Promise<SignIn>): Promise<SignIn> => {
     const expected = ++revision;
+    recoveryAbort?.abort();
     return enqueue(async () => {
       if (closed || revision !== expected) return inactive();
       try {
@@ -336,6 +380,7 @@ export function createApp(options: AppOptions): App {
     guest: () => signIn(() => guest(url, fetcher)),
     logout() {
       const expected = ++revision;
+      recoveryAbort?.abort();
       hide("restoring");
       // Credential deletion is deliberately outside the auth/network queue.
       // Constructors and retiring clients can no longer write this session.
@@ -397,7 +442,7 @@ export function createApp(options: AppOptions): App {
     get client() { return current; },
     mutate: (op, args, options) => current.mutate(op, args, options),
     close() {
-      closed = true; ++revision; hide();
+      closed = true; ++revision; recoveryAbort?.abort(); hide();
       return enqueue(async () => { await release(); await current.close(); listeners.clear(); });
     },
   };

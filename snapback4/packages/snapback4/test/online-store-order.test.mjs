@@ -9,40 +9,6 @@ const head = (store_id, seq) => ({ store_id, seq, generation: 1, tables: ['secre
 const until = async check => { for (let n = 0; n < 300; n++) { if (check()) return; await delay(5); } assert.fail('online read did not settle'); };
 const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
-test('same-head same-generation store replacement fences held query and observation replies', async t => {
-  const replacement = deferred(), directBody = deferred(), watchBody = deferred();
-  const reads = { direct: 0, watch: 0 }, values = []; let store = 'A', polls = 0;
-  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
-    if (url.includes('/changes')) {
-      if (++polls === 1) return Response.json(head('A', 10));
-      if (polls === 2) return Response.json(await replacement.promise);
-      return blocked(init.signal);
-    }
-    if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 10 });
-    const name = JSON.parse(init.body).args.direct ? 'direct' : 'watch';
-    reads[name]++;
-    if (store === 'A' && name === 'direct') return Response.json(await directBody.promise);
-    if (store === 'A' && holdWatch) return Response.json(await watchBody.promise);
-    return Response.json(ready([store], 10));
-  } });
-  let holdWatch = false;
-  t.after(async () => { replacement.resolve(head('B', 10)); directBody.resolve(ready(['A'], 10)); watchBody.resolve(ready(['A'], 10)); await client.close(); });
-  const watch = client.observe(q, {}); watch.subscribe(() => values.push(watch.getSnapshot()));
-  await until(() => polls === 2 && watch.getSnapshot().data?.[0] === 'A');
-  const pending = client.query(q, { direct: true });
-  const before = reads.watch; holdWatch = true;
-  await client.mutate(m, {});
-  await until(() => reads.direct === 1 && reads.watch > before);
-  values.length = 0; store = 'B'; replacement.resolve(head('B', 10));
-  await until(() => polls === 3);
-  assert.deepEqual(watch.getSnapshot(), { loading: true });
-  directBody.resolve(ready(['A'], 10)); watchBody.resolve(ready(['A'], 10));
-  assert.deepEqual((await pending).data, ['B']);
-  await until(() => watch.getSnapshot().data?.[0] === 'B');
-  assert.ok(values.every(read => !read.data?.includes('A')), 'old-store data must never publish, including as fresh');
-  assert.equal(watch.getSnapshot().fresh, true);
-});
-
 for (const observation of [false, true]) test(`replayed mutation cannot lower the ${observation ? 'observation' : 'query'} floor`, async t => {
   const stale = deferred(); let writes = 0, reads = 0;
   const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
@@ -86,37 +52,6 @@ test('closing while a stale HTTP body is in flight prevents publication and refe
   assert.equal(reads, 1);
   assert.deepEqual(watch.getSnapshot(), { loading: true });
   assert.ok(values.every(read => !('data' in read)));
-});
-
-test('replacement store resets the floor and cursor and fences outstanding reads and write receipts', async t => {
-  const replacement = deferred(), oldRead = deferred(), oldWrite = deferred();
-  const polls = [], values = []; let store = 'A', directStarted = false, writeStarted = false;
-  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
-    if (url.includes('/changes')) {
-      polls.push(new URL(url));
-      if (polls.length === 1) return Response.json(head('A', 100));
-      if (polls.length === 2) return Response.json(await replacement.promise);
-      return blocked(init.signal);
-    }
-    if (url.includes('/m/')) { writeStarted = true; await oldWrite.promise; return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 200 }); }
-    if (JSON.parse(init.body).args.direct && !directStarted) { directStarted = true; return Response.json(await oldRead.promise); }
-    return Response.json(ready([store], store === 'A' ? 100 : 1));
-  } });
-  t.after(async () => { replacement.resolve(head('B', 1)); oldRead.resolve(ready(['A'], 100)); oldWrite.resolve(); await client.close(); });
-  const watch = client.observe(q, {}); watch.subscribe(() => values.push(watch.getSnapshot()));
-  await until(() => polls.length === 2 && watch.getSnapshot().data?.[0] === 'A');
-  const direct = client.query(q, { direct: true }), write = client.mutate(m, {});
-  await until(() => directStarted && writeStarted);
-  values.length = 0; store = 'B'; replacement.resolve(head('B', 1));
-  await until(() => polls.length === 3 && watch.getSnapshot().data?.[0] === 'B');
-  assert.equal(polls[1].searchParams.get('since'), '100');
-  assert.equal(polls[1].searchParams.get('store_id'), 'A');
-  assert.equal(polls[2].searchParams.get('since'), '1');
-  assert.equal(polls[2].searchParams.get('store_id'), 'B');
-  oldRead.resolve(ready(['A'], 100)); oldWrite.resolve();
-  assert.deepEqual((await direct).data, ['B']); await write;
-  assert.deepEqual((await client.query(q, {})).data, ['B'], 'late A receipt must not raise B floor');
-  assert.ok(values.every(read => !read.data?.includes('A')));
 });
 
 test('same-store head regression reports E_STORE_RESTORE and stops polling and reading', async t => {
@@ -217,30 +152,6 @@ test('closing one of two subscribed owners does not cancel their shared fetch', 
   assert.deepEqual(right.getSnapshot().data, []); assert.equal(reads, 2);
 });
 
-test('reconnect probe verifies a replacement before restarting reads and the change cursor', async t => {
-  const disconnect = deferred(); const polls = []; let store = 'A', probes = 0;
-  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
-    if (url.includes('/changes')) {
-      polls.push(new URL(url));
-      if (polls.length === 1) return Response.json(head('A', 100));
-      if (polls.length === 2) { await disconnect.promise; throw Error('disconnected'); }
-      return blocked(init.signal);
-    }
-    if (url.includes('/probe')) { probes++; return Response.json({ ok: true, store_id: 'B', seq: 1 }); }
-    return Response.json(ready([store], store === 'A' ? 100 : 1));
-  } });
-  t.after(async () => { disconnect.resolve(); await client.close(); });
-  const watch = client.observe(q, {});
-  await until(() => polls.length === 2 && watch.getSnapshot().data?.[0] === 'A');
-  store = 'B'; disconnect.resolve();
-  // Poll failure and offline reconnect each have a one-second backoff.
-  for (let n = 0; n < 600 && polls.length < 3; n++) await delay(5);
-  await until(() => watch.getSnapshot().data?.[0] === 'B');
-  assert.equal(probes, 1); assert.equal(polls.length, 3);
-  assert.equal(polls[2].searchParams.get('store_id'), 'B');
-  assert.equal(polls[2].searchParams.get('since'), '1');
-});
-
 test('a buffered first identity reply cannot lower a newer write floor', async t => {
   const first = deferred(); let polls = 0, direct = 0;
   const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
@@ -259,42 +170,4 @@ test('a buffered first identity reply cannot lower a newer write floor', async t
   await until(() => polls === 2);
   assert.deepEqual((await client.query(q, { direct: true })).data, []);
   assert.equal(direct, 2);
-});
-
-for (const failProbe of [false, true]) test(`a write crossing first identity discovery verifies its store before reading (probe failure: ${failProbe})`, async t => {
-  const first = deferred(), receipt = deferred(), probe = deferred(), changed = deferred(), confirmed = deferred();
-  let polls = 0, probes = 0, direct = 0, writing = false, current = 1;
-  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
-    if (url.includes('/changes')) {
-      if (++polls === 1) return Response.json(await first.promise);
-      if (polls === 2) return Response.json(await changed.promise);
-      if (polls === 3) return Response.json(await confirmed.promise);
-      return blocked(init.signal);
-    }
-    if (url.includes('/m/')) { writing = true; await receipt.promise; current = 2; return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 2 }); }
-    if (url.includes('/probe')) { probes++; await probe.promise; if (failProbe) throw Error('offline'); return Response.json({ ok: true, store_id: 'A', seq: 2 }); }
-    if (JSON.parse(init.body).args.direct && ++direct === 1) return Response.json(ready(['revoked'], 1));
-    return Response.json(ready([], current));
-  } });
-  t.after(async () => { first.resolve(head('A', 1)); receipt.resolve(); probe.resolve(); changed.resolve(head('A', 2)); confirmed.resolve(head('A', 2)); await client.close(); });
-  const watch = client.observe(q, {}), write = client.mutate(m, {});
-  await until(() => writing && polls === 1);
-  first.resolve(head('A', 1));
-  await until(() => polls === 2 && watch.getSnapshot().data);
-  receipt.resolve(); await until(() => probes === 1);
-  assert.deepEqual(watch.getSnapshot(), { loading: true });
-  assert.deepEqual(await client.query(q, {}), { loading: true }, 'the unverified write cannot be silently omitted from the floor');
-  probe.resolve(); await write;
-  if (failProbe) {
-    assert.deepEqual(await client.query(q, {}), { loading: true });
-    // This poll started before the receipt; it cannot verify that write.
-    changed.resolve(head('A', 2)); await until(() => polls === 3);
-    assert.deepEqual(await client.query(q, {}), { loading: true });
-    confirmed.resolve(head('A', 2));
-    await until(() => watch.getSnapshot().data);
-    assert.deepEqual(watch.getSnapshot().data, []);
-  } else {
-    assert.deepEqual((await client.query(q, { direct: true })).data, []);
-    assert.equal(direct, 2);
-  }
 });

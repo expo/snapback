@@ -456,11 +456,14 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 Online observations retain nothing and discard responses older than observed commits in the same store.
-The online sequence floor and change cursor belong to the verified backend store:
-replacement resets both, while a same-store head regression refuses with
-`E_STORE_RESTORE` (stop this client and create a new one for the restored backend).
-A write crossing first identity discovery requires a head verified after its
-receipt; reads remain `loading` until that verification arrives.
+A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
+(`E_STORE_RESTORE`) permanently denies this online client's reads and fails its
+queued and in-flight writes without retry; whether those writes executed is unknown.
+Create a new client to recover; `createApp` automatically closes, reopens and
+publishes its online client on `E_STORE_REPLACED`, retaining the session if the
+replacement store accepts it and retiring outstanding intents before reopening.
+Within a store, replayed mutation receipts never lower the read floor: their
+historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
 exhaustion leaves `loading` until the next invalidation, and closing the last
 observation owner cancels its retries.

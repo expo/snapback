@@ -1,5 +1,5 @@
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
-import type { Client, Mutation, Write } from "./contract.ts";
+import type { Client, Mutation, Refusal, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
 import { mintId } from "./client.ts";
 import { MutationIds, WriteHistory, WRITE_HISTORY_LIMIT } from "./writes.ts";
@@ -12,6 +12,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
   let active = true;
+  let storeRefusal: Refusal | undefined;
   const ids = new MutationIds();
   const emissions = new WriteHistory();
   const listeners = new Set<(write: Terminal) => void>();
@@ -40,7 +41,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       // Never persist historical read results or refusal details for disclosure on reopen.
       const receipt: Terminal = write.state === "sent"
         ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-        : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } };
+        : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
       journal.receipts.push(receipt);
       journal.receipts = journal.receipts.slice(-WRITE_HISTORY_LIMIT);
       return true;
@@ -59,6 +60,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     ...raw,
     mutate<A, R>(op: Mutation<A, R>, args: A, options?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
       const id = options?.id ?? mintId();
+      if (storeRefusal) return Promise.resolve({ state: "failed", id, why: storeRefusal });
       if (!active || raw.viewer() !== viewer) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
       return ids.run<R>(id, op.name, args, () => client.write(id), async snapshot => {
         const refusal = await change(journal => {
@@ -75,6 +77,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           return undefined;
         });
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
+        if (storeRefusal) return { state: "failed", id, why: storeRefusal };
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
         const result = await raw.mutate(op, snapshot as A, { id });
         if (active && terminal(result)) {
@@ -111,5 +114,18 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const recovery = Promise.all(initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent =>
     client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
   void recovery.catch(report);
-  return { client, pause };
+  function refuseStore(why: Refusal): Promise<void> {
+    storeRefusal = why;
+    // Fence admissions synchronously, then retire the entire durable queue
+    // before createApp can reopen. These intents must never cross stores.
+    return change(journal => {
+      const failed = journal.pending.map(intent => ({ state: "failed", id: intent.id,
+        why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
+      journal.pending = [];
+      journal.receipts.push(...failed);
+      journal.receipts = journal.receipts.slice(-WRITE_HISTORY_LIMIT);
+      return failed;
+    }).then(failed => { for (const write of failed) notify(write); });
+  }
+  return { client, pause, refuseStore };
 }

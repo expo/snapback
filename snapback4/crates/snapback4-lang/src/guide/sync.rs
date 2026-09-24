@@ -173,9 +173,20 @@ Downgrading a device below the store's version is unsupported.
 Backends without these forms keep their existing encoding and remain compatible
 with 0.2.33 devices.
 
-## A restored backend store
+## Online store changes
 
-A matching
+The online client permanently denies reads and fails queued and in-flight
+writes on an identity change (`E_STORE_REPLACED`) or a same-store sequence
+regression (`E_STORE_RESTORE`); those writes may have executed, and the client
+never retries their unknown outcomes.
+Close it and create a new client, reconciling old intents before submitting
+new writes; `createApp` automatically reopens its online client on
+`E_STORE_REPLACED` after retiring its pending intents, retaining a session the
+replacement backend accepts.
+
+## A restored backend store on a device
+
+On a local client, a matching
 `store_id` with a lower head refuses `E_STORE_RESTORE`: the backend was
 restored or shrank. Sync halts and reads refuse, including after offline
 reopen; the watermark and outbox stay in place. Stop the client and use a
