@@ -82,8 +82,11 @@ not a complete sweep.
 
 ## Allocation, completeness and diagnostic context
 
-Heap is a cumulative allocation and binding budget except for a streaming
-aggregate's transient row scope, which is released each iteration: constructed values,
+Heap is a cumulative allocation and binding budget. Streaming aggregates
+release each transient row and its key scratch; one cursor allowance remains.
+Inner job domains decode one prepaid row at a time and retain each selected
+row under the heap meter before fetching another. Decode scratch is released;
+retained rows and buffers stay charged. Constructed values,
 concatenation and other allocating builtins, local bindings, and owned
 copies count. Inspecting a held value's length or sum borrows it; row and
 map clones share their immutable image. A heap cut stops a query immediately
