@@ -495,6 +495,30 @@ const cases = {
     check(active(client).length === 1, "new arguments close every old page");
     await unmount(); allClosed(client);
   },
+  async "usePage treats every non-array ready value as loading and keeps the earlier pages"() {
+    for (const invalid of [null, undefined, {}, "text", 7, false]) {
+      const client = controlled(args => args.c == null ? ready(["a"], "a") : args.c === "a" ? ready(["b"], "b") : ready(["c"]));
+      let latest;
+      function Probe() { latest = usePage(query, {}); return null; }
+      await mount(h(Probe), client);
+      await act(async () => latest.loadMore());
+      await act(async () => latest.loadMore());
+      equal(latest.items, ["a", "b", "c"], "three resolved pages");
+      const [first, second, third] = active(client);
+      await act(async () => second.set(ready(invalid, "b")));
+      equal(latest.items, ["a"], "an unavailable middle page keeps the prefix");
+      check("loading" in latest.read && !latest.hasMore, "invalid data is not a ready combined read or a continuation");
+      check(third.closes === 1, "the suffix of an invalid page is closed");
+      await act(async () => latest.loadMore());
+      check(active(client).length === 2, "loadMore cannot follow an invalid page's cursor");
+      await act(async () => second.set(ready(["b"], "b")));
+      equal(latest.items, ["a", "b", "c"], "recovery restores requested depth");
+      await act(async () => first.set(ready(invalid, "a")));
+      equal(latest.items, [], "an invalid first page has no visible items");
+      check("loading" in latest.read && !latest.hasMore, "the first page also waits");
+      await unmount(); allClosed(client);
+    }
+  },
   async "usePage discards an in-flight suffix and does not claim a ready combined read"() {
     const client = controlled(args => args.c == null ? ready(["a", "b"], "b") : { loading: true }); let latest;
     function Probe() { latest = usePage(query, {}); return null; }
