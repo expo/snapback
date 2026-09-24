@@ -49511,3 +49511,42 @@ test stays with integration. No new open problem or scope deviation. The
 inherited full-history search N_NO_HORIZON exception remains unchanged.
 Full file map, sentence audit, test evidence and that exception's reproduction:
 reports/20260924-guide-review-r5.md. Logs: ~/sb4-intent/lane-f-r5-*.log.
+
+
+## 2026-09-24 — Lane F round 6: the remaining cancellation paragraph
+
+Corrected the later E_EFFECT_CANCELLED means paragraph to inspect recorded
+steps and reconcile each with its stored provider key before replacement
+intent. Effect-id advice is explicitly limited to legacy handlers without
+steps that used that key. A new regression selects this exact paragraph;
+the earlier why excerpt cannot mask it. Searched all cards, including those
+embedded in guide.rs, for meta.id, reconciliation and idempotency-key advice.
+No other unqualified effect-id reconciliation instruction remains.
+
+The rules fixture now declares unique amount else AMOUNT_TAKEN. A new
+execution test performs six writes: update and upsert-patch collisions with
+hidden/readable rows, plus ordinary rule-denial controls. Hidden collisions
+return the identical generic E_RULE refusal, with no custom code or detail;
+readable collisions expose AMOUNT_TAKEN and the index/value detail. Refused
+writes leave rows unchanged. The existing variant without a custom refusal retains
+its E_CONSTRAINT coverage. No engine behavior changed.
+
+Both negative controls failed at the intended assertions: restoring the
+later cancellation paragraph, and returning the named constraint before
+visible_collision. Temporary source edits were restored byte-for-byte.
+An initial test-authoring failure expected an untyped amount in the positive
+control's detail; corrected it to the actual {"Int":42} representation.
+
+Frozen Bun install passed. Final guide tests: 79 passed; CLI check/why:
+69 passed. One full scripts/test.sh run: `== 0 failure(s) in 397 s`, exit 0.
+No introduced, baseline or environmental suite failures. Client tests:
+1,088 passed, 10 skipped. README remains 292/300 lines. WASM remains
+1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B budget.
+The effects card's three Quarry blocks are unchanged; changed Rust sources
+are at most 300 lines. Whitespace checks pass.
+
+No new form, compiler or engine behavior, authority, disclosure, durability,
+meter, package version, push or publication change. No Bob unrepost test,
+scope deviation or new open problem. The inherited full-history search
+N_NO_HORIZON exception is unchanged. File map, audit and qualification:
+reports/20260924-guide-review-r6.md. Logs: ~/sb4-intent/lane-f-r6-*.log.
