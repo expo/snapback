@@ -48948,3 +48948,40 @@ reproductions: `reports/20260924-intent-lane-a-aggregate-safety.md`.
 The proof is conservative rather than a new data-flow analysis. No design
 deviation, engine/IR change, authorization/disclosure or admission relaxation,
 meter increase, new diagnostic, push or publication.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 3: aggregate seek safety
+
+Merged Lane A `b67661952` with `--no-ff` as `925966117`. Conflicts were
+limited to the RFC revision header and journal; both histories survive.
+The compiler now requires present, non-failing aggregate seek endpoints,
+keeps guarded sibling bounds residual, and avoids inferred ordering after
+an intrinsic-id pin. Required argument facts stay scoped to their program
+or helper. The post-merge workspace build passed.
+
+The initial focused guide run exposed one integration documentation mismatch:
+`reads` card block 1, `recentTotal` with inline `now - 1d`, refused with
+E_QUARRY_BOUND after conservative inference left the arithmetic residual.
+Changed that example to required start/end time parameters; all 57 guide
+tests now pass. No compiler proof, admission or meter was loosened to keep
+an old example. All 74 focused tests pass: guide 57, aggregate safety five,
+followup five, planner unit four, and complete Clique target three.
+
+The full target still compiles without diagnostics and runs Following,
+streaming counts, the inferred time seek, restart and once suppression.
+The digest remains two chunks, K=64, zero retries, 312,580 B peak heap and
+823 B retained count heap. Core and device sources are unchanged. Rebuilt
+WASM is byte-identical before and after integration, including the final
+suite rebuild: SHA-256
+4d20f09fbb499d191d5710e3a9cf1ee66545b9277c321a7c5499e8cc2548d212.
+It remains 1,744,850 B raw / 485,005 B gzip, with the 486,000 B ratchet
+unchanged and 995 B headroom. The measurement is recorded in the budget reason.
+
+Exact full suite: `== 0 failure(s) in 273 s`. All 1,088 client tests passed,
+10 skipped. No full-suite integration, baseline or environmental failure;
+no intermittent client failure to rerun. Reference validation reports zero
+errors and zero unchecked references; whitespace checks and changed-source
+line budgets pass. No design deviation, new open problem, runtime change,
+authorization/disclosure relaxation, publication or push. Detailed file map,
+examples, the guide failure reproduction and logs are recorded in
+reports/20260924-intent-integration-r3.md.
