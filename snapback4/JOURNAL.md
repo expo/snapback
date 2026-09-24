@@ -49947,3 +49947,138 @@ below 1,500 lines; git diff --check passes.
 No deviation or open round-8 problem. The earlier deliberately stopped
 extra-tested write targets remain outside this round. No IR, wire,
 authorization, disclosure, durability or meter change. No push or publication.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 9: refuse differing row kinds at the first join
+
+Replaced the mixed-wildcard type marker with a fallible type join. types.rs
+now refuses different row kinds and row/non-row combinations recursively,
+including inside a list, page, collection, optional or object. Audited every
+join call and the final Unknown fallback: a value containing a row cannot
+use that fallback or the Unknown identity. Removed RowMixed, its optional
+field map, its emission/field/spread cases and the special conditional-shape
+path. RowObject remains necessary for a spread's ordinary wildcard order
+and pending metadata; RowShape keeps its existing precedence. No IR, device,
+wire, authorization, disclosure, durability or meter implementation changed.
+
+bind/program/conditional.rs binds the ordinary lazy conditional and refuses
+before constructing a mixed result. bind/program.rs, control.rs and expr.rs
+propagate refusal from conditional arms, assignments, branch/loop joins,
+helper and operation returns, array elements, append, coalescing, min/max
+and sorted. views.rs checks projected-field joins too. objects.rs, reads.rs
+and emit.rs remove only their obsolete RowMixed branches. The new
+bind/program/joins.rs builds E_QUARRY_SHAPE_JOIN with both kinds, the source
+site, real operands and the actual condition. All assignment/return/list
+contributors retain their source AST for diagnostics only; this is not type
+or runtime provenance. Rewrites snapshot effectful operands once, preserve
+lazy branches, normalize collection items with bounded loops, and avoid
+collisions with existing or later local names. print.rs now parenthesizes
+member bases and escapes text literals so the pasted rewrites are valid.
+
+Updated the existing CODES why entry and shapes card, and made both arms of
+the language card's spreadChoice explicit spreads. The tested spelling is
+`({ ...p } if ready else { ...(p { * }) }) { title: 'override', * }`:
+it returns the direct spread's original title and retains its full text
+bound. A direct `p { title: 'override', * }` still follows RowShape behavior
+when p is an already-shaped row. Tests/fixtures/spread-metadata.q now makes
+its conditional/reassignment arms agree explicitly; the guide assertion
+expects the direct-spread result from both spreadChoice branches.
+
+Tests/joined_shapes.rs has 11 tests. The 60-program matrix covers all 12
+ordered differing pairs of Row, RowShape, RowObject and Object through a
+conditional, reassignment, helper return, list and container. Each refusal's
+actual rewrite is pasted and executed with both choices against a direct
+spread. Further tests cover both Astra sequences (raw row and scalar), a
+field-only use, shaped collections, optional collections, Object/RowShape,
+an untaken field read that would refuse MISSING, future-name collisions,
+all three contributing assignments/returns/list items, coalescing, min/max,
+sorted, view field joins, escaped text, emitted pending types and unchanged
+same-kind wildcard/text bounds. Direct Ty tests cover WriteRow too, every
+row/non-row direction, nested containers and the Unknown erasure path.
+Fault injections removing the refusal, substituting flag for the program's
+condition, or eagerly evaluating the untaken arm each fail regressions.
+These intentional negative checks were restored before the full suite.
+
+The old common/shape_pages.rs continuation fixtures intentionally combined
+raw and shaped pages. Twelve cases now shape both arms explicitly while
+retaining their cursor/completeness/meter assertions. Four incompatible
+record-alternative cases are replaced by an 18-program compile-refusal
+matrix; their now-invalid inputs never reach runtime. These shared tests
+run on the server and both device stores. client-seams.test.mjs gives its
+seed mutation an explicit null return: it writes different tables on its
+two branches and does not use their implicit result. These are deliberate
+updates to expectations that contradict the new refusal contract.
+
+Engineering interpretations and limits:
+- Null remains absence, adding optionality without a competing row kind;
+  a zero-length sequence supplies no element to join. Treating these as
+  conflicting row kinds would break ordinary nullable flow refinement and
+  empty collectors. Both cases are documented/tested. This is the explicit
+  compatibility interpretation of the brief's non-row restriction.
+- Raw rows from different tables are also refused: their prior join was
+  Unknown, which would violate the requirement that no row be erased.
+  WriteRow is included in the safeguard for the same reason.
+- A row/scalar mix cannot have a direct-spread answer for its scalar arm
+  (`{ ...1 }` has no fields). Its rewrite explicitly projects row fields,
+  wraps both whole results in `{ value: ... }`, and instructs the caller to
+  read `.value`. That result-shape choice may require downstream edits;
+  each subsequent independent incompatible join is still refused.
+- A plain Object/row rewrite uses explicit plain-object projections. The
+  diagnostic states that these do not copy pending metadata; row/row
+  rewrites use spreads and retain it. This avoids inventing a row source
+  for a plain object. The confirmed-row matrix proves data parity.
+
+Targeted verification passed 57 guide, 11 joined-shape, 16 natural-form,
+four device spread lifecycle, two pending heap, 48 server continuation and
+three affected client tests. The existing device tests continue to cover
+pending combinations, reopen and settlement on memory and SQLite. The
+independent pending heap oracle and meter cut tests remain passing.
+Bun's frozen install checked 506 installs with no changes. The baseline tail
+was read before attribution; none of the compile failures below is baseline.
+
+First full scripts/test.sh: `== 2 failure(s) in 179 s` (cargo test, client
+tests). All 48 Rust failures were ours: these 16 common shape_pages cases,
+each on server, memory device and SQLite device:
+- `w13h_collector_wrapping_conditional_page_keeps_main_position`
+- `w13h_conditional_return_keeps_the_raw_position_for_both_arms`
+- `w13h_conditional_value_raw_keeps_its_owner`
+- `w13h_conditional_value_record_field_keeps_its_page`
+- `w13h_conditional_value_record_raw_keeps_its_position`
+- `w13h_conditional_value_record_shaped_keeps_its_rows`
+- `w13h_conditional_value_shaped_keeps_its_rows`
+- `w13h_conditional_value_without_exhaustion_keeps_next`
+- `w13h_loop_carried_page_keeps_partial_rows_without_an_owner`
+- `w13h_loop_carried_record_keeps_owner_position_and_rows`
+- `w13h_loop_exits_keep_main_ownership_without_trimming`
+- `w13h_multiple_backedges_keep_the_sibling_raw_position`
+- `w13h_record_or_cursor_keeps_its_value_without_an_owner`
+- `w13h_record_or_empty_keeps_its_value_without_an_owner`
+- `w13h_record_or_page_keeps_its_value_without_an_owner`
+- `w13h_structural_join_cannot_own_an_unknown_only_record_alternative`
+
+The two W7r1 hidden-versus-absent client cases (dev and serve) were ours,
+from their two different implicit row results; fixed as described above.
+The remaining client failure, R2 mixed result process: retained history and
+independent held coverage, observed complete=true instead of false at
+retained-history.test.mjs:467 after reconnecting an asynchronous watch.
+It passed unchanged in isolation. It is an intermittent environmental/test
+timing candidate, not a baseline-proven failure; no unrelated implementation
+or assertion was changed. The final full result below records its rerun.
+A targeted continuation run initially exposed two incompatible field sets
+in our normalized loop fixtures (multiple_backedges and loop_exits); giving
+the raw arm the same id/preview shape fixed both without weakening checks.
+
+Final full scripts/test.sh result: `== 0 failure(s) in 169 s`.
+Every Rust target passed; client tests passed 1,054, skipped 10 and failed
+zero, including the unchanged retained-history case. Evidence:
+/tmp/lane-k-r9-full-suite.log and /tmp/lane-k-r9-full-suite-2.log.
+No reproducible open round-9 compiler defect remains; the one intermittent
+watch assertion can only be reproduced by rerunning the concurrent full
+suite so far (isolated command: node --test --test-name-pattern='R2 mixed
+result process' packages/snapback4/test/retained-history.test.mjs passed).
+
+Wasm remains 1,744,842 bytes raw / 484,967 bytes gzip under the unchanged
+486,000-byte budget. Reference validation: 505 LLP documents, 9,238 refs,
+zero errors and zero unchecked. Every changed source is under 1,500 lines;
+git diff --check passes. The earlier extra-tested write targets remain
+intentionally stopped; this round does not alter their authorization or
+residual-test limitation. No push or package publication.

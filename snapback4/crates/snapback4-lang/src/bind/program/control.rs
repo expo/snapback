@@ -57,7 +57,7 @@ impl Binder<'_> {
         match statement {
             S::Return { value, site: _ } => {
                 let (expr, ty) = self.value_of(value, out)?;
-                self.returns.push(ty);
+                self.returns.push((ty, value.clone()));
                 out.push(Stmt::Return(expr));
                 Ok(())
             }
@@ -73,18 +73,22 @@ impl Binder<'_> {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), format!("rename the local (for example {name}2)")));
                 }
                 if let Some(mut binding) = self.binding(name).cloned()
-                    && let Ty::List(item, _) = &binding.ty
+                    && let Ty::List(item, max) = &binding.ty
                     && let A::Binary { op, left, right, .. } = value
                     && op == "+" && matches!(left.as_ref(), A::Name { name: source, .. } if source == name)
                     && let A::Array { items, .. } = right.as_ref()
                     && items.len() == 1
                 {
                     let (value, ty) = self.value_of(&items[0], out)?;
+                    let mut origins = binding.origins.clone();
+                    origins.push((Ty::List(Box::new(ty.clone()), 1), right.as_ref().clone()));
+                    let joined = if *max == 0 { ty.clone() } else { item.join(&ty).map_err(|error| self.join_error_many(error, &origins))? };
                     if !ty.assignable_to(item) && !item.assignable_to(&ty) {
                         return Err(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"));
                     }
                     // @ref LLP 3000.007#5.1 — append in place; the heap meter is the accumulated list's bound.
-                    binding.ty = Ty::List(Box::new(item.join(&ty)), u32::MAX);
+                    binding.ty = Ty::List(Box::new(joined), u32::MAX);
+                    binding.origins = origins;
                     binding.declared = binding.ty.clone();
                     binding.fields.clear();
                     binding.error = None;
@@ -99,19 +103,23 @@ impl Binder<'_> {
                 }
                 // @ref LLP 3000.007#5.1 — rebinding preserves the local slot and resets its flow refinement.
                 if let Some(mut binding) = self.binding(name).cloned() {
+                    let mut origins = binding.origins.clone();
+                    origins.push((ty.clone(), value.clone()));
+                    let joined = binding.declared.join(&ty).map_err(|error| self.join_error_many(error, &origins))?;
                     if ty != Ty::Null && binding.declared != Ty::Null && !ty.assignable_to(&binding.declared) && !binding.declared.assignable_to(&ty) {
                         return Err(type_error(site, format!("{name} is {}; cannot rebind it to {}", binding.declared.name(), ty.name()), "use a different local for a different type"));
                     }
-                    let joined = binding.declared.join(&ty);
                     binding.declared = if self.loops > 0 { joined.rebound() } else { joined };
                     binding.ty = if self.loops > 0 { ty.rebound() } else { ty };
+                    binding.origins = origins;
                     binding.fields.clear();
                     binding.error = None;
                     binding.revision += 1;
                     out.push(Stmt::Assign { name: binding.runtime.clone(), value: expr });
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
                 } else {
-                    let runtime = self.declare(name, ty);
+                    let runtime = self.declare(name, ty.clone());
+                    self.scopes.last_mut().unwrap().get_mut(name).unwrap().origins.push((ty, value.clone()));
                     out.push(Stmt::Let { name: runtime, value: expr });
                 }
                 Ok(())
@@ -151,7 +159,7 @@ impl Binder<'_> {
                 out.push(Stmt::Emit { effect: effect.clone(), payload: expr, once });
                 Ok(())
             }
-            S::If { condition, then_body, else_body, site: _ } => {
+            S::If { condition, then_body, else_body, site } => {
                 let start = out.len();
                 let (expr, ty) = self.expr(condition, out)?;
                 if self.record_ownership { out.own(start, setup::Owner::Condition); }
@@ -167,7 +175,7 @@ impl Binder<'_> {
                     let then_ty = if then_bindings[&name].runtime == binding.runtime { &then_bindings[&name].ty } else { &binding.ty };
                     let else_ty = if else_bindings[&name].runtime == binding.runtime { &else_bindings[&name].ty } else { &binding.ty };
                     binding.ty = match (exits(&then_out), exits(&else_out)) {
-                        (false, false) => then_ty.join(else_ty),
+                        (false, false) => self.join(then_ty, else_ty, &joins::local(&name, site), &joins::local(&name, site))?,
                         (false, true) => then_ty.clone(),
                         (true, false) => else_ty.clone(),
                         (true, true) => binding.ty.clone(),
@@ -175,12 +183,15 @@ impl Binder<'_> {
                     let then_fields = if then_bindings[&name].runtime == binding.runtime { &then_bindings[&name].fields } else { &binding.fields };
                     let else_fields = if else_bindings[&name].runtime == binding.runtime { &else_bindings[&name].fields } else { &binding.fields };
                     binding.fields = match (exits(&then_out), exits(&else_out)) {
-                        (false, false) => then_fields.iter().filter_map(|(path, ty)| else_fields.get(path).map(|other| (path.clone(), ty.join(other)))).collect(),
+                        (false, false) => then_fields.iter().filter_map(|(path, ty)| else_fields.get(path).map(|other| self.join(ty, other, &joins::local(&name, site), &joins::local(&name, site)).map(|ty| (path.clone(), ty)))).collect::<Fallible<_>>()?,
                         (false, true) => then_fields.clone(),
                         (true, false) => else_fields.clone(),
                         (true, true) => binding.fields.clone(),
                     };
-                    binding.declared = then_bindings[&name].declared.join(&else_bindings[&name].declared);
+                    binding.declared = self.join(&then_bindings[&name].declared, &else_bindings[&name].declared, &joins::local(&name, site), &joins::local(&name, site))?;
+                    for origin in then_bindings[&name].origins.iter().chain(&else_bindings[&name].origins) {
+                        if !binding.origins.iter().any(|(_, source)| *source == origin.1) { binding.origins.push(origin.clone()); }
+                    }
                     binding.revision = then_bindings[&name].revision.max(else_bindings[&name].revision);
                     self.scopes.last_mut().expect("a scope").insert(name, binding);
                 }
@@ -230,7 +241,7 @@ impl Binder<'_> {
                 }
                 if completes && self.kind != ProgramKind::Job {
                     let (expr, ty) = self.value_of(value, out)?;
-                    self.returns.push(ty);
+                    self.returns.push((ty, value.clone()));
                     out.push(Stmt::Return(expr));
                     return Ok(());
                 }
@@ -270,12 +281,12 @@ impl Binder<'_> {
             out.push(Stmt::Let { name: first, value: ir::field(ir::var(&tmp), "quotient") });
             out.push(Stmt::Let { name: second, value: ir::field(ir::var(&tmp), "remainder") });
         } else {
+            let joined = self.join(&at, &bt, &args[0], &args[1])?;
             if !at.comparable(&bt) || at.is_optional() || bt.is_optional() {
                 return Err(type_error(site, format!("sorted takes two present values of one type, got {} and {}", at.name(), bt.name()), "narrow both operands first"));
             }
             let tb = self.temp("b");
             out.push(Stmt::Let { name: tb.clone(), value: b });
-            let joined = at.join(&bt);
             let first = self.declare(&names[0], joined.clone());
             let second = self.declare(&names[1], joined);
             out.push(Stmt::Let { name: first, value: Expr::Builtin { builtin: Builtin::Min, args: vec![ir::var(&ta), ir::var(&tb)] } });
@@ -314,12 +325,15 @@ impl Binder<'_> {
                 if new.runtime != old.runtime || new.revision == old.revision {
                     continue;
                 }
-                let declared = old.declared.join(&new.declared);
-                let ty = old.ty.join(&declared);
+                let declared = self.join(&old.declared, &new.declared, &joins::local(local, site), &joins::local(local, site))?;
+                let ty = self.join(&old.ty, &declared, &joins::local(local, site), &joins::local(local, site))?;
                 changed |= old.ty != ty || old.declared != declared || !old.fields.is_empty();
                 old.fields.clear();
                 old.ty = ty;
                 old.declared = declared;
+                for origin in &new.origins {
+                    if !old.origins.iter().any(|(_, source)| *source == origin.1) { old.origins.push(origin.clone()); }
+                }
                 old.revision = new.revision;
             }
             if !changed {
@@ -467,7 +481,7 @@ impl Binder<'_> {
             }
             let runtime = self.temp(&declared.name);
             out.push(Stmt::Let { name: runtime.clone(), value: expr });
-            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new(), error: None });
+            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
         }
         Ok(bindings)
     }
@@ -484,8 +498,8 @@ impl Binder<'_> {
             ast::FunctionBody::Expression(value) => self.value_of(value, out),
             ast::FunctionBody::Block(statements) => {
                 let mut body = setup::Body::default();
-                self.block(statements, &mut body, false).map(|()| {
-                    let ty = self.returns.iter().cloned().reduce(|a, b| a.join(&b)).unwrap_or(Ty::Null);
+                self.block(statements, &mut body, false).and_then(|()| {
+                    let ty = self.return_type()?;
                     let result = self.temp("result");
                     let done = self.temp("returned");
                     out.push(Stmt::Let { name: result.clone(), value: Expr::Literal(Value::Null) });
@@ -493,7 +507,7 @@ impl Binder<'_> {
                     let ownership = setup::helper_ownership(&body);
                     let code = helper_returns(body.code, &result, &done).0;
                     out.extend(setup::Body { code, ownership });
-                    (ir::var(&result), ty)
+                    Ok((ir::var(&result), ty))
                 })
             }
         };

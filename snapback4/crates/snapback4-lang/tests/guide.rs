@@ -310,7 +310,7 @@ fn the_language_card_compiles_and_runs() {
 
     for flag in [true, false] {
         let choice = engine.query("spreadChoice", Context::new(alice, args(&[("h", text("alice")), ("flag", Value::Bool(flag))]))).unwrap();
-        assert_eq!(choice.data.field("handle").unwrap(), &text(if flag { "alice" } else { "override" }));
+        assert_eq!(choice.data.field("handle").unwrap(), &text("alice"));
     }
 
     // createRoom: `new` takes the first minted id; the second insert the next; `after insert` holds.

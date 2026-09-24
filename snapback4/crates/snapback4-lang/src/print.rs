@@ -10,7 +10,7 @@ pub fn expression(expr: &Expr) -> String {
         Expr::Name { name, .. } => name.clone(),
         Expr::Focal { .. } => ".".into(),
         Expr::Literal { value, .. } => match value {
-            Literal::Str(s) => format!("'{s}'"),
+            Literal::Str(s) => format!("'{}'", s.replace('\\', "\\\\").replace('\'', "\\'").replace('\n', "\\n").replace('\t', "\\t")),
             Literal::Number(n) => n.clone(),
             Literal::Bool(b) => b.to_string(),
             Literal::Null => "null".into(),
@@ -21,7 +21,8 @@ pub fn expression(expr: &Expr) -> String {
         Expr::Binary { op, left, right, .. } => format!("({} {op} {})", expression(left), expression(right)),
         Expr::Member { base, name, .. } => match base.as_ref() {
             Expr::Focal { .. } => format!(".{name}"),
-            other => format!("{}.{name}", expression(other)),
+            Expr::Name { .. } | Expr::Member { .. } => format!("{}.{name}", expression(base)),
+            other => format!("({}).{name}", expression(other)),
         },
         Expr::Call { name, args, .. } => format!("{name}({})", args.iter().enumerate().map(|(n, arg)| {
             let value = expression(arg);
