@@ -1,0 +1,59 @@
+   Compiling snapback4-sim v0.4.0 (/Users/ccheever/projects/snapback-pub-040/snapback4/crates/snapback4-sim)
+    Finished `test` profile [optimized + debuginfo] target(s) in 3.53s
+     Running tests/work_intent.rs (target/debug/deps/work_intent-88307129a827d4b4)
+
+running 12 tests
+test device_streaming_totals_require_coverage_and_emits_claim_no_keys ... ok
+test domain_scalars_keep_admission_rules_expiry_and_meter_cuts ... ok
+test unstable_sweeps_and_carried_locals_are_refused_and_constraint_refusals_do_not_retry ... ok
+test canonical_keys_are_ordered_values_and_outbox_failure_rolls_back_the_key ... ok
+test replay_consumes_canonical_keys_and_effect_names_have_separate_domains ... ok
+test automatic_sweep_freezes_bounds_across_reopen_but_replays_prelude ... ok
+test inner_job_domain_uses_job_meter_without_truncating_at_query_ceiling ... ok
+test sweep_upper_bound_excludes_later_inserts_and_break_return_match_chunk ... ok
+test varying_cost_retries_and_reopens_at_committed_cursor ... ok
+test impossible_item_parks_without_committing_its_key_or_writes ... ok
+test recipient_heavy_digest_streams_below_unchanged_heap_ceiling ... ok
+test scheduled_digest_for_busy_chat_and_one_hundred_memberships_retries_and_restarts ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.78s
+
+     Running tests/work_intent_review.rs (target/debug/deps/work_intent_review-c827447ffe10a7ff)
+
+running 5 tests
+test schema_capped_non_uniform_count_and_sum_keep_their_execution_path ... ok
+test explicitly_paged_job_prelude_loop_remains_a_prelude ... ok
+test permanent_effect_keys_consume_the_write_meter_and_rollback_with_effects ... ok
+test adaptive_single_item_chunks_do_not_fetch_a_second_large_row ... ok
+test resolved_inner_aggregates_preserve_the_non_uniform_outer_page ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/work_intent_review2.rs (target/debug/deps/work_intent_review2-4bbcb29387e9d8b2)
+
+running 4 tests
+test allowed_prefix_visits_and_excludes_rows_denied_by_the_read_rule ... ok
+test a_wide_key_domain_near_the_job_examined_ceiling_keeps_one_cursor ... ok
+test adaptive_non_uniform_sweep_reads_one_large_candidate_at_a_time ... ok
+test inner_job_domain_refuses_before_decoding_the_unaffordable_suffix ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+     Running tests/work_intent_review3.rs (target/debug/deps/work_intent_review3-23fad38cf8da362d)
+
+running 3 tests
+test a_growing_retained_cursor_can_exhaust_the_heap_allowance ... ok
+test saved_filter_local_coverage_governs_count_sum_and_exists ... ok
+test hoisted_prefix_coverage_governs_count_sum_and_exists ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/work_intent_review4.rs (target/debug/deps/work_intent_review4-7bb2129fa330a066)
+
+running 3 tests
+test uniform_schema_capped_aggregates_stream_and_withhold_cut_totals ... ok
+test three_large_inner_domain_rows_fit_after_decode_scratch_is_released ... ok
+test inner_domain_near_the_examined_ceiling_retains_rows_without_unused_keys ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+

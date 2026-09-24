@@ -1,0 +1,13 @@
+{
+  "name": "phase4-build",
+  "command": [
+    "cargo",
+    "build"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:26:15.897186+00:00",
+  "finished_at": "2026-09-24T11:26:19.104986+00:00",
+  "seconds": 3.208,
+  "exit_code": 0,
+  "log": "phase4-build.log"
+}

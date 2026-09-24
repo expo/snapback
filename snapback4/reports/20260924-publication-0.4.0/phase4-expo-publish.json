@@ -1,0 +1,16 @@
+{
+  "name": "phase4-expo-publish",
+  "command": [
+    "npm",
+    "publish",
+    "../../target/expo-0.4.0-phase4/snapback4-expo-0.4.0.tgz",
+    "--access",
+    "public"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4/packages/snapback4-expo",
+  "started_at": "2026-09-24T11:53:19.411392+00:00",
+  "finished_at": "2026-09-24T11:53:28.658770+00:00",
+  "seconds": 9.247,
+  "exit_code": 0,
+  "log": "phase4-expo-publish.log"
+}

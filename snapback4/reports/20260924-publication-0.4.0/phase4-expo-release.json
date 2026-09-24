@@ -1,0 +1,21 @@
+{
+  "name": "phase4-expo-release",
+  "command": [
+    "node",
+    "../../node_modules/expo/bin/cli",
+    "run:ios",
+    "--configuration",
+    "Release",
+    "--device",
+    "generic",
+    "--no-bundler",
+    "--output",
+    "../../target/expo-release"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo",
+  "started_at": "2026-09-24T11:32:37.529795+00:00",
+  "finished_at": "2026-09-24T11:33:07.045383+00:00",
+  "seconds": 29.515,
+  "exit_code": 0,
+  "log": "phase4-expo-release.log"
+}

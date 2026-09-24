@@ -1,0 +1,16 @@
+{
+  "name": "merge-main",
+  "command": [
+    "git",
+    "merge",
+    "--no-ff",
+    "--no-edit",
+    "origin/main"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040",
+  "started_at": "2026-09-24T10:57:59.668571+00:00",
+  "finished_at": "2026-09-24T10:57:59.838073+00:00",
+  "seconds": 0.169,
+  "exit_code": 1,
+  "log": "merge-main.log"
+}

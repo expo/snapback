@@ -1,0 +1,26 @@
+{
+  "status": "blocked; publication not attempted",
+  "head": "b92becdd42ee52c0ddfef6038bf366435db358e9",
+  "published_version": "0.2.33",
+  "fence_cache": "/Users/ccheever/sb4-03-lanes/published-0.2.33",
+  "passed": [
+    "native device install/apply/query/adopt/reopen of capability-free 0.4 backend",
+    "WASM device install/apply/query/adopt/reopen of capability-free 0.4 backend",
+    "legacy doctor of capability-free 0.4 store",
+    "current deployment of capability-free 0.4 source"
+  ],
+  "blocker": "Published 0.2.33 serve refuses the capability-free 0.4 release: E_GENERATION: release source differs from its activated backend; deploy the source as a new release",
+  "stored_schema_difference": {
+    "site": "schema.q:19:9 (posts[]) -> schema.q:19:9 (posts[] first 10); same for likes at 21:9",
+    "reason_suffix": "; selected byId (); result: page; explicit by"
+  },
+  "attempts": [
+    "capability-free-before-pin.json",
+    "capability-free-before-pin-2.json"
+  ],
+  "test_change": "Move all byte-equality checks after substantive compatibility; add WASM adoption and persisted reopen. No assertion removed; no pin updated.",
+  "production_changes": false,
+  "publication_stage_created": false,
+  "published": false,
+  "pushed": false
+}

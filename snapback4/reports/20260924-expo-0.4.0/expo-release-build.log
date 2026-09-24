@@ -1,0 +1,492 @@
+- Creating native directory (./ios)
+✔ Created native directory
+- Updating package.json
+✔ Updated package.json | no changes
+- Running prebuild
+✔ Finished prebuild
+- Installing CocoaPods...
+> pod install
+- Installing CocoaPods...
+Using Expo modules
+[34m[Expo] [0mEnabling modular headers for pod [32mExpoModulesCore[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mExpoModulesJSI[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-RCTAppDelegate[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-RCTFabric[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReactAppDependencyProvider[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-Core[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReactCodegen[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mRCTRequired[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mRCTTypeSafety[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReactCommon[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-NativeModulesApple[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mYoga[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-Fabric[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-graphics[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-utils[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-featureflags[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-debug[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-ImageManager[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-rendererdebug[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-jsi[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-renderercss[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mhermes-engine[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mglog[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mboost[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mDoubleConversion[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mfast_float[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mfmt[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mRCT-Folly[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mSocketRocket[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mexpo-dev-menu-interface[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mEXManifests[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mEXUpdatesInterface[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mexpo-dev-menu[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mReact-jsinspector[0m
+[34m[Expo] [0mEnabling modular headers for pod [32mexpo-dev-launcher[0m
+Found 1 module for target `Snapback4chat`
+link_native_modules! {ios_packages: [{configurations: [], name: "expo", root: "/Users/ccheever/projects/snapback-pub-040/snapback4/node_modules/expo", path: "../../../node_modules/expo", podspec_path: "/Users/ccheever/projects/snapback-pub-040/snapback4/node_modules/expo/Expo.podspec", script_phases: []}], ios_project_root_path: "/Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios", react_native_path: "../../../node_modules/react-native"}
+Framework build type is static library
+[32m[ReactNativeDependencies] [0mSetting up ReactNativeDependencies...
+[32m[ReactNativeDependencies] [0mBuilding from source: false
+[32m[ReactNativeDependencies] [0mUsing tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+[32m[ReactNativeDependencies] [0mVerifying checksum for cached reactnative-dependencies-0.86.3-debug.tar.gz...
+[32m[Cache] [0mSHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
+[32m[ReactNativeDependencies] [0mCache hit: copying reactnative-dependencies-0.86.3-debug.tar.gz from shared cache (/Users/ccheever/Library/Caches/ReactNative)
+[32m[ReactNativeDependencies] [0mVerifying checksum for cached reactnative-dependencies-0.86.3-release.tar.gz...
+[32m[Cache] [0mSHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
+[32m[ReactNativeDependencies] [0mCache hit: copying reactnative-dependencies-0.86.3-release.tar.gz from shared cache (/Users/ccheever/Library/Caches/ReactNative)
+[32m[ReactNativeDependencies] [0mSource: {http: "https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz"}
+[32m[ReactNativeCore] [0mSetting up ReactNativeCore...
+[32m[ReactNativeCore] [0mBuilding from source: false
+Configuring the target with the New Architecture
+[32m[ReactNativeCore] [0mUsing React Native Core and React Native Dependencies prebuilt versions.
+[36m[1m[Codegen][0m Analyzing /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/package.json[0m
+[36m[1m[Codegen][0m [33mSearching for codegen-enabled libraries in the app.[0m
+[36m[1m[Codegen][0m [33mThe "codegenConfig" field is not defined in package.json. Assuming there is nothing to generate at the app level.[0m
+[36m[1m[Codegen][0m [33mSearching for codegen-enabled libraries in react-native.config.js[0m
+[36m[1m[Codegen][0m [33mNo codegen-enabled libraries found.[0m
+[36m[1m[Codegen][0m Generating RCTThirdPartyComponentsProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.h[0m
+[36m[1m[Codegen][0m Generating RCTThirdPartyComponentsProvider.mm[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.mm[0m
+[36m[1m[Codegen][0m Generating RCTModulesProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.h[0m
+[36m[1m[Codegen][0m Generating RCTModuleProviders.mm[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.mm[0m
+[36m[1m[Codegen][0m Generating RCTAppDependencyProvider[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.mm[0m
+[36m[1m[Codegen][0m Generated podspec: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/ReactAppDependencyProvider/ReactAppDependencyProvider.podspec[0m
+[36m[1m[Codegen][0m Generated podspec: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/ReactCodegen/ReactCodegen.podspec[0m
+[36m[1m[Codegen][0m Generating Package.swift[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/build/generated/ios/Package.swift[0m
+[36m[1m[Codegen][0m [33mDone.[0m
+Analyzing dependencies
+Fetching podspec for `ExpoFileSystem` from `../../../node_modules/expo-file-system/ios/ExpoFileSystem.podspec`
+Fetching podspec for `ExpoFont` from `../../../node_modules/expo-font/ios/ExpoFont.podspec`
+Fetching podspec for `ExpoModulesCore` from `../../../node_modules/expo-modules-core/ExpoModulesCore.podspec`
+Fetching podspec for `ExpoModulesWorklets` from `../../../node_modules/expo-modules-core/ExpoModulesWorklets.podspec`
+Fetching podspec for `React-Core-prebuilt` from `../../../node_modules/react-native/React-Core-prebuilt.podspec`
+[32m[ReactNativeCore] [0mVerifying checksum for cached reactnative-core-0.86.3-debug.tar.gz...
+[32m[Cache] [0mSHA1 verified for reactnative-core-0.86.3-debug.tar.gz
+[32m[ReactNativeCore] [0mCache hit: copying reactnative-core-0.86.3-debug.tar.gz from shared cache (/Users/ccheever/Library/Caches/ReactNative)
+[32m[ReactNativeCore] [0mVerifying checksum for cached reactnative-core-0.86.3-release.tar.gz...
+[32m[Cache] [0mSHA1 verified for reactnative-core-0.86.3-release.tar.gz
+[32m[ReactNativeCore] [0mCache hit: copying reactnative-core-0.86.3-release.tar.gz from shared cache (/Users/ccheever/Library/Caches/ReactNative)
+[32m[ReactNativeCore] [0mResolved stable ReactNativeCore-prebuilt version:
+[32m[ReactNativeCore] [0m  ../../apps/chat-expo/ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-debug.tar.gz
+[32m[ReactNativeCore] [0m  ../../apps/chat-expo/ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-release.tar.gz
+Fetching podspec for `ReactNativeDependencies` from `../../../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`
+[32m[ReactNativeDependencies] [0mUsing tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+[32m[ReactNativeDependencies] [0mTarball reactnative-dependencies-0.86.3-debug.tar.gz already exists in Pods. Skipping download.
+[32m[ReactNativeDependencies] [0mTarball reactnative-dependencies-0.86.3-release.tar.gz already exists in Pods. Skipping download.
+Fetching podspec for `hermes-engine` from `../../../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`
+[33m[Hermes] Using release tarball from URL: https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz[0m
+[32m[Hermes] Verifying checksum for cached hermes-ios-250829098.0.17-debug.tar.gz...[0m
+[32m[Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz[0m
+[32m[Hermes] Cache hit: copying hermes-ios-250829098.0.17-debug.tar.gz from shared cache (/Users/ccheever/Library/Caches/ReactNative)[0m
+[32m[Hermes] Verifying checksum for cached hermes-ios-250829098.0.17-release.tar.gz...[0m
+[32m[Hermes] SHA1 verified for hermes-ios-250829098.0.17-release.tar.gz[0m
+[32m[Hermes] Cache hit: copying hermes-ios-250829098.0.17-release.tar.gz from shared cache (/Users/ccheever/Library/Caches/ReactNative)[0m
+Downloading dependencies
+[32mInstalling EXConstants (57.0.18)[0m
+[32mInstalling EXJSONUtils (57.0.2)[0m
+[32mInstalling EXManifests (57.0.2)[0m
+[32mInstalling EXUpdatesInterface (57.0.2)[0m
+[32mInstalling Expo (57.0.22)[0m
+[32mInstalling ExpoAsset (57.0.17)[0m
+[32mInstalling ExpoDomWebView (57.0.1)[0m
+[32mInstalling ExpoFileSystem (57.0.7)[0m
+[32mInstalling ExpoFont (57.0.4)[0m
+[32mInstalling ExpoKeepAwake (57.0.2)[0m
+[32mInstalling ExpoLogBox (57.0.4)[0m
+[32mInstalling ExpoModulesCore (57.0.18)[0m
+[32mInstalling ExpoModulesJSI (57.1.0)[0m
+[32mInstalling ExpoModulesWorklets (57.0.18)[0m
+[32mInstalling ExpoSQLite (57.0.3)[0m
+[32mInstalling ExpoSecureStore (57.0.4)[0m
+[32mInstalling FBLazyVector (0.86.3)[0m
+[32mInstalling RCTDeprecation (0.86.3)[0m
+[32mInstalling RCTRequired (0.86.3)[0m
+[32mInstalling RCTSwiftUI (0.86.3)[0m
+[32mInstalling RCTSwiftUIWrapper (0.86.3)[0m
+[32mInstalling RCTTypeSafety (0.86.3)[0m
+[32mInstalling React (0.86.3)[0m
+[32mInstalling React-Core (0.86.3)[0m
+[32mInstalling React-Core-prebuilt (0.86.3)[0m
+[32mInstalling React-CoreModules (0.86.3)[0m
+[32mInstalling React-Fabric (0.86.3)[0m
+[32mInstalling React-FabricComponents (0.86.3)[0m
+[32mInstalling React-FabricImage (0.86.3)[0m
+[32mInstalling React-ImageManager (0.86.3)[0m
+[32mInstalling React-Mapbuffer (0.86.3)[0m
+[32mInstalling React-NativeModulesApple (0.86.3)[0m
+[32mInstalling React-RCTActionSheet (0.86.3)[0m
+[32mInstalling React-RCTAnimation (0.86.3)[0m
+[32mInstalling React-RCTAppDelegate (0.86.3)[0m
+[32mInstalling React-RCTBlob (0.86.3)[0m
+[32mInstalling React-RCTFBReactNativeSpec (0.86.3)[0m
+[32mInstalling React-RCTFabric (0.86.3)[0m
+[32mInstalling React-RCTImage (0.86.3)[0m
+[32mInstalling React-RCTLinking (0.86.3)[0m
+[32mInstalling React-RCTNetwork (0.86.3)[0m
+[32mInstalling React-RCTRuntime (0.86.3)[0m
+[32mInstalling React-RCTSettings (0.86.3)[0m
+[32mInstalling React-RCTText (0.86.3)[0m
+[32mInstalling React-RCTVibration (0.86.3)[0m
+[32mInstalling React-RuntimeApple (0.86.3)[0m
+[32mInstalling React-RuntimeCore (0.86.3)[0m
+[32mInstalling React-RuntimeHermes (0.86.3)[0m
+[32mInstalling React-callinvoker (0.86.3)[0m
+[32mInstalling React-cxxreact (0.86.3)[0m
+[32mInstalling React-debug (0.86.3)[0m
+[32mInstalling React-defaultsnativemodule (0.86.3)[0m
+[32mInstalling React-domnativemodule (0.86.3)[0m
+[32mInstalling React-featureflags (0.86.3)[0m
+[32mInstalling React-featureflagsnativemodule (0.86.3)[0m
+[32mInstalling React-graphics (0.86.3)[0m
+[32mInstalling React-hermes (0.86.3)[0m
+[32mInstalling React-idlecallbacksnativemodule (0.86.3)[0m
+[32mInstalling React-intersectionobservernativemodule (0.86.3)[0m
+[32mInstalling React-jserrorhandler (0.86.3)[0m
+[32mInstalling React-jsi (0.86.3)[0m
+[32mInstalling React-jsiexecutor (0.86.3)[0m
+[32mInstalling React-jsinspector (0.86.3)[0m
+[32mInstalling React-jsinspectorcdp (0.86.3)[0m
+[32mInstalling React-jsinspectornetwork (0.86.3)[0m
+[32mInstalling React-jsinspectortracing (0.86.3)[0m
+[32mInstalling React-jsitooling (0.86.3)[0m
+[32mInstalling React-jsitracing (0.86.3)[0m
+[32mInstalling React-logger (0.86.3)[0m
+[32mInstalling React-microtasksnativemodule (0.86.3)[0m
+[32mInstalling React-mutationobservernativemodule (0.86.3)[0m
+[32mInstalling React-networking (0.86.3)[0m
+[32mInstalling React-oscompat (0.86.3)[0m
+[32mInstalling React-perflogger (0.86.3)[0m
+[32mInstalling React-performancecdpmetrics (0.86.3)[0m
+[32mInstalling React-performancetimeline (0.86.3)[0m
+[32mInstalling React-rendererconsistency (0.86.3)[0m
+[32mInstalling React-renderercss (0.86.3)[0m
+[32mInstalling React-rendererdebug (0.86.3)[0m
+[32mInstalling React-runtimeexecutor (0.86.3)[0m
+[32mInstalling React-runtimescheduler (0.86.3)[0m
+[32mInstalling React-timing (0.86.3)[0m
+[32mInstalling React-utils (0.86.3)[0m
+[32mInstalling React-viewtransitionnativemodule (0.86.3)[0m
+[32mInstalling React-webperformancenativemodule (0.86.3)[0m
+[32mInstalling ReactAppDependencyProvider (0.86.3)[0m
+[32mInstalling ReactCodegen (0.86.3)[0m
+[32mInstalling ReactCommon (0.86.3)[0m
+[32mInstalling ReactNativeDependencies (0.86.3)[0m
+[32mInstalling Snapback4Expo (0.4.0)[0m
+[32mInstalling Yoga (0.0.0)[0m
+[32mInstalling expo-dev-client (57.0.19)[0m
+[32mInstalling expo-dev-launcher (57.0.20)[0m
+[32mInstalling expo-dev-menu (57.0.18)[0m
+[32mInstalling expo-dev-menu-interface (57.0.0)[0m
+[32mInstalling hermes-engine (250829098.0.17)[0m
+[Expo] Ensuring required slices in ExpoModulesJSI.xcframework
+Generating Pods project
+Setting USE_HERMES build settings
+Setting REACT_NATIVE_PATH build settings
+Setting SWIFT_ACTIVE_COMPILATION_CONDITIONS build settings
+[Ccache]: Removing Ccache from CC, LD, CXX & LDPLUSPLUS build settings
+Setting SWIFT_ENABLE_EXPLICIT_MODULES build settings
+[32m[ReactNativeCore] [0mProcessing VFS overlay file...
+[32m[ReactNativeCore] [0m  Created VFS overlay at /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/Pods/React-Core-prebuilt/React-VFS.yaml
+[32m[ReactNativeCore] [0mVFS overlay setup complete
+[32m[ReactNativeCore] [0mConfiguring xcconfig for prebuilt React Native Core...
+[32m[ReactNativeCore] [0mPrebuilt xcconfig configuration complete
+[SPM] Cleaning old SPM dependencies from Pods project
+[SPM] Adding SPM dependencies to Pods project
+[Privacy Manifest Aggregation] No existing PrivacyInfo.xcprivacy file found, creating a new one.
+[Privacy Manifest Aggregation] Reading .xcprivacy files to aggregate all used Required Reason APIs.
+file_root: Snapback4chat
+Setting CLANG_CXX_LANGUAGE_STANDARD to c++20 on /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/Snapback4chat.xcodeproj
+
+[33m==================== DEPRECATION NOTICE =====================[0m
+[33mCalling `pod install` directly is deprecated in React Native[0m
+[33mbecause we are moving away from Cocoapods toward alternative[0m
+[33msolutions to build the project.[0m
+[33m* If you are using Expo, please run:[0m
+[33m`npx expo run:ios`[0m
+[33m* If you are using the Community CLI, please run:[0m
+[33m`yarn ios`[0m
+[33m=============================================================[0m
+
+[32mPod install took 15 [s] to run[0m
+Integrating client project
+[32m
+[!] Please close any current Xcode sessions and use `Snapback4chat.xcworkspace` for this project from now on.[0m
+[34m[Expo] [0mInstalling the build script for target [32mSnapback4chat[0m
+[32mPod installation complete! There are 97 dependencies from the Podfile and 96 total pods installed.[0m
+[34m[Expo-precompiled] [0mPrecompiled modules:
+[34m[Expo-precompiled] [0m  📦 [32mExpoFileSystem[0m [2m(57.0.7)[0m
+[34m[Expo-precompiled] [0m  📦 [32mExpoFont[0m [2m(57.0.4)[0m
+[34m[Expo-precompiled] [0m  📦 [32mExpoModulesCore[0m [2m(57.0.18)[0m
+[34m[Expo-precompiled] [0m  📦 [32mExpoModulesWorklets[0m [2m(57.0.18)[0m
+[34m[Expo] [0mDisabling SWIFT_EMIT_MODULE_INTERFACE for pod targets (prebuilt React compatibility)
+[34m[Expo-precompiled] [0mLooking for ExpoModulesCore.xcframework at: /Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo/ios/Pods/ExpoModulesCore/ExpoModulesCore.xcframework
+[34m[Expo-precompiled] [0mAdding ExpoModulesJSI header search paths to all targets
+[34m[Expo] [0mAdding '[Expo] Remove duplicate codegen output' build phase to ReactCodegen
+✔ Installed CocoaPods
+Expo Autolinking module resolution enabled
+Starting Metro Bundler
+
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:66287) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundled 1399ms apps/chat-expo/index.js (606 modules)
+Writing bundle output to: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/nb0xmfoix4g/main.jsbundle
+Done writing bundle output
+› Planning build
+› Executing react-native Pods/hermes-engine » [CP-User] [Hermes] Replace Hermes for the right configuration, if needed
+› Executing react-native Pods/ReactNativeDependencies » [CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed
+› Preparing Pods/React-timing-React-timing_privacy » ResourceBundle-React-timing_privacy-React-timing-Info.plist
+› Copying   React-timing/React-timing_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/react-native/ReactCommon/react/timing/PrivacyInfo.xcprivacy
+› Preparing Pods/React-cxxreact-React-cxxreact_privacy » ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist
+› Copying   React-cxxreact/React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/react-native/ReactCommon/cxxreact/PrivacyInfo.xcprivacy
+› Preparing Pods/React-Core-React-Core_privacy » ResourceBundle-React-Core_privacy-React-Core-Info.plist
+› Copying   React-Core/React-Core_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/react-native/React/Resources/PrivacyInfo.xcprivacy
+› Preparing Pods/ExpoFileSystem-ExpoFileSystem_privacy » ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist
+› Preparing Pods/EXConstants-ExpoConstants_privacy » ResourceBundle-ExpoConstants_privacy-EXConstants-Info.plist
+› Copying   EXConstants/ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/expo-constants/ios/PrivacyInfo.xcprivacy
+› Preparing expo-constants Pods/EXConstants-EXConstants » ResourceBundle-EXConstants-EXConstants-Info.plist
+› Creating  Pods/React-timing-React-timing_privacy » React-timing_privacy.bundle
+› Creating  Pods/React-cxxreact-React-cxxreact_privacy » React-cxxreact_privacy.bundle
+› Creating  Pods/React-Core-React-Core_privacy » React-Core_privacy.bundle
+› Creating  Pods/ExpoFileSystem-ExpoFileSystem_privacy » ExpoFileSystem_privacy.bundle
+› Creating  expo-constants Pods/EXConstants-EXConstants » EXConstants.bundle
+› Creating  Pods/EXConstants-ExpoConstants_privacy » ExpoConstants_privacy.bundle
+› Executing react-native Pods/hermes-engine » [CP] Copy XCFrameworks
+› Preparing Pods/expo-dev-menu-EXDevMenu » ResourceBundle-EXDevMenu-expo-dev-menu-Info.plist
+› Creating  Pods/expo-dev-menu-EXDevMenu » EXDevMenu.bundle
+› Preparing Pods/expo-dev-launcher-EXDevLauncher » ResourceBundle-EXDevLauncher-expo-dev-launcher-Info.plist
+› Creating  Pods/expo-dev-launcher-EXDevLauncher » EXDevLauncher.bundle
+› Executing react-native Pods/ReactNativeDependencies » [CP] Copy XCFrameworks
+› Executing react-native Pods/React-Core-prebuilt » [CP-User] [RNCore] Replace React Native Core for the right configuration, if needed
+› Compiling expo-dev-menu-interface Pods/expo-dev-menu-interface » expo-dev-menu-interface-dummy.m
+› Compiling expo-json-utils Pods/EXJSONUtils » EXJSONUtils-dummy.m
+› Compiling expo-json-utils Pods/EXJSONUtils » NSDictionary+EXJSONUtils.m
+› Packaging expo-dev-menu-interface Pods/expo-dev-menu-interface » libexpo-dev-menu-interface.a
+› Packaging expo-json-utils Pods/EXJSONUtils » libEXJSONUtils.a
+› Compiling expo-dev-menu-interface Pods/expo-dev-menu-interface » expo-dev-menu-interface-dummy.m
+› Compiling expo-json-utils Pods/EXJSONUtils » NSDictionary+EXJSONUtils.m
+› Compiling expo-json-utils Pods/EXJSONUtils » EXJSONUtils-dummy.m
+› Packaging expo-dev-menu-interface Pods/expo-dev-menu-interface » libexpo-dev-menu-interface.a
+› Packaging expo-json-utils Pods/EXJSONUtils » libEXJSONUtils.a
+› Executing expo-dev-menu-interface Pods/expo-dev-menu-interface » Copy generated compatibility header
+› Executing react-native Pods/React-Core-prebuilt » [CP] Copy XCFrameworks
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP-User] Build ExpoModulesJSI xcframework
+› Executing react-native Pods/React-RCTFBReactNativeSpec » [CP-User] [RN]Check FBReactNativeSpec
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoRedBoxSwap.mm
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoRedBoxSwap.mm
+› Executing @snapback4/chat-expo Pods/ReactCodegen » [CP-User] Generate Specs
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoLogBox-dummy.m
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoLogBox-dummy.m
+› Packaging @expo/log-box Pods/ExpoLogBox » libExpoLogBox.a
+› Packaging @expo/log-box Pods/ExpoLogBox » libExpoLogBox.a
+› Executing @expo/log-box Pods/ExpoLogBox » Copy generated compatibility header
+› Executing @snapback4/chat-expo Pods/ReactCodegen » [Expo] Remove duplicate codegen output
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTThirdPartyComponentsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTUnstableModulesRequiringMainQueueSetupProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModulesConformingToProtocolsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModuleProviders.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTThirdPartyComponentsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTUnstableModulesRequiringMainQueueSetupProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModulesConformingToProtocolsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModuleProviders.mm
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » RCTAppDependencyProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » RCTAppDependencyProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » ReactCodegen-dummy.m
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » ReactAppDependencyProvider-dummy.m
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » ReactCodegen-dummy.m
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » ReactAppDependencyProvider-dummy.m
+› Packaging @snapback4/chat-expo Pods/ReactCodegen » libReactCodegen.a
+› Packaging @snapback4/chat-expo Pods/ReactCodegen » libReactCodegen.a
+› Packaging @snapback4/chat-expo Pods/ReactAppDependencyProvider » libReactAppDependencyProvider.a
+› Packaging @snapback4/chat-expo Pods/ReactAppDependencyProvider » libReactAppDependencyProvider.a
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP] Copy XCFrameworks
+› Executing expo-modules-core Pods/ExpoModulesCore » [CP-User] [Expo] Resolve ExpoModulesCore dSYM source maps
+› Executing expo-modules-core Pods/ExpoModulesCore » [CP-User] [Expo] Switch ExpoModulesCore XCFramework for build configuration
+› Executing expo-modules-core Pods/ExpoModulesCore » [CP] Copy XCFrameworks
+› Executing expo-modules-core Pods/ExpoModulesWorklets » [CP-User] [Expo] Resolve ExpoModulesWorklets dSYM source maps
+› Executing expo-font Pods/ExpoFont » [CP-User] [Expo] Resolve ExpoFont dSYM source maps
+› Executing expo-file-system Pods/ExpoFileSystem » [CP-User] [Expo] Resolve ExpoFileSystem dSYM source maps
+› Executing snapback4-expo Pods/Snapback4Expo » [CP] Copy XCFrameworks
+› Executing expo-modules-core Pods/ExpoModulesWorklets » [CP-User] [Expo] Switch ExpoModulesWorklets XCFramework for build configuration
+› Executing expo-file-system Pods/ExpoFileSystem » [CP-User] [Expo] Switch ExpoFileSystem XCFramework for build configuration
+› Executing expo-font Pods/ExpoFont » [CP-User] [Expo] Switch ExpoFont XCFramework for build configuration
+› Executing expo-modules-core Pods/ExpoModulesWorklets » [CP] Copy XCFrameworks
+› Executing expo-file-system Pods/ExpoFileSystem » [CP] Copy XCFrameworks
+› Executing expo-constants Pods/EXConstants » [CP-User] Generate app.config for prebuilt Constants.manifest
+› Executing expo-font Pods/ExpoFont » [CP] Copy XCFrameworks
+› Compiling expo-manifests Pods/EXManifests » EXManifests-dummy.m
+› Compiling expo-manifests Pods/EXManifests » EXManifests-dummy.m
+› Packaging expo-manifests Pods/EXManifests » libEXManifests.a
+› Packaging expo-manifests Pods/EXManifests » libEXManifests.a
+› Compiling expo-updates-interface Pods/EXUpdatesInterface » noop-file.m
+› Compiling expo-updates-interface Pods/EXUpdatesInterface » EXUpdatesInterface-dummy.m
+› Packaging expo-updates-interface Pods/EXUpdatesInterface » libEXUpdatesInterface.a
+› Executing expo-manifests Pods/EXManifests » Copy generated compatibility header
+› Compiling expo-updates-interface Pods/EXUpdatesInterface » noop-file.m
+› Compiling expo-updates-interface Pods/EXUpdatesInterface » EXUpdatesInterface-dummy.m
+› Compiling expo-keep-awake Pods/ExpoKeepAwake » ExpoKeepAwake-dummy.m
+› Compiling expo-keep-awake Pods/ExpoKeepAwake » ExpoKeepAwake-dummy.m
+› Packaging expo-updates-interface Pods/EXUpdatesInterface » libEXUpdatesInterface.a
+› Packaging expo-keep-awake Pods/ExpoKeepAwake » libExpoKeepAwake.a
+› Packaging expo-keep-awake Pods/ExpoKeepAwake » libExpoKeepAwake.a
+› Executing expo-updates-interface Pods/EXUpdatesInterface » Copy generated compatibility header
+› Executing expo-keep-awake Pods/ExpoKeepAwake » Copy generated compatibility header
+› Compiling expo-secure-store Pods/ExpoSecureStore » ExpoSecureStore-dummy.m
+› Packaging expo-secure-store Pods/ExpoSecureStore » libExpoSecureStore.a
+› Compiling expo-secure-store Pods/ExpoSecureStore » ExpoSecureStore-dummy.m
+› Compiling expo-asset Pods/ExpoAsset » ExpoAsset-dummy.m
+› Packaging expo-secure-store Pods/ExpoSecureStore » libExpoSecureStore.a
+› Packaging expo-asset Pods/ExpoAsset » libExpoAsset.a
+› Executing expo-secure-store Pods/ExpoSecureStore » Copy generated compatibility header
+› Compiling expo-asset Pods/ExpoAsset » ExpoAsset-dummy.m
+› Compiling @expo/dom-webview Pods/ExpoDomWebView » ExpoDomWebView-dummy.m
+› Packaging expo-asset Pods/ExpoAsset » libExpoAsset.a
+› Packaging @expo/dom-webview Pods/ExpoDomWebView » libExpoDomWebView.a
+› Executing expo-asset Pods/ExpoAsset » Copy generated compatibility header
+› Compiling @expo/dom-webview Pods/ExpoDomWebView » ExpoDomWebView-dummy.m
+› Packaging @expo/dom-webview Pods/ExpoDomWebView » libExpoDomWebView.a
+› Executing @expo/dom-webview Pods/ExpoDomWebView » Copy generated compatibility header
+⚠️  class 'Snapback4OpenException' must restate inherited '@unchecked Sendable' conformance
+   └─/Users/ccheever/projects/snapback-pub-040/snapback4/packages/snapback4-expo/ios/Snapback4Module.swift:90:22
+› Compiling expo Pods/Expo » ExpoReactNativeFactory.mm
+› Compiling expo Pods/Expo » EXReactRootViewFactory.mm
+› Compiling expo Pods/Expo » EXBundleConfiguration.mm
+› Compiling expo Pods/Expo » ExpoReactNativeFactory.mm
+› Compiling expo Pods/Expo » EXReactRootViewFactory.mm
+› Compiling expo Pods/Expo » EXBundleConfiguration.mm
+› Compiling snapback4-expo Pods/Snapback4Expo » Snapback4Expo-dummy.m
+› Compiling expo Pods/Expo » Expo-dummy.m
+› Packaging snapback4-expo Pods/Snapback4Expo » libSnapback4Expo.a
+› Executing snapback4-expo Pods/Snapback4Expo » Copy generated compatibility header
+› Compiling expo Pods/Expo » Expo-dummy.m
+› Compiling expo-sqlite Pods/ExpoSQLite » sqlite3.c
+› Compiling expo-sqlite Pods/ExpoSQLite » sqlite3.c
+› Compiling expo-constants Pods/EXConstants » EXConstants-dummy.m
+› Compiling expo-constants Pods/EXConstants » EXConstantsInstallationIdProvider.m
+› Compiling expo Pods/Expo » EXLegacyAppDelegateWrapper.m
+› Compiling expo Pods/Expo » EXAppDelegatesLoader.m
+› Compiling expo Pods/Expo » EXAppDefinesLoader.m
+› Compiling expo Pods/Expo » EXLegacyAppDelegateWrapper.m
+› Compiling expo Pods/Expo » EXAppDelegatesLoader.m
+› Compiling expo Pods/Expo » EXAppDefinesLoader.m
+› Compiling expo-constants Pods/EXConstants » EXConstants-dummy.m
+› Compiling expo-constants Pods/EXConstants » EXConstantsInstallationIdProvider.m
+› Compiling expo-sqlite Pods/ExpoSQLite » ExpoSQLite-dummy.m
+› Packaging expo Pods/Expo » libExpo.a
+› Compiling expo-sqlite Pods/ExpoSQLite » ExpoSQLite-dummy.m
+› Packaging expo Pods/Expo » libExpo.a
+› Executing expo Pods/Expo » Copy generated compatibility header
+› Compiling expo-constants Pods/EXConstants » EXConstantsService.m
+› Packaging expo-constants Pods/EXConstants » libEXConstants.a
+› Compiling expo-constants Pods/EXConstants » EXConstantsService.m
+› Packaging expo-constants Pods/EXConstants » libEXConstants.a
+› Executing expo-constants Pods/EXConstants » Copy generated compatibility header
+› Compiling expo-dev-menu Pods/expo-dev-menu » RCTKeyCommands.m
+› Compiling expo-dev-menu Pods/expo-dev-menu » expo-dev-menu-dummy.m
+› Compiling expo-dev-menu Pods/expo-dev-menu » EXDevMenuAppInfo.m
+› Compiling expo-dev-menu Pods/expo-dev-menu » expo-dev-menu-dummy.m
+› Compiling expo-dev-menu Pods/expo-dev-menu » RCTKeyCommands.m
+› Packaging expo-dev-menu Pods/expo-dev-menu » libexpo-dev-menu.a
+› Compiling expo-dev-menu Pods/expo-dev-menu » EXDevMenuAppInfo.m
+› Packaging expo-dev-menu Pods/expo-dev-menu » libexpo-dev-menu.a
+› Executing expo-dev-menu Pods/expo-dev-menu » Copy generated compatibility header
+› Packaging expo-sqlite Pods/ExpoSQLite » libExpoSQLite.a
+› Packaging expo-sqlite Pods/ExpoSQLite » libExpoSQLite.a
+› Executing expo-sqlite Pods/ExpoSQLite » Copy generated compatibility header
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » RCTPackagerConnection+EXDevLauncherPackagerConnectionInterceptor.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » RCTPackagerConnection+EXDevLauncherPackagerConnectionInterceptor.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherUpdatesHelper.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherRCTDevSettings.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherEarlySetup.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » expo-dev-launcher-dummy.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » expo-dev-launcher-dummy.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherUpdatesHelper.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherRCTDevSettings.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherEarlySetup.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherRedBox.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherManifestParser.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherController.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncher.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherController.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherRedBox.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherManifestParser.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncher.m
+› Packaging expo-dev-launcher Pods/expo-dev-launcher » libexpo-dev-launcher.a
+› Packaging expo-dev-launcher Pods/expo-dev-launcher » libexpo-dev-launcher.a
+› Executing expo-dev-launcher Pods/expo-dev-launcher » Copy generated compatibility header
+› Compiling Pods/Pods-Snapback4chat » Pods-Snapback4chat-dummy.m
+› Packaging Pods/Pods-Snapback4chat » libPods-Snapback4chat.a
+› Executing Snapback4chat » [CP] Check Pods Manifest.lock
+› Executing Snapback4chat » [Expo] Configure project
+› Copying   ./PrivacyInfo.xcprivacy ➜ ios/Snapback4chat/PrivacyInfo.xcprivacy
+› Copying   ios/Snapback4chat/Supporting/Expo.plist ➜ ./Expo.plist
+› Compiling Snapback4chat » SplashScreen.storyboard
+› Preparing Snapback4chat » Info.plist
+› Compiling Snapback4chat » Snapback4chat_vers.c
+› Linking   Snapback4chat » Snapback4chat
+› Executing Snapback4chat » Bundle React Native code and images
+    Eager bundle does not match new options, bundling again.
+› Generating debug Snapback4chat » Snapback4chat.app.dSYM
+› Executing Snapback4chat » [CP] Copy Pods Resources
+› Executing Snapback4chat » [Expo Dev Launcher] Strip Local Network Keys for Release
+› Executing Snapback4chat » [CP] Embed Pods Frameworks
+› Signing   Snapback4chat » Snapback4chat.app
+› Creating  Snapback4chat » Snapback4chat.app
+⚠️  Script has ambiguous dependencies causing it to run on every build.
+   To fix, go to: Xcode » Snapback4chat/Snapback4chat » Build Phases » '[Expo Dev Launcher] Strip Local Network Keys for Release'
+   Either: Uncheck "Based on dependency analysis", or select output files to trigger the script
+
+› Build Succeeded
+
+› 0 error(s), and 3 warning(s)
+
+Copied to /Users/ccheever/projects/snapback-pub-040/snapback4/target/expo-release/Snapback4chat.app
+
+✓ Build complete
+Binary: /Users/ccheever/projects/snapback-pub-040/snapback4/target/expo-release/Snapback4chat.app

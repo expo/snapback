@@ -1,0 +1,15 @@
+{
+  "name": "capability-free-before-pin",
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=control: capability-free",
+    "packages/snapback4/test/schema-capabilities.test.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:17:24.356687+00:00",
+  "finished_at": "2026-09-24T11:17:25.810165+00:00",
+  "seconds": 1.453,
+  "exit_code": 1,
+  "log": "capability-free-before-pin.log"
+}

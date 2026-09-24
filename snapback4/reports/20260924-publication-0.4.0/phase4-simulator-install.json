@@ -1,0 +1,13 @@
+{
+  "name": "phase4-simulator-install",
+  "command": [
+    "python3",
+    "-"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:33:19.242840+00:00",
+  "finished_at": "2026-09-24T11:33:36.183231+00:00",
+  "seconds": 16.94,
+  "exit_code": 0,
+  "log": "phase4-simulator-install.log"
+}

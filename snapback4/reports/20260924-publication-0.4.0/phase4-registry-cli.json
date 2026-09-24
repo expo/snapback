@@ -1,0 +1,13 @@
+{
+  "name": "phase4-registry-cli",
+  "command": [
+    "node",
+    "reports/20260924-publication-0.4.0/verify-registry.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:53:10.846845+00:00",
+  "finished_at": "2026-09-24T11:53:12.715433+00:00",
+  "seconds": 1.868,
+  "exit_code": 0,
+  "log": "phase4-registry-cli.log"
+}

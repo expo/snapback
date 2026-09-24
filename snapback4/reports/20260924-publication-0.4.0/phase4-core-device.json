@@ -1,0 +1,24 @@
+{
+  "name": "phase4-core-device",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-core",
+    "-p",
+    "snapback4-device",
+    "--no-fail-fast"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:27:12.472067+00:00",
+  "finished_at": "2026-09-24T11:31:25.968889+00:00",
+  "seconds": 253.494,
+  "exit_code": 0,
+  "log": "phase4-core-device.log",
+  "summary": {
+    "targets": 50,
+    "passed": 1270,
+    "failed": 0,
+    "ignored": 4
+  }
+}

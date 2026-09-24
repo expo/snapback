@@ -1,0 +1,248 @@
+{
+  "phase": 1,
+  "baseCommit": "4af0ef82f9306140200fbfd5a52cfe95abcd6345",
+  "buildCommit": "8d52f3ea88989f38c7cae781beab9d1a62112ad8",
+  "branch": "sb4-intent/publish-040",
+  "published": false,
+  "failedQualificationAttempts": [],
+  "versionBumpWallSeconds": 7.224,
+  "commands": {
+    "bun-install": {
+      "name": "bun-install",
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:37:13.454620+00:00",
+      "finished_at": "2026-09-24T10:37:14.233328+00:00",
+      "seconds": 0.778,
+      "exit_code": 0,
+      "log": "bun-install.log"
+    },
+    "bun-install-after-bump": {
+      "name": "bun-install-after-bump",
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:38:02.579650+00:00",
+      "finished_at": "2026-09-24T10:38:02.648459+00:00",
+      "seconds": 0.069,
+      "exit_code": 0,
+      "log": "bun-install-after-bump.log"
+    },
+    "version-commit": {
+      "name": "version-commit",
+      "command": [
+        "git",
+        "commit",
+        "-m",
+        "Snapback 4: align CLI, native, and Expo packages at 0.4.0"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:38:09.696717+00:00",
+      "finished_at": "2026-09-24T10:38:09.777834+00:00",
+      "seconds": 0.081,
+      "exit_code": 0,
+      "log": "version-commit.log"
+    },
+    "cargo-build": {
+      "name": "cargo-build",
+      "command": [
+        "cargo",
+        "build"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:38:18.551117+00:00",
+      "finished_at": "2026-09-24T10:38:35.524044+00:00",
+      "seconds": 16.973,
+      "exit_code": 0,
+      "log": "cargo-build.log"
+    },
+    "xcframework-build": {
+      "name": "xcframework-build",
+      "command": [
+        "bash",
+        "scripts/build-xcframework.sh"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:38:47.657924+00:00",
+      "finished_at": "2026-09-24T10:40:07.495963+00:00",
+      "seconds": 79.837,
+      "exit_code": 0,
+      "log": "xcframework-build.log"
+    },
+    "wasm-build": {
+      "name": "wasm-build",
+      "command": [
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:40:20.282554+00:00",
+      "finished_at": "2026-09-24T10:40:41.035197+00:00",
+      "seconds": 20.752,
+      "exit_code": 0,
+      "log": "wasm-build.log"
+    },
+    "client-package-build": {
+      "name": "client-package-build",
+      "command": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback4",
+        "build"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:40:59.547401+00:00",
+      "finished_at": "2026-09-24T10:41:00.519032+00:00",
+      "seconds": 0.971,
+      "exit_code": 0,
+      "log": "client-package-build.log"
+    },
+    "chat-backend-check": {
+      "name": "chat-backend-check",
+      "command": [
+        "../../target/debug/snapback4",
+        "check"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat",
+      "started_at": "2026-09-24T10:41:05.594962+00:00",
+      "finished_at": "2026-09-24T10:41:05.609862+00:00",
+      "seconds": 0.015,
+      "exit_code": 0,
+      "log": "chat-backend-check.log"
+    },
+    "expo-release-build": {
+      "name": "expo-release-build",
+      "command": [
+        "node",
+        "../../node_modules/expo/bin/cli",
+        "run:ios",
+        "--configuration",
+        "Release",
+        "--device",
+        "generic",
+        "--no-bundler",
+        "--output",
+        "../../target/expo-release"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4/apps/chat-expo",
+      "started_at": "2026-09-24T10:41:12.081391+00:00",
+      "finished_at": "2026-09-24T10:42:17.431617+00:00",
+      "seconds": 65.349,
+      "exit_code": 0,
+      "log": "expo-release-build.log"
+    },
+    "version-mismatch-test": {
+      "name": "version-mismatch-test",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "version_is_the_workspace_version"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:42:18.705634+00:00",
+      "finished_at": "2026-09-24T10:43:14.469286+00:00",
+      "seconds": 55.763,
+      "exit_code": 0,
+      "log": "version-mismatch-test.log"
+    },
+    "simulator-prepare": {
+      "name": "simulator-prepare",
+      "command": [
+        "python3",
+        "/tmp/sb4-pub-040-simulator.py"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:42:38.687716+00:00",
+      "finished_at": "2026-09-24T10:43:12.345081+00:00",
+      "seconds": 33.657,
+      "exit_code": 0,
+      "log": "simulator-prepare.log"
+    },
+    "native-witness": {
+      "name": "native-witness",
+      "command": [
+        "node",
+        "witness/expo.mjs"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:43:28.369483+00:00",
+      "finished_at": "2026-09-24T10:43:52.350783+00:00",
+      "seconds": 23.981,
+      "exit_code": 0,
+      "log": "native-witness.log"
+    },
+    "npm-pack": {
+      "name": "npm-pack",
+      "command": [
+        "npm",
+        "pack",
+        "--json",
+        "--pack-destination",
+        "../../target/expo-0.4.0"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4/packages/snapback4-expo",
+      "started_at": "2026-09-24T10:44:47.413251+00:00",
+      "finished_at": "2026-09-24T10:44:48.329039+00:00",
+      "seconds": 0.916,
+      "exit_code": 0,
+      "log": "npm-pack.log"
+    },
+    "pack-verification": {
+      "started_at": "2026-09-24T10:45:22.779317+00:00",
+      "seconds": 0.048,
+      "exit_code": 0,
+      "tarballIntegrityVerified": true,
+      "all17PackedFilesMatchQualifiedSource": true
+    },
+    "simulator-shutdown": {
+      "name": "simulator-shutdown",
+      "command": [
+        "xcrun",
+        "simctl",
+        "shutdown",
+        "83D9B076-D3E5-4045-AD0A-17AF5DBC137A"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+      "started_at": "2026-09-24T10:47:07.307832+00:00",
+      "finished_at": "2026-09-24T10:47:10.483127+00:00",
+      "seconds": 3.175,
+      "exit_code": 0,
+      "log": "simulator-shutdown.log"
+    }
+  },
+  "witnesses": {
+    "offline": {
+      "manifest": "offline-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 8.958,
+      "prime": true,
+      "relaunch": false,
+      "artifactHashesVerified": true
+    },
+    "restart": {
+      "manifest": "restart-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 12.158,
+      "prime": true,
+      "relaunch": true,
+      "artifactHashesVerified": true
+    }
+  },
+  "sourceTrees": {
+    "snapback4-device": "708272bad68589c64517f4a15063bfa1eee16bf1",
+    "snapback4-core": "f1149e8831365b5102d53b3c49227c2798941214"
+  },
+  "qualified": "qualified.json"
+}

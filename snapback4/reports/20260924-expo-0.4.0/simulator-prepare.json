@@ -1,0 +1,13 @@
+{
+  "name": "simulator-prepare",
+  "command": [
+    "python3",
+    "/tmp/sb4-pub-040-simulator.py"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T10:42:38.687716+00:00",
+  "finished_at": "2026-09-24T10:43:12.345081+00:00",
+  "seconds": 33.657,
+  "exit_code": 0,
+  "log": "simulator-prepare.log"
+}

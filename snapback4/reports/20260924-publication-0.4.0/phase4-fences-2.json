@@ -1,0 +1,14 @@
+{
+  "name": "phase4-fences-2",
+  "command": [
+    "node",
+    "--test",
+    "packages/snapback4/test/schema-capabilities.test.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:28:22.068508+00:00",
+  "finished_at": "2026-09-24T11:28:26.602270+00:00",
+  "seconds": 4.527,
+  "exit_code": 1,
+  "log": "phase4-fences-2.log"
+}

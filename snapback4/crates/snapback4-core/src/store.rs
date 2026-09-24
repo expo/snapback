@@ -171,7 +171,6 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _credentials (principal TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _generations (generation INTEGER PRIMARY KEY, schema TEXT NOT NULL, programs TEXT NOT NULL, at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _outbox (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL, at INTEGER NOT NULL);
-             CREATE TABLE IF NOT EXISTS _effect_keys (effect TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(effect, key)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _effect_steps (
                  effect_id TEXT NOT NULL, name TEXT NOT NULL, input_digest TEXT NOT NULL,
                  provider_key TEXT NOT NULL, state TEXT NOT NULL, claim_digest TEXT NOT NULL,
@@ -806,6 +805,9 @@ mod tests {
 
 impl crate::rows::Rows for Tx<'_> {
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
+        // Opening an old store must not change it before a backend can refuse.
+        // @ref LLP 3000.013#5.3-effects-keyed-once — table and key commit with the emission; existing keys survive reopen.
+        self.conn().execute_batch("CREATE TABLE IF NOT EXISTS _effect_keys (effect TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(effect, key)) WITHOUT ROWID;")?;
         Ok(self.conn().execute("INSERT OR IGNORE INTO _effect_keys(effect, key) VALUES (?1, ?2)", params![effect, key])? != 0)
     }
 
