@@ -101,7 +101,7 @@ impl Parser {
                 self.document.schedules.push(schedule);
                 Ok(())
             }
-            "deliver" => Err(syntax_with(&token.site, "deliver is a table line spelled sync in Snapback 4", "sync to memberships[.conversationId] last 500 by byConvTime")),
+            "deliver" => Err(syntax_with(&token.site, "deliver is a table line spelled sync in Snapback 4", "sync to memberships[.conversationId] last 500 by .at")),
             "index" | "unique" => Err(syntax_with(&token.site, "top-level indexes are invalid; place by/unique inside the table block", "move the index line into its table block")),
             "device" | "oblivious" => Err(unsupported(&token.site, &token.value, "pass an explicit bounded argument to the operation")),
             other => Err(syntax(&token.site, format!("unexpected top-level {other:?}"))),
@@ -242,7 +242,7 @@ impl Parser {
                 table.sync = Some(sync);
                 Ok(())
             }
-            "deliver" => Err(syntax_with(&token.site, "deliver is spelled sync in Snapback 4: the engine maintains each member's partition", "sync to memberships[.conversationId] last 500 by byConvTime")),
+            "deliver" => Err(syntax_with(&token.site, "deliver is spelled sync in Snapback 4: the engine maintains each member's partition", "sync to memberships[.conversationId] last 500 by .at")),
             "after" => {
                 let site = self.take("after")?.site;
                 self.take("insert")?;
@@ -274,7 +274,7 @@ impl Parser {
     /// `sync to table[.a, .b] [by .principal] [last N by index]`.
     fn parse_sync(&mut self) -> Fallible<SyncDecl> {
         let site = self.take("sync")?.site;
-        let rewrite = "sync to memberships[.conversationId] last 500 by byConvTime";
+        let rewrite = "sync to memberships[.conversationId] last 500 by .at";
         let audience = if self.maybe("public") {
             SyncAudience::Public
         } else if self.at("last") || self.at("by") || self.at_kind(Kind::Newline) || self.at_kind(Kind::Eof) {

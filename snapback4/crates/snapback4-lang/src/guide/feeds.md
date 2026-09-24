@@ -475,119 +475,37 @@ without proving a follow edge. Only the recipe's own mutations write these
 tables, and they pin the fields those rules leave open: do not add mutations
 that write `authors`, `pulls`, `broadcast` or `feed`.
 
-## Other feed shapes
+## Global: a planned view
 
-Search uses `guide search`; bounded, atomic daily digests use `guide jobs`.
-
-Maintained columns rank parent rows directly; engine-recorded attribution
-keeps historical reference facts. See `guide maintains`.
-
-### Community ranking
-
-A ranked feed for a community keeps one shared candidate set instead of a
-row per reader: a job on a schedule scores the pool from maintains into a
-public `ranked` table every device holds, the viewer's own signals sync to
-the viewer, and the device composes the two; an external ranker writes its
-per-reader word through a service seat (guide services):
+Each original and repost is one event. A planned union reads its source rules
+before projection. It stores no extra rows; equal source ids from different
+branches stay distinct. Page by event time, then the source id and branch.
 
 ```quarry
-use identity
-use personas alice, bob, marc
-
 table posts:
   authorId: principal
-  body: text <=6000
   at: time
-  by byTime: at, id
-  immutable authorId, at
-  public 'posts are public'
-  insert <- .authorId = viewer
-  sync public last 2000 by byTime
-
-table votes:
-  postId: posts
-  principal: principal
-  direction: int
-  unique byPostPrincipal: postId, principal
-  by byPrincipal: principal, id
-  cap 1000 by principal
-  read <- .principal = viewer
-  insert <- .principal = viewer
-  update (old, next) <- old.principal = viewer and next.principal = viewer
-  sync to .principal
-
-maintain postScore: sum votes of direction by postId
-  read <- allow
-
-table ranked:                       -- layer 1: one shared page, scored by the server
-  postId: posts
-  score: int
-  at: time
-  unique byPost: postId
-  by byScore: score, id
-  public 'the ranking is one shared page'
-  insert <- deny
-  update <- deny
-  sync public last 500 by byScore
-
-table seen:                         -- layer 2: the viewer's own signals
-  readerId: principal
+  removed: bool default false
+  public 'public originals'
+  online only
+table reposts:
+  actorId: principal
   postId: posts
   at: time
-  unique byReaderPost: readerId, postId
-  by byReaderTime: readerId, at, id
-  read <- .readerId = viewer
-  insert <- .readerId = viewer
-  sync to .readerId last 1000 by byReaderTime
-
-table affinity:                     -- the ranker's word, per reader
-  readerId: principal
-  postId: posts
-  score: int
-  at: time
-  unique byReaderPost: readerId, postId
-  by byReaderScore: readerId, score, id
-  read <- .readerId = viewer
-  insert <- viewer = 'service:ranker'
-  update <- viewer = 'service:ranker'
-  sync to .readerId last 200 by byReaderScore
-
-job rescore():
-  chunk p in posts first 100 by byId:
-    (ageHours, rem) = divmod(now - p.at, 3600000)
-    upsert ranked[postId = p.id] { postId: p.id, score: postScore[p.id] * 10 - ageHours, at: p.at }
-schedule rescoreEvery every 5m: rescore
-
-query home(c: cursor ?):
-  return ranked after c last 50 by byScore { *, post: posts[.postId], seen: exists seen[viewer, .postId], mine: votes[.postId, viewer], lift: affinity[viewer, .postId] }
-
-mutation vote(postId: posts, direction: int):
-  require exists posts[id = postId] else POST_NOT_FOUND
-  require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
-  upsert votes[postId, viewer] { postId, principal: viewer, direction } -- predicts the first offline vote when the post is held
-
-mutation markSeen(postId: posts):
-  require exists posts[id = postId] else POST_NOT_FOUND
-  return insert seen { readerId: viewer, postId, at: now } if absent
-
-mutation setAffinity(readerId: principal, postId: posts, score: int):
-  require exists posts[id = postId] else POST_NOT_FOUND
-  upsert affinity[readerId, postId] { readerId, postId, score, at: now }
+  public 'public reposts'
+  online only
+view activity:
+  posts where not .removed { post: .id, actor: .authorId, at, repost: false }
+  reposts { post: .postId, actor: .actorId, at, repost: true }
+query global(c: cursor ?):
+  return activity last 20 by .at after c { *, card: posts[.post] }
 ```
 
-A maintain that groups by something other than its source's audience (a
-score by post over private votes) reaches no device as a value; the job's
-`ranked` row is what puts the score on every device. Time decay is the
-cadence: the order refreshes when the job runs. A native job (guide native)
-can score with floats and a real loop; the tables and the sync are the
-same.
+## Trending: a predicate read
 
-## Trending: posts younger than a day, ranked in the like's own transaction
-
-Put the count on the post, index its hour, count and time, and merge the
-last 25 hour lanes. Every like or unlike changes the order in its mutation.
-Zero-like posts participate in the same page. Equal scores put the newest post
-first, then break equal-time ties by id. There is no copied time or zero fill.
+Put the count on the post. Each like changes it in the same transaction.
+Both time bounds define the rolling window; the compiler chooses its buckets.
+Zero-like posts participate. Equal counts put newer posts first, then id.
 
 ```quarry
 table posts:
@@ -595,8 +513,7 @@ table posts:
   body: text <=500
   at: time
   removed: bool default false
-  likeCount: count likes by postId
-  by byHourLikes: hour(at), likeCount, at, id
+  likeCount: count likes
   immutable authorId, at
   public 'posts are public'
   insert <- .authorId = viewer
@@ -605,7 +522,7 @@ table posts:
 table likes:
   postId: posts
   principal: principal
-  unique byPair: postId, principal
+  unique postId, principal
   immutable postId, principal
   public 'likes are public'
   insert <- .principal = viewer
@@ -626,365 +543,23 @@ mutation remove(postId: posts):
   update posts[id = postId] { removed: true }
 
 query trending(c: cursor ?):
-  return merge posts after c last 10 by byHourLikes where .at > now - 86400000 and .at <= now and not .removed:
-    [h] for h in range(hour(now) - 24, hour(now) + 1)
+  return posts where .at > now - 1d and .at <= now and not .removed last 10 by .likeCount, .at after c
 ```
 
-The source rules pin the like to its writer and allow only that writer to
-remove it. Repeated set/clear is idempotent. No mutation may assign the count,
-even as 0 or as the system. Ordinary post fields keep their own write rules.
-
-Whole old hours are key ranges the merge never visits. The oldest included
-hour still charges candidates rejected by the exact time filter, so a crowded
-boundary can hit the meter. A meter cut returns `complete: false`; a finished
-page stays complete and returns `next` when more rows exist. Pass `next` as `c`.
-The upper time filter excludes future-dated imports in the current hour.
-A cursor binds the evaluated lanes and generation, not a snapshot: counts
-can move across it and cause repeats or omissions. Restart when the clock
-changes the lanes; requery as time passes to drop posts at the trailing edge.
-
-The standalone block runs on the server. Add `sync public` to posts for a
-local ranking over held rows; sync likes as well if source writes should
-predict. A predicted like never changes the count: the server's parent image
-supplies it. Every contributing commit streams that whole image, coalesced
-once per parent. `N_MAINTAINED_COLUMN_STREAM` names that cost. Reading ten
-winners does not reduce acquisition; use the parent's sync horizon when
-appropriate, over a time index that does not depend on the maintained field.
-
-Adding or redefining the column recounts existing sources in atomic activation.
-It publishes an event-free generation barrier, so devices reacquire by snapshot
-and server-run parent watches re-run, including when all totals are zero.
-Beside the declared Following timeline, add `likeCount` and `byHourLikes` to
-the posts table it maps; one table serves both. Add `and not .removed` to
-Trending's filter there, and refuse likes of removed posts. See
-`guide maintains` for disclosure, cost and adoption details.
-
-## Trending: optional scheduled ranked-table recipe
-
-A scheduled ranked-table recipe buys a score computed by a job, such as a
-native scorer, or a stored page for a device that cannot hold the maintain;
-it is neither fresh nor exact.
-
-This scheduled ranked-table recipe ranks posts younger than 24 hours by
-their non-expiring like count, then post time, then id. Zero-like posts are
-candidates too. This is a window over **post time**, not a count of likes
-in the last 24 hours on arbitrarily old posts. `create` writes only a post;
-`like` and `unlike` write only the viewer's like. The engine updates
-`likeCounts`, and the schedule alone writes `ranked`. No mutation updates
-another author's post or ranking row, and no `update <- allow` is needed.
-
-```quarry
-table posts:
-  authorId: principal
-  body: text <=6000
-  at: time
-  by byTime: at, id
-  immutable authorId, at
-  public 'posts are public'
-  insert <- .authorId = viewer
-  sync public last 2000 by byTime
-
-table likes:
-  postId: posts
-  principal: principal
-  unique byPostPrincipal: postId, principal
-  by byPrincipal: principal, id
-  cap 1000 by principal
-  read <- .principal = viewer
-  insert <- .principal = viewer
-  delete <- .principal = viewer
-  sync to .principal
-
-maintain likeCounts: count likes by postId
-  read <- allow
-  online only
-
-table ranked:
-  postId: posts
-  score: int
-  at: time
-  expiresAt: time
-  unique byPost: postId
-  by byScore: score, at, postId, id
-  by byExpiresAt: expiresAt
-  public 'the scheduled ranking is public'
-  insert <- deny
-  update <- deny
-  delete <- deny
-  expire at .expiresAt
-  sync public last 500 by byScore
-
-mutation create(body: text <=6000):
-  return insert posts { authorId: viewer, body, at: now }
-
-mutation like(postId: posts):
-  require exists posts[id = postId] else POST_NOT_FOUND
-  return insert likes { postId, principal: viewer } if absent
-
-mutation unlike(postId: posts):
-  delete likes[postId, viewer]
-
-query myLike(postId: posts):
-  return exists likes[postId, viewer]
-
-job scoreTrending():
-  chunk p in posts first 100 by byId:
-    if p.at > now - 86400000 and p.at <= now:
-      upsert ranked[postId = p.id] { postId: p.id, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
-schedule trendingEvery every 1m: scoreTrending
-
-query trending(c: cursor ?):
-  return ranked after c last 10 by byScore { *, post: posts[.postId] }
-
-query trendingNow():
-  day = posts[at > now - 86400000, at <= now] first 4095 by byTime { id, at, likes: likeCounts[.id] }
-  return slice(sort(day, '-likes', '-at', '-id'), 0, 10)
-```
-
-`like` predicts when the post is held and the viewer's like partition has
-finished acquisition. That partition has no horizon; its cap is 1,000 likes
-per viewer. Repeated likes are idempotent. The online-only maintain is an
-engine side effect and does not cost source-write prediction. Local `myLike`
-changes immediately, while Trending keeps the last delivered scores.
-
-**Exactness limit:** scores and new candidates lag by one schedule period
-(1 minute) when the job runs promptly. Queueing, chunk execution and device
-sync can add delay; an offline device keeps its delivered scores. Each
-100-post chunk commits independently, so a pass is not an atomic snapshot
-of the whole ranking. Once writes stop and the next pass finishes, scores
-converge to the maintained counts. The job walks posts in bounded chunks;
-old posts are skipped. It never copies a capped count as exact.
-
-Candidate expiry is immediate at `post.at + 24h` on each host's clock,
-before the physical sweep, even if the next scoring pass has not run.
-`complete` describes the ranked page's coverage, not score freshness; a
-device exhausted past its 500-row acquisition horizon reports incomplete.
-Post bodies outside its post horizon can be null. Cursors traverse stored
-score/time/postId/id order, including ties; a rescore can move rows between pages.
-The post id breaks score/time ties just as it does in `trendingNow()`;
-the ranked row's separately minted id comes last.
-
-For the fresh indexed like-count ranking, use the hour lanes above. The
-live bounded query `trendingNow()` illustrates a read-time sort with at
-most 4,095 candidates under the shared 8,192-row examined ceiling.
-Each post costs a scan examination and a count lookup. A larger day
-returns the selected prefix's winners with `complete: false`; a cut
-count lookup or heap allocation returns `data: null, complete: false`.
-A maintain over expiring likes cannot replace that with an exact value
-index (`E_QUARRY_MAINTAIN_EXPIRE`): stored contributions survive until the
-sweep, while live values change at expiry. Rechecking only stored winners
-can miss another group's new rank. Use this scheduled recipe when score lag
-is acceptable; it does not promise exact rolling-like-window ranking.
-
-### Fresh bounded ranking: likes arriving in the last day
-
-For posts younger than a day by like count, use the hour-lanes `trending(c)`
-above. A read-time sort is still useful for a score that is not a `count` or
-`sum`, under a few thousand candidates. `rollingLikes()` ranks
-posts of any age by their likes in the trailing 24 hours; zero-like groups
-are absent and ties break by post id. A like lives for 24 hours from the
-server's `now`. These are different windows; choose the query your feed means.
-
-This standalone recipe keeps likes private and runs the ranking on the server.
-A disconnected device can retain that answer with `fresh: false`, not compute
-a complete ranking from only its own likes. For a locally computed public-like
-variant, change the likes read rule to `read <- allow`, its sync to `sync public`,
-remove `online only` from `likeCounts`, and replace the posts sync line with
-`sync public` (removing its `last 2000 by byTime` horizon). The resulting `N_MAINTAIN_SYNCED`
-note discloses that every count group reaches every device. This variant
-replicates all posts and live like sources without a horizon too: make that
-privacy and acquisition choice explicitly. Both device stores run that variant
-under their own clock, including offline expiry before the server sweep.
-
-```quarry
-table posts:
-  authorId: principal
-  body: text <=6000
-  at: time
-  by byTime: at, id
-  immutable authorId, at
-  public 'posts are public'
-  insert <- .authorId = viewer
-  sync public last 2000 by byTime
-
-table likes:
-  postId: posts
-  principal: principal
-  at: time
-  expiresAt: time
-  unique byPostPrincipal: postId, principal
-  by byPrincipal: principal, id
-  by byExpiresAt: expiresAt
-  cap 1000 by principal
-  immutable postId, principal, at, expiresAt
-  read <- .principal = viewer
-  insert <- .principal = viewer
-  delete <- .principal = viewer
-  expire at .expiresAt
-  sync to .principal
-
-maintain likeCounts: count likes by postId
-  read <- allow
-  online only
-
-mutation create(body: text <=6000):
-  return insert posts { authorId: viewer, body, at: now }
-
-mutation setLike(postId: posts, liked: bool):
-  require exists posts[id = postId] else POST_NOT_FOUND
-  if liked:
-    insert likes { postId, principal: viewer, at: now, expiresAt: now + 86400000 } if absent
-  else if exists likes[postId, viewer]:
-    delete likes[postId, viewer]
-
-query rollingLikes():
-  candidates = likeCounts first 4095 by byGroup { postId, score: .value }
-  return slice(sort(candidates, '-score', '-postId'), 0, 10)
-```
-
-The target is engine-owned: no principal can insert or update its score.
-`setLike` accepts only a post id and a desired boolean, derives the principal
-and both times on the executing host, and permits one live like per viewer
-per post. Repeated `true` does not extend a live like's lifetime; after expiry
-it may create a new like. Repeated `false` is harmless. Source update is denied.
-The per-principal cap bounds live likes to 1,000. Seed/import uses the same
-aggregate maintenance; there is no ranking backfill or refresh helper to forget.
-
-**Freshness:** the next server read sees each committed source write, with
-zero scheduled delay. Expiry changes live counts at the read's pinned clock,
-before any physical sweep, after a partial sweep and on an offline device.
-On a device, new remote writes still require sync; an offline ranking describes
-held data, not unseen writes. Eligible local source writes can predict only
-with their source and aggregate proof held. Expiring count reads need full
-source coverage; adding a source horizon makes a local ranking incomplete.
-`rollingLikes` reports its next contribution expiry to the host.
-
-**Read cost:** sort the whole bounded candidate set, then slice. The
-like-window query pays one examination per count group plus its source rows;
-unswept expired sources also cost examinations. Its `first 4095` can fit
-4,095 groups with one live like each under the 8,192 examined ceiling.
-One lookahead candidate costs another examination, and exceeding the candidate
-bound makes the ranking incomplete even when scoring fits. More contributions
-can exhaust the query before the candidate bound.
-
-For a bounded post scan such as `trendingNow()` above, each post costs two
-examined units (the scan and its count lookup), plus any live source reads.
-With short bodies and one live contribution, the expiring-source regression
-fits 4,095 posts at 8,191 examinations. This is the bounded-sort cost, not the
-cost of the indexed hour-lanes `trending(c)` recipe.
-
-When only the candidate bound is exceeded, the result is the top ten of the
-selected prefix with accurately read scores and `complete: false`, not the
-global top ten. If a count lookup or live count computation exhausts the meter,
-the whole query returns `data: null, complete: false`; it never substitutes zero
-or a partially counted score. The separate 16 MiB heap ceiling includes any
-materialised post bodies before projection in a bounded post scan: 6,000-byte bodies can exhaust it
-below 4,095 candidates (the fixture fits 1,000 and cuts at 2,700), also returning
-`data: null, complete: false`. The candidate bound is not a capacity guarantee
-for arbitrary bodies or like populations. The query has no ranking cursor:
-continuing an unsorted source page cannot continue its sorted winners. Narrow
-the candidate scope or accept an explicitly delayed materialisation when the
-full live set does not fit.
-
-`E_QUARRY_MAINTAIN_EXPIRE` remains a correctness refusal, not a reindex cost
-refusal. The sweep already subtracts physical contributions and updates target
-indexes transactionally. But live values change before that sweep; a partial
-sweep leaves stored order stale. Taking stored top-N and rechecking only those
-winners can miss a live winner. For `count`, the server's stored count is an
-upper bound on its live count: a descending scan that recomputes candidates
-until no remaining bound can beat the live top-N would be sound, with ties
-resolved by the promised order. That threshold read is not built and would
-have to refuse on devices, whose snapshots deliver live values rather than
-physical upper bounds. Signed sums have no such bound: a negative contribution
-expiring can increase the live sum. One value index would add at most two entry
-writes per removed contribution, not another aggregate scan; paying that cost
-alone does not make stored top-N fresh. This recipe pays for live reads instead.
+Pass `next` as `c`. A crowded boundary or exhausted meter makes the page
+incomplete. A cursor is not a snapshot: likes can move a post across it.
+Refresh the ranking as time passes. The upper bound excludes future imports.
+This standalone query runs online. Synced maintained parent rows receive the
+whole authoritative parent image per contributing commit; `guide maintains`
+explains that acquisition and stream cost.
 
 ## N_PUBLIC_AGGREGATE_COPY: a public derived column keeps ordinary write authority
 
-N_PUBLIC_AGGREGATE_COPY is a note, not an error. Every write to a public or
-uniformly readable column is computed from table or maintain reads, but
-`insert <- allow` or `update <- allow` (or a provably unrestricted equivalent)
-lets any principal run any mutation that writes it. The note names the column
-and a written expression, such as `p.score + 1` in `like`. Declare
-`likeCount: count likes by postId` on the parent row, as Trending does above.
-For a derivation a column cannot express, pin a copied score to the engine's
-count in both insert and update rules:
-
-```quarry
-table posts:
-  author: principal
-  public 'posts'
-  insert <- .author = viewer
-
-table likes:
-  postId: posts
-  principal: principal
-  unique byPair: postId, principal
-  immutable postId, principal
-  public 'likes'
-  insert <- .principal = viewer
-  delete <- .principal = viewer
-
-maintain likeCounts: count likes by postId
-  read <- allow
-  online only
-
-table ranked:
-  postId: posts
-  score: int
-  unique byPost: postId
-  immutable postId
-  public 'ranking'
-  insert <- exists likeCounts[postId = .postId, value = .score] or (.score = 0 and not exists likeCounts[postId = .postId])
-  update (old, next) <- exists likeCounts[postId = next.postId, value = next.score] or (next.score = 0 and not exists likeCounts[postId = next.postId])
-
-mutation refresh(postId: posts):
-  upsert ranked[postId = postId] { postId, score: likeCounts[postId] }
-```
-
-The zero case matters: a count group has no row without contributions. These
-rules reject a forged score; keeping a copy fresh is still the application's
-responsibility. For another derived fact, pin the copied value to its source
-row with an `exists` rule. Maintains produce numeric counts and sums; the note
-leads with the pinning rule for a non-numeric copy, such as a nullable author.
-
-The client calls declared operations, not arbitrary table writes. This note
-identifies latent table permission, not proof that a current mutation accepts
-an arbitrary score. It follows values through bindings, helper calls, objects,
-shapes, arithmetic and loops across all Quarry programs and helpers, including
-jobs, once per column. The written value must be computed from reads (possibly
-with ambient values); an argument may choose which derived value is written
-but may not supply the value itself or how many values contribute to it.
-A purely ambient write (`viewer`, `now`,
-a minted id or a literal) disqualifies the column, except a literal insert or
-omitted literal default may initialize a
-column that has another read-derived write. A literal update or upsert is not
-that exception. Presence (`connected`) is ambient, not a table aggregate.
-An upsert's returned id keeps the supplied id key's data provenance: an
-argument supplies it, a read derives it, and an id minted without an id key
-is ambient.
-
-A collection carries cardinality separately from its items: a read page's is
-read-derived, an argument list's or argument-bounded range's is supplied, and a
-literal list's is ambient. Shapes, slices and sorts preserve that cardinality;
-a filter may add its predicate's dependence. `count` consumes cardinality,
-while sums, element picks and loop accumulations consume it with their data.
-Branches, loop exits, sort/group keys and slice/element positions
-carry control provenance through helper writes and nested fields; that control
-does not enter the verdict. The note names a caller-dependent choice, such as
-`p.score + 1` or `p.score - 1`, chosen by `liked` in `setLike`. An unknown
-dependence or an exhausted analysis budget stays silent; it never becomes read
-evidence. Literal insert initialization keeps the exception above, including
-inside a branch.
-
-Restricted rules, private targets, immutable columns, append-only tables and
-maintain targets do not receive it. Job-only writers under `deny` stay silent.
-Actions have no Quarry write body; their external steps call declared mutations,
-whose arguments are included. A native job can write tables outside this syntax
-census, so its presence makes the all-writers proof unknown and silent. The note does not infer meaning from column names,
-and its absence is not proof that a ranking cannot be forged. Sync and
-`online only` do not change write authority.
+N_PUBLIC_AGGREGATE_COPY names an ordinary public column computed from reads
+whose insert or update rule permits arbitrary writers. Declare a maintained
+column such as `likeCount: count likes` for an aggregate the engine owns.
+For another copied value, pin the source value in both write rules. The complete
+pinning example and the note's analysis limits are on `guide maintains`.
 
 E_VIEW_FEED_SHAPE means Following cannot recognize the public activity union or
 its viewer-or-followed predicate. Use originals `{ post: .id, actor: .authorId,

@@ -31,7 +31,7 @@ fn w16h_horizon_advice_does_not_depend_on_index_name_order() {
     assert_eq!(named, renamed, "renaming an index changed the horizon advice");
     // Neither index orders the public group by mint time — both lead with a principal —
     // so the advice must be to add one, not to horizon by whichever index sorts first.
-    assert!(named.starts_with("by byAt: at, id"), "{named}");
+    assert_eq!(named, "sync public last 500 by .id");
 }
 
 #[test]
@@ -155,7 +155,7 @@ fn predicts_assertion_accepts_eligible_and_refuses_server_at_header() {
     assert_eq!(d.code, "E_NOT_PREDICTABLE");
     assert_eq!((d.site.line, d.site.col), (14, 1));
     assert_eq!(d.message, "mutation like asserts predicts, but reads online-only maintain likeCounts");
-    assert!(d.rewrite.contains("remove `online only` from maintain likeCounts"));
+    assert!(d.rewrite.contains("remove `online only` from view likeCounts"));
     assert_eq!(d.guide, "prediction");
 }
 
@@ -185,7 +185,7 @@ fn accumulated_recipient_list_fanout_is_located_and_has_a_concrete_rewrite() {
     assert!(!d.message.contains('$') && !d.message.contains("E_STRUCTURAL_FANOUT"), "{d}");
     assert!(d.message.contains("recipients") && d.message.contains("members") && d.message.contains("50"), "{d}");
     assert_ne!(d.message, d.rewrite);
-    assert!(d.rewrite.contains("members[room] by byRoom"), "{d}");
+    assert!(d.rewrite.contains("members where .room = room"), "{d}");
     let fixed = source.replace("  recipients = []\n", "").replace("      recipients = recipients + [m.principal]\n  for p in recipients:\n    insert members { room, principal: p }", "      insert members { room, principal: m.principal }");
     let b = clean(&fixed);
     assert_eq!(b.schema.operations["send"].predicts.as_deref(), Some("eligible"));
@@ -256,7 +256,7 @@ fn fanout_read_and_small_page_name_the_source_and_a_passing_rewrite() {
     println!("{d}");
     assert_eq!((d.site.line, d.site.col), (9, 3));
     assert!(d.message.contains("page bound 10") && d.message.contains("schema cap 50"));
-    assert!(d.rewrite.contains("members[room] by byRoom"));
+    assert!(d.rewrite.contains("members where .room = room"));
     clean(&format!("{base}mutation send(room: id):\n  for m in members[room] first 50 by byRoom:\n    require m.room = room else WRONG_ROOM\n"));
 }
 
@@ -405,7 +405,7 @@ fn w10a_no_cursor_names_both_remedies_and_the_capped_control_is_silent() {
     assert_eq!(b.notes.len(), 1);
     let note = &b.notes[0];
     println!("W10a diagnostic:\n{note}");
-    assert_eq!(note.to_string(), "chat.q:6:1 — N_NO_CURSOR: query chat.typingNow returns a page of 50 typing rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` and page with `after c` — chat.typingNow(.., c: cursor ?): return typing[..] after c last 50 by <index>; or declare `cap 50 by conversationId` on table typing if that is the intended group limit, then read the whole group: `typing[..]`; other metered work can still cut the read\n  guide: reads");
+    assert_eq!(note.to_string(), "chat.q:6:1 — N_NO_CURSOR: query chat.typingNow returns a page of 50 typing rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` in chat.typingNow and append `after c` to this typing page, keeping its current predicate, direction and column order; or declare `cap 50 by conversationId` on table typing if that is the intended group limit, then read `typing where .conversationId = <value>` without a page clause; other metered work can still cut the read\n  guide: reads");
     for fixed in [source.replace("  public 'typing roster'", "  cap 50 by conversationId\n  public 'typing roster'"), source.replace("conversationId: id):", "conversationId: id, c: cursor ?):").replace("first 50", "after c first 50")] {
         let b = compile(&[("chat.q".into(), fixed)]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
@@ -585,7 +585,7 @@ fn horizon_calibration_advice_preserves_prediction_and_groups_sites() {
     let no_horizon: Vec<_> = b.notes.iter().filter(|n| n.code == "N_NO_HORIZON").collect();
     assert_eq!(no_horizon.len(), 1);
     assert!(no_horizon[0].message.starts_with("table archive:"));
-    assert_eq!(no_horizon[0].rewrite, "sync public last 500 by byTime");
+    assert_eq!(no_horizon[0].rewrite, "sync public last 500 by .at");
     let grouped: Vec<_> = b.notes.iter().filter(|n| n.code == "N_MAINTAIN_SYNCED").collect();
     assert_eq!(grouped.len(), 1);
     for (name, line) in [("messageCounts", 69), ("reactionCounts", 71), ("postCounts", 73), ("postTimes", 75), ("rankCounts", 77), ("rankTotal", 79)] {
@@ -630,7 +630,7 @@ fn w6r1_ordinary_mutation_page_keeps_growing_table_advice() {
     assert_eq!(b.schema.operations["page"].predicts.as_deref(), Some("eligible"));
     let note = b.notes.iter().find(|n| n.code == "N_NO_HORIZON").expect("a page needs no whole-partition proof");
     println!("{note}");
-    assert_eq!(note.rewrite, "sync public last 500 by byTime");
+    assert_eq!(note.rewrite, "sync public last 500 by .at");
     let bounded = clean(&source.replace("sync public", &note.rewrite));
     assert_eq!(bounded.schema.operations["page"].predicts.as_deref(), Some("eligible"));
     assert!(!bounded.notes.iter().any(|n| n.code == "N_NO_HORIZON"));
@@ -683,7 +683,7 @@ fn w6r2_ascending_page_advice_preserves_prediction() {
 
 #[test]
 fn w6r2_descending_page_keeps_horizon_rewrite() {
-    mutation_page_horizon_advice("archive last 20 by byTime", "sync public last 500 by byTime");
+    mutation_page_horizon_advice("archive last 20 by byTime", "sync public last 500 by .at");
 }
 
 #[test]

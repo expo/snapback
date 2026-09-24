@@ -11,7 +11,7 @@ fn fixture_on<H: Host>(mut host: H, source: &str, rows: Vec<(String, Value)>, ch
     println!("W13e store={}", host.label());
     check(&mut |op, cursor, term| {
         let page = device.query(op, "dev:alice", &serde_json::json!({"q":term, "c":cursor}), 2000).unwrap();
-        if source.contains("last 10 by byRoomTime") { assert!(!page.complete, "a horizon cannot claim full history"); }
+        if source.contains("last 10 by .at") { assert!(!page.complete, "a horizon cannot claim full history"); }
         page
     });
     host.close("search-forms", device);
@@ -19,7 +19,6 @@ fn fixture_on<H: Host>(mut host: H, source: &str, rows: Vec<(String, Value)>, ch
 
 mod memory {
     use super::*;
-    const DECODED_STORE: bool = false;
     fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut dyn FnMut(&str, Option<String>, &str) -> QueryOutcome)) {
         fixture_on(Memory::new(), source, rows, check);
     }
@@ -28,7 +27,6 @@ mod memory {
 
 mod sqlite {
     use super::*;
-    const DECODED_STORE: bool = true;
     fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut dyn FnMut(&str, Option<String>, &str) -> QueryOutcome)) {
         fixture_on(Sqlite::new("w13e"), source, rows, check);
     }

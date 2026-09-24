@@ -12,7 +12,7 @@ pub fn init(options: &Options) -> i32 {
     let retired = ["prefix", "authors", "edges", "public-profiles", "public-posts", "public-follows", "public-reposts"];
     if options.flags.get("recipe").is_some_and(|name| name == "feeds")
         || retired.iter().any(|flag| options.flags.contains_key(*flag)) {
-        eprintln!("E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    authors profiles by principal\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n    size authors 1008, edges 5921\n  declare before event and edge data exists; see snapback4 guide feeds");
+        eprintln!("E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n  declare before event and edge data exists; see snapback4 guide feeds");
         return 2;
     }
     if options.positionals.len() > 1 || (["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count() > 1) || options.flags.contains_key("recipe") {

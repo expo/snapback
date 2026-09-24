@@ -146,17 +146,17 @@ fn every_card_and_published_quarry_block_has_no_aggregate_copy_note() {
 
 #[test]
 fn aggregate_copy_card_section_is_verbatim_and_discoverable() {
-    let section = guide::card("feeds").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").unwrap().1;
+    let section = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").unwrap().1;
     assert!(section.contains("Every write to a public or"));
     assert!(section.contains("p.score + 1"));
     assert!(section.contains("but may not supply the value itself or how many values contribute to it."));
-    let column = section.find("likeCount: count likes by postId").unwrap();
+    let column = section.find("likeCount: count likes").unwrap();
     let pin = section.find("both insert and update rules").unwrap();
     assert!(column < pin, "lead with the maintained column, then pinning for other derivations");
-    assert!(guide::card("feeds").unwrap().ends_with(section));
+    assert!(guide::card("maintains").unwrap().ends_with(section));
     assert_eq!(snapback4_lang::diag::guide_for(CODE), "feeds");
     let explanation = guide::explain_code(CODE).unwrap();
-    assert!(explanation.contains("Every write to a public or"));
+    assert!(explanation.contains("ordinary public column computed from reads"));
     assert!(explanation.ends_with("Full card: snapback4 guide feeds"));
 }
 
@@ -167,8 +167,8 @@ fn aggregate_copy_claim_is_reached_from_the_orientation() {
     // the claim lives there in full (its wording is pinned by the card test above).
     assert!(README.split_once("## Reference map").unwrap().1.contains("`guide feeds`"));
     assert!(!README.contains("## N_PUBLIC_AGGREGATE_COPY:"), "the claim is no longer duplicated in the README");
-    let claim = guide::card("feeds").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
-    assert!(claim.contains("Every write to a public or") && claim.contains("likeCount: count likes by postId"));
+    let claim = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
+    assert!(claim.contains("Every write to a public or") && claim.contains("likeCount: count likes"));
 }
 
 #[test]
@@ -453,7 +453,7 @@ fn a_named_upsert_key_is_a_written_value_on_insert() {
 #[test]
 fn published_pinning_rule_accepts_zero_and_true_count_and_refuses_forgery() {
     use snapback4_core::{Context, Engine, Value, WriteState};
-    let source = guide::quarry(guide::card("feeds").unwrap()).into_iter().find(|block| block.contains("table ranked:") && block.contains("update (old, next) <- exists likeCounts")).unwrap();
+    let source = guide::quarry(guide::card("maintains").unwrap()).into_iter().find(|block| block.contains("table ranked:") && block.contains("update (old, next) <- exists likeCounts")).unwrap();
     let source = format!("{source}\nmutation setScore(postId: posts, score: int):\n  upsert ranked[postId = postId] {{ postId, score }}\nmutation like(postId: posts):\n  insert likes {{ postId, principal: viewer }} if absent\n");
     let bound = bind(&source);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
@@ -936,7 +936,7 @@ fn review_f14_rewrite_only_offers_maintains_for_supported_value_types() {
         assert_eq!(notes.len(), 1, "{ty}");
         println!("F14 {ty}: {}", notes[0]);
         if matches!(ty, "int" | "decimal 2" | "money USD 2") {
-            assert!(notes[0].rewrite.starts_with("declare likeCount: count likes by postId"), "{ty}: {}", notes[0]);
+            assert!(notes[0].rewrite.starts_with("declare likeCount: count likes"), "{ty}: {}", notes[0]);
         } else {
             assert_eq!(notes[0].rewrite, "pin copies.value to its source in both insert and update rules; see guide feeds for the rule", "{ty}");
         }

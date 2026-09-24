@@ -8,6 +8,12 @@ pub fn source() -> &'static str {
         .split_once("```quarry\n").unwrap().1.split_once("```").unwrap().0
 }
 
+/// Explicit-index controls pin legacy lane widths and crafted cursor descriptors.
+pub fn legacy_source() -> String {
+    source().replace("table members:\n", "table members:\n  by byPrincipalRoom: principal, roomId, id\n")
+        .replace("table messages:\n", "table messages:\n  by byRoomWords: roomId, words(body), at, id\n  by byWords: words(body), at, id\n  by byRoomTime: roomId, at, id\n")
+}
+
 pub fn seed(memberships: usize) -> Vec<(String, Value)> {
     let mut rows = Vec::new();
     // One extra chat is unreadable to the measured viewer, with newer hits.

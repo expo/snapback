@@ -26,7 +26,7 @@ const until = async (read, label) => {
 for (const tier of ["online", "local"]) test(`README first account: ${tier}, generated API, password, avatar, reopen and denied read`, { timeout: 120_000 }, async t => {
   const schema = blocks.find(b => b[1] === "quarry" && b[2].includes("table profiles:"))?.[2];
   assert.ok(schema, "README must contain its password profile schema");
-  const examples = blocks.filter(b => b[1] !== "quarry").map(b => ({ text: b[2], file: b[2].match(/^\/\/ (src\/\w+\.ts|App\.tsx)\n/)?.[1] }));
+  const examples = blocks.filter(b => b[1] !== "quarry" && b[2].startsWith("// ")).map(b => ({ text: b[2], file: b[2].match(/^\/\/ (src\/\w+\.ts|App\.tsx)\n/)?.[1] }));
   assert.deepEqual(examples.map(b => b.file), ["src/client.ts", "App.tsx"]);
   const dir = mkdtempSync(join(pkg, ".first-account-"));
   let host, client, screen;

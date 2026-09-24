@@ -79,7 +79,7 @@ query one(room: text <=30):
 
 #[test]
 fn the_feeds_card_predicts_its_first_vote_on_both_stores() {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter().find(|block| block.contains("mutation vote(")).unwrap();
+    let source = snapback4_lang::guide::quarry(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"))).into_iter().find(|block| block.contains("mutation vote(")).unwrap();
     fn run<H: Host>(host: &mut H, source: &str) {
         let (mut server, backend) = compile(source);
         let post = wire::row_from_json(&server.schema().tables["posts"], &json!({"id":"post","authorId":"bob","body":"first","at":1000})).unwrap();

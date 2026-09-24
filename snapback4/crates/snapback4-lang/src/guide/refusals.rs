@@ -30,7 +30,7 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 
-`unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'` supplies a
+`unique handle else HANDLE_TAKEN 'That handle is taken.'` supplies a
 constraint's user-facing code and message. Render `message`; `detail` retains
 `profiles.byHandle already has a row where handle = 'alice'` for development.
 Omit the literal to use the default `the program refused with HANDLE_TAKEN`.

@@ -45,8 +45,8 @@ table profiles:
   principal: principal
   handle: text 3..20 format handle
   avatar: image <=10000000 ?
-  unique byPrincipal: principal
-  unique byHandle: handle
+  unique principal
+  unique handle
   read <- .principal = viewer
   insert <- .principal = viewer
   update <- .principal = viewer
@@ -57,8 +57,8 @@ table profiles:
 table handles:
   principal: principal
   handle: text 3..20 format handle
-  unique byPrincipal: principal
-  unique byHandle: handle
+  unique principal
+  unique handle
   public 'handles are discoverable after signup'
   insert <- .principal = viewer
   update <- .principal = viewer
@@ -188,12 +188,58 @@ the network off for a cold-offline start. Reconnect to settle pending writes. Br
 offline availability; `client.acquired` states whether the replica is ready.
 Defer feeds, search, schedules and server handlers until those features are needed.
 
-## App files
+## The whole model
 
-Edit `snapback/*.q` and your screens. `check`/`dev` build
-`snapback/generated/api.ts`; never commit it. Operations in `schema.q` are
-`api.name`, and `snapback/<module>.q` operations are `api.<module>.name`.
-`snapback/worker.mts` is an optional Node ESM worker for effects and actions.
+Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`;
+never commit it. A table holds data. Rules authorize each row. Sync chooses
+what devices hold. A query states a predicate and order. A view derives data.
+A mutation commits atomically. A job sweeps; an effect records external work.
+An asset belongs to its row and follows that row's read rule.
+
+```quarry
+table notes:
+  owner: principal
+  body: text <=500
+  photo: image <=10000000 ?
+  at: time
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync last 100 by .at
+view noteCount: count notes by .owner
+  online only
+query recent(c: cursor ?):
+  return notes where .owner = viewer last 20 by .at after c
+mutation addNote(body: text <=500, photo: image <=10000000 ?):
+  return insert notes { owner: viewer, body, photo, at: now }
+effect reminder
+job remind(periodStart: time, periodEnd: time):
+  for n in notes:
+    if n.at >= periodStart and n.at < periodEnd:
+      emit reminder { recipient: n.owner, note: n.id } once [n.id, periodEnd]
+schedule dailyReminder every 1d: remind
+```
+
+The page and acquisition sizes describe this screen. Indexes and job chunk
+sizes are chosen by the engine. Streaming `count(notes where .owner = viewer)`
+counts a domain under the meter; `noteCount[viewer]` reads the maintained total.
+A cut total is unavailable. Each job iteration runs as the system: select the
+recipient's authorized data before emitting. `once` prevents repeated emission;
+the worker still deduplicates provider delivery.
+
+Under the `AppProvider` above, use the generated handles:
+
+```tsx
+const notes = usePage(api.recent, {});
+const add = useMutation(api.addNote);
+const asset = useAsset(photoId);
+```
+
+Import these hooks from `snapback4/react`. `usePage` supplies accumulated items,
+`hasMore`, `loadMore` and read completeness; `useQuery` observes one answer. `useMutation`
+tracks pending, sent and failed writes; `useAsset` resolves a placed asset.
+Upload bytes with `client.upload` before passing the asset id to `addNote`.
+Operations in `schema.q` are `api.name`; module files use `api.module.name`.
+Effects run in the optional Node ESM `snapback/worker.mts`.
 
 ## Reference map: open only what the feature needs
 

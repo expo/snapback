@@ -5,7 +5,6 @@ table docs:
   ownerId: principal
   title: text <=120
   state: enum('draft', 'final')
-  by byOwner: ownerId, id
   read <- .ownerId = viewer or exists editors[.id, viewer]                  -- allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | and | or | not
   insert <- .ownerId = viewer and .state = 'draft'
   update (old, next) <- old.ownerId = viewer and next.ownerId = viewer and old.state != 'final'   -- both images of an update
@@ -14,8 +13,7 @@ table docs:
 table editors:
   docId: docs
   principal: principal
-  unique byDocPrincipal: docId, principal
-  by byPrincipalDoc: principal, docId, id
+  unique docId, principal
   read <- exists editors[.docId, viewer]
   insert <- exists docs[id = .docId, ownerId = viewer] or created docs[.docId]   -- a probe may name its columns; created: this mutation inserted the row
   delete <- .principal = viewer
@@ -23,8 +21,7 @@ table editors:
 
 Each of `read`, `insert`, `update` and `delete` takes one rule over the row
 (`.col`), `viewer` and literals. A table without a rule for an effect denies
-it. `public 'why'` on its own line is the read rule. An `exists` probe needs
-an index over the probed columns (`by index` names one when two match); named
+it. `public 'why'` on its own line is the read rule. The compiler supplies indexes for `exists` probes; named
 equalities may cover a total unique key and check extra columns on that one row,
 for both `exists` and `created`, without an extra index. Every focal field used
 by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Rules
@@ -57,9 +54,9 @@ immutable columns in a patch are ignored. A readable immutable mismatch still
 names the column. Before target lookup, the engine reserves room for the rule
 probes and the largest merged image allowed by the schema and supplied patch;
 if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
-A readable maintain over a hidden source is a declared read channel: its
+A readable aggregate view over a hidden source is a declared read channel: its
 delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
-wider update authority under a separately readable maintain.
+wider update authority under a separately readable aggregate view.
 
 Omitted asset columns keep their placement. An explicit asset id on a row you
 cannot read must be your own upload, even if it equals the retained id. A rule
@@ -69,7 +66,7 @@ decided from its pinned prefix and returns empty and complete at no charge.
 
 A filtered count can disclose whether a hidden row matched its predicate;
 computed groups disclose bucket membership and rank discloses relative values.
-The maintain's filter grants no source-row read. N_MAINTAIN_DELTA names the
+The view's filter grants no source-row read. N_MAINTAIN_DELTA names the
 filter/key/value dependencies and the separately readable target, including
 insert/delete channels. Restrict its read audience to close the channel:
 
@@ -78,12 +75,11 @@ table posts:
   authorId: principal
   parentId: id ?
   at: time
-  by byAuthor: authorId, id
   read <- .authorId = viewer
   insert <- .authorId = viewer
   update <- allow
   online only
-maintain originalPostCounts: count posts where .parentId = null by authorId
+view originalPostCounts: count posts where .parentId = null by .authorId
   read <- .authorId = viewer
   online only
 query ownOriginals():
@@ -91,7 +87,7 @@ query ownOriginals():
 ```
 
 Here a writer may update a hidden post, but cannot read that author's count.
-Changing the maintain to read <- allow deliberately grants the filtered-delta
+Changing the aggregate view to read <- allow deliberately grants the filtered-delta
 channel and produces N_MAINTAIN_DELTA. Hidden-target attempts reserve both
 possible aggregate groups, predicate/key work and indexes before inspecting
 the old source image.

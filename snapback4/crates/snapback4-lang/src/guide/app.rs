@@ -1,7 +1,7 @@
 pub(super) const CARD: &str = r##"# App: a complete chat backend
 
 Comments start with `--`. Blocks indent with two spaces. A file holds
-directives, tables, maintains, shapes, helpers, queries, mutations, jobs
+directives, tables, views, shapes, helpers, queries, mutations, jobs
 and schedules, in any order. `snapback4 guide` prints the card index;
 `guide language` prints the core program, followed by a "With `use server`"
 section, and the idiom for each thing the language leaves out on purpose.
@@ -27,9 +27,8 @@ table memberships:
   principal: principal
   role: enum('member', 'admin')
   joinedAt: time
-  unique byConversationPrincipal: conversationId, principal
+  unique conversationId, principal
   by byConversationPrincipalRole: conversationId, principal, role
-  by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   immutable conversationId, principal, joinedAt
   read <- exists memberships[.conversationId, viewer]
@@ -43,24 +42,23 @@ table messages:
   body: text <=4000 ?
   editedAt: time ?
   at: time
-  by byConvTime: conversationId, at, id
   immutable conversationId, authorId
   read <- exists memberships[.conversationId, viewer]
   insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
   update <- .authorId = viewer
   delete <- .authorId = viewer
   retain delivered-history
-  sync to memberships[.conversationId] last 500 by byConvTime
+  sync to memberships[.conversationId] last 500 by .at
 
-maintain messageCounts: count messages by conversationId
+view messageCounts: count messages by .conversationId
   read <- exists memberships[.conversationId, viewer]
 
 query thread(conversationId: conversations, c: cursor ?):
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
-  return messages[conversationId] after c last 50 by byConvTime
+  return messages where .conversationId = conversationId after c last 50 by .at
 
 query inbox(c: cursor ?):
-  return memberships[viewer] after c first 50 by byPrincipalConversation
+  return memberships where .principal = viewer after c first 50 by .conversationId
     { conversationId, conversation: conversations[.conversationId], count: messageCounts[.conversationId] }
 
 mutation send(conversationId: conversations, body: text <=4000):

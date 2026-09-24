@@ -92,7 +92,7 @@ fn explicit_caps_stay_silent_and_predicting_short_pages_stay_refused() {
     let small = explicit.replace("members[roomId = roomId] first 100:", "members[roomId = roomId] first 20:");
     let error = rejected("", &small, "E_STRUCTURAL_FANOUT");
     assert!(error.message.contains("literal page bound must cover the schema cap 100"));
-    assert!(error.rewrite.contains("for row in members where .roomId = roomId by .id:") && !error.rewrite.contains("first 100"), "{error:?}");
+    assert!(error.rewrite.contains("for row in members where .roomId = roomId:") && !error.rewrite.contains("first 100"), "{error:?}");
 }
 
 #[test]

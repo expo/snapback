@@ -1,6 +1,11 @@
 //! The bounds card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Bounds and the meter
 
+Write product limits: a page size, a text length, an asset size or a real
+per-group cap. Do not choose an index, a merge width or a job transaction
+size. Predicate reads and views choose their plans; top-level job `for`
+loops choose their chunks. Removing a written number never removes the meter.
+
 Nothing is priced at check. As a program runs, the meter counts examined
 rows, index entries, rule probes, steps, heap bytes, output bytes and rows
 written against ceilings: 8,192 rows examined, 16,384 index entries, 8,192
@@ -30,14 +35,14 @@ cut refuses a scalar query with E_BOUND; a cut on that result allocation returns
 `data: null`, `complete: false`, as other query heap cuts do. A mutation rolls
 back on either cut.
 
-A query's `for row in t[prefix]:` and a merge lane's source may omit `first N`
+A query's `for row in t where .owner = viewer:` and a merge lane's source may omit `first N`
 when the read rule is uniformly decided by that prefix; they read ascending
 until the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`
 and `lanes ≤ meter` when no fitting schema cap supplies a static bound.
-A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a `maintain`.
+A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a maintained `view`.
 A returned or bound page instead needs a schema cap or an explicit page bound.
 Jobs may iterate uncapped domains under the chunk's meter. Top-level job
-`for` sweeps adapt their transaction size from 64 down to 1. Mutation loops
+`for` sweeps shrink their transaction size after a meter refusal. Mutation loops
 still need a schema-capped group that fits the examined ceiling. Direct
 `count(domain)`, `sum(domain, .column)` and `exists domain` stream under the
 meter without retaining the page. Schema-capped query `count` and `sum` with
@@ -53,10 +58,10 @@ coverage.
 E_QUARRY_BOUND means a boundless prefix is not valid in this position: no
 schema cap covers the group, its cap exceeds the examined ceiling, or a
 meter-bounded query prefix has a non-uniform read rule. Declare `cap N by cols`
-on the table if that is the intended group limit, then read `t[prefix]`, or
+on the table if that is the intended group limit, then read `t where .group = group`, or
 page with `first N` and a cursor. For a non-uniform prefix, the rewrite also
-names the index columns to pin, as N_NEVER_COMPLETE does. A seek still writes
-its explicit page bound. Descending reads keep `last N`.
+names the index columns to pin, as N_NEVER_COMPLETE does. A returned seek page still writes
+its page size. Descending reads keep `last N`.
 
 
 ## The scale certificate
@@ -85,12 +90,9 @@ table scalePosts:
   public
   online only
 query scalePage(c: cursor ?):
-  return scalePosts after c first 20 by byId
+  return scalePosts first 20 by .id after c
 query scalePopulation():
-  n = 0
-  for p in scalePosts[]:
-    n = n + 1
-  return n
+  return count(scalePosts)
 ```
 
 To make a growing read constant, pin its filter column in the indexed
@@ -124,8 +126,7 @@ for ordinary loops. A `range` may use int expressions and still runs under
 the step meter; there is no `while` form.
 
 E_UNBOUND_SCAN means a compiled scan names a table or index absent from its
-schema. For example, keeping a compiled read of `byOwner` after renaming
-that index leaves the scan unbound. Update the read's `by` clause and run
+schema. Recompile after changing a table or its access plan:
 `snapback4 check`, then use the regenerated backend together with its
 programs. Do not reuse old compiled programs against a new schema.
 Compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
@@ -158,8 +159,7 @@ query result, preserving zero only for a completed missing-group lookup.
 A mutation rolls back with `E_BOUND` as above.
 A page whose read rule the prefix does not decide (the deciding fields include a
 column the scan does not pin) is never `complete`: the server cannot tell
-"no more" from "more you may not see". Scan by an index that leads with
-the rule's columns, or read the page on the device (`guide sync`), where the
+"no more" from "more you may not see". Pin the deciding columns in the predicate, or read the page on the device (`guide sync`), where the
 partition holds exactly what the viewer may read. `check` says so
 (`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor
 (`N_NO_CURSOR`), a synced table whose groups can grow with no horizon

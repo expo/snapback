@@ -147,7 +147,7 @@ fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -
     let sync = schema.tables.get(table).and_then(|table| table.sync.as_ref());
     let (class, reason, rewrite) = match sync {
         _ if schema.maintain_subset_unknown(table) => (SiteClass::Server, format!("{kind} {table} by {index}: public source has subset delivery; aggregate coverage is unknown"), "read this aggregate on the server, or sync its public source to every device".into()),
-        None => (SiteClass::Server, format!("{kind} {table} by {index}: online only"), if schema.maintain_for(table).is_some() { format!("remove `online only` from maintain {table} to inherit its source's sync, or read a compact synced projection") } else { format!("sync {table} to its read-rule audience, or read a compact synced projection") }),
+        None => (SiteClass::Server, format!("{kind} {table} by {index}: online only"), if schema.maintain_for(table).is_some() { format!("remove `online only` from view {table} to inherit its source's sync, or read a compact synced projection") } else { format!("sync {table} to its read-rule audience, or read a compact synced projection") }),
         Some(sync) if sync.horizon.is_some() => (SiteClass::Horizon, format!("{kind} {table} by {index}: {}", sync.line()), if kind == "write target" { String::new() } else { "remove a redundant guard, or read a synced fact without a horizon".into() }),
         Some(_) => (SiteClass::Held, format!("{kind} {table} by {index}: held, no horizon"), String::new()),
     };
@@ -310,7 +310,7 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
         if target.rules.read == source.rules.read && !fields.contains("id") && fields.iter().all(|field| maintain.bare_key(field)) { continue; }
         // An old-image guard that entails the source read rule does not widen write authority.
         if implies(&source.rules.insert, &source.rules.read) && implies(&source.rules.delete, &source.rules.read) && implies(&source.rules.update, &old_read(&source.rules.read)) { continue; }
-        notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{}", maintain.target)), "N_MAINTAIN_DELTA", format!("maintain {} may disclose the delta of a hidden {} row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: {}", maintain.target, maintain.source, maintain.dependencies().into_iter().collect::<Vec<_>>().join(", ")), "treat the maintain as a declared read channel; restrict its read rule or the source update rule if the delta is private").guide("rules"));
+        notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{}", maintain.target)), "N_MAINTAIN_DELTA", format!("maintain {} may disclose the delta of a hidden {} row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: {}", maintain.target, maintain.source, maintain.dependencies().into_iter().collect::<Vec<_>>().join(", ")), "treat the view as a declared read channel; restrict its read rule or the source update rule if the delta is private").guide("rules"));
     }
     notes
 }

@@ -4,7 +4,7 @@ pub(super) const CARD: &str = r##"# Shapes
 shape brief = { id, body, author: .authorId }                        -- a named shape: bare columns, and `.` for the row
 
 query shapeForms(roomId: rooms, messageId: messages, c: cursor ?):
-  page = messages[roomId = roomId] after c last 20 by byRoomTime { *, room: rooms[.roomId], count: messageCounts[.roomId] }   -- over a page: `*` spreads every column; a point read inside is null for a hidden row
+  page = messages where .roomId = roomId after c last 20 by .at { *, room: rooms[.roomId], count: messageCounts[.roomId] }   -- over a page: `*` spreads every column; a point read inside is null for a hidden row
   row = rooms[roomId] { id, name, tagCount: count(.tags) }           -- over a row: an object; over a nullable row: null when the row is
   named = messages[messageId] brief                                  -- a named shape by its name
   nested = rooms[roomId] { ...card, extra: 1 }                        -- `...name` spreads a named shape's fields
@@ -91,4 +91,4 @@ word discovery. A positive held row proves existence on a device regardless of
 its horizon; only a negative answer past that horizon needs coverage. A cut
 before finding a row returns false on an already capped answer. Mutation prefix
 existence tests require a uniform, plain, non-expiring prefix. Rule probes keep
-exact-key, one-unit semantics. `exists` has no `where`, `first`/`last`, cursor or seek."##;
+exact-key, one-unit semantics. `exists` accepts predicates and seeks, but no `first`/`last` or cursor."##;

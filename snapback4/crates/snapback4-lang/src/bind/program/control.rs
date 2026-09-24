@@ -128,7 +128,7 @@ impl Binder<'_> {
             }
             S::Emit { effect, payload, once, site } => {
                 if self.in_prelude {
-                    return Err(placement(site, "a write belongs to a chunk", "move emit into the chunk body"));
+                    return Err(placement(site, "a write belongs to a chunk", "move emit inside a top-level `for row in table:` job sweep"));
                 }
                 if self.kind == ProgramKind::Query {
                     return Err(Diagnostic::new(site, "E_EMIT_IN_QUERY", "queries cannot emit effects", "change query to mutation before emitting an effect"));

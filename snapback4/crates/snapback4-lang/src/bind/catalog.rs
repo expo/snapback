@@ -113,7 +113,7 @@ impl Catalog {
             }
             for maintain in &doc.maintains {
                 if tables.contains_key(&maintain.name) || maintains.contains_key(&maintain.name) {
-                    diagnostics.push(unknown(&maintain.site, format!("maintain {} collides with a table of the same name", maintain.name), "rename the maintain"));
+                    diagnostics.push(unknown(&maintain.site, format!("maintain {} collides with a table of the same name", maintain.name), "rename the aggregate view"));
                     continue;
                 }
                 let mut maintain = maintain.clone();

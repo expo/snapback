@@ -279,11 +279,11 @@ impl Flow<'_> {
                     let pinned: Vec<_> = table.index(&scan.index).map(|index| index.columns().into_iter().take(scan.prefix.len()).collect()).unwrap_or_default();
                     let cap = table.constraints.iter().filter_map(|c| match c { Constraint::Cap { by, max } if by.iter().all(|key| pinned.contains(key)) => Some(*max), _ => None }).min();
                     match cap {
-                        Some(_) => format!("iterate the original group: `for row in {}[..] by {}:`; put the condition and work inside that loop", scan.table, scan.index),
-                        None if !pinned.is_empty() => format!("declare `cap {} by {}` on {}, then pin those columns and iterate the whole group: `for row in {}[..] by {}:`", scan.take.maximum(), pinned.join(", "), scan.table, scan.table, scan.index),
-                        _ => format!("move this pass to a job: `chunk row in {} first {} by {}:`", scan.table, scan.take.maximum(), scan.index),
+                        Some(_) => format!("iterate the original group: `for row in {}{}:`; put the condition and work inside that loop", scan.table, if pinned.is_empty() { String::new() } else { format!(" where {}", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and ")) }),
+                        None if !pinned.is_empty() => format!("declare `cap {} by {}` on {} only if it is a product limit, then iterate the whole group: `for row in {} where {}:`", scan.take.maximum(), pinned.join(", "), scan.table, scan.table, pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and ")),
+                        _ => format!("move this pass to a job: `for row in {}:`", scan.table),
                     }
-                } else { "pass a bounded list argument directly, or move the population pass to a job chunk".into() };
+                } else { "pass a bounded list argument directly, or move the population pass to a job sweep".into() };
                 self.error = Some(fanout(scan, site, &reason, &rewrite));
             }
         }

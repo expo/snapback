@@ -53,7 +53,7 @@ fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut dy
     engine.seed(rows).unwrap();
     check(&mut |op, cursor, term| {
         let page = query(&mut engine, op, cursor, term);
-        if source.contains("last 10 by byRoomTime") && term == "absent" { assert!(page.complete, "server has the full history"); }
+        if source.contains("last 10 by .at") && term == "absent" { assert!(page.complete, "server has the full history"); }
         page
     });
 }
