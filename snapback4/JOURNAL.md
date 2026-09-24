@@ -50577,3 +50577,34 @@ Affected checks passed with the pinned Node 24 toolchain and serial Cargo:
 was needed for these test-only additions; round 1's committed native manifests
 remain unchanged. No package publication. Delivery retains the previously
 recorded command-local Snapback 1 hook exception under the Snapback 4 fence.
+
+
+## 2026-09-24 — Intent integration round 5 part d: F round 6 and native smoke
+
+Merged F ec04c2b0f as 905299396 and fetched native smoke c1ed4bdca as
+8082c720f, both with --no-ff and a passing workspace build after each.
+Read the requested external/committed reports before merging. Preserved every
+journal entry. F's cancellation recovery and hidden named-constraint witnesses
+land unchanged. The native merge combines deferred publication of host client
+instrumentation with E's captured asset policy, forwarded options and session
+fences. Both client regression sets survive; F's witness lead and complete
+application runner survive alongside the smoke command and protocol.
+
+Affected qualification passed: 162 JS tests with no skips, 168 Rust test
+executions (three witness units, eight Linux witness cases, 80 guide, 69 CLI
+check and eight native-store tests), SDK build/typecheck, Expo app typecheck,
+and the docs gate. README is 299/300 lines; largest changed source is local.ts
+at 1,493. Root reference validation: 505 LLP documents, 9,240 refs, zero errors
+and zero unchecked. Bob's cross-author unrepost, the deferred login revocation
+and unpublished restoration-candidate tests all pass. No intermittent test
+failure occurred. Corrected two check-command working directories and reran
+the docs gate with the intended Cargo profile; no product fix was needed.
+
+The Linux witness target omits 16 subprocess driver cases behind macOS cfg;
+its eight platform-independent cases passed. Native driver validation requires
+macOS and plutil, and was not weakened for the test host. No simulator or new
+signed-native run was performed. Imported native evidence remains the lane's
+historical qualification. The complete suite, WASM rebuild and remaining
+round-5 merges stay deferred as instructed. No push or publication. Full file
+map, commands, corrections and coverage limits:
+reports/20260924-intent-integration-r5d.md.
