@@ -191,7 +191,8 @@ fn inspect(schema: &Schema, stmts: &[Stmt], codes: &mut BTreeSet<String>, sites:
             }
             Stmt::Const { name, value } => { known.insert(name.clone(), inserts::image(value, &known)); expr(schema, value, codes, sites); }
             Stmt::Let { name, value } if name.starts_with("$value") => { known.insert(name.clone(), inserts::image(value, &known)); expr(schema, value, codes, sites); }
-            Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr(schema, value, codes, sites),
+            Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => expr(schema, value, codes, sites),
+            Stmt::Emit { payload: value, once, .. } => { expr(schema, value, codes, sites); if let Some(value) = once { expr(schema, value, codes, sites); } },
             Stmt::Check { condition, current } => { expr(schema, condition, codes, sites); for key in &current.key { expr(schema, key, codes, sites); } }
             Stmt::Insert { row, .. } => expr(schema, row, codes, sites),
             Stmt::InsertIfAbsent { table, row, .. } => {

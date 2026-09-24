@@ -398,10 +398,21 @@ impl<'a> Runner<'a> {
                     self.delete(table, key.as_str()?)?;
                     Flow::Next
                 }
-                Stmt::Emit { effect, payload } => {
+                Stmt::Emit { effect, payload, once } => {
                     let payload = self.expr(payload)?;
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
+                    }
+                    let key = once.as_ref().map(|key| self.expr(key)).transpose()?;
+                    if let Some(key) = &key { key.as_array()?; }
+                    // @ref LLP 3000.013#5.3 — the permanent key is in the same transaction, including replay suppression.
+                    if !self.discard_effects && !self.device && let Some(key) = key {
+                        self.meter.step(1)?;
+                        let encoded = canonical_json(&Value::Array(vec![Value::String(effect.clone()), key]));
+                        self.meter.heap(encoded.len() as u64)?;
+                        if !self.tx.effect_once(effect, &encoded)? { return Ok(Flow::Next); }
+                        self.meter.charge(MeterKind::RowsWritten, 1)?;
+                        self.rows_written += 1;
                     }
                     // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
                     let presence = self.emission_presence()?;

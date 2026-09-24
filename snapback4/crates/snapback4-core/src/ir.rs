@@ -120,7 +120,7 @@ pub enum Stmt {
     /// Target lookup and the old image stay inside the engine. Only a read-filtered result is bound.
     WriteTarget { target: Read, patch: Expr, upsert: bool, condition: Option<WriteCondition>, result: Option<String> },
     Delete { table: String, key: Expr },
-    Emit { effect: String, payload: Expr },
+    Emit { effect: String, payload: Expr, #[serde(default, skip_serializing_if = "Option::is_none")] once: Option<Expr> },
     Return(Expr),
     Break,
     Continue,
@@ -455,7 +455,8 @@ pub struct ReadSite {
 fn stmts_read_sites(stmts: &[Stmt], out: &mut Vec<ReadSite>) {
     for stmt in stmts {
         match stmt {
-            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr_read_sites(value, out),
+            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => expr_read_sites(value, out),
+            Stmt::Emit { payload: value, once, .. } => { expr_read_sites(value, out); if let Some(value) = once { expr_read_sites(value, out); } },
             Stmt::If { condition, then_body, else_body } => {
                 expr_read_sites(condition, out);
                 stmts_read_sites(then_body, out);
@@ -561,7 +562,8 @@ pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {
 fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>, has_merge: &mut bool) {
     for stmt in stmts {
         match stmt {
-            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr_scans(value, out, has_merge),
+            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => expr_scans(value, out, has_merge),
+            Stmt::Emit { payload: value, once, .. } => { expr_scans(value, out, has_merge); if let Some(value) = once { expr_scans(value, out, has_merge); } },
             Stmt::If { condition, then_body, else_body } => {
                 expr_scans(condition, out, has_merge);
                 stmts_scans(then_body, out, has_merge);

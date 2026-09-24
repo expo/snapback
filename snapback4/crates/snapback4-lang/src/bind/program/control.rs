@@ -126,7 +126,7 @@ impl Binder<'_> {
                 out.push(Stmt::Require { condition: expr, code: code.clone(), site: Some(site.to_string()) });
                 Ok(())
             }
-            S::Emit { effect, payload, site } => {
+            S::Emit { effect, payload, once, site } => {
                 if self.in_prelude {
                     return Err(placement(site, "a write belongs to a chunk", "move emit into the chunk body"));
                 }
@@ -137,9 +137,18 @@ impl Binder<'_> {
                     return Err(unknown(site, format!("unknown effect {effect}"), format!("declare `effect {effect}` at the top level; a worker with a service token claims what is emitted (guide effects)")));
                 }
                 let start = out.len();
-                let (expr, _) = self.expr(payload, out)?;
+                let (mut expr, _) = self.expr(payload, out)?;
                 if self.record_ownership { out.own(start, setup::Owner::Payload); }
-                out.push(Stmt::Emit { effect: effect.clone(), payload: expr });
+                let once = once.as_ref().map(|key| {
+                    if !matches!(key, A::Array { .. }) {
+                        return Err(type_error(key.site(), "once requires an array of key values", "emit notify { ... } once [recipient, periodEnd]"));
+                    }
+                    let mut setup = setup::Body::default();
+                    let (key, _) = self.expr(key, &mut setup)?;
+                    self.sequence_setup([&mut expr].into_iter(), setup, out);
+                    Ok(key)
+                }).transpose()?;
+                out.push(Stmt::Emit { effect: effect.clone(), payload: expr, once });
                 Ok(())
             }
             S::If { condition, then_body, else_body, site: _ } => {

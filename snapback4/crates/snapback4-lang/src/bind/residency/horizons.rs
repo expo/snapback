@@ -62,7 +62,8 @@ fn guards(stmts: &[Stmt], visit: &mut impl FnMut(&Expr, &str)) {
                 }
                 guards(body, visit);
             }
-            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => in_expr(value, visit),
+            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => in_expr(value, visit),
+            Stmt::Emit { payload: value, once, .. } => { in_expr(value, visit); if let Some(value) = once { in_expr(value, visit); } },
             Stmt::Insert { row, .. } | Stmt::InsertIfAbsent { row, .. } => in_expr(row, visit),
             Stmt::Update { key, patch, .. } => { in_expr(key, visit); in_expr(patch, visit); }
             Stmt::Upsert { key, row, .. } => { in_expr(key, visit); in_expr(row, visit); }

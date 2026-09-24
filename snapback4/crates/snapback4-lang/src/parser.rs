@@ -848,9 +848,10 @@ impl Parser {
             "emit" => {
                 let site = self.take("emit")?.site;
                 let effect = self.word()?.value;
-                let payload = self.expression(0, &["<newline>"])?;
+                let payload = self.expression(0, &["once", "<newline>"])?;
+                let once = if self.maybe("once") { Some(self.expression(0, &["<newline>"])?) } else { None };
                 self.newline()?;
-                return Ok(Stmt::Emit { effect, payload, site });
+                return Ok(Stmt::Emit { effect, payload, once, site });
             }
             "device" | "oblivious" => return Err(unsupported(&token.site, &token.value, "pass an explicit bounded argument to the operation")),
             _ => {}

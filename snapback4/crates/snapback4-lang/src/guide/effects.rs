@@ -7,6 +7,24 @@ and `run` address an operation. If `digest.q` declares `effect notify` and
 `job daily()`, write `emit notify { ... }`, register `effects: { notify: ... }`
 in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: digest.daily`).
 
+`emit notify { … } once [recipient, periodEnd]` admits at most one effect
+for that effect name and canonical Value array for the store's lifetime.
+A repeated key skips the emit and continues the transaction. `once` deduplicates
+emission, not completion: an iteration that emits nothing records no key. Keys survive
+outbox settlement, retries, restarts and replacement runs. The key and emit
+roll back together if the transaction fails. `--replay` also records the key:
+repeating that period after replay cannot deliver the suppressed effect.
+Device prediction discards emits and never claims keys. A key does not
+promise exactly-once provider delivery; the worker still uses provider
+idempotency for an ambiguous external outcome.
+
+```quarry
+effect onceNotify
+mutation remind(recipient: principal, periodEnd: time):
+  emit onceNotify { recipient, periodEnd } once [recipient, periodEnd]
+  return true
+```
+
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
 New emits are counted as `suppressed` by `doctor`, with no queued payload:
 they are never delivered, including after restarting with or without `--replay`.
@@ -218,7 +236,8 @@ each recipient's own memberships; the job may read expiring messages directly.
 `snapback4 guide jobs` explains the 16,384-examined chunk envelope, the measured
 hub, the single totals-table fallback past it, and restart/re-run behavior.
 Emits commit with the chunk cursor, but queueing a parked run again or manually
-running the same period creates another run and can emit again. Use
+running the same period creates another run. Use `emit … once [targetUserId, periodEnd]`
+to suppress repeat admission, and use
 `(targetUserId, periodEnd)` as the worker's idempotency key, or an emission marker.
 
 ## Effect lifecycle refusals
