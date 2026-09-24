@@ -452,6 +452,8 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
 }
 
 fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bindings: &RuleBindings, extras: bool) -> Fallible<(String, String, Vec<RuleTerm>, Vec<(String, RuleTerm)>)> {
+    let normalized = catalog.tables.get(&read.table).map(|target| super::mixed_keys::read(target, read, catalog)).transpose()?;
+    let read = normalized.as_deref().unwrap_or(read);
     super::validate_key_names(read)?;
     if read.range.is_some() || !read.seeks.is_empty() || read.matching.is_some() || read.filter.is_some() { return Err(unknown(site, "a rule probe takes equalities, not a range", "exists t[key = .key]")); }
     let Some(target) = catalog.tables.get(&read.table) else {

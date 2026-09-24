@@ -114,48 +114,7 @@ impl Binder<'_> {
                 }
             }
             A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
-            A::If { then, condition, otherwise, .. } => {
-                let variant = super::super::intent_variants::condition(condition)
-                    .map(|(kind, input)| format!("{kind}:{}", print::expression(input)));
-                let mut variant_body = setup::Body::default();
-                let output = if variant.is_some() { &mut variant_body } else { &mut *out };
-                let (cond, cond_ty) = self.expr(condition, output)?;
-                if !cond_ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), super::control::bool_condition_rewrite(&cond_ty, "x if ttl {} else y")));
-                }
-                // Each arm binds under its narrowing and runs only when taken.
-                let temp = self.temp("if");
-                if let Some(name) = &variant { self.variants.push((name.clone(), true)); }
-                let variant_start = self.sites;
-                let mut then_out = setup::Body::default();
-                self.push_scope();
-                self.narrow(condition, true);
-                let then_bound = self.expr(then, &mut then_out);
-                self.pop_scope();
-                let (then_expr, then_ty) = then_bound?;
-                let then_sites = self.sites;
-                if variant.is_some() { self.variants.last_mut().unwrap().1 = false; self.sites = variant_start; }
-                let mut else_out = setup::Body::default();
-                self.push_scope();
-                self.narrow(condition, false);
-                let else_bound = self.expr(otherwise, &mut else_out);
-                self.pop_scope();
-                let (else_expr, else_ty) = else_bound?;
-                if variant.is_some() { self.variants.pop(); self.sites = self.sites.max(then_sites); }
-                then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
-                else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
-                output.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
-                output.push_if(cond, then_out, else_out);
-                let ty = if then_ty == Ty::Null {
-                    else_ty.optional()
-                } else if else_ty == Ty::Null {
-                    then_ty.optional()
-                } else {
-                    then_ty.join(&else_ty)
-                };
-                let value = if variant.is_some() { Expr::Block { body: variant_body.code, value: Box::new(ir::var(&temp)) } } else { ir::var(&temp) };
-                Ok((value, ty))
-            }
+            A::If { then, condition, otherwise, .. } => self.conditional(then, condition, otherwise, None, out),
             A::Member { base, name, .. } => {
                 // Generated maintain keys are literal path-named columns. Resolve
                 // the full chain before ordinary member/reference traversal.
@@ -284,7 +243,7 @@ impl Binder<'_> {
                     }
                 }
             }
-            Ty::Object(fields) | Ty::RowShape(fields) => match fields.get(name) {
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => match fields.get(name) {
                 Some(field) => field.clone(),
                 None => return Err(unknown(site, format!("this object has no field {name}"), name_rewrite(name, fields.keys().map(String::as_str), None))),
             },
@@ -318,33 +277,6 @@ impl Binder<'_> {
         };
         let result_ty = if ty.is_optional() { field_ty.optional() } else { field_ty };
         Ok((ir::field(base, name), result_ty))
-    }
-
-    pub(super) fn object(&mut self, fields: &[ObjectField], out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        let mut exprs = Vec::<(String, Expr)>::new();
-        let mut types = BTreeMap::new();
-        let mut failed = None;
-        for field in fields {
-            let mut setup = setup::Body::default();
-            let value = match &field.value {
-                Some(value) => self.expr(value, &mut setup),
-                None => self.name(&field.name, &field.site),
-            };
-            let (e, t) = match value {
-                Ok(value) => value,
-                Err(error) => { self.record_error(error.clone()); failed.get_or_insert(error); continue; }
-            };
-            self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
-            // Object IR stores fields by name. Minted ids still follow source
-            // field order when no child needs a statement-producing expansion.
-            let e = if allocates(&e) { self.snapshot(e, out) } else { e };
-            if types.contains_key(&field.name) {
-                return Err(unknown(&field.site, format!("duplicate field {}", field.name), "keep one"));
-            }
-            exprs.push((field.name.clone(), e));
-            types.insert(field.name.clone(), t);
-        }
-        match failed { Some(error) => Err(error), None => Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types))) }
     }
 
     pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {

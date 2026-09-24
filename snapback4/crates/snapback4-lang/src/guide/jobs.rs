@@ -55,7 +55,9 @@ in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: dige
 A sweep by id visits every row ever written; a sweep by the period visits
 the period.
 `break` ends the sweep, `return` the job. Schedules accept `every 2m`,
-`every 1h` and `every 1d at 08:00`; the shortest period is 1m.
+`every 1h` and `every 1d at 08:00`. Periods accept `ms`, `s`, `m`, `h` and `d`:
+`every 120s` equals `every 2m`, and `every 90s` fires at exact 90-second
+boundaries. A schedule fires at most once a minute.
 A job in `snapback/jobs.q` is named `jobs.<name>` in every schedule;
 `schema.q` jobs use bare names. `check --fix` qualifies an unambiguous
 bare module job. Jobs are not on `api.ts`.
@@ -259,6 +261,10 @@ before a sweep may compute its prefix, such as `sum([{ n: 1 }], .n)`, provided
 both their domains and bodies are write-free and emit-free. They run again
 under each chunk's meter. Inner loops keep their existing execution. Rebind
 unsupported work as ordinary sweeps and queue the job again.
+
+E_QUARRY_JOB_SCHEDULE separates work from its clock. Replace
+`job sweep every 1h:` with `job sweep():`, keep the indented body, and add
+`schedule sweepEvery every 1h: sweep` as a separate declaration.
 
 E_JOB_CURSOR_INDEX means a chunk's scan key can move while the job writes.
 For example, a sweep `for t in tasks by .score:` is unsafe

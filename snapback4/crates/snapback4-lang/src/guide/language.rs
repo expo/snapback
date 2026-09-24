@@ -32,8 +32,8 @@ table members:
   cap 100 by roomId                                    -- at most N rows per group; a product limit
   immutable roomId, principal                          -- columns no update may change
   read <- exists members[.roomId, viewer]
-  insert <- exists members[roomId = .roomId, principal = viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
-  delete <- .principal = viewer or exists members[roomId = .roomId, principal = viewer, role = 'admin']
+  insert <- exists members[.roomId, viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
+  delete <- .principal = viewer or exists members[.roomId, viewer, role = 'admin']
   sync to members[.roomId]
 
 table messages:
@@ -177,6 +177,17 @@ fn tally(n: int):
   for i in range(0, 1 + 1):
     total = total + n
   return total
+
+fn profileLabel(label: text): label
+query spreadProfile(h: text 3..20 format handle, extra: text):
+  p = profiles[handle = h] ! else NOT_FOUND
+  return { spread: { ...p, extra }, shaped: p { *, extra: extra }, replaced: p { *, handle: { value: .handle } }, label: profileLabel(extra) }
+query spreadObjects():
+  a = { label: 'first', value: 1 }
+  return { ...a, ...{ value: 2 }, label: 'last' }
+query spreadChoice(h: text 3..20 format handle, flag: bool):
+  p = profiles[handle = h] ! else NOT_FOUND
+  return ({ ...p } if flag else p { * }) { handle: 'override', * }  -- shape each arm before joining their types
 
 query heldRoom(roomId: rooms) held:   -- device only: dev and serve refuse E_QUERY_HELD; no server fallback
   return rooms[roomId] card
@@ -498,7 +509,7 @@ use server
 -- Server handlers declare results, secrets and work settings (guide actions).
 action summarizeRoom(room: rooms) returns { summary: text <=4000, source: rooms, tags: [text <=30] <=8 ? } secrets [MODEL_API_KEY] retry 3 backoff 2s deadline 1h cancellation allow
 action scheduledSummary(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:reporter'
-schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSummary
+schedule summariesEveryDay every 86400s at 08:00 as service:reporter: scheduledSummary
 route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry body or client operation
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```
@@ -512,6 +523,11 @@ Unrelated files and symlinks can stay. An existing README.md stays intact;
 the starter writes its setup instructions to README.snapback.md instead.
 
 ## Refusals
+
+For a present row, `{ ...p, extra }` and `p { *, extra: extra }` contribute
+the same columns and extra value. Shapes keep `*`; object fields and spreads
+can replace inherited fields with an explicit field and its type, as `handle`
+does above. Two explicit fields with the same name are refused.
 
 E_QUARRY_SYNTAX means the parser could not read the form at the reported
 file, line and column. For example, `query answer:` is missing its argument

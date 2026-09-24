@@ -48,6 +48,12 @@ planner retains those probes and the certificate names the skipped rows.
 A cut during discovery or while any lane head is unknown is incomplete and
 has no cursor. A full page never certifies a prefix of an unfinished lane list.
 
+A full positional unique key can be followed by named tests on that row:
+`members[org, viewer, role = 'admin']`. The prefix must identify one declared
+unique key; inferred indexes never resolve positions. E_QUARRY_KEY_ORDER
+means a positional component followed a named one: move all positional
+components first, then write the named tests.
+
 Every ready `Read` carries `cut: 'meter' | 'words' | null` beside `complete`,
 on the server and either device store. An empty page with `cut: 'meter'`
 means partial: retry narrower, or continue if `next` exists; never "no matches".

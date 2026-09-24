@@ -71,7 +71,7 @@ impl<'a> Binder<'a> {
                 return Err(type_error(&bound.site, "a seek compares the first unpinned column of a plain index", "t[prefix, col >= start, col < end] first 50 by index"));
             }
             let expected = self.key_ty(info, index, &bound.column);
-            let (value, ty) = self.field_value(&ObjectField { name: bound.column.clone(), value: Some(bound.value.clone()), site: bound.site.clone() }, &expected, out)?;
+            let (value, ty) = self.field_value(&ObjectField { spread: false, name: bound.column.clone(), value: Some(bound.value.clone()), site: bound.site.clone() }, &expected, out)?;
             if !ty.comparable(&expected) || ty.is_optional() {
                 let endpoint = print::expression(&bound.value);
                 let rewrite = if ty.is_optional() {
@@ -118,7 +118,7 @@ impl Binder<'_> {
         probe.kind = ProgramKind::Query;
         probe.in_predicate = true;
         let (_, ty) = probe.expr(base, &mut setup::Body::default()).ok()?;
-        if matches!(ty.required(), Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::Page(_, _) | Ty::Collection(_, _) | Ty::List(_, _)) { return None; }
+        if matches!(ty.required(), Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::RowMixed(_) | Ty::Page(_, _) | Ty::Collection(_, _) | Ty::List(_, _)) { return None; }
         let mut page = read.clone();
         remove_trailing_shape(page.filter.as_mut()?);
         Some(A::ShapeUse { base: Box::new(A::Read(page)), name: name.into(), site: site.clone() })

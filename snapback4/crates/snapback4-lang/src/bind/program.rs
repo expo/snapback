@@ -13,9 +13,13 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod conditional;
 mod returned_shapes;
 mod diagnostics;
+mod constraints;
 mod expr;
+mod objects;
+mod write_keys;
 mod reads;
 mod prefix;
 mod lanes;
@@ -27,6 +31,8 @@ pub(crate) mod setup;
 pub struct BoundProgram {
     pub view_types: BTreeMap<String, Ty>,
     pub(crate) filters: BTreeMap<String, String>,
+    /// Source consumers for admission diagnostics only; absent from IR/wire.
+    pub(crate) constraint_domains: std::collections::BTreeSet<String>,
     pub(crate) sources: BTreeMap<String, (Site, String)>,
     pub(crate) selections: BTreeMap<String, String>,
     pub program: Program,
@@ -51,6 +57,7 @@ impl BoundProgram {
 pub struct Binder<'a> {
     filters: BTreeMap<String, String>,
     view_types: BTreeMap<String, Ty>,
+    constraint_domains: std::collections::BTreeSet<String>,
     sources: BTreeMap<String, (Site, String)>,
     selections: BTreeMap<String, String>,
     presence_sources: Vec<(Expr, Site, String)>,
@@ -102,7 +109,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -129,7 +136,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -208,7 +215,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -381,6 +388,9 @@ impl<'a> Binder<'a> {
         if position == prefix::Position::Aggregate && snapback4_core::engine::rules::scan_visibility(self.schema, &scan).uniform {
             scan.take = Bound::Meter;
         }
+        if matches!(position, prefix::Position::Exists | prefix::Position::Aggregate) {
+            self.constraint_domains.insert(scan.site.clone());
+        }
         if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
         Ok((scan, range.take))
     }
@@ -389,6 +399,8 @@ impl<'a> Binder<'a> {
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
     fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl, String)> {
+        let normalized = super::mixed_keys::read(info, read, self.catalog)?;
+        let read = normalized.as_ref();
         super::validate_key_names(read)?;
         if !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_none()) {
             let declared = |index: &&ast::IndexDecl| !self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone()));
@@ -676,7 +688,14 @@ impl<'a> Binder<'a> {
     // ----- shapes -----
 
     fn shape(&mut self, base: &A, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if let A::If { then, condition, otherwise, .. } = base {
+            return self.conditional(then, condition, otherwise, Some((fields, site)), out);
+        }
         let (base_expr, base_ty) = self.expr(base, out)?;
+        self.shape_bound(base_expr, base_ty, fields, site, out)
+    }
+
+    fn shape_bound(&mut self, base_expr: Expr, base_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         match base_ty.clone() {
             Ty::Page(table, max) => {
                 let list = self.temp("rows");
@@ -702,12 +721,12 @@ impl<'a> Binder<'a> {
                 out.push_for(item, LoopDomain::DerivedArray { value: base_expr, max, bound_source: "shape".into() }, body);
                 Ok((ir::var(&list), Ty::Collection(Box::new(object_ty), max)))
             }
-            Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) => {
+            Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::RowMixed(_) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 self.shape_object(&row, base_ty, fields, site, out)
             }
-            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_)) => {
+            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::RowMixed(_)) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 let result = self.temp("shaped");
@@ -724,38 +743,45 @@ impl<'a> Binder<'a> {
 
     /// Build the object of a shape over a focal row variable.
     fn shape_object(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if matches!(row_ty.required(), Ty::RowMixed(_)) {
+            let fields = print::shape_fields(fields);
+            return Err(Diagnostic::new(site, "E_QUARRY_SHAPE_JOIN",
+                "this value joins an object spread and a row shape with different wildcard rules",
+                format!("shape each original arm before joining: (spreadArm {{ {fields} }}) if flag else (shapeArm {{ {fields} }}); use your original operands and condition; for reassignment, shape each assigned value before the paths join"))
+                .guide("shapes"));
+        }
+        objects::explicit_fields(fields.iter().filter_map(|f| match f {
+            ShapeField::Bare { name, site } | ShapeField::Field { name, site, .. } => Some((name.as_str(), site)),
+            _ => None,
+        }))?;
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
         let result = (|| {
-            if fields.iter().any(|f| matches!(f, ShapeField::Spread { .. })) {
-                let carried = self.row_fields(&row_ty, site)?;
-                for (at, field) in fields.iter().enumerate() {
-                    if let ShapeField::Bare { name, site } = field {
-                        if carried.iter().any(|(column, _)| column == name) {
-                            let kept: Vec<_> = fields.iter().enumerate().filter(|(i, _)| *i != at).map(|(_, f)| f.clone()).collect();
-                            return Err(unknown(site, format!("shape wildcard already includes field {name}"), format!("{{ {} }}", print::shape_fields(&kept))).guide("shapes").mechanical());
-                        }
-                    }
-                }
-            }
             let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
-            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, site: &Site, setup: setup::Body, out: &mut setup::Body| -> Fallible<()> {
+            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, setup: setup::Body, out: &mut setup::Body| {
+                if types.contains_key(&name) {
+                    // A replaced value still runs and pays its meter. Freeze
+                    // preceding fields before dropping one from the output,
+                    // including failures/reads with no setup statements.
+                    for (_, value) in &mut exprs {
+                        *value = binder.snapshot(std::mem::replace(value, Expr::Literal(Value::Null)), out);
+                    }
+                    exprs.retain(|(field, _)| field != &name);
+                }
                 binder.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                 let e = if expr::allocates(&e) { binder.snapshot(e, out) } else { e };
-                if types.contains_key(&name) {
-                    return Err(unknown(site, format!("shape repeats field {name}"), "keep one"));
-                }
                 exprs.push((name.clone(), e));
                 types.insert(name, t);
-                Ok(())
             };
             for field in fields {
                 match field {
                     ShapeField::Spread { site } => {
                         for (name, ty) in self.row_fields(&row_ty, site)? {
+                            // Keep the existing re-shaping behavior: explicit
+                            // computed fields win over a RowShape's wildcard.
                             if matches!(row_ty, Ty::RowShape(_)) && fields.iter().any(|field| matches!(field, ShapeField::Field { name: explicit, .. } if explicit == &name)) { continue; }
-                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, site, setup::Body::default(), out)?;
+                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, setup::Body::default(), out);
                         }
                     }
                     ShapeField::NamedSpread { name, site } => {
@@ -764,29 +790,30 @@ impl<'a> Binder<'a> {
                         };
                         let mut setup = setup::Body::default();
                         let (nested, nested_ty) = self.shape_object(row_var, row_ty.clone(), &shape.fields, site, &mut setup)?;
-                        if let (Expr::Object(nested_fields) | Expr::Shape { fields: nested_fields, .. }, Ty::Object(nested_types) | Ty::RowShape(nested_types)) = (nested, nested_ty) {
+                        if let (Expr::Object(nested_fields) | Expr::Shape { fields: nested_fields, .. }, Ty::Object(nested_types) | Ty::RowShape(nested_types) | Ty::RowObject(nested_types)) = (nested, nested_ty) {
                             for (name, e) in nested_fields {
                                 let t = nested_types[&name].clone();
-                                add(self, name, e, t, site, std::mem::take(&mut setup), out)?;
+                                add(self, name, e, t, std::mem::take(&mut setup), out);
                             }
                         }
                     }
                     ShapeField::Bare { name, site } => {
                         let (e, t) = self.member(ir::var(row_var), row_ty.clone(), name, site)?;
-                        add(self, name.clone(), e, t, site, setup::Body::default(), out)?;
+                        add(self, name.clone(), e, t, setup::Body::default(), out);
                     }
-                    ShapeField::Field { name, value, site } => {
+                    ShapeField::Field { name, value, .. } => {
                         let mut setup = setup::Body::default();
                         let (e, t) = self.expr(value, &mut setup)?;
-                        add(self, name.clone(), e, t, site, setup, out)?;
+                        add(self, name.clone(), e, t, setup, out);
                     }
                 }
             }
             let _ = site;
             let fields = exprs.into_iter().collect();
-            if matches!(row_ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_)) {
+            if matches!(row_ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
                 if types.contains_key("pending") { return Err(type_error(site, "pending is the device's row metadata", "omit pending from the shape; it is preserved from the row")); }
-                Ok((Expr::Shape { base: Box::new(ir::var(row_var)), fields }, Ty::RowShape(types)))
+                let ty = if matches!(row_ty, Ty::RowObject(_)) { Ty::RowObject(types) } else { Ty::RowShape(types) };
+                Ok((Expr::Shape { base: Box::new(ir::var(row_var)), fields }, ty))
             } else { Ok((Expr::Object(fields), Ty::Object(types))) }
         })();
         self.pop_scope();
@@ -808,7 +835,7 @@ impl<'a> Binder<'a> {
                 fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), Ty::from_scalar(scalar))));
                 Ok(fields)
             }
-            Ty::Object(fields) | Ty::RowShape(fields) => Ok(fields.into_iter().collect()),
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => Ok(fields.into_iter().collect()),
             other => Err(type_error(site, format!("* spreads a row or an object; got {}", other.name()), "shape a row")),
         }
     }
@@ -828,11 +855,6 @@ impl<'a> Binder<'a> {
         let info = self.table(table, site)?;
         if info.maintained.is_some() {
             return Err(unknown(site, format!("{table} is a maintained aggregate; write its source rows instead"), format!("{} {}", op.word(), info.maintained.as_ref().map(|m| m.source.clone()).unwrap_or_default())));
-        }
-        for field in fields {
-            if super::columns::fields(info).any(|name|name == field.name) {
-                return Err(super::columns::refusal(&field.site,format!("{table}.{} is engine-maintained; write its source rows instead",field.name)));
-            }
         }
         // Writes share table-level residency facts, but every source occurrence
         // (including an expanded helper) belongs in a changed-prediction note.
@@ -857,7 +879,7 @@ impl<'a> Binder<'a> {
                     return Err(unknown(site, "upsert cannot take a condition", "a condition belongs on update; an upsert inserts or patches"));
                 }
                 // @ref LLP 3000.007#8 — item 7: target resolution and conditional old images belong to the engine.
-                let key = self.write_key(info, keys, site, out)?;
+                let key = self.write_key(info, keys, site, out).map_err(|error| self.extra_write_test(info, expr, error))?;
                 let upsert = *op == WriteOp::Upsert;
                 if upsert && fields.iter().any(|f| f.name == "id") {
                     return Err(unknown(site, "upsert cannot spell id; the key names the row", "remove id from the patch; the key names the row"));
@@ -882,7 +904,7 @@ impl<'a> Binder<'a> {
                 Ok(result.map(|name| (ir::var(&name), self.write_result_type(info).optional())))
             }
             WriteOp::Delete => {
-                let key = self.write_key(info, keys, site, out)?;
+                let key = self.write_key(info, keys, site, out).map_err(|error| self.extra_write_test(info, expr, error))?;
                 let id_expr = if key.alternate {
                     let current = self.temp("current");
                     let location = self.site();
@@ -928,6 +950,17 @@ impl<'a> Binder<'a> {
     }
 
     fn write_row(&mut self, info: &'a TableInfo, fields: &[ObjectField], current: Option<&str>, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        objects::explicit_fields(fields.iter().filter(|f| !f.spread).map(|f| (f.name.as_str(), &f.site)))?;
+        let expanded;
+        let fields = if fields.iter().any(|field| field.spread) {
+            expanded = self.expand_object_fields(fields, Some(info), out)?;
+            &expanded
+        } else { fields };
+        for field in fields {
+            if super::columns::fields(info).any(|name|name == field.name) {
+                return Err(super::columns::refusal(&field.site,format!("{}.{} is engine-maintained; write its source rows instead",info.decl.name,field.name)));
+            }
+        }
         match current {
             None => {
                 if fields.iter().any(|f| f.name == "id") {

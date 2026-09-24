@@ -140,6 +140,13 @@ E_CONFLICT means a conditional update found that the row changed.
 The refusal carries the current row only when its read rule admits the viewer.
 Read it and retry with a fresh edit.
 
+E_QUARRY_WRITE_TESTS means a write target includes tests beyond its unique
+key. For a readable row, write `require exists members[org, viewer, role =
+'admin'] else NOT_ADMIN`, then `update members[org, viewer] { role: 'member' }`.
+Choose the refusal code for your application. This explicit check refuses a
+hidden or missing row and grants no write authority; the compiler does not
+insert it automatically.
+
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
@@ -230,6 +237,59 @@ its target exists: when a mutation needs a visible target, guard first —
 read that is false for an absent or hidden row; deleting a target neither
 deletes nor refuses the rows that reference it, so a lifecycle is the
 application's, in its mutations and rules.
+
+## A constraint across rows you cannot read
+
+An `exists` or `count` check sees only rows its viewer may read. It cannot
+prevent a clash with another guest's private booking. E_STRUCTURAL_FANOUT
+refuses a mutation domain whose read rule is not decided by its scope.
+Use one row per occupied night and let `unique` enforce the constraint for
+every writer. Insert the booking and its nights in the same mutation:
+
+```quarry
+table listings:
+  host: principal
+  public
+table bookings:
+  listing: listings
+  guest: principal
+  host: principal
+  firstDay: int
+  lastDay: int
+  read <- .guest = viewer or .host = viewer
+  insert <- .guest = viewer
+table nights:
+  listing: listings
+  day: int
+  booking: bookings
+  unique listing, day else TAKEN
+  public 'occupied dates and booking references are public; guest details stay private'
+  insert <- created bookings[id = .booking, listing = .listing, guest = viewer]
+
+mutation book(listing: listings, firstDay: int, lastDay: int):
+  require firstDay < lastDay else BAD_DATES
+  property = listings[listing] ! else NOT_FOUND
+  booking = insert bookings { listing, guest: viewer, host: property.host, firstDay, lastDay }
+  for day in range(firstDay, lastDay):
+    insert nights { listing, day, booking: booking.id }
+  return booking
+```
+
+`firstDay` and `lastDay` are calendar-day numbers in the app's chosen calendar;
+the last day is excluded. A second guest reserving an occupied night gets
+`TAKEN`, and the entire mutation rolls back, including any earlier free nights.
+The normal write and work meters bound the loop; exceeding them also rolls
+back the mutation. This example only books nights; cancellation must release
+its nights in the same transaction as cancelling the booking.
+
+The availability table is deliberately public: a named unique refusal applies
+only when the clashing row is readable. A hidden collision stays `E_RULE`,
+even with `else TAKEN`. Use this example only if occupied dates and booking
+references may be public. Private booking details keep their own read rule.
+If the product instead permits readable availability checks, an `exists` or
+`count` domain over that public availability table has a uniformly readable
+audience. Pinning a private guest merely narrows the check; it cannot enforce
+a constraint across all guests.
 
 ## Server-arrival order within a conversation
 

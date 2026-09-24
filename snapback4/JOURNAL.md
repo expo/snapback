@@ -51300,3 +51300,598 @@ No full scripts/test.sh run: explicitly deferred until the final round-5
 part. No version bump, push, publication or new native-simulator claim.
 Details, all failure classifications and logs are in
 `reports/20260924-intent-integration-r5e.md`.
+
+## 2026-09-24 — LLP 3000.013 Lane K: natural Quarry forms
+
+Implemented row and statically known object spread as binder sugar, with
+left-to-right replacement, one evaluation per operand, and evaluation of
+overridden expressions. Generated TypeScript describes the merged object.
+Nullable operands get a presence rewrite; scalars, dynamic JSON and pages
+remain refused. Write payloads share this expansion and still validate
+maintained columns, identities, types and rules. Ordinary objects without
+spread or repeated fields retain their existing lowering. The engine, IR,
+wire and device protocol are unchanged.
+
+Bare `text` normalizes in the parser to the existing `text <=10000` type for
+columns, operation arguments and helper parameters. Existing bounds and
+formats keep their meanings. Checks cover equivalent schema, IR, generated
+types, scale certificates, write reservations and meters. Server and both
+memory and SQLite devices accept 10,000 characters and refuse 10,001,
+including four-byte Unicode and values assembled inside mutations.
+
+Added E_QUARRY_SPREAD, E_QUARRY_RULE_SPELLING and E_QUARRY_JOB_SCHEDULE,
+registered their why entries, and updated the language/types/shapes/rules/
+indexes/jobs cards. Guessed table-rule verbs point to the canonical rules;
+`write <-` requires separate rules for the intended operations. Job timing
+rewrites preserve the period and clock offset and qualify non-schema module
+jobs. Generated-index diagnostics identify the authored site and column,
+including unnamed unique declarations and sweep reads; they never advise
+editing an internal index. Internal names are omitted from diagnostic text
+in all output modes, a permitted choice under the brief.
+
+Engineering choices: spreads also work in existing write-object syntax;
+effectful and potentially failing operands are evaluated once even when
+later overridden. The guide uses `{ ...p, extra }` beside
+`p { *, extra: extra }`. The brief's literal `p { *, extra }` is not the same
+existing shape: with `p = { n: 1 }` and an `extra` argument, it requests a
+nonexistent row field and is refused. Changing that resolution would change
+an existing form, so the example spells out the expression. No shape meaning
+was changed. Updated the old S11 test that deliberately expected spreads to
+be refused; it now proves identical lowered IR to explicit fields.
+
+Added 15 language regressions, four shared server/device regressions, CLI
+plain/verbose/JSON diagnostics coverage and a scale-certificate equivalence
+test. Existing guide tests execute the new language examples and still
+compile every guide/README Quarry block without diagnostics or notes. The
+Clique fixture accepts its natural profile projection and incidental bare
+text bounds. Authorization probes keep hidden and absent rows indistinguishable;
+inline spreads examine one row, and merged objects agree across both stores.
+
+Installed Bun dependencies once and ran `scripts/test.sh` once with eight
+Rust build/test workers on the shared host. Exact result:
+`== 0 failure(s) in 559 s`. No introduced, baseline or environmental failures
+occurred; the four supplied baseline Rust failures did not recur. Client
+summary: 1,054 passed, 10 skipped, zero failed. Wasm remains 1,744,842 B raw /
+484,967 B gzip against the unchanged 486,000 B budget. The full suite covers
+feature commit e4a64d49b. A subsequent diagnostic-only module qualification
+fix and extra device assertion passed 77 scoped tests: 57 guide, 15 language,
+four device and one CLI. Logs: /tmp/lane-k-full-suite.log and
+/tmp/lane-k-followup-{lang,device,cli}.log. No open implementation problem was
+found. No push, publication, version bump, authorization relaxation, meter
+ceiling change or runtime redesign was performed; integration and blind
+reviews remain with the supervisor.
+
+
+## 2026-09-24 — LLP 3000.013 Lane K round 1: unique keys, then row tests
+
+Fetched origin/main at 9402e63bb and merged it as 85512d802. Mixed keys now
+normalize to named equalities before planning, rule binding and sync
+inference: `members[.org, viewer, role = 'admin']` and
+`docs[.docId, ownerId = viewer]`. The positional prefix must identify one
+full declared unique key with non-null columns. Synthesized indexes never
+resolve positions, and nullable unique declarations still count toward
+arity ambiguity. Extra tests, source authorization, created-row checks,
+indexes, IR and meters use the existing named path. Repeated named columns
+remain refused. E_QUARRY_KEY_ORDER gives the ordered rewrite; incomplete,
+non-unique or ambiguous prefixes use E_QUARRY_POSITIONAL_SCAN and name the
+key columns. Updated the reads/rules/language cards and registered the new
+code and why entry.
+
+Schedule periods accept ms/s/m/h/d above the unchanged one-minute floor.
+120s normalizes to 2m; 90s and 90001ms run at exact integer millisecond
+boundaries, including after reopening the store, without duplicate runs.
+1500ms is refused with “a schedule fires at most once a minute” and
+`every 1m`. Existing 2h, 1d at 08:00 and the previous large m/h/d range retain
+their meanings. doctor now displays exact seconds or milliseconds rather
+than truncating fractional-minute periods. The jobs and language cards teach
+the new spelling without changing the sample schedule's timing.
+
+Stopped part of the requested write-target extension: its premise is false
+on this checkout. With `unique org, principal`, even the all-named
+`update members[org = org, principal = viewer, role = 'admin'] { role: 'member' }`
+is refused with E_QUARRY_UNKNOWN (“no unique index over 3 columns”). Delete
+and upsert have the same limitation. Existing private WriteTarget IR has
+no residual-equality carrier; update conditions require a readable row and
+report conflicts, while the engine explicitly refuses an upsert condition.
+Choosing a read-before-write guard or new filtered-upsert behavior would
+require a design/authority decision rather than spelling sugar. No such
+change was made. Mixed targets compile and run wherever the equivalent
+named target already does (including a declared full matching unique index),
+and otherwise preserve its refusal. Reproduce both sides with
+`cargo test -p snapback4-lang --test mixed_keys mixed_write_targets_preserve_existing_named_target_admission`.
+A read-rule role residual also retains the named form's E_SYNC refusal;
+no broader device audience was inferred. This is tested explicitly.
+
+Added eight language mixed-key tests: schema/IR/audience equivalence;
+authorized answers, insert rules and created outcomes; sync refusal parity;
+wrong order; incomplete/non-unique/ambiguous keys; duplicate columns;
+nullable-key ambiguity; and write-target admission/execution parity.
+Added three schedule tests for all requested units, the minimum/overflow
+refusals, and exact execution/restart boundaries. Two device tests compare
+mixed/named answers and delivered audiences over memory and SQLite. One
+CLI clock test checks doctor's exact 90s/90001ms/2m output. The 57 guide
+tests remain clean. Final scoped checks totaled 71 passing tests.
+Development-only test setup failures (guide block placement/counts and a
+SQLite fixture using /tmp itself as its private parent) were ours and fixed.
+
+Ran scripts/test.sh three times, with eight Rust build/test workers and at
+most one full suite at once. First: `== 1 failure(s) in 233 s` — client
+W7r1 runWorker and doctor observe deferred presence effects reported an
+AbortError during shutdown; its isolated rerun passed. Second:
+`== 1 failure(s) in 175 s` — clock::grace_push_serve_keeps_deadline_and_reconnect_record_for_claim_after_restart
+observed a 35,001 ms interval against its 35,000 ms assertion; its isolated
+rerun passed. Both are pre-existing, timing-sensitive failures in unchanged
+worker behavior/assertions, classified as environmental/intermittent for
+this lane; neither appears in the supplied baseline's four recorded Rust
+failures. No worker code, assertion, skip or timeout was changed to obtain
+a green run. Final exact result: `== 0 failure(s) in 169 s`.
+Final client summary: 1,054 passed, 10 skipped, zero failed. The supplied
+baseline's four failures did not recur. Evidence:
+/tmp/lane-k-r1-full-suite.log, /tmp/lane-k-r1-full-suite-final.log,
+/tmp/lane-k-r1-full-suite-qualified.log, /tmp/lane-k-r1-worker-retry.log and
+/tmp/lane-k-r1-clock-retry.log.
+
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. Reference validation: 504 LLP documents, 9,236 references, zero
+errors and zero unchecked. Changed sources stay below 1,500 lines and
+whitespace checks pass. No engine/wire redesign, authorization relaxation,
+meter ceiling change, package publication or push. General residual write
+targets remain for the supervisor's design decision; the two intermittent
+suite races remain outside this lane's changes.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 2: explicit shape fields replace inherited columns
+
+Continuation of Lane K's entries above. Fetched origin and merged
+origin/main at 0ee488999 (merge a3a9cf0f5) before editing. A shape's explicit
+field can now replace a same-named column from `*` or a named spread, with
+the explicit field's inferred/generated type. The requested bookings page
+runs with `listing: listings[.listing] { title, city }` in place of the id.
+Object spread keeps this behavior. Everything lowers to existing Object,
+Shape, Let and loop IR; Shape retains its original base row, and scans keep
+the original rule/filter/order/cursor inputs. No engine, device or wire
+format change was needed. Replaced expressions still execute once and pay
+their meters, including expressions that fail or call writing helpers.
+
+Two explicit fields now refuse E_QUARRY_DUPLICATE_FIELD in shapes, object
+literals and write payloads, even across an intervening spread. Its site,
+message and rewrite identify both explicit locations. Registered its code,
+why text and shapes-card routing; the language and shapes cards contain
+compiled replacing projections. Removed the obsolete CLI wildcard repair:
+`check --fix` leaves accepted `{ *, field }` forms alone and does not choose
+which duplicate explicit value to delete.
+
+Engineering decisions where the brief was silent: a bare shape column is
+an explicit field, so `{ *, field }` is accepted but `{ field, field }`
+refuses. Named-shape fields are inherited in the receiving shape. Preserve
+the existing explicit-before-wildcard behavior for an already-shaped row;
+this round's explicit-after-wildcard rule does not change that accepted
+program's meaning. The round-0 tests that allowed two explicit object fields
+were updated deliberately to follow round 2's stricter requirement. Ordinary
+spread override order is still tested. Six previously refused frozen census
+programs now compile; their digests live in intent-shape-overrides.sha256.
+All 3,219 historical digests and all original census inputs stay unchanged.
+
+Added five language tests: inferred and emitted replacing types (including
+nullable nested listings); duplicate explicit fields in shapes, objects and
+writes with both source sites; wildcard/named-spread/object-shape merging;
+overridden division still failing and exhausting an eight-step ceiling that
+fits the equivalent plain projection; and overwritten writing helpers running
+once in source order. Added a bare-column acceptance regression. Two device
+tests use the shared booking fixture on memory and SQLite, including reopen
+and wire backend round-trip. They traverse all 25 visible bookings, exclude
+Bob's booking, keep hidden/missing listings null, and interchange server and
+device cursors across tied start values. Replacing start, id and guest in the
+output does not change source ordering, disclosure or continuation. Server
+and device answers and meters agree. The existing explicit projection is the
+control for device completeness: a negative parent lookup outside known
+coverage stays incomplete. No coverage or authorization rule was relaxed.
+
+Development-only targeted failures were ours and resolved: the accepted old
+repair fixture needed a cursor to assert no notes; the new fixture needed
+sync horizons for that assertion; negative device lookups needed the existing
+explicit-projection completeness control; the tiny-step query returns E_BOUND
+rather than an incomplete value; cross-operation heap equality was too strict
+(the test now compares identical-operation server/device meters and source
+examinations against the explicit projection); and four golden shards needed
+the six newly admitted programs pinned separately. These were test expectation
+updates, not baseline failures or runtime fixes. Final scoped checks passed:
+5 shape language tests, 2 device shape tests, 15 language/4 device natural-form
+tests, 10 repairs tests, 27 CLI fix tests and all 57 guide tests. The full suite
+also passed every lowering shard with the original digests unchanged.
+
+Ran scripts/test.sh once with eight Rust build/test workers, after frozen Bun
+install (no dependency changes). Exact result: `== 0 failure(s) in 260 s`.
+No full-suite failures: none ours, baseline or environmental. Client tests:
+1,054 passed, 10 skipped, zero failed. The supplied baseline failures and the
+round-1 timing flakes did not recur. Evidence: /tmp/lane-k-r2-full-suite.log.
+Wasm remains 1,744,842 B raw / 484,967 B gzip (unchanged 486,000 B budget).
+Reference validation: 505 LLP documents, 9,236 references, zero errors and
+zero unchecked. All changed source files stay below 1,500 lines. No push,
+publication, meter-ceiling increase or runtime redesign. No open round-2
+problem; round 1's residual write-target design gap remains as recorded above.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 3: explain constraints over hidden rows
+
+Fetched origin and merged origin/main before editing; already up to date at
+9d09f309e. Mutation existence/count domains that fail uniform-read admission
+now explain which operation can read which audience, quote the read rule,
+and explain that the check would miss hidden rows. The booking diagnostic
+names other guests' bookings, the source line and two remedies: per-unit
+unique reservations that every writer obeys, or readable availability when
+the product permits that audience. It never names the synthesized index.
+The existing E_STRUCTURAL_FANOUT code and why entry were extended, with a
+contextual link to writes. Compiler-only consumer sites select the explanation
+after the unchanged engine admission rejects the program; no IR, wire,
+device, authorization, disclosure or meter behavior changed. Existing
+lowering golden files remain unchanged and every shard passes.
+
+Engineering choice for the requested distinction: retain the capped-group
+rewrite when a declared cap on the scanned table, within the examined
+ceiling, supplies enough additional columns alongside the current pins for
+the engine's existing prefix-visibility analysis to decide the rule. A cap
+on an unrelated column does not qualify. Candidate pins are opaque values,
+not an invented viewer grant. This uses the same rule simplifications as
+admission. Ordinary page and loop diagnostics retain their existing path.
+Aggregate consumers share this explanation, including sum as well as count.
+
+The writes card now compiles and executes a private booking plus one public
+night per calendar-day number, with exclusive lastDay, `unique listing, day
+else TAKEN`, and a `created bookings` insert rule. A public availability table
+is necessary to name TAKEN: hidden collisions still return E_RULE. The card
+explicitly discloses that occupied dates and booking references are public;
+guest details remain private. It covers booking only and says cancellation
+must release nights atomically. No new syntax was introduced. The supplied
+snippet's bare `listings[listing]!.host` still requires the existing refusal
+code; the diagnostic fixture uses `(listings[listing] ! else NOT_FOUND).host`
+so it reaches the requested admission check, rather than a syntax error.
+
+Added six tests in constraint_diagnostics.rs: exists/count booking diagnostics
+with both rewrites and source sites, including an unrelated cap; retention
+of the old rewrite for a deciding owner cap and compilation of its repair;
+helper-domain locations with the caller mutation's name; execution of the
+actual writes-card block for two guests, TAKEN and rollback of both the new
+booking and an earlier free night, while the first booking remains hidden;
+the same clash on private nights returning E_RULE; and write-meter exhaustion
+rolling the whole operation back. All 113 targeted language tests passed
+(6 new, 57 guide, 10 prefix reads, 40 residency notes). Initial fixture setup
+errors were ours and corrected: Site uses col, standalone operations need
+schema.q, and presence assertions require the refusal code above.
+
+Ran frozen Bun install (no dependency changes) and scripts/test.sh twice,
+with eight Rust build/test workers and at most one full suite at a time.
+First exact result: `== 1 failure(s) in 432 s`. Its only failure was
+snapback4-device::readauth::census::authoring_census, caused by this change:
+the new card/writes/2:book entry and renumbering the former block 2 to 3.
+Updated those four inventory lines only, preserving every old rule/outcome,
+and the isolated census passed. Although that test name appears in the
+supplied baseline log, this mismatch was ours, not attributed to baseline.
+Final exact result: `== 0 failure(s) in 178 s`. No remaining failures, baseline
+failures or environmental failures occurred in these runs. Client summary:
+1,054 passed, 10 skipped, zero failed. Evidence: /tmp/lane-k-r3-full-suite.log,
+/tmp/lane-k-r3-full-suite-final.log and /tmp/lane-k-r3-census.log.
+
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. Reference validation: 505 LLP documents, 9,237 references, zero
+errors and zero unchecked. Changed source files remain below 1,500 lines;
+whitespace checks pass. No open round-3 implementation problem; the original
+bare-assertion spelling and round 1's residual write-target limitation remain
+as documented. No push, publication, cancellation implementation or runtime
+redesign was attempted.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 4: close the spread and diagnostic review
+
+Addressed the Astra NOT READY and Grok READY WITH CHANGES findings against
+reviewed commit 7b302883d. Row object spread now retains its source row through
+existing Expr::Shape / Ty::RowShape instead of dropping metadata through
+Object. Generated types include pending?: boolean. Spreading a shaped row
+retains that metadata too; containing records remain ordinary objects.
+Write payload expansion still selects only declared fields and does not copy
+device metadata into writes. No engine or wire representation was added.
+
+Decision where the brief was silent: with several row operands, the last row
+spread supplies the metadata base, consistent with its columns replacing
+earlier rows' columns; subsequent plain object spreads retain the base.
+The shapes card documents this. An explicit/inherited pending field in an
+object that spreads a row is refused, matching the existing row-shape rule
+that pending is device metadata. The existing natural-forms type expectation
+deliberately changed from Object to RowShape; pure object spreads stay Object.
+
+Extra-tested update/delete/upsert targets remain stopped. E_QUARRY_WRITE_TESTS
+explains that a write target names one row by its key, and suggests the
+author-written `require exists members[org, viewer, role = 'admin'] else
+NOT_ADMIN`, followed by the original write with just its key. The patch and
+write kind survive in the suggestion. It compiles, but is never inserted by
+the compiler. Hidden/missing rows are subject to the ordinary read rule in
+that explicit check, and the write still needs its own authority. Mistyped,
+ambiguous and incomplete keys retain their existing diagnostics; full unique
+keys keep their existing admission. Registered the new code and why, and
+documented the limitation in writes. No private pre-read or residual WriteTarget
+implementation was introduced. Reproduction remains the mixed_keys test
+mixed_write_targets_preserve_existing_named_target_admission.
+
+Removed both column-name branches from constraint diagnostics: every domain
+now names hidden rows and suggests `unique resource, unit else TAKEN`.
+The writes card retains its specific per-night example. Added regressions for
+a non-booking table with guest/listing columns, sum(bookings, .start) inside
+book, and a stranger inserting a free night referencing someone else's
+existing booking. The last must return E_RULE without inserting anything;
+a unique-clash-only test could not detect insert <- allow. Expanded schedule
+execution to every 1d at 08:00: no early firing, exact shifted periodStart and
+periodEnd, durable reopen, no duplicate firing and exactly two executed jobs.
+Sum's Aggregate binding, the nights insert rule and boundary arithmetic were
+already correct; this round adds the previously missing witnesses.
+
+Seven new tests plus strengthened existing cases cover the findings. The
+shared spread fixture compares spreads, ordinary shapes, shaped-row spreads
+and nested records before confirmation, after reopen, after server settlement
+and after another reopen, on memory and SQLite devices. It also checks the
+last-row metadata decision and exactly one source-row examination. Type tests
+assert the inferred RowShape and emitted optional pending field. The write
+diagnostic test checks all three write kinds, rejects an implicitly lowered
+program, compiles each explicit rewrite, and executes its missing-row refusal.
+
+Verified regression sensitivity with seven temporary fault injections:
+Object runtime lowering, Object result type, the old write diagnostic,
+column-name constraint wording, sum bound as Page, nights insert <- allow,
+and Schedule::boundary with offset zero. Every corresponding test failed as
+intended; the harness restored all sources after each injection. These were
+deliberate negative checks, not unaddressed implementation failures. Evidence:
+/tmp/lane-k-r4-mutants.log and /tmp/lane-k-r4-mutant-*.log. Restored targeted
+checks passed: 94 language tests including all 57 guide tests, plus eight
+device tests; the final key-normalization check also passed all nine cases.
+
+Ran frozen Bun install (no dependency changes) and scripts/test.sh once with
+eight Rust build/test workers and only one full lane suite running. Exact
+result: `== 0 failure(s) in 228 s`. No full-suite failures: none ours, baseline
+or environmental. Client tests: 1,054 passed, 10 skipped, zero failed. All
+historical lowering digests remain unchanged. Evidence:
+/tmp/lane-k-r4-full-suite.log. Wasm remains 1,744,842 B raw / 484,967 B gzip
+under the unchanged 486,000 B budget. Reference check: 505 LLP documents,
+9,237 references, zero errors and zero unchecked. Changed source files stay
+under 1,500 lines and whitespace checks pass. No publication or push; no
+authorization, disclosure, durability or meter relaxation. No unresolved
+round-4 issue beyond the explicitly retained residual write-target limitation.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 5: grouping and spread provenance
+
+Merged origin/main (8d1210ce3) before implementing the Astra NOT READY and
+Grok READY WITH CHANGES findings. The fetched main still had the flat printer,
+so used the brief's permitted fallback: print every binary, unary and
+conditional expression with grouping. Audited all print::expression callers:
+write-target repairs; mixed/index-key rewrites; inferred read predicates;
+nullable arithmetic, comparisons, assertions, slices and loop rewrites;
+parser conditional repairs; and rule/maintain/provenance evidence. The shared
+printer now preserves their expression boundaries. Read operands with where, matching or cursor/range clauses also retain
+parentheses so a surrounding operator cannot become part of a read clause. Updated the aggregate-note evidence formatter to avoid duplicate
+conditional parentheses, and two expected diagnostic strings to include the
+new grouping. No new diagnostic code or authoring spelling was introduced.
+
+Separated metadata from wildcard precedence with compiler-only Ty::RowObject.
+Object spreads and subsequent object shapes retain ordinary left-to-right
+wildcard behavior; genuine RowShape projections keep their existing explicit
+field precedence. Updated structural joins, rebinding, membership, shaping,
+read classification, view field extraction and TypeScript emission for the
+new compiler type. RowObject still emits pending?: boolean; containing plain
+records do not. Runtime lowering remains Expr::Shape, with no IR, engine,
+device, wire or scheduler implementation change.
+
+Superseded round 4's last-row-only metadata decision. The binder records the
+source of each spread field. Earlier row spreads whose fields survive now
+contribute pending too; entirely replaced earlier rows do not. The final row
+base remains, preserving the existing single-row shape equivalence. Combining
+flags uses ordinary Shape projections with a false fallback, field selection,
+boolean OR and an object base. The outer Shape emits pending only when true.
+Every source operand still evaluates once, in order, including discarded
+operands; all extra projection/boolean work pays the existing meters. The
+shapes card now describes surviving-field metadata. Explicit and inherited
+pending fields remain reserved; the new inherited-forgery regression covers
+{ ...p, ...{ pending: true } }.
+
+Regression coverage: mixed_keys executes the literal pasted write-target
+rewrite for (a + 1) * 2, unary arithmetic, a conditional value, and preserved
+and/or/not guards. With a = 2 the arithmetic stores 6; false guards retain
+E_CONFLICT and leave the row unchanged. printed_rewrites executes source,
+printed and operator-embedded forms, including nested arithmetic, unary and
+conditional values, keys, predicate reads, matching, and cursor-bearing page
+comparisons. The matching regression first failed because and was consumed
+as part of the search text; the cursor regression fails without grouping
+because the comparison becomes part of the after clause. The shared spread fixture and
+memory/SQLite lifecycle test compare spread with ordinary shapes before
+confirmation, after reopen, after settlement and after a further reopen.
+They cover s = { ...p }; s { title: 'override', * }, a repeated object shape,
+the genuine RowShape control, a pending note merged before a confirmed tag,
+a nested spread of that result, and replacement of the note's last surviving
+field. Single-row queries examine one source row; two-row merges examine two.
+Natural-form tests check the distinct compiler type, generated pending type,
+and inherited pending refusal. Schedule regressions check boundaries before
+08:00, clocks below zero, a quotient below -1, and a schedule first seen at
+07:00 that fires exactly once at 08:00 across SQLite reopen. Boundary arithmetic
+was already correct; the added tests close its prior mutation-testing gap.
+
+Eight temporary fault injections were all detected: flat binary arithmetic,
+flattened write-condition booleans, ungrouped predicate reads, RowShape wildcard
+precedence on spread objects, last-row-only metadata, explicit-only pending
+validation, truncating schedule division, and ungrouped cursor-bearing reads. The final mutation fails both
+new schedule tests. All injected changes were restored. Evidence:
+/tmp/lane-k-r5-mutants.log and /tmp/lane-k-r5-mutant-*.log. The first range
+mutation check exposed a weak shape-only witness; adding a page comparison
+made it fail, and the restored printer passed. Matching's separate before/after
+execution is in /tmp/lane-k-r5-matching-{before,after}.log.
+
+Preliminary failures and attribution: one environmental rust-lld bus error
+while linking the guide test, with the shared disk nearly full; package-scoped
+cargo clean -p snapback4-lang reclaimed 21 GiB and the retry passed. Own test
+setup errors in pasted_write_rewrites_preserve_arithmetic_and_boolean_grouping
+were corrected (int default 0, and the existing E_CONFLICT result for a false
+write condition); printed_rewrites' cursor fixture was changed from a bare
+null literal to a declared cursor ? argument. Two own diagnostic expectation failures were corrected:
+l26_conditional_delta_is_control_and_toggle_message_names_both_arms and
+review_f13_different_conditions_of_the_same_arguments_name_both_arms. The
+broader language run had no other failures. Restored targeted checks passed
+96 language tests (four existing ignored cases), four device tests, and the
+prior guide/constraint pass covered 57 guide and nine constraint tests.
+
+No deviation from round 5's requirements; the extra read-clause grouping
+fixes follow the required shared-printer audit. No unresolved round-5 problem.
+Extra-tested update/delete/upsert targets remain deliberately refused until
+WriteTarget can carry residual tests: with unique org, principal,
+update members[org, viewer, role = 'admin'] { role: 'member' } reproduces
+E_QUARRY_WRITE_TESTS. Its explicit require-then-keyed-write rewrite is useful
+and tested, but is never inserted by the compiler. No authorization, disclosure,
+durability or meter relaxation; no push or publication.
+
+Ran frozen Bun install once (506 installs checked; no dependency changes).
+The first full scripts/test.sh result was `== 1 failure(s) in 822 s`: cargo test
+failed only printer_keeps_grouping_in_values_keys_filters_and_enclosing_rewrite_operators
+on the new matching-clause case, compiled before the follow-up fix. This was
+ours, fixed; no baseline or environmental full-suite failure occurred. The
+final full result on restored, completed code is `== 0 failure(s) in 207 s`.
+Client tests: 1,054 passed, 10 skipped, zero failed in each run. The first run
+used four Rust build workers; the final run used eight; both used eight Rust
+test processes, with at most one full lane suite running. Evidence:
+/tmp/lane-k-r5-full-suite.log and /tmp/lane-k-r5-full-suite-final.log.
+
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. Final reference validation: 505 LLP documents, 9,237 references, zero
+errors and zero unchecked. Every changed Rust file is below 1,500 lines and
+git diff --check passes. Implementation commits before this journal/schedule
+commit: 5df0443ec (shared expression grouping), 130f030db (spread precedence
+and surviving-row metadata), d3efb5687 (read-clause grouping and regressions).
+
+## 2026-09-24 — LLP 3000.013 Lane K round 6: compositional spread pending
+
+Replaced the round-5 surviving-field rule with the requested conservative
+rule: a spread result is pending if any row spread into it, directly or
+through a spread local, is pending, even when all its fields are replaced.
+In bind/program/objects.rs, removed the field-origin map and final-source
+filter; every row base now reaches the existing pending union. The Shape IR,
+RowObject compiler type, device interpreter and wire representation are
+unchanged. Each source is still bound once and all metadata operations use
+the existing step/heap meters. The shapes card states the rule in one sentence.
+Generated result types still carry pending?: boolean; one-row spreads still
+match p { *, extra: true }, with object wildcard precedence preserved.
+
+Extended tests/fixtures/spread-metadata.q with reversed spread order and
+left/right nested versus flat three-row queries, plus a tag insertion for
+offline prediction. natural_forms checks that nested and flat types agree
+and each generated result has exactly one optional pending field. Updated
+spread_metadata's two device lifecycle tests deliberately: replacing a
+pending row's last field, or all its fields, no longer clears pending.
+
+Added spread_pending_union's memory and SQLite tests. Both exercise all eight
+pending/confirmed combinations of a note, tag and second note, comparing
+{ ...p, ...q, ...r } with s = { ...p, ...q }; { ...s, ...r } and with
+s = { ...q, ...r }; { ...p, ...s }. The last note replaces every field from
+the first. Reversed two-row spreads cover confirmed first/pending second as
+well as pending first/confirmed second, and unrelated pending rows do not
+mark results. The matrix runs before confirmation, after reopen, after each
+of three settlements, and after reopening each partially settled state.
+After all settlement, server and device answers agree and pending is absent.
+Queries examine exactly two or three rows as appropriate; the existing
+single-row spread/shape checks still examine one.
+
+Regression sensitivity: restoring the old field-origin implementation fails
+both store tests on the reported composed/flattened disagreement. Restricting
+metadata to the first source fails both on taggedReverse with a confirmed
+first row and pending second row. All temporary mutations were restored.
+Evidence: /tmp/lane-k-r6-mutation-{origins,first-only}.log. The initial new
+matrix also failed against the old implementation before the fix; these are
+intentional negative checks, not unresolved failures. Restored targeted tests:
+57 guide, 16 natural-form and four device tests passed, zero failures.
+
+Ran bun install --frozen-lockfile once (506 installs checked, no changes).
+Ran scripts/test.sh once with eight Rust build/test workers and at most one
+full lane suite. Exact result: `== 0 failure(s) in 233 s`. No full-suite
+failures: none ours, baseline or environmental. Client tests: 1,054 passed,
+10 skipped, zero failed. Evidence: /tmp/lane-k-r6-full-suite.log. Wasm remains
+1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B budget.
+Reference validation: 505 LLP documents, 9,237 references, zero errors and
+zero unchecked. Changed Rust files remain below 1,500 lines; diff whitespace
+checks pass.
+
+No deviation or unresolved round-6 problem. No new syntax, refusal code,
+IR or wire form; no authorization, disclosure, durability or meter change.
+The earlier deliberately refused extra-tested write targets remain outside
+this round. No push or publication.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 7: preserve wildcard rules across joins
+
+Round 6 did not change Ty::join: a RowObject/RowShape join still became
+RowShape and changed a later wildcard's precedence. types.rs now retains
+that distinction as compiler-only RowMixed, including through further joins,
+optional values, nested fields, collections and rebound types. Ordinary field
+reads remain valid. bind/program.rs refuses shaping an already-joined mix
+with E_QUARRY_SHAPE_JOIN, its shape site, and a two-arm projection rewrite.
+The rewrite labels the original operands spreadArm and shapeArm and tells the
+author to use the original condition; reassignment shapes each assigned value
+before its control-flow paths meet. The rewrite is not inserted as a pre-read.
+
+Extracted conditional binding from bind/program/expr.rs to
+bind/program/conditional.rs. An inline conditional shape binds each mixed
+arm's projection before their result types join; only the chosen arm executes.
+Existing joins without that mix retain their original lowering. Field reads
+in expr.rs, spread expansion in objects.rs, predicate-shape recognition in
+reads.rs and TypeScript generation in emit.rs accept the mixed compiler type.
+A fresh object spread copies a mixed value with ordinary object wildcard
+order and preserves its pending metadata. No new runtime or wire type.
+Added the refusal's default shapes-card route in diag.rs and its why entry
+in guide/codes.rs. guide/shapes.rs explains both wildcard rules and the
+per-arm rewrite; guide/language.rs includes the inline conditional form.
+tests/guide.rs pins and executes that new language-card query for both flags;
+crates/snapback4/tests/scale.rs adds it to the constant-work operation census.
+
+Extended tests/fixtures/spread-metadata.q with explicit per-arm, inline
+conditional, reassignment, joined field-read and fresh-spread programs.
+Added six tests in tests/joined_shapes.rs: server answers for each arm and
+reassignment; both original joined-local refusals in both arm orders; text
+bounds and generated optional pending types; execution of the printed rewrite
+(including parenthesized arithmetic); preservation of the refusal through
+aliases, further joins, nullable values and containers; and lazy evaluation
+with a missing unselected row and a nullable selected row. With flag true,
+shapedConditional returns original and its title bound is Text(10000), not
+Text(8). The false arm returns override. Device tests/spread_metadata.rs runs
+both flags on memory and SQLite before confirmation, after reopen, after
+settlement and after a further reopen, checking the values, pending and one
+examined source row.
+
+Round 6 already covered a confirmed note followed by a pending tag, retaining
+the note's title and the tag's label, in spread_pending_union's eight-case
+matrix on both stores across reopen and partial/full settlement. No duplicate
+case or pending-union implementation change was necessary. Temporarily seeding
+pending_base's fold with false instead of marked(first) fails both existing
+store tests. Restoring the old mixed-type collapse fails all six new join
+tests, including original becoming override for flag true. Both fault
+injections were restored. Evidence: /tmp/lane-k-r7-pending-mutant.log and
+/tmp/lane-k-r7-join-mutant.log.
+
+Preliminary failures were ours and corrected: the new test helper wrongly
+required no horizon notes from an existing horizon-free device fixture, then
+used joined.q while expecting unqualified operation names; the guide census
+needed the new query and the new code needed its default shapes-card mapping.
+The initial refusal regression also correctly failed against the old join.
+Restored targeted checks passed 57 guide, 16 natural-form, six join, 11 lowering
+and four device tests; the scale target passed all 18 cases after its census
+was updated. Historical lowering digests, admissions and execution
+comparisons all remained unchanged; the targeted lowering run took 180.18 s.
+
+No deviation or unresolved round-7 issue. Engineering choice: retain a small
+compiler type marker and use the existing conditional/Shape IR rather than
+adding a runtime tag. The earlier deliberately stopped extra-tested write
+targets remain outside this round. No authorization, disclosure, durability
+or meter relaxation; no push or publication.
+
+Ran bun install --frozen-lockfile once (506 installs checked, no changes).
+The first full scripts/test.sh result was `== 1 failure(s) in 499 s`: the
+only failed test was snapback4::scale::language_operation_classes because
+its pinned census omitted the new constant-work spreadChoice query. This
+was ours and is fixed; no baseline or environmental full-suite failure.
+The final full result is `== 0 failure(s) in 174 s`. Both runs used eight
+Rust build workers and eight Rust test processes, with only one full lane
+suite at a time. Client tests passed 1,054 cases, skipped 10 and failed zero
+in both runs. Evidence: /tmp/lane-k-r7-full-suite.log and
+/tmp/lane-k-r7-full-suite-final.log.
+
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. Reference validation: 505 LLP documents, 9,238 references, zero
+errors and zero unchecked. Every changed Rust source is below 1,500 lines;
+git diff --check passes. No packages or generated publication files changed.

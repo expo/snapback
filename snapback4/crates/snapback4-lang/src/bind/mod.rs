@@ -12,6 +12,8 @@ mod actions;
 mod routes;
 mod server;
 mod key_bound;
+mod index_diagnostics;
+mod mixed_keys;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
@@ -55,6 +57,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
     catalog.feed_views = feeds;
+    mixed_keys::normalize(&mut catalog);
     intent::table_order(&mut catalog);
     intent_variants::expand(&mut catalog);
     intent_views::expand(&mut catalog, &mut diagnostics);
@@ -139,6 +142,10 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         programs.retain(|bound| match snapback4_core::engine::admission::check_detail(&schema, &bound.program) {
             Ok(()) => true,
             Err(error) => {
+                if let Some(diagnostic) = bound.constraint_diagnostic(&schema, &error) {
+                    diagnostics.push(diagnostic);
+                    return false;
+                }
                 let source = bound.sources.get(&error.site).or_else(|| error.page_site.as_ref().and_then(|site| bound.sources.get(site)));
                 let site = source.map_or(&bound.site, |(site, _)| site);
                 let message = if error.site.starts_with("for/") && let Some((_, name)) = source { format!("loop over {name}: {}", error.message) } else { error.message };
@@ -170,6 +177,9 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     notes.extend(residency::guard_notes(&schema, &programs));
     notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
+    index_diagnostics::authored(&catalog, &mut diagnostics);
+    index_diagnostics::authored(&catalog, &mut notes);
+    for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     Bound { view_types, server, schema, programs, personas, diagnostics, notes }
 }
 

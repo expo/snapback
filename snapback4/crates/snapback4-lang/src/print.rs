@@ -3,7 +3,17 @@ use crate::ast::*;
 
 type Source<'a> = dyn Fn(&Expr) -> Option<(String, bool)> + 'a;
 
-pub fn expression(expr: &Expr) -> String { with_source(expr, &|_| None) }
+/// Rewrite callers may embed an expression in another operator or clause.
+/// Use the same precedence renderer as source excerpts, with a grouped root.
+pub fn expression(expr: &Expr) -> String {
+    let grouped = match expr {
+        Expr::Binary { .. } | Expr::Unary { .. } | Expr::If { .. } => true,
+        Expr::Read(read) | Expr::Exists { read, .. } | Expr::Created { read, .. } =>
+            read.filter.is_some() || read.matching.is_some() || read.range.is_some(),
+        _ => false,
+    };
+    with_source_at(expr, if grouped { 8 } else { 0 }, &|_| None)
+}
 
 pub(crate) fn with_source(expr: &Expr, source: &Source<'_>) -> String { with_source_at(expr, 0, source) }
 pub(crate) fn with_source_at(expr: &Expr, minimum: u8, source: &Source<'_>) -> String { render(expr, minimum, source) }
@@ -110,6 +120,7 @@ fn key_part(part: &KeyPart, source: &Source<'_>) -> String {
 
 fn object_fields(fields: &[ObjectField], source: &Source<'_>) -> String {
     fields.iter().map(|field| match &field.value {
+        Some(value) if field.spread => format!("...{}", render(value, 8, source)),
         Some(value) => format!("{}: {}", field.name, render(value, 0, source)), None => field.name.clone(),
     }).collect::<Vec<_>>().join(", ")
 }

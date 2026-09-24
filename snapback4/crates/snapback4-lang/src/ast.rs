@@ -170,6 +170,8 @@ impl WriteOp {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObjectField {
+    /// Spread entries carry their operand in `value` and have no field name.
+    pub spread: bool,
     pub name: String,
     pub value: Option<Expr>,
     pub site: Site,

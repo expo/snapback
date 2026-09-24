@@ -6,7 +6,7 @@ They apply on the server and when a device reads or predicts local rows.
 ```quarry
 table docs:
   ownerId: principal
-  title: text <=120
+  title: text
   state: enum('draft', 'final')
   read <- .ownerId = viewer or exists editors[.id, viewer]                  -- allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | and | or | not
   insert <- .ownerId = viewer and .state = 'draft'
@@ -18,7 +18,7 @@ table editors:
   principal: principal
   unique docId, principal
   read <- exists editors[.docId, viewer]
-  insert <- exists docs[id = .docId, ownerId = viewer] or created docs[.docId]   -- a probe may name its columns; created: this mutation inserted the row
+  insert <- exists docs[.docId, ownerId = viewer] or created docs[.docId]   -- a probe may name its columns; created: this mutation inserted the row
   delete <- .principal = viewer
 ```
 
@@ -26,7 +26,9 @@ Each of `read`, `insert`, `update` and `delete` takes one rule over the row
 (`.col`), `viewer` and literals. A table without a rule for an effect denies
 it. `public 'why'` on its own line is the read rule. The compiler supplies indexes for `exists` probes; named
 equalities may cover a total unique key and check extra columns on that one row,
-for both `exists` and `created`, without an extra index. Every focal field used
+for both `exists` and `created`, without an extra index. A full positional unique
+key may come first, followed by named extra-column tests, as in
+`docs[.docId, ownerId = viewer]`. Every focal field used
 by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Rules
 compare with `=` and `!=` alone: a rule that varies with time is not an
 audience a partition can hold (use `expire`). A read rule that is exactly
@@ -34,6 +36,11 @@ audience a partition can hold (use `expire`). A read rule that is exactly
 sync). The system principal consults no rules, so `system` is never a rule word.
 An audience read rule may add `or viewer = 'service:pusher'` (or several
 service grants); sync infers its audience without them, and ordinary extra disjuncts still refuse.
+
+E_QUARRY_RULE_SPELLING locates a guessed table rule: `select <-` and `view <-`
+become `read <-`, `create <-` becomes `insert <-`, `modify <-` and `edit <-`
+become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`,
+declare separate insert, update and delete rules for the operations intended.
 
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves

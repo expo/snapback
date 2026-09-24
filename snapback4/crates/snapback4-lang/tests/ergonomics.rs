@@ -81,14 +81,14 @@ fn s10_time_scaling_names_the_actual_expression_and_conversion() {
 }
 
 #[test]
-fn s11_emit_spread_names_explicit_payload_fields() {
+fn s11_emit_spread_compiles_the_original_builder_payload() {
     let prefix = "table profiles:\n  principal: principal\n  public 'profiles'\neffect notify\n";
     let source = at_line(prefix, 86, "job dailyDigest(periodStart: time, periodEnd: time):\n  chunk p in profiles first 1 by byId:\n    counts = { newFollowers: 1, newPostsInFollowing: 2, unreadMessages: 3, unreadChats: 4 }\n    if true:\n      if true:\n        emit notify { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, ...counts }");
-    let bound = bind("insights.q", &source);
-    println!("{}", texts(&bound).join("\n\n"));
-    assert_eq!(texts(&bound), ["insights.q:91:90 — E_QUARRY_SYNTAX: expected an object field name, got spread ...counts; objects list fields explicitly\n  rewrite: replace ...counts with field: counts.field for each payload field\n  guide: language"]);
-    clean("insights.q", &source.replace("...counts", "newFollowers: counts.newFollowers, newPostsInFollowing: counts.newPostsInFollowing, unreadMessages: counts.unreadMessages, unreadChats: counts.unreadChats"));
-    assert!(snapback4_lang::guide::explain_code("E_QUARRY_SYNTAX").unwrap().contains("Object fields use name: expression"));
+    let spread = clean("insights.q", &source);
+    let explicit = clean("insights.q", &source.replace("...counts", "newFollowers: counts.newFollowers, newPostsInFollowing: counts.newPostsInFollowing, unreadMessages: counts.unreadMessages, unreadChats: counts.unreadChats"));
+    // The previously refused builder form now binds to the same existing IR.
+    assert_eq!(spread.programs[0].program, explicit.programs[0].program);
+
 }
 
 #[test]

@@ -26,9 +26,15 @@ fn column_bytes(kind: &ColumnType) -> usize {
 pub(super) fn check(catalog: &Catalog, schema: &Schema, diagnostics: &mut Vec<Diagnostic>) {
     for (name, table) in &schema.tables {
         for (index_name, index) in &table.indexes {
+            let site = catalog.site_for(&format!("tables.{name}.indexes.{index_name}"));
+            let generated = index_name.starts_with("$intent:");
+            let origin = if generated {
+                let unique = catalog.tables.get(name).is_some_and(|table| table.decl.indexes.iter().any(|index| index.name == *index_name && index.unique));
+                format!("{} at {site}", if unique { "unique declaration" } else { "access required by the declaration or read" })
+            } else { format!("index {name}.{index_name}") };
             if name.len().saturating_add(index_name.len()) > MAX_INDEX_LABEL_BYTES {
-                let site = catalog.site_for(&format!("tables.{name}.indexes.{index_name}"));
-                diagnostics.push(Diagnostic::new(&site, "E_INDEX_KEY_BYTES", format!("table and index names for {name}.{index_name} exceed {MAX_INDEX_LABEL_BYTES} combined UTF-8 bytes"), "shorten the table or index name to leave space for the portable encoded key").guide("indexes"));
+                let rewrite = if generated { "shorten the table or column names to leave space for the portable encoded key" } else { "shorten the table or index name to leave space for the portable encoded key" };
+                diagnostics.push(Diagnostic::new(&site, "E_INDEX_KEY_BYTES", format!("table and index labels for {origin} exceed {MAX_INDEX_LABEL_BYTES} combined UTF-8 bytes"), rewrite).guide("indexes"));
             }
             let mut components = Vec::new();
             for component in &index.components {
@@ -51,10 +57,10 @@ pub(super) fn check(catalog: &Catalog, schema: &Schema, diagnostics: &mut Vec<Di
             let (column, size) = components.iter().max_by_key(|(_, n)| n).cloned().unwrap_or(("id".into(), ID_BYTES));
             let rest = total.saturating_sub(size);
             let chars = MAX_INDEX_KEY_BYTES.saturating_sub(rest).saturating_sub(3) / 4;
-            let site = catalog.site_for(&format!("tables.{name}.indexes.{index_name}"));
+            let alternative = if generated { String::new() } else { format!(", or remove components from {index_name}") };
             diagnostics.push(Diagnostic::new(&site, "E_INDEX_KEY_BYTES",
-                format!("index {name}.{index_name} can require {total} encoded bytes; column {name}.{column} exceeds the portable {MAX_INDEX_KEY_BYTES}-byte key budget including the id"),
-                format!("bound {column}, for example `{column}: text <={chars}`, or remove components from {index_name}; all components and the appended id must fit {MAX_INDEX_KEY_BYTES} bytes")).guide("indexes"));
+                format!("{origin} can require {total} encoded bytes; column {name}.{column} exceeds the portable {MAX_INDEX_KEY_BYTES}-byte key budget including the id"),
+                format!("bound {column}, for example `{column}: text <={chars}`{alternative}; all components and the appended id must fit {MAX_INDEX_KEY_BYTES} bytes")).guide("indexes"));
         }
     }
 }

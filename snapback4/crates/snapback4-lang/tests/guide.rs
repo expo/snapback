@@ -294,7 +294,7 @@ fn the_language_card_compiles_and_runs() {
     let source = in_context(&quarry(LANGUAGE)[1]);
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).filter(|name| !name.starts_with("intent")).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "spreadProfile", "spreadObjects", "spreadChoice", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest", "intentDigest"]);
     assert!(bound.server);
     assert_eq!(bound.schema.schedules.len(), 2);
@@ -328,6 +328,18 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(why.message, "That handle is taken.");
     let handle_index = bound.schema.tables["profiles"].indexes.iter().find(|(_, index)| index.unique && index.columns() == ["handle"]).unwrap().0;
     assert_eq!(why.detail.as_deref(), Some(format!("profiles.{handle_index} already has a row where handle = 'alice'").as_str()));
+
+    let spread = engine.query("spreadProfile", Context::new(alice, args(&[("h", text("alice")), ("extra", text("hello"))]))).unwrap();
+    assert_eq!(spread.data.field("spread").unwrap(), spread.data.field("shaped").unwrap());
+    assert_eq!(spread.data.field("label").unwrap(), &text("hello"));
+    let merged = engine.query("spreadObjects", Context::new(alice, args(&[]))).unwrap();
+    assert_eq!(merged.data.field("value").unwrap(), &Value::Int(2));
+    assert_eq!(merged.data.field("label").unwrap(), &text("last"));
+
+    for flag in [true, false] {
+        let choice = engine.query("spreadChoice", Context::new(alice, args(&[("h", text("alice")), ("flag", Value::Bool(flag))]))).unwrap();
+        assert_eq!(choice.data.field("handle").unwrap(), &text(if flag { "alice" } else { "override" }));
+    }
 
     // createRoom: `new` takes the first minted id; the second insert the next; `after insert` holds.
     let created = engine.mutate("createRoom", Some("c1"), Context::new(alice, args(&[("name", text("General")), ("kind", text("open")), ("tags", Value::Array(vec![text("new")]))])).at(1_000).with_ids(["r1".to_owned(), "m1".to_owned()])).unwrap();
