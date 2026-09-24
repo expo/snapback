@@ -82,31 +82,37 @@ card/expire/1:postStory | eligible
 card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]} | read rule
 card/feeds/1:follow | never
 card/feeds/1:post | eligible
-card/feeds/1:register | eligible
 card/feeds/1:remove | eligible
-card/feeds/1:reply | eligible
 card/feeds/1:repost | eligible
-card/feeds/1:setLike | $column:122ae999ced85a4e03b344dae04920e27483db53c056b97452de5b4e1c4067c5/maintain | "Deny" | read rule
-card/feeds/1:setLike | eligible
 card/feeds/1:unfollow | never
 card/feeds/1:unrepost | eligible
-card/feeds/2:markSeen | eligible
-card/feeds/2:markSeen | seen/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
-card/feeds/2:setAffinity | affinity/upsert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
-card/feeds/2:setAffinity | eligible
-card/feeds/2:vote | eligible
-card/feeds/2:vote | votes/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/feeds/3:create | never
-card/feeds/3:remove | never
-card/feeds/3:setLike | never
-card/feeds/4:create | eligible
-card/feeds/4:like | eligible
-card/feeds/4:like | likes/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/feeds/4:unlike | eligible
+card/feeds/2:follow | never
+card/feeds/2:post | eligible
+card/feeds/2:register | eligible
+card/feeds/2:remove | eligible
+card/feeds/2:reply | eligible
+card/feeds/2:repost | eligible
+card/feeds/2:setLike | $column:122ae999ced85a4e03b344dae04920e27483db53c056b97452de5b4e1c4067c5/maintain | "Deny" | read rule
+card/feeds/2:setLike | eligible
+card/feeds/2:unfollow | never
+card/feeds/2:unrepost | eligible
+card/feeds/3:markSeen | eligible
+card/feeds/3:markSeen | seen/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
+card/feeds/3:setAffinity | affinity/upsert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
+card/feeds/3:setAffinity | eligible
+card/feeds/3:vote | eligible
+card/feeds/3:vote | votes/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/feeds/4:create | never
+card/feeds/4:remove | never
+card/feeds/4:setLike | never
 card/feeds/5:create | eligible
-card/feeds/5:setLike | eligible
-card/feeds/5:setLike | likes/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/feeds/6:refresh | never
+card/feeds/5:like | eligible
+card/feeds/5:like | likes/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/feeds/5:unlike | eligible
+card/feeds/6:create | eligible
+card/feeds/6:setLike | eligible
+card/feeds/6:setLike | likes/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/feeds/7:refresh | never
 card/indexes/2:checkin | never
 card/language/1:checkin | never
 card/language/1:createRoom | eligible
