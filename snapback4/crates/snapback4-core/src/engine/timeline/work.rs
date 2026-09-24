@@ -46,31 +46,6 @@ impl Runner<'_> {
         Ok(progress)
     }
 
-    fn timeline_rebuild_chunk(&mut self, t: &Timeline, work: &Value, cursor: Option<&[u8]>, started: Instant, budget: Duration) -> Result<(), RuntimeError> {
-        let phase = field(work, "remaining")?.as_int()?;
-        let source = match phase { 0 => &t.edges[0], 1 => &t.posts[0], 2 => &t.reposts[0],
-            _ => return Err(refusal("E_TIMELINE_SHAPE", "invalid rebuild phase; rename the view to rebuild its retained sources")), };
-        let progress = self.timeline_walk(source, "byId", vec![], false, cursor, DELIVERY_CHUNK, started, budget, |runner, row| {
-            match phase {
-                0 => runner.timeline_rebuild_edge(t, &row, work)?,
-                1 => runner.timeline_rebuild_original(t, &row, work)?,
-                _ => runner.timeline_rebuild_repost(t, &row, work)?,
-            }
-            Ok(0)
-        })?;
-        if progress.exhausted && phase == 2 {
-            self.delete(&t.table("Work"), &text(work, "id")?)?;
-        } else {
-            let cursor = if progress.exhausted { Value::Null } else {
-                Value::String(crate::value::encode_bytes_hex(&progress.last.ok_or_else(|| refusal("E_TIMELINE_SHAPE", "rebuild made no progress; rename the view to rebuild its retained sources"))?))
-            };
-            self.update(&t.table("Work"), &field(work, "id")?, object([
-                ("cursor", cursor), ("remaining", Value::Int(phase + i64::from(progress.exhausted))),
-            ]))?;
-        }
-        Ok(())
-    }
-
     fn timeline_work(&mut self, t: &Timeline, work: &Value, started: Instant, budget: Duration) -> Result<(), RuntimeError> {
         let kind = text(work, "kind")?;
         let actor = field(work, "actorId")?;
@@ -83,9 +58,6 @@ impl Runner<'_> {
             Value::String(hex) => Some(crate::value::decode_bytes_hex(hex).ok_or_else(|| refusal("E_TIMELINE_SHAPE", "invalid delivery cursor; restore the complete store"))?),
             _ => return Err(refusal("E_TIMELINE_SHAPE", "invalid delivery cursor; restore the complete store")),
         };
-        if kind == "rebuild" {
-            return self.timeline_rebuild_chunk(t, work, cursor.as_deref(), started, budget);
-        }
         let progress = match kind.as_str() {
             "delivery" => {
                 if let Some(event) = self.timeline_get(&t.table("Posts"), "byId", vec![event_id.clone()])? {
@@ -180,13 +152,7 @@ impl Engine {
             let seq = tx.next_seq()?;
             let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::job(), Cut::Abort), seq);
             let mut runner = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
-            // Backfills must see the entire retained event set. Live delivery
-            // waits too, so it cannot pass an edge still awaiting reconstruction.
-            let work = match runner.timeline_rebuild_state(&timeline)? {
-                Some(work) if work.field("status")?.as_str()? == "pending" => Some(work),
-                Some(_) => continue, // a parked rebuild is visible to doctor
-                None => runner.timeline_scan(&timeline.table("Work"), "byStatusTime", vec![Value::String("pending".into())], 1, false)?.pop(),
-            };
+            let work = runner.timeline_scan(&timeline.table("Work"), "byStatusTime", vec![Value::String("pending".into())], 1, false)?.pop();
             let Some(work) = work else { continue; };
             let outcome = runner.timeline_work(&timeline, &work, started, budget).and_then(|()| runner.check_final_exists());
             let events = runner.events.take();

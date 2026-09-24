@@ -39,7 +39,7 @@ pub fn owned_id(timeline: &str, suffix: &str, key: &[Value]) -> String {
     crate::value::digest(&parts)
 }
 
-// @ref LLP 3000.013#4-following-without-caps — a changed V2 declaration starts a new durable delivery boundary.
+// @ref LLP 3000.013#4-following-without-caps — a declaration owns event identity and edge-epoch history.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Timeline {
     pub name: String,

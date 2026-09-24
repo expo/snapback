@@ -20,7 +20,7 @@ fn activation_does_not_register_or_bound_existing_profiles() {
 }
 
 #[test]
-fn activation_queues_each_populated_event_or_edge_table() {
+fn activation_refuses_each_populated_event_or_edge_table() {
     for (table,row) in [
         ("posts",object([("id",id("post")),("authorId",id("a")),("at",Value::Int(1)),("removed",Value::Bool(false))])),
         ("reposts",object([("id",id("repost")),("actorId",id("a")),("postId",id("post")),("at",Value::Int(1))])),
@@ -28,10 +28,9 @@ fn activation_queues_each_populated_event_or_edge_table() {
     ] {
         let mut e=bare();e.load([(table.into(),row)]).unwrap();
         let before=snapshot(&e); let generation=e.generation();
-        adopt(&mut e,bound(true)).unwrap();
-        for (table, rows) in before { assert_eq!(e.store().rows(&table).unwrap(), rows); }
-        assert_eq!(e.generation(),generation+1);
-        assert_eq!(e.timeline_work_counts().unwrap(), [("feed".into(),1,0)]);
+        let err=adopt(&mut e,bound(true)).unwrap_err();assert_eq!(err.code(),"E_TIMELINE_ACTIVATE");
+        assert!(err.to_string().contains(table)); assert!(err.to_string().contains("planned view"));
+        assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);
     }
 }
 
@@ -129,7 +128,7 @@ fn durable_history_survives_adoption_reopen_and_trusted_restore() {
 }
 
 #[test]
-fn sqlite_activation_retains_sources_and_rebuild_queue_after_reopen() {
+fn sqlite_activation_refusals_leave_reopened_file_unchanged() {
     for table in ["posts","reposts","follows"] {
         let dir=TempDir::new();let path=dir.0.join("store.sqlite");let b=compile(APP);
         let mut e=Engine::new(Store::open(&path).unwrap(),b.schema,[]).unwrap();
@@ -140,14 +139,14 @@ fn sqlite_activation_retains_sources_and_rebuild_queue_after_reopen() {
             _=>vec![object([("id",id("f")),("followerId",id("a")),("followedId",id("b")),("at",Value::Int(1))])],
         };
         e.load(images.into_iter().map(|r|(table.into(),r))).unwrap();let before=snapshot(&e);let generation=e.generation();
-        adopt(&mut e,bound(true)).unwrap();
-        for (table, rows) in &before { assert_eq!(&e.store().rows(table).unwrap(), rows); }
-        let adopted=snapshot(&e);
-        assert_eq!(e.generation(),generation+1);
+        let schema=e.schema().clone();let programs=e.programs().cloned().collect::<Vec<_>>();
+        let catalog=|e:&Engine|e.store().conn().prepare("SELECT name FROM _catalog ORDER BY name").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let tables=catalog(&e);
+        assert_eq!(adopt(&mut e,bound(true)).unwrap_err().code(),"E_TIMELINE_ACTIVATE");
+        assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);assert_eq!(e.schema(),&schema);assert_eq!(e.programs().cloned().collect::<Vec<_>>(),programs);assert_eq!(catalog(&e),tables);
         drop(e);
-        let e=Engine::open(Store::open(&path).unwrap()).unwrap();
-        assert_eq!(snapshot(&e),adopted);assert_eq!(e.generation(),generation+1);
-        assert_eq!(e.timeline_work_counts().unwrap(),[("feed".into(),1,0)]);
+        let e=Engine::open(Store::open(&path).unwrap()).unwrap();assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);assert!(e.schema().timelines.is_empty());
+        assert_eq!(e.schema(),&schema);assert_eq!(e.programs().cloned().collect::<Vec<_>>(),programs);assert_eq!(catalog(&e),tables);
     }
 }
 

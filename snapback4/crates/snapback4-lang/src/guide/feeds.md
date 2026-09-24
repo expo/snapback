@@ -425,15 +425,15 @@ coverage. See `guide prediction` and `guide app` for client rendering.
 
 ## Lifecycle and diagnostics
 
-Removing a materialized view retires only its owned copies, delivery work and edge epochs, preserving sources and other views; dev needs no flag, while deploy requires `--allow-destructive`, as for removing a maintained view.
-Redefining its predicate or sources retires the old derived contents and rebuilds from retained sources through durable background work under the 1,000-event follow window; reads show delivered contents during the rebuild.
+Removing a materialized view retires its owned copies, delivery work and edge epochs and resets or retires aggregates over those tables in the same activation, preserving sources and unrelated views; dev needs no flag, while deploy requires `--allow-destructive`, as for removing a maintained view.
+Redefining its predicate or sources refuses with E_TIMELINE_REDEFINE because the sources cannot reconstruct original event identities and edge-admission history; remove the view and deploy, then add the new definition over empty event and edge tables, or use a planned view over the retained sources.
 
-Adding a view over populated sources uses the same rebuild; unchanged adoption,
-trusted reopen and full persistence restoration retain progress.
-The old 0.3 timeline format still needs its matching engine or a fresh dev store.
-A retained repost whose original card is missing parks the rebuild with
-E_TIMELINE_REDEFINE: delete that orphan through its owner's mutation, then
-rename the view to start a new rebuild.
+Adding a materialized view also needs empty event and edge tables; populated
+profiles are allowed. Unchanged adoption, trusted reopen and full persistence
+restoration retain ordinary delivery progress. A store with unfinished
+experimental reconstruction refuses to resume it; remove the view to retire
+that work and keep the sources. The old 0.3 timeline format still needs its
+matching engine or a fresh dev store.
 Untrusted fixture import of mapped or owned tables still refuses; seed through
 application mutations or restore a complete trusted persistence image.
 
@@ -447,8 +447,8 @@ application mutations or restore a complete trusted persistence image.
 | E_TIMELINE_READ | Read one viewer: `feed[viewer] after c last 20` and shape events |
 | E_TIMELINE_OWNED | Write only the mapped application sources; the engine writes projections |
 | E_TIMELINE_SERVER | Queue follow and unfollow without rows |
-| E_TIMELINE_ACTIVATE | Rename the view to leave populated application tables with owned-name collisions intact |
-| E_TIMELINE_REDEFINE | Use the matching engine for a 0.3 store; for a missing original, delete the orphan repost and rename the view to restart its rebuild |
+| E_TIMELINE_ACTIVATE | Declare the view before writing event and edge tables, or use a planned view over retained sources; rename the view if an owned name already holds application data |
+| E_TIMELINE_REDEFINE | Remove the view and deploy, then add the new definition over empty event and edge tables, or use a planned view over retained sources; use the matching engine for a 0.3 store |
 | E_TIMELINE_IMPORT | Use app mutations or a trusted complete restore |
 | E_RECIPE_RETIRED | Declare `maintain feed: timeline` with `size authors N, edges N`; see `guide feeds` |
 

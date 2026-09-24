@@ -8,9 +8,7 @@ mod work;
 #[cfg(feature = "sqlite")]
 mod activation;
 #[cfg(feature = "sqlite")]
-mod rebuild;
-#[cfg(feature = "sqlite")]
-pub(crate) use activation::{check_activation, activate_rebuilds};
+pub(crate) use activation::{check_activation, check_no_rebuilds};
 use crate::{RuntimeError, Value};
 use crate::{ir::{self, Expr, IndexKeyExpr, KeyProvenance, Read, Scan}, schema::timeline::Timeline, value::object};
 
@@ -117,10 +115,6 @@ impl Runner<'_> {
                     let actor = text(row, &t.reposts[1])?;
                     let post = self.timeline_get(&t.posts[0], "byId", vec![field(row, &t.reposts[2])?])?;
                     let post = required(post, "FEED_APP_NOT_FOUND")?;
-                    #[cfg(feature = "sqlite")]
-                    if let Some(rebuild) = self.timeline_rebuild_state(t)? {
-                        self.timeline_rebuild_original(t, &post, &rebuild)?;
-                    }
                     let original = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(&post, &t.posts[1])?, field(&post, "id")?, Value::Bool(false)])?;
                     require(original.is_some(), "FEED_POST_NOT_FOUND")?;
                     let id = self.context.mint()?;

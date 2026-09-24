@@ -1,4 +1,4 @@
-//! Following retirement and durable reconstruction use retained source rows.
+//! Atomic retirement and explicit refusal of history reconstruction.
 use snapback4_core::{Context, Engine, Store, Value, WriteState};
 use std::{collections::BTreeMap, fs, io::{BufRead, BufReader}, path::PathBuf,
     process::{Command, Stdio}, time::Duration};
@@ -34,7 +34,7 @@ fn drain(e: &mut Engine) {
             assert!(e.timeline_work_counts().unwrap().iter().all(|(_, pending, parked)| *pending == 0 && *parked == 0)); return;
         }
     }
-    panic!("rebuild did not drain");
+    panic!("delivery did not drain");
 }
 fn pages(e: &mut Engine, who: &str) -> Vec<Value> {
     let mut rows = vec![]; let mut cursor = Value::Null;
@@ -65,16 +65,18 @@ impl Drop for Dir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } 
 
 #[test]
 fn dev_removes_populated_view_and_preserves_sources_and_other_views() {
-    let s = format!("{}\nview totals: count posts by .authorId\n  online only\nview other: activity where .actor = viewer or exists follows[viewer, .actor]\n", source());
+    let s = format!("{}\nview totals: count posts by .authorId\n  online only\nview other: activity where .actor = viewer or exists follows[viewer, .actor]\nview ownedTotals: count followingPosts by .actorId\n  online only\n", source());
     let dir = Dir::new(); fs::create_dir(dir.0.join(".snapback4")).unwrap();
     let path = dir.0.join(".snapback4/store.sqlite"); let b = compile(&s);
     let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     follow(&mut e, "reader", "author"); post(&mut e, "author", "p", Value::Null, 1); drain(&mut e);
-    let kept: BTreeMap<_, _> = e.schema().tables.keys().filter(|t| !t.starts_with("following"))
+    let kept: BTreeMap<_, _> = e.schema().tables.keys().filter(|t| !t.starts_with("following") && *t != "ownedTotals")
         .map(|t| (t.clone(), e.store().rows(t).unwrap())).collect();
-    let owned = e.schema().timelines.iter().find(|t| t.name == "following").unwrap().owned.clone();
+    let mut owned = e.schema().timelines.iter().find(|t| t.name == "following").unwrap().owned.clone();
+    owned.insert("ownedTotals".into());
+    assert_eq!(e.store().rows("ownedTotals").unwrap()[0].field("value").unwrap(), &Value::Int(1));
     assert!(!e.store().rows("followingFeed").unwrap().is_empty()); drop(e);
-    dir.source(&without_view(&s));
+    dir.source(&without_view(&s).replace("view ownedTotals: count followingPosts by .actorId\n  online only\n", ""));
     // The real dev startup adopts the edited program without any flag.
     let mut child = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir.0)
         .args(["dev", "--no-watch", "--port", "0"]).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
@@ -95,72 +97,6 @@ fn dev_removes_populated_view_and_preserves_sources_and_other_views() {
 }
 
 #[test]
-fn predicate_rebuild_resumes_after_reopen_and_matches_fresh_history_window() {
-    let original = source(); let revised = original.replace(".parentId = null and not .removed", "not .removed");
-    let dir = Dir::new(); let path = dir.0.join("store.sqlite"); let b = compile(&original);
-    let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-    let mut fresh = engine(&revised);
-    for e in [&mut e, &mut fresh] {
-        for n in 0..520 {
-            post(e, "author", &format!("p{n:04}"), Value::Null, n * 2);
-            post(e, "author", &format!("r{n:04}"), id("p0000"), n * 2 + 1);
-        }
-        for reader in ["reader1", "reader2", "reader3"] { follow(e, reader, "author"); }
-        drain(e);
-    }
-    let sources = e.store().rows("posts").unwrap();
-    adopt(&mut e, &revised);
-    assert!(e.store().rows("followingFeed").unwrap().is_empty());
-    for _ in 0..9 {
-        let m = e.run_timeline_chunk_for(6000, Duration::ZERO).unwrap().unwrap();
-        assert!(m.rows_written <= 5, "a zero-time rebuild commits at most one source row: {m:?}");
-    }
-    drop(e); let mut e = Engine::open(Store::open(&path).unwrap()).unwrap(); drain(&mut e);
-    for reader in ["author", "reader1", "reader2", "reader3", "outsider"] {
-        let page = pages(&mut e, reader); assert_eq!(page, pages(&mut fresh, reader), "{reader}");
-        if reader.starts_with("reader") { assert_eq!(page.len(), 1000); }
-    }
-    assert_eq!(e.store().rows("posts").unwrap(), sources);
-    let before = e.store().rows("followingFeed").unwrap(); adopt(&mut e, &revised);
-    assert_eq!(e.store().rows("followingFeed").unwrap(), before, "unchanged adoption never restarts a rebuild");
-}
-
-#[test]
-fn concurrent_writes_keep_one_producer_and_reposts_survive_original_removal() {
-    let old = source(); let new = old.replace(".parentId = null and not .removed", "not .removed");
-    let mut e = engine(&old);
-    for n in 0..1005 { post(&mut e, "author", &format!("p{n:04}"), Value::Null, n); }
-    for reader in ["reader", "leaver", "refollower"] { follow(&mut e, reader, "author"); }
-    write(&mut e, "booster", "repost", &[("postId", id("p1004"))], 1100);
-    write(&mut e, "author", "remove", &[("postId", id("p1004"))], 1101); drain(&mut e);
-    adopt(&mut e, &new);
-    // Writes before the graph or original-event scan reaches their rows.
-    write(&mut e, "leaver", "unfollow", &[("actor", id("author"))], 6000);
-    write(&mut e, "refollower", "unfollow", &[("actor", id("author"))], 6000);
-    follow(&mut e, "refollower", "author");
-    post(&mut e, "author", "backdated-live", Value::Null, -100);
-    write(&mut e, "booster2", "repost", &[("postId", id("p1003"))], 6001);
-    follow(&mut e, "new-reader", "author");
-    write(&mut e, "author", "remove", &[("postId", id("p1002"))], 6002);
-    follow(&mut e, "repost-reader", "booster");
-    drain(&mut e);
-    let reader = pages(&mut e, "reader");
-    assert_eq!(reader.len(), 1001, "1000 retained events plus the live event, even with an old timestamp");
-    assert_eq!(reader.iter().filter(|r| r.field("id").unwrap() == &id("backdated-live")).count(), 1);
-    assert!(!reader.iter().any(|r| [id("p1002"), id("p1004")].contains(r.field("id").unwrap())));
-    assert!(pages(&mut e, "leaver").is_empty());
-    assert_eq!(pages(&mut e, "refollower").len(), 1001);
-    assert_eq!(pages(&mut e, "new-reader").len(), 1000, "a later follow applies its own history boundary");
-    let repost = pages(&mut e, "repost-reader"); assert_eq!(repost.len(), 1);
-    assert_eq!(repost[0].field("post").unwrap(), &id("p1004"));
-    assert_eq!(pages(&mut e, "booster2").len(), 1);
-    let copies = e.store().rows("followingFeed").unwrap();
-    let identities: std::collections::BTreeSet<_> = copies.iter().map(|r|
-        format!("{:?}", (r.field("readerId").unwrap(), r.field("eventId").unwrap(), r.field("epoch").unwrap()))).collect();
-    assert_eq!(identities.len(), copies.len());
-}
-
-#[test]
 fn deploy_removal_uses_the_same_destructive_flag_as_maintained_views() {
     for maintained in [false, true] {
         let dir = Dir::new();
@@ -172,7 +108,15 @@ fn deploy_removal_uses_the_same_destructive_flag_as_maintained_views() {
         let redefined = if maintained { before.replace("count posts by", "count posts where not .removed by") }
             else { before.replace(".parentId = null and not .removed", "not .removed") };
         dir.source(&redefined);
-        let r = dir.command(&["deploy", "release"]); assert!(r.status.success(), "redefinition needs no destructive flag: {r:?}");
+        let r = dir.command(&["deploy", "release"]);
+        if maintained { assert!(r.status.success(), "maintained aggregate redefinition: {r:?}"); }
+        else {
+            assert!(!r.status.success(), "{r:?}");
+            assert!(String::from_utf8_lossy(&r.stderr).contains("E_TIMELINE_REDEFINE"), "{r:?}");
+            let r = dir.command(&["deploy", "release", "--allow-destructive"]);
+            assert!(!r.status.success(), "the destructive flag cannot authorize reconstruction: {r:?}");
+            assert!(String::from_utf8_lossy(&r.stderr).contains("E_TIMELINE_REDEFINE"), "{r:?}");
+        }
         let mut e = Engine::open(Store::open(&path).unwrap()).unwrap(); drain(&mut e); drop(e);
         dir.source(&without_view(&source()));
         let r = dir.command(&["deploy", "release"]); assert!(!r.status.success(), "{r:?}");
@@ -182,47 +126,6 @@ fn deploy_removal_uses_the_same_destructive_flag_as_maintained_views() {
         assert_eq!(e.store().rows("posts").unwrap().len(), 1);
         assert!(e.schema().timelines.is_empty()); assert!(e.schema().maintains.is_empty());
     }
-}
-
-#[test]
-fn changing_all_sources_rebuilds_only_the_redefined_view() {
-    let alternate = source().replace("posts", "entries").replace("follows", "links")
-        .replace("activity", "alternateActivity").replace("following", "alternateFollowing")
-        .replace("mutation ", "mutation alternate_").replace("query home", "query alternateHome");
-    let old = format!("{}\n{alternate}", source());
-    let mut e = engine(&old);
-    follow(&mut e, "reader", "author"); post(&mut e, "author", "old", Value::Null, 1);
-    write(&mut e, "reader", "alternate_follow", &[("actor", id("other"))], 2);
-    write(&mut e, "other", "alternate_post", &[("postId", id("new")), ("parentId", Value::Null)], 3);
-    drain(&mut e);
-    let other = e.store().rows("alternateFollowingFeed").unwrap();
-    let new = old.replace("view following: activity where .actor = viewer or exists follows[viewer, .actor]",
-        "view following: alternateActivity where .actor = viewer or exists links[viewer, .actor]");
-    adopt(&mut e, &new); drain(&mut e);
-    let rows = pages(&mut e, "reader"); assert_eq!(rows.len(), 1); assert_eq!(rows[0].field("id").unwrap(), &id("new"));
-    assert_eq!(e.store().rows("posts").unwrap().len(), 1);
-    assert_eq!(e.store().rows("entries").unwrap().len(), 1);
-    assert_eq!(e.store().rows("alternateFollowingFeed").unwrap(), other);
-}
-
-#[test]
-fn missing_original_parks_only_its_rebuild_with_an_actionable_diagnosis() {
-    let bare = without_view(&source()); let mut e = engine(&bare);
-    // Without a timeline, a typed reference does not prove current existence.
-    write(&mut e, "actor", "repost", &[("postId", id("missing-original"))], 1);
-    adopt(&mut e, &source());
-    while e.run_timeline_chunk_for(6000, Duration::ZERO).unwrap().is_some() {}
-    assert_eq!(e.timeline_work_counts().unwrap(), [("following".into(), 0, 1)]);
-    let work = e.store().rows("followingWork").unwrap();
-    let message = work[0].field("error").unwrap().as_str().unwrap();
-    for word in ["E_TIMELINE_REDEFINE", "following", "reposts", "missing-original", "original author", "delete", "rename"] {
-        assert!(message.contains(word), "{message}");
-    }
-    assert!(e.store().rows("followingFeed").unwrap().is_empty());
-    assert_eq!(e.store().rows("reposts").unwrap().len(), 1, "the refusal never deletes a source");
-    // Its control seat cannot be acquired through either minting path.
-    assert!(snapback4_core::identity::validate_custom_session("service:$timeline-rebuild", "custom").is_err());
-    assert!(snapback4_core::identity::service_session(e.store(), "$timeline-rebuild", 1, 1).is_err());
 }
 
 #[test]
@@ -251,7 +154,127 @@ fn retirement_cancels_pending_delivery_and_rolls_back_with_a_failed_adoption() {
     adopt(&mut e, &without_view(&s));
     assert!(e.run_timeline_chunk(6000).unwrap().is_none());
     assert_eq!(e.store().rows("posts").unwrap().len(), 1);
-    // Reintroducing the name starts a new source rebuild, with no retired task.
-    adopt(&mut e, &s); drain(&mut e);
+    // Retained sources cannot recreate the old event/epoch history.
+    let b = compile(&s);
+    assert_eq!(e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err().code(), "E_TIMELINE_ACTIVATE");
+    assert_eq!(pages(&mut e, "reader").len(), 1, "planned activity still reads the retained source");
+}
+
+#[test]
+fn redefinition_refuses_atomically_and_delivery_keeps_running() {
+    let s = format!("{}\nview totals: count followingPosts by .actorId\n  online only\n", source());
+    let mut e = engine(&s);
+    follow(&mut e, "reader", "author");
+    post(&mut e, "author", "p", Value::Null, 1);
+    let before: BTreeMap<_, _> = e.schema().tables.keys().map(|t| (t.clone(), e.store().rows(t).unwrap())).collect();
+    let generation = e.generation(); let seq = e.seq().unwrap();
+    // Both a broadened predicate and changed source mappings refuse before any
+    // copy, admission record or dependent count can be deleted/reconstructed.
+    let alternate = source().replace("posts", "entries").replace("follows", "links")
+        .replace("activity", "alternateActivity").replace("following", "alternateFollowing")
+        .replace("mutation ", "mutation alternate_").replace("query home", "query alternateHome");
+    for revised in [s.replace(".parentId = null and not .removed", "not .removed"),
+        format!("{}\n{alternate}", s.replace("view following: activity where .actor = viewer or exists follows[viewer, .actor]",
+            "view following: alternateActivity where .actor = viewer or exists links[viewer, .actor]"))] {
+        let b = compile(&revised);
+        let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
+        assert_eq!(error.code(), "E_TIMELINE_REDEFINE");
+        for word in ["following", "event identities", "remove the view and deploy, then add the new definition", "empty", "planned view"] {
+            assert!(error.to_string().contains(word), "{error}");
+        }
+        assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
+        for (table, rows) in &before { assert_eq!(&e.store().rows(table).unwrap(), rows, "{table}"); }
+    }
+    // The rejected adoption never installs an exclusive reconstruction task.
+    for n in 0..100 {
+        post(&mut e, "author", &format!("live-{n}"), Value::Null, n + 2);
+        e.run_timeline_chunk_for(5000, Duration::ZERO).unwrap();
+    }
+    drain(&mut e);
+    assert_eq!(pages(&mut e, "reader").len(), 101);
+    assert_eq!(e.store().rows("totals").unwrap()[0].field("value").unwrap(), &Value::Int(101));
+}
+
+#[test]
+fn retirement_resets_dependent_aggregates_even_when_all_names_survive() {
+    for keep_aggregate in [true, false] {
+        let s = format!("{}\nview totals: count followingPosts by .actorId\n  online only\nview sourceTotals: count posts by .authorId\n  online only\n", source());
+        let mut e = engine(&s);
+        post(&mut e, "author", "p", Value::Null, 1); drain(&mut e);
+        let source_rows = e.store().rows("posts").unwrap();
+        let event = e.store().rows("followingPosts").unwrap()[0].clone();
+        assert_eq!(e.store().rows("totals").unwrap()[0].field("value").unwrap(), &Value::Int(1));
+        // Retain the exact owned table shapes as ordinary tables. This makes
+        // schema-diff-only aggregate invalidation insufficient.
+        let mut next = e.schema().clone(); next.timelines.clear();
+        if !keep_aggregate { next.maintains.retain(|m| m.target != "totals"); }
+        let steps = snapback4_core::successor::classify(e.schema(), &next);
+        assert!(steps.iter().any(|s| s.path == "timelines.following" && s.change == snapback4_core::successor::Change::Destructive));
+        e.adopt(next, e.programs().cloned().collect::<Vec<_>>()).unwrap();
+        assert!(e.store().rows("totals").unwrap().is_empty());
+        assert!(e.store().rows("followingPosts").unwrap().is_empty());
+        assert_eq!(e.store().rows("sourceTotals").unwrap()[0].field("value").unwrap(), &Value::Int(1));
+        assert_eq!(e.store().rows("posts").unwrap(), source_rows);
+        let count: i64 = e.store().conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE c.name LIKE 'totals.%'", [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 0, "no stale aggregate index entries");
+        if keep_aggregate {
+            e.seed([("followingPosts".into(), event)]).unwrap();
+            assert_eq!(e.store().rows("totals").unwrap()[0].field("value").unwrap(), &Value::Int(1), "retired contributions must not be counted twice");
+        }
+    }
+}
+
+#[test]
+fn failed_retirement_restores_dependent_aggregates_and_indexes() {
+    let s = format!("{}\nview totals: count followingPosts by .actorId\n  online only\n", source());
+    let mut e = engine(&s); post(&mut e, "author", "p", Value::Null, 1); drain(&mut e);
+    let before = e.store().rows("totals").unwrap(); let generation = e.generation();
+    let mut next = e.schema().clone(); next.timelines.clear();
+    // Candidate rows fail only after retirement has cleared the derived state.
+    next.tables.get_mut("posts").unwrap().columns.insert("required".into(), snapback4_core::schema::ColumnType::Int);
+    assert!(e.adopt(next, e.programs().cloned().collect::<Vec<_>>()).is_err());
+    assert_eq!(e.generation(), generation);
+    assert_eq!(e.store().rows("totals").unwrap(), before);
+    post(&mut e, "author", "p2", Value::Null, 2);
+    assert_eq!(e.store().rows("totals").unwrap()[0].field("value").unwrap(), &Value::Int(2));
+}
+
+#[test]
+fn unfinished_experimental_rebuild_is_fenced_but_can_be_removed() {
+    let dir = Dir::new(); let path = dir.0.join("old-builder.sqlite"); let b = compile(&source());
+    let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    post(&mut e, "author", "p", Value::Null, 1);
+    let control_id = snapback4_core::schema::timeline::owned_id("following", "Work", &[
+        Value::String("rebuild".into()), id("service:$timeline-rebuild"), Value::Null, Value::Null, Value::Null,
+    ]);
+    let mut row = e.store().rows("followingWork").unwrap()[0].as_object().unwrap().clone();
+    row.insert("id".into(), id(&control_id)); row.insert("kind".into(), Value::String("rebuild".into()));
+    e.store().conn().execute("INSERT INTO r(t,id,data) VALUES ((SELECT num FROM _catalog WHERE name='followingWork'),?1,?2)",
+        [&control_id, &serde_json::to_string(&Value::Row(row.into())).unwrap()]).unwrap();
+    drop(e);
+    let error = match Engine::open(Store::open(&path).unwrap()) { Ok(_) => panic!("unfinished rebuild opened"), Err(e) => e };
+    assert_eq!(error.code(), "E_TIMELINE_REDEFINE");
+    assert!(error.to_string().contains("unfinished experimental reconstruction"));
+    let b = compile(&source());
+    let error = match Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)) {
+        Ok(_) => panic!("unchanged adoption resumed unfinished reconstruction"), Err(e) => e,
+    };
+    assert_eq!(error.code(), "E_TIMELINE_REDEFINE");
+    let b = compile(&without_view(&source()));
+    let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    assert!(e.schema().timelines.is_empty());
     assert_eq!(pages(&mut e, "reader").len(), 1);
+    assert!(e.run_timeline_chunk(6000).unwrap().is_none());
+}
+
+#[test]
+fn two_step_replacement_over_empty_sources_is_supported() {
+    let mut e = engine(&source());
+    adopt(&mut e, &without_view(&source()));
+    adopt(&mut e, &source().replace(".parentId = null and not .removed", "not .removed"));
+    follow(&mut e, "reader", "author");
+    post(&mut e, "author", "p", Value::Null, 1);
+    post(&mut e, "author", "reply", id("p"), 2);
+    drain(&mut e);
+    assert_eq!(pages(&mut e, "reader").len(), 2);
 }
