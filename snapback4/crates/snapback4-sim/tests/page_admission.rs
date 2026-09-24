@@ -297,7 +297,7 @@ fn w4_live_maintain_probe_equalities_ignore_expired_contributions() {
         let refused = compile(&source);
         assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
         assert_eq!(refused.diagnostics[0].code, "E_QUARRY_LIVE_MAINTAIN_PROBE");
-        assert_eq!(refused.diagnostics[0].rewrite, "read the maintain in the program; its live value cannot be probed at one unit");
+        assert_eq!(refused.diagnostics[0].rewrite, "read the view in the program; its live value cannot be probed at one unit");
         assert_eq!(refused.diagnostics[0].guide, "expire");
         // Non-expiring maintains retain equality support: same total from 1 or
         // 9,001 sources, one probe, with an actually admitted page/write.
