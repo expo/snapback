@@ -187,7 +187,7 @@ query spreadObjects():
   return { ...a, ...{ value: 2 }, label: 'last' }
 query spreadChoice(h: text 3..20 format handle, flag: bool):
   p = profiles[handle = h] ! else NOT_FOUND
-  return ({ ...p } if flag else p { * }) { handle: 'override', * }  -- shape each arm before joining their types
+  return ({ ...p } if flag else { ...(p { * }) }) { handle: 'override', * }  -- spread both arms so their wildcard rules agree
 
 query heldRoom(roomId: rooms) held:   -- device only: dev and serve refuse E_QUERY_HELD; no server fallback
   return rooms[roomId] card

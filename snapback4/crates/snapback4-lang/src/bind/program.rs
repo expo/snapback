@@ -13,7 +13,9 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod flow;
 mod conditional;
+mod joins;
 mod returned_shapes;
 mod diagnostics;
 mod constraints;
@@ -73,7 +75,7 @@ pub struct Binder<'a> {
     variants: Vec<(String, bool)>,
     temps: u32,
     sites: u32,
-    returns: Vec<Ty>,
+    returns: Vec<(Ty, A)>,
     /// Depth of helper expansion, to bound recursion.
     depth: u32,
     /// Enclosing `for` and `chunk` bodies: where `break` may stand.
@@ -96,6 +98,8 @@ struct Binding {
     fields: BTreeMap<Vec<String>, Ty>,
     /// An invalid binding retains its original cause; its unknown type never escapes compilation.
     error: Option<Diagnostic>,
+    /// Original operands for a diagnostic rewrite, never type or runtime provenance.
+    origins: Vec<(Ty, A)>,
 }
 
 const MAX_EXPANSION_DEPTH: u32 = 8;
@@ -124,7 +128,7 @@ impl<'a> Binder<'a> {
                 return None;
             }
             let ty = Ty::from_scalar(&arg.type_);
-            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None });
+            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
             args.insert(arg.name.clone(), scalar_to_arg(&arg.type_));
             arg_types.push((arg.name.clone(), ty));
         }
@@ -200,9 +204,12 @@ impl<'a> Binder<'a> {
         // that observable path in the generated result type; a return nested
         // in one branch or in a possibly-empty loop does not cover it.
         if !control::exits(&body) {
-            binder.returns.push(Ty::Null);
+            binder.returns.push((Ty::Null, A::Literal { value: Literal::Null, site: decl.site.clone() }));
         }
-        let result = binder.returns.iter().fold(None, |joined: Option<Ty>, ty| Some(match joined { Some(j) => j.join(ty), None => ty.clone() })).unwrap_or(Ty::Null);
+        let result = match binder.return_type() {
+            Ok(ty) => ty,
+            Err(error) => { diagnostics.push(error); return None; }
+        };
         let full_name = super::operation_name(module, &decl.name);
         let kind = match decl.kind {
             ProgramKind::Query => ir::ProgramKind::Query,
@@ -238,7 +245,7 @@ impl<'a> Binder<'a> {
 
     fn declare(&mut self, name: &str, ty: Ty) -> String {
         let runtime = if name.starts_with('$') { name.to_owned() } else { self.temp(name) };
-        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new(), error: None });
+        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
         runtime
     }
 
@@ -688,9 +695,6 @@ impl<'a> Binder<'a> {
     // ----- shapes -----
 
     fn shape(&mut self, base: &A, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        if let A::If { then, condition, otherwise, .. } = base {
-            return self.conditional(then, condition, otherwise, Some((fields, site)), out);
-        }
         let (base_expr, base_ty) = self.expr(base, out)?;
         self.shape_bound(base_expr, base_ty, fields, site, out)
     }
@@ -721,12 +725,12 @@ impl<'a> Binder<'a> {
                 out.push_for(item, LoopDomain::DerivedArray { value: base_expr, max, bound_source: "shape".into() }, body);
                 Ok((ir::var(&list), Ty::Collection(Box::new(object_ty), max)))
             }
-            Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::RowMixed(_) => {
+            Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 self.shape_object(&row, base_ty, fields, site, out)
             }
-            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::RowMixed(_)) => {
+            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_)) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 let result = self.temp("shaped");
@@ -743,13 +747,6 @@ impl<'a> Binder<'a> {
 
     /// Build the object of a shape over a focal row variable.
     fn shape_object(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        if matches!(row_ty.required(), Ty::RowMixed(_)) {
-            let fields = print::shape_fields(fields);
-            return Err(Diagnostic::new(site, "E_QUARRY_SHAPE_JOIN",
-                "this value joins an object spread and a row shape with different wildcard rules",
-                format!("shape each original arm before joining: (spreadArm {{ {fields} }}) if flag else (shapeArm {{ {fields} }}); use your original operands and condition; for reassignment, shape each assigned value before the paths join"))
-                .guide("shapes"));
-        }
         objects::explicit_fields(fields.iter().filter_map(|f| match f {
             ShapeField::Bare { name, site } | ShapeField::Field { name, site, .. } => Some((name.as_str(), site)),
             _ => None,
@@ -835,7 +832,7 @@ impl<'a> Binder<'a> {
                 fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), Ty::from_scalar(scalar))));
                 Ok(fields)
             }
-            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => Ok(fields.into_iter().collect()),
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => Ok(fields.into_iter().collect()),
             other => Err(type_error(site, format!("* spreads a row or an object; got {}", other.name()), "shape a row")),
         }
     }

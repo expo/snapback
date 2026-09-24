@@ -1,4 +1,4 @@
-//! Diagnostics: one envelope, located, with a rewrite the author can paste
+//! Diagnostics: one envelope, located, with a rewrite when a safe repair is known
 //! and the keyword card to read (LLP 2000.000 §5.1).
 
 use serde::{Deserialize, Serialize};
@@ -73,7 +73,9 @@ impl Diagnostic {
 impl fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let discovery = if self.mechanical { " — check --fix applies it" } else { "" };
-        write!(f, "{} — {}: {}\n  rewrite: {}{discovery}\n  guide: {}", self.site, self.code, self.message, self.rewrite, self.guide)
+        write!(f, "{} — {}: {}", self.site, self.code, self.message)?;
+        if !self.rewrite.is_empty() { write!(f, "\n  rewrite: {}{discovery}", self.rewrite)?; }
+        write!(f, "\n  guide: {}", self.guide)
     }
 }
 

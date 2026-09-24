@@ -41,8 +41,7 @@ pub enum Ty {
     RowShape(BTreeMap<String, Ty>),
     /// Object-spread fields with row metadata, but ordinary object wildcard order.
     RowObject(BTreeMap<String, Ty>),
-    /// A join of object and row-shape wildcard rules; shape the arms before joining.
-    RowMixed(BTreeMap<String, Ty>),
+
 }
 
 impl Ty {
@@ -50,12 +49,13 @@ impl Ty {
     pub(crate) fn rebound(self) -> Ty {
         match self {
             Ty::Text(_) => Ty::Text(u32::MAX),
+            // A known empty value stays empty, even at a loop header.
+            Ty::List(_, 0) | Ty::Collection(_, 0) => self,
             Ty::List(item, _) => Ty::List(Box::new(item.rebound()), u32::MAX),
             Ty::Collection(item, _) => Ty::Collection(Box::new(item.rebound()), u32::MAX),
             Ty::Object(fields) => Ty::Object(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::RowShape(fields) => Ty::RowShape(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::RowObject(fields) => Ty::RowObject(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
-            Ty::RowMixed(fields) => Ty::RowMixed(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::Optional(inner) => inner.rebound().optional(),
             other => other,
         }
@@ -160,7 +160,7 @@ impl Ty {
             Ty::WriteRow(table) => format!("a {table} write result"),
             Ty::Page(table, max) => format!("a page of at most {max} {table} rows"),
             Ty::Collection(item, max) => format!("at most {max} of {}", item.name()),
-            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => format!("{{ {} }}", fields.keys().cloned().collect::<Vec<_>>().join(", ")),
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => format!("{{ {} }}", fields.keys().cloned().collect::<Vec<_>>().join(", ")),
         }
     }
 
@@ -188,7 +188,7 @@ impl Ty {
                 let (b, bm) = b.sequence().unwrap();
                 a.assignable_to(&b) && am <= bm
             },
-            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a) | Ty::RowMixed(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b) | Ty::RowMixed(b)) => a.len() == b.len() && a.iter().all(|(name, ty)| b.get(name).is_some_and(|target| ty.assignable_to(target))),
+            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b)) => a.len() == b.len() && a.iter().all(|(name, ty)| b.get(name).is_some_and(|target| ty.assignable_to(target))),
             (Ty::Enum(a), Ty::Enum(b)) => a.iter().all(|v| b.contains(v)),
             (Ty::Unknown, _) | (_, Ty::Unknown) | (_, Ty::Json) => true,
             _ => false,
@@ -214,48 +214,89 @@ impl Ty {
         a == b || a.assignable_to(&b) || b.assignable_to(&a) || a == Ty::Null || b == Ty::Null
     }
 
-    /// The type both branches of a join can be shown as.
-    pub fn join(&self, other: &Ty) -> Ty {
-        if self == other {
-            return self.clone();
-        }
-        match (self, other) {
+    /// The type both branches can share. Row-kind conflicts are errors at
+    /// their first join, including inside objects and collections.
+    pub fn join(&self, other: &Ty) -> Result<Ty, JoinError> {
+        if self == other { return Ok(self.clone()); }
+        // Absence adds nullability; it supplies no competing wildcard kind.
+        if *self == Ty::Null { return Ok(other.clone().optional()); }
+        if *other == Ty::Null { return Ok(self.clone().optional()); }
+        if let Ty::Optional(a) = self { return Ok(a.join(&other.required())?.optional()); }
+        if let Ty::Optional(b) = other { return Ok(self.required().join(b)?.optional()); }
+        let conflict = || JoinError { left: self.kind_name(), right: other.kind_name(), path: String::new() };
+        Ok(match (self, other) {
             (Ty::Null, other) | (other, Ty::Null) => other.clone().optional(),
-            (Ty::Unknown, other) | (other, Ty::Unknown) => other.clone(),
-            (Ty::Optional(a), b) | (b, Ty::Optional(a)) => a.join(&b.required()).optional(),
+            (Ty::Unknown, other) | (other, Ty::Unknown) if !other.contains_row() => other.clone(),
             (Ty::Text(a), Ty::Text(b)) => Ty::Text(*a.max(b)),
             (Ty::Int, Ty::Time) | (Ty::Time, Ty::Int) => Ty::Int,
-            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a) | Ty::RowMixed(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b) | Ty::RowMixed(b)) => {
+            (Ty::Object(a), Ty::Object(b)) | (Ty::RowShape(a), Ty::RowShape(b)) | (Ty::RowObject(a), Ty::RowObject(b)) => {
                 let mut fields = BTreeMap::new();
                 for (name, ty) in a {
-                    match b.get(name) {
-                        Some(other) => fields.insert(name.clone(), ty.join(other)),
-                        None => fields.insert(name.clone(), ty.clone().optional()),
-                    };
+                    fields.insert(name.clone(), match b.get(name) {
+                        Some(other) => ty.join(other).map_err(|error| error.at(name))?,
+                        None => ty.clone().optional(),
+                    });
                 }
                 for (name, ty) in b {
-                    if !a.contains_key(name) {
-                        fields.insert(name.clone(), ty.clone().optional());
+                    if !a.contains_key(name) { fields.insert(name.clone(), ty.clone().optional()); }
+                }
+                match self {
+                    Ty::RowShape(_) => Ty::RowShape(fields),
+                    Ty::RowObject(_) => Ty::RowObject(fields),
+                    _ => Ty::Object(fields),
+                }
+            }
+            // Differing outer kinds can also hide a conflict in a shared
+            // field. Explain that path rather than proposing an outer-only fix.
+            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b)) => {
+                for (name, ty) in a {
+                    if let Some(other) = b.get(name) {
+                        ty.join(other).map_err(|error| error.at(name))?;
                     }
                 }
-                let mixed = matches!((self, other),
-                    (Ty::RowMixed(_), _) | (_, Ty::RowMixed(_)) |
-                    (Ty::RowShape(_), Ty::RowObject(_)) |
-                    (Ty::RowObject(_), Ty::RowShape(_)));
-                if mixed { Ty::RowMixed(fields) }
-                else if matches!(self, Ty::RowShape(_)) || matches!(other, Ty::RowShape(_)) { Ty::RowShape(fields) }
-                else if matches!(self, Ty::RowObject(_)) || matches!(other, Ty::RowObject(_)) { Ty::RowObject(fields) }
-                else { Ty::Object(fields) }
+                return Err(conflict());
             }
-            (Ty::Collection(a, am), Ty::Collection(b, bm)) => Ty::Collection(Box::new(a.join(b)), *am.max(bm)),
-            (Ty::List(a, am), Ty::List(b, bm)) => Ty::List(Box::new(a.join(b)), *am.max(bm)),
+            (Ty::Collection(a, am), Ty::Collection(b, bm)) => Ty::Collection(Box::new(join_items(a, *am, b, *bm)?), *am.max(bm)),
+            (Ty::List(a, am), Ty::List(b, bm)) => Ty::List(Box::new(join_items(a, *am, b, *bm)?), *am.max(bm)),
             (Ty::Page(t, am), Ty::Page(u, bm)) if t == u => Ty::Page(t.clone(), *am.max(bm)),
             (a, b) if a.sequence().is_some() && b.sequence().is_some() => {
                 let (a, am) = a.sequence().unwrap();
                 let (b, bm) = b.sequence().unwrap();
-                Ty::List(Box::new(a.join(&b)), am.max(bm))
-            },
+                Ty::List(Box::new(join_items(&a, am, &b, bm)?), am.max(bm))
+            }
+            // No row-derived value, even in a container, may disappear into
+            // Unknown and later acquire a different kind from another arm.
+            _ if self.contains_row() || other.contains_row() => return Err(conflict()),
             _ => Ty::Unknown,
+        })
+    }
+
+    pub(crate) fn row_kind(&self) -> Option<&'static str> {
+        match self {
+            Ty::Row(_) => Some("Row"), Ty::WriteRow(_) => Some("WriteRow"),
+            Ty::RowShape(_) => Some("RowShape"), Ty::RowObject(_) => Some("RowObject"),
+            Ty::Optional(inner) => inner.row_kind(),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn kind_name(&self) -> String {
+        if let Some(kind) = self.row_kind() { return kind.into(); }
+        match self {
+            Ty::Object(_) => "Object".into(),
+            Ty::List(item, _) => format!("List<{}>", item.kind_name()),
+            Ty::Collection(item, _) => format!("Collection<{}>", item.kind_name()),
+            Ty::Page(_, _) => "Page<Row>".into(),
+            other => other.name(),
+        }
+    }
+
+    fn contains_row(&self) -> bool {
+        match self {
+            Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::Page(..) => true,
+            Ty::Optional(inner) | Ty::List(inner, _) | Ty::Collection(inner, _) => inner.contains_row(),
+            Ty::Object(fields) => fields.values().any(Ty::contains_row),
+            _ => false,
         }
     }
 
@@ -275,6 +316,28 @@ impl Ty {
             _ => None,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JoinError {
+    pub left: String,
+    pub right: String,
+    pub path: String,
+}
+
+impl JoinError {
+    pub(crate) fn at(mut self, path: &str) -> Self {
+        self.path = if self.path.is_empty() { path.into() }
+            else if self.path.starts_with("[]") { format!("{path}{}", self.path) }
+            else { format!("{path}.{}", self.path) };
+        self
+    }
+}
+
+// An empty sequence supplies no arm to compare, including the initial []
+// of a collector. Unknown in a nonempty value never gets this exemption.
+fn join_items(a: &Ty, am: u32, b: &Ty, bm: u32) -> Result<Ty, JoinError> {
+    if am == 0 { Ok(b.clone()) } else if bm == 0 { Ok(a.clone()) } else { a.join(b).map_err(|error| error.at("[]")) }
 }
 
 pub fn scalar_to_column(scalar: &ScalarType) -> ColumnType {

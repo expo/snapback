@@ -680,6 +680,7 @@ for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform
      insert records {id: 'hidden', owner: 'somebody-else'}
    else:
      insert padding {id: 'padding'}
+   return null
  query scan():
    return records first 10 by byId
  `.replace(/^ /gm, "");

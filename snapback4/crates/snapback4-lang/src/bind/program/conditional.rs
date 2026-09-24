@@ -1,9 +1,9 @@
-//! Keep each conditional arm's wildcard rule until its projection is bound.
+//! Conditional values keep lazy execution; incompatible row arms are refused.
 // @ref LLP 3000.013#7 — authoring sugar lowers to the existing ruled, metered IR.
 use super::*;
 
 impl Binder<'_> {
-    pub(super) fn conditional(&mut self, then: &A, condition: &A, otherwise: &A, shape: Option<(&[ShapeField], &Site)>, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+    pub(super) fn conditional(&mut self, then: &A, condition: &A, otherwise: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let variant = super::super::intent_variants::condition(condition)
             .map(|(kind, input)| format!("{kind}:{}", print::expression(input)));
         let mut variant_body = setup::Body::default();
@@ -21,7 +21,7 @@ impl Binder<'_> {
         self.narrow(condition, true);
         let then_bound = self.expr(then, &mut then_out);
         self.pop_scope();
-        let (mut then_expr, mut then_ty) = then_bound?;
+        let (then_expr, then_ty) = then_bound?;
         let then_sites = self.sites;
         if variant.is_some() { self.variants.last_mut().unwrap().1 = false; self.sites = variant_start; }
         let mut else_out = setup::Body::default();
@@ -29,36 +29,14 @@ impl Binder<'_> {
         self.narrow(condition, false);
         let else_bound = self.expr(otherwise, &mut else_out);
         self.pop_scope();
-        let (mut else_expr, mut else_ty) = else_bound?;
+        let (else_expr, else_ty) = else_bound?;
         if variant.is_some() { self.variants.pop(); self.sites = self.sites.max(then_sites); }
-        let mixed = shape.is_some() && matches!(then_ty.join(&else_ty).required(), Ty::RowMixed(_));
-        if let Some((fields, site)) = shape.filter(|_| mixed) {
-            // The arm types are still separate here. A mixed local has lost
-            // that choice and is refused by shape_object instead. Nullable
-            // arms retain the ordinary null-preserving shape behavior.
-            for (value, ty, arm_out, truth) in [
-                (&mut then_expr, &mut then_ty, &mut then_out, true),
-                (&mut else_expr, &mut else_ty, &mut else_out, false),
-            ] {
-                if *ty == Ty::Null { continue; }
-                self.push_scope();
-                self.narrow(condition, truth);
-                let shaped = self.shape_bound(value.clone(), ty.clone(), fields, site, arm_out);
-                self.pop_scope();
-                (*value, *ty) = shaped?;
-            }
-        }
+        let ty = then_ty.join(&else_ty).map_err(|error| self.join_error(error, &then_ty, &else_ty, then, otherwise, Some(condition)))?;
         then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
         else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
         output.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
         output.push_if(cond, then_out, else_out);
-        let ty = if then_ty == Ty::Null { else_ty.optional() }
-            else if else_ty == Ty::Null { then_ty.optional() }
-            else { then_ty.join(&else_ty) };
         let value = if variant.is_some() { Expr::Block { body: variant_body.code, value: Box::new(ir::var(&temp)) } } else { ir::var(&temp) };
-        match shape.filter(|_| !mixed) {
-            Some((fields, site)) => self.shape_bound(value, ty, fields, site, out),
-            None => Ok((value, ty)),
-        }
+        Ok((value, ty))
     }
 }

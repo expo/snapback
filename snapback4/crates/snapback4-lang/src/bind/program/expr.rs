@@ -88,9 +88,11 @@ impl Binder<'_> {
             A::Array { items, .. } => {
                 let mut exprs = Vec::new();
                 let mut item_ty: Option<Ty> = None;
-                for (e, t) in self.strict_args(items, out)? {
+                let args = self.strict_args(items, out)?;
+                let origins: Vec<_> = args.iter().zip(items).map(|((_, ty), source)| (ty.clone(), source.clone())).collect();
+                for (e, t) in args {
                     item_ty = Some(match item_ty {
-                        Some(j) => j.join(&t),
+                        Some(j) => j.join(&t).map_err(|error| self.join_error_many(error.at("[]"), &origins))?,
                         None => t,
                     });
                     exprs.push(e);
@@ -114,7 +116,7 @@ impl Binder<'_> {
                 }
             }
             A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
-            A::If { then, condition, otherwise, .. } => self.conditional(then, condition, otherwise, None, out),
+            A::If { then, condition, otherwise, .. } => self.conditional(then, condition, otherwise, out),
             A::Member { base, name, .. } => {
                 // Generated maintain keys are literal path-named columns. Resolve
                 // the full chain before ordinary member/reference traversal.
@@ -243,7 +245,7 @@ impl Binder<'_> {
                     }
                 }
             }
-            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => match fields.get(name) {
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => match fields.get(name) {
                 Some(field) => field.clone(),
                 None => return Err(unknown(site, format!("this object has no field {name}"), name_rewrite(name, fields.keys().map(String::as_str), None))),
             },
@@ -303,7 +305,8 @@ impl Binder<'_> {
             let (r, rt) = if lt.required().is_identity() { self.expr_as_identity(right, &mut fallback, &lt.required())? } else { self.expr(right, &mut fallback)? };
             fallback.push(Stmt::Assign { name: tmp.clone(), value: r });
             out.push_if(Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, fallback, setup::Body::default());
-            let ty = if rt.is_optional() { lt.required().join(&rt) } else { lt.required().join(&rt).required() };
+            let joined = self.join(&lt.required(), &rt, left, right)?;
+            let ty = if rt.is_optional() { joined } else { joined.required() };
             return Ok((ir::var(&tmp), ty));
         }
         let (l, lt) = self.expr(left, out)?;
@@ -633,10 +636,11 @@ impl Binder<'_> {
             "min" | "max" => {
                 arity(2, &format!("{name}(a, b)"))?;
                 let [(a, at), (b, bt)]: [(Expr, Ty); 2] = self.strict_args(args, out)?.try_into().expect("checked arity");
+                let joined = self.join(&at, &bt, &args[0], &args[1])?;
                 if at.is_optional() || bt.is_optional() || !at.comparable(&bt) {
                     return Err(type_error(site, format!("{name} takes two present values of one type; got {} and {}", at.name(), bt.name()), "narrow the operands first"));
                 }
-                Ok((Expr::Builtin { builtin: if name == "min" { Builtin::Min } else { Builtin::Max }, args: vec![a, b] }, at.join(&bt)))
+                Ok((Expr::Builtin { builtin: if name == "min" { Builtin::Min } else { Builtin::Max }, args: vec![a, b] }, joined))
             }
             "tokens" => {
                 arity(1, "tokens(text)")?;

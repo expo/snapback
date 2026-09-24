@@ -118,7 +118,7 @@ impl Binder<'_> {
         probe.kind = ProgramKind::Query;
         probe.in_predicate = true;
         let (_, ty) = probe.expr(base, &mut setup::Body::default()).ok()?;
-        if matches!(ty.required(), Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::RowMixed(_) | Ty::Page(_, _) | Ty::Collection(_, _) | Ty::List(_, _)) { return None; }
+        if matches!(ty.required(), Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::Page(_, _) | Ty::Collection(_, _) | Ty::List(_, _)) { return None; }
         let mut page = read.clone();
         remove_trailing_shape(page.filter.as_mut()?);
         Some(A::ShapeUse { base: Box::new(A::Read(page)), name: name.into(), site: site.clone() })

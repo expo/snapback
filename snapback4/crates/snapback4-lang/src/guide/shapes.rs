@@ -32,10 +32,23 @@ fields. Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`,
 then `return { ...p, extra: true }`.
 
 An object spread's wildcard follows field order; when shaping an existing row shape,
-explicit computed fields win over its wildcard. Shape each arm before joining
-these two kinds of value. An inline conditional shape does this for you;
-E_QUARRY_SHAPE_JOIN refuses shaping an already-joined local, including after
-conditional reassignment. Plain field reads such as `s.title` remain valid.
+explicit computed fields win over its wildcard. E_QUARRY_SHAPE_JOIN refuses
+joining different row kinds, or a row-derived value and a non-row value,
+at the conditional, assignment, return or collection that combines them.
+Spread both row arms before joining, or build both arms with the same shape
+and kind. The rule also applies inside objects and collections, even when the
+result is only read by field. Identical kinds keep their existing behavior. Null adds absence to the same
+kind; it does not introduce a competing wildcard rule. Resetting a collector
+to `[]` keeps it empty, including inside a loop; a later append can establish
+its row kind again. A nonempty unknown value cannot join a row.
+
+Only simple conditionals or two-value reassignments of row locals or row
+reads get pasteable repairs, with nullability and lazy evaluation preserved.
+Reassignment edits require adjacent assignments (the second may be guarded),
+with no intervening use of the reassigned local.
+Coalescing, nested field conflicts, containers and helper returns instead
+name the conflicting kinds and field path and explain how to make them
+agree. These explanations do not suggest source edits.
 
 ```quarry
 table listings:
@@ -51,7 +64,7 @@ query myBookings(c: cursor ?):
   return bookings where .guest = viewer last 20 by .start after c { *, listing: listings[.listing] { title, city } }
 query listingChoice(key: listings, flag: bool):
   p = listings[key] ! else NOT_FOUND
-  return ({ ...p } { title: 'override', * }) if flag else (p { * } { title: 'override', * })
+  return ({ ...p } if flag else { ...(p { * }) }) { title: 'override', * }
 ```
 
 Here `listing` is the expanded object, or null for a missing or hidden listing.

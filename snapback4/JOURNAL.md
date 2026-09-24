@@ -53952,3 +53952,453 @@ code, rule, meter, starter, shell policy or package version. Existing crash and
 complete-storage-failure limits remain. No push or publication. Full log:
 `~/sb4-intent/lane-e-r17-test.log`; file map, examples, coverage and qualifications:
 [round 17 report](./reports/20260924-lane-e-round17.md).
+
+## 2026-09-24 — LLP 3000.013 Lane K round 8: RowMixed is absorbing
+
+The round-7 marker could still fall through Ty::join to Unknown when joined
+with a raw Row or a scalar. Unknown is the join identity, so a following
+RowShape join then erased the wildcard conflict. types.rs now keeps RowMixed
+with optional field knowledge. Compatible object joins retain their fields;
+incompatible joins retain the conflict with no known fields. Audited the
+single join fallback to Unknown and its structural recursion: the fallback
+also retains a marker nested in an optional, list, collection or object when
+an incompatible join loses that container's structure. Optional joins,
+rebound allocations and reassignment keep the distinction.
+
+Engineering choice: represent lost field information as RowMixed(None), not
+as an invented object shape for a value that can be a scalar. emit.rs emits
+unknown for that result, while known mixed objects still expose their fields
+and pending?: boolean. bind/program.rs and bind/program/expr.rs enumerate or
+read only known mixed fields; bind/program/objects.rs accepts a mixed spread
+only while its fields remain known. Shaping either mixed variant still gets
+the existing E_QUARRY_SHAPE_JOIN and the two-arm rewrite. guide/shapes.rs
+states that further joins cannot restore shapeability, and qualifies plain
+field reads by retained field knowledge. No new syntax or diagnostic code.
+
+Extended tests/joined_shapes.rs with the exact reported sequence, both p and
+1 as the intermediate arm, both arm orders, conditional reassignment,
+aliases, optional values and incompatible containers. The added result-type
+test checks unknown emission without erasing the compiler marker, the shape
+refusal, and refusal to spread a scalar-containing opaque mixed value. The
+previous arm-specific execution, generated text bound, printed rewrite,
+lazy evaluation and nullable projection tests still pass.
+
+Added sameTableFlat, sameTableLeft and sameTableRight to the shared
+lang/tests/fixtures/spread-metadata.q. device/tests/spread_pending_union.rs
+now checks three notes where only the middle operand is pending and the last
+note overwrites every one of its columns. All three spellings preserve
+pending before confirmation, after reopen, and across settlement and another
+reopen, on memory and SQLite. Other pending outbox rows do not mark a result
+that does not spread them. The existing eight-combination and reversed-arm
+matrix remains in place. No pending implementation change was needed.
+
+Added core/tests/pending_metadata_heap.rs, exercising the device interpreter
+over memory and SQLite Rows with existing Shape IR. Its independent literal
+oracle is 40 object bytes + 80 entry bytes + 7 key bytes = 127 bytes for a
+pending-only object, 87 above an empty projection. It does not derive its
+expectation from Value::heap_bytes(). A 126-byte ceiling cuts inside the
+metadata base before evaluating any outer field (four steps, null data,
+incomplete, HeapBytes at metadata:1). At 127 bytes, evaluation advances to the
+five-byte outer text clone (five steps) before cutting. At the full 349-byte
+allowance, both projections complete with the expected metadata and field.
+No meter or runtime change was needed.
+
+Fault injections were all detected and restored: removing the absorbing
+fallback fails two join tests; dropping the middle of three spread bases
+fails the new sameTableFlat assertion on both stores; removing Shape's heap
+charge fails both new meter tests. Evidence: /tmp/lane-k-r8-join-mutant.log,
+/tmp/lane-k-r8-middle-mutant.log and /tmp/lane-k-r8-heap-mutant.log. These were
+intentional negative checks, not unresolved product failures.
+
+Restored targeted checks passed all 86 cases: 57 guide, 16 natural forms,
+seven joined shapes, four device spread lifecycle tests and two heap tests.
+Ran bun install --frozen-lockfile once (506 installs checked, no changes).
+The first and only full scripts/test.sh run finished with the exact summary
+`== 0 failure(s) in 203 s`. No own, baseline or environmental suite failure.
+Client tests passed 1,054, skipped 10 and failed zero. Wasm remains
+1,744,842 bytes raw / 484,967 bytes gzip under the unchanged 486,000-byte
+budget. Evidence: /tmp/lane-k-r8-targeted.log and
+/tmp/lane-k-r8-full-suite.log. Reference validation passed: 505 LLP documents,
+9,238 references, zero errors and zero unchecked. Changed source files are
+below 1,500 lines; git diff --check passes.
+
+No deviation or open round-8 problem. The earlier deliberately stopped
+extra-tested write targets remain outside this round. No IR, wire,
+authorization, disclosure, durability or meter change. No push or publication.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 9: refuse differing row kinds at the first join
+
+Replaced the mixed-wildcard type marker with a fallible type join. types.rs
+now refuses different row kinds and row/non-row combinations recursively,
+including inside a list, page, collection, optional or object. Audited every
+join call and the final Unknown fallback: a value containing a row cannot
+use that fallback or the Unknown identity. Removed RowMixed, its optional
+field map, its emission/field/spread cases and the special conditional-shape
+path. RowObject remains necessary for a spread's ordinary wildcard order
+and pending metadata; RowShape keeps its existing precedence. No IR, device,
+wire, authorization, disclosure, durability or meter implementation changed.
+
+bind/program/conditional.rs binds the ordinary lazy conditional and refuses
+before constructing a mixed result. bind/program.rs, control.rs and expr.rs
+propagate refusal from conditional arms, assignments, branch/loop joins,
+helper and operation returns, array elements, append, coalescing, min/max
+and sorted. views.rs checks projected-field joins too. objects.rs, reads.rs
+and emit.rs remove only their obsolete RowMixed branches. The new
+bind/program/joins.rs builds E_QUARRY_SHAPE_JOIN with both kinds, the source
+site, real operands and the actual condition. All assignment/return/list
+contributors retain their source AST for diagnostics only; this is not type
+or runtime provenance. Rewrites snapshot effectful operands once, preserve
+lazy branches, normalize collection items with bounded loops, and avoid
+collisions with existing or later local names. print.rs now parenthesizes
+member bases and escapes text literals so the pasted rewrites are valid.
+
+Updated the existing CODES why entry and shapes card, and made both arms of
+the language card's spreadChoice explicit spreads. The tested spelling is
+`({ ...p } if ready else { ...(p { * }) }) { title: 'override', * }`:
+it returns the direct spread's original title and retains its full text
+bound. A direct `p { title: 'override', * }` still follows RowShape behavior
+when p is an already-shaped row. Tests/fixtures/spread-metadata.q now makes
+its conditional/reassignment arms agree explicitly; the guide assertion
+expects the direct-spread result from both spreadChoice branches.
+
+Tests/joined_shapes.rs has 11 tests. The 60-program matrix covers all 12
+ordered differing pairs of Row, RowShape, RowObject and Object through a
+conditional, reassignment, helper return, list and container. Each refusal's
+actual rewrite is pasted and executed with both choices against a direct
+spread. Further tests cover both Astra sequences (raw row and scalar), a
+field-only use, shaped collections, optional collections, Object/RowShape,
+an untaken field read that would refuse MISSING, future-name collisions,
+all three contributing assignments/returns/list items, coalescing, min/max,
+sorted, view field joins, escaped text, emitted pending types and unchanged
+same-kind wildcard/text bounds. Direct Ty tests cover WriteRow too, every
+row/non-row direction, nested containers and the Unknown erasure path.
+Fault injections removing the refusal, substituting flag for the program's
+condition, or eagerly evaluating the untaken arm each fail regressions.
+These intentional negative checks were restored before the full suite.
+
+The old common/shape_pages.rs continuation fixtures intentionally combined
+raw and shaped pages. Twelve cases now shape both arms explicitly while
+retaining their cursor/completeness/meter assertions. Four incompatible
+record-alternative cases are replaced by an 18-program compile-refusal
+matrix; their now-invalid inputs never reach runtime. These shared tests
+run on the server and both device stores. client-seams.test.mjs gives its
+seed mutation an explicit null return: it writes different tables on its
+two branches and does not use their implicit result. These are deliberate
+updates to expectations that contradict the new refusal contract.
+
+Engineering interpretations and limits:
+- Null remains absence, adding optionality without a competing row kind;
+  a zero-length sequence supplies no element to join. Treating these as
+  conflicting row kinds would break ordinary nullable flow refinement and
+  empty collectors. Both cases are documented/tested. This is the explicit
+  compatibility interpretation of the brief's non-row restriction.
+- Raw rows from different tables are also refused: their prior join was
+  Unknown, which would violate the requirement that no row be erased.
+  WriteRow is included in the safeguard for the same reason.
+- A row/scalar mix cannot have a direct-spread answer for its scalar arm
+  (`{ ...1 }` has no fields). Its rewrite explicitly projects row fields,
+  wraps both whole results in `{ value: ... }`, and instructs the caller to
+  read `.value`. That result-shape choice may require downstream edits;
+  each subsequent independent incompatible join is still refused.
+- A plain Object/row rewrite uses explicit plain-object projections. The
+  diagnostic states that these do not copy pending metadata; row/row
+  rewrites use spreads and retain it. This avoids inventing a row source
+  for a plain object. The confirmed-row matrix proves data parity.
+
+Targeted verification passed 57 guide, 11 joined-shape, 16 natural-form,
+four device spread lifecycle, two pending heap, 48 server continuation and
+three affected client tests. The existing device tests continue to cover
+pending combinations, reopen and settlement on memory and SQLite. The
+independent pending heap oracle and meter cut tests remain passing.
+Bun's frozen install checked 506 installs with no changes. The baseline tail
+was read before attribution; none of the compile failures below is baseline.
+
+First full scripts/test.sh: `== 2 failure(s) in 179 s` (cargo test, client
+tests). All 48 Rust failures were ours: these 16 common shape_pages cases,
+each on server, memory device and SQLite device:
+- `w13h_collector_wrapping_conditional_page_keeps_main_position`
+- `w13h_conditional_return_keeps_the_raw_position_for_both_arms`
+- `w13h_conditional_value_raw_keeps_its_owner`
+- `w13h_conditional_value_record_field_keeps_its_page`
+- `w13h_conditional_value_record_raw_keeps_its_position`
+- `w13h_conditional_value_record_shaped_keeps_its_rows`
+- `w13h_conditional_value_shaped_keeps_its_rows`
+- `w13h_conditional_value_without_exhaustion_keeps_next`
+- `w13h_loop_carried_page_keeps_partial_rows_without_an_owner`
+- `w13h_loop_carried_record_keeps_owner_position_and_rows`
+- `w13h_loop_exits_keep_main_ownership_without_trimming`
+- `w13h_multiple_backedges_keep_the_sibling_raw_position`
+- `w13h_record_or_cursor_keeps_its_value_without_an_owner`
+- `w13h_record_or_empty_keeps_its_value_without_an_owner`
+- `w13h_record_or_page_keeps_its_value_without_an_owner`
+- `w13h_structural_join_cannot_own_an_unknown_only_record_alternative`
+
+The two W7r1 hidden-versus-absent client cases (dev and serve) were ours,
+from their two different implicit row results; fixed as described above.
+The remaining client failure, R2 mixed result process: retained history and
+independent held coverage, observed complete=true instead of false at
+retained-history.test.mjs:467 after reconnecting an asynchronous watch.
+It passed unchanged in isolation. It is an intermittent environmental/test
+timing candidate, not a baseline-proven failure; no unrelated implementation
+or assertion was changed. The final full result below records its rerun.
+A targeted continuation run initially exposed two incompatible field sets
+in our normalized loop fixtures (multiple_backedges and loop_exits); giving
+the raw arm the same id/preview shape fixed both without weakening checks.
+
+Final full scripts/test.sh result: `== 0 failure(s) in 169 s`.
+Every Rust target passed; client tests passed 1,054, skipped 10 and failed
+zero, including the unchanged retained-history case. Evidence:
+/tmp/lane-k-r9-full-suite.log and /tmp/lane-k-r9-full-suite-2.log.
+No reproducible open round-9 compiler defect remains; the one intermittent
+watch assertion can only be reproduced by rerunning the concurrent full
+suite so far (isolated command: node --test --test-name-pattern='R2 mixed
+result process' packages/snapback4/test/retained-history.test.mjs passed).
+
+Wasm remains 1,744,842 bytes raw / 484,967 bytes gzip under the unchanged
+486,000-byte budget. Reference validation: 505 LLP documents, 9,238 refs,
+zero errors and zero unchecked. Every changed source is under 1,500 lines;
+git diff --check passes. The earlier extra-tested write targets remain
+intentionally stopped; this round does not alter their authorization or
+residual-test limitation. No push or package publication.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 10: known-empty collectors and bounded diagnostic promises
+
+Fixed the collector regression in types.rs: rebound preserves zero-length
+List and Collection bounds, including under nested types. A reset to []
+inside a loop no longer becomes an unbounded Unknown element that conflicts
+with the next row append. Nonempty Unknown/row joins still refuse; no meter
+or resource bound is removed. JoinError now records a field path through
+objects, sequences and view projections. Differing outer object kinds also
+check their shared fields for a deeper conflict, so an outer spread cannot
+be suggested for a nested mismatch it would leave unresolved.
+
+Removed the recursive diagnostic rewrite generator from
+bind/program/joins.rs (198 lines before this round, 123 after). No more
+collection-copy loops, scalar wrappers, recursive field projections,
+source hoisting or generated temporary locals. Coalescing, nested conflicts,
+containers, helper/operation returns, ordering helpers and complex source
+expressions receive an explanation and an empty rewrite field. The message
+names arm A and arm B's kinds, any conflicting field path, and the need to
+make the kinds agree. diag.rs omits the rewrite line for that empty field;
+the existing JSON field remains an empty string, with no envelope change.
+
+Executable repairs are limited to flat row-derived locals or point reads
+in a conditional or a two-value reassignment. The normalized types must
+join, and assignment types must also be structurally assignable. The
+condition and operands use the program's actual names. A nullable operand
+is evaluated once with existing null-preserving shape/member behavior:
+`((notes[key]) { rowCopy: { ... . } }).rowCopy`. This preserves absence and
+pending while keeping each read at its original conditional or assignment
+site. There is no temporary-name or eager-fallback setup to insert.
+
+Engineering decision within the requested guarantee: assignment repairs
+also require adjacent assignments, optionally with the second in a single
+guarded branch whose condition does not use the assigned local. Otherwise
+normalizing the initial RowShape to RowObject could change an intervening
+wildcard shape before the conflicting assignment. Such cases get the same
+explanation-only diagnostic. Scalar/plain-object arms also get explanations,
+since spreading them cannot guarantee the common row kind or metadata.
+Source operands retained by the binder are only for these located repairs,
+not type-lattice or runtime provenance. No RowMixed machinery returned.
+
+File-by-file integration: control.rs selects the conservative assignment
+repair and locates append conflicts; expr.rs adds array element paths;
+views.rs adds projected field paths. guide/codes.rs updates the existing
+E_QUARRY_SHAPE_JOIN why entry; guide/shapes.rs states known emptiness and
+which diagnostics promise source edits. sim/tests/common/shape_pages.rs
+now checks explanation-only refusal for its incompatible record alternatives.
+No new form or refusal code, no IR/device/wire/schema changes, and no
+changes to authorization, disclosure, durability or metering behavior.
+
+lang/tests/joined_shapes.rs now has 14 tests. The existing 60-program matrix
+still refuses all differing Row/RowShape/RowObject/Object pairs across
+conditionals, assignments, helper returns, lists and containers. It executes
+only the 12 supported simple row-pair repairs, comparing both choices with
+the direct spread; the other cases assert explanation-only output. Added
+and updated regressions cover:
+- [] resets in a two-iteration row collector, an empty alias, conditional
+  [], and both initially empty and initially nonempty collectors;
+- empty helper returns, coalescing and conditional row-list assignments,
+  plus a nonempty Unknown collector that must still refuse its row append;
+- Astra's nullable left coalescing and missing-row fallback cases, with no
+  rewrite; matching-kind controls still preserve null and skip the fallback;
+- the nested RowShape.item/RowObject.item conflict, deeper item.child and
+  item[] paths, and a conflict beneath differing outer kinds;
+- nullable locals and point reads in both supported repair contexts, both
+  condition values, present/missing rows, and an asserted missing row only
+  on the taken arm. Result types stay optional; independently expected
+  examined counts prove each selected read executes once;
+- intervening wildcard observations and a condition using the reassigned
+  local, which must get no source edits;
+- the two older erasure sequences, same-kind wildcard/text/pending behavior,
+  nested Optional rows against scalars and Unknown, coalescing/order/view
+  refusals, multiple assignments, helper returns and appends.
+Explanation tests check human formatting and JSON's empty rewrite field.
+
+Also closed the other Low witness in the located Astra review:
+core/tests/pending_metadata_heap.rs now starts with a pending row containing
+id and title. It independently expects 127 bytes for the metadata projection
+and a 126-byte cut before any outer field runs (four steps), on both Rows
+stores. This complements the prior metadata-only-base oracle; no engine
+code changed. The review was at ~/sb4-intent/reviews/k-d7.astra.md.
+
+Fault injections detected and restored: dropping zero-bound preservation
+fails both empty-collector tests; restoring the round-9 recursive rewrite
+generator fails eight join tests; dropping Optional recursion fails the
+nested-type test; skipping Shape's heap charge for a base with ordinary
+columns fails the new heap witness; removing the adjacency guard fails the
+intervening-use test. These intentional failures are negative verification,
+not unresolved suite failures. Evidence is /tmp/lane-k-r10-*-mutant.log.
+
+Restored targeted verification: 57 guide, 14 joined-shape and 16 natural-form
+cases, three heap tests and the affected simulator continuation case passed.
+Initial development failures were ours: eight old tests still required
+now-forbidden generated rewrites, and one new meter assertion used the
+nonexistent probes field before being corrected to examined. All are fixed.
+Bun install --frozen-lockfile checked 506 installs with no changes. Baseline
+tail read before attribution. Reference check passed 505 LLP documents,
+9,238 refs, zero errors and zero unchecked. Changed source files remain
+under 1,500 lines; git diff --check passes.
+
+The first and only full scripts/test.sh run finished with the exact summary
+`== 0 failure(s) in 186 s`. No own, baseline or environmental full-suite
+failure. Client tests passed 1,054, skipped 10 and failed zero. Evidence:
+/tmp/lane-k-r10-full-suite.log; targeted evidence is in
+/tmp/lane-k-r10-targeted-final.log, /tmp/lane-k-r10-simple.log,
+/tmp/lane-k-r10-heap.log and /tmp/lane-k-r10-continuation.log.
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. No unresolved round-10 problem. The conservative eligibility checks
+above are the engineering choices where the brief leaves proof scope open;
+there is no functional deviation. No push or publication.
+
+### 2026-09-24 — LLP 3000.013, Lane K round 11: exited branch declarations
+
+`crates/snapback4-lang/src/bind/program/control.rs` now excludes returning
+and unconditionally refusing branches from `Binding::declared`, using the
+same four-way choice as the flow type: join both survivors, keep the sole
+survivor, or keep the incoming declaration when neither survives. Thus an
+initially null local may hold a spread object on a branch returning 1 and
+a row shape on a branch returning 2 without a spurious shape-join refusal.
+There is no new syntax, diagnostic code, IR or wire representation.
+
+Necessary refinement to the requested exit mask: break/continue declarations
+must remain available to the existing loop fixed point. They leave the
+current block but can reach the next iteration or code after the loop.
+Dropping them incorrectly admitted arithmetic on an optionally null local.
+The new `terminates` predicate excludes those transfers while preserving
+the return/refusal mask, including nested conditionals. Authorization,
+disclosure, durability and meters are unchanged.
+
+`crates/snapback4-lang/tests/joined_shapes.rs` adds compile-and-execute cases
+for both branches returning (query, helper and loop), either single branch
+returning with either surviving row kind, and subsequent reassignment to the
+surviving kind. Continuing incompatible branches still refuse. A separate
+regression checks that break and continue retain nullable declarations for
+later arithmetic. Both original exit cases failed before the binder fix.
+
+The rewrite matrix and nullable/local/read repair tests now seed separate
+notes with different ids, owners and titles, select each arm, and assert
+that arm's own row. Replacing the conditional rewrite with an always-left
+operand failed on `ready=false` with id `note` instead of `other`; the
+injection was restored. Evidence: /tmp/lane-k-r11-before-fix.log and
+/tmp/lane-k-r11-arm-mutant.log.
+
+The initial full suite ended `== 1 failure(s) in 157 s` (cargo test):
+`frontend_regressions::loop_carried_types_include_continued_paths_and_reject_recursive_accumulation`
+and `lowering::baseline_golden_and_ownership_switch_shard_4` failed. Both were
+ours, caused by excluding continue declarations; both pass after the
+terminal/loop-transfer distinction. No golden or existing assertion was
+weakened. One development fixture also needed the helper grammar's trailing
+return; that test-only syntax error was corrected.
+
+Final targeted verification passed 40 frontend, 57 guide, 17 joined-shape
+and 16 natural-form tests, plus the affected lowering shard. Bun's frozen
+install checked 506 installs without changes. The reference audit passed
+505 LLP documents and 9,238 refs, with zero errors or unchecked references.
+Changed source files remain below 1,500 lines and git diff --check passes.
+
+The final full scripts/test.sh run finished `== 0 failure(s) in 148 s`.
+Client tests passed 1,054, skipped 10 and failed zero. No remaining own,
+baseline or environmental failure. Logs: /tmp/lane-k-r11-full-suite.log
+(initial), /tmp/lane-k-r11-full-suite-final.log (final),
+/tmp/lane-k-r11-targeted-final.log and /tmp/lane-k-r11-lowering.log.
+No unresolved round-11 problem. The loop-transfer distinction above is the
+only refinement to the brief; no push or publication.
+
+### 2026-09-24 — LLP 3000.013, Lane K round 12: ordered control outcomes
+
+Replaced round 11's unsound `terminates()` scan. Its later-return search
+could discard a nullable declaration after an earlier conditional break or
+continue, allowing `return x + 1` to reach null at runtime. The binder's
+other exit analysis is a possible-transfer scan for aggregate diagnostics,
+not an every-path reachability proof, so it is not reused for typing.
+
+File by file:
+- `crates/snapback4-lang/src/bind/program/flow.rs` computes each IR block's
+  outcome set: fall-through, break, continue and return/refusal. Only the
+  fall-through paths execute the next statement; earlier transfers remain.
+  Conditionals union their arms. Loops consume their own break/continue and
+  conservatively retain a possibly empty/exhausted path. A block terminates
+  only when its sole outcome is return/refusal. Ordinary unknown conditions
+  keep both paths; the analysis does not attempt constant folding.
+- `bind/program/control.rs` uses those outcomes for the flow type, field
+  refinements and declared type; declarations on loop-transfer paths still
+  feed the existing loop fixed point. It computes each arm once per join.
+  `bind/program.rs` registers the new module. The old independent exit and
+  termination scans are removed; the operation-end exit check shares the
+  same outcome computation.
+- `tests/joined_shapes.rs` extends the loop-transfer regression with both
+  break and continue before each of return and unconditional refusal. All
+  four combinations now refuse `x + 1` with E_QUARRY_TYPE at compile time.
+  Nullable rewrite tests compare the complete independently expected row,
+  including id, title and owner, for every present arm.
+- `tests/control_flow.rs` generates 2,048 bounded programs from four fixed
+  random seeds using assignments, if, for, break, continue, return and
+  require. A quarter emphasize nullable writes before competing exits.
+  Every admitted program runs all eight boolean input combinations. The
+  observed 1,110 clean programs produced 7,843 answers and 1,037 named STOP
+  refusals, with no runtime E_TYPE; 938 programs were refused at compile
+  time. Coverage assertions prevent an all-refused or all-returning pass.
+  Two unit tests in flow.rs separately check statement ordering, unreachable
+  tails, mixed outcomes, empty blocks and nested-loop transfer ownership.
+
+The explicit reproduction failed against round 11. Temporarily restoring
+round 11's control.rs also made the property fail on seed 1, case 0, inputs
+1: `continue` skipped a later `require false`, then arithmetic read null.
+The injection was restored. An initial test-only E_OP came from using a
+module filename with an unqualified query name; the fixture now uses
+schema.q. Logs: /tmp/lane-k-r12-before-fix.log and
+/tmp/lane-k-r12-property-mutant.log.
+
+Final targeted checks passed 40 frontend, 57 guide and 17 joined-shape tests,
+the randomized property, and both flow unit tests. Frozen Bun install
+checked 506 installs with no changes. Reference audit passed 505 LLP docs
+and 9,239 refs, with zero errors/unchecked. All changed source files remain
+under 1,500 lines; git diff --check passes. No new syntax or diagnostic code,
+no IR/device/wire change, and no change to authorization, disclosure,
+durability or runtime meters. The conservative handling of conditions and
+loop emptiness is the engineering choice requested by the soundness-first
+brief; there is no deviation.
+
+The initial full scripts/test.sh run ended `== 1 failure(s) in 147 s`:
+client tests only. `W5c process: pending writes recover by id through sent
+and failed, including settlement before reopen returns` observed `sent`
+where acquisition.test.mjs:375 expected `pending`. Classified environmental:
+this is a timing assertion in an unchanged fixture (its programs contain no
+conditional statement), and the identical test passed in isolation with the
+same build. It passed in the recorded baseline too; it is not classified as
+a recorded baseline failure. No assertion or client implementation was
+changed. Reproduction command: `node --test --test-name-pattern='W5c process:
+pending writes recover by id' packages/snapback4/test/acquisition.test.mjs`
+(on one line); the race appeared during the parallel full suite, not the
+isolated rerun. Evidence: /tmp/lane-k-r12-full-suite.log and
+/tmp/lane-k-r12-acquisition-rerun.log. Every Rust target passed in that run,
+including all lowering golden comparisons and the property test.
+
+The unchanged full-suite rerun finished `== 0 failure(s) in 147 s`.
+Every stage passed; no remaining round-12 code failure. The intermittent
+client timing assertion above remains outside this change. Final evidence:
+/tmp/lane-k-r12-full-suite-final.log; targeted evidence:
+/tmp/lane-k-r12-targeted-final.log and /tmp/lane-k-r12-flow-unit.log.
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. No push or publication.

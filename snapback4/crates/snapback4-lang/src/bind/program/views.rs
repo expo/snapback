@@ -11,6 +11,7 @@ impl Binder<'_> {
         let mut lanes = Vec::new();
         let mut result: Option<BTreeMap<String, Ty>> = None;
         let mut first_site = None;
+        let mut field_sources: BTreeMap<String, Vec<(Ty, A)>> = BTreeMap::new();
         // Queries retain the view's shared cursor identity. A non-query with
         // one source is an ordinary admitted scan followed by a row shape;
         // representing it as a merge would reject safe capped mutations.
@@ -76,12 +77,20 @@ impl Binder<'_> {
                 }
                 for (name, ty) in fields {
                     let old = &prior[&name];
+                    let current = projection_source(lane, &name);
+                    let origins = field_sources.get_mut(&name).unwrap();
+                    origins.push((ty.clone(), current));
+                    old.join(&ty).map_err(|error| self.join_error_many(error.at(&name), origins))?;
                     let joined = view_join(old, &ty).ok_or_else(|| type_error(&lane.site,
                         format!("view {} field {name}: {} conflicts with {} at {}", merge.table, ty.name(), old.name(), first_site.as_ref().unwrap()),
                         format!("project compatible values for {name} in every branch")).guide("reads"))?;
                     prior.insert(name, joined);
                 }
-            } else { first_site = Some(lane.site.clone()); result = Some(fields); }
+            } else {
+                first_site = Some(lane.site.clone());
+                field_sources = fields.keys().map(|name| (name.clone(), vec![(fields[name].clone(), projection_source(lane, name))])).collect();
+                result = Some(fields);
+            }
             let project = if projection_setup.is_empty() { project } else { Expr::Block { body: projection_setup.code, value: Box::new(project) } };
             self.pop_scope();
             self.push_value_lane(&mut lanes, lane, MergeLane { guard, distinct, branch: lane.branch.clone(), setup: setup.code, scan, source, binding, project: Some(project) }, position)?;
@@ -153,7 +162,7 @@ fn view_join(a: &Ty, b: &Ty) -> Option<Ty> {
     let joined = if matches!(a, Ty::Id | Ty::Ref(_)) && matches!(b, Ty::Id | Ty::Ref(_)) { Ty::Id }
         else if a == Ty::Null { b }
         else if b == Ty::Null { a }
-        else if a.comparable(&b) { a.join(&b) }
+        else if a.comparable(&b) { a.join(&b).ok()? }
         else { return None; };
     Some(if optional { joined.optional() } else { joined })
 }
@@ -170,4 +179,11 @@ fn cursor_kind(ty: &Ty) -> Option<snapback4_core::schema::ColumnType> {
         Ty::Optional(inner) => C::Optional(Box::new(cursor_kind(inner)?)),
         _ => return None,
     })
+}
+
+fn projection_source(lane: &ast::MergeLane, name: &str) -> A {
+    lane.project.as_ref().and_then(|fields| fields.iter().find_map(|field| match field {
+        ShapeField::Field { name: field, value, .. } if field == name => Some(value.clone()),
+        _ => None,
+    })).unwrap_or_else(|| A::Member { base: Box::new(A::Focal { site: lane.site.clone() }), name: name.into(), site: lane.site.clone() })
 }

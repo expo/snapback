@@ -91,7 +91,7 @@ impl Binder<'_> {
             out.extend(setup);
             if field.spread {
                 let operand = field.value.as_ref().unwrap();
-                if !matches!(ty.required(), Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::RowMixed(_)) {
+                if !matches!(ty.required(), Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
                     let expression = print::expression(operand);
                     let rewrite = if let Ty::Ref(table) = ty.required() {
                         let key = if ty.is_optional() { format!("{expression} ! else NOT_FOUND") } else { expression };
@@ -107,7 +107,7 @@ impl Binder<'_> {
                         format!("p = {} ! else NOT_FOUND\nreturn {{ ...p }}", print::expression(operand))).guide("shapes"));
                 }
                 let value = self.snapshot(value, out);
-                if matches!(ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::RowMixed(_)) {
+                if matches!(ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
                     bases.push(value.clone());
                 }
                 for (name, ty) in self.row_fields(&ty, &field.site)? {
