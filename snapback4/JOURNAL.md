@@ -49666,3 +49666,139 @@ absolute I/O/scheduling stalls remain outside the cooperative row budget, and
 the shared-host measurements above state that practical limit. No permission,
 disclosure rule, meter ceiling, history window, edge-epoch behavior or
 application form was changed. No NORMAL exception or checkpoint worker landed.
+
+## 2026-09-24 — LLP 3000.013 Lane L round 3: ship retirement, withdraw reconstruction
+
+Implementation: `39d0c6766`; deterministic admission tests: `a8bb10771`.
+This entry supersedes round 1's reconstruction claims above; those historical
+entries are retained unchanged. No push or publication.
+
+Chose the permitted refusal path. The engine has no separate sound builder
+for a newly added view over populated sources: round 1's new-view path and
+redefinition path used the same experimental reconstruction. A concrete
+identity counterexample is a repost: normal delivery uses the event id minted
+in its original mutation, while reconstruction hashed `RebuiltRepost` and the
+source id. The source row does not retain that minted event id. Equal-time
+ordering, saved event ids and a 1,000-event boundary can therefore differ.
+The reviewed growing-source and orphan cases could also stop delivery, and
+raw owned-row deletion left dependent counts stale. No historical builder
+is retained in the product execution path.
+
+Removal now deletes owned rows/indexes and dependent aggregate targets in the
+same activation transaction. Surviving aggregate declarations rebuild against
+the retired, empty source; retained names cannot preserve stale totals. Source
+rows and unrelated views stay intact, and a later adoption failure rolls all
+retirement back. Classification explicitly marks removal destructive even if
+all owned table names survive as ordinary tables. Dev needs no flag; deploy
+requires `--allow-destructive`, matching maintained-view removal. A failed
+predicate/source redefinition changes neither generation, sequence nor rows.
+Ordinary delivery continues after the refusal.
+
+`E_TIMELINE_REDEFINE` names the view and unrecoverable event identities and
+edge-admission history. Its rewrite is "remove the view and deploy, then add
+the new definition" with the necessary qualification: new materialization
+requires **empty event and edge tables**. Retained populated sources must use
+a planned view. `E_TIMELINE_ACTIVATE` restores this new-view boundary and
+names the populated table, including orphan repost inputs. Populated profiles
+remain supported. Unfinished experimental reconstruction is fenced on open
+and unchanged adoption; removal can still retire its control row and work.
+The existing 0.3 format refusal remains unchanged.
+
+File-by-file changes:
+
+- `core/src/engine/timeline/activation.rs`: atomic retirement, reconstruction
+  refusal, empty-source admission and unfinished-builder fence.
+- `core/src/successor.rs`: explicit destructive removal and invalidation of
+  aggregate targets over retired tables, including reused names.
+- `core/src/engine/mod.rs`: fence on open; remove builder activation.
+- `core/src/engine/timeline.rs`: remove builder module/export and lazy original
+  reconstruction from repost; export the fence.
+- `core/src/engine/timeline/online.rs`: remove reconstruction-specific follow
+  and unfollow exceptions.
+- `core/src/engine/timeline/work.rs`: remove reconstruction phases and their
+  exclusive scheduling priority; ordinary work uses its existing queue.
+- `core/src/engine/timeline/rebuild.rs`: deleted.
+- `core/src/schema/timeline.rs`: correct the declaration's design annotation.
+- `lang/src/bind/timeline.q`: remove the experimental `rebuild` work kind.
+- `lang/src/guide/feeds.md` and `lang/src/guide/codes.rs`: correct lifecycle and
+  the two existing diagnostic rewrites; no new code or syntax.
+- `snapback4/src/serve_lock.rs`: inject a zero-sized production clock and a
+  manual test clock into the admission policy; keep timing constants intact.
+- `snapback4/tests/timeline_adoption.rs`: nine removal/refusal/recovery tests.
+- `snapback4/tests/timeline/lifecycle.rs`: restore atomic refusal tests for
+  adding over populated sources, including disk reopen and catalog rollback.
+- `llp/3000.013-quarry-states-intent.rfc.md` §4: record retirement and the
+  precise historical-build limitation. `JOURNAL.md`: this append.
+
+Paths prefixed `core/` and `lang/` above mean the corresponding
+`snapback4/crates/snapback4-core/` and `snapback4/crates/snapback4-lang/`;
+`snapback4/src` and `snapback4/tests` mean the CLI crate beneath that same
+`crates/` directory.
+
+Supported examples remain `view following: activity where .actor = viewer or
+exists follows[viewer, .actor]` on initially empty sources, and removal of
+that declaration followed by `return activity last 20 by .at after c` for a
+planned read of retained sources. Production removal uses
+`snapback4 deploy release --allow-destructive`; dev uses ordinary startup.
+Changing the activity predicate from `.parentId = null and not .removed` to
+`not .removed` compiles but adoption refuses. Removing and re-adding that new
+definition over empty sources succeeds and includes both originals/replies.
+
+The nine adoption tests prove, respectively:
+
+1. Real dev removal retires rows/indexes and a dependent total, preserving
+   source rows, source totals and a second populated materialization.
+2. Real deploy requires the existing destructive flag for maintained and
+   materialized removal; the flag cannot bypass redefinition refusal.
+3. New owned-name collisions preserve application data and refuse by name.
+4. Pending delivery retires atomically; failed adoption rolls back; retained
+   sources remain readable through the planned query and cannot be re-added
+   as historical materialization.
+5. Predicate and source redefinitions refuse without changing rows, sequence
+   or generation; 100 interleaved posts then drain to 101 reader events and
+   a dependent count of 101.
+6. Retained aggregate and owned-table names reset to empty whether the
+   aggregate declaration survives or is removed; the next contribution is
+   one rather than two, and aggregate indexes are empty after retirement.
+7. Failed retirement restores a dependent count and its indexes; a subsequent
+   post produces the correct total of two.
+8. An unfinished experimental control row refuses open and unchanged adoption
+   but can be removed, preserving the planned read of its source post.
+9. Two-step replacement over empty sources delivers the new predicate.
+
+Targeted results: adoption 9/9 (0.25 s), timeline 23/23 (2.64 s), guide 57/57
+(0.62 s), lock unit tests 7/7. The manual clock asserts 4.999 ms still waits
+1 µs and 5 ms admits despite new request activity; an already queued request
+behind a holder admits maintenance immediately at time zero. A separate test
+asserts the 1 ms quiet deadline. Existing real FIFO ordering, sustained queue
+and poison recovery tests remain. Mutation checks on temporary source copies
+confirmed changing `MAX_DEFER` from 5 to 100 ms fails, and removing the
+immediate-admit shortcut fails. Those are intentional negative tests.
+One development test compile failed on a new fixture's `Value::Row(BTreeMap)`;
+adding `.into()` fixed it before the passing targeted runs. No failing product
+test was disabled. The two former positive historical-activation tests now
+assert refusal because that unsound feature is explicitly withdrawn.
+
+Full qualification: **`== 0 failure(s) in 258 s`**, exit 0, from one
+`scripts/test.sh` run with `CARGO_BUILD_JOBS=12
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+SNAPBACK4_RUST_TEST_PROCESSES=8 RUST_TEST_THREADS=4`.
+Log: `/tmp/lane-l-r3-full.log`. The CLI's 88 unit tests, all nine adoption
+tests, both background-durability tests, existing delivery/device coverage,
+and every client shard passed. Client skips remain 10; the four performance
+witnesses remain explicitly ignored. Wasm is 1,744,879 B raw / 484,975 B gzip,
+within the unchanged 486,000 B budget. Full-suite failures: none introduced,
+none baseline, none environmental. The supplied baseline's `cargo test`
+failure (`== 1 failure(s) in 276 s`) did not recur.
+
+Limits and work not done: historical redefinition and activation over populated
+event/edge tables are unsupported; reproduce by seeding any such table before
+adding the view, or editing an existing activity predicate. The diagnostics
+and supported planned-read rewrite above are the outcome, not a pending
+half-built feature. No fairness constants, authorization, disclosure, meter
+ceilings, history window, epoch rules or WAL FULL durability were changed.
+No performance witnesses were rerun in round 3; round 2's dated measurements
+remain the available performance evidence. No new language form needs a
+language-card block. All changed source files are below 1,500 lines and
+`git diff --check` passes. `ref-check --verbose`: 505 LLP docs, 9,237 refs,
+0 errors, 0 unchecked. Frozen Bun installation completed without changes.
