@@ -65,6 +65,18 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 
 ## Moves
 
+- **2026-09-23 — Quarry states intent moves onto the doing-list** (Charlie:
+  "if you need to try making *significant* architectural reworks in order to
+  make the data modeling, queries, and scalability be excellent and elegant,
+  you can experiment with that"; LLP 3000.013). Unblocks reads that state
+  predicates and order, one `view` declaration for derived data, Following
+  without caps, jobs and aggregates without author-chosen bounds, an app
+  object and an offline web shell. Taken off: index names and author-chosen
+  engine numbers on the paved path; the timeline's promotion, pull routes and
+  caps; the "Time in rules" refusal is unchanged. Stands: one interpreter, no
+  JavaScript in the data plane, no lowering Quarry to SQL, no relevance-ranked
+  search.
+
 - **2026-09-16 — the remaining general-purpose program moves onto the doing-list**
   (Charlie: "complete everything ... we'll remove services when we are done
   with the workroom test rather than wait to add them in ... use the fleet";
