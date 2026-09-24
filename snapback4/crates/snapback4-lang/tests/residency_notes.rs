@@ -47,7 +47,7 @@ fn w10r1_no_horizon_advice_is_suppressed_by_an_eligible_whole_partition_reader()
     let source = "table profiles:\n  name: text <=50\n  public 'directory'\n  sync public\n";
     let without_reader = clean(source);
     assert_eq!(without_reader.notes.iter().filter(|n| n.code == "N_NO_HORIZON").count(), 1);
-    let with_reader = clean(&format!("{source}mutation inspect(id: profiles):\n  return profiles[id]\n"));
+    let with_reader = clean(&format!("{source}mutation inspect(id: profiles):\n  return profiles[id = id]\n"));
     assert_eq!(with_reader.schema.operations["inspect"].predicts.as_deref(), Some("eligible"));
     assert!(!with_reader.notes.iter().any(|n| n.code == "N_NO_HORIZON"));
     assert_eq!(without_reader.schema.tables["profiles"], with_reader.schema.tables["profiles"]);
@@ -69,7 +69,7 @@ fn w9r1b_after_insert_sites_keep_each_constraint_declaration() {
 
 #[test]
 fn w9r1b_insert_if_absent_rule_points_to_insert_declaration() {
-    let source = "table permits:\n  owner: principal\n  unique byOwner: owner\n  public 'permits'\n  sync\ntable actions:\n  owner: principal\n  unique byOwner: owner\n  public 'actions'\n  sync\n  insert <- exists permits[.owner]\nmutation act():\n  return insert actions { owner: viewer } if absent\n";
+    let source = "table permits:\n  owner: principal\n  unique byOwner: owner\n  public 'permits'\n  sync\ntable actions:\n  owner: principal\n  unique byOwner: owner\n  public 'actions'\n  sync\n  insert <- exists permits[owner = .owner]\nmutation act():\n  return insert actions { owner: viewer } if absent\n";
     let b = clean(source);
     let sites: Vec<_> = b.schema.operations["act"].sites.iter().filter(|site| site.kind == "rule").map(|site| site.site.as_str()).collect();
     println!("insert-if-absent: {sites:?}");
@@ -91,9 +91,9 @@ fn w9b_residency_sites_name_sources_for_rules_writes_presence_and_native() {
         include_str!("fixtures/never-predict.q").to_owned(),
         rule.to_owned(),
         rule.replace("  sync public", "  online only"),
-        rule.replace("insert <- exists liveCounts[.owner]", "insert <- allow\n  after insert <- exists liveCounts[.owner]"),
+        rule.replace("insert <- exists liveCounts[owner = .owner]", "insert <- allow\n  after insert <- exists liveCounts[owner = .owner]"),
         "query present(p: principal):\n  return connected[p]\nquery nativeRead(): native\n".into(),
-        "table access:\n  owner: principal\n  unique byOwner: owner\n  public 'access'\n  sync\ntable notes:\n  owner: principal\n  by byOwner: owner, id\n  read <- .owner = viewer\n  insert <- exists access[.owner]\n  update <- exists access[.owner]\n  sync\nmutation save(id: notes):\n  upsert notes[id] { owner: viewer }\n".into(),
+        "table access:\n  owner: principal\n  unique byOwner: owner\n  public 'access'\n  sync\ntable notes:\n  owner: principal\n  by byOwner: owner, id\n  read <- .owner = viewer\n  insert <- exists access[owner = .owner]\n  update <- exists access[owner = .owner]\n  sync\nmutation save(id: notes):\n  upsert notes[id] { owner: viewer }\n".into(),
     ];
     let mut count = 0;
     let mut unlocated = Vec::new();
@@ -212,7 +212,7 @@ fn a_reused_loop_binding_locates_the_failing_loop() {
 
 #[test]
 fn wide_matching_merge_note_is_conditional_when_the_read_completes() {
-    let source = format!("{}\nquery searchAll(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[viewer] first 1000 by byPrincipalRoom\n", include_str!("../../snapback4-sim/tests/search_merge/schema.q"));
+    let source = format!("{}\nquery searchAll(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[principal = viewer] first 1000 by byPrincipalRoom\n", include_str!("../../snapback4-sim/tests/search_merge/schema.q"));
     let b = clean(&source);
     let mut e = Engine::new(Store::memory().unwrap(), b.schema.clone(), b.programs.iter().map(|p| p.program.clone())).unwrap();
     let rows = [("members", json!({"id":"member", "roomId":"r", "principal":"alice"})),
@@ -233,7 +233,7 @@ fn wide_matching_merge_note_is_conditional_when_the_read_completes() {
 
 #[test]
 fn w7d_wide_membership_search_points_to_the_complete_walk() {
-    let source = format!("{}\nquery searchAll(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[viewer] first 1000 by byPrincipalRoom\n", include_str!("../../snapback4-sim/tests/search_merge/schema.q"));
+    let source = format!("{}\nquery searchAll(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[principal = viewer] first 1000 by byPrincipalRoom\n", include_str!("../../snapback4-sim/tests/search_merge/schema.q"));
     let b = clean(&source);
     let note = b.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
     println!("{note}");
@@ -350,7 +350,7 @@ fn fanout_rewrite_lists_all_unpinned_rule_columns() {
 
 #[test]
 fn horizon_change_notes_keep_distinct_indexes_and_deduplicate_sites() {
-    let base = "table rows:\n  owner: principal\n  other: id\n  unique byOther: other\n  by byOwner: owner, id\n  read <- .owner = viewer\n  sync to .owner\nmutation inspect(id: rows, other: id):\n  return { first: rows[id], again: rows[id], other: rows[other] by byOther }\n";
+    let base = "table rows:\n  owner: principal\n  other: id\n  unique byOther: other\n  by byOwner: owner, id\n  read <- .owner = viewer\n  sync to .owner\nmutation inspect(id: rows, other: id):\n  return { first: rows[id = id], again: rows[id = id], other: rows[other] by byOther }\n";
     let before = clean(base);
     let after = clean(&base.replace("sync to .owner", "sync to .owner last 10 by byOwner"));
     let notes = snapback4_lang::bind::residency::change_notes(&after, &before.schema.operations);
@@ -451,14 +451,14 @@ fn capped_page_cursor_note_respects_default_examined_ceiling() {
 
 #[test]
 fn calibration_presence_refusal_names_source_read_without_internal_paths() {
-    let source = "table profiles:\n  principal: principal\n  unique byPrincipal: principal\n  displayName: text <=100\n  public 'profiles'\n  sync\neffect notify\nmutation send(recipient: principal) predicts:\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[viewer].displayName }\n";
+    let source = "table profiles:\n  principal: principal\n  unique byPrincipal: principal\n  displayName: text <=100\n  public 'profiles'\n  sync\neffect notify\nmutation send(recipient: principal) predicts:\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[principal = viewer].displayName }\n";
     let b = compile(&[("chat.q".into(), source.into())]);
     let d = &b.diagnostics[0];
     println!("{d}");
     assert_eq!(d.code, "E_NOT_PREDICTABLE");
     assert!(d.message.contains("connected[recipient]") && d.message.contains("chat.q:9:17"), "{d}");
     assert!(!d.to_string().contains("programs.") && !d.to_string().contains('$'), "{d}");
-    let fixed = source.replace("  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[viewer].displayName }", "  senderName = profiles[viewer].displayName\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: senderName }");
+    let fixed = source.replace("  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[principal = viewer].displayName }", "  senderName = profiles[principal = viewer].displayName\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: senderName }");
     let good = compile(&[("chat.q".into(), fixed)]);
     assert!(good.diagnostics.is_empty(), "{:?}", good.diagnostics);
     assert_eq!(good.schema.operations["chat.send"].predicts.as_deref(), Some("eligible"));
@@ -564,7 +564,7 @@ fn horizon_calibration_summary_and_heading_persist() {
     println!("heading:\n{heading}\nsummary: {summary:?}\nnotes: {}", first.notes.len());
     assert_eq!(heading.lines().next().unwrap(), "  chat.send: predicts: eligible except past the horizon at messages[messageId] (chat.q:83:22)");
     let summary = summary.unwrap();
-    assert_eq!(summary, "2 mutations eligible, but these reads queue without a row past a horizon: chat.createPost (posts[postId] (chat.q:87:13), ranked insert rule: posts by byId (chat.q:32:3)), chat.send (messages[messageId] (chat.q:83:22)) — snapback4 why <op>");
+    assert_eq!(summary, "2 mutations eligible, but these reads queue without a row past a horizon: chat.createPost (posts[id = postId] (chat.q:87:13), ranked insert rule: posts by byId (chat.q:32:3)), chat.send (messages[messageId] (chat.q:83:22)) — snapback4 why <op>");
     for _ in 0..3 {
         let next = horizon_fixture(HORIZONS);
         assert_eq!(prediction_summary(&next).as_deref(), Some(summary.as_str()));
@@ -654,7 +654,7 @@ fn w6r1_horizon_guard_distinguishes_row_invariants_from_write_retries() {
 
 #[test]
 fn w6r1_final_exists_live_aggregate_also_keeps_source_coverage() {
-    let source = include_str!("fixtures/rule-live-horizon.q").replace("insert <- exists liveCounts[.owner]", "insert <- allow\n  after insert <- exists liveCounts[.owner]");
+    let source = include_str!("fixtures/rule-live-horizon.q").replace("insert <- exists liveCounts[owner = .owner]", "insert <- allow\n  after insert <- exists liveCounts[owner = .owner]");
     let b = clean(&source);
     assert!(!b.notes.iter().any(|n| n.code == "N_NO_HORIZON" && n.message.starts_with("table sessions:")));
     assert!(b.schema.operations["act"].sites.iter().any(|s| s.table == "sessions" && s.kind == "aggregate source"));

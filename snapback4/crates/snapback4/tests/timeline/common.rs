@@ -48,7 +48,7 @@ mutation register():
   p = insert profiles {{ principal: viewer }}
   {register}
 mutation deleteProfile():
-  delete profiles[viewer]
+  delete profiles[principal = viewer]
 mutation publish(postId: id):
   p = insert posts {{ id: postId, authorId: viewer, at: now, body: 'hello' }}
   {publish}
@@ -70,14 +70,14 @@ mutation refollow(authorId: principal):
   {unfollow}
   {follow}
 mutation remove(postId: posts):
-  update posts[postId] {{ removed: true }}
+  update posts[id = postId] {{ removed: true }}
   {remove}
 query following(c: cursor ?):
   events = {read}
   return events {{ id: {event_id}, postId, actorId, authorId, repost, at }}
 query cards(c: cursor ?):
   events = {read}
-  return events {{ id: {event_id}, post: posts[.postId], actor: profiles[.actorId] }}
+  return events {{ id: {event_id}, post: posts[.postId], actor: profiles[principal = .actorId] }}
 "#));
     sources.push(("schema.q".into(), app));
     let b = snapback4_lang::compile(&sources);

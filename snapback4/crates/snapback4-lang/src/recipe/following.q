@@ -134,7 +134,7 @@ fn tryPull(readerId: principal, authorId: principal):
   if readerId = viewer:
     if exists pulls[readerId, authorId]:
       return true
-  slots = pullCounts[readerId]
+  slots = pullCounts[readerId = readerId]
   used = 0
   if slots != null:
     used = slots.used
@@ -143,12 +143,12 @@ fn tryPull(readerId: principal, authorId: principal):
   -- Foreign inserts happen only on an author's first promotion: no route
   -- for that author exists yet. Never probe another reader's private route.
   insert pulls { readerId, authorId }
-  upsert pullCounts[readerId] { readerId, used: used + 1 }
+  upsert pullCounts[readerId = readerId] { readerId, used: used + 1 }
   return true
 
 fn addFollow(authorId: principal):
   require authorId != viewer else FEED_CANNOT_FOLLOW_SELF
-  a = authors[authorId] ! else FEED_AUTHOR_NOT_FOUND
+  a = authors[principal = authorId] ! else FEED_AUTHOR_NOT_FOUND
   if exists follows[followerId = viewer, followedId = authorId]:
     return null
   if a.shared:
@@ -159,7 +159,7 @@ fn addFollow(authorId: principal):
     if count(near) > 50:
       -- Check the caller first so their own full slots name their own repair.
       require tryPull(viewer, authorId) else FEED_PULL_CAP
-      update authors[authorId] { shared: true }
+      update authors[principal = authorId] { shared: true }
       tryPull(authorId, authorId)
       for f in follows[authorId] by byFollowed:
         require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP
@@ -183,11 +183,11 @@ fn dropFollow(authorId: principal):
     delete feed[e.id]
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
-    slots = pullCounts[viewer] ! else FEED_PULL_COUNT_MISSING
+    slots = pullCounts[readerId = viewer] ! else FEED_PULL_COUNT_MISSING
     if slots.used = 1:
-      delete pullCounts[viewer]
+      delete pullCounts[readerId = viewer]
     else:
-      update pullCounts[viewer] { used: slots.used - 1 }
+      update pullCounts[readerId = viewer] { used: slots.used - 1 }
   delete follows[followerId = viewer, followedId = authorId]
 
   return null
@@ -208,7 +208,7 @@ fn deliver(p: posts):
 
 mutation createPost(postId: id):
   require not exists removedEvents[eventId = postId] else FEED_EVENT_REMOVED
-  a = authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
+  a = authors[principal = viewer] ! else FEED_AUTHOR_NOT_FOUND
   p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
@@ -218,7 +218,7 @@ mutation repost(eventId: posts):
   require not original.repost else FEED_ORIGINAL_REQUIRED
   if exists posts[viewer, original.postId, true]:
     return null
-  a = authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
+  a = authors[principal = viewer] ! else FEED_AUTHOR_NOT_FOUND
   p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
@@ -228,11 +228,11 @@ fn removeEvent(p: posts):
   insert removedEvents { id: p.id, eventId: p.id, actorId: viewer }
   if p.shared:
     delete broadcast[viewer, p.id]
-  delete posts[p.id]
+  delete posts[id = p.id]
   return null
 
 mutation deletePost(postId: posts):
-  p = posts[postId]
+  p = posts[id = postId]
   if p != null:
     require not p.repost else FEED_ORIGINAL_REQUIRED
     removeEvent(p)
@@ -253,5 +253,5 @@ job purgeRemoved():
   chunk p in removedEvents first 1 by byId:
     for e in feed[p.eventId] by byEvent:
       delete feed[e.id]
-    delete removedEvents[p.id]
+    delete removedEvents[id = p.id]
 schedule purgeRemovedEvery every 1m: purgeRemoved

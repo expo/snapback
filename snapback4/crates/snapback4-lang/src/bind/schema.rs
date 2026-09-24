@@ -481,17 +481,27 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
             }
         }
     }
+    if named.is_none() {
+        let declared = target.indexes.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
+            .filter(|index| match &read.index { Some(name) => &index.name == name, None => index.unique && index.columns.len() == terms.len() }).collect::<Vec<_>>();
+        if declared.len() != 1 {
+            let columns = declared.first().map(|index| index.columns.as_slice()).unwrap_or(&[]);
+            let keys = read.keys.iter().enumerate().map(|(at, key)| format!("{} = {}", columns.get(at).map(String::as_str).unwrap_or("column"), crate::print::expression(&key.value))).collect::<Vec<_>>().join(", ");
+            return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN", "a positional rule probe must identify one declared unique key by arity", format!("{}[{keys}]", read.table)).guide("reads"));
+        }
+    }
     let mut candidates: Vec<&IndexDecl> = target
         .indexes
         .iter()
         .filter(|index| index.is_plain())
+        .filter(|index| named.is_some() || !catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
         .filter(|index| match &read.index {
             Some(explicit) => &index.name == explicit,
             None => true,
         })
         .filter(|index| match &named {
             Some(names) => (index.columns.len() == names.len() && names.iter().all(|n| index.columns.contains(n))) || (extras && target.total_unique(index) && index.columns.iter().all(|column| names.contains(column))),
-            None => index.columns.len() == terms.len(),
+            None => (index.unique || read.index.is_some()) && index.columns.len() == terms.len(),
         })
         .filter(|index| {
             index.columns.iter().enumerate().all(|(position, column)| {
@@ -604,6 +614,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         indexes.push(index);
     }
     Ok(TableDecl {
+        search: Vec::new(),
         name: maintain.name.clone(),
         columns,
         indexes,

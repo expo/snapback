@@ -36,7 +36,7 @@ table rooms:
   insert <- .ownerId = viewer
   update (old, next) <- old.ownerId = viewer and next.ownerId = viewer   -- an update rule may name both images
   delete <- deny
-  after insert <- exists members[.id, .ownerId, 'admin']                 -- a row that must exist by the end of the mutation that inserted this one
+  after insert <- exists members[roomId = .id, principal = .ownerId, role = 'admin']                 -- a row that must exist by the end of the mutation that inserted this one
   sync to members[.id]                -- each row reaches every principal with a members row whose roomId is this row's id
 
 table members:
@@ -51,7 +51,7 @@ table members:
   immutable roomId, principal                          -- columns no update may change
   read <- exists members[.roomId, viewer]
   insert <- exists members[roomId = .roomId, principal = viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
-  delete <- .principal = viewer or exists members[.roomId, viewer, 'admin']
+  delete <- .principal = viewer or exists members[roomId = .roomId, principal = viewer, role = 'admin']
   sync to members[.roomId]
 
 table messages:
@@ -223,10 +223,10 @@ query helperRows(messageId: messages):
 
 query thread(roomId: rooms, c: cursor ?):                            -- `cursor ?` is the page argument; an omitted optional argument is null
   require exists members[roomId, viewer] else NOT_MEMBER              -- a refusal with the program's own code
-  return messages[roomId] by byRoomTime last 50 after c where .body != null and exists (members[.roomId, viewer] by byRoomPrincipal) messageCard   -- parentheses keep the explicit index on the inner read; messageCard shapes the page
+  return messages[roomId = roomId] by byRoomTime last 50 after c where .body != null and exists (members[.roomId, viewer] by byRoomPrincipal) messageCard   -- parentheses keep the explicit index on the inner read; messageCard shapes the page
 
 query inbox(c: cursor ?):
-  return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
+  return members[principal = viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
 
 query ancestors(roomId: rooms):
   chain = walk rooms[roomId] up .parentId depth 8                   -- the seed row plus at most eight parent hops
@@ -266,33 +266,33 @@ query tokenDigest(token: text <=200):
 
 query search(roomId: rooms, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
-  return messages[roomId] matching q after c last 50 by byRoomWords   -- word-prefix search: uniform expansion bounded by the meter; admitted non-uniform scopes keep 32 words; newest first
+  return messages[roomId = roomId] matching q after c last 50 by byRoomWords   -- word-prefix search: uniform expansion bounded by the meter; admitted non-uniform scopes keep 32 words; newest first
 
 query everywhere(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 50 by byRoomWords:
-    [m.roomId] for m in members[viewer]
+    [m.roomId] for m in members[principal = viewer] by byPrincipalRoom
 
 query wholeRoster(roomId: rooms):
   return members[roomId] by byRoomPrincipal                         -- the schema cap is the ascending whole-group bound
 
 query memberTotal():
   n = 0
-  for m in members[viewer]:                                        -- a uniform prefix under the query meter
+  for m in members[principal = viewer] by byPrincipalRoom:                                        -- a uniform prefix under the query meter
     n = n + 1
   return n
 
 query hasMessages(roomId: rooms):
-  return exists messages[roomId]                                  -- a prefix existence scan: first visible match, no page or cursor
+  return exists messages[roomId = roomId] by byRoomTime                                  -- a prefix existence scan: first visible match, no page or cursor
 
 query groupedMessages(q: text <=100, c: cursor ?):
-  return members[viewer] after c first 20 by byPrincipalRoom where exists (messages[.roomId] matching q) { roomId, hits: messages[.roomId] matching q last 3 by byRoomWords }
+  return members[principal = viewer] after c first 20 by byPrincipalRoom where exists (messages[roomId = .roomId] by byRoomWords matching q) { roomId, hits: messages[roomId = .roomId] matching q last 3 by byRoomWords }
 
 query online(p: principal):
   return connected[p]                 -- how many connections the principal holds open on the server; `exists connected[p]` tests (guide presence)
 
 mutation pagePass(roomId: rooms): server
   n = 0
-  for row in members[roomId] first 10 by byRoomPrincipal:
+  for row in members[roomId = roomId] first 10 by byRoomPrincipal:
     n = n + 1
   return n
 
@@ -324,7 +324,7 @@ mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) p
   return null                                                        -- a bare `return` is the same
 
 mutation join(roomId: rooms, principal: principal):
-  require exists members[roomId, viewer, 'admin'] else NOT_ADMIN
+  require exists members[roomId = roomId, principal = viewer, role = 'admin'] by byRoomPrincipalRole else NOT_ADMIN
   return insert members { roomId, principal, role: 'member', joinedAt: now } if absent   -- the row, or null on a unique clash
 
 mutation leave(roomId: rooms):
@@ -351,7 +351,7 @@ job nightly(periodStart: time, periodEnd: time):                    -- the serve
     stamp(r.id)
   chunk p in posts first 100 by byId:
     for i in range(0, 2):                                            -- int expressions, under the step meter
-      update posts[p.id] { score: p.score + i }
+      update posts[id = p.id] { score: p.score + i }
 schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
@@ -611,5 +611,43 @@ actions` for durable invocation collection and `guide writes` for mutations.
 ## Timelines
 
 For a public Following feed, use `maintain name: timeline`. The optional `size` clause defaults to 1,000 authors and 100,000 edges; `size authors 1008, edges 5921` fits the Clique fixture. `guide feeds` covers the complete program, caps, devices and lifecycle.
+
+## Reads and planned views
+
+A predicate states which rows belong in a read. `by .at` orders by a column;
+`first` ascends and `last` descends, with `id` breaking ties in that direction.
+The compiler selects or synthesizes indexes. A positional key must name one
+unambiguous declared unique key; named keys make the intended columns explicit.
+`search` declares searchable text, and unnamed `unique` declares a unique key.
+Duration literals are integer milliseconds in any expression.
+
+```quarry
+table intentPosts:
+  author: principal
+  handle: text <=30
+  body: text <=500
+  at: time default now
+  removed: bool default false
+  unique handle else HANDLE_TAKEN 'That handle is taken.'
+  search body
+  public 'discoverable posts'
+table intentReposts:
+  actor: principal
+  at: time default now
+  public 'discoverable reposts'
+view intentCounts: count intentPosts by .author
+  read <- allow
+view intentActivity:
+  intentPosts where not .removed { actor: .author, at, repost: false }
+  intentReposts { actor, at, repost: true }
+query intentPage(owner: principal, c: cursor ?):
+  return intentPosts where .author = owner and not .removed last 20 by .at after c
+query intentSearch(q: text <=100, c: cursor ?):
+  return intentPosts matching q last 20 by .at after c
+query intentGlobal(c: cursor ?):
+  return intentActivity last 20 by .at after c { id, actor, at, repost }
+query intentDurations():
+  return [500ms, 30s, 15m, 24h, 7d, bucket(now, 2m)]
+```
 
 "##;

@@ -7,11 +7,11 @@ use std::collections::BTreeMap;
 const MAPPINGS: [&str; 4] = ["profiles:principal", "posts:authorId:at", "follows:followerId:followedId", "reposts:actorId:postId:at"];
 const WRITES: &str = r#"
 mutation saveProfile(name: text <=100):
-  upsert profiles[viewer] { principal: viewer, name }
-  profile = profiles[viewer] ! else FEED_APP_NOT_FOUND
+  upsert profiles[principal = viewer] { principal: viewer, name }
+  profile = profiles[principal = viewer] ! else FEED_APP_NOT_FOUND
   feedAppRegister(profile.id)
 mutation register():
-  profile = profiles[viewer] ! else FEED_APP_NOT_FOUND
+  profile = profiles[principal = viewer] ! else FEED_APP_NOT_FOUND
   feedAppRegister(profile.id)
 mutation follow(authorId: principal):
   return feedAppFollow(authorId)
@@ -326,7 +326,7 @@ fn explicit_mapping_uses_selected_names() {
             .replace("authorId", "writer").replace("actorId", "actor").replace("postId", "cardRef")
             .replace("followerId", "reader").replace("followedId", "source")
             .replace("  principal: principal", "  account: principal").replace("byPrincipal: principal", "byPrincipal: account")
-            .replace("immutable principal", "immutable account").replace(".principal", ".account")
+            .replace("immutable principal", "immutable account").replace(".principal", ".account").replace("[principal =", "[account =")
             .replace("{ principal: viewer", "{ account: viewer")
     }
     let table_source = rename(&tables());

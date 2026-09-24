@@ -486,7 +486,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 4, "the language card separates the server opt-in, maintained-column and domain-work examples");
+    assert_eq!(quarry(LANGUAGE).len(), 5, "the language card includes server, column, streaming-work and intent examples");
 }
 
 #[test]

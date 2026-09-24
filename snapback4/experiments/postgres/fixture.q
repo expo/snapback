@@ -10,8 +10,8 @@ table memberships:
   cap 64 by room
   immutable room, principal
   read <- exists memberships[.room, viewer]
-  insert <- exists memberships[.room, viewer, 'admin']
-  delete <- .principal = viewer or exists memberships[.room, viewer, 'admin']
+  insert <- exists memberships[room = .room, principal = viewer, role = 'admin']
+  delete <- .principal = viewer or exists memberships[room = .room, principal = viewer, role = 'admin']
   sync
 
 table items:

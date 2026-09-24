@@ -93,7 +93,7 @@ fn maintain_refusals_point_to_the_expression_and_offer_a_rewrite() {
 
 #[test]
 fn maintain_prefix_needs_a_bound_and_expiring_rank_is_refused() {
-    let bound = compile("maintain totals: count posts by author, at\n  read <- allow\nquery short():\n  return totals[viewer]\n");
+    let bound = compile("maintain totals: count posts by author, at\n  read <- allow\nquery short():\n  return totals[author = viewer]\n");
     assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_BOUND"), "{:?}", bound.diagnostics);
     let source = SOURCE.replace("  at: time", "  until: time\n  by byUntil: until\n  expire at .until\n  at: time");
     let bound = snapback4_lang::compile(&[("expiry.q".into(), format!("{source}\nmaintain totals: count posts by author\n  read <- allow\n  by byCount: value, id\n"))]);

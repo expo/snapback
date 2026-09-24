@@ -33,8 +33,8 @@ query receipt(messageId: messages):
   if msg = null:
     return null
   recipients = memberships[msg.chatKey] first 16 by byChatPrincipal where .principal != msg.sender {
-    read: 1 if exists acknowledgments[msg.id, .principal, 'read'] else 0,
-    delivered: 1 if exists acknowledgments[msg.id, .principal, 'delivered'] or exists acknowledgments[msg.id, .principal, 'read'] else 0
+    read: 1 if exists acknowledgments[messageId = msg.id, principal = .principal, state = 'read'] by byMessagePrincipalState else 0,
+    delivered: 1 if exists acknowledgments[messageId = msg.id, principal = .principal, state = 'delivered'] by byMessagePrincipalState or exists acknowledgments[messageId = msg.id, principal = .principal, state = 'read'] by byMessagePrincipalState else 0
   }
   if sum(recipients, .read) = count(recipients):
     return { state: 'read' }

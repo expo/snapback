@@ -162,7 +162,7 @@ table profiles:
 shape postCard = { id, authorId, body, media, at }
 
 mutation saveProfile(name: text <=100):
-  upsert profiles[viewer] { principal: viewer, name }
+  upsert profiles[principal = viewer] { principal: viewer, name }
   feedRegister()
 
 mutation register():
@@ -178,14 +178,14 @@ mutation unfollow(authorId: principal):
 
 mutation createPost(postId: id, body: text <=4000, media: image <=1000000 ?):
   require not exists feedRemovedEvents[eventId = postId] else FEED_EVENT_REMOVED
-  a = feedAuthors[viewer] ! else FEED_AUTHOR_NOT_FOUND
+  a = feedAuthors[principal = viewer] ! else FEED_AUTHOR_NOT_FOUND
   p = insert posts { id: postId, authorId: viewer, body, media, at: now }
   event = insert feedPosts { id: postId, postId, actorId: viewer, authorId: p.authorId, repost: false, at: p.at, shared: a.shared }
   feedDeliver(event)
   return p postCard
 
 mutation repost(postId: posts):
-  original = posts[postId] ! else FEED_POST_NOT_FOUND
+  original = posts[id = postId] ! else FEED_POST_NOT_FOUND
   if exists reposts[viewer, postId]:
     return null
   event = feedPosts[original.authorId, postId, false] ! else FEED_POST_NOT_FOUND

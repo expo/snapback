@@ -106,9 +106,9 @@ fn no_prediction(observed: &observation::Observation) {
 
 fn changed_audience(guard: bool) {
     let source = LIKES.replace("insert <- .principal = viewer", "insert <- allow")
-        .replace("  upsert likes[postId, viewer] { on: true }", if guard {
-            "  r = upsert likes[postId, viewer] { principal: 'alice', on: true }\n  require r = null else WRONG\n  return r"
-        } else { "  upsert likes[postId, viewer] { principal: 'alice', on: true }" }) + "\ntable ballast:\n  marker: bool\n  online only\n";
+        .replace("  upsert likes[postId = postId, principal = viewer] { on: true }", if guard {
+            "  r = upsert likes[postId = postId, principal = viewer] { principal: 'alice', on: true }\n  require r = null else WRONG\n  return r"
+        } else { "  upsert likes[postId = postId, principal = viewer] { principal: 'alice', on: true }" }) + "\ntable ballast:\n  marker: bool\n  online only\n";
     let mut worlds = Vec::new();
     for hidden in [false, true] {
         let (mut server, _) = compile(&source);
@@ -221,7 +221,7 @@ fn defaulted_insert_rule_refusal_matches_server_on_both_stores() {
 #[test]
 fn pending_delete_then_upsert_replays_in_order_on_both_stores() {
     fn run<H: Host>(host: &mut H) {
-        let source = format!("{}\nmutation clear(postId: text <=30):\n  delete likes[postId, viewer]\n", LIKES.replace("  update <-", "  delete <- .principal = viewer\n  update <-"));
+        let source = format!("{}\nmutation clear(postId: text <=30):\n  delete likes[postId = postId, principal = viewer]\n", LIKES.replace("  update <-", "  delete <- .principal = viewer\n  update <-"));
         let (mut server, backend) = compile(&source);
         seed(&mut server, "likes", json!({"id":"old","postId":"first","principal":"bob","on":false}));
         let mut device = host.open("ordered", Some(backend)).unwrap();

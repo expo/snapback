@@ -21,7 +21,7 @@ table messages:
 
 query everywhere(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 2 by byRoomWords:
-    [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom
+    [m.roomId] for m in members[principal = viewer] first 50 by byPrincipalRoom
 
 query explicit(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 2 by byRoomWords:

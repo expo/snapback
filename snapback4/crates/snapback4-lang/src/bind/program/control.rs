@@ -373,11 +373,20 @@ impl Binder<'_> {
     pub(super) fn loop_domain(&mut self, domain: &A, out: &mut setup::Body) -> Fallible<(LoopDomain, Ty)> {
         if let A::Read(read) = domain && let Some(shaped) = self.page_shape(read) { return self.loop_domain(&shaped, out); }
         if let A::Name { name, site } = domain && self.binding(name).is_none() && self.catalog.tables.contains_key(name) {
-            let read = ReadExpr { table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
+            let read = ReadExpr { order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
             let (scan, _) = self.scan_at(&read, out, prefix::Position::Domain)?;
             return Ok((LoopDomain::Page(scan), Ty::Row(name.clone())));
         }
         match domain {
+            A::Name { name, .. } if self.binding(name).is_none() && self.catalog.view_reads.contains_key(name) => {
+                let mut merge = self.catalog.view_reads[name].clone(); merge.site = domain.site().clone();
+                self.loop_domain(&A::Merge(merge), out)
+            }
+            A::Merge(merge) if merge.index.is_empty() => {
+                let (value, ty) = self.planned_view(merge, out, prefix::Position::Domain)?;
+                let item = match ty { Ty::Page(table, _) => Ty::Row(table), Ty::Collection(item, _) => *item, _ => unreachable!("planned collection") };
+                Ok((LoopDomain::DerivedArray { value, max: merge.take, bound_source: "planned domain".into() }, item))
+            }
             A::Read(read) if self.is_page(read, ReadMode::FilteredPoint)? => {
                 let (scan, _) = self.scan_at(read, out, prefix::Position::Domain)?;
                 Ok((LoopDomain::Page(scan), Ty::Row(read.table.clone())))

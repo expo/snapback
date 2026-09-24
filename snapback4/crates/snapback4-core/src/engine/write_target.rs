@@ -252,7 +252,7 @@ fn pure_expr(expr: &Expr) -> bool {
     match expr {
         Expr::Literal(_) | Expr::Variable(_) => true,
         Expr::Input(input) => match input { Input::NewId => false, Input::Viewer | Input::Now | Input::ReadTime => true },
-        Expr::Merge(merge) => merge.lanes.iter().all(|lane| pure(&lane.setup) && pure_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(pure_scan) && source.expressions().into_iter().all(pure_expr))),
+        Expr::Merge(merge) => merge.position.as_ref().and_then(|position| position.after.as_deref()).is_none_or(pure_expr) && merge.lanes.iter().all(|lane| lane.guard.as_ref().is_none_or(pure_expr) && lane.project.as_ref().is_none_or(pure_expr) && lane.distinct.as_ref().is_none_or(pure_expr) && pure(&lane.setup) && pure_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(pure_scan) && source.expressions().into_iter().all(pure_expr))),
         Expr::Scan(scan) => pure_scan(scan),
         Expr::Block { body, value } => pure(body) && pure_expr(value),
         Expr::Shape { base, fields } => pure_expr(base) && fields.values().all(pure_expr),

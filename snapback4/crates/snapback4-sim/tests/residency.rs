@@ -77,7 +77,7 @@ maintain activeRepostCounts: count repostEdges by postId
 query history(conversationId: conversations, c: cursor ?):
   return messages[conversationId] after c last 2 by byConversationTime
 query me():
-  return profiles[viewer]
+  return profiles[principal = viewer]
 query dm(other: principal):
   return dmPairs[other, viewer]
 query presence(other: principal):
@@ -404,7 +404,7 @@ fn upsert_residency_explains_insert_prediction_without_changing_eligibility() {
     for (source, reason) in [
         (source.to_owned(), "upsert insert into likes: absence is provable when the group and insert image are held and readable"),
         (source.replace("  sync\n", "  sync last 1 by byPrincipal\n"), "upsert insert queues without a row: likes has horizon last 1 by byPrincipal (principal, post, id)"),
-        (source.replace("post, principal\n", "post\n").replace("likes[post, viewer]", "likes[post]").replace("{on: true}", "{principal: viewer, on: true}"), "upsert insert queues without a row: likes read rule `.principal = viewer` is not decided by key byPostPrincipal (post); unpinned: principal"),
+        (source.replace("post, principal\n", "post\n").replace("likes[post, viewer]", "likes[post = post]").replace("{on: true}", "{principal: viewer, on: true}"), "upsert insert queues without a row: likes read rule `.principal = viewer` is not decided by key byPostPrincipal (post); unpinned: principal"),
     ] {
         let bound = compile(&source);
         let fact = &bound.schema.operations["vote"];

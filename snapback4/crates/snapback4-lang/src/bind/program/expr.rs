@@ -9,7 +9,7 @@ impl Binder<'_> {
         match value {
             A::Read(read) if read.range.is_none() && read.matching.is_none() => Some(read.clone()),
             A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) =>
-                Some(ReadExpr { table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() }),
+                Some(ReadExpr { order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() }),
             _ => None,
         }
     }
@@ -65,6 +65,15 @@ impl Binder<'_> {
     pub(super) fn expr(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let site = expr.site();
         match expr {
+            A::Name { name, .. } if self.binding(name).is_none() && self.catalog.view_reads.contains_key(name) => {
+                let mut merge = self.catalog.view_reads[name].clone();
+                merge.site = site.clone();
+                self.planned_view(&merge, out, prefix::Position::Page)
+            }
+            A::Name { name, .. } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) => {
+                self.read(&ReadExpr { computed: Default::default(), table: name.clone(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: Some("byId".into()),
+                    order_keys: vec!["id".into()], range: None, matching: None, site: site.clone() }, out)
+            }
             A::Name { name, .. } => self.name(name, site),
             A::Focal { .. } => match &self.focal {
                 Some((var, ty)) => Ok((ir::var(var), ty.clone())),
@@ -329,6 +338,19 @@ impl Binder<'_> {
     }
 
     pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if op == "in" {
+            let (value, ty) = self.expr(left, out)?;
+            let value = self.snapshot(value, out);
+            let (domain, item) = self.loop_domain(right, out)?;
+            if !ty.comparable(&item) { return Err(type_error(site, format!("in compares {} with {}", ty.name(), item.name()), "use a list of values of the column's type")); }
+            let found = self.temp("contains");
+            let binding = self.temp("member");
+            out.push(Stmt::Let { name: found.clone(), value: ir::lit(Value::Bool(false)) });
+            let body = vec![Stmt::If { condition: Expr::Binary { op: BinaryOp::Eq, left: Box::new(value), right: Box::new(ir::var(&binding)) },
+                then_body: vec![Stmt::Assign { name: found.clone(), value: ir::lit(Value::Bool(true)) }, Stmt::Break], else_body: Vec::new() }];
+            out.push(Stmt::For { binding, domain, body });
+            return Ok((ir::var(&found), Ty::Bool));
+        }
         if op == "??" {
             let (l, lt) = self.expr(left, out)?;
             let tmp = self.temp("or");

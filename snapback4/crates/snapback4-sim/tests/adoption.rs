@@ -123,7 +123,7 @@ fn rule_probe_materializes_defaulted_maintain_source_groups() {
         e.seed([("sources".into(), wire::row_from_json(&source, &serde_json::json!({"id":"s", "amount":1, "until":now+60_000})).unwrap())]).unwrap();
         let index = if indexed { "  by byBucket: bucket, id\n" } else { "" };
         let after = before.replace("  amount:", &format!("  bucket: int default 0\n{index}  amount:"))
-            + "maintain totals: sum sources of amount by bucket\n  read <- allow\ntable probes:\n  bucket: int\n  read <- exists totals[.bucket]\nquery probe():\n  return probes['p']\n";
+            + "maintain totals: sum sources of amount by bucket\n  read <- allow\ntable probes:\n  bucket: int\n  read <- exists totals[bucket = .bucket]\nquery probe():\n  return probes['p']\n";
         let b = bound(&after);
         e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
         let table = e.schema().tables["probes"].clone();

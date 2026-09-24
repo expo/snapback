@@ -212,18 +212,15 @@ query list(c: cursor ?):
   return items[viewer] after c first 10 -- keep this comment
 `;
 
-test("check --fix repairs ambiguity then the cursor index in one run and preserves comments", (t) => {
+test("check --fix preserves ambiguous positional intent and repairs an explicit cursor index", (t) => {
   const { dir, run, invoke } = fixture(t);
   mkdirSync(join(dir, "snapback"));
-  writeFileSync(join(dir, "snapback/schema.q"), ambiguous.replace("  by byTitle: title, id", "  by byOtherOwner: owner, title, id"));
-  const before = invoke("check", "--json");
-  assert.equal(before.status, 1);
-  assert.equal(JSON.parse(before.stdout).problems[0].code, "E_QUARRY_AMBIGUOUS");
-  const fixed = run("check", "--fix", "--json");
-  assert.equal(JSON.parse(fixed.stdout).ok, true);
-  assert.match(fixed.stderr, /fix: .*E_QUARRY_AMBIGUOUS/);
-  assert.match(fixed.stderr, /fix: .*E_CURSOR_INDEX/);
-  assert.match(read(join(dir, "snapback/schema.q")), /by byOwner -- keep this comment/);
+  const source = ambiguous.replace("  by byTitle: title, id", "  by byOtherOwner: owner, title, id");
+  writeFileSync(join(dir, "snapback/schema.q"), source);
+  const fixed = invoke("check", "--fix", "--json");
+  assert.equal(fixed.status, 1);
+  assert.equal(JSON.parse(fixed.stdout).problems[0].code, "E_QUARRY_POSITIONAL_SCAN");
+  assert.equal(read(join(dir, "snapback/schema.q")), source);
   // Force the cursor tie-break repair across module files as well.
   writeFileSync(join(dir, "snapback/schema.q"), ambiguous.split("query list")[0]);
   writeFileSync(join(dir, "snapback/reads.q"), "query list(c: cursor ?):\n  return items[viewer] after c first 10 by byOwner -- keep me\n");
@@ -247,7 +244,7 @@ test("check --fix leaves unmarked rewrites and prints the diagnostic", (t) => {
   assert.equal(read(join(dir, "snapback/schema.q")), source);
 });
 
-test("an elif and an ambiguous key are fixed together", (t) => {
+test("an elif is repaired while an ambiguous positional key needs an author choice", (t) => {
   const { dir, run, invoke } = fixture(t);
   mkdirSync(join(dir, "snapback"));
   const source = ambiguous.replace("  by byTitle: title, id", "  by byOtherOwner: owner, title, id") + "\nquery choose(n: int):\n  if n = 0:\n    return 0\n  elif n = 1:\n    return 1\n  else:\n    return 2\n";
@@ -256,9 +253,13 @@ test("an elif and an ambiguous key are fixed together", (t) => {
   const alias = before.problems?.find((d) => d.code === "E_QUARRY_UNSUPPORTED" && /elif/.test(d.message));
   assert.ok(alias, "elif has an exact mechanical diagnostic");
   assert.equal(alias.mechanical, true, "lane L's exact spelling rewrite must call .mechanical()");
-  run("check", "--fix");
-  assert.doesNotMatch(read(join(dir, "snapback/schema.q")), /\belif\b/);
-  assert.match(read(join(dir, "snapback/schema.q")), /first 10 by byOwner/);
+  const fixed = invoke("check", "--fix", "--json");
+  assert.equal(fixed.status, 1);
+  assert.equal(JSON.parse(fixed.stdout).problems[0].code, "E_QUARRY_POSITIONAL_SCAN");
+  const repaired = read(join(dir, "snapback/schema.q"));
+  assert.doesNotMatch(repaired, /\belif\b/);
+  assert.equal(repaired, source.replace("elif", "else if"));
+  writeFileSync(join(dir, "snapback/schema.q"), repaired.replace("items[viewer]", "items[viewer] by byOtherOwner"));
   run("check");
 });
 

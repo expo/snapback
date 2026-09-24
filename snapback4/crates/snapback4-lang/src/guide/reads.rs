@@ -1,6 +1,21 @@
 //! Read answers, pages and continuation. Compiled by tests/guide.rs.
 pub const CARD: &str = r##"# Reads
 
+Finite ranked windows enumerate inclusive UTC buckets:
+`bucket(lower) ..= bucket(upper)`. The exact endpoint comparisons still
+filter every row. A missing finite upper bound stays a metered residual scan;
+N_SPARSE_FILTER suggests `and .at <= now` when that is the intended window.
+Paging by a maintained order key such as `.likeCount` is not a snapshot:
+changes can move rows across a saved position. Restart to see the new order.
+Value lanes deduplicate values and skip null; each lane keeps its source rule.
+A cut during discovery or while any lane head is unknown is incomplete and
+has no cursor. A full page never certifies a prefix of an unfinished lane list.
+
+E_QUARRY_POSITIONAL_SCAN means a positional key would scan a population.
+Use `posts where .authorId = owner last 20 by .at`; `posts[id = postId]` reads
+one id, and named keys such as `profiles[principal = viewer]` read unique keys.
+
+
 Every ready `Read` carries `cut: 'meter' | 'words' | null` beside `complete`,
 on the server and either device store. An empty page with `cut: 'meter'`
 means partial: retry narrower, or continue if `next` exists; never "no matches".
@@ -59,19 +74,19 @@ The default is `dev:alice`. Jobs still run as the system.
 
 Named equalities covering a total unique key read one row and check any extra
 columns there: `t[key = x, col = y]` returns null on a mismatch, and
-`exists t[key = x, col = y]` returns false. A non-unique prefix still needs an index. When several indexes match a positional
-key, a single exact-type match wins first; if that remains ambiguous, exactly one
-unique index covering the whole key wins; otherwise name `by index`
-(the ambiguity diagnostic carries a mechanical `check --fix` rewrite).
+`exists t[key = x, col = y]` returns false. Named equalities covering no
+unique key plan an ordinary authorized scan.
+A positional key resolves only when exactly one declared unique key has its
+arity. Types check that choice; they never choose between keys. If none or
+several match, use named keys. Generated planning indexes never participate.
+An explicit `by <authoredIndex>` keeps its existing point or prefix meaning.
 
-Positional keys carry their reference types: if `replies.postId: posts`,
-`replies[p]` with `p: posts` selects the parent prefix, not the reply's id.
-For a point lookup write `replies[id = r]` with `r: replies` (or
-`replies[r] by byId`). Changing `r` to a different table's reference then
-refuses instead of becoming a page. A generic `id` loses this table-identity
-check; do not add an ID helper merely to silence a wrong-table reference.
-An absent, hidden or null point target returns null; a parent prefix returns
-a page, empty when no row matches. A reference type does not prove existence.
+References keep their table identity: `replies[id = r]` with `r: replies`
+reads a reply, while `replies where .postId = p first 20 by .id` with
+`p: posts` reads its replies. Passing a reference to a different table
+refuses; a generic `id` does not carry that table-identity check.
+An absent, hidden or null point target returns null. A predicate read returns
+a page, empty when no visible row matches. A reference does not prove existence.
 `snapback4 why <operation>` shows each read's source site, selected index,
 column/key bindings, result form and selection reason; the same facts appear
 in `check --json` execution sites. These are binder facts, not measured work.
@@ -81,11 +96,11 @@ query readForms(roomId: rooms, messageId: messages, c: cursor ?):
   one = messages[messageId]                                  -- one row by a unique key: null if absent or hidden
   must = messages[messageId] ! else NOT_FOUND                 -- the row, or refuse with the code
   roster = members[roomId] by byRoomPrincipal                 -- ascending whole group, bounded by cap 100
-  anyMessage = exists messages[roomId]                        -- first visible match; false on absence
+  anyMessage = exists messages where .roomId = roomId                        -- first visible match; false on absence
   member = exists members[roomId, viewer]                    -- true or false; positional keys match the index columns
   admin = exists members[roomId = roomId, principal = viewer, role = 'admin']   -- named keys; `by` names the index when two match
   oldest = messages[roomId, at < must.at] last 20 by byRoomTime           -- the nearest earlier rows
-  newest = messages[roomId] after c last 20 by byRoomTime where .body != null    -- a page, descending, from a cursor
+  newest = messages[roomId = roomId] after c last 20 by byRoomTime where .body != null    -- a page, descending, from a cursor
   everyone = profiles first 50 by byHandle                   -- the whole table's page: the empty prefix, spelled without brackets
   merged = merge posts last 20 by byAuthorTime:              -- one ordered page over several prefixes of one index
     [viewer]
@@ -98,7 +113,7 @@ For an expiring table, return the deadline with each row:
 
 ```quarry
 query expiringMessages(roomId: rooms, c: cursor ?):
-  return messages[roomId] after c last 20 by byRoomTime { id, body, expiresAt }
+  return messages[roomId = roomId] after c last 20 by byRoomTime { id, body, expiresAt }
 ```
 
 A typing indicator or presence row with a short deadline needs this local
@@ -184,7 +199,7 @@ An immediate `by` or `matching` after an unparenthesized inner read is ambiguous
 (`E_QUARRY_MODIFIER_SCOPE`): parenthesize the inner read, or move the modifier
 before `where`. `check --fix` preserves the inner index by adding parentheses:
 `where exists (follows[viewer, .authorId] by byPair)`.
-For an inner search use `where exists (messages[.roomId] matching q)`.
+For an inner search use `where exists (messages[roomId = .roomId] matching q)`.
 
 ## Pages without a cursor
 
@@ -312,7 +327,7 @@ A mutation classified `predicts: "never"`, from a server site or an author's
 is uniform over the prefix. `matching`, merges and tables with expiry are
 refused for every mutation page (`E_STRUCTURAL_FANOUT`), predicting or not,
 looped or only bound. Prediction still needs a complete
-schema-capped group: `for m in members[roomId]:` takes its bound from the
+schema-capped group: `for m in members[roomId = roomId]:` takes its bound from the
 schema cap, so changing the cap changes every whole-group read. An explicit
 `first <cap>` stays legal; a smaller explicit bound still fails the prediction
 proof. A job's inner loop may also read a capped group without restating it.
@@ -327,7 +342,7 @@ ceiling <n>". It never commits a partial pass after a budget abort.
 ```quarry
 mutation recentPass(roomId: rooms): server
   n = 0
-  for row in members[roomId] first 10 by byRoomPrincipal:
+  for row in members[roomId = roomId] first 10 by byRoomPrincipal:
     n = n + 1
   return n
 ```
@@ -372,9 +387,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   when the ordering suffix lacks it; admitted non-uniform matching scans stay eager.
   `connected[p]` (open connections; `exists connected[p]` tests;
   `guide presence`). A key may name its columns: `t[a = x, b = y]`.
-  If several indexes match a positional key, a single exact-type match wins
-  first. If that remains ambiguous and exactly one is unique over the whole
-  key, that unique index wins; otherwise use `by index`.
+  Positional keys require exactly one declared unique key of that arity;
+  otherwise use named keys. An explicit authored `by index` retains its
+  existing meaning, including a non-unique prefix.
   With a total unique `(chatKey, principal)` key on t, `.principal = viewer
   or exists t[.chatKey, viewer]` is decided by the chat: each row witnesses
   itself, so the chat's roster page is complete without a second table.

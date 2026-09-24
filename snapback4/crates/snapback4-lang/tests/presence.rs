@@ -35,7 +35,7 @@ fn presence_aliases_payloads_and_nested_emit_arms_predict() {
         "  for i in range(0, 2):\n    insert notes { n: i }\n    if p != viewer and not exists connected[p]:\n      emit notify { p }",
         "  insert notes { n: 1 }\n  if not exists connected[p] and p != viewer:\n    emit notify { count: connected[p] }\n  else if exists connected[viewer] and p = viewer:\n    emit notify { self: true }",
         "  insert notes { n: 1 }\n  emit notify { n: 2 if exists connected[p] else 3 }",
-        "  insert notes { n: 1 }\n  row = notes[1]\n  if not exists connected[p]:\n    emit notify { row }",
+        "  insert notes { n: 1 }\n  row = notes[n = 1]\n  if not exists connected[p]:\n    emit notify { row }",
     ] {
         let bound = compile(body);
         let fact = &bound.schema.operations["probe"];
@@ -51,7 +51,7 @@ fn presence_non_effect_uses_keep_precise_server_reasons() {
         ("return", "  return connected[p]", "decides the returned value"),
         ("alias", "  n = connected[p]\n  insert notes { n }", "decides a write row"),
         ("break", "  for i in range(0, 2):\n    if exists connected[p]:\n      break\n    insert notes { n: i }", "decides break"),
-        ("key", "  emit notify { row: notes[connected[p]] }", "decides a read key"),
+        ("key", "  emit notify { row: notes[n = connected[p]] }", "decides a read key"),
         ("implicit", "  n = 0\n  if exists connected[p]:\n    n = 1\n  insert notes { n }", "decides an assignment"),
         ("effect_assignment", "  n = 0\n  if exists connected[p]:\n    n = 1\n  emit notify { n }", "decides an assignment"),
         ("push", "  ns = [0]\n  ns = ns + [connected[p]]\n  insert notes { n: count(ns) }", "decides a write row"),
@@ -60,12 +60,12 @@ fn presence_non_effect_uses_keep_precise_server_reasons() {
         ("loop_carried", "  n = 0\n  for i in range(0, 2):\n    insert notes { n }\n    n = connected[p]", "decides a write row"),
         ("break_exit", "  n = 0\n  for i in range(0, 2):\n    n = connected[p]\n    if i = 0:\n      break\n    n = 0\n  insert notes { n }", "decides a write row"),
         ("continue_exit", "  n = 0\n  for i in range(0, 2):\n    insert notes { n }\n    n = connected[p]\n    if i = 0:\n      continue\n    n = 0", "decides a write row"),
-        ("update", "  update notes[connected[p]] { n: 1 }", "decides a write key"),
-        ("patch", "  update notes[1] { n: connected[p] }", "decides a write patch"),
-        ("delete", "  delete notes[connected[p]]", "decides a write key"),
-        ("upsert", "  upsert notes[1] { n: connected[p] }", "decides a write patch"),
+        ("update", "  update notes[n = connected[p]] { n: 1 }", "decides a write key"),
+        ("patch", "  update notes[n = 1] { n: connected[p] }", "decides a write patch"),
+        ("delete", "  delete notes[n = connected[p]]", "decides a write key"),
+        ("upsert", "  upsert notes[n = 1] { n: connected[p] }", "decides a write patch"),
         ("absent", "  insert notes { n: connected[p] } if absent", "decides a write row"),
-        ("condition", "  update notes[1] { n: 2 } if exists connected[p]", "decides a write condition"),
+        ("condition", "  update notes[n = 1] { n: 2 } if exists connected[p]", "decides a write condition"),
         ("filter", "  emit notify { rows: notes first 2 by byN where .n = connected[p] }", "decides a read condition"),
         ("else_write", "  if exists connected[p]:\n    emit notify { p }\n  else:\n    insert notes { n: 1 }", "decides a write"),
     ] {
@@ -90,7 +90,7 @@ fn presence_class_change_notes_only_report_lost_eligibility() {
 fn r1p_helpers_in_conditions_and_payloads_keep_population_admission() {
     let mut missing = Vec::new();
     for helper in [
-        "fn visit():\n  for r in notes first 1 by byN:\n    update notes[r.id] { n: r.n }\n  return true\n",
+        "fn visit():\n  for r in notes first 1 by byN:\n    update notes[id = r.id] { n: r.n }\n  return true\n",
         "fn visit():\n  for r in notes first 10 by byN:\n    return true\n  return false\n",
     ] {
         for body in ["  if visit():\n    emit notify { ok: true }", "  emit notify { ok: visit() }", "  if visit():\n    return true"] {
@@ -151,7 +151,7 @@ fn r1p_fallible_and_variable_size_presence_evaluation_never_predicts() {
         "  insert notes { n: 1 }\n  emit notify { count: connected[p] + 1 }",
         "  n = connected[p]\n  n = n + 1\n  counts = [0]\n  counts = counts + [n]\n  insert notes { n: 1 }\n  emit notify { counts }",
         "  insert notes { n: 1 }\n  if not exists connected[p] and p != viewer:\n    emit notify { count: connected[p] + 1 }\n  else if exists connected[viewer] and p = viewer:\n    emit notify { self: true }",
-        "  insert notes { n: 1 }\n  if not exists connected[p]:\n    emit notify { row: notes[1] }",
+        "  insert notes { n: 1 }\n  if not exists connected[p]:\n    emit notify { row: notes[n = 1] }",
         "  emit notify { n: connected[p] * 9007199254740991 }",
         "  emit notify { n: 0 - connected[p] }",
         "  emit notify { n: slice('abc', 0, connected[p]) }",
@@ -160,7 +160,7 @@ fn r1p_fallible_and_variable_size_presence_evaluation_never_predicts() {
         "  emit notify { digest: sha256('high-entropy-token') if exists connected[p] else 'not-sent' }",
         "  emit notify { text: 'a long value' if exists connected[p] else '' }",
         "  emit notify { values: [1, 2] if exists connected[p] else [1] }",
-        "  if exists connected[p]:\n    emit notify { row: notes[1] ! else MISSING }",
+        "  if exists connected[p]:\n    emit notify { row: notes[n = 1] ! else MISSING }",
     ] {
         let bound = compile(body);
         let fact = &bound.schema.operations["probe"];

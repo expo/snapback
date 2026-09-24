@@ -121,7 +121,7 @@ job digest(periodStart: time, periodEnd: time):
       emit digest { targetUserId: p.principal, periodStart, periodEnd, unreadMessages: unread, unreadChats: chats }
 
 mutation push(cid: conversations, body: text <=4000):
-  profile = profiles[viewer] ! else NOT_FOUND
+  profile = profiles[principal = viewer] ! else NOT_FOUND
   for m in memberships[cid] first 50 by byConversationPrincipal:
     if m.principal = viewer:
       continue

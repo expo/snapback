@@ -84,7 +84,7 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
     let Some(first) = merge.lanes.first() else { return true };
     merge.lanes.iter().all(|lane| {
         let scan = &lane.scan;
-        lane.setup.is_empty() && scan.table == first.scan.table && scan.index == first.scan.index
+        lane.project.is_none() && lane.setup.is_empty() && scan.table == first.scan.table && scan.index == first.scan.index
             && scan.prefix.iter().enumerate().all(|(position, key)| matches!(key, IndexKeyExpr::Scalar(_)) || position + 1 == scan.prefix.len())
             && scan.order == first.scan.order && scan.prefix.len() == first.scan.prefix.len()
             && scan_visibility(schema, scan).uniform

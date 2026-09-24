@@ -24,6 +24,11 @@ impl TableInfo {
 
 #[derive(Default)]
 pub struct Catalog {
+    pub read_origins: BTreeMap<String, String>,
+    pub view_reads: BTreeMap<String, crate::ast::MergeExpr>,
+    pub view_types: BTreeMap<String, crate::types::Ty>,
+    pub planner_notes: Vec<Diagnostic>,
+    pub synthesized: std::collections::BTreeSet<(String, String)>,
     pub documents: Vec<Document>,
     pub tables: BTreeMap<String, TableInfo>,
     pub maintains: BTreeMap<String, MaintainDecl>,
@@ -56,6 +61,12 @@ impl Catalog {
                     }
                     if columns.insert(column.name.clone(), column.type_.clone()).is_some() {
                         diagnostics.push(unknown(&column.site, format!("duplicate column {}.{}", table.name, column.name), "rename one of the two columns"));
+                        ok = false;
+                    }
+                }
+                for field in &table.search {
+                    if !matches!(columns.get(field), Some(ScalarType { kind: TypeKind::Text { .. }, .. })) {
+                        diagnostics.push(crate::diag::type_error(&table.site, format!("search {} requires a text column on {}", field, table.name), format!("declare `{field}: text <=2000` before `search {field}`")).guide("search"));
                         ok = false;
                     }
                 }
@@ -159,7 +170,7 @@ impl Catalog {
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }
         }
-        let mut catalog = Self { documents, tables, maintains, shapes, functions, effects };
+        let mut catalog = Self { read_origins: BTreeMap::new(), view_reads: BTreeMap::new(), view_types: BTreeMap::new(), documents, tables, maintains, shapes, functions, effects, synthesized: Default::default(), planner_notes: Vec::new() };
         for maintain in catalog.maintains.values().filter(|m| m.read.is_none()) {
             // A colliding ordinary table can exist even when target generation failed.
             if !catalog.tables.get(&maintain.name).is_some_and(|info| info.maintained.is_some()) { continue; }

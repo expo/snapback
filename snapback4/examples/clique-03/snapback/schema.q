@@ -95,7 +95,7 @@ maintain dailyReceivedReplies: count replies by postId.authorId, day(.at)
   online only
 
 query following(c: cursor ?):
-  return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[.actorId], author: profiles[.authorId] }
+  return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[principal = .actorId], author: profiles[principal = .authorId] }
 
 query thread(postId: posts, c: cursor ?):
   return replies[postId] after c first 20 by byPost
@@ -112,21 +112,21 @@ mutation register(name: text <=80):
 mutation post(body: text <=4000):
   return insert posts { authorId: viewer, body, at: now }
 mutation reply(postId: posts, body: text <=500):
-  require exists posts[postId] else FEED_APP_NOT_FOUND
+  require exists posts[id = postId] else FEED_APP_NOT_FOUND
   return insert replies { postId, authorId: viewer, body, at: now }
 mutation like(postId: posts):
-  require exists posts[postId] else FEED_APP_NOT_FOUND
-  require posts[postId].removed = false else FEED_POST_REMOVED
+  require exists posts[id = postId] else FEED_APP_NOT_FOUND
+  require posts[id = postId].removed = false else FEED_POST_REMOVED
   insert likes { postId, principal: viewer, at: now } if absent
 mutation unlike(postId: posts):
   if exists likes[postId, viewer]:
     delete likes[postId, viewer]
 mutation repost(postId: posts):
-  require exists posts[postId] else FEED_APP_NOT_FOUND
-  require posts[postId].removed = false else FEED_POST_REMOVED
+  require exists posts[id = postId] else FEED_APP_NOT_FOUND
+  require posts[id = postId].removed = false else FEED_POST_REMOVED
   return insert reposts { actorId: viewer, postId, at: now } if absent
 mutation remove(postId: posts):
-  update posts[postId] { removed: true }
+  update posts[id = postId] { removed: true }
 mutation unrepost(postId: posts):
   if exists reposts[viewer, postId]:
     delete reposts[viewer, postId]

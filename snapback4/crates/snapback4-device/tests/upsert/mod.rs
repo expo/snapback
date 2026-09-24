@@ -19,9 +19,9 @@ table likes:
   update <- .principal = viewer
   sync
 query one(postId: text <=30):
-  return likes[postId, viewer]
+  return likes[postId = postId, principal = viewer]
 mutation vote(postId: text <=30):
-  upsert likes[postId, viewer] { on: true }
+  upsert likes[postId = postId, principal = viewer] { on: true }
 "#;
 
 #[test]
@@ -105,7 +105,7 @@ fn first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores() 
             ("owner", LIKES.to_owned(), true),
             ("public", LIKES.replace("read <- .principal = viewer", "read <- public"), true),
             ("horizon", LIKES.replace("  sync\n", "  sync last 1 by byPrincipal\n"), false),
-            ("unpinned", LIKES.replace("unique byPostPrincipal: postId, principal", "unique byPostPrincipal: postId").replace("likes[postId, viewer]", "likes[postId]").replace("{ on: true }", "{ principal: viewer, on: true }"), false),
+            ("unpinned", LIKES.replace("unique byPostPrincipal: postId, principal", "unique byPostPrincipal: postId").replace("likes[postId = postId, principal = viewer]", "likes[postId = postId]").replace("{ on: true }", "{ principal: viewer, on: true }"), false),
             ("online", LIKES.replace("  sync\n", "  online only\n"), false),
         ] {
             let (mut server, backend) = compile(&source);
@@ -152,7 +152,7 @@ fn first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores() 
 #[test]
 fn hidden_admitted_upserts_preserve_the_complete_paired_observation() {
     let source = LIKES.replace("unique byPostPrincipal: postId, principal", "unique byPostPrincipal: postId")
-        .replace("likes[postId, viewer]", "likes[postId]")
+        .replace("likes[postId = postId, principal = viewer]", "likes[postId = postId]")
         .replace("update <- .principal = viewer", "update <- allow");
     let mut pair = Vec::new();
     for secret in ["alice", "carol"] {
@@ -182,7 +182,7 @@ fn insert_if_absent_matches_its_reported_absence_proof_on_both_stores() {
             ("covered-cap", "", "  cap 50 by principal\n", true), ("hidden-cap", "", "  cap 50 by postId\n", false),
             ("fixed-id", "", "", false), ("public-id", "", "", true),
         ] {
-            let source = LIKES.replace("upsert likes[postId, viewer] { on: true }", "insert likes { postId, principal: viewer, on: true } if absent")
+            let source = LIKES.replace("upsert likes[postId = postId, principal = viewer] { on: true }", "insert likes { postId, principal: viewer, on: true } if absent")
                 .replace("  sync\n", &format!("{cap}  sync{horizon}\n"));
             let source = if case.ends_with("-id") { source.replace("insert likes { postId", "insert likes { id: 'chosen', postId") } else { source };
             let source = if case == "public-id" { source.replace("read <- .principal = viewer", "read <- public") } else { source };
@@ -215,7 +215,7 @@ fn review_supplied_and_minted_ids_match_prediction_on_both_stores() {
             ("minted", "", "id: new, ", false, true),
             ("minted-alias", "  chosen = new\n", "id: chosen, ", false, true),
             ("minted-require", "  chosen = new\n  require allowed else NOT_ALLOWED\n", "id: chosen, ", false, true),
-            ("minted-read", "  chosen = new\n  previous = likes[postId, viewer]\n", "id: chosen, ", false, true),
+            ("minted-read", "  chosen = new\n  previous = likes[postId = postId, principal = viewer]\n", "id: chosen, ", false, true),
             ("minted-emit", "  chosen = new\n  emit notified { postId }\n", "id: chosen, ", false, true),
             ("minted-write", "  chosen = new\n  insert likes { postId: 'other', principal: viewer, on: true }\n", "id: chosen, ", false, true),
             ("minted-branch", "  chosen = new\n  if allowed:\n    require allowed else NOT_ALLOWED\n", "id: chosen, ", false, true),
@@ -231,7 +231,7 @@ fn review_supplied_and_minted_ids_match_prediction_on_both_stores() {
         ] {
             let source = LIKES.replace("text <=30", "id")
                 .replace("mutation vote(postId: id):", "effect notified\nfn identity(id: id): id\nmutation vote(id: id, postId: id, allowed: bool):")
-                .replace("  upsert likes[postId, viewer] { on: true }", &format!("{prelude}  insert likes {{ {id_field}postId, principal: viewer, on: true }} if absent"));
+                .replace("  upsert likes[postId = postId, principal = viewer] { on: true }", &format!("{prelude}  insert likes {{ {id_field}postId, principal: viewer, on: true }} if absent"));
             let source = if public { source.replace("read <- .principal = viewer", "read <- public") } else { source };
             let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
             assert!(bound.diagnostics.is_empty(), "{case}: {:?}", bound.diagnostics);

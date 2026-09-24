@@ -14,7 +14,7 @@ fn unscoped_sparse_filters_name_the_feed_recipe() {
         assert_eq!(notes[0].guide, "feeds");
         println!("{}", notes[0]);
         assert_eq!(notes[0].message, "entries by byTime: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages");
-        assert_eq!(notes[0].rewrite, "pin a leading index key, or declare `maintain feed: timeline` (see `snapback4 guide feeds`) for Following (followed authors, own posts and reposts)");
+        assert_eq!(notes[0].rewrite, "pin a column with `where .col = value`, choose `by .col`, or read a `view` (see `snapback4 guide feeds`)");
     }
 }
 
@@ -72,7 +72,7 @@ fn w6a_follow_edge_filter_names_incomplete_pages_and_prefixed_install() {
     let note = bound.notes.iter().find(|n| n.code == "N_SPARSE_FILTER").unwrap();
     println!("{note}");
     assert_eq!(note.message, "events by byTime: this unscoped `where` pins no index prefix; pages come back short and incomplete when followed authors are sparse (`complete: false`)");
-    assert_eq!(note.rewrite, "pin a leading index key, or declare `maintain feed: timeline` (see `snapback4 guide feeds`) for Following (followed authors, own posts and reposts)");
+    assert_eq!(note.rewrite, "pin a column with `where .col = value`, choose `by .col`, or read a `view` (see `snapback4 guide feeds`)");
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn w6r2_foreign_schedule_targets_keep_their_module_with_any_output_module() {
         let target = &doc.schedules[0].target;
         println!("output module={module:?}: target={target}");
         assert_eq!(target, "other.purgeRemoved");
-        let external = "job purgeRemoved():\n  chunk p in feedRemovedEvents first 1 by byId:\n    delete feedRemovedEvents[p.id]\n".into();
+        let external = "job purgeRemoved():\n  chunk p in feedRemovedEvents first 1 by byId:\n    delete feedRemovedEvents[id = p.id]\n".into();
         let bound = snapback4_lang::compile(&[("feed.q".into(), renamed), ("other.q".into(), external)]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         assert_eq!(bound.schema.schedules[0].target, "other.purgeRemoved");

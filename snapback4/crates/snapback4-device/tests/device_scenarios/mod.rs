@@ -124,7 +124,7 @@ fn the_call_answers_the_card_on_every_host() {
 fn online_only_final_insert_target_is_unknown_to_the_predictor() {
     on_both(|host| {
         let label = host.label();
-        let source = "table targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  after insert <- exists targets[.name]\n  sync public\nquery rows():\n  return sources[] first 10 by byId\nmutation add(name: text <=10):\n  insert sources {name}\n  return null\n";
+        let source = "table targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  after insert <- exists targets[name = .name]\n  sync public\nquery rows():\n  return sources[] first 10 by byId\nmutation add(name: text <=10):\n  insert sources {name}\n  return null\n";
         let (mut engine, backend) = compile(source);
         engine.seed([("targets".into(), snapback4_core::value::object([("id", id("t")), ("name", Value::String("known".into()))]))]).unwrap();
         let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };

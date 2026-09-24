@@ -84,7 +84,7 @@ mutation send(messageId: messages, conversationId: id, body: text <=200):
   insert messages { id: messageId, conversationId, body, at: now }
 
 mutation createPost(postId: posts, body: text <=200):
-  if exists posts[postId]:
+  if exists posts[id = postId]:
     return null
   insert posts { id: postId, body, at: now }
   insert ranked { postId }
@@ -102,4 +102,4 @@ mutation recordSent(key: id):
 
 query search(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 20 by byWords:
-    [m.conversationId] for m in members[viewer] first 1000 by byPrincipalConversation
+    [m.conversationId] for m in members[principal = viewer] first 1000 by byPrincipalConversation

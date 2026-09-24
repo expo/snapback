@@ -86,6 +86,8 @@ card/feeds/1:register | eligible
 card/feeds/1:remove | eligible
 card/feeds/1:reply | eligible
 card/feeds/1:repost | eligible
+card/feeds/1:setLike | $column:122ae999ced85a4e03b344dae04920e27483db53c056b97452de5b4e1c4067c5/maintain | "Deny" | read rule
+card/feeds/1:setLike | eligible
 card/feeds/1:unfollow | never
 card/feeds/1:unrepost | eligible
 card/feeds/2:markSeen | eligible
@@ -95,6 +97,7 @@ card/feeds/2:setAffinity | eligible
 card/feeds/2:vote | eligible
 card/feeds/2:vote | votes/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/feeds/3:create | never
+card/feeds/3:remove | never
 card/feeds/3:setLike | never
 card/feeds/4:create | eligible
 card/feeds/4:like | eligible
@@ -157,7 +160,15 @@ card/language/2:timelineFollow | never
 card/language/2:timelinePublish | eligible
 card/language/2:timelineRegister | eligible
 card/language/2:timelineRemove | eligible
-card/maintains/3:like | never
+card/maintains/2:deletePost | never
+card/maintains/2:deleteReply | never
+card/maintains/2:likePost | never
+card/maintains/2:likeReply | never
+card/maintains/2:original | never
+card/maintains/2:reply | never
+card/maintains/2:unlikePost | never
+card/maintains/2:unlikeReply | never
+card/maintains/4:like | never
 card/native/1:checkin | never
 card/native/1:createRoom | eligible
 card/native/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

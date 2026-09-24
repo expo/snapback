@@ -12,7 +12,7 @@ table actions:
   owner: principal
   cap 100
   public 'actions'
-  insert <- exists liveCounts[.owner]
+  insert <- exists liveCounts[owner = .owner]
   sync public
 mutation act():
   insert actions { owner: viewer }

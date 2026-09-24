@@ -52,17 +52,20 @@ their space alongside the encoded key in the Postgres layout.
 
 Every table has `byId`. A point read (`t[key]`, `update`, `delete`,
 `upsert`) needs a unique index over exactly the key's columns; a program's
-`exists t[key]` uses an exact-key probe when an index covers those columns,
-or a top-1 scan when they are a strict prefix. Rule probes keep exact keys.
+`exists t[col = value]` keeps ordinary read authorization and plans a scan
+when no unique key is covered. Positional keys require one declared unique
+key of that arity, unless an authored `by index` explicitly selects the key.
+Rule probes keep exact keys and synthesize named probe indexes in written order.
 A page needs an index whose
 prefix is the key, and pages in the order of the remaining columns. When
 two indexes match, `by name` chooses. `expire at .col` needs an index
 leading with the column; a merge's lanes are equal-width prefixes of one
 index; a job's `chunk` sweeps an index whose columns are `id` or
 `immutable`. The diagnostic names the indexes that exist and the one to
-declare.
+declare. Predicate reads synthesize their indexes; caps, expiry and sync
+also obtain the indexes they need without an authored index name.
 
-`t[prefix]` without a page bound reads the whole schema-capped group in
+`t[prefix] by index` without a page bound reads the whole schema-capped group in
 ascending order: changing `cap 500 by ownerId` changes every such read's bound.
 The cap must fit one read's examined ceiling. Without a fitting cap, only a
 query loop or merge lane source with a uniformly decided prefix may omit the

@@ -5,7 +5,7 @@ mod identity;
 
 #[test]
 fn paired_tombstoned_repost_identity_is_unobservable() {
-    let source = format!("use personas a, b, c\n{}{}\nmutation register():\n  insert profiles {{ principal: viewer }}\nmutation follow(authorId: principal):\n  insert follows {{ followerId: viewer, followedId: authorId }}\nmutation publish(postId: id):\n  insert posts {{ id: postId, authorId: viewer, at: 7 }}\nmutation remove(postId: posts):\n  update posts[postId] {{ removed: true }}\nmutation repost(postId: posts):\n  insert reposts {{ actorId: viewer, postId, at: 8 }}\n",
+    let source = format!("use personas a, b, c\n{}{}\nmutation register():\n  insert profiles {{ principal: viewer }}\nmutation follow(authorId: principal):\n  insert follows {{ followerId: viewer, followedId: authorId }}\nmutation publish(postId: id):\n  insert posts {{ id: postId, authorId: viewer, at: 7 }}\nmutation remove(postId: posts):\n  update posts[id = postId] {{ removed: true }}\nmutation repost(postId: posts):\n  insert reposts {{ actorId: viewer, postId, at: 8 }}\n",
         include_str!("../timeline/app.q"), include_str!("../timeline/declaration.q"));
     let initial = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &source);
     let mut supplied = Vec::new();

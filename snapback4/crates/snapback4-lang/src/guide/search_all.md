@@ -31,12 +31,12 @@ query searchHeld(q: text <=100, c: cursor ?) held:
 
 -- everything, grouped by chat: any number of chats; a cut carries `next`
 query searchGrouped(q: text <=100, c: cursor ?):
-  return members[viewer] after c first 20 by byPrincipalRoom where exists (messages[.roomId] matching q) { roomId, hits: messages[.roomId] matching q last 3 by byRoomWords }
+  return members[principal = viewer] after c first 20 by byPrincipalRoom where exists (messages[roomId = .roomId] by byRoomWords matching q) { roomId, hits: messages[roomId = .roomId] matching q last 3 by byRoomWords }
 
 -- one newest-first stream across chats: for a first screen; complete while the chats open in one read
 query searchNewest(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 20 by byRoomWords:
-    [m.roomId] for m in members[viewer]
+    [m.roomId] for m in members[principal = viewer] by byPrincipalRoom
 ```
 
 **Grouped.** Pass `c: read.next` to continue. A meter-cut filtered page

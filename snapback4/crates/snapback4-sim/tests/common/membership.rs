@@ -11,7 +11,7 @@ pub fn literal_source() -> String {
 }
 
 pub fn other_table_source() -> String {
-    format!("table chats:\n  chatKey: text 1..40\n  unique byChat: chatKey\n  read <- allow\n\n{}", SOURCE.replace(RULE, ".principal = viewer or exists chats[.chatKey]"))
+    format!("table chats:\n  chatKey: text 1..40\n  unique byChat: chatKey\n  read <- allow\n\n{}", SOURCE.replace(RULE, ".principal = viewer or exists chats[chatKey = .chatKey]"))
 }
 
 pub fn id(value: &str) -> Value { Value::Id(value.into()) }

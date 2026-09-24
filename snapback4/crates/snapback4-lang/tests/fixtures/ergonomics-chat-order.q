@@ -206,7 +206,7 @@ mutation mark(conversationId: conversations, deliveredAt: time, readAt: time, de
   previous = readStates[conversationId, viewer]
   d = max(previous.deliveredAt, min(deliveredAt, now)) if previous != null else min(deliveredAt, now)
   r = max(previous.readAt, min(readAt, now)) if previous != null else min(readAt, now)
-  ceiling = messageClocks[conversationId].last ?? now * 1000
+  ceiling = messageClocks[conversationId = conversationId].last ?? now * 1000
   da = max(previous.deliveredArrival ?? 0, min(deliveredArrival ?? d * 1000 + 999, ceiling))
   ra = max(previous.readArrival ?? 0, min(readArrival ?? r * 1000 + 999, ceiling))
   upsert readStates[conversationId, viewer] { deliveredAt: max(d, r), readAt: r, deliveredArrival: max(da, ra), readArrival: ra }

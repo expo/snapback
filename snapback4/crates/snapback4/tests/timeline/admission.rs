@@ -38,8 +38,6 @@ fn admission_refuses_every_unsupported_bridge_shape_and_missing_edge_bound() {
         ("cap 1000 by followerId","cap 999 by followerId","E_TIMELINE_FOLLOWS"),
         ("cap 1000 by followedId","cap 999 by followedId","E_TIMELINE_FOLLOWS"),
         ("cap 100000","cap 99999","E_TIMELINE_FOLLOWS"),
-        ("by byFollowed: followedId, followerId","by byFollowed: followerId, followedId","E_TIMELINE_FOLLOWS"),
-        ("by byFollowed: followedId, followerId","by byFollowed: at, followerId","E_TIMELINE_FOLLOWS"),
         ("cap 1000 by followerId", "", "E_TIMELINE_FOLLOWS"),
         ("cap 1000 by followedId", "", "E_TIMELINE_FOLLOWS"),
         ("cap 100000", "", "E_TIMELINE_FOLLOWS"),
@@ -127,11 +125,11 @@ mutation register():
 mutation publish(postId: id, removed: bool):
   insert posts {{ id: postId, authorId: viewer, at: now, removed }}
 mutation flag(postId: posts, removed: bool):
-  update posts[postId] {{ removed }}
+  update posts[id = postId] {{ removed }}
 mutation changeTime(postId: posts):
-  update posts[postId] {{ at: now }}
+  update posts[id = postId] {{ at: now }}
 mutation deletePost(postId: posts):
-  delete posts[postId]
+  delete posts[id = postId]
 "#);
     let b=compile(&source);let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     e.mutate("register",None,context("a",&[],0)).unwrap();

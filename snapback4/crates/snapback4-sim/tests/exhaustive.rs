@@ -69,19 +69,19 @@ mutation kick(conversationId: conversations, principal: principal):
   return null
 
 mutation blip(conversationId: conversations, principal: principal):
-  require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN
+  require exists memberships[conversationId = conversationId, principal = viewer, role = 'admin'] else NOT_ADMIN
   row = insert memberships { conversationId, principal, role: 'member', joinedAt: now }
   delete memberships[row]
   return null
 
 mutation addAndSend(conversationId: conversations, principal: principal):
-  require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN
+  require exists memberships[conversationId = conversationId, principal = viewer, role = 'admin'] else NOT_ADMIN
   insert memberships { conversationId, principal, role: 'member', joinedAt: now }
   insert messages { conversationId, authorId: viewer, body: 'welcome', at: now }
   return null
 
 mutation rejoin(conversationId: conversations, principal: principal):
-  require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN
+  require exists memberships[conversationId = conversationId, principal = viewer, role = 'admin'] else NOT_ADMIN
   old = memberships[conversationId, principal] ! else NOT_MEMBER
   delete memberships[old]
   insert memberships { conversationId, principal, role: 'member', joinedAt: now }

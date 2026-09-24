@@ -280,6 +280,10 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
         } else if site.kind == "scan" { format!(" first {}", site.take) } else { String::new() };
         let kind = if scan.is_some_and(|s| s.range.is_some()) { "prefix seek" } else { site.kind };
         lines.push(format!("    {kind} {}.{}{take} — {hoist}", site.table, site.index));
+        if let Some(selection) = bound.programs.iter().find(|bound| bound.program.name == program.name).and_then(|bound| bound.selection(&site.site))
+            && selection.contains("synthesized;") {
+            lines.push(format!("      {selection}"));
+        }
         if let Some(scan) = scan {
             lines.push(if scan.existence { "      exists: first match, no page overflow or cursor" } else { "      sort/group/sum/count consume this page, not the whole population" }.into());
             if let Some(filter) = &scan.filter {

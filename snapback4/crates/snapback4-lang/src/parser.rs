@@ -8,6 +8,7 @@ use crate::lexer::{Kind, Token, lex};
 use crate::print;
 
 mod expr;
+mod views;
 mod maintains;
 mod timeline;
 mod expected;
@@ -20,7 +21,7 @@ fn precedence(op: &str) -> Option<u8> {
         "??" => 1,
         "or" => 2,
         "and" => 3,
-        "=" | "!=" | "<" | "<=" | ">" | ">=" => 4,
+        "=" | "!=" | "<" | "<=" | ">" | ">=" | "in" => 4,
         "+" | "-" => 5,
         "*" | "/" | "%" => 6,
         _ => return None,
@@ -41,7 +42,7 @@ struct Parser {
     document: Document,
 }
 
-const TOP_LEVEL: [&str; 18] = ["use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 19] = ["view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -69,6 +70,7 @@ impl Parser {
                 self.document.tables.push(table);
                 Ok(())
             }
+            "view" => self.parse_view(),
             "maintain" => {
                 if self.tokens.get(self.position + 3).is_some_and(|token| token.value == "timeline") {
                     let timeline = self.parse_timeline()?;
@@ -142,7 +144,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
+        let mut table = TableDecl { search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -171,6 +173,12 @@ impl Parser {
                 let index = self.parse_index(false)?;
                 table.indexes.push(index);
                 Ok(())
+            }
+            "search" => {
+                self.take("search")?;
+                table.search.push(self.word()?.value);
+                while self.maybe(",") { table.search.push(self.word()?.value); }
+                self.newline()
             }
             "unique" => {
                 let index = self.parse_index(true)?;
@@ -312,7 +320,8 @@ impl Parser {
             if !self.maybe("by") {
                 return Err(syntax_with(&site, "a horizon is `last N by index`", rewrite));
             }
-            let index = self.word()?.value;
+            let column = self.maybe(".");
+            let index = format!("{}{}", if column { "." } else { "" }, self.word()?.value);
             horizon = Some((n, index));
         }
         if !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) {
@@ -440,6 +449,11 @@ impl Parser {
                 break;
             }
         }
+        let explicit = explicit.or_else(|| unique.then(|| {
+            let descriptor = (&columns, &words, computed.iter().map(|(name, value)| (name, crate::print::expression(value))).collect::<Vec<_>>(), true);
+            let hash = snapback4_core::value::digest(&descriptor);
+            format!("$intent:by{}:{}", columns.iter().map(|c| title(c)).collect::<String>(), &hash[..16])
+        }));
         let Some(name) = explicit else {
             let inferred = format!("by{}", columns.iter().map(|c| title(c)).collect::<String>());
             return Err(syntax_with(&site, "index declarations require an explicit name", format!("{} {inferred}: {}", if unique { "unique" } else { "by" }, columns.join(", "))));
@@ -462,7 +476,7 @@ impl Parser {
     }
 
     fn parse_maintain(&mut self) -> Fallible<MaintainDecl> {
-        let site = self.take("maintain")?.site;
+        let site = self.word()?.site;
         let name = self.binding_name()?;
         self.take(":")?;
         let aggregate = self.word()?;
@@ -480,7 +494,9 @@ impl Parser {
         self.take("by")?;
         let mut keys = Vec::new();
         loop {
-            keys.push(self.expression(0, &[",", "<newline>"])?);
+            let mut key = self.expression(0, &[",", "<newline>"])?;
+            views::unfocal_key(&mut key);
+            keys.push(key);
             if !self.maybe(",") { break; }
         }
         let by = keys.iter().map(|key| match key {

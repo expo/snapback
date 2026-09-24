@@ -19,8 +19,10 @@ impl Runner<'_> {
         // An opening/word-cut merge has unknown heads; shaping cannot grant it a cursor.
         page.shape_resume = if !page.merge || (self.meter.capped_at.is_none() && self.word_cut_at.is_none()) { Resume::FromStart }
             else if page.next.is_some() { Resume::AfterEmission } else { Resume::Never };
-        let index = self.schema.tables[&page.table].index(&page.index).expect("recorded page index");
+        let index = if page.view_suffix.is_some() { None } else { Some(self.schema.tables[&page.table].index(&page.index).expect("recorded page index")) };
         page.shape_positions = rows.map(|row| {
+            if let Some(suffix) = &page.view_suffix { return suffix.iter().map(|column| row.field(&column.name).cloned().unwrap_or(Value::Null)).collect(); }
+            let index = index.expect("ordinary page index");
             let mut key: Vec<_> = index.components.iter().skip(page.prefix_len).filter_map(|component| component.value(row)).collect();
             if page.merge && index.components.last().and_then(|component| component.column()).map(String::as_str) != Some("id") {
                 key.push(row.field("id").cloned().unwrap_or(Value::Null));
