@@ -49488,3 +49488,71 @@ Reference validation: 505 LLP documents, 9,236 references, zero errors and
 zero unchecked. All changed source files stay below 1,500 lines. No push,
 publication, meter-ceiling increase or runtime redesign. No open round-2
 problem; round 1's residual write-target design gap remains as recorded above.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 3: explain constraints over hidden rows
+
+Fetched origin and merged origin/main before editing; already up to date at
+9d09f309e. Mutation existence/count domains that fail uniform-read admission
+now explain which operation can read which audience, quote the read rule,
+and explain that the check would miss hidden rows. The booking diagnostic
+names other guests' bookings, the source line and two remedies: per-unit
+unique reservations that every writer obeys, or readable availability when
+the product permits that audience. It never names the synthesized index.
+The existing E_STRUCTURAL_FANOUT code and why entry were extended, with a
+contextual link to writes. Compiler-only consumer sites select the explanation
+after the unchanged engine admission rejects the program; no IR, wire,
+device, authorization, disclosure or meter behavior changed. Existing
+lowering golden files remain unchanged and every shard passes.
+
+Engineering choice for the requested distinction: retain the capped-group
+rewrite when a declared cap on the scanned table, within the examined
+ceiling, supplies enough additional columns alongside the current pins for
+the engine's existing prefix-visibility analysis to decide the rule. A cap
+on an unrelated column does not qualify. Candidate pins are opaque values,
+not an invented viewer grant. This uses the same rule simplifications as
+admission. Ordinary page and loop diagnostics retain their existing path.
+Aggregate consumers share this explanation, including sum as well as count.
+
+The writes card now compiles and executes a private booking plus one public
+night per calendar-day number, with exclusive lastDay, `unique listing, day
+else TAKEN`, and a `created bookings` insert rule. A public availability table
+is necessary to name TAKEN: hidden collisions still return E_RULE. The card
+explicitly discloses that occupied dates and booking references are public;
+guest details remain private. It covers booking only and says cancellation
+must release nights atomically. No new syntax was introduced. The supplied
+snippet's bare `listings[listing]!.host` still requires the existing refusal
+code; the diagnostic fixture uses `(listings[listing] ! else NOT_FOUND).host`
+so it reaches the requested admission check, rather than a syntax error.
+
+Added six tests in constraint_diagnostics.rs: exists/count booking diagnostics
+with both rewrites and source sites, including an unrelated cap; retention
+of the old rewrite for a deciding owner cap and compilation of its repair;
+helper-domain locations with the caller mutation's name; execution of the
+actual writes-card block for two guests, TAKEN and rollback of both the new
+booking and an earlier free night, while the first booking remains hidden;
+the same clash on private nights returning E_RULE; and write-meter exhaustion
+rolling the whole operation back. All 113 targeted language tests passed
+(6 new, 57 guide, 10 prefix reads, 40 residency notes). Initial fixture setup
+errors were ours and corrected: Site uses col, standalone operations need
+schema.q, and presence assertions require the refusal code above.
+
+Ran frozen Bun install (no dependency changes) and scripts/test.sh twice,
+with eight Rust build/test workers and at most one full suite at a time.
+First exact result: `== 1 failure(s) in 432 s`. Its only failure was
+snapback4-device::readauth::census::authoring_census, caused by this change:
+the new card/writes/2:book entry and renumbering the former block 2 to 3.
+Updated those four inventory lines only, preserving every old rule/outcome,
+and the isolated census passed. Although that test name appears in the
+supplied baseline log, this mismatch was ours, not attributed to baseline.
+Final exact result: `== 0 failure(s) in 178 s`. No remaining failures, baseline
+failures or environmental failures occurred in these runs. Client summary:
+1,054 passed, 10 skipped, zero failed. Evidence: /tmp/lane-k-r3-full-suite.log,
+/tmp/lane-k-r3-full-suite-final.log and /tmp/lane-k-r3-census.log.
+
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. Reference validation: 505 LLP documents, 9,237 references, zero
+errors and zero unchecked. Changed source files remain below 1,500 lines;
+whitespace checks pass. No open round-3 implementation problem; the original
+bare-assertion spelling and round 1's residual write-target limitation remain
+as documented. No push, publication, cancellation implementation or runtime
+redesign was attempted.

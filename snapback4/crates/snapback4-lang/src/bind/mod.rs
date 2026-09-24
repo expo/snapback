@@ -140,6 +140,10 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         programs.retain(|bound| match snapback4_core::engine::admission::check_detail(&schema, &bound.program) {
             Ok(()) => true,
             Err(error) => {
+                if let Some(diagnostic) = bound.constraint_diagnostic(&schema, &error) {
+                    diagnostics.push(diagnostic);
+                    return false;
+                }
                 let source = bound.sources.get(&error.site).or_else(|| error.page_site.as_ref().and_then(|site| bound.sources.get(site)));
                 let site = source.map_or(&bound.site, |(site, _)| site);
                 let message = if error.site.starts_with("for/") && let Some((_, name)) = source { format!("loop over {name}: {}", error.message) } else { error.message };

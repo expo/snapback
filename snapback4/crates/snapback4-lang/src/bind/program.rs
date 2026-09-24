@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 mod control;
 mod returned_shapes;
 mod diagnostics;
+mod constraints;
 mod expr;
 mod objects;
 mod reads;
@@ -27,6 +28,8 @@ pub(crate) mod setup;
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
     pub view_types: BTreeMap<String, Ty>,
+    /// Source consumers for admission diagnostics only; absent from IR/wire.
+    pub(crate) constraint_domains: std::collections::BTreeSet<String>,
     pub(crate) sources: BTreeMap<String, (Site, String)>,
     pub(crate) selections: BTreeMap<String, String>,
     pub program: Program,
@@ -46,6 +49,7 @@ impl BoundProgram {
 #[derive(Clone)]
 pub struct Binder<'a> {
     view_types: BTreeMap<String, Ty>,
+    constraint_domains: std::collections::BTreeSet<String>,
     sources: BTreeMap<String, (Site, String)>,
     selections: BTreeMap<String, String>,
     presence_sources: Vec<(Expr, Site, String)>,
@@ -94,7 +98,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { view_types: BTreeMap::new(), constraint_domains: Default::default(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -121,7 +125,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { constraint_domains: binder.constraint_domains, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -200,7 +204,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { constraint_domains: binder.constraint_domains, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -345,6 +349,9 @@ impl<'a> Binder<'a> {
         };
         if position == prefix::Position::Aggregate && snapback4_core::engine::rules::scan_visibility(self.schema, &scan).uniform {
             scan.take = Bound::Meter;
+        }
+        if matches!(position, prefix::Position::Exists | prefix::Position::Aggregate) {
+            self.constraint_domains.insert(scan.site.clone());
         }
         if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
         Ok((scan, range.take))

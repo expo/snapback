@@ -384,9 +384,10 @@ card/writes/1:writeForms | postLikes/maintain | "Deny" | read rule
 card/writes/1:writeForms | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/writes/1:writeForms | reactions/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/writes/1:writeForms | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/writes/2:addMember | never
-card/writes/2:createConversation | never
-card/writes/2:send | never
+card/writes/2:book | never
+card/writes/3:addMember | never
+card/writes/3:createConversation | never
+card/writes/3:send | never
 package/CLIENT-AND-OPERATIONS/1:createProfile | never
 package/README/1:placeAvatar | eligible
 package/README/1:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule

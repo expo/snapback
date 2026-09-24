@@ -48,7 +48,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, programs: &mut Vec<Bo
                 let condition = rule(&decl.rule)?;
                 // Admission is the only IR body: it cannot read, write or emit.
                 let body = vec![Stmt::Require { condition, code: "E_RULE".into(), site: Some(format!("actions.{name}")) }];
-                Ok((BoundProgram { view_types: Default::default(), sources: Default::default(), selections: Default::default(), program: Program { name, kind: ProgramKind::Action, args, read_time_granularity_ms: None, body, native: false, returned_shapes: Default::default() }, presence: None, module: module.into(), args: types, result: result_type, notes: Vec::new(), site: decl.site.clone() }, spec))
+                Ok((BoundProgram { constraint_domains: Default::default(), view_types: Default::default(), sources: Default::default(), selections: Default::default(), program: Program { name, kind: ProgramKind::Action, args, read_time_granularity_ms: None, body, native: false, returned_shapes: Default::default() }, presence: None, module: module.into(), args: types, result: result_type, notes: Vec::new(), site: decl.site.clone() }, spec))
             })();
             match result {
                 Ok((program, spec)) => {

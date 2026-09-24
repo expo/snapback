@@ -41,10 +41,15 @@ or filtered/shaped list derived from a page; it need not preserve the whole grou
 A row write anywhere in that body, including an inlined helper or nested loop,
 keeps the original structural-fanout check and its capped-group rewrite.
 Every page a mutation reads, even just
-binding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`):
-the rewrite names the missing rule columns and a capped loop that supplies
-their values. Pinning `.readerId` decides visibility; it grants no read
+binding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`).
+When a capped scope can decide the rule, the rewrite names the missing rule
+columns and a capped loop that supplies their values. Pinning `.readerId` decides visibility; it grants no read
 authority over another reader's inbox. See `guide feeds` for removal limits.
+For `exists` and aggregate constraint checks without a deciding capped scope,
+the refusal explains that hidden rows would be missed. Use a per-unit unique
+constraint every writer obeys, or a readable availability audience if the
+product permits it; `guide writes` has a per-night booking example. A hidden
+unique collision stays E_RULE; only a readable collision can use its named code.
 The pass is atomic and still aborts above 1,024 rows written. `check --cost`
 prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
 For structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
