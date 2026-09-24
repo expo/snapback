@@ -12,7 +12,7 @@ import { ReadObservation } from '../../dist/read-observation.js';
 export const round9Operations = ['query', 'observe', 'write', 'revoke', 'release', 'poll', 'replace', 'regress', 'unavailable', 'close', 'signOut', 'reopen', 'login', 'holdStorage', 'failStorage', 'tick'];
 export const round10Operations = [...round9Operations, 'upload', 'asset', 'act', 'refresh'];
 export const round12Operations = [...round10Operations, 'guest', 'duplicate'];
-export const operations = [...round12Operations, 'recoverPending'];
+export const operations = [...round12Operations, 'recoverPending', 'refreshUnreached'];
 export function generate(seed, length = 32, vocabulary = operations) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
@@ -21,11 +21,13 @@ export function generate(seed, length = 32, vocabulary = operations) {
 }
 const microtasks = async () => { for (let i = 0; i < 100; i++) await Promise.resolve(); };
 
-export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0, saturated = false } = {}) {
+export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0, saturated = false, keepUnreachedSession = false } = {}) {
   const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
   const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
   const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
   const rotations = [], submissions = [], minted = new Set(), retiredWrites = new Set();
+  const unreachedRefreshes = [], explicitLogoutTokens = new Set();
+  let failNextRefresh = false;
   // R6: an id the server may have executed is never admitted again by this app
   // while its record might matter. Track displacement independently of whether
   // the implementation remembered the id in its compact set.
@@ -160,7 +162,11 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
     count('wire.' + path); requests++;
     if (path.startsWith('/auth/')) {
       // Login and guest mint before their response body is delivered.
-      if (path === '/auth/logout') { sessions.delete(token); return Response.json({ ok: true }); }
+      if (path === '/auth/logout') {
+        const kept = unreachedRefreshes.find(r => r.token === token && r.owner?.terminal && r.owner.client.session()?.token === token);
+        invariant('session recovery', !kept || !sessions.has(token) || explicitLogoutTokens.has(token), 'terminal client revoked the live unrotated bearer needed by recovery');
+        sessions.delete(token); return Response.json({ ok: true });
+      }
       if (!['/auth/refresh', '/auth/login', '/auth/guest'].includes(path)) throw Error('unexpected auth route ' + path);
     }
     const effectful = path === '/assets' || path.startsWith('/m/') || path.startsWith('/a/') || path.startsWith('/auth/');
@@ -177,6 +183,13 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
       if (init.signal && owner) roots.set(init.signal, owner);
     }
     if (owner) invariant('R2', !owner.terminal, `owner ${owner.id} sent ${path} after terminal refusal`);
+    if (path === '/auth/refresh' && failNextRefresh) {
+      failNextRefresh = false; count('refresh.unreached');
+      unreachedRefreshes.push({ token, owner });
+      if (!draining) await hold('transport', { path, token, owner }, null);
+      // The connection reset before any server effect. The old bearer is live.
+      throw new TypeError('refresh connection reset before reaching server');
+    }
     let body, rotation;
     if (['/auth/login', '/auth/guest'].includes(path)) body = { session: issue() };
     else if (!sessions.has(token)) body = { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in' } };
@@ -185,7 +198,10 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
       rotation = { owner, token: next.token }; rotations.push(rotation);
       count('refresh.committed');
     }
-    else if (path === '/probe') body = { ok: true, store_id: store, seq: head };
+    else if (path === '/probe') {
+      if (unreachedRefreshes.some(r => r.token === token)) count('probe.unrotated');
+      body = { ok: true, store_id: store, seq: head };
+    }
     else if (path === '/changes') body = { store_id: store, seq: head, generation: 1, tables: ['secrets'] };
     else if (path.startsWith('/m/')) {
       invariant('R6', !displacedByRetirement.has(args.id), `id ${args.id} displaced by retirement posted to ${store}`);
@@ -299,13 +315,16 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
       case 'asset': track(client.asset('photo'), 'asset', owner, 'asset'); break;
       case 'act': track(client.act({ kind: 'action', name: 'charge' }, {}), 'act', owner, 'act'); break;
       case 'refresh': track(client.refreshSession(), 'refresh', owner, 'refresh'); break;
+      case 'refreshUnreached': failNextRefresh = true; track(client.refreshSession(), 'refreshUnreached', owner, 'refresh'); break;
       case 'release': release(step.pick); break;
       case 'poll': release(step.pick, true); break;
       case 'replace': store = 'B' + (++stores); head = 1; privateRow = true; break;
       case 'regress': head = Math.max(0, head - 5); break;
       case 'unavailable': unavailable = !unavailable; break;
       case 'close': track(tier === 'app' ? app.close() : client.close(), 'close'); break;
-      case 'signOut': track(tier === 'app' ? app.auth.logout() : client.signOut(), 'signOut'); break;
+      case 'signOut':
+        for (const o of tier === 'app' ? owners : [owner]) explicitLogoutTokens.add(o.client.session()?.token);
+        track(tier === 'app' ? app.auth.logout() : client.signOut(), 'signOut'); break;
       case 'reopen': {
         const prior = tier === 'app' ? app.close() : client.close();
         track(prior.then(open), 'reopen'); break;
@@ -353,6 +372,13 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
       await microtasks(); await advance(1000); check();
       if (!tasks.some(task => task.pending) && !holds.some(h => h.path !== '/changes')) break;
       assert.ok(round < 39, 'R4: fair drain did not settle within 40 rounds\n' + JSON.stringify(trace));
+    }
+    if (keepUnreachedSession) {
+      const token = unreachedRefreshes[0]?.token;
+      assert.ok(token && coverage['probe.unrotated'] > 0, 'the replacement probe presented the original bearer');
+      assert.equal(app.auth.state, 'signed-in', 'replacement keeps a session the new store accepts');
+      assert.equal(app.client.session()?.token, token);
+      assert.ok(sessions.has(token), 'the kept bearer is still live at the server');
     }
     // Reopen over the same durable store, proving terminal intents do not
     // replay. Restorable pending outcomes may settle during this final drain.

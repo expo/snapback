@@ -50551,3 +50551,73 @@ No open round-13 finding or deviation from the requested design remains. No
 Quarry form, public contract type, engine semantics, meter, receipt/id cap or
 package version changed. All modified source/test files remain below 1,500
 lines. No push or publication was performed.
+
+## 2026-09-24 — Lane J round 14: keep an unrotated bearer through store replacement
+
+The refresh retirement continuation treated every retryable transport failure
+as a reason to log out the old bearer. During store replacement, that bearer
+is still owned by createApp's recovery probe; a refresh that never reached the
+server left it valid, so cleanup could revoke the very session recovery was
+trying to keep. Old-bearer cleanup now requires ended credentials (sign-out).
+A delivered, unkept successor is still revoked, and no effectful request is
+aborted.
+
+Changes, file by file:
+
+- packages/snapback4/src/client.ts limits retryable-failure retirement to
+  sign-out. Store refusal without a successor leaves the live bearer alone.
+- packages/snapback4/CLIENT-AND-OPERATIONS.md documents bearer preservation
+  for the replacement probe and continued cleanup on sign-out.
+- test/online-terminal-entrypoints.test.mjs changes the rejected-refresh
+  replacement expectation to no logout, keeping the sign-out cleanup and
+  committed-successor cancellation regressions intact.
+- test/app.test.mjs adds a real-server recovery case: a held refresh rejects
+  before reaching the server, a query detects replacement, and the recovery
+  probe presents the original bearer and restores the signed-in app. Its
+  SQLite close regression now reopens offline before releasing the committed
+  reply, checks that the id remains known, then reopens online and verifies
+  that the original id settles with exactly one application.
+- test/helpers/online-client-model.mjs adds an unreached-refresh transport
+  outcome and an oracle forbidding cleanup of the still-kept bearer during
+  replacement. test/online-client-model.test.mjs adds named replacement and
+  sign-out replays and requires random coverage of unrotated recovery probes.
+- test/navigation-model.test.mjs extends the real wasm-device/server model
+  with 32 seeded schedules: close before execution, after commit, or after
+  reply delivery; one or two offline reopens; online recovery before or after
+  the original reply. Each checks durable id custody before server repair,
+  a bounded replay using that id, and exactly one application.
+
+Verification and measurements:
+
+- Frozen Bun install, typecheck and build passed. All 53 tests in the affected
+  app and terminal-entrypoint files passed, including the sign-out and
+  abort-rejecting refresh tests from the prior rounds.
+- All 19 online model tests passed, including 3,000 seeded sequences under
+  R1-R6 (1,500 raw client, 1,500 app; 750 app sequences each with 255 and 256
+  receipts, including 150 saturated journals). Standalone model time: 38.40 s.
+  Coverage includes 1,095 unreached refreshes, seven unrotated recovery probes,
+  8,334 bearer-custody checks and 3,192 durable-terminal checks.
+- All 32 device-close schedules passed (seed 0x14c105e): nine unreached,
+  12 committed and 11 delivered; 20 with original delivery after repair and
+  12 before repair. Standalone model time: 32.31 s. No additional production
+  defect was found by either model.
+- Reverting the refresh guard in generated dist failed three regressions:
+  direct replacement cleanup, real-app recovery and the named model replay.
+  Injecting outbox deletion on post's cancelled {ok:false} failed both the
+  SQLite reopen test and device model (sequence 2). Dist was restored before
+  the full suite. These were deliberate mutation failures, not suite failures.
+- scripts/test.sh: `== 0 failure(s) in 157 s`. Main client shard: 1,205 tests,
+  1,195 passed, 10 existing skips, zero failures or cancellations. No introduced,
+  baseline or environmental failures in this run. The baseline log's unrelated
+  cargo failure was read and left alone. Full log:
+  /tmp/lane-j-r14-full-suite.log; focused/model/mutant logs use
+  /tmp/lane-j-r14-*.log.
+
+No open round-14 finding or deviation remains. The device model uses the
+existing real wasm/server navigation harness alongside the online model;
+the SQLite regression covers the native device store through its process
+bridge. No local production code change was needed: it already preserves the
+outbox when close cancels the caller. No Quarry form, public contract type,
+engine semantics, meter, receipt/id cap or package version changed. All
+modified source/test files remain below 1,500 lines. No push or publication
+was performed.

@@ -41,7 +41,8 @@ test('online clients preserve R1–R6 across 3,000 seeded interleavings', { time
   if (count >= 3000) for (const key of ['held.storage', 'failed.storage', 'held.return', 'released.return', 'released.reordered', 'wire./probe', 'write.emitted',
     'terminal.E_STORE_REPLACED', 'terminal.E_STORE_RESTORE', 'ack.revocation', 'check.durable-terminal', 'query.refetch',
     'wire./assets', 'wire./assets/photo', 'wire./a/charge', 'wire./auth/refresh', 'asset.released', 'refresh.committed', 'refresh.retired', 'body.aborted', 'check.bearer-custody', 'write.duplicate', 'wire./auth/guest', 'journal.preloaded.255', 'journal.preloaded.256', 'journal.full', 'journal.compact', 'write.retired-retry',
-    'journal.saturated', 'check.admitted-pending', 'retirement.displaced.sent', 'write.displaced-retry', 'check.retirement-admission'])
+    'journal.saturated', 'check.admitted-pending', 'retirement.displaced.sent', 'write.displaced-retry', 'check.retirement-admission',
+    'refresh.unreached', 'probe.unrotated'])
     assert.ok(coverage[key] > 0, `exercised ${key}`);
   t.diagnostic(`sequences=${count}, seeds=1..${count}, coverage=${JSON.stringify(coverage)}`);
 });
@@ -67,3 +68,12 @@ test('R6 scheduled replay: retry a sent id displaced by retirement after reopeni
   assert.ok(coverage['retirement.displaced.sent'] > 0, 'retirement displaced a sent receipt');
   assert.ok(coverage['write.displaced-retry'] > 0, 'the reopened client retried its id');
 });
+
+test('session recovery replay: replacement keeps a refresh that never reached the server', () => execute([
+  { op: 'query' }, { op: 'release' }, { op: 'replace' }, { op: 'query' },
+  { op: 'refreshUnreached' }, { op: 'release' }, { op: 'release' }, { op: 'release' },
+], 'app', {}, { keepUnreachedSession: true }));
+
+test('session recovery replay: sign-out still cleans up an unreached refresh', () => execute([
+  { op: 'refreshUnreached' }, { op: 'signOut' }, { op: 'release' },
+], 'client'));
