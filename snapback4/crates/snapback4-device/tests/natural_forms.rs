@@ -33,6 +33,10 @@ query shaped(h: text 3..20):
   return p { *, following: exists follows[viewer, .principal] }
 query inline(h: text 3..20):
   return { ...profiles[handle = h] ! else NOT_FOUND, extra: true }
+query objects():
+  a = { value: 1, keep: true }
+  b = { value: 'second', tail: 2 }
+  return { value: false, ...a, ...b, tail: 3, value: 'last' }
 query note(key: notes):
   p = notes[key] ! else NOT_FOUND
   return { ...p, extra: true }
@@ -79,6 +83,9 @@ fn rows_and_objects<H: Host>(host: &mut H) {
     let inline = server.query("inline", context("alice", &args).at(10)).unwrap();
     assert_eq!(inline.metered.examined, 1, "a spread reads its operand once, regardless of field count");
     assert_eq!(device.query("inline", "alice", &json!({"h":"bob"}), 10).unwrap().metered.examined, 1);
+    let merged = server.query("objects", context("alice", &[]).at(10)).unwrap();
+    assert_eq!(snapback4_core::wire::to_json(&merged.data), json!({"value":"last", "keep":true, "tail":3}));
+    assert_eq!(device.query("objects", "alice", &json!({}), 10).unwrap().data, merged.data);
     for key in ["hidden", "missing"] {
         assert_eq!(server.query("note", context("alice", &[("key", id(key))]).at(10)).unwrap_err().code, "NOT_FOUND");
         assert_eq!(device.query("note", "alice", &json!({"key":key}), 10).unwrap_err().code, "NOT_FOUND");

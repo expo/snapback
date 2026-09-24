@@ -122,6 +122,19 @@ fn job_every_rewrite_preserves_the_period_and_clock_offset() {
 }
 
 #[test]
+fn job_every_rewrite_qualifies_a_module_job() {
+    let (_, errors) = parse_document("jobs.q", "job sweep every 1h:\n  for n in notes:\n    delete notes[n.id]\n");
+    let d = errors.iter().find(|d| d.code == "E_QUARRY_JOB_SCHEDULE").unwrap();
+    let schedule = d.rewrite.lines().nth(1).unwrap();
+    assert_eq!(schedule, "schedule sweepEvery every 1h: jobs.sweep");
+    let fixed = compile(&[
+        ("schema.q".into(), "table notes:\n  public\n".into()),
+        ("jobs.q".into(), format!("job sweep():\n  for n in notes:\n    delete notes[n.id]\n{schedule}\n")),
+    ]);
+    assert!(fixed.diagnostics.is_empty(), "{:?}", fixed.diagnostics);
+}
+
+#[test]
 fn new_codes_have_why_entries_and_cards() {
     for code in ["E_QUARRY_SPREAD", "E_QUARRY_RULE_SPELLING", "E_QUARRY_JOB_SCHEDULE"] {
         let why = snapback4_lang::guide::explain_code(code).unwrap();

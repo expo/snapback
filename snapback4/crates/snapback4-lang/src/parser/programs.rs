@@ -90,9 +90,11 @@ impl Parser {
                 self.position += 1;
             }
             let period = period.trim_end_matches(':').trim_end();
+            let module = std::path::Path::new(&kind_token.site.file).file_stem().and_then(|stem| stem.to_str()).unwrap_or("schema");
+            let target = if module == "schema" { name.clone() } else { format!("{module}.{name}") };
             return Err(Diagnostic::new(&kind_token.site, "E_QUARRY_JOB_SCHEDULE",
                 format!("job {name} declares work; a separate schedule declares when it runs"),
-                format!("job {name}():  -- keep the existing indented body\nschedule {name}Every {period}: {name}")).guide("jobs"));
+                format!("job {name}():  -- keep the existing indented body\nschedule {name}Every {period}: {target}")).guide("jobs"));
         }
         if self.at(":") {
             return Err(syntax_with(&kind_token.site, "an operation with no arguments still needs parentheses", format!("{} {name}():", kind_token.value)).mechanical());

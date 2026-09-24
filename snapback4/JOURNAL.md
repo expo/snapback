@@ -49278,3 +49278,64 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+
+## 2026-09-24 — LLP 3000.013 Lane K: natural Quarry forms
+
+Implemented row and statically known object spread as binder sugar, with
+left-to-right replacement, one evaluation per operand, and evaluation of
+overridden expressions. Generated TypeScript describes the merged object.
+Nullable operands get a presence rewrite; scalars, dynamic JSON and pages
+remain refused. Write payloads share this expansion and still validate
+maintained columns, identities, types and rules. Ordinary objects without
+spread or repeated fields retain their existing lowering. The engine, IR,
+wire and device protocol are unchanged.
+
+Bare `text` normalizes in the parser to the existing `text <=10000` type for
+columns, operation arguments and helper parameters. Existing bounds and
+formats keep their meanings. Checks cover equivalent schema, IR, generated
+types, scale certificates, write reservations and meters. Server and both
+memory and SQLite devices accept 10,000 characters and refuse 10,001,
+including four-byte Unicode and values assembled inside mutations.
+
+Added E_QUARRY_SPREAD, E_QUARRY_RULE_SPELLING and E_QUARRY_JOB_SCHEDULE,
+registered their why entries, and updated the language/types/shapes/rules/
+indexes/jobs cards. Guessed table-rule verbs point to the canonical rules;
+`write <-` requires separate rules for the intended operations. Job timing
+rewrites preserve the period and clock offset and qualify non-schema module
+jobs. Generated-index diagnostics identify the authored site and column,
+including unnamed unique declarations and sweep reads; they never advise
+editing an internal index. Internal names are omitted from diagnostic text
+in all output modes, a permitted choice under the brief.
+
+Engineering choices: spreads also work in existing write-object syntax;
+effectful and potentially failing operands are evaluated once even when
+later overridden. The guide uses `{ ...p, extra }` beside
+`p { *, extra: extra }`. The brief's literal `p { *, extra }` is not the same
+existing shape: with `p = { n: 1 }` and an `extra` argument, it requests a
+nonexistent row field and is refused. Changing that resolution would change
+an existing form, so the example spells out the expression. No shape meaning
+was changed. Updated the old S11 test that deliberately expected spreads to
+be refused; it now proves identical lowered IR to explicit fields.
+
+Added 15 language regressions, four shared server/device regressions, CLI
+plain/verbose/JSON diagnostics coverage and a scale-certificate equivalence
+test. Existing guide tests execute the new language examples and still
+compile every guide/README Quarry block without diagnostics or notes. The
+Clique fixture accepts its natural profile projection and incidental bare
+text bounds. Authorization probes keep hidden and absent rows indistinguishable;
+inline spreads examine one row, and merged objects agree across both stores.
+
+Installed Bun dependencies once and ran `scripts/test.sh` once with eight
+Rust build/test workers on the shared host. Exact result:
+`== 0 failure(s) in 559 s`. No introduced, baseline or environmental failures
+occurred; the four supplied baseline Rust failures did not recur. Client
+summary: 1,054 passed, 10 skipped, zero failed. Wasm remains 1,744,842 B raw /
+484,967 B gzip against the unchanged 486,000 B budget. The full suite covers
+feature commit e4a64d49b. A subsequent diagnostic-only module qualification
+fix and extra device assertion passed 77 scoped tests: 57 guide, 15 language,
+four device and one CLI. Logs: /tmp/lane-k-full-suite.log and
+/tmp/lane-k-followup-{lang,device,cli}.log. No open implementation problem was
+found. No push, publication, version bump, authorization relaxation, meter
+ceiling change or runtime redesign was performed; integration and blind
+reviews remain with the supervisor.
