@@ -49636,3 +49636,16 @@ ordinary admission retains the default ceiling. No round 5 requirement is
 deferred. Earlier cap-prediction deferral, deferred secondary cleanup and the
 separate six-byte presence heap issue retain their documented decisions.
 Full-suite qualification follows below. No push, merge or publication.
+
+The first full Rust inventory exposed one introduced refusal-order regression:
+purge_gates_actual_writes_charges_deletes_and_never_refuses_reads received
+E_SCHEMA instead of E_TIMELINE_OWNED for a purge's forbidden target. The moved
+ordinary preflight consulted the schema ahead of the existing ownership guard.
+Moved that guard to insert_mode too, preserving its original precedence;
+insert_upsert retains its existing insert-and-update ownership guard. All five
+timeline-authority tests now pass (0.19 s), and all four new device boundary
+tests still pass (0.32 s). No assertion was changed. The corrected wasm artifact,
+built separately while the initial client run finishes, is 1,754,267 B raw /
+487,923 B gzip (+224 / +107 from round 4), within the unchanged budget with
+77 B spare. The initial full Rust inventory otherwise passed, including all
+40 device unit tests and 30 expiry regressions. A complete corrected run follows.

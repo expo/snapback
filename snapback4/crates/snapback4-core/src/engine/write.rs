@@ -28,6 +28,7 @@ impl Runner<'_> {
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.target_attempt(table_name, |runner| {
+            runner.refuse_engine_owned(table_name, Effect::Insert)?;
             let table = runner.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
             // @ref LLP 3000.013#11.1 — reserve once, before the target can select its write arm.
             // Reserve before collision lookups. Upserts enter insert_attempt
@@ -38,7 +39,6 @@ impl Runner<'_> {
     }
 
     fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
-        self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
         let table = self.schema.table(table_name).expect("defaults validated the table").clone();
