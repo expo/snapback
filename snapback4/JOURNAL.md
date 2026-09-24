@@ -48396,3 +48396,49 @@ score claim, push or publish. File-by-file changes, merge resolutions, target
 forms, baseline reasoning and reproduction commands are in
 [the integration report](./reports/20260924-intent-integration.md). Full logs:
 `~/sb4-intent/integration-suite-{1,final}.log`.
+
+## 2026-09-24 — LLP 3000.013 lane F: the guide teaches intent
+
+Restated the running language program, feature cards and package examples with
+predicate/column reads, unnamed uniqueness, search declarations, durations,
+planned and aggregate views, automatic job sweeps, streaming scalars and keyed
+emissions. The README keeps the app/account entry and adds the whole model at
+268 lines against its unchanged 300-line budget. The Following section's first
+474 lines and the README's Following reference remain with lane C. Existing
+algorithm and compatibility tests now read preserved historical fixtures;
+current-guide tests execute the current text. Compiler/core changes only alter
+diagnostic repair text. Every changed source file remains within 1,500 lines.
+
+Added execution witnesses for the language core and the published digest.
+Planned branches retain two equal source ids, removed posts stay out of Global,
+search and predicate reads agree, and maintained values and durations execute.
+The core job's half-open period counts two events and sums 16. The digest counts
+125 qualifying messages out of 130, uses 20,255 heap bytes and writes one effect;
+reopening the store and running the period again writes nothing. A non-member
+gets no digest. Trending's 85-post oracle uses 35 examined, 697 steps and 37,260
+heap bytes for its first complete page. The current newest-search plan completes
+1,000 memberships in 3,040 examined with 20 rows and continuation; sampled widths
+2,717 through 3,000 hit the heap ceiling on server, memory and SQLite devices.
+The card states these measurements instead of the old memory-only boundary.
+WASM is 1,743,957 bytes raw / 484,641 gzip, within the unchanged 485,000 budget.
+
+The guide suite has 57 passing tests; authorization has 81. All client shards
+have 1,075 passing tests and ten skips. Full-suite results and the complete
+failure inventory are in [the lane report](./reports/20260924-intent-guide.md).
+Earlier failures were this lane's fixture, wording, census, measured-plan or
+stale-import errors; none was assigned to the baseline or environment.
+
+Stopped the index-free role-sensitive after-insert example: its exact probe
+still requires an explicit index, and dropping the role check would weaken the
+postcondition. The default-order finite-window streaming count still refuses;
+the published example uses `by .at`. New Following binding remains lane C's
+work. Kept the existing full-history search and Following stream-cost note
+exceptions, so this does not claim the strict zero-note target is complete.
+Reproductions and counterexamples are in the report. Did not change compiler
+admission, engine behavior, authorization, disclosure, durability or meters;
+did not run a new browser/native-device witness, contact a delivery provider,
+claim a calibration score, push or publish.
+
+Final full suite: **`== 0 failure(s) in 351 s`**, exit 0. Reference audit:
+504 LLP documents, 9,226 references, zero errors or unchecked references.
+No final failures remain.
