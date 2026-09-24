@@ -365,6 +365,9 @@ for (const tier of ["wasm", "process"]) {
 
   test(`W5c ${tier}: pending writes recover by id through sent and failed, including settlement before reopen returns`, { timeout: 30000 }, async (t) => {
     const f = await fixture(t, tier);
+    // Hold delivery while arranging pending writes: a failed sync alone does
+    // not prevent a successful mutation response from settling them first.
+    f.mode("busy");
     let client = await f.open();
     const sent = await client.mutate({ kind: "mutation", name: "add" }, { body: "recover me" });
     const failed = await client.mutate({ kind: "mutation", name: "reject" }, {});

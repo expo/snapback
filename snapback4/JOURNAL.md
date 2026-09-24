@@ -49574,3 +49574,15 @@ zero errors or unchecked refs. Wasm is 1,754,043 B raw / 487,816 B gzip (+149 ra
 +189 gzip versus round 3, whole-artifact delta); budget stays 488,000 B. Started
 the complete harness with CARGO_INCREMENTAL=0 and serial client files, after
 restoring both deliberately mutated source files and completing targeted checks.
+
+The full Rust inventory passed in 130 s (36 device unit tests and 29 expiry
+tests included). The client inventory exposed an acquisition-fixture race:
+W5c process expected a pending write while its fixture still allowed a server
+response. Six isolated runs passed, but adding a controlled 200 ms pause before
+the pending assertion reproduced sent != pending. Classified environmental/
+timing exposure of a pre-existing fixture race; its schema has no expiry,
+caps or delete. Held delivery with the fixture's existing busy mode while
+arranging pending writes; the offline reopen and online recovery assertions
+are unchanged. Both device tiers pass the corrected test. This additional
+fixture correction is outside the review findings and needed for reliable
+qualification; no product behavior, assertion or timeout changed.
