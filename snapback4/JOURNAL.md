@@ -49605,3 +49605,34 @@ baseline or environmental failure remains in this run. Final reference audit:
 earlier failure and the additional fixture correction are recorded in
 reports/20260924-intent-lane-p-round4.md. No requested round 4 item was deferred;
 earlier cap-prediction and secondary-cleanup limits remain. No push or publication.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 5: reserve the insert arm once
+
+Moved ordinary insert/insert-if-absent's read-plus-insert reservation into
+insert_mode. An upsert reaches insert_attempt under the reservation already
+made before target resolution; it no longer asks for a second allowance after
+its device absence proofs spend the two reserved reads. Actual authorization
+checks, expiry charging and all runtime ceilings remain unchanged. Both
+compiled and compatibility upsert callers still reserve before lookup.
+
+Four new device unit tests cover memory and SQLite: 8,190 prior probes at the
+default 8,192 ceiling, and a ceiling equal to the complete two-probe preflight.
+Both reproduce server success/device E_BOUND before the fix and now agree on
+success. The default-ceiling tests exercise admission, the durable outbox and
+predicted row contents; a one-probe negative control still refuses. A new
+readable-but-delete-denied regression compares complete replies and unchanged
+storage with zero and 3,000 hidden expired siblings. Moving only the expiry
+charge ahead of delete denial makes it fail with 3,000 examined instead of
+zero. Restored the production file byte-for-byte after that mutation control.
+
+Targeted checks: four device tests pass (0.37 s), all 30 expiry tests pass
+(13.29 s), including every 9,000-send examined == 1 assertion and all prior
+reservation/disclosure checks. Ref-check passes: 505 LLP documents, 9,239 refs,
+zero errors or unchecked references. Wasm is 1,754,255 B raw / 487,922 B gzip,
++212 / +106 from round 4, within the unchanged 488,000 B budget (78 B spare).
+No new syntax, refusal code, sync protocol or public test API. Custom device
+ceilings are tested through the production prediction adapter/interpreter;
+ordinary admission retains the default ceiling. No round 5 requirement is
+deferred. Earlier cap-prediction deferral, deferred secondary cleanup and the
+separate six-byte presence heap issue retain their documented decisions.
+Full-suite qualification follows below. No push, merge or publication.

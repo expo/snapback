@@ -3,11 +3,20 @@ use super::constraints::{args, row, source};
 
 #[test]
 fn readable_but_unwritable_targets_hide_expired_siblings_in_the_whole_reply() {
-    let source = format!("{}\nmutation patch(ordinal: int):\n  update messages[conversationId = 'chat', ordinal = ordinal] {{ at: 20 }}\n", source("  cap 200000"))
+    readable_but_denied("update", &["patch", "put"]);
+}
+
+#[test]
+fn readable_but_undeletable_targets_hide_expired_siblings_in_the_whole_reply() {
+    readable_but_denied("delete", &["erase"]);
+}
+
+fn readable_but_denied(effect: &str, operations: &[&str]) {
+    let source = format!("{}\nmutation patch(ordinal: int):\n  update messages[conversationId = 'chat', ordinal = ordinal] {{ at: 20 }}\nmutation erase(ordinal: int):\n  delete messages[conversationId = 'chat', ordinal = ordinal]\n", source("  cap 200000"))
         .replace("  ordinal: int", "  ordinal: int\n  reader: principal ?")
         .replace("  expire at .expiresAt\n  public", "  expire at .expiresAt\n  read <- .reader = viewer").replace("  sync public", "  online only")
-        .replace("update <- allow", "update <- deny");
-    for name in ["patch", "put"] {
+        .replace(&format!("{effect} <- allow"), &format!("{effect} <- deny"));
+    for &name in operations {
         let mut previous = None;
         for backlog in [0, 3_000] {
             let mut e = engine(&source, 0);
@@ -19,7 +28,7 @@ fn readable_but_unwritable_targets_hide_expired_siblings_in_the_whole_reply() {
             let before = e.store().rows("messages").unwrap();
             let read = e.query("message", Context::new("alice", BTreeMap::from([("conversationId".into(), Value::Id("chat".into())), ("ordinal".into(), Value::Int(1))])).at(100)).unwrap();
             assert_eq!(read.data.field("id"), Ok(&Value::Id("z-live".into())), "positive read control");
-            let arguments = if name == "patch" { BTreeMap::from([("ordinal".into(), Value::Int(1))]) } else { args("z-live", 1, 20) };
+            let arguments = if name == "put" { args("z-live", 1, 20) } else { BTreeMap::from([("ordinal".into(), Value::Int(1))]) };
             let out = e.mutate(name, None, Context::new("alice", arguments).at(100)).unwrap();
             assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{out:?}");
             assert_eq!(out.metered.examined, 0, "read authority does not permit charging hidden expiry work");
