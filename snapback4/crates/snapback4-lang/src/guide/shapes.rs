@@ -16,8 +16,8 @@ can replace inherited fields: `{ ...p, handle: { value: p.handle } }` and
 `p { *, handle: { value: .handle } }` return an object in place of the handle
 text. The replacing field determines the generated type. A row contributes
 the same columns and `pending?: boolean` as `p { *, extra: true }`.
-With several row spreads, the last row supplies the metadata; plain object
-spreads do not replace that base. `pending` cannot be supplied or overwritten
+With several row spreads, a pending row whose fields survive also makes the
+result pending. Later spreads replace earlier fields from left to right. `pending` cannot be supplied or overwritten
 in an object that spreads a row. This changes only the output;
 rules, ordering and cursors still use the original row.
 E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name, even

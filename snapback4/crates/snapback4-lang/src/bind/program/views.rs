@@ -66,7 +66,7 @@ impl Binder<'_> {
                 self.pop_scope();
                 return Ok((ir::var(&target), Ty::Collection(Box::new(ty), max)));
             }
-            let fields = match ty { Ty::RowShape(fields) | Ty::Object(fields) => fields, _ => unreachable!("shape object") };
+            let fields = match ty { Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::Object(fields) => fields, _ => unreachable!("shape object") };
             if let Some(prior) = &mut result {
                 if prior.keys().ne(fields.keys()) {
                     return Err(type_error(&lane.site, format!("view {} branch fields differ from branch at {}", merge.table, first_site.as_ref().unwrap()), "project the same named fields in every view branch").guide("reads"));

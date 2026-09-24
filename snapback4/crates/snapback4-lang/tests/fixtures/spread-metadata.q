@@ -23,3 +23,33 @@ query merged(first: notes, second: notes):
   p = notes[first] ! else NOT_FOUND
   q = notes[second] ! else NOT_FOUND
   return { ...p, ...q, extra: true }
+table tags:
+  owner: principal
+  label: text
+  read <- .owner = viewer
+  sync to .owner
+query tagged(key: notes, tag: tags):
+  p = notes[key] ! else NOT_FOUND
+  q = tags[tag] ! else NOT_FOUND
+  return { ...p, ...q }
+query taggedAgain(key: notes, tag: tags):
+  p = notes[key] ! else NOT_FOUND
+  q = tags[tag] ! else NOT_FOUND
+  s = { ...p, ...q }
+  return { ...s }
+query taggedReplaced(key: notes, tag: tags):
+  p = notes[key] ! else NOT_FOUND
+  q = tags[tag] ! else NOT_FOUND
+  return { ...p, ...q, title: 'override' }
+query spreadThenShape(key: notes):
+  p = notes[key] ! else NOT_FOUND
+  s = { ...p }
+  return s { title: 'override', * }
+query spreadThenShapes(key: notes):
+  p = notes[key] ! else NOT_FOUND
+  s = { ...p } { * }
+  return s { title: 'override', * }
+query shapeThenShape(key: notes):
+  p = notes[key] ! else NOT_FOUND
+  s = p { * }
+  return s { title: 'override', * }

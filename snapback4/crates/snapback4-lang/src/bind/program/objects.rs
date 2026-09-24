@@ -36,7 +36,7 @@ impl Binder<'_> {
                 return Err(type_error(&fields.iter().find(|field| field.name == "pending").unwrap_or(&fields[0]).site,
                     "pending is the device's row metadata", "omit pending from the object; it is preserved from the spread row"));
             }
-            Ok((Expr::Shape { base: Box::new(base), fields: values }, Ty::RowShape(types)))
+            Ok((Expr::Shape { base: Box::new(base), fields: values }, Ty::RowObject(types)))
         } else { Ok((Expr::Object(values), Ty::Object(types))) }
     }
 
@@ -69,7 +69,8 @@ impl Binder<'_> {
     /// still authorize the source before any of its fields can be selected.
     fn object_fields(&mut self, fields: &[ObjectField], table: Option<&TableInfo>, out: &mut setup::Body) -> Fallible<(Vec<Field>, Option<Expr>)> {
         let mut result = Vec::new();
-        let mut base = None;
+        let mut bases = Vec::new();
+        let mut origins = BTreeMap::new();
         let mut failed = None;
         for field in fields {
             let mut setup = setup::Body::default();
@@ -91,7 +92,7 @@ impl Binder<'_> {
             out.extend(setup);
             if field.spread {
                 let operand = field.value.as_ref().unwrap();
-                if !matches!(ty.required(), Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_)) {
+                if !matches!(ty.required(), Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
                     let expression = print::expression(operand);
                     let rewrite = if let Ty::Ref(table) = ty.required() {
                         let key = if ty.is_optional() { format!("{expression} ! else NOT_FOUND") } else { expression };
@@ -107,20 +108,29 @@ impl Binder<'_> {
                         format!("p = {} ! else NOT_FOUND\nreturn {{ ...p }}", print::expression(operand))).guide("shapes"));
                 }
                 let value = self.snapshot(value, out);
-                // The last spread row is the base, just as its columns replace
-                // earlier rows' columns. Plain objects do not replace row metadata.
-                if matches!(ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_)) { base = Some(value.clone()); }
+                let origin = if matches!(ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
+                    bases.push(value.clone());
+                    Some(bases.len() - 1)
+                } else { None };
                 for (name, ty) in self.row_fields(&ty, &field.site)? {
+                    origins.insert(name.clone(), origin);
                     result.push((name.clone(), ir::field(value.clone(), &name), ty, field.site.clone()));
                 }
             } else {
                 // Snapshot anything that can read, fail or allocate before
                 // evaluating the next operand. Lexical field selections stay
                 // in the object so existing device provenance is preserved.
+                origins.insert(field.name.clone(), None);
                 result.push((field.name.clone(), self.snapshot(value, out), ty, field.site.clone()));
             }
         }
-        match failed { Some(error) => Err(error), None => Ok((result, base)) }
+        // Keep the final row base just as a single-row `p { *, ... }` does.
+        // Earlier rows contribute metadata only while one of their fields
+        // survives. Replacing every earlier column must also replace its flag.
+        let last = bases.len().checked_sub(1);
+        let bases = bases.into_iter().enumerate().filter_map(|(at, base)|
+            (Some(at) == last || origins.values().any(|origin| *origin == Some(at))).then_some(base)).collect();
+        match failed { Some(error) => Err(error), None => Ok((result, pending_base(bases))) }
     }
 
     /// Write payloads share object syntax. Expand before ordinary column,
@@ -136,4 +146,21 @@ impl Binder<'_> {
         }
         Ok(expanded.into_values().collect())
     }
+}
+
+/// Combine metadata using the existing Shape semantics: a false fallback is
+/// overwritten only by a pending base. No absent-field read, new IR, or wire
+/// form is needed. These small projections and boolean operations all pay the
+/// interpreter's ordinary step and heap meters; source rows were bound once.
+fn pending_base(mut bases: Vec<Expr>) -> Option<Expr> {
+    let first = bases.pop()?;
+    if bases.is_empty() { return Some(first); }
+    let marked = |base| ir::field(Expr::Shape {
+        base: Box::new(base),
+        fields: BTreeMap::from([("pending".into(), Expr::Literal(Value::Bool(false)))]),
+    }, "pending");
+    let pending = bases.into_iter().fold(marked(first), |right, base| Expr::Binary {
+        op: BinaryOp::Or, left: Box::new(marked(base)), right: Box::new(right),
+    });
+    Some(Expr::Object(BTreeMap::from([("pending".into(), pending)])))
 }

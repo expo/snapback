@@ -274,7 +274,7 @@ impl Binder<'_> {
                     }
                 }
             }
-            Ty::Object(fields) | Ty::RowShape(fields) => match fields.get(name) {
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => match fields.get(name) {
                 Some(field) => field.clone(),
                 None => return Err(unknown(site, format!("this object has no field {name}"), name_rewrite(name, fields.keys().map(String::as_str), None))),
             },

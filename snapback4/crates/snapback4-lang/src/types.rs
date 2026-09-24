@@ -39,6 +39,8 @@ pub enum Ty {
     Object(BTreeMap<String, Ty>),
     /// A projection whose row base carries optional device metadata.
     RowShape(BTreeMap<String, Ty>),
+    /// Object-spread fields with row metadata, but ordinary object wildcard order.
+    RowObject(BTreeMap<String, Ty>),
 }
 
 impl Ty {
@@ -50,6 +52,7 @@ impl Ty {
             Ty::Collection(item, _) => Ty::Collection(Box::new(item.rebound()), u32::MAX),
             Ty::Object(fields) => Ty::Object(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::RowShape(fields) => Ty::RowShape(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
+            Ty::RowObject(fields) => Ty::RowObject(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::Optional(inner) => inner.rebound().optional(),
             other => other,
         }
@@ -154,7 +157,7 @@ impl Ty {
             Ty::WriteRow(table) => format!("a {table} write result"),
             Ty::Page(table, max) => format!("a page of at most {max} {table} rows"),
             Ty::Collection(item, max) => format!("at most {max} of {}", item.name()),
-            Ty::Object(fields) | Ty::RowShape(fields) => format!("{{ {} }}", fields.keys().cloned().collect::<Vec<_>>().join(", ")),
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => format!("{{ {} }}", fields.keys().cloned().collect::<Vec<_>>().join(", ")),
         }
     }
 
@@ -182,7 +185,7 @@ impl Ty {
                 let (b, bm) = b.sequence().unwrap();
                 a.assignable_to(&b) && am <= bm
             },
-            (Ty::Object(a) | Ty::RowShape(a), Ty::Object(b) | Ty::RowShape(b)) => a.len() == b.len() && a.iter().all(|(name, ty)| b.get(name).is_some_and(|target| ty.assignable_to(target))),
+            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b)) => a.len() == b.len() && a.iter().all(|(name, ty)| b.get(name).is_some_and(|target| ty.assignable_to(target))),
             (Ty::Enum(a), Ty::Enum(b)) => a.iter().all(|v| b.contains(v)),
             (Ty::Unknown, _) | (_, Ty::Unknown) | (_, Ty::Json) => true,
             _ => false,
@@ -219,7 +222,7 @@ impl Ty {
             (Ty::Optional(a), b) | (b, Ty::Optional(a)) => a.join(&b.required()).optional(),
             (Ty::Text(a), Ty::Text(b)) => Ty::Text(*a.max(b)),
             (Ty::Int, Ty::Time) | (Ty::Time, Ty::Int) => Ty::Int,
-            (Ty::Object(a) | Ty::RowShape(a), Ty::Object(b) | Ty::RowShape(b)) => {
+            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b)) => {
                 let mut fields = BTreeMap::new();
                 for (name, ty) in a {
                     match b.get(name) {
@@ -232,7 +235,9 @@ impl Ty {
                         fields.insert(name.clone(), ty.clone().optional());
                     }
                 }
-                if matches!(self, Ty::RowShape(_)) || matches!(other, Ty::RowShape(_)) { Ty::RowShape(fields) } else { Ty::Object(fields) }
+                if matches!(self, Ty::RowShape(_)) || matches!(other, Ty::RowShape(_)) { Ty::RowShape(fields) }
+                else if matches!(self, Ty::RowObject(_)) || matches!(other, Ty::RowObject(_)) { Ty::RowObject(fields) }
+                else { Ty::Object(fields) }
             }
             (Ty::Collection(a, am), Ty::Collection(b, bm)) => Ty::Collection(Box::new(a.join(b)), *am.max(bm)),
             (Ty::List(a, am), Ty::List(b, bm)) => Ty::List(Box::new(a.join(b)), *am.max(bm)),
