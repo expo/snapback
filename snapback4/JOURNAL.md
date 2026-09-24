@@ -49399,3 +49399,126 @@ and `uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_au
 failures did not recur; this lane did not modify their fixtures or claim to
 repair them. All changed source files are under 1,500 lines and
 `git diff --check` passes. No new Quarry spelling or refusal code was added.
+
+### 2026-09-24 — Lane L round 1: removing and redefining a materialized view
+
+Merged `origin/main` at `61aa042b0` (merge `1282aab3f`), then landed
+`1b872cbf5`: populated V2 Following views can be removed or redefined without
+replaying their application sources. No release or package was published.
+
+File-by-file implementation:
+
+- `engine/timeline/activation.rs` replaces the blanket population refusal:
+  retirement clears the old view's owned rows and indexes in the adoption
+  transaction, including pending delivery, epochs and tombstones. Existing
+  catalog numbers remain reserved, as with maintained-table removal. Reusing
+  a retired name cannot resurrect its data. An application table occupying a
+  new owned name still refuses with its name and a rename rewrite. A new or
+  changed view over populated sources queues one durable rebuild control row.
+- `engine/mod.rs` calls that activation hook with the adoption clock;
+  `engine/timeline.rs` delegates activation to the new module and lazily
+  reconstructs a single retained original when a concurrent repost needs it.
+- `engine/timeline/rebuild.rs` reconstructs current edges, original events and
+  independent reposts. It assigns retained events to the adoption admission
+  token and retained edges to the next ordinal of that token. Thus backfill
+  alone owns retained events and delivery alone owns later events, regardless
+  of event timestamps. Rebuilt repost identities derive from the retained
+  source row id; redefinition is a new derived generation, not identity
+  continuity with the retired repost event.
+- `engine/timeline/work.rs` runs those three phases through the existing
+  ruled, metered, 256-row/1-ms cooperative walk. Progress and copies share a
+  commit. Backfill and live delivery wait until source reconstruction finishes,
+  so neither can pass an uninitialized edge or incomplete event population.
+  The worker still takes the same FIFO server engine lock between chunks.
+- `engine/timeline/online.rs` queues a full history-window backfill for a follow
+  during reconstruction and tolerates an unfollow before its private epoch
+  has been reconstructed. Later refollows always get a fresh epoch.
+- `schema/timeline.rs` updates the governing reference for V2 declaration
+  history. `snapback4-lang/src/bind/timeline.q` adds only the private `rebuild`
+  work kind; no authored form, authority rule, meter or capability is widened.
+- `guide/feeds.md` documents removal and redefinition in one sentence each,
+  and corrects the lifecycle refusal text. `guide/codes.rs` narrows
+  `E_TIMELINE_REDEFINE` and updates the owned-name `E_TIMELINE_ACTIVATE` rewrite.
+- `tests/timeline_adoption.rs` adds eight tests, detailed below;
+  `tests/timeline/lifecycle.rs` changes the three tests whose old assertions
+  deliberately pinned the blanket populated-source/removal refusal.
+
+Deploy policy is unchanged: `successor::classify` treats removal of visible
+maintained tables as destructive, and `verbs/releases.rs` requires
+`--allow-destructive`. Following's owned tables follow exactly that rule.
+Both maintained and materialized predicate redefinitions deploy without the
+flag. Dev removal needs no flag. The CLI test exercises all four cases on
+populated stores.
+
+Eight new tests and their evidence:
+
+1. Real `dev --no-watch` startup adopts removal of a populated Following view;
+   all owned rows and indexes are absent, sources, a maintained count and a
+   second Following view remain byte-for-byte intact, and no delivery remains.
+2. A broadened originals predicate reconstructs 1,040 source rows. After a
+   restart nine zero-time chunks into reconstruction, every paginated result
+   for the author, three followers and an outsider equals a fresh store's new
+   definition. Each follower has exactly the newest 1,000 retained events.
+   A zero-time source chunk writes at most five rows, including its cursor.
+   Unchanged adoption does not restart completed work.
+3. Concurrent unfollow/refollow, a new follow, a backdated live event, removal
+   and a repost all succeed during reconstruction. A pre-existing follower
+   receives exactly 1,000 historical events plus the live event; a follow after
+   that event receives only its own 1,000-event window. Independent reposts
+   survive original removal, and (reader,event,epoch) copies are unique.
+4. Deploy removal and redefinition match maintained-view flag policy.
+5. Changing originals, reposts and edge sources together rebuilds Following
+   from the new sources, preserving both source populations and another view.
+6. An orphan repost parks only its rebuild with `E_TIMELINE_REDEFINE`, the
+   view/source/row and missing original named, and a concrete repair. The
+   source is untouched; no false event is delivered. The control row's seat
+   cannot be acquired by custom-session or service-session minting.
+7. Populated application tables occupying a generated owned name refuse
+   activation atomically, preserving their data and generation.
+8. A later adoption narrowing failure rolls back retirement and all pending
+   delivery. Successful removal cancels that delivery; re-adding the same name
+   rebuilds exactly one copy from sources.
+
+Engineering decisions where the brief was silent: reconstruction defers the
+normal immediate 50-event follow preview until the retained event population
+is available, using the same durable 1,000-event backfill instead; otherwise a
+partial preview could retain events outside the final window. A control record
+uses `service:$timeline-rebuild`: the service namespace is reserved from custom
+identities and `$` is rejected in declared/minted service names. Its existing
+private Work read/sync rule therefore grants no new audience. The 0.3 format
+fence remains; this round reconstructs V2, not old publication-mode history.
+
+Narrow non-rebuildable case: without a materialized view, insert a repost with
+`postId = 'missing-original'` (a typed reference does not prove existence),
+then add Following and run delivery. No retained card can supply its original
+author. The bounded worker parks with `E_TIMELINE_REDEFINE`; it does not invent
+attribution or stop unrelated views. Delete the named orphan through its
+owner's mutation, then rename the view to enqueue a new rebuild. This is the
+only new refusal case; standard meter/constraint refusals still park as before.
+
+Targeted qualification: 8 new adoption tests passed in 7.26 s; the expanded
+CLI policy check passed separately in 0.10 s. All 23 existing timeline tests
+and all 5 maintenance slice tests passed. No new language syntax was added;
+existing `view following: activity where .actor = viewer or exists
+follows[viewer, .actor]` now supports removal/redefinition and populated-source
+activation. Predicate example: replace `.parentId = null and not .removed`
+with `not .removed` in its activity originals branch. Source-change example:
+point Following at `alternateActivity` and `links` instead of `activity` and
+`follows`. Removal example: delete that declaration and read `activity` as a
+planned view. Deploy removal uses `snapback4 deploy release --allow-destructive`.
+
+Full qualification on this commit: `scripts/test.sh` exited 0 with the exact
+summary **`== 0 failure(s) in 227 s`**. Invocation used
+`CARGO_BUILD_JOBS=12 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+SNAPBACK4_RUST_TEST_PROCESSES=8 RUST_TEST_THREADS=4`; the lane ran one full
+suite, using the existing warm build. Log: `/tmp/lane-l-r1-full.log`.
+The new adoption target passed all 8 tests in 7.28 s within that suite.
+Client tests: 1,054 passed, 0 failed, 10 skipped. Wasm remains 1,744,879 B raw /
+484,978 B gzip against the unchanged 486,000 B budget. Failures: none introduced,
+none baseline, none environmental. The supplied baseline log's Rust failures
+were reviewed and did not recur; their fixtures were not changed by this round.
+All changed source files remain below 1,500 lines; `git diff --check` passes.
+The three explicit round-0 performance benches remain ignored by the normal
+suite; their committed measurements above were not rerun or replaced in round 1.
+No source authorization, disclosure rule, meter ceiling, SQLite durability
+setting, publication, 0.3-format migration or new Quarry syntax was changed.
