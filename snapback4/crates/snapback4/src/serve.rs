@@ -426,17 +426,6 @@ fn service_of_locked(request: &Request, shared: &Shared, engine: &Engine) -> Res
     }).map_err(|e| e.refusal())?.ok_or_else(refused)
 }
 
-/// A commit outside a request: let every long poll see it.
-fn bump_seq(shared: &Shared) {
-    if let Ok(seq) = lock(&shared.engine).seq() {
-        let mut current = lock(&shared.seq);
-        if seq > *current {
-            *current = seq;
-            shared.committed.notify_all();
-        }
-    }
-}
-
 fn single_header<'a>(request: &'a Request, name: &str) -> Result<Option<&'a str>, ()> {
     let mut headers = request.headers().iter().filter(|h| h.field.as_str().as_str().eq_ignore_ascii_case(name));
     let value = headers.next().map(|h| h.value.as_str());

@@ -1,8 +1,12 @@
 //! FIFO admission to the single writer: a chunk cannot overtake a waiting request.
 use std::{ops::{Deref, DerefMut}, sync::{Condvar, LockResult, Mutex, MutexGuard, PoisonError}};
+use std::time::{Duration, Instant};
+
+const REQUEST_QUIET: Duration = Duration::from_millis(1);
+const MAX_DEFER: Duration = Duration::from_millis(5);
 
 #[derive(Default)]
-struct Queue { next: u64, serving: u64 }
+struct Queue { next: u64, serving: u64, last_request: Option<Instant> }
 
 // @ref LLP 3000.013#4-following-without-caps — background delivery yields the engine between commits.
 /// Both requests and maintenance take tickets. Later requests cannot starve
@@ -18,7 +22,32 @@ impl<T> FairMutex<T> {
         Self { queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value) }
     }
     pub fn lock(&self) -> LockResult<FairGuard<'_, T>> {
+        self.admit(false)
+    }
+    /// Coalesce a short request burst before entering the FIFO. At the deadline
+    /// maintenance takes a ticket even under continuous traffic; later arrivals
+    /// cannot starve it. No engine lock is held during the deferral.
+    pub fn background(&self) -> FairGuard<'_, T> {
+        recover(self.admit(true), || self.clear_poison())
+    }
+    fn admit(&self, background: bool) -> LockResult<FairGuard<'_, T>> {
+        let started = Instant::now();
         let mut queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
+        if background {
+            loop {
+                // A queue behind the active request is sustained contention,
+                // not an inter-request gap. Join its tail immediately rather
+                // than spending the whole deferral waiting for an idle writer.
+                if queue.next.wrapping_sub(queue.serving) > 1 { break; }
+                let quiet = queue.last_request.map_or(Duration::ZERO, |at| REQUEST_QUIET.saturating_sub(at.elapsed()));
+                if queue.next == queue.serving && quiet.is_zero() { break; }
+                let remaining = MAX_DEFER.saturating_sub(started.elapsed());
+                if remaining.is_zero() { break; }
+                let wait = if quiet.is_zero() { remaining } else { quiet.min(remaining) };
+                queue = self.available.wait_timeout(queue, wait).unwrap_or_else(PoisonError::into_inner).0;
+            }
+        }
+        let contended = background && (queue.next != queue.serving || queue.last_request.is_some_and(|at| at.elapsed() < REQUEST_QUIET));
         let ticket = queue.next;
         queue.next = queue.next.wrapping_add(1);
         while queue.serving != ticket {
@@ -26,8 +55,8 @@ impl<T> FairMutex<T> {
         }
         drop(queue);
         match self.value.lock() {
-            Ok(value) => Ok(FairGuard { owner: self, value: Some(value) }),
-            Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()) })),
+            Ok(value) => Ok(FairGuard { owner: self, value: Some(value), background, contended }),
+            Err(error) => Err(PoisonError::new(FairGuard { owner: self, value: Some(error.into_inner()), background, contended })),
         }
     }
     pub fn clear_poison(&self) { self.value.clear_poison(); }
@@ -35,7 +64,10 @@ impl<T> FairMutex<T> {
     pub fn is_poisoned(&self) -> bool { self.value.is_poisoned() }
 }
 
-pub struct FairGuard<'a, T> { owner: &'a FairMutex<T>, value: Option<MutexGuard<'a, T>> }
+pub struct FairGuard<'a, T> { owner: &'a FairMutex<T>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool }
+impl<T> FairGuard<'_, T> {
+    pub fn contended(&self) -> bool { self.contended }
+}
 impl<T> Deref for FairGuard<'_, T> {
     type Target = T;
     fn deref(&self) -> &T { self.value.as_deref().expect("live guard") }
@@ -47,6 +79,7 @@ impl<T> Drop for FairGuard<'_, T> {
     fn drop(&mut self) {
         drop(self.value.take());
         let mut queue = self.owner.queue.lock().unwrap_or_else(PoisonError::into_inner);
+        if !self.background { queue.last_request = Some(Instant::now()); }
         queue.serving = queue.serving.wrapping_add(1);
         self.owner.available.notify_all();
     }
@@ -122,5 +155,55 @@ mod tests {
         assert_eq!(*lock.recover_lock(), 7);
         assert!(!lock.is_poisoned());
         assert_eq!(*lock.lock().unwrap(), 7);
+    }
+
+    #[test]
+    fn busy_background_eventually_takes_a_ticket_behind_waiting_requests() {
+        let lock = Arc::new(FairMutex::new(()));
+        let initial = lock.lock().unwrap();
+        let (sent, received) = mpsc::channel();
+        let requester = lock.clone(); let request_sent = sent.clone();
+        let request = std::thread::spawn(move || {
+            let _guard = requester.lock().unwrap(); request_sent.send("request").unwrap();
+        });
+        queued(&lock, 2);
+        let worker = lock.clone(); let work_sent = sent.clone();
+        let background = std::thread::spawn(move || {
+            let guard = worker.background();
+            assert!(guard.contended()); work_sent.send("background").unwrap();
+        });
+        // The held request and its waiter trigger immediate FIFO admission.
+        queued(&lock, 3);
+        let later = lock.clone();
+        let last = std::thread::spawn(move || {
+            let _guard = later.lock().unwrap(); sent.send("later request").unwrap();
+        });
+        queued(&lock, 4);
+        drop(initial);
+        for expected in ["request", "background", "later request"] {
+            assert_eq!(received.recv_timeout(Duration::from_secs(5)).unwrap(), expected);
+        }
+        request.join().unwrap(); background.join().unwrap(); last.join().unwrap();
+    }
+
+    #[test]
+    fn background_does_not_count_as_request_activity() {
+        let lock = FairMutex::new(());
+        assert!(!lock.background().contended());
+        assert!(lock.queue.lock().unwrap().last_request.is_none());
+        assert!(!lock.background().contended());
+    }
+
+    #[test]
+    fn a_single_continuous_holder_cannot_defer_background_forever() {
+        let lock = Arc::new(FairMutex::new(()));
+        let request = lock.lock().unwrap();
+        let worker = lock.clone();
+        let background = std::thread::spawn(move || assert!(worker.background().contended()));
+        // No queued second request takes the sustained-contention shortcut.
+        // The deadline must still allocate the next ticket before release.
+        queued(&lock, 2);
+        drop(request);
+        background.join().unwrap();
     }
 }

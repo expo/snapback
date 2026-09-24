@@ -1,9 +1,14 @@
 //! Explicit HTTP latency witness; run with --release --ignored --nocapture.
 //! SNAPBACK4_BENCH_BIN can select the packaged production-profile binary.
+//! SNAPBACK4_BENCH_ASSERT=1 enforces 3x; SNAPBACK4_BENCH_MAX_RATIO=1.5 also
+//! qualifies the stricter margin. Run the HTTP witness three times in sequence.
 use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Engine, Store, Value, WriteState};
 use std::{fs, io::{BufRead, BufReader, Read, Write}, net::TcpStream, path::PathBuf,
     process::{Child, Command, Stdio}, time::{Duration, Instant}};
+
+#[path = "maintenance_latency/profile.rs"]
+mod profile;
 
 struct Fixture { path: PathBuf }
 impl Fixture {
@@ -101,9 +106,13 @@ fn following_http_latency() {
         report(&format!("home reader={reader}"), &samples);
     }
     // Baseline runs record the miss without turning the witness into a false pass.
-    println!("MEASURE target ratio={:.3} under_50ms={} within_3x={}", write_p95[1]/write_p95[0], write_p95[1]<50.0, write_p95[1]<=3.0*write_p95[0]);
+    println!("MEASURE target ratio={:.3} under_50ms={} within_3x={} within_1_5x={}", write_p95[1]/write_p95[0], write_p95[1]<50.0, write_p95[1]<=3.0*write_p95[0], write_p95[1]<=1.5*write_p95[0]);
     if std::env::var_os("SNAPBACK4_BENCH_ASSERT").is_some() {
         assert!(write_p95[1] < 50.0 && write_p95[1] <= 3.0*write_p95[0], "post p95: {write_p95:?}");
+    }
+    if let Ok(max_ratio) = std::env::var("SNAPBACK4_BENCH_MAX_RATIO") {
+        let max_ratio = max_ratio.parse::<f64>().expect("numeric p95 ratio");
+        assert!(write_p95[1] < 50.0 && write_p95[1] <= max_ratio*write_p95[0], "post p95: {write_p95:?}, target {max_ratio}x");
     }
 }
 
@@ -125,7 +134,7 @@ fn following_chunk_cost() {
     let mut copies = 0;
     while let Some((meter, elapsed)) = {
         let start = Instant::now();
-        engine.run_timeline_chunk_for(3, if std::env::var_os("SNAPBACK4_BENCH_COUNT_ONLY").is_some() { Duration::MAX } else { Duration::from_millis(1) }).unwrap().map(|m| (m, start.elapsed()))
+        engine.run_timeline_chunk_for(3, if std::env::var_os("SNAPBACK4_BENCH_COUNT_ONLY").is_some() { Duration::MAX } else { Duration::from_millis(2) }).unwrap().map(|m| (m, start.elapsed()))
     } {
         let delivered = meter.rows_written - 1;
         println!("MEASURE chunk copies={delivered} elapsed_ms={:.3} us_per_copy={:.3}", elapsed.as_secs_f64()*1000.0, elapsed.as_secs_f64()*1e6/delivered.max(1) as f64);

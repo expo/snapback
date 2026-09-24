@@ -110,7 +110,11 @@ impl Store {
         }
         let conn = Connection::open(&real)?;
         conn.busy_timeout(timeout)?;
-        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF;")?;
+        // @ref LLP 3000.013#4-following-without-caps — published watermarks must survive a power loss.
+        // Delivery publishes partition watermarks as well as replayable copies.
+        // Losing an acknowledged background commit could rewind a device's
+        // watermark, so requests and maintenance share the durable policy.
+        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = OFF;")?;
         // A release serves the shared store through a link; the assets sit
         // beside the file itself, so every release serves the same bytes.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
