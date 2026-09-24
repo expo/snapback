@@ -49324,3 +49324,59 @@ no general agreement or full Lane P completion claim is made. No new sync
 protocol, lifetime-provenance design, syntax, refusal code, package release,
 push or publication. File map, examples, test proofs, exact failure attribution
 and both reproductions: `reports/20260924-intent-lane-p.md`.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 1: authorize expiry work and defer unknown cap predictions
+
+Closed the review's premature-expiry-charge path: update/upsert targets
+accumulate matching expired siblings privately and charge only after write
+rule authority. Private resolution stops at the remaining examination
+allowance plus one; unresolved update/delete returns the ordinary NOT_FOUND,
+and an upsert cannot insert without paying that over-ceiling debt. This keeps
+both denied-world logical observations and physical resolution bounded.
+Alternate-key delete now uses an engine-private DeleteTarget with its existing
+read/delete gates, instead of a generated public Get before authorization.
+The original by-id Delete IR remains compatible. Denied update, upsert,
+insert-if-absent and both delete addresses have identical complete refusals and
+meters with zero versus 9,000 expired siblings.
+
+Devices now queue occupancy-increasing writes on expiring capped tables:
+even complete live snapshots omit unswept physical rows. Memory and SQLite
+adapters persist those queues without predicted rows across reopen, settle
+server cap refusals, and acquire successful replacements after sweeping. A
+queued send rolls back its earlier conversation update too. Same-group
+updates/upserts, deletes and same-id expired replacements with held
+predecessors retain prediction; cap-group moves defer.
+
+Secondary collision cleanup deliberately remains with the background sweep,
+as permitted by the review. The never-live-grant disclosure regression still
+passes. A replacement at a full cap refuses with a write site and a rewrite
+naming the one-second tick and maximum 2,000-row pass. No lifecycle/provenance
+redesign, new Quarry spelling or new refusal code was added.
+
+Measured: 21 expiry regressions and 25 existing disclosure reviews passed.
+9,000 sends still examine exactly one row apiece with either zero or 3,000
+unrelated expired rows. The 5,000-sibling upsert reaches E_BOUND at 8,193;
+removing target accumulation made that regression fail with an incorrect
+5,001-examination commit. The production charge was restored. The old binder
+reproduced all 3,219 golden hashes; exactly 16 programs differ solely by the
+intentional delete triple replacement. Those 16 hashes and their provenance
+were updated; all 11 lowering tests pass, with ownership, admission and
+runtime comparisons intact. PostgreSQL feature compilation passes; no live
+PostgreSQL service execution is claimed.
+
+The first full harness recorded `== 1 failure(s) in 1009 s`: my omitted
+DeleteTarget arm in the corpus test helper. That is fixed. Its client inventory
+had 1,098 tests, 1,088 passes, 10 skips and zero failures. A subsequent Rust
+inventory exposed seven stale golden shards (_0, _1, _2, _3, _4, _5, _7), fixed
+by the scoped hash update above; every other Rust target passed. These were
+introduced integration/expectation failures, not baseline or environmental
+failures. The final complete harness is running; its result will be appended
+below before the lane report is finalized.
+
+The full-harness wasm is 1,753,421 B raw / 487,644 B gzip, compared with this
+lane's prior 1,748,501 / 485,838 (+4,920 raw / +1,806 gzip). This is a whole
+artifact delta for private expiry resolution, delete addressing, prediction
+deferral and sweep-timed refusals. The size exceeds the inherited 486,000 B
+ratchet, so metrics/wasm-budget.json raises it to 488,000 B in this commit,
+leaving 356 B. No runtime meter ceiling changes. No push or publication.
+Details: reports/20260924-intent-lane-p-round1.md.

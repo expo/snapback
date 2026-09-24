@@ -98,3 +98,17 @@ columns; non-unique scans explicitly name the historical declared index. Four
 strings. Comparing the old compiler on the original inputs against the new
 compiler on migrated inputs found no other IR difference for those bundles.
 The new optional merge fields serialize absent on every historical merge.
+
+LLP 3000.013 Lane P review closure (2026-09-24): alternate-key delete now
+lowers directly to `DeleteTarget`. The generated public `Get` previously
+charged expired siblings before read/delete authority and disclosed a hidden
+backlog through `E_BOUND`. The engine-private replacement retains both gates,
+accumulates work privately, and charges only after authority. Sixteen frozen
+program digests change (the alternate-key `leave` programs, `probe`, and
+`writeForms`); their source identities and the 3,219-program census stay fixed.
+The pre-fix binder reproduced all 3,219 existing hashes. Recursive comparison
+of the old and new JSON proved that each difference is exactly one
+`Let(Get)` / `Require NOT_FOUND` / `Delete` triple replaced by `DeleteTarget`
+with the identical table, index, key, provenance and lookup site; no other IR
+changed. Only those 16 digests were updated. Ownership-on/off IR, admission,
+results, all meters and refusal comparisons remain enforced without exclusions.

@@ -108,6 +108,8 @@ mod constraints;
 mod stores;
 #[path = "expiry_writes/devices.rs"]
 mod devices;
+#[path = "expiry_writes/review.rs"]
+mod review;
 
 #[test]
 fn cli_certifies_keyed_expiry_writes_with_the_actual_sweep_policy() {

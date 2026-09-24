@@ -106,6 +106,8 @@ pub enum RuntimeError {
     Conflict { current: crate::ir::Read },
     #[error("E_CONSTRAINT: {0}")]
     Constraint(String),
+    #[error("E_CONSTRAINT: {message}")]
+    ExpiringCap { message: String, site: String },
     #[error("{code}: {message} ({detail})")]
     NamedConstraint { code: String, message: String, detail: String },
     #[error("E_OVERFLOW: maintain {maintain}.{column} overflowed")]
@@ -161,7 +163,7 @@ impl RuntimeError {
             Self::Rule { .. } => "E_RULE".into(),
             Self::Require { code, .. } | Self::NamedConstraint { code, .. } => code.clone(),
             Self::Conflict { .. } => "E_CONFLICT".into(),
-            Self::Constraint(_) => "E_CONSTRAINT".into(),
+            Self::Constraint(_) | Self::ExpiringCap { .. } => "E_CONSTRAINT".into(),
             Self::Fanout => "E_FANOUT".into(),
             Self::Bound { .. } => "E_BOUND".into(),
             Self::UnknownOp(_) => "E_OP".into(),
@@ -191,7 +193,7 @@ impl RuntimeError {
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
-            Self::Conflict { .. } | Self::Constraint(_) | Self::NamedConstraint { .. } => "constraint",
+            Self::Conflict { .. } | Self::Constraint(_) | Self::ExpiringCap { .. } | Self::NamedConstraint { .. } => "constraint",
             Self::Fanout | Self::Bound { .. } => "bound",
             Self::UnknownOp(_) => "op",
             Self::Asset { .. } => "asset",
@@ -285,6 +287,12 @@ impl RuntimeError {
             Self::Constraint(message) => {
                 refusal.message = message.clone();
                 refusal.guide = Some("indexes".into());
+            }
+            Self::ExpiringCap { message, site } => {
+                refusal.message = message.clone();
+                refusal.site = Some(site.clone());
+                refusal.guide = Some("types".into());
+                refusal.rewrite = Some("retry after expired rows are swept: the server runs a 1-second tick, at most 2,000 rows per pass; a larger backlog takes more passes. If the cap holds live rows, delete an existing row before inserting".into());
             }
             Self::Conflict { current } => {
                 refusal.site = Some(current.site.clone());

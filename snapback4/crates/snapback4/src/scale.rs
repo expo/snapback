@@ -182,6 +182,11 @@ impl Analysis<'_> {
                     self.expr(key, times); self.expr(row, times); self.write(table, "upsert", times);
                 }
                 Stmt::Delete { table, key } => { self.expr(key, times); self.write(table, "delete", times); }
+                Stmt::DeleteTarget { target } => {
+                    for key in &target.key { self.expr(key, times); }
+                    if self.schema.table(&target.table).is_some_and(|t| t.expire.is_some()) { self.expiry_write(&target.table, &target.index); }
+                    self.write(&target.table, "delete", times);
+                }
                 Stmt::WriteTarget { target, patch, upsert, condition, result } => {
                     if self.schema.table(&target.table).is_some_and(|t| t.expire.is_some()) {
                         // Write targets are complete unique keys. Their only

@@ -165,7 +165,11 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   delay physical deletion. A `cap` on an expiring table uses a maintained
   physical count: unswept expired rows still occupy capacity. Unique checks
   skip expired collisions at the same full key under the examined meter;
-  unrelated live or expired rows are never scanned for a write's constraints. An already returned answer keeps the row until the
+  secondary-key predecessors remain until the sweep, so replacement at a full
+  cap refuses until that sweep frees room. The refusal names the sweep timing.
+  Devices queue occupancy-increasing writes on expiring capped tables without
+  predicted rows: even a complete live snapshot omits unswept expired rows.
+  Unrelated live or expired rows are never scanned for a write's constraints. An already returned answer keeps the row until the
   next answer; a live reader that must hide it at its deadline drops it
   locally by `expiresAt` (the client example in CLIENT-AND-OPERATIONS.md).
   A typing indicator or short-lived presence row especially needs this

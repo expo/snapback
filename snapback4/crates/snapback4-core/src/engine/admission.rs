@@ -450,7 +450,7 @@ fn read_emit_only(body: &[Stmt]) -> bool {
         Stmt::If { condition, then_body, else_body } => read_only_expr(condition) && read_emit_only(then_body) && read_emit_only(else_body),
         Stmt::For { domain, body, .. } => read_only_domain(domain) && read_emit_only(body),
         Stmt::Break | Stmt::Continue => true,
-        Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } => false,
+        Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } => false,
     })
 }
 

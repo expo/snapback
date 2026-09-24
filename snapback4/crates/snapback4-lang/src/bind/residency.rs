@@ -216,6 +216,7 @@ fn inspect(schema: &Schema, stmts: &[Stmt], codes: &mut BTreeSet<String>, sites:
                 if let Some(condition) = condition { inspect(schema, &condition.setup, codes, sites); expr(schema, &condition.value, codes, sites); }
             }
             Stmt::Delete { key, .. } => expr(schema, key, codes, sites),
+            Stmt::DeleteTarget { target } => expr(schema, &Expr::Get(target.clone()), codes, sites),
             _ => {}
         }
     }
