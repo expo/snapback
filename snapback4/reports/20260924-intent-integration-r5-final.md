@@ -2,8 +2,9 @@
 
 Branch `sb4-intent/integration`, worktree `~/sb4-intent/lane-i`.
 No push, version bump or publication. Updated 2026-09-25 for the supervisor's
-part-h rulings. The two E/J contract conflicts are resolved as specified; the
-release qualification below supersedes the part-g blocked result.
+part-i main merge and release qualification. The two E/J contract conflicts
+remain resolved under the part-h rulings; the latest qualification below
+supersedes the historical results.
 
 ## Merge ledger
 
@@ -36,6 +37,7 @@ file-by-file records are [part a](20260924-intent-integration-r5a.md),
 | K `320e89bda` | `f61b5b01a` | Four files plus DeleteTarget flow integration; workspace build 6.17 s. |
 | P `4014149ca` | `3b8028057` | RFC, journal and prediction card; workspace build 11.43 s. Round-5 exit file did not yet exist. |
 | P `38f3e21b1` | `b527dcfdd` | Round 5 finished before qualification ended; clean incremental merge, workspace build 11.13 s. |
+| Fetched main `03fdedbe1` | `7611b1498` | Journal only; retain both complete sides in date order. Expired-birth runtime changes merged automatically with P. Workspace build passed. Main also carries its independent Snapback 5 fence/documents; no integration edits there. |
 
 Part-g conflict resolutions, relative to `snapback4/`:
 
@@ -150,7 +152,112 @@ Part-h file map (paths relative to `snapback4/`):
 
 ## Release checks and failure accounting
 
-### Part-h qualification
+### Part-i qualification: main's expired-birth retirement
+
+Implementation and regression commit: `7850592aa`; main merge: `7611b1498`.
+
+Read `03fdedbe1` in full, including its commit message, implementation,
+regressions, and `llp/reviews/3000-retire-expired-births.astra.md`. No runtime
+conflict required a behavioral repair. `Runner::remove` retains P's
+`Rows::delete` counter transitions and index charges. Commit-end retirement
+therefore withdraws born-row events, preserves the predecessor's owed scope,
+and releases both table and cap-group occupancy atomically. Main's net aggregate
+changes, per-audience-key scan memo and maintained-target expiry refusal remain.
+P's keyed lookup, authorization-before-expiry-charge and device deferral remain.
+
+Main's imported implementation spans `engine/mod.rs`, `job.rs`, `native.rs`
+and `postgres/mod.rs` for commit boundaries; `runner.rs` and `write.rs` for
+retirement state/removal; `maintains.rs` for net aggregate deltas;
+`partition.rs` for memoized live-replacement scans; and `schema.rs` for the
+maintained-target refusal. Its `engine/retire_tests.rs` and simulator
+`tests/reviews.rs` retain all regression cases. Its LLP, review record, closed
+tickets and journal entry are preserved unchanged.
+
+| Integration file | Added evidence / documentation |
+|---|---|
+| `crates/snapback4-core/tests/fixtures/expired-birth-cap.q` | Shared compiled fixture with table cap 2, group cap 1, expiry and an insert accepting a deadline. No new language form. |
+| `crates/snapback4-core/src/engine/mod.rs` | Express the unchanged test-and-SQLite condition as separate cfg guards, recognized by the existing web source census. |
+| `crates/snapback4-core/src/engine/retire_tests.rs` | MemoryRows boundary: born-expired insertion physically counts before retirement, then has zero occupancy/no row/no events; the next live insert succeeds and counts once. |
+| `crates/snapback4/tests/expiry_writes/stores.rs` | SQLite commit and disk reopen: expired birth leaves zero counts; next live insert succeeds; subsequent group/table overflow still refuses. Every write examines zero rows. |
+| `crates/snapback4-core/src/engine/postgres/tests/caps.rs` | Same commit/reopen and next-insert proof through real Postgres, including both cap refusals and exact table/group counts. |
+| `crates/snapback4-device/src/device/expired_births_tests.rs`, `device.rs` | Memory and SQLite device tests: admission stays unpredicted, queue survives reopen, server retires the birth, no born-row event reaches sync, settlement/reopen counts stay exact, and the next live insert fills its capacity once. |
+| `crates/snapback4-lang/src/guide/types.rs`, `../llp/3000.013-quarry-states-intent.rfc.md` | Explain new program births versus existing/seed/load backlog and unchanged prediction deferral. |
+| `metrics/wasm-budget.json`, `JOURNAL.md`, this report | Record merge, artifact and release evidence. |
+
+Focused results: core retirement 2/2; device retirement 2/2; P expiry 31/31;
+main disclosure reviews 30/30; real Postgres adapter 15/15 (all explicitly
+ignored database tests enabled) in a private socket-only PostgreSQL 16.15
+cluster. The existing review tests retain never-live grants, revived births,
+predecessor revocation, net-sum overflow and the maintained-table schema refusal.
+
+The auxiliary `scripts/test-postgres.sh` attempt stopped before adapter tests
+because its separate `experiments/postgres/Cargo.lock` still records the local
+crates as 0.2.28 instead of 0.4.0 and is stale under `--locked`.
+This is an inherited experiment harness setup failure, not an adapter test
+failure. The unchanged experiment lock was not rewritten. The actual adapter
+suite above ran directly with `--features postgres --lib engine::postgres::tests
+-- --include-ignored --nocapture` against the script's private cluster; it passed.
+
+No design deviation or new open runtime defect was found. Main's documented
+exemption remains: seeds, loads and activation can keep already-expired rows
+for a later sweep, including their inherited deletion/scope disclosure. This
+merge does not authorize eager secondary-collision cleanup of such existing
+rows. Device prediction does not run retirement. Runtime ceilings are unchanged.
+
+The first complete suite ended **`== 1 failure(s) in 376 s`**: client tests.
+Every Rust test and all 13,000 E/J model sequences passed. The two deterministic
+failures were `web-reachable typed JSON calls all use the codec funnel` and
+`census kills parse, encoded, MQ components and container regressions`, in
+`wasm-codec-census.test.mjs`. The source scanner recognized only separate
+`cfg(feature = "sqlite")` guards, so it incorrectly included main's new
+`retire_tests` module (and the added memory test's schema conversion). Splitting
+`cfg(all(test, feature = "sqlite"))` into equivalent separate guards makes the
+actual server-only boundary visible, without changing runtime behavior or
+weakening the census. Its isolated rerun passes 26/26. These are integration
+failures, not baseline waivers or intermittent product failures.
+
+Final `scripts/test.sh` exits 0:
+
+```text
+== 0 failure(s) in 403 s
+```
+
+The main client process reports **1,478 tests, 1,468 pass, zero failures,
+ten explicit skips**; separately sharded groups pass. Every Rust target and
+doctest passes. No intermittent failure occurred in either part-i run, and no
+baseline or environmental failure is waived in the final suite.
+
+| Release check | Part-i result |
+|---|---|
+| E online / real-wasm local models | 5,000 / 5,000 sequences pass. |
+| J online model | 3,000 seeded interleavings pass. |
+| Guide blocks | 80/80 pass without diagnostic or note. |
+| Complete Clique fixture | 3/3 pass, including Following and the 5,000-input digest sweep. All previously qualified forms above remain unchanged. |
+| Issue tracker | 4/4 pass on server and memory/SQLite devices, including reopen and the supplied card's conservative grows classification. |
+| Native smoke, witness driver and README JS | All 21 tests pass in the full client run; Rust witness tests 8/8. Linux still provides no simulator evidence. |
+| Docs budget | README 300/300 physical lines; changed source files remain below 1,500. |
+| References | `ref-check: ok — 507 LLP docs, 9269 refs in 25838 files, 0 errors, 0 unchecked`. |
+| Wasm build/budget | 1,765,796 B raw / 491,640 B gzip; existing 492,000 B ratchet, 360 B headroom. No ratchet or runtime ceiling increase. |
+| L latency witness | 4/4 pass, SNAPBACK4_BENCH_ASSERT=1 and SNAPBACK4_BENCH_MAX_RATIO=1.5. Ratio 1.404. |
+
+Latency ran separately after the full suite, with one test thread. Five-follower
+post p95 is **2.226 ms**; 900-follower p95 is **3.126 ms**, ratio **1.404**.
+All twenty large-audience posts arrive in **5,599.853 ms** (**5,557.619 ms** after
+the last acknowledgment). Eight continuous foreground streams complete
+**5,967** home requests at p95 **1.967 ms**, while all 901 copies arrive in
+**1,137.494 ms**. Production retains synchronous=FULL; the witness's explicit
+NORMAL comparison profiles do not change deployment settings.
+
+The wasm raw size is unchanged from part h and gzip is one byte smaller; this
+is a measured whole-artifact comparison, not a claim of byte identity. The
+retirement pass and its state remain server-only, with no device prediction
+retirement added. Logs are `~/sb4-intent/integration-r5i-*.log`; the canonical
+passing log is `integration-r5i-suite-final.log`, the first failed run is
+`integration-r5i-suite.log`, and the database proof is
+`integration-r5i-postgres-core.log`.
+
+
+### Historical part-h qualification
 
 Final implementation commit: **`8c3515d68`**. The final full suite exits 0:
 
@@ -295,7 +402,7 @@ transition after the expiry render. The test now captures both ready reads and
 the DOM together in one browser turn; it keeps the original first-render
 expiry deadlines and no-early-polling assertions. Both ages then passed (2/2),
 with online/local lateness 5/1 ms and 3/2 ms. This is a test-only repair after
-the quoted full-suite run; part-h qualification below supplies the subsequent all-suite result.
+the quoted full-suite run; part-h qualification above supplies the subsequent all-suite result.
 See `integration-r5g-typing-alone-2.log` and `integration-r5g-typing-fixed.log`.
 
 The first full suite ended `== 2 failure(s) in 409 s`: `cargo test` and

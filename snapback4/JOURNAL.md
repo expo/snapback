@@ -54921,3 +54921,63 @@ preliminary failure, final check and quoted inherited limitation. In particular,
 the issue-tracker card's independent authorization growth, E's consumed-bearer
 recovery limit and Linux's lack of a simulator remain explicit. Did not push,
 publish, bump versions, change device reset semantics or claim exhaustive proof.
+
+
+## 2026-09-25 — LLP 3000.013 integration round 5 part i: expired births and physical caps
+
+Fetched and merged main 03fdedbe1 as 7611b1498, after reading its full change
+and the two-round Astra review. Only the journal conflicted: every entry is
+preserved verbatim, with main's September 24 entry before September 25.
+Workspace build passed. Commit-end retirement merged automatically with P's
+transactional occupancy path; no runtime conflict needed a behavioral repair.
+Born rows withdraw their events, born grants disclose no scope, and an expired
+replacement retains its predecessor's owed revocation. Main's net aggregates,
+shared replacement scans and refusal of expiry on maintained tables remain.
+P's full-key writes, charge after authority and device cap deferral remain.
+
+Added the regressions in 7850592aa: a born-expired insert physically counts
+inside its commit, then retirement releases table and group occupancy; the
+next live insert succeeds, and subsequent group/table overflow still refuses.
+MemoryRows, SQLite commit/reopen, real PostgreSQL commit/reopen and both device
+adapters prove the transition. Devices keep the admission unpredicted through
+reopen, settle on the server, receive no event for the expired birth, and keep
+exact counts after sync and reopen. SQLite/Postgres cap checks examine zero
+rows. Focused results: core retirement 2/2, devices 2/2, expiry 31/31, disclosure
+reviews 30/30 and real PostgreSQL adapter 15/15. The private socket-only database
+was stopped afterward.
+
+The first complete suite ended `== 1 failure(s) in 376 s`: two deterministic
+wasm source-census assertions in the client stage. The scanner did not recognize
+main's combined test/SQLite cfg on the new regression module. Equivalent
+separate cfg guards preserve compilation and make that boundary visible to the
+existing census. Its isolated rerun passed 26/26. No assertions or exceptions
+were weakened. The auxiliary Postgres script's separate experiment lockfile
+still pins 0.2.28 and refuses --locked; the real adapter tests ran directly and
+passed instead. That inherited experiment setup failure is recorded in the
+report, with no rewrite of its lockfile.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 403 s`**. All Rust targets and
+doctests, 5,000 E online sequences, 5,000 E real-wasm local sequences and 3,000 J
+sequences pass. Main client process: 1,478 tests, 1,468 pass, zero failures and
+ten explicit skips; separate shards pass. Guide 80/80, Clique Following/digest
+3/3, issue tracker server/devices 4/4, native smoke/driver/README JS 21/21 and
+Rust witness 8/8 pass. No intermittent failure or baseline waiver. README is
+300/300 lines; ref-check reports 507 LLP docs, 9,269 refs, zero errors and zero
+unchecked references.
+
+The separate latency witness passes 4/4 with the 1.5 ratio assertion: post p95
+2.226 ms at five followers and 3.126 ms at 900, ratio 1.404. All twenty large
+posts arrive in 5,599.853 ms. Eight continuous foreground streams complete
+5,967 requests at home p95 1.967 ms while all 901 copies arrive in 1,137.494 ms.
+Production disk durability remains FULL. Wasm measures 1,765,796 raw / 491,640
+gzip bytes: unchanged raw size, one byte less gzip than part h. Keep the
+492,000-byte ratchet with 360 bytes headroom; runtime ceilings are unchanged.
+
+The guide and RFC distinguish program births from existing/seed/load rows.
+Seeds, loads and activation retain main's documented sweep/disclosure exemption;
+secondary expired collisions still wait for sweep, and devices still defer
+capacity-increasing writes. No new Quarry form, refusal code or prediction
+retirement was added. Did not push, publish, bump versions or run an iOS
+simulator on Linux. The complete file map, failure classification and release
+results are in reports/20260924-intent-integration-r5-final.md; evidence logs use
+~/sb4-intent/integration-r5i-*.log.
