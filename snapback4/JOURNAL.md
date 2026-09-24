@@ -49278,3 +49278,124 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+## 2026-09-24 — LLP 3000.013 Lane L: fair, time-sliced maintenance (0.4.1 candidate)
+
+Implemented on `sb4-intent/l-fair`, based on `ca6d975da`. The design and
+integration remain the supervisor's. No push, publication or version bump.
+The reproduction and implementation commits are `fd975c2ca`, `1885b1084`
+and `4acd891d7`.
+
+The reproduction uses the first compiled Quarry program in the feeds card:
+`view following: activity where .actor = viewer or exists follows[viewer,
+.actor]`, its `post`/`follow` mutations and `following last 20 by .at after c`
+read. It creates a durable SQLite store with two authors, 5 and 900 followers,
+then makes 20 sequential HTTP posts per author. This is a controlled feeds
+fixture, not the calibration's entire scale-store copy. Both binaries use
+Cargo's release profile on expo-build-1000, with the publication's
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`; this is not a claim of
+production-profile qualification. The unmodified binary was retained before
+implementation and selected by `SNAPBACK4_BENCH_BIN`.
+
+| HTTP probe, 20 requests | Before p50 / p95 / max ms | After p50 / p95 / max ms |
+| --- | --- | --- |
+| Post, 5 followers | 2.863 / 7.033 / 8.146 | 1.705 / 1.935 / 5.531 |
+| Post, 900 followers | 283.110 / 407.585 / 428.508 | 2.302 / 5.246 / 7.039 |
+| Following, ordinary reader | 0.686 / 1.248 / 2.564 | 0.748 / 1.019 / 2.010 |
+| Following, celebrity follower | 0.969 / 1.293 / 1.327 | 0.681 / 0.973 / 1.003 |
+
+The final celebrity p95 is 2.711 times the ordinary p95 and below 50 ms.
+Every one of the 20 events reached every follower: 18,000 foreign copies,
+plus the author's 20 copies. The final burst drained in 6,275.562 ms from
+its first post, 6,222.366 ms after its last acknowledgment. The baseline
+burst took 6,080.636 ms, 930.559 ms after the last acknowledgment: requests
+formerly paid much of that delivery time. A separate sustained-load witness
+kept eight HTTP read streams active until all 901 copies of one event were
+present: delivery completed in 232.659 ms, the post acknowledged in 24.677 ms,
+and 901 reads completed (read p50 1.731 ms, p95 5.184 ms, max 24.549 ms).
+No background starvation was observed. Intermediate 2 ms copy-budget runs
+met the ratio twice but missed it once (7.219 / 2.268 = 3.183); the final
+copy budget is 1 ms. Timing tests are ignored in the ordinary suite and run
+explicitly with assertions for qualification, not silently counted as passes.
+
+Mechanism: `Shared.engine` is a FIFO ticket mutex retaining the server's
+poison recovery. A waiting request precedes a subsequent maintenance ticket;
+a queued maintenance ticket precedes later arrivals, so continuous requests
+cannot starve background work. All users of the shared engine participate,
+including delivery, jobs, expiry, action/effect leases and asset staging and
+forgetting. The maintenance loop no longer relies on `yield_now()`.
+Timeline chunks stop between rows at 256 visits or 1 ms of work. Jobs and
+expiry/lease/asset maintenance use 2 ms slices; action/effect sweeps also
+select at most 256 runs. Development clock drains continue until no expired
+rows or leases remain, rather than treating a short time-limited batch as
+exhaustion. Filesystem asset removal remains outside the engine lock, and a
+prepared batch advances only after its forget transaction commits.
+
+The timeline's cursor is the last processed key, never the last prefetched
+key. Delivery, backfill, cleanup and purge retain epochs, the one-producer
+admission order, the 1,000-event history window and atomic cursor/copy commits.
+Purge retires delivery before its tombstone only after actual exhaustion.
+Prefetch uses 32-row metered pages within the 256-visit ceiling; a delivery
+checks its single event's tombstone once per transaction, not per recipient.
+Every edge epoch and copy identity still goes through the existing checks.
+No resource ceiling, authorization rule, partition audience, SQLite cache,
+journal, synchronization or checkpoint policy changed.
+
+Profile: temporary inclusive `Instant` scopes (removed before committing)
+around engine/store functions measured an unmodified 256-copy chunk after
+20 celebrity posts. Total 68.230 ms (266.524 us/copy): copy body 27.947 ms,
+including insert 25.431 ms, row/index `put` 16.952 ms, constraints 3.106 ms
+and row-change bookkeeping 2.052 ms. Partition append cost 6.110 ms and
+SQLite commit 29.577 ms. Canonical JSON across the chunk cost 0.591 ms;
+partition audience accounting cost 0.430 ms. Inclusive scopes overlap and
+must not be added. The isolated runner never invokes `bump_seq`, excluding
+waiter notifications as a per-copy cause. Three 256-copy chunks plus the
+132-copy tail totaled 242.309 ms, 269.233 us/copy. The final count-only
+comparison totaled 254.359 ms, 282.621 us/copy (256-copy chunks 79.308,
+68.206 and 70.989 ms). On the empty fixture the original default worker took
+115.998 ms / 128.887 us per copy; final short slices took 163.989 ms /
+182.210 us per copy. Removed work is redundant tombstone probes and repeated
+large-page prefetch. **No per-copy wall-time improvement is claimed**:
+SQLite writes/commits dominate, and frequent commits trade throughput for
+request latency. A 1 ms cooperative copy slice can still take longer in its
+indivisible row or commit; this is not a hard real-time bound. A native job
+remains one fuel/meter-bounded invocation per chunk, and a Quarry iteration
+is still atomic. Preempting those would require a separate transaction or
+resumable-native design; this lane did not introduce one.
+
+New normal tests: FIFO ordering/background progress and poison recovery in
+`serve_lock.rs`; five tests in `maintenance_chunks.rs` force a zero time
+budget to prove delivery/purge cursor continuation and tombstone lifetime,
+backfill/cleanup isolation across refollow epochs, adaptive and explicit job
+continuation plus expiry draining, action/effect lease continuation, and
+asset reservation/forget prefixes. Zero time still visits one atomic item.
+Existing timeline recovery now accepts a variable number of chunks; tests
+specifically checking the 256-row boundary or heap refusal explicitly use
+a count-only time allowance, retaining their original assertions. The three
+ignored `maintenance_latency.rs` witnesses cover HTTP p50/p95, direct copy
+cost, and sustained HTTP progress. All 82 focused language/timeline/guide
+tests, 18 HTTP clock tests and seven new normal tests passed.
+
+Reproduce from `snapback4/` with the documented toolchain on PATH:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT SNAPBACK4_BENCH_ASSERT=1 cargo test -p snapback4 --release --test maintenance_latency -- --ignored --nocapture --test-threads=1
+SNAPBACK4_BENCH_PRELOAD=20 SNAPBACK4_BENCH_COUNT_ONLY=1 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4 --release --test maintenance_latency following_chunk_cost -- --ignored --nocapture
+cargo test -p snapback4 --test maintenance_chunks
+```
+
+Qualification logs remain in `/tmp/lane-l-*.log` on this host. The full-suite
+result and failure classification follow below.
+
+Exact full-suite result: `== 0 failure(s) in 485 s` (exit 0), running
+`scripts/test.sh` once with `CARGO_BUILD_JOBS=12`,
+`SNAPBACK4_RUST_TEST_PROCESSES=8`, `RUST_TEST_THREADS=4` and the publication's
+SQLite C flag. This fresh worktree included the complete cold Rust test
+build. Client tests completed with no failures; Wasm measured 1,744,879 B raw /
+484,978 B gzip against the unchanged 486,000 B budget. No introduced,
+baseline or environmental failure occurred in this suite. The supplied older
+baseline log's `genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`
+and `uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`
+failures did not recur; this lane did not modify their fixtures or claim to
+repair them. All changed source files are under 1,500 lines and
+`git diff --check` passes. No new Quarry spelling or refusal code was added.
