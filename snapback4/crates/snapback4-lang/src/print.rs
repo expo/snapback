@@ -56,11 +56,12 @@ pub fn expression(expr: &Expr) -> String {
     }
 }
 
-// A predicate read's `where` otherwise consumes operators or postfix forms
-// supplied by its enclosing rewrite (e.g. `(rows where P) ! else MISSING`).
+// Read clauses such as `where`, `matching`, and `after` can consume operators
+// or postfix forms supplied by an enclosing rewrite. Keep the entire read
+// together, even when a clause's own value already has parentheses.
 fn read_operand(read: &ReadExpr) -> String {
     let value = read_expr(read);
-    if read.filter.is_some() { format!("({value})") } else { value }
+    if read.filter.is_some() || read.matching.is_some() || read.range.is_some() { format!("({value})") } else { value }
 }
 
 pub fn read_expr(read: &ReadExpr) -> String {
