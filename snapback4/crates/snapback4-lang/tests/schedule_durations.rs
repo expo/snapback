@@ -75,3 +75,45 @@ fn exact_boundaries_and_daily_offset_execute_once_and_survive_reopen() {
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
+
+#[test]
+fn boundaries_before_the_offset_round_down_including_negative_clocks() {
+    let bound = checked("1d at 08:00");
+    let schedule = &bound.schema.schedules[0];
+    let day = 86_400_000;
+    let eight = 28_800_000;
+    for (now, expected) in [
+        (0, eight - day), (eight - 1, eight - day), (eight, eight),
+        (-1, eight - day), (eight - day - 1, eight - 2 * day),
+    ] {
+        assert_eq!(schedule.boundary(now), expected, "clock {now}");
+        assert!(expected <= now && now < expected + day);
+    }
+}
+
+#[test]
+fn first_seen_before_eight_fires_at_eight_across_reopen() {
+    let dir = std::env::temp_dir().join(format!("sb4-lane-k-before-offset-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("state.sqlite");
+    let b = checked("1d at 08:00");
+    let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([("ticks".into(), object([("id", Value::Id("tick".into())), ("start", Value::Int(0)), ("end", Value::Int(0))]))]).unwrap();
+    assert!(e.fire_schedules(7 * 3_600_000).unwrap().is_empty());
+    drop(e);
+    let mut e = Engine::open(Store::open(&path).unwrap()).unwrap();
+    let eight = 8 * 3_600_000;
+    assert!(e.fire_schedules(eight - 1).unwrap().is_empty());
+    assert_eq!(e.fire_schedules(eight).unwrap(), vec!["s"]);
+    let job = e.run_job_chunk(eight).unwrap().unwrap();
+    assert_eq!(job.state, snapback4_core::JobState::Done);
+    let row = e.store().rows("ticks").unwrap().remove(0);
+    assert_eq!(row.field("start").unwrap(), &Value::Int(eight - 86_400_000));
+    assert_eq!(row.field("end").unwrap(), &Value::Int(eight));
+    drop(e);
+    let mut e = Engine::open(Store::open(&path).unwrap()).unwrap();
+    assert!(e.fire_schedules(eight).unwrap().is_empty());
+    assert_eq!(e.jobs(10).unwrap().len(), 1);
+    drop(e);
+    std::fs::remove_dir_all(dir).unwrap();
+}

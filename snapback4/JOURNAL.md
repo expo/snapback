@@ -49630,3 +49630,109 @@ under the unchanged 486,000 B budget. Reference check: 505 LLP documents,
 under 1,500 lines and whitespace checks pass. No publication or push; no
 authorization, disclosure, durability or meter relaxation. No unresolved
 round-4 issue beyond the explicitly retained residual write-target limitation.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 5: grouping and spread provenance
+
+Merged origin/main (8d1210ce3) before implementing the Astra NOT READY and
+Grok READY WITH CHANGES findings. The fetched main still had the flat printer,
+so used the brief's permitted fallback: print every binary, unary and
+conditional expression with grouping. Audited all print::expression callers:
+write-target repairs; mixed/index-key rewrites; inferred read predicates;
+nullable arithmetic, comparisons, assertions, slices and loop rewrites;
+parser conditional repairs; and rule/maintain/provenance evidence. The shared
+printer now preserves their expression boundaries. Read operands with where, matching or cursor/range clauses also retain
+parentheses so a surrounding operator cannot become part of a read clause. Updated the aggregate-note evidence formatter to avoid duplicate
+conditional parentheses, and two expected diagnostic strings to include the
+new grouping. No new diagnostic code or authoring spelling was introduced.
+
+Separated metadata from wildcard precedence with compiler-only Ty::RowObject.
+Object spreads and subsequent object shapes retain ordinary left-to-right
+wildcard behavior; genuine RowShape projections keep their existing explicit
+field precedence. Updated structural joins, rebinding, membership, shaping,
+read classification, view field extraction and TypeScript emission for the
+new compiler type. RowObject still emits pending?: boolean; containing plain
+records do not. Runtime lowering remains Expr::Shape, with no IR, engine,
+device, wire or scheduler implementation change.
+
+Superseded round 4's last-row-only metadata decision. The binder records the
+source of each spread field. Earlier row spreads whose fields survive now
+contribute pending too; entirely replaced earlier rows do not. The final row
+base remains, preserving the existing single-row shape equivalence. Combining
+flags uses ordinary Shape projections with a false fallback, field selection,
+boolean OR and an object base. The outer Shape emits pending only when true.
+Every source operand still evaluates once, in order, including discarded
+operands; all extra projection/boolean work pays the existing meters. The
+shapes card now describes surviving-field metadata. Explicit and inherited
+pending fields remain reserved; the new inherited-forgery regression covers
+{ ...p, ...{ pending: true } }.
+
+Regression coverage: mixed_keys executes the literal pasted write-target
+rewrite for (a + 1) * 2, unary arithmetic, a conditional value, and preserved
+and/or/not guards. With a = 2 the arithmetic stores 6; false guards retain
+E_CONFLICT and leave the row unchanged. printed_rewrites executes source,
+printed and operator-embedded forms, including nested arithmetic, unary and
+conditional values, keys, predicate reads, matching, and cursor-bearing page
+comparisons. The matching regression first failed because and was consumed
+as part of the search text; the cursor regression fails without grouping
+because the comparison becomes part of the after clause. The shared spread fixture and
+memory/SQLite lifecycle test compare spread with ordinary shapes before
+confirmation, after reopen, after settlement and after a further reopen.
+They cover s = { ...p }; s { title: 'override', * }, a repeated object shape,
+the genuine RowShape control, a pending note merged before a confirmed tag,
+a nested spread of that result, and replacement of the note's last surviving
+field. Single-row queries examine one source row; two-row merges examine two.
+Natural-form tests check the distinct compiler type, generated pending type,
+and inherited pending refusal. Schedule regressions check boundaries before
+08:00, clocks below zero, a quotient below -1, and a schedule first seen at
+07:00 that fires exactly once at 08:00 across SQLite reopen. Boundary arithmetic
+was already correct; the added tests close its prior mutation-testing gap.
+
+Eight temporary fault injections were all detected: flat binary arithmetic,
+flattened write-condition booleans, ungrouped predicate reads, RowShape wildcard
+precedence on spread objects, last-row-only metadata, explicit-only pending
+validation, truncating schedule division, and ungrouped cursor-bearing reads. The final mutation fails both
+new schedule tests. All injected changes were restored. Evidence:
+/tmp/lane-k-r5-mutants.log and /tmp/lane-k-r5-mutant-*.log. The first range
+mutation check exposed a weak shape-only witness; adding a page comparison
+made it fail, and the restored printer passed. Matching's separate before/after
+execution is in /tmp/lane-k-r5-matching-{before,after}.log.
+
+Preliminary failures and attribution: one environmental rust-lld bus error
+while linking the guide test, with the shared disk nearly full; package-scoped
+cargo clean -p snapback4-lang reclaimed 21 GiB and the retry passed. Own test
+setup errors in pasted_write_rewrites_preserve_arithmetic_and_boolean_grouping
+were corrected (int default 0, and the existing E_CONFLICT result for a false
+write condition); printed_rewrites' cursor fixture was changed from a bare
+null literal to a declared cursor ? argument. Two own diagnostic expectation failures were corrected:
+l26_conditional_delta_is_control_and_toggle_message_names_both_arms and
+review_f13_different_conditions_of_the_same_arguments_name_both_arms. The
+broader language run had no other failures. Restored targeted checks passed
+96 language tests (four existing ignored cases), four device tests, and the
+prior guide/constraint pass covered 57 guide and nine constraint tests.
+
+No deviation from round 5's requirements; the extra read-clause grouping
+fixes follow the required shared-printer audit. No unresolved round-5 problem.
+Extra-tested update/delete/upsert targets remain deliberately refused until
+WriteTarget can carry residual tests: with unique org, principal,
+update members[org, viewer, role = 'admin'] { role: 'member' } reproduces
+E_QUARRY_WRITE_TESTS. Its explicit require-then-keyed-write rewrite is useful
+and tested, but is never inserted by the compiler. No authorization, disclosure,
+durability or meter relaxation; no push or publication.
+
+Ran frozen Bun install once (506 installs checked; no dependency changes).
+The first full scripts/test.sh result was `== 1 failure(s) in 822 s`: cargo test
+failed only printer_keeps_grouping_in_values_keys_filters_and_enclosing_rewrite_operators
+on the new matching-clause case, compiled before the follow-up fix. This was
+ours, fixed; no baseline or environmental full-suite failure occurred. The
+final full result on restored, completed code is `== 0 failure(s) in 207 s`.
+Client tests: 1,054 passed, 10 skipped, zero failed in each run. The first run
+used four Rust build workers; the final run used eight; both used eight Rust
+test processes, with at most one full lane suite running. Evidence:
+/tmp/lane-k-r5-full-suite.log and /tmp/lane-k-r5-full-suite-final.log.
+
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. Final reference validation: 505 LLP documents, 9,237 references, zero
+errors and zero unchecked. Every changed Rust file is below 1,500 lines and
+git diff --check passes. Implementation commits before this journal/schedule
+commit: 5df0443ec (shared expression grouping), 130f030db (spread precedence
+and surviving-row metadata), d3efb5687 (read-clause grouping and regressions).
