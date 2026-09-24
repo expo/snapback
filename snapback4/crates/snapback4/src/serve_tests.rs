@@ -1126,6 +1126,7 @@ fn upload_disk_work_is_bounded_and_does_not_hold_the_query_engine() {
     wait_until(|| gate.entered.load(Ordering::Acquire) == 2);
     let third = exchange_bytes(host.address, &wire);
     assert_eq!(status(&third), 429);
+    assert_eq!(body(&third)["denied"]["retryable"], true);
     let query = host.request("POST", "/q/who", "x-snapback-persona: alice\r\n", "{}");
     assert_eq!(body(&query)["data"], "dev:alice");
     assert_eq!(host.shared.uploads.load(Ordering::Acquire), 2);

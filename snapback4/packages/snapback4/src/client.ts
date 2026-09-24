@@ -541,7 +541,8 @@ export function createClient(options: ClientOptions): Client {
       if (closed) return { ok: false, why: ended() };
       if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
       const revision = credentialRevision;
-      const uploaded = await uploadAsset(base, { ...headers }, doFetch, bytes);
+      const uploaded = await uploadAsset(base, { ...headers }, doFetch, bytes,
+        () => !closed && credentials && revision === credentialRevision);
       if (!uploaded.ok && await obsoleteRefusal(uploaded.why, revision)) return client.upload(bytes);
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;

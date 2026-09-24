@@ -636,11 +636,21 @@ export function App({ client, conversationId }: { client: Client; conversationId
 
 `useQuery` observes: it re-renders when a sync or a local prediction
 touches the query's tables, and at the next visible `expire at` time even
-when the device is offline. `usePage` follows `next` across pages; it
+when a local device is offline. A column named `expiresAt` alone does not
+declare a lifetime: put `expire at .expiresAt` on its table. The online
+client refetches at that deadline and needs a connection to evaluate it.
+`usePage` follows `next` across pages; it
 supplies the query's cursor argument itself, which must be named `c`
 (`c: cursor ?`).
 
 ### Assets
+
+`client.upload` retries only an `E_RATE_LIMIT` refusal with `retryable: true`:
+at most four attempts, with 250 ms, 500 ms and 1 s backoff. A `Retry-After`
+delay (seconds or an HTTP date) is a minimum wait. Total retry waits are
+limited to 10 s; a longer requested wait returns the refusal immediately
+without retrying early. Other refusals and transport failures are returned
+without retrying: a lost reply may follow a stored upload.
 
 ```ts
 import type { Client } from "snapback4/contract";

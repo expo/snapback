@@ -1335,7 +1335,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const request = requestCredentials();
-      const uploaded = await uploadAsset(base, request.headers, doFetch, bytes);
+      const uploaded = await uploadAsset(base, request.headers, doFetch, bytes,
+        () => !unavailable() && link === "online" && request.revision === credentialRevision);
       if (uploaded.ok && !unavailable() && request.revision === credentialRevision) {
         // The device keeps only facts received from this uploader's server reply.
         await call({ op: "upload_facts", viewer: principal, asset: uploaded.asset });
