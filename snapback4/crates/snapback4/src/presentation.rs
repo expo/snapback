@@ -8,7 +8,7 @@ pub(crate) fn indexes(schema: &Schema, text: &str, canonical: bool) -> String {
         .filter(|(name, _)| name.starts_with("$intent:"))
         .map(|(name, index)| {
             let mut components = index.components.as_slice();
-            if components.len() > 1 && matches!(components.last(), Some(IndexComponent::Column(name)) if name == "id") {
+            if components.len() > 2 && matches!(components.last(), Some(IndexComponent::Column(name)) if name == "id") {
                 components = &components[..components.len() - 1];
             }
             let columns = components.iter().map(|component| match component {
@@ -38,6 +38,16 @@ pub(crate) fn indexes(schema: &Schema, text: &str, canonical: bool) -> String {
                     if let Some((_, escaped)) = chars.next() { out.push(escaped); }
                 } else if next == c { break; }
             }
+        } else if text[at..].starts_with("--") {
+            // Source comments are opaque too: planner prose, names and quote
+            // characters inside them must not affect this or following lines.
+            out.push(c);
+            for (_, next) in chars.by_ref() {
+                out.push(next);
+                if next == '\n' { break; }
+            }
+            previous = Some('\n');
+            continue;
         } else if text[at..].starts_with("$intent:") {
             let end = text[at..].char_indices().find(|(_, c)| !c.is_ascii_alphanumeric() && !matches!(c, '$' | ':' | '_'))
                 .map_or(text.len(), |(n, _)| at + n);

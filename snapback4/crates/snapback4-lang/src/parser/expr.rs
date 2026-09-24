@@ -53,20 +53,21 @@ impl Parser {
     }
 
     pub(super) fn prefix(&mut self, stops: &[&str]) -> Fallible<Expr> {
+        let start = self.position;
         let token = self.peek().clone();
         if token.kind == Kind::Str {
             self.position += 1;
-            return self.postfix(Expr::Literal { value: Literal::Str(token.value), site: token.site }, stops);
+            return self.postfix(Expr::Literal { value: Literal::Str(token.value), site: token.site }, stops, start);
         }
         if token.value == "not" {
             self.position += 1;
             let value = self.expression(7, stops)?;
-            return self.postfix(Expr::Unary { op: "not".into(), value: Box::new(value), site: token.site }, stops);
+            return self.postfix(Expr::Unary { op: "not".into(), value: Box::new(value), site: token.site }, stops, start);
         }
         if token.value == "-" && !(self.peek_at(1).kind == Kind::Word && self.peek_at(2).value == "[") {
             self.position += 1;
             let value = self.expression(7, stops)?;
-            return self.postfix(Expr::Unary { op: "-".into(), value: Box::new(value), site: token.site }, stops);
+            return self.postfix(Expr::Unary { op: "-".into(), value: Box::new(value), site: token.site }, stops, start);
         }
         if token.value == "exists" || token.value == "created" {
             self.position += 1;
@@ -84,7 +85,7 @@ impl Parser {
                 let message = if token.value == "exists" { "exists takes a domain read; omit first, last and cursor clauses" } else { "created takes a plain indexed read; no where, first, last, after or seek" };
                 return Err(syntax_with(&read.site, message, format!("{} {}", token.value, print::read_expr(&plain))));
             }
-            return self.postfix(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } }, stops);
+            return self.postfix(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } }, stops, start);
         }
         if token.value == "walk" {
             return self.parse_walk();
@@ -169,7 +170,7 @@ impl Parser {
                 if stops.contains(&"<where>") && !(self.at("by") && self.peek_at(1).value == ".") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
                     if (self.at("by") && read.index.is_some()) || (self.at("matching") && read.matching.is_some()) {
                         let scoped: Vec<_> = stops.iter().copied().filter(|stop| *stop != "<where>").collect();
-                        return self.postfix(value, &scoped);
+                        return self.postfix(value, &scoped, start);
                     }
                     // Parentheses around only the key do not settle the index's
                     // scope. Locate the whole group so --fix can wrap it intact.
@@ -183,14 +184,15 @@ impl Parser {
             }
             _ => return Err(syntax(&token.site, format!("expected expression, got {:?}", token.value))),
         };
-        self.postfix(value, stops)
+        self.postfix(value, stops, start)
     }
 
-    pub(super) fn postfix(&mut self, initial: Expr, stops: &[&str]) -> Fallible<Expr> {
+    pub(super) fn postfix(&mut self, initial: Expr, stops: &[&str], start: usize) -> Fallible<Expr> {
         let mut value = initial;
         loop {
-            if let Expr::Read(read) = &value
-                && let Some(start) = self.tokens[..self.position].iter().position(|t| t.site == read.site) {
+            // A grouped read keeps the table's site, but its consumed span
+            // starts at `(`. Carry that boundary through postfix re-entry.
+            if matches!(value, Expr::Read(_)) {
                 self.document.source.record(&value, &self.source, &self.tokens[start..self.position]);
             }
             if self.is_stop(self.peek(), stops) {

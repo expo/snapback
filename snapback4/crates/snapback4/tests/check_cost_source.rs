@@ -83,13 +83,48 @@ fn source_spans_keep_spacing_parentheses_and_duration_spelling() {
 fn multiline_unicode_literals_are_quoted_without_relabeling_their_contents() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     let index = bound.schema.tables["issues"].indexes.keys().find(|name| name.starts_with("$intent:byOrgAt:")).unwrap();
-    let literal = format!("'héllo \\'quote\\' {index}; synthesized; explicit by'");
-    let filter = format!("(status = null or\n    .label = {literal})");
-    let source = SOURCE.replace("  status: enum", "  label: text <=200\n  status: enum").replace(FILTER, &filter).replace('\n', "\r\n");
-    let cost = Project::new(&source).run(&["check", "--cost"]);
-    assert!(cost.contains(&format!("skipped by `{filter}`")), "{cost}");
-    assert!(cost.contains(&format!("read: issues where .org = org and {filter} last 50")), "{cost}");
-    assert!(cost.contains("selected index (org, at), chosen by the planner"), "{cost}");
+    for quote in ["'", "\""] {
+        let literal = format!("{quote}héllo \\{quote}quote\\{quote} {index}; synthesized; explicit by -- {index}{quote}");
+        let filter = format!("(status = null or\n    .label = {literal})");
+        let source = SOURCE.replace("  status: enum", "  label: text <=200\n  status: enum").replace(FILTER, &filter).replace('\n', "\r\n");
+        let cost = Project::new(&source).run(&["check", "--cost"]);
+        assert!(cost.contains(&format!("skipped by `{filter}`")), "{cost}");
+        assert!(cost.contains(&format!("read: issues where .org = org and {filter} last 50")), "{cost}");
+        assert!(cost.contains("selected index (org, at), chosen by the planner"), "{cost}");
+    }
+}
+
+#[test]
+fn grouped_shaped_reads_keep_balanced_source_boundaries() {
+    let read = "issues where .org = viewer first 20 by .at";
+    for authored in [read.to_owned(), format!("({read})"), format!("(({read}))"), "(issues where .org = viewer) first 20 by .at".into()] {
+        let source = format!("table issues:\n  org: principal\n  at: time\n  public\n  online only\nquery shaped():\n  return {authored} {{ id }}\n");
+        let cost = Project::new(&source).run(&["check", "--cost"]);
+        let shown = cost.lines().find_map(|line| line.split_once("read: ").map(|(_, read)| read)).unwrap();
+        assert_eq!(shown, authored, "{cost}");
+    }
+}
+
+#[test]
+fn builder_comments_are_opaque_to_friendly_index_labels() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    let index = bound.schema.tables["issues"].indexes.keys().find(|name| name.starts_with("$intent:byOrgAt:")).unwrap();
+    // Unclosed quote characters inside the comment must not consume the next line.
+    let filter = format!("(status = null -- ; synthesized; explicit by {index} ' \"\n    or .status = status) and (assignee = null or .assignee = assignee)");
+    let cost = Project::new(&SOURCE.replace(FILTER, &filter)).run(&["check", "--cost"]);
+    let board = cost.split("  query board:\n").nth(1).unwrap().split("  query heldBoard:\n").next().unwrap();
+    assert!(board.contains(&format!("scale: grows with issues skipped by `{filter}`")), "{board}");
+    assert!(board.contains(&format!("read: issues where .org = org and {filter} last 50")), "{board}");
+    assert!(board.contains("scan issues using index (org, at), chosen by the planner last 50"), "{board}");
+    assert!(board.contains("selected index (org, at), chosen by the planner (org = org); result: page; read:"), "{board}");
+}
+
+#[test]
+fn friendly_index_label_keeps_id_when_it_is_the_only_sort_column() {
+    let cost = Project::new(&SOURCE.replace("by .at", "by .id")).run(&["check", "--cost"]);
+    assert!(cost.contains("scan issues using index (org, id), chosen by the planner last 50"), "{cost}");
+    assert!(cost.contains("selected index (org, id), chosen by the planner (org = org); result: page; read:"), "{cost}");
+    assert!(!cost.contains("index (org), chosen by the planner"), "{cost}");
 }
 
 #[test]
@@ -117,6 +152,7 @@ fn fallback_printer_preserves_boolean_arithmetic_and_conditional_precedence() {
         ("true and (false or true)", Value::Bool(true)),
         ("false and (false or true)", Value::Bool(false)),
         ("not (true or false)", Value::Bool(false)),
+        ("not (false and false)", Value::Bool(true)),
         ("-(1 + 2)", Value::Int(-3)),
         ("-(-3)", Value::Int(3)),
         ("(1 if false else 2) + 3", Value::Int(5)),
