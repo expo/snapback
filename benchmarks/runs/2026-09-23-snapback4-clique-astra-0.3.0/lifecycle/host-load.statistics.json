@@ -1,0 +1,63 @@
+{
+  "at": "2026-09-24T01:02:29.728838+00:00",
+  "samples": 147,
+  "firstSampleAt": "2026-09-23T22:34:58.557078+00:00",
+  "lastSampleAt": "2026-09-24T01:02:07.629745+00:00",
+  "cpuCount": 18,
+  "load": {
+    "oneMinute": {
+      "min": 7.61767578125,
+      "median": 26.5654296875,
+      "max": 121.65380859375,
+      "mean": 27.46396019345238
+    },
+    "fiveMinute": {
+      "min": 10.375,
+      "median": 29.1552734375,
+      "max": 60.8505859375,
+      "mean": 27.252212213010203
+    },
+    "fifteenMinute": {
+      "min": 12.09423828125,
+      "median": 30.12158203125,
+      "max": 38.87646484375,
+      "mean": 26.893229166666668
+    }
+  },
+  "sampleIntervalSeconds": {
+    "min": 60.25060701370239,
+    "median": 60.502256989479065,
+    "max": 60.73439621925354,
+    "mean": 60.47310045973895
+  },
+  "phaseSamples": {
+    "builder": {
+      "samples": 90,
+      "oneMinute": {
+        "min": 7.61767578125,
+        "median": 22.644775390625,
+        "max": 121.65380859375,
+        "mean": 26.79204644097222
+      }
+    },
+    "grade": {
+      "samples": 54,
+      "oneMinute": {
+        "min": 17.45556640625,
+        "median": 27.85400390625,
+        "max": 39.7392578125,
+        "mean": 28.53837528935185
+      }
+    },
+    "score": {
+      "samples": 3,
+      "oneMinute": {
+        "min": 19.73388671875,
+        "median": 24.4755859375,
+        "max": 27.294921875,
+        "mean": 23.834798177083332
+      }
+    }
+  },
+  "scope": "Passive shared-host load; no causal attribution to phase timing or result."
+}

@@ -1,0 +1,30 @@
+{
+  "m1": {
+    "pass": true,
+    "receipt": "m8-regression-m1-suite.json"
+  },
+  "m2": {
+    "pass": true,
+    "receipt": "m8-regression-m2-suite.json"
+  },
+  "m3": {
+    "pass": true,
+    "receipt": "m8-regression-m3-suite.json"
+  },
+  "m4": {
+    "pass": true,
+    "receipt": "m8-regression-m4-suite.json"
+  },
+  "m5": {
+    "pass": true,
+    "receipt": "m8-regression-m5-suite.json"
+  },
+  "m6": {
+    "pass": true,
+    "receipt": "m8-regression-m6-suite.json"
+  },
+  "m8": {
+    "pass": true,
+    "receipt": "m8-1790207303960-suite.json"
+  }
+}

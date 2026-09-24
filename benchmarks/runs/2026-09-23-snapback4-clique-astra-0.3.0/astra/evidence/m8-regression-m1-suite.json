@@ -1,0 +1,53 @@
+{
+  "milestone": "m1",
+  "pass": true,
+  "coverage": {
+    "m1-a01": "signup-authenticated",
+    "m1-a02": "signup-authenticated",
+    "m1-a03": "duplicate-handle-visible",
+    "m1-a08": "profile-save-upload-render",
+    "m1-a10": "profile-save-upload-render",
+    "m1-a11": "profile-save-upload-render",
+    "m1-a04": "duplicate-email-visible"
+  },
+  "missing": [],
+  "results": [
+    {
+      "name": "signup-authenticated",
+      "ids": [
+        "m1-a01",
+        "m1-a02"
+      ],
+      "pass": true
+    },
+    {
+      "name": "duplicate-handle-visible",
+      "ids": [
+        "m1-a03"
+      ],
+      "pass": true
+    },
+    {
+      "name": "profile-save-upload-render",
+      "ids": [
+        "m1-a08",
+        "m1-a10",
+        "m1-a11"
+      ],
+      "pass": true
+    },
+    {
+      "name": "duplicate-email-visible",
+      "ids": [
+        "m1-a04"
+      ],
+      "pass": true
+    },
+    {
+      "name": "starter-segment-idempotency",
+      "ids": [],
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-23T23:47:03.092Z"
+}

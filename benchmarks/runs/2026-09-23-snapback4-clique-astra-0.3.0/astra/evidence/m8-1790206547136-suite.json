@@ -1,0 +1,46 @@
+{
+  "milestone": "m8",
+  "pass": true,
+  "coverage": {
+    "m8-a01": "six-authoritative-insights-totals-match-seeded-and-live-state",
+    "m8-a03": "seven-server-UTC-days-zero-filled-and-today-increments",
+    "m8-a04": "seven-server-UTC-days-zero-filled-and-today-increments",
+    "m8-a05": "trending-top-like-count-and-newest-tie",
+    "m8-a07": "trending-top-like-count-and-newest-tie",
+    "m8-a06": "old-high-score-post-excluded-by-server-time"
+  },
+  "missing": [],
+  "results": [
+    {
+      "name": "six-authoritative-insights-totals-match-seeded-and-live-state",
+      "ids": [
+        "m8-a01"
+      ],
+      "pass": true
+    },
+    {
+      "name": "seven-server-UTC-days-zero-filled-and-today-increments",
+      "ids": [
+        "m8-a03",
+        "m8-a04"
+      ],
+      "pass": true
+    },
+    {
+      "name": "trending-top-like-count-and-newest-tie",
+      "ids": [
+        "m8-a05",
+        "m8-a07"
+      ],
+      "pass": true
+    },
+    {
+      "name": "old-high-score-post-excluded-by-server-time",
+      "ids": [
+        "m8-a06"
+      ],
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-23T23:35:49.614Z"
+}

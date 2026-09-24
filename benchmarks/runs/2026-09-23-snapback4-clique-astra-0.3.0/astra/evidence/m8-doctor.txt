@@ -1,0 +1,26 @@
+snapback4 0.3.0
+  project   /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    ok: 37 tables, 25 synced, 48 operations
+  store     /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/.snapback4/store.sqlite at seq 1000, generation 12
+  backend   host generation 12 matches store
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 602.7 KB (1781 rows, including engine-internal storage) · indexes 1.3 MB · log 1.1 MB (3708 events, 1.9× rows) · ops 205.6 KB · file 6.3 MB
+  attribution likes: 0 null captures at postId.authorId
+  attribution replies: 4 null captures at postId.authorId
+  attribution reposts: 0 null captures at postId.authorId
+  attribution dailyLikes: 0 null-attributed contributions
+  attribution receivedLikes: 0 null-attributed contributions
+  attribution receivedReplies: 4 null-attributed contributions
+  attribution receivedReposts: 0 null-attributed contributions
+  requests  0 queued, 0 running, 0 done, 0 failed
+  schedule  dailyDigest every 2m → digest.daily; last boundary 1790206560000
+  schedule  feedPurgeRemovedEvery every 1m → feedPurgeRemoved; last boundary 1790206560000
+  job       digest.daily 01M38A0HZ3YHKR25JGYEQSJB59 Done: 14 chunks, 14 rows
+  job       feedPurgeRemoved 01M38A0HZ3TCQYGZD9B5TEV2HW Done: 1 chunk, 0 rows
+  job       feedPurgeRemoved 01M389YQXJSW1KPMV2ETAZFSFB Done: 1 chunk, 0 rows
+  job       digest.daily 01M389WWW5B3EV6XWH3D0QA1W0 Done: 14 chunks, 14 rows
+  job       feedPurgeRemoved 01M389WWW53DX68KZMBH6FT21F Done: 1 chunk, 0 rows
+  effects   1 queued, 5 satisfied, 37 sent, 1 deferred (next at 1790206597602, +18s)
+  types     generated
+  ok in 37.0 ms

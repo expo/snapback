@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-24T01:02:11.191305+00:00",
+  "scope": "Post-grade listener check; operator stopped no application process.",
+  "ports": [
+    49360,
+    49379
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "",
+  "listeners": [],
+  "operatorSignals": []
+}

@@ -1,0 +1,107 @@
+{
+  "milestone": "m2",
+  "pass": true,
+  "coverage": {
+    "m2-a01": "three-post-kinds",
+    "m2-a02": "three-post-kinds",
+    "m2-a03": "three-post-kinds",
+    "m2-a06": "follow-projection-and-global",
+    "m2-a08": "follow-projection-and-global",
+    "m2-a09": "follow-projection-and-global",
+    "m2-a10": "follow-projection-and-global",
+    "m2-a11": "follow-projection-and-global",
+    "m2-a15": "like-set-clear-retry",
+    "m2-a16": "repost-attribution-self-and-follow",
+    "m2-a17": "repost-attribution-self-and-follow",
+    "m2-a18": "repost-attribution-self-and-follow",
+    "m2-a26": "repost-attribution-self-and-follow",
+    "m2-a27": "repost-attribution-self-and-follow",
+    "m2-a20": "direct-replies-chronological-no-feed",
+    "m2-a21": "direct-replies-chronological-no-feed",
+    "m2-a25": "own-posts-without-self-edge",
+    "m2-a22": "feed-ui-and-api-pagination",
+    "m2-a23": "feed-ui-and-api-pagination",
+    "m2-a24": "feed-ui-and-api-pagination",
+    "m2-a12": "link-text-without-preview",
+    "m2-a13": "link-text-without-preview"
+  },
+  "missing": [],
+  "results": [
+    {
+      "name": "three-post-kinds",
+      "ids": [
+        "m2-a01",
+        "m2-a02",
+        "m2-a03"
+      ],
+      "pass": true
+    },
+    {
+      "name": "follow-projection-and-global",
+      "ids": [
+        "m2-a06",
+        "m2-a08",
+        "m2-a09",
+        "m2-a10",
+        "m2-a11"
+      ],
+      "pass": true
+    },
+    {
+      "name": "like-set-clear-retry",
+      "ids": [
+        "m2-a15"
+      ],
+      "pass": true
+    },
+    {
+      "name": "repost-attribution-self-and-follow",
+      "ids": [
+        "m2-a16",
+        "m2-a17",
+        "m2-a18",
+        "m2-a26",
+        "m2-a27"
+      ],
+      "pass": true
+    },
+    {
+      "name": "direct-replies-chronological-no-feed",
+      "ids": [
+        "m2-a20",
+        "m2-a21"
+      ],
+      "pass": true
+    },
+    {
+      "name": "own-posts-without-self-edge",
+      "ids": [
+        "m2-a25"
+      ],
+      "pass": true
+    },
+    {
+      "name": "feed-ui-and-api-pagination",
+      "ids": [
+        "m2-a22",
+        "m2-a23",
+        "m2-a24"
+      ],
+      "pass": true
+    },
+    {
+      "name": "link-text-without-preview",
+      "ids": [
+        "m2-a12",
+        "m2-a13"
+      ],
+      "pass": true
+    },
+    {
+      "name": "all-installed-segments-idempotent",
+      "ids": [],
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-23T22:52:59.051Z"
+}

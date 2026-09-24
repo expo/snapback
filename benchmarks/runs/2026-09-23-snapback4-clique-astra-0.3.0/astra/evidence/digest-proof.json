@@ -1,0 +1,13 @@
+{
+  "pass": true,
+  "periodStart": 1790206920000,
+  "periodEnd": 1790207040000,
+  "verifiedAt": 1790207167004,
+  "recipient": "user:01M389C53JHRQVT92GY1CKEATB",
+  "correctCounts": true,
+  "unauthorizedExcluded": true,
+  "inactiveNone": true,
+  "restartDeduplicated": true,
+  "rerunDeduplicated": true,
+  "nextPeriodNone": true
+}

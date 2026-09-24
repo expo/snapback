@@ -1,0 +1,63 @@
+{
+  "at": 1790208170739,
+  "owned": [
+    {
+      "pid": 74364,
+      "cwd": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4",
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 74363,
+      "cwd": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4",
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 16244,
+      "cwd": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4",
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 77852,
+      "cwd": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/replay-full-instance",
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 77848,
+      "cwd": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/replay-full-instance",
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 71965,
+      "cwd": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/replay-instance",
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 71959,
+      "cwd": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/replay-instance",
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 13725,
+      "cwd": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4",
+      "action": "SIGTERM"
+    }
+  ],
+  "ports": [
+    {
+      "port": 49360,
+      "listening": false
+    },
+    {
+      "port": 49361,
+      "listening": false
+    },
+    {
+      "port": 49362,
+      "listening": false
+    },
+    {
+      "port": 49363,
+      "listening": false
+    }
+  ]
+}

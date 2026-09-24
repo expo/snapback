@@ -1,0 +1,307 @@
+{
+  "version": 1,
+  "scope": [
+    "m1",
+    "m2",
+    "m3",
+    "m4",
+    "m5",
+    "m6",
+    "m8"
+  ],
+  "notRun": [
+    "m7"
+  ],
+  "assertions": {
+    "m1-a01": {
+      "milestone": "m1",
+      "test": "signup-authenticated",
+      "receipt": "evidence/m8-regression-m1-suite.json"
+    },
+    "m1-a02": {
+      "milestone": "m1",
+      "test": "signup-authenticated",
+      "receipt": "evidence/m8-regression-m1-suite.json"
+    },
+    "m1-a03": {
+      "milestone": "m1",
+      "test": "duplicate-handle-visible",
+      "receipt": "evidence/m8-regression-m1-suite.json"
+    },
+    "m1-a08": {
+      "milestone": "m1",
+      "test": "profile-save-upload-render",
+      "receipt": "evidence/m8-regression-m1-suite.json"
+    },
+    "m1-a10": {
+      "milestone": "m1",
+      "test": "profile-save-upload-render",
+      "receipt": "evidence/m8-regression-m1-suite.json"
+    },
+    "m1-a11": {
+      "milestone": "m1",
+      "test": "profile-save-upload-render",
+      "receipt": "evidence/m8-regression-m1-suite.json"
+    },
+    "m1-a04": {
+      "milestone": "m1",
+      "test": "duplicate-email-visible",
+      "receipt": "evidence/m8-regression-m1-suite.json"
+    },
+    "m2-a01": {
+      "milestone": "m2",
+      "test": "three-post-kinds",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a02": {
+      "milestone": "m2",
+      "test": "three-post-kinds",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a03": {
+      "milestone": "m2",
+      "test": "three-post-kinds",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a06": {
+      "milestone": "m2",
+      "test": "follow-projection-and-global",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a08": {
+      "milestone": "m2",
+      "test": "follow-projection-and-global",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a09": {
+      "milestone": "m2",
+      "test": "follow-projection-and-global",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a10": {
+      "milestone": "m2",
+      "test": "follow-projection-and-global",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a11": {
+      "milestone": "m2",
+      "test": "follow-projection-and-global",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a15": {
+      "milestone": "m2",
+      "test": "like-set-clear-retry",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a16": {
+      "milestone": "m2",
+      "test": "repost-attribution-self-and-follow",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a17": {
+      "milestone": "m2",
+      "test": "repost-attribution-self-and-follow",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a18": {
+      "milestone": "m2",
+      "test": "repost-attribution-self-and-follow",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a26": {
+      "milestone": "m2",
+      "test": "repost-attribution-self-and-follow",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a27": {
+      "milestone": "m2",
+      "test": "repost-attribution-self-and-follow",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a20": {
+      "milestone": "m2",
+      "test": "direct-replies-chronological-no-feed",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a21": {
+      "milestone": "m2",
+      "test": "direct-replies-chronological-no-feed",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a25": {
+      "milestone": "m2",
+      "test": "own-posts-without-self-edge",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a22": {
+      "milestone": "m2",
+      "test": "feed-ui-and-api-pagination",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a23": {
+      "milestone": "m2",
+      "test": "feed-ui-and-api-pagination",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a24": {
+      "milestone": "m2",
+      "test": "feed-ui-and-api-pagination",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a12": {
+      "milestone": "m2",
+      "test": "link-text-without-preview",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m2-a13": {
+      "milestone": "m2",
+      "test": "link-text-without-preview",
+      "receipt": "evidence/m8-regression-m2-suite.json"
+    },
+    "m3-a03": {
+      "milestone": "m3",
+      "test": "dm-pair-deduplication",
+      "receipt": "evidence/m8-regression-m3-suite.json"
+    },
+    "m3-a04": {
+      "milestone": "m3",
+      "test": "distinct-groups-same-roster",
+      "receipt": "evidence/m8-regression-m3-suite.json"
+    },
+    "m3-a05": {
+      "milestone": "m3",
+      "test": "distinct-groups-same-roster",
+      "receipt": "evidence/m8-regression-m3-suite.json"
+    },
+    "m3-a14": {
+      "milestone": "m3",
+      "test": "non-admin-server-denial",
+      "receipt": "evidence/m8-regression-m3-suite.json"
+    },
+    "m3-a10": {
+      "milestone": "m3",
+      "test": "quote-excerpt-and-jump",
+      "receipt": "evidence/m8-regression-m3-suite.json"
+    },
+    "m3-a11": {
+      "milestone": "m3",
+      "test": "quote-excerpt-and-jump",
+      "receipt": "evidence/m8-regression-m3-suite.json"
+    },
+    "m3-a15": {
+      "milestone": "m3",
+      "test": "all-segments-idempotent",
+      "receipt": "evidence/m8-regression-m3-suite.json"
+    },
+    "m4-a01": {
+      "milestone": "m4",
+      "test": "photo-picker-upload-send",
+      "receipt": "evidence/m8-regression-m4-suite.json"
+    },
+    "m4-a03": {
+      "milestone": "m4",
+      "test": "video-picker-upload-send",
+      "receipt": "evidence/m8-regression-m4-suite.json"
+    },
+    "m4-a06": {
+      "milestone": "m4",
+      "test": "reaction-replace-clear-set-state",
+      "receipt": "evidence/m8-regression-m4-suite.json"
+    },
+    "m4-a07": {
+      "milestone": "m4",
+      "test": "reaction-replace-clear-set-state",
+      "receipt": "evidence/m8-regression-m4-suite.json"
+    },
+    "m4-a09": {
+      "milestone": "m4",
+      "test": "edited-caption-label",
+      "receipt": "evidence/m8-regression-m4-suite.json"
+    },
+    "m5-a04": {
+      "milestone": "m5",
+      "test": "view-once-first-image-render",
+      "receipt": "evidence/m8-regression-m5-suite.json"
+    },
+    "m5-a05": {
+      "milestone": "m5",
+      "test": "view-once-second-fetch-server-refusal",
+      "receipt": "evidence/m8-regression-m5-suite.json"
+    },
+    "m5-a08": {
+      "milestone": "m5",
+      "test": "group-rename-admin-only",
+      "receipt": "evidence/m8-regression-m5-suite.json"
+    },
+    "m5-a09": {
+      "milestone": "m5",
+      "test": "people-prefix-search",
+      "receipt": "evidence/m8-regression-m5-suite.json"
+    },
+    "m5-a10": {
+      "milestone": "m5",
+      "test": "chat-word-prefix-search",
+      "receipt": "evidence/m8-regression-m5-suite.json"
+    },
+    "m5-a11": {
+      "milestone": "m5",
+      "test": "all-message-search-grouped",
+      "receipt": "evidence/m8-regression-m5-suite.json"
+    },
+    "m6-a08": {
+      "milestone": "m6",
+      "test": "server-push-text-and-once-photo-closed-recipient",
+      "receipt": "evidence/m8-regression-m6-suite.json"
+    },
+    "m6-a09": {
+      "milestone": "m6",
+      "test": "server-push-text-and-once-photo-closed-recipient",
+      "receipt": "evidence/m8-regression-m6-suite.json"
+    },
+    "m6-a10": {
+      "milestone": "m6",
+      "test": "headless-custom-client-every-operation",
+      "receipt": "evidence/m8-regression-m6-suite.json"
+    },
+    "m6-a11": {
+      "milestone": "m6",
+      "test": "headless-custom-client-every-operation",
+      "receipt": "evidence/m8-regression-m6-suite.json"
+    },
+    "m6-a13": {
+      "milestone": "m6",
+      "test": "frozen-action-schema-and-all-50-authoritative-intents",
+      "receipt": "evidence/m8-regression-m6-suite.json"
+    },
+    "m8-a01": {
+      "milestone": "m8",
+      "test": "six-authoritative-insights-totals-match-seeded-and-live-state",
+      "receipt": "evidence/m8-1790207303960-suite.json"
+    },
+    "m8-a03": {
+      "milestone": "m8",
+      "test": "seven-server-UTC-days-zero-filled-and-today-increments",
+      "receipt": "evidence/m8-1790207303960-suite.json"
+    },
+    "m8-a04": {
+      "milestone": "m8",
+      "test": "seven-server-UTC-days-zero-filled-and-today-increments",
+      "receipt": "evidence/m8-1790207303960-suite.json"
+    },
+    "m8-a05": {
+      "milestone": "m8",
+      "test": "trending-top-like-count-and-newest-tie",
+      "receipt": "evidence/m8-1790207303960-suite.json"
+    },
+    "m8-a07": {
+      "milestone": "m8",
+      "test": "trending-top-like-count-and-newest-tie",
+      "receipt": "evidence/m8-1790207303960-suite.json"
+    },
+    "m8-a06": {
+      "milestone": "m8",
+      "test": "old-high-score-post-excluded-by-server-time",
+      "receipt": "evidence/m8-1790207303960-suite.json"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "at": "2026-09-24T01:01:36.457991+00:00",
+  "scope": "Descriptive Astra-only operator tally of actual emitted artifacts; not an all-lane aggregate.",
+  "manifestSha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+  "expectedIds": 119,
+  "observedIds": 119,
+  "missingIds": [],
+  "extraIds": [],
+  "duplicateIds": [],
+  "complete119": {
+    "pass": 101,
+    "fail": 0,
+    "not-run": 18,
+    "not-applicable": 0
+  },
+  "priorComparable101": {
+    "pass": 85,
+    "fail": 0,
+    "not-run": 16,
+    "not-applicable": 0
+  },
+  "m8Only18": {
+    "pass": 16,
+    "fail": 0,
+    "not-run": 2,
+    "not-applicable": 0
+  },
+  "byMilestone": {
+    "M1": {
+      "pass": 13,
+      "fail": 0,
+      "not-run": 0,
+      "not-applicable": 0
+    },
+    "M2": {
+      "pass": 27,
+      "fail": 0,
+      "not-run": 0,
+      "not-applicable": 0
+    },
+    "M3": {
+      "pass": 15,
+      "fail": 0,
+      "not-run": 0,
+      "not-applicable": 0
+    },
+    "M4": {
+      "pass": 12,
+      "fail": 0,
+      "not-run": 0,
+      "not-applicable": 0
+    },
+    "M5": {
+      "pass": 12,
+      "fail": 0,
+      "not-run": 0,
+      "not-applicable": 0
+    },
+    "M6": {
+      "pass": 6,
+      "fail": 0,
+      "not-run": 7,
+      "not-applicable": 0
+    },
+    "M7": {
+      "pass": 0,
+      "fail": 0,
+      "not-run": 9,
+      "not-applicable": 0
+    },
+    "M8": {
+      "pass": 16,
+      "fail": 0,
+      "not-run": 2,
+      "not-applicable": 0
+    }
+  }
+}

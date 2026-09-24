@@ -3,8 +3,7 @@
 **Filed:** 2026-09-22, by the Snapback 4 0.3 program lead (Claude Opus 5.5),
 under the author's instruction to "do your new plan", with 0.3.x as the release
 line and a Clique run once there is a 0.3 release the lead is happy with.
-**Status:** open. It is read against the first calibration whose pin carries
-0.3 levers.
+**Status:** Resolved — read against calibration #18 (`snapback4@0.3.0`), 2026-09-23. The reading is at the end of this file.
 **Subject:**
 
 - [LLP 3000.012](../llp/3000.012-application-still-owns-derived-data.research.md), the evidence;
@@ -120,3 +119,88 @@ the fitted line.
   record before any category is attributed to the pin.
 - One calibration is one reading. A confirmation is a step candidate, not a
   trend (LLP 3000.010 §6).
+
+## Reading — calibration #18, the first 0.3-pinned run (2026-09-23)
+
+The run was pinned to `snapback4@0.3.0`, `snapback4-darwin-arm64@0.3.0` and
+`snapback4-expo@0.3.0`, all three forms. The instrument, prompts and scorer
+were cal17's, byte-for-byte. One Astra-medium cold builder ran for 5,389 s
+(cal17: 4,924 s). The holistic score is **92/100**. The functional grade
+was 101 of 119 passing, 0 failing and 18 not run, identical to cal17's; the
+grader is labelled uncalibrated. No prediction was supplied to any session. The record is
+`benchmarks/runs/2026-09-23-snapback4-clique-astra-0.3.0/`.
+
+### Mechanism criteria, read first from the builder's backend
+
+| Form | Criterion | Result |
+|---|---|---|
+| F3 | No application-maintained Following projection tables; no feed helper calls | **Met.** `maintain feed: timeline` (`social.q:77`, sized `authors 2000, edges 20000`). Following is `feed[viewer] after c last 20`. There are no routing, inbox, broadcast, tombstone or count tables, and no helper calls |
+| F1 | No copied time for Trending; no zero-like fill | **Met.** `posts.score: count likes by postId` and `by byHourLikes: hour(at), score, at, id` (`social.q:11–12`). Trending is one merge over 25 hour lanes (`insights.q:33–35`). There is no copied time and no fill |
+| F2 | No application-written attribution copies; no verification clauses; no backfill for them | **Met, with one nuance.** Received counts use engine-recorded paths (`receivedLikes: count likes by postId.authorId`, `dailyLikes … day(.at)`, `receivedReposts`, `receivedReplies`, and `replyTarget.authorId` for nested replies; `insights.q`). There is no `likes.authorId`, `postAt` or `replyAuthor` copy, and no verification clause (`likes: insert <- .principal = viewer`). The nuance is in the next paragraph |
+| L2 | No `use server`; no action-lease or OIDC text in the services card the builder read | **Partly met.** No `use server` anywhere, and jobs ran without it. `guide-services.txt` (69 lines) still ends with a four-line pointer naming OIDC and ten `E_OIDC_*` codes, although the content moved to `SERVER.md` |
+| L3 | No `object \| null[]`-class defect | **Met.** None in the run log. None among the grader's five defects, all of which are in the builder's own app or scripts |
+
+**The F2 nuance.** During M8, nested replies had stored a reply id in
+`postId: posts`. `snapback4 doctor` reported "4 null captures at
+postId.authorId", which is F2's nulls-not-refusals design doing its job.
+The builder then added a real reference, `replyTarget: replies ?`, and
+backfilled those four rows with a one-off job
+(`evidence/m8-attribution-upgrade.q`, not in the final source). That job
+migrated a missing **reference**, not an attribution copy: the attribution
+itself stayed engine-recorded.
+
+**Residual application-owned derived data outside the pre-registered
+criteria.** The app maintains its own `events` table (`social.q:150`),
+written by `createPost` and `setRepost`, to serve a "Global" feed of posts
+and reposts. That duplicates the timeline's own event stream. The scorer
+noted it: "Global needed a separate event table". Trending also omits the
+feeds card's `and not .removed`.
+
+**Where each form came from.** The Following timeline and the column on the
+timeline-mapped `posts` table are exactly the composition that the
+INTEGRATION lane's counterexample forced into 0.3.0 (the F1 × F3 fix). Before
+that fix, this backend would have been refused at admission.
+
+### Category predictions, as filed
+
+| Category | Line (sd) | Confirms | Null | Refutes | 0.2.32 | 0.2.33 | **0.3.0** | As filed |
+|---|---:|---:|---|---:|---:|---:|---:|---|
+| data_modeling | 82.3 (1.86) | ≥ 86 | 81–85 | ≤ 80 | 82 | 86 | **87** | confirms |
+| queries_and_live | 82.3 (4.28) | ≥ 87 | 79–86 | ≤ 78 | 86 | 89 | **90** | confirms |
+
+The pin carries all three forms, so the predictions are not void. **Both
+confirm as filed, and neither is attributable to 0.3.** The interpretation
+note filed before any lever shipped applies: the 0.2.33 control (#17)
+already met both thresholds with no 0.3 lever, and 0.3.0 moves each
+category by +1, well within one sd. Overall is 92, unchanged from 0.2.33.
+
+### Levels and direct evidence
+
+- **Up:** setup_and_docs 94→96, diagnostics 94→97 (the scorer credits
+  `doctor` for surfacing attribution mistakes), operations 88→91, and
+  client_integration 90→92.
+- **Down:** background_work 94→89 (a digest computation that could park at
+  job bounds) and scale_and_limits 92→90.
+
+One run is one reading (LLP 3000.010 §6). No causal claim is made from these
+movements.
+
+**Confound to record.** `snapback4@0.3.0` contains the quadratic
+born-row-tracking regression
+(`issues/20260923-snapback4-born-row-tracking-is-quadratic.md`). The
+builder's scale replays ran through ordinary mutations at about 5–6 ms each
+(167,243 actions), which the regression does not affect, and no large-commit
+seed appears in the run log. No score is attributed to it.
+
+### Reading
+
+The responsibilities the 0.3 program set out to remove are gone from the
+built app. A cold builder, working from the published cards alone, used the
+declared timeline, a maintained column for Trending, and engine-recorded
+attribution for every received count. It built none of the application-owned
+projections, copies, verification clauses or zero-fill that LLP 3000.012
+documented in earlier runs. The scores did not move beyond noise, as the
+confound note in this file anticipated: "responsibilities removed, score
+unmoved" is read as mechanism success, not refutation. What remains
+application-owned is a global feed table and a duplicated count maintain.
+Those are candidates for a future card, not for this program's forms.

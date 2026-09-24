@@ -1,0 +1,31 @@
+{
+  "at": "2026-09-24T01:04:44.375158+00:00",
+  "scope": "Run has ended; no operator application-process termination, no phase relaunch. Full snapshot and complete grade retained in packet.",
+  "record": "/Users/ccheever/projects/snapback-w13d/benchmarks/runs/2026-09-23-snapback4-clique-astra-0.3.0",
+  "packet": "/Users/ccheever/clique-sb4-20260923-astra-cal18",
+  "phaseExitCodes": {
+    "builder": 0,
+    "grade": 0,
+    "score": 0
+  },
+  "sampler": {
+    "endedAt": "2026-09-24T01:02:11.795871+00:00",
+    "pid": 27705,
+    "stopMarkerPresent": true
+  },
+  "recordedPidProbe": {
+    "command": [
+      "ps",
+      "-p",
+      "27705,27728,27729,77191,77192,77193,77194",
+      "-o",
+      "pid=,ppid=,comm="
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "note": "No PID was signalled by this check."
+  },
+  "snapshotManifestSha256": "eb54f44ef26ebe6c4d304dfeaff56d896bc98bdcedb8c93f42903cdecb10d8c1",
+  "gradeManifestSha256": "7151fef97c6207fdc9b44e9dd49892eb7d71f7e59d324b89b238b0590b329f1f",
+  "postAssessmentManifestSha256": "067f43c488d3539afe42501297186a755d65234d115da375e67623664bcaae27"
+}

@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-24T01:03:50.282627+00:00",
+  "source": "/Users/ccheever/clique-sb4-20260923-astra-cal18/logs/astra-snapback4.ndjson",
+  "logBytes": 1639244,
+  "logSha256": "f313f82890557a657069f85bfe752d51484bf21ce7dea319b0d009d92c9921c0",
+  "completionEvents": [
+    {
+      "type": "turn.completed",
+      "usage": {
+        "input_tokens": 32574159,
+        "cached_input_tokens": 32072960,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 145227,
+        "reasoning_output_tokens": 54533
+      }
+    }
+  ]
+}

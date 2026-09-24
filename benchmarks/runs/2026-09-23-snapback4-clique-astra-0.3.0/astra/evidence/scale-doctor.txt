@@ -1,0 +1,13 @@
+snapback4 0.3.0
+  project   /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/replay-instance
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    ok: 28 tables, 25 synced, 45 operations
+  store     /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/replay-instance/.snapback4/store.sqlite at seq 167243, generation 1
+  backend   host generation 1 matches store
+  replay    on — new effects suppressed; schedules held (persisted dev policy)
+  storage   rows 218.3 MB (577663 rows, including engine-internal storage) · indexes 435.4 MB · log 300.8 MB (798544 events, 1.4× rows) · ops 36.6 MB · file 1289.9 MB
+  requests  0 queued, 0 running, 0 done, 0 failed
+  schedule  feedPurgeRemovedEvery every 1m → feedPurgeRemoved; last boundary 1790206140000
+  effects   580024 suppressed, 0 deferred
+  types     generated
+  ok in 2151.2 ms

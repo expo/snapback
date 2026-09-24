@@ -1,0 +1,24 @@
+{
+  "milestone": "m6",
+  "pass": false,
+  "coverage": {},
+  "missing": [
+    "m6-a08",
+    "m6-a09",
+    "m6-a10",
+    "m6-a11",
+    "m6-a13"
+  ],
+  "results": [
+    {
+      "name": "server-push-text-and-once-photo-closed-recipient",
+      "ids": [
+        "m6-a08",
+        "m6-a09"
+      ],
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(logs.some(x=>x.payload.preview===text.slice(0,80)&&x.payload.senderDisplayName==='Alice Alvarez'))\n"
+    }
+  ],
+  "recordedAt": "2026-09-23T23:25:59.941Z"
+}

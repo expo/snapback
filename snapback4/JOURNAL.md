@@ -47392,3 +47392,51 @@ form, so the rebuild is required.
 
 Calibration #18 (`snapback4@0.3.0` / `snapback4-expo@0.3.0`) started at 15:30
 PDT on the M5.
+
+## 2026-09-23 — calibration #18: the first 0.3-pinned Clique run
+
+Calibration #18 was pinned to `snapback4@0.3.0` and `snapback4-expo@0.3.0`.
+It used cal17's frozen instrument, prompts and scorer, byte-for-byte. One
+Astra-medium cold builder ran M1–M6 and M8 for 5,389 s, exit 0; cal17 took
+4,924 s. Both scale replays passed: 167,243 actions.
+
+**Holistic score: 92/100**, the same as 0.2.33. The functional grade (Opus 5,
+uncalibrated) is 101 of 119 passing, 0 failing and 18 not run, identical to
+cal17's. Its five defects are all minor or cosmetic, and all are in the
+builder's own app or scripts: Trending's kit surface, the replay receipts, and
+a login response shape. The record is
+[`benchmarks/runs/2026-09-23-snapback4-clique-astra-0.3.0/`](../benchmarks/runs/2026-09-23-snapback4-clique-astra-0.3.0/README.md).
+
+**The mechanism criteria** of the pre-registration
+(`issues/closed/20260922-pre-registered-predictions-for-calibration-17.md`)
+were read from the builder's backend. Working from the published cards
+alone, the builder declared:
+- `maintain feed: timeline` for Following;
+- `posts.score: count likes by postId`, with `by byHourLikes`, and one
+  25-lane merge for Trending;
+- engine-recorded paths (`postId.authorId`, `replyTarget.authorId`,
+  `day(.at)`) for every received count.
+
+There are no application-maintained Following projections, no copied
+attribution, no verification clauses, no copied time and no zero fill.
+F1, F2 and F3 are met.
+
+One four-row backfill migrated a missing *reference* (`replyTarget`), not an
+attribution copy, after `doctor` reported four null captures. L2 is partly
+met: the services card keeps a four-line OIDC pointer. What remains
+application-owned is a "Global" events table and a duplicated count maintain.
+
+**Categories:** data_modeling 86→87 and queries_and_live 89→90. Both
+predictions confirm as filed, and neither is attributable to 0.3: the 0.2.33
+control already met both thresholds, and +1 is within one sd. Up:
+setup_and_docs 94→96, diagnostics 94→97, operations 88→91. Down:
+background_work 94→89, scale_and_limits 92→90. No causal claim is made from
+one run.
+
+The composition the builder chose, a maintained column on the posts the
+timeline maps, is the one INTEGRATION's counterexample forced into 0.3.0.
+Before that fix, this backend would have been refused at admission.
+
+**Confound recorded:** 0.3.0 carries the quadratic born-row tracking
+(`issues/20260923-snapback4-born-row-tracking-is-quadratic.md`). The
+builder's workload was small mutation commits, which it does not affect.

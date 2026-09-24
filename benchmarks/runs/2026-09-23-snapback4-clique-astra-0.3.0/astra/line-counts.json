@@ -1,0 +1,377 @@
+[
+  {
+    "file": "app.json",
+    "category": "source/test/config",
+    "lines": 28
+  },
+  {
+    "file": "app/_layout.tsx",
+    "category": "source/test/config",
+    "lines": 5
+  },
+  {
+    "file": "app/chats.tsx",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "app/conversation/[handle].tsx",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "app/conversation/group/[group]/index.tsx",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "app/conversation/group/[group]/settings.tsx",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "app/conversation/id/[id]/index.tsx",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "app/conversation/id/[id]/settings.tsx",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "app/index.tsx",
+    "category": "source/test/config",
+    "lines": 10
+  },
+  {
+    "file": "app/insights.tsx",
+    "category": "source/test/config",
+    "lines": 3
+  },
+  {
+    "file": "app/new-chat.tsx",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "app/post/[id].tsx",
+    "category": "source/test/config",
+    "lines": 8
+  },
+  {
+    "file": "app/profile/[handle].tsx",
+    "category": "source/test/config",
+    "lines": 10
+  },
+  {
+    "file": "app/profile/edit.tsx",
+    "category": "source/test/config",
+    "lines": 13
+  },
+  {
+    "file": "app/search.tsx",
+    "category": "source/test/config",
+    "lines": 4
+  },
+  {
+    "file": "app/settings.tsx",
+    "category": "source/test/config",
+    "lines": 5
+  },
+  {
+    "file": "babel.config.js",
+    "category": "source/test/config",
+    "lines": 4
+  },
+  {
+    "file": "config/runtime.json",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "metro-wasm-transformer.cjs",
+    "category": "source/test/config",
+    "lines": 10
+  },
+  {
+    "file": "metro.config.js",
+    "category": "source/test/config",
+    "lines": 9
+  },
+  {
+    "file": "package.json",
+    "category": "source/test/config",
+    "lines": 42
+  },
+  {
+    "file": "scripts/acceptance.mjs",
+    "category": "source/test/config",
+    "lines": 23
+  },
+  {
+    "file": "scripts/build-report.mjs",
+    "category": "source/test/config",
+    "lines": 30
+  },
+  {
+    "file": "scripts/build-web.mjs",
+    "category": "source/test/config",
+    "lines": 7
+  },
+  {
+    "file": "scripts/capture-final.mjs",
+    "category": "source/test/config",
+    "lines": 2
+  },
+  {
+    "file": "scripts/choreo.mjs",
+    "category": "source/test/config",
+    "lines": 8
+  },
+  {
+    "file": "scripts/configure.mjs",
+    "category": "source/test/config",
+    "lines": 21
+  },
+  {
+    "file": "scripts/custom-client-demo.mjs",
+    "category": "source/test/config",
+    "lines": 13
+  },
+  {
+    "file": "scripts/inspect-ui.mjs",
+    "category": "source/test/config",
+    "lines": 2
+  },
+  {
+    "file": "scripts/log.mjs",
+    "category": "source/test/config",
+    "lines": 2
+  },
+  {
+    "file": "scripts/probe-cold-media.mjs",
+    "category": "source/test/config",
+    "lines": 3
+  },
+  {
+    "file": "scripts/probe-cold-offline.mjs",
+    "category": "source/test/config",
+    "lines": 6
+  },
+  {
+    "file": "scripts/probe-offline.mjs",
+    "category": "source/test/config",
+    "lines": 3
+  },
+  {
+    "file": "scripts/push-worker.mjs",
+    "category": "source/test/config",
+    "lines": 4
+  },
+  {
+    "file": "scripts/raw-api-probe.mjs",
+    "category": "source/test/config",
+    "lines": 4
+  },
+  {
+    "file": "scripts/replay.mjs",
+    "category": "source/test/config",
+    "lines": 49
+  },
+  {
+    "file": "scripts/restart-backend.mjs",
+    "category": "source/test/config",
+    "lines": 4
+  },
+  {
+    "file": "scripts/restart-web.mjs",
+    "category": "source/test/config",
+    "lines": 5
+  },
+  {
+    "file": "scripts/security-m4.mjs",
+    "category": "source/test/config",
+    "lines": 3
+  },
+  {
+    "file": "scripts/seed.mjs",
+    "category": "source/test/config",
+    "lines": 34
+  },
+  {
+    "file": "scripts/serve-web.mjs",
+    "category": "source/test/config",
+    "lines": 3
+  },
+  {
+    "file": "scripts/setup-identity.mjs",
+    "category": "source/test/config",
+    "lines": 6
+  },
+  {
+    "file": "scripts/start-push.mjs",
+    "category": "source/test/config",
+    "lines": 2
+  },
+  {
+    "file": "scripts/start-replay.mjs",
+    "category": "source/test/config",
+    "lines": 8
+  },
+  {
+    "file": "scripts/start-servers.mjs",
+    "category": "source/test/config",
+    "lines": 10
+  },
+  {
+    "file": "scripts/stop-servers.mjs",
+    "category": "source/test/config",
+    "lines": 5
+  },
+  {
+    "file": "scripts/tests-m2.mjs",
+    "category": "source/test/config",
+    "lines": 28
+  },
+  {
+    "file": "scripts/tests-m3.mjs",
+    "category": "source/test/config",
+    "lines": 19
+  },
+  {
+    "file": "scripts/tests-m4.mjs",
+    "category": "source/test/config",
+    "lines": 16
+  },
+  {
+    "file": "scripts/tests-m5.mjs",
+    "category": "source/test/config",
+    "lines": 13
+  },
+  {
+    "file": "scripts/tests-m6.mjs",
+    "category": "source/test/config",
+    "lines": 6
+  },
+  {
+    "file": "scripts/tests-m8.mjs",
+    "category": "source/test/config",
+    "lines": 7
+  },
+  {
+    "file": "scripts/validate-report.mjs",
+    "category": "source/test/config",
+    "lines": 2
+  },
+  {
+    "file": "scripts/verify-digest.mjs",
+    "category": "source/test/config",
+    "lines": 14
+  },
+  {
+    "file": "scripts/verify-expiry.mjs",
+    "category": "source/test/config",
+    "lines": 4
+  },
+  {
+    "file": "snapback/attribution.q",
+    "category": "source/test/config",
+    "lines": 1
+  },
+  {
+    "file": "snapback/chat.q",
+    "category": "source/test/config",
+    "lines": 264
+  },
+  {
+    "file": "snapback/digest.q",
+    "category": "source/test/config",
+    "lines": 29
+  },
+  {
+    "file": "snapback/insights.q",
+    "category": "source/test/config",
+    "lines": 36
+  },
+  {
+    "file": "snapback/schema.q",
+    "category": "source/test/config",
+    "lines": 35
+  },
+  {
+    "file": "snapback/social.q",
+    "category": "source/test/config",
+    "lines": 164
+  },
+  {
+    "file": "src/chats.tsx",
+    "category": "source/test/config",
+    "lines": 33
+  },
+  {
+    "file": "src/client.ts",
+    "category": "source/test/config",
+    "lines": 25
+  },
+  {
+    "file": "src/common.tsx",
+    "category": "source/test/config",
+    "lines": 11
+  },
+  {
+    "file": "src/media.tsx",
+    "category": "source/test/config",
+    "lines": 10
+  },
+  {
+    "file": "src/posts.tsx",
+    "category": "source/test/config",
+    "lines": 22
+  },
+  {
+    "file": "src/serverRead.ts",
+    "category": "source/test/config",
+    "lines": 4
+  },
+  {
+    "file": "src/session.tsx",
+    "category": "source/test/config",
+    "lines": 18
+  },
+  {
+    "file": "tsconfig.json",
+    "category": "source/test/config",
+    "lines": 18
+  },
+  {
+    "file": "README.md",
+    "category": "documentation",
+    "lines": 29
+  },
+  {
+    "file": "API.md",
+    "category": "documentation",
+    "lines": 51
+  },
+  {
+    "file": "diary.md",
+    "category": "documentation",
+    "lines": 33
+  },
+  {
+    "file": "essay.md",
+    "category": "documentation",
+    "lines": 29
+  },
+  {
+    "file": "scripts/m4-ui-fragment.txt",
+    "category": "archived development fragment",
+    "lines": 11
+  },
+  {
+    "file": "evidence/m8-attribution-upgrade.q",
+    "category": "applied upgrade evidence",
+    "lines": 11
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "basePass": true,
+  "baseErrors": null,
+  "composedPass": false,
+  "composedErrors": [
+    {
+      "instancePath": "",
+      "schemaPath": "#/allOf/1/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "socialMessenger"
+      },
+      "message": "must have required property 'socialMessenger'"
+    }
+  ],
+  "reason": "Builder record is base-only; external driver token/orientation custody and independent grader session are not available to this lane. No grading session is fabricated."
+}

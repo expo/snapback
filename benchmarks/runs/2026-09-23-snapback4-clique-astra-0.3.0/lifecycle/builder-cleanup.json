@@ -1,0 +1,16 @@
+{
+  "at": "2026-09-24T00:05:41.430864+00:00",
+  "scope": "Post-builder listener check; operator stopped no process. Builder reports stopping its own recorded servers.",
+  "command": [
+    "lsof",
+    "-nP",
+    "-iTCP:49360-49379",
+    "-sTCP:LISTEN"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "",
+  "listeners": [],
+  "operatorSignals": [],
+  "processObservationFile": "results/operator-process-observations.jsonl"
+}

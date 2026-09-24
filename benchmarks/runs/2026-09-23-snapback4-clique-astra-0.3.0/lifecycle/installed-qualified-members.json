@@ -1,0 +1,1323 @@
+{
+  "at": "2026-09-24T01:03:50.273897+00:00",
+  "scope": "Snapshot regular-file contents compared against independently downloaded npm tarballs whose SHA-512 matches registry dist.integrity. No source-build substitution.",
+  "allMatch": true,
+  "packages": {
+    "snapback4": {
+      "version": "0.3.0",
+      "integrity": "sha512-urVG+K0ND8U44J7QYMuLnJ9oGyLaEsl8LoOo6DcvhLlflVEzqZdTevyqzbRnzn5Nu47YsmZw79LqJ7S3OFfvEw==",
+      "qualifiedRegularFiles": 71,
+      "installations": [
+        {
+          "root": "node_modules/snapback4/",
+          "version": "0.3.0",
+          "allMembersMatch": true,
+          "members": [
+            {
+              "path": "node_modules/snapback4/dist/actions.js",
+              "expected": {
+                "bytes": 1565,
+                "sha256": "6c956c2f35f0284919f72b912855efc36660a310143c1aaadc41e6e63ee77851"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1565,
+                "sha256": "6c956c2f35f0284919f72b912855efc36660a310143c1aaadc41e6e63ee77851"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/assets.js",
+              "expected": {
+                "bytes": 5624,
+                "sha256": "ad3cacc6a3b15e41786509de386cd05c7ababb7bb7d76f5f732913f7cb51bbb6"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 5624,
+                "sha256": "ad3cacc6a3b15e41786509de386cd05c7ababb7bb7d76f5f732913f7cb51bbb6"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/auth.js",
+              "expected": {
+                "bytes": 5968,
+                "sha256": "3e36dda35564d94b9fb5bc2e65eff1fa9306876a3620020c1be226731e169fa2"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 5968,
+                "sha256": "3e36dda35564d94b9fb5bc2e65eff1fa9306876a3620020c1be226731e169fa2"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/backend.js",
+              "expected": {
+                "bytes": 916,
+                "sha256": "8299ad97953f8961afa8f6c26ef6d702901c24700ff635da6cc20995fc4e16c5"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 916,
+                "sha256": "8299ad97953f8961afa8f6c26ef6d702901c24700ff635da6cc20995fc4e16c5"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/changes.js",
+              "expected": {
+                "bytes": 3670,
+                "sha256": "38fc0963871207ec9559340c432d035e244a422ca74a225e50bbe62946a70193"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3670,
+                "sha256": "38fc0963871207ec9559340c432d035e244a422ca74a225e50bbe62946a70193"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/client.js",
+              "expected": {
+                "bytes": 28854,
+                "sha256": "186fd2bf1f554e66c8cb158f2d3e9ed7182da106a10f43371c3182b05f49120d"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 28854,
+                "sha256": "186fd2bf1f554e66c8cb158f2d3e9ed7182da106a10f43371c3182b05f49120d"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/contract.js",
+              "expected": {
+                "bytes": 418,
+                "sha256": "f6cf12bf9fb92092db3e1da11839efa019592fbc0f71a9c0e4b54920be58432e"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 418,
+                "sha256": "f6cf12bf9fb92092db3e1da11839efa019592fbc0f71a9c0e4b54920be58432e"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/identity-principal.js",
+              "expected": {
+                "bytes": 312,
+                "sha256": "a35f603cda2ce1425866918789e7ac393b7c5f554d0c0f80a72b8474a6a64fb3"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 312,
+                "sha256": "a35f603cda2ce1425866918789e7ac393b7c5f554d0c0f80a72b8474a6a64fb3"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/identity-runtime.js",
+              "expected": {
+                "bytes": 4709,
+                "sha256": "42813b8fe7a9161a18f5c5adf28ab8814d087af2f1a2df9d161e8749d80d05b8"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 4709,
+                "sha256": "42813b8fe7a9161a18f5c5adf28ab8814d087af2f1a2df9d161e8749d80d05b8"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/identity.js",
+              "expected": {
+                "bytes": 28994,
+                "sha256": "8274f2498c5a2f92f731a686a847d2e49828d7e7a072da3654522964d699ac33"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 28994,
+                "sha256": "8274f2498c5a2f92f731a686a847d2e49828d7e7a072da3654522964d699ac33"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/local-assets.js",
+              "expected": {
+                "bytes": 6595,
+                "sha256": "7ec0c14b71743bd21da934d598a19d7af18591e8dc22d6a1d89b7b16776dd17a"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 6595,
+                "sha256": "7ec0c14b71743bd21da934d598a19d7af18591e8dc22d6a1d89b7b16776dd17a"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/local-exit.js",
+              "expected": {
+                "bytes": 2342,
+                "sha256": "90bbbe7eedd320379cd43d4a9958734817aba2ba7a10d6c7df361f07236c8f8e"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2342,
+                "sha256": "90bbbe7eedd320379cd43d4a9958734817aba2ba7a10d6c7df361f07236c8f8e"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/local-sync.js",
+              "expected": {
+                "bytes": 1902,
+                "sha256": "655bce4996a97de01e889ae680c98a84e8d66ef2d9516e41382711a66695e39c"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1902,
+                "sha256": "655bce4996a97de01e889ae680c98a84e8d66ef2d9516e41382711a66695e39c"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/local.js",
+              "expected": {
+                "bytes": 87128,
+                "sha256": "16dce747d1dd696b8712a241a1010e1706531c33d6b9146ec6e0d2e0a397c33d"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 87128,
+                "sha256": "16dce747d1dd696b8712a241a1010e1706531c33d6b9146ec6e0d2e0a397c33d"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/mock.js",
+              "expected": {
+                "bytes": 8792,
+                "sha256": "d261283da91dbf377c7eb78cd17dc04421a4a759c467b21c1ea9e8ac06545843"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 8792,
+                "sha256": "d261283da91dbf377c7eb78cd17dc04421a4a759c467b21c1ea9e8ac06545843"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/native.js",
+              "expected": {
+                "bytes": 5159,
+                "sha256": "734c991ff3a4d28fd6a16d7f4cb3af989839b0561ee8af005fd74dde9b878a3c"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 5159,
+                "sha256": "734c991ff3a4d28fd6a16d7f4cb3af989839b0561ee8af005fd74dde9b878a3c"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/react.js",
+              "expected": {
+                "bytes": 15103,
+                "sha256": "66c25ffdb083eaa11908d29422f0be00944d598f161b6a024d566cfc08f889be"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 15103,
+                "sha256": "66c25ffdb083eaa11908d29422f0be00944d598f161b6a024d566cfc08f889be"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/resolve-binary.js",
+              "expected": {
+                "bytes": 1209,
+                "sha256": "670be36d22fc4eb9576b4930d9984327a83ec2152cd22e3e82a1a64bdbc08d32"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1209,
+                "sha256": "670be36d22fc4eb9576b4930d9984327a83ec2152cd22e3e82a1a64bdbc08d32"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-context.js",
+              "expected": {
+                "bytes": 6820,
+                "sha256": "0e74f724bd6c3992af4da135918975f134ab1863d0d4415f708224bce689fb1e"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 6820,
+                "sha256": "0e74f724bd6c3992af4da135918975f134ab1863d0d4415f708224bce689fb1e"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-effect-context.js",
+              "expected": {
+                "bytes": 5805,
+                "sha256": "9f68bf4a26c7e908d0fa7586925ef199011280d88539126747cf2de9e5893096"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 5805,
+                "sha256": "9f68bf4a26c7e908d0fa7586925ef199011280d88539126747cf2de9e5893096"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-json.js",
+              "expected": {
+                "bytes": 4182,
+                "sha256": "1e4acc80035d8704411ee0540548be36ffdd7220f009ae39890f5004c4fd8c6d"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 4182,
+                "sha256": "1e4acc80035d8704411ee0540548be36ffdd7220f009ae39890f5004c4fd8c6d"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-lifetime.js",
+              "expected": {
+                "bytes": 3915,
+                "sha256": "d9f355b440a5a0563cb4292086b4b7ea08eb93ad9c4b77751836e8dd7d3a27d4"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3915,
+                "sha256": "d9f355b440a5a0563cb4292086b4b7ea08eb93ad9c4b77751836e8dd7d3a27d4"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-private.js",
+              "expected": {
+                "bytes": 339,
+                "sha256": "4fe7b6215d386d3e8e435ffc414da65d50352da51e1edef129eeb1ecb8683764"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 339,
+                "sha256": "4fe7b6215d386d3e8e435ffc414da65d50352da51e1edef129eeb1ecb8683764"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-routes.js",
+              "expected": {
+                "bytes": 7364,
+                "sha256": "da1c584ba69689dc051aca95dbe5bab449f0bb3ea470dc9b1fd0dfa54d2b5d6f"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 7364,
+                "sha256": "da1c584ba69689dc051aca95dbe5bab449f0bb3ea470dc9b1fd0dfa54d2b5d6f"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-steps.js",
+              "expected": {
+                "bytes": 3637,
+                "sha256": "a6afd5cf18580e3c101d8c6d5ee56e97b8f9f7069f14f7293f864a2ca7e8d2bc"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3637,
+                "sha256": "a6afd5cf18580e3c101d8c6d5ee56e97b8f9f7069f14f7293f864a2ca7e8d2bc"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-verify.js",
+              "expected": {
+                "bytes": 7384,
+                "sha256": "e00ba3aecb9d6b5a8fcec618a429cb60f50ba8beda664b254fe68a72ecaf26ea"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 7384,
+                "sha256": "e00ba3aecb9d6b5a8fcec618a429cb60f50ba8beda664b254fe68a72ecaf26ea"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server.js",
+              "expected": {
+                "bytes": 11929,
+                "sha256": "4b619af1b5c29ce7ba057896a39ea3675531dcd5a30d77930eb2d43a96d3a17d"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 11929,
+                "sha256": "4b619af1b5c29ce7ba057896a39ea3675531dcd5a30d77930eb2d43a96d3a17d"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/wasm/snapback4_device.js",
+              "expected": {
+                "bytes": 14057,
+                "sha256": "ff3c5c8549929f8e7e0abf148515aa2b1b7d73bcc02d15e262cd5795a7bf6d55"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 14057,
+                "sha256": "ff3c5c8549929f8e7e0abf148515aa2b1b7d73bcc02d15e262cd5795a7bf6d55"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/bin/snapback4.js",
+              "expected": {
+                "bytes": 894,
+                "sha256": "ab3143f12e619767a15f84f3d2c5be28f334ff8e74661154f110146dcc8cb28e"
+              },
+              "observed": {
+                "mode": 493,
+                "kind": "file",
+                "bytes": 894,
+                "sha256": "ab3143f12e619767a15f84f3d2c5be28f334ff8e74661154f110146dcc8cb28e"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/web-journal.js",
+              "expected": {
+                "bytes": 9133,
+                "sha256": "ad70145d020ddc365af39d03392d6366a354696496844fc36fae7dd229e20eb5"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 9133,
+                "sha256": "ad70145d020ddc365af39d03392d6366a354696496844fc36fae7dd229e20eb5"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/web.js",
+              "expected": {
+                "bytes": 35397,
+                "sha256": "58bb9c322dc98a51ebf25828bffafe242b237d4c6331e9fa4e3d6374386bae33"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 35397,
+                "sha256": "58bb9c322dc98a51ebf25828bffafe242b237d4c6331e9fa4e3d6374386bae33"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/worker.js",
+              "expected": {
+                "bytes": 19281,
+                "sha256": "4be60317cdd4664909b502206a9fc51b17364faf9d440927c6298e6ad215194d"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 19281,
+                "sha256": "4be60317cdd4664909b502206a9fc51b17364faf9d440927c6298e6ad215194d"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/writes.js",
+              "expected": {
+                "bytes": 7208,
+                "sha256": "a193bde3dab85450a63a82a1668f04c3d66bb72205d475c4bebe1ca95e7949eb"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 7208,
+                "sha256": "a193bde3dab85450a63a82a1668f04c3d66bb72205d475c4bebe1ca95e7949eb"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/package.json",
+              "expected": {
+                "bytes": 2347,
+                "sha256": "cebc551828408f24481008673a7f018bfd8386c4237967dae5c4b06668b33ef1"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2347,
+                "sha256": "cebc551828408f24481008673a7f018bfd8386c4237967dae5c4b06668b33ef1"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/CLIENT-AND-OPERATIONS.md",
+              "expected": {
+                "bytes": 99002,
+                "sha256": "a99360e1900b36c8adb9602c10f1d728443c664404d0820ed5a264b51d565c12"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 99002,
+                "sha256": "a99360e1900b36c8adb9602c10f1d728443c664404d0820ed5a264b51d565c12"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/README.md",
+              "expected": {
+                "bytes": 15779,
+                "sha256": "8898e0478dc73e6e57bd4c59122a066c9cc101361ff59de67ca506fb30705098"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 15779,
+                "sha256": "8898e0478dc73e6e57bd4c59122a066c9cc101361ff59de67ca506fb30705098"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/SERVER.md",
+              "expected": {
+                "bytes": 52809,
+                "sha256": "79a02d946eab2992ab98e47c9afad84fc4052023a93b092a9d11cde6802f90a6"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 52809,
+                "sha256": "79a02d946eab2992ab98e47c9afad84fc4052023a93b092a9d11cde6802f90a6"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/actions.d.ts",
+              "expected": {
+                "bytes": 395,
+                "sha256": "ce305ccf3689b611e0600ce876ffee64869c3f82619d16c794c6ba90b4467107"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 395,
+                "sha256": "ce305ccf3689b611e0600ce876ffee64869c3f82619d16c794c6ba90b4467107"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/assets.d.ts",
+              "expected": {
+                "bytes": 829,
+                "sha256": "f7dc4d389ae1e9bd809afc879ce24c367b2ab16a9ddaf60dc010198ad58842e9"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 829,
+                "sha256": "f7dc4d389ae1e9bd809afc879ce24c367b2ab16a9ddaf60dc010198ad58842e9"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/auth.d.ts",
+              "expected": {
+                "bytes": 2545,
+                "sha256": "c61c6de6abeb429108262b116d35d104063b047751b652bbbe22bbd6e2c5a0a9"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2545,
+                "sha256": "c61c6de6abeb429108262b116d35d104063b047751b652bbbe22bbd6e2c5a0a9"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/backend.d.ts",
+              "expected": {
+                "bytes": 1835,
+                "sha256": "d4dc5d213915fbb2d4e4f25109175035be7aa77d2916c568afe86c44ec8d0a7b"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1835,
+                "sha256": "d4dc5d213915fbb2d4e4f25109175035be7aa77d2916c568afe86c44ec8d0a7b"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/changes.d.ts",
+              "expected": {
+                "bytes": 468,
+                "sha256": "4cab767f3840003572ca46f66a5258b7d3503a8b225c9739cea67592fd66f616"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 468,
+                "sha256": "4cab767f3840003572ca46f66a5258b7d3503a8b225c9739cea67592fd66f616"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/client.d.ts",
+              "expected": {
+                "bytes": 1224,
+                "sha256": "96f37c6164dd317da5cf0186ec785039ea2e83d2546d5f72096f9bf514ad0e0d"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1224,
+                "sha256": "96f37c6164dd317da5cf0186ec785039ea2e83d2546d5f72096f9bf514ad0e0d"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/contract.d.ts",
+              "expected": {
+                "bytes": 10068,
+                "sha256": "35ae4a27c43f23cdd2c4f90730478af4263f37a6954453d617ff3d197a426628"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 10068,
+                "sha256": "35ae4a27c43f23cdd2c4f90730478af4263f37a6954453d617ff3d197a426628"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/identity-principal.d.ts",
+              "expected": {
+                "bytes": 80,
+                "sha256": "b958416ddbb9c7dcb5c012a01d65e9db0b34f7bb16772a61256cea8f00dc292a"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 80,
+                "sha256": "b958416ddbb9c7dcb5c012a01d65e9db0b34f7bb16772a61256cea8f00dc292a"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/identity-runtime.d.ts",
+              "expected": {
+                "bytes": 544,
+                "sha256": "0300728d25d5756351abaf52a6eddd05ac793e362508b2024dd9dafc277ffc06"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 544,
+                "sha256": "0300728d25d5756351abaf52a6eddd05ac793e362508b2024dd9dafc277ffc06"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/identity.d.ts",
+              "expected": {
+                "bytes": 3797,
+                "sha256": "0076ca49161229651dfbaf5b0481afca547960ff3ceb73a3484b39c3a1873c88"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3797,
+                "sha256": "0076ca49161229651dfbaf5b0481afca547960ff3ceb73a3484b39c3a1873c88"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/local-assets.d.ts",
+              "expected": {
+                "bytes": 1277,
+                "sha256": "f5222340dc8d735039259884a374163e0a24a958357d41ba7d4b0ea6151c3e99"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1277,
+                "sha256": "f5222340dc8d735039259884a374163e0a24a958357d41ba7d4b0ea6151c3e99"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/local-exit.d.ts",
+              "expected": {
+                "bytes": 411,
+                "sha256": "0e1ceb6f03b174137fb04529f90c1e3a88da26c5be41a588723d493245408944"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 411,
+                "sha256": "0e1ceb6f03b174137fb04529f90c1e3a88da26c5be41a588723d493245408944"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/local-sync.d.ts",
+              "expected": {
+                "bytes": 286,
+                "sha256": "e251b5cfc45431d1537e2aa324baf4ee866cb27536e5087d5fd984f1f0876c6c"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 286,
+                "sha256": "e251b5cfc45431d1537e2aa324baf4ee866cb27536e5087d5fd984f1f0876c6c"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/local.d.ts",
+              "expected": {
+                "bytes": 3086,
+                "sha256": "6c5bafe0d5372d7e9b839d9bfb7d9d33c65cf1213a97bb459f7a1dd823eb717a"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3086,
+                "sha256": "6c5bafe0d5372d7e9b839d9bfb7d9d33c65cf1213a97bb459f7a1dd823eb717a"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/mock.d.ts",
+              "expected": {
+                "bytes": 1535,
+                "sha256": "de0143199a5d2f0ca5c3a54fb82429a124dee9bc43240224b57763acb0718283"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1535,
+                "sha256": "de0143199a5d2f0ca5c3a54fb82429a124dee9bc43240224b57763acb0718283"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/native.d.ts",
+              "expected": {
+                "bytes": 866,
+                "sha256": "ea3845c025aa4a226876325eaae70a8c2a5a9f050cdd1ec7e4d7a7195c6de93d"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 866,
+                "sha256": "ea3845c025aa4a226876325eaae70a8c2a5a9f050cdd1ec7e4d7a7195c6de93d"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/react.d.ts",
+              "expected": {
+                "bytes": 3154,
+                "sha256": "c7cc3cf7a1ae8636fba37dcd4f61a86931e096f4844e9b05c8d3bc5c1d9d3eb6"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3154,
+                "sha256": "c7cc3cf7a1ae8636fba37dcd4f61a86931e096f4844e9b05c8d3bc5c1d9d3eb6"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/resolve-binary.d.ts",
+              "expected": {
+                "bytes": 49,
+                "sha256": "59826e051e70ec698baa25150b475ae41c34e9f40aba5314ee0f0ee242558662"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 49,
+                "sha256": "59826e051e70ec698baa25150b475ae41c34e9f40aba5314ee0f0ee242558662"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-context.d.ts",
+              "expected": {
+                "bytes": 570,
+                "sha256": "91cbb79b036e82b999f3fa47ec999419ef357c4837bd7bd632620793b0e84b54"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 570,
+                "sha256": "91cbb79b036e82b999f3fa47ec999419ef357c4837bd7bd632620793b0e84b54"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-effect-context.d.ts",
+              "expected": {
+                "bytes": 694,
+                "sha256": "dff3ac2a5ea63874564f76b205a51ff3a5b34e05a81d5f6239128337510ebd7e"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 694,
+                "sha256": "dff3ac2a5ea63874564f76b205a51ff3a5b34e05a81d5f6239128337510ebd7e"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-json.d.ts",
+              "expected": {
+                "bytes": 735,
+                "sha256": "bd03145d453c385c8f7e856d49f1441975485d56102cab348a28bb2d0cc18040"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 735,
+                "sha256": "bd03145d453c385c8f7e856d49f1441975485d56102cab348a28bb2d0cc18040"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-lifetime.d.ts",
+              "expected": {
+                "bytes": 1344,
+                "sha256": "5b4715d6bb19e064c6ccbdb7476b4b45c67c575217688d79a97cbfc6529263b5"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1344,
+                "sha256": "5b4715d6bb19e064c6ccbdb7476b4b45c67c575217688d79a97cbfc6529263b5"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-private.d.ts",
+              "expected": {
+                "bytes": 1444,
+                "sha256": "68988cd0dbfdcdf95722ff94124b64e70f5ea661d48c03517dd34cf983cf35ad"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1444,
+                "sha256": "68988cd0dbfdcdf95722ff94124b64e70f5ea661d48c03517dd34cf983cf35ad"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-routes.d.ts",
+              "expected": {
+                "bytes": 1795,
+                "sha256": "25139e1db2ab9d306d7bc0426e7736c0b81faa06a58188d97df20aeca0990ec5"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1795,
+                "sha256": "25139e1db2ab9d306d7bc0426e7736c0b81faa06a58188d97df20aeca0990ec5"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-steps.d.ts",
+              "expected": {
+                "bytes": 630,
+                "sha256": "e6db4bc63900f730a61f6d6d0c1baee2a8eb09a0d4b03fc05dd078afd0ead22a"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 630,
+                "sha256": "e6db4bc63900f730a61f6d6d0c1baee2a8eb09a0d4b03fc05dd078afd0ead22a"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server-verify.d.ts",
+              "expected": {
+                "bytes": 790,
+                "sha256": "0ed6ea09fae341c3fac4014144b391949b0655eca9df8e8398e447684bc2b49b"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 790,
+                "sha256": "0ed6ea09fae341c3fac4014144b391949b0655eca9df8e8398e447684bc2b49b"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/server.d.ts",
+              "expected": {
+                "bytes": 3385,
+                "sha256": "c784f4d720d78898b16084b63376353bc5327a9e8e96129e2ae53eb53cba1518"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3385,
+                "sha256": "c784f4d720d78898b16084b63376353bc5327a9e8e96129e2ae53eb53cba1518"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/wasm/snapback4_device_bg.wasm.d.ts",
+              "expected": {
+                "bytes": 819,
+                "sha256": "79ecaacc9d8af8473357431c89f20ab15858223170639670de0baab5f3a0194d"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 819,
+                "sha256": "79ecaacc9d8af8473357431c89f20ab15858223170639670de0baab5f3a0194d"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/wasm/snapback4_device.d.ts",
+              "expected": {
+                "bytes": 2627,
+                "sha256": "c7e401f65bad06e37e5c7300288de595e2331f8768a12a3d9a4c96af95047bf5"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2627,
+                "sha256": "c7e401f65bad06e37e5c7300288de595e2331f8768a12a3d9a4c96af95047bf5"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/web-journal.d.ts",
+              "expected": {
+                "bytes": 1345,
+                "sha256": "8e633d7667219dabf65d68bea101112a66323518ace5d924ca8e7d96f98bac8a"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1345,
+                "sha256": "8e633d7667219dabf65d68bea101112a66323518ace5d924ca8e7d96f98bac8a"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/web.d.ts",
+              "expected": {
+                "bytes": 2396,
+                "sha256": "09b8d60e56bedd4ec03468bacd780a926c84c3281a420fd652b98152bd1931a7"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2396,
+                "sha256": "09b8d60e56bedd4ec03468bacd780a926c84c3281a420fd652b98152bd1931a7"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/worker.d.ts",
+              "expected": {
+                "bytes": 6015,
+                "sha256": "26e726fc63cf127272f8ad3e375cc2f475191d2699d5ab5eb647fdc10233de94"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 6015,
+                "sha256": "26e726fc63cf127272f8ad3e375cc2f475191d2699d5ab5eb647fdc10233de94"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/writes.d.ts",
+              "expected": {
+                "bytes": 1601,
+                "sha256": "c9fa0e262328d502ac3a0aa4c1e6fa2d3825f72ab5e27f0e98c3e3e0b2e678ff"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1601,
+                "sha256": "c9fa0e262328d502ac3a0aa4c1e6fa2d3825f72ab5e27f0e98c3e3e0b2e678ff"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4/dist/wasm/snapback4_device_bg.wasm",
+              "expected": {
+                "bytes": 1707590,
+                "sha256": "361fdae5af373c6de12cafc2b9176eb867e3ede1e9687540eec9fc55e7a68163"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1707590,
+                "sha256": "361fdae5af373c6de12cafc2b9176eb867e3ede1e9687540eec9fc55e7a68163"
+              },
+              "matches": true
+            }
+          ]
+        }
+      ]
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.3.0",
+      "integrity": "sha512-dFFLHWvvZ/kUdtKOh6YLp6sr+wJjjnqWdfYsbLYCOTT3dpunZG3Wbl+UMmX0KJpEDFKxx2/hVXOZfFTZGnLdug==",
+      "qualifiedRegularFiles": 3,
+      "installations": [
+        {
+          "root": "node_modules/snapback4-darwin-arm64/",
+          "version": "0.3.0",
+          "allMembersMatch": true,
+          "members": [
+            {
+              "path": "node_modules/snapback4-darwin-arm64/snapback4",
+              "expected": {
+                "bytes": 10497024,
+                "sha256": "2f4d9487faf33e89450f67811ac650093b9633c94a7083738a0004b6a2e79046"
+              },
+              "observed": {
+                "mode": 493,
+                "kind": "file",
+                "bytes": 10497024,
+                "sha256": "2f4d9487faf33e89450f67811ac650093b9633c94a7083738a0004b6a2e79046"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-darwin-arm64/THIRD-PARTY-NOTICES",
+              "expected": {
+                "bytes": 1226,
+                "sha256": "d84e3606f01a2c5ccd214cb3459fb1d0f798a9a6e1f2f50f49097f834209ff10"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1226,
+                "sha256": "d84e3606f01a2c5ccd214cb3459fb1d0f798a9a6e1f2f50f49097f834209ff10"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-darwin-arm64/package.json",
+              "expected": {
+                "bytes": 457,
+                "sha256": "0fb7af2c9ac97fddfaa09964562334f991b235f01d127ce6e9cfbc6795b0ec25"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 457,
+                "sha256": "0fb7af2c9ac97fddfaa09964562334f991b235f01d127ce6e9cfbc6795b0ec25"
+              },
+              "matches": true
+            }
+          ]
+        }
+      ]
+    },
+    "snapback4-expo": {
+      "version": "0.3.0",
+      "integrity": "sha512-kbada+o/K0EieiQayAHtHSTuf784VONajq+vQLkQhyppIpw0IVFTikEx7gqoOFxdxGoxolEDDzzS2/2v7N74YQ==",
+      "qualifiedRegularFiles": 17,
+      "installations": [
+        {
+          "root": "node_modules/snapback4-expo/",
+          "version": "0.3.0",
+          "allMembersMatch": true,
+          "members": [
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+              "expected": {
+                "bytes": 5971176,
+                "sha256": "e7e3def82b71bd73a19ce0abce25b7b45cecef4d0dbf04b686455daf54a830c7"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 5971176,
+                "sha256": "e7e3def82b71bd73a19ce0abce25b7b45cecef4d0dbf04b686455daf54a830c7"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+              "expected": {
+                "bytes": 5977472,
+                "sha256": "673f242a656c288631c573e9b85e02f5986195798faec8bb957a475f8ace13f5"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 5977472,
+                "sha256": "673f242a656c288631c573e9b85e02f5986195798faec8bb957a475f8ace13f5"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h",
+              "expected": {
+                "bytes": 2204,
+                "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2204,
+                "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h",
+              "expected": {
+                "bytes": 2204,
+                "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2204,
+                "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/expo-module.config.json",
+              "expected": {
+                "bytes": 82,
+                "sha256": "4150f21b78b3dcfff4f15a4a2fe59ebfa76969fd3af43d10d1a9bc563eb9ad37"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 82,
+                "sha256": "4150f21b78b3dcfff4f15a4a2fe59ebfa76969fd3af43d10d1a9bc563eb9ad37"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/package.json",
+              "expected": {
+                "bytes": 817,
+                "sha256": "66d5cffe8bdc78cdbba94bcd3d8d5e86f17f93b0cc3bc2cfd8b7e6181b9a63a8"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 817,
+                "sha256": "66d5cffe8bdc78cdbba94bcd3d8d5e86f17f93b0cc3bc2cfd8b7e6181b9a63a8"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/README.md",
+              "expected": {
+                "bytes": 3144,
+                "sha256": "fccdac445608be19f1223a3a836b8cfc218236d9cabfe9a7dc82b9203ae2a1fa"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3144,
+                "sha256": "fccdac445608be19f1223a3a836b8cfc218236d9cabfe9a7dc82b9203ae2a1fa"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap",
+              "expected": {
+                "bytes": 61,
+                "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 61,
+                "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap",
+              "expected": {
+                "bytes": 61,
+                "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 61,
+                "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist",
+              "expected": {
+                "bytes": 1257,
+                "sha256": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1257,
+                "sha256": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Expo.podspec",
+              "expected": {
+                "bytes": 1222,
+                "sha256": "c9f21e5335e77827679388d8f69a6f4396452c9b2a80f029cb8aaceaf0d15746"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 1222,
+                "sha256": "c9f21e5335e77827679388d8f69a6f4396452c9b2a80f029cb8aaceaf0d15746"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/MediaFiles.swift",
+              "expected": {
+                "bytes": 4191,
+                "sha256": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 4191,
+                "sha256": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/Snapback4Module.swift",
+              "expected": {
+                "bytes": 3928,
+                "sha256": "dbae25a5d21e2b2f193cb9f00bbc252fbfabab5b9208516da5e90c8336f61bfe"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3928,
+                "sha256": "dbae25a5d21e2b2f193cb9f00bbc252fbfabab5b9208516da5e90c8336f61bfe"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/ios/WitnessContainer.swift",
+              "expected": {
+                "bytes": 2095,
+                "sha256": "4cd3f74d2cbb689d9c991669f0162217235d725ba7472d26542dac1549087bbe"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2095,
+                "sha256": "4cd3f74d2cbb689d9c991669f0162217235d725ba7472d26542dac1549087bbe"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/src/index.ts",
+              "expected": {
+                "bytes": 2464,
+                "sha256": "d54bc805fafda8d606a6318c0dbc135501ca5a547247d2a08f52ab7b3fede9bb"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 2464,
+                "sha256": "d54bc805fafda8d606a6318c0dbc135501ca5a547247d2a08f52ab7b3fede9bb"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/src/witness-core.ts",
+              "expected": {
+                "bytes": 3019,
+                "sha256": "59770033e81452fd43f3cc5ec3631ffa6cd5aeda619859406f2205534e6a1464"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 3019,
+                "sha256": "59770033e81452fd43f3cc5ec3631ffa6cd5aeda619859406f2205534e6a1464"
+              },
+              "matches": true
+            },
+            {
+              "path": "node_modules/snapback4-expo/src/witness.ts",
+              "expected": {
+                "bytes": 518,
+                "sha256": "7ca0054ef15f80384db8c386a990f867b35a050b2e32f4028ac6d5cab500c0ac"
+              },
+              "observed": {
+                "mode": 420,
+                "kind": "file",
+                "bytes": 518,
+                "sha256": "7ca0054ef15f80384db8c386a990f867b35a050b2e32f4028ac6d5cab500c0ac"
+              },
+              "matches": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

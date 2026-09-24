@@ -1,0 +1,54 @@
+{
+  "milestone": "m3",
+  "pass": true,
+  "coverage": {
+    "m3-a03": "dm-pair-deduplication",
+    "m3-a04": "distinct-groups-same-roster",
+    "m3-a05": "distinct-groups-same-roster",
+    "m3-a14": "non-admin-server-denial",
+    "m3-a10": "quote-excerpt-and-jump",
+    "m3-a11": "quote-excerpt-and-jump",
+    "m3-a15": "all-segments-idempotent"
+  },
+  "missing": [],
+  "results": [
+    {
+      "name": "dm-pair-deduplication",
+      "ids": [
+        "m3-a03"
+      ],
+      "pass": true
+    },
+    {
+      "name": "distinct-groups-same-roster",
+      "ids": [
+        "m3-a04",
+        "m3-a05"
+      ],
+      "pass": true
+    },
+    {
+      "name": "non-admin-server-denial",
+      "ids": [
+        "m3-a14"
+      ],
+      "pass": true
+    },
+    {
+      "name": "quote-excerpt-and-jump",
+      "ids": [
+        "m3-a10",
+        "m3-a11"
+      ],
+      "pass": true
+    },
+    {
+      "name": "all-segments-idempotent",
+      "ids": [
+        "m3-a15"
+      ],
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-23T23:02:38.459Z"
+}

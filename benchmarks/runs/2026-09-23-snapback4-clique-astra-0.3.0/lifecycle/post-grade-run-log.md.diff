@@ -1,0 +1,15 @@
+--- snapshot/run-log.md
++++ post-assessment/run-log.md
+@@ -154,3 +154,12 @@
+ 1790208259 verification final replay Quarry source hashes match final application backend exactly evidence=evidence/backend-program-parity.json
+ 1790208259 run-complete requested milestones green; both scale manifests verified; owned servers stopped by PID evidence=evidence/server-cleanup.json
+ end=1790208259
++1790208784 sample-replay-start url=http://127.0.0.1:49360 evidence=evidence/sample-replay.jsonl
++1790208784 sample-replay-end pass=true actions=50 evidence=evidence/sample-replay-result.json
++1790210405 sample-replay-start url=http://127.0.0.1:49360 evidence=evidence/sample-replay.jsonl
++1790210405 sample-replay-end pass=true actions=50 evidence=evidence/sample-replay-result.json
++1790210440 sample-replay-start url=http://127.0.0.1:49360 evidence=evidence/sample-replay.jsonl
++1790210440 error attribution=ambiguous sample-replay action=2 evidence=evidence/sample-replay-run.log AssertionError [ERR_ASSERTION]: {"state":"failed","id":"5F66NEE9ZVPC0D28NQP9A1N7ZV","why":{"code":"E_ID_REUSED","family":"input","guide":"writes","message":"this id already admitted another operation or different arguments; use the original operation and arguments, or mint a new id"}}
++
++'failed' !== 'sent'
++

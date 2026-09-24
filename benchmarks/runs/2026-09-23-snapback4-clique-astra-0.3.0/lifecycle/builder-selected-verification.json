@@ -1,0 +1,449 @@
+{
+  "scope": "Every selected builder file copied verbatim from verified complete pre-grade APFS snapshot.",
+  "files": [
+    {
+      "snapshotPath": "FINAL.md",
+      "recordPath": "astra/lane-FINAL.md",
+      "bytes": 498,
+      "sha256": "1e26dce094e18e46e605a4effc00ce4935fa2582efe80d28e43292f6f1d6dbaa"
+    },
+    {
+      "snapshotPath": "diary.md",
+      "recordPath": "astra/lane-diary.md",
+      "bytes": 9426,
+      "sha256": "f8a4b79ce19e751c847bcbb3aa20c3758f177c679902df02c83138c4d9dd066d"
+    },
+    {
+      "snapshotPath": "essay.md",
+      "recordPath": "astra/lane-essay.md",
+      "bytes": 9886,
+      "sha256": "9103fea487a583c5d9795fdde436c07f58e0ecf75beac6db6a618127e592f3f2"
+    },
+    {
+      "snapshotPath": "run-log.md",
+      "recordPath": "astra/lane-run-log.md",
+      "bytes": 20708,
+      "sha256": "0a671c9900fec61e3860c62bb710c4b50ccd733f3b5fe1d4e6e04a9a3591185b"
+    },
+    {
+      "snapshotPath": "final-report.md",
+      "recordPath": "astra/lane-final-report.md",
+      "bytes": 22715,
+      "sha256": "9d59890a81b04b87ced55ab8c0e4932e72eb1f190a6ba171c8a8a2182ce35393"
+    },
+    {
+      "snapshotPath": "run-record.json",
+      "recordPath": "astra/run-record.json",
+      "bytes": 16030,
+      "sha256": "aa9aedff25e424d60bbcfbd54191878510389dd461b9c518591197f937bb8490"
+    },
+    {
+      "snapshotPath": "setup-identity.json",
+      "recordPath": "astra/setup-identity.json",
+      "bytes": 1587,
+      "sha256": "fcbab25b413bf578eab863687bee32153518d3c5c6074dadbbe12787d413fa54"
+    },
+    {
+      "snapshotPath": "milestone-records.json",
+      "recordPath": "astra/milestone-records.json",
+      "bytes": 8246,
+      "sha256": "53b0008c1b4629efbedf6236cd48b8a142cfb97f4f4e1714e1a81a3c047db49c"
+    },
+    {
+      "snapshotPath": "replay-clocks.json",
+      "recordPath": "astra/replay-clocks.json",
+      "bytes": 397,
+      "sha256": "cf02f0c48b9b28d9ba09c58b43029122f6b436d4af2d46d90a0430d150e5a926"
+    },
+    {
+      "snapshotPath": "native-artifacts.json",
+      "recordPath": "astra/native-artifacts.json",
+      "bytes": 1612,
+      "sha256": "4d0d9f8eab5c8996b0cfd7e4e300bb3cb1547108e307925608cd664dec7baf58"
+    },
+    {
+      "snapshotPath": "line-counts.json",
+      "recordPath": "astra/line-counts.json",
+      "bytes": 7412,
+      "sha256": "774672e973a170fd69a85aa12aa910ded05a65e10e11e9f899c0080de1f81fa5"
+    },
+    {
+      "snapshotPath": "correction-events.json",
+      "recordPath": "astra/correction-events.json",
+      "bytes": 13553,
+      "sha256": "ad0ed06fb18cd8aa394dd6a6823a1b88b7720a852f3dad4e7e7676aae6dc80c7"
+    },
+    {
+      "snapshotPath": "coverage-manifest.json",
+      "recordPath": "astra/coverage-manifest.json",
+      "bytes": 8968,
+      "sha256": "70bdfb612d9aef008a29083ef19f50a4d91e616ada17a127f61087f9fda62ff2"
+    },
+    {
+      "snapshotPath": "performance-diagnostics.json",
+      "recordPath": "astra/performance-diagnostics.json",
+      "bytes": 2677,
+      "sha256": "275c94e40427b4b3c687a33e496637799a78bd84644e300e345db74ac1d40a53"
+    },
+    {
+      "snapshotPath": "API.md",
+      "recordPath": "astra/API.md",
+      "bytes": 6210,
+      "sha256": "8fad165259874ac40071b4f88c5baf7d89b05295be3ba4b10ad4798d761f37d5"
+    },
+    {
+      "snapshotPath": "snapback/attribution.q",
+      "recordPath": "astra/source/snapback/attribution.q",
+      "bytes": 46,
+      "sha256": "b367708c838c879cfa0c6b055217a274bdac93776f225ef9e9f28cde9d5bd6fd"
+    },
+    {
+      "snapshotPath": "snapback/chat.q",
+      "recordPath": "astra/source/snapback/chat.q",
+      "bytes": 13808,
+      "sha256": "d0734dba7c519dd455dac8a5aac081758dfce127ab25218c333a78a3d36db88c"
+    },
+    {
+      "snapshotPath": "snapback/config.q",
+      "recordPath": "astra/source/snapback/config.q",
+      "bytes": 245,
+      "sha256": "898b1a1b6d39d760de04818818b698587a607a514af6d982d53f92106244b9a8"
+    },
+    {
+      "snapshotPath": "snapback/digest-config.q",
+      "recordPath": "astra/source/snapback/digest-config.q",
+      "bytes": 357,
+      "sha256": "074aca8de44aec831050e2479386f460c5571c6e0e149a7e70dcde6a2d8c3e1f"
+    },
+    {
+      "snapshotPath": "snapback/digest.q",
+      "recordPath": "astra/source/snapback/digest.q",
+      "bytes": 1484,
+      "sha256": "9faad176f5c4b2ccc11447fa1693edeff4030bcf17180c323382d46d5971a05d"
+    },
+    {
+      "snapshotPath": "snapback/insights.q",
+      "recordPath": "astra/source/snapback/insights.q",
+      "bytes": 1540,
+      "sha256": "c32071d73f4ab7caf1ff6bb7f56a85dec3a84a8118c2f52e2bb1713487274c49"
+    },
+    {
+      "snapshotPath": "snapback/schema.q",
+      "recordPath": "astra/source/snapback/schema.q",
+      "bytes": 1400,
+      "sha256": "eaadfc389a83dd18e9af56c9533b0146bba4ef4613e13e2da8c1879b32445d3d"
+    },
+    {
+      "snapshotPath": "snapback/social.q",
+      "recordPath": "astra/source/snapback/social.q",
+      "bytes": 6176,
+      "sha256": "ed446fc293ede90b347cf0f9ef32e0880f7231c82023bce8b8576a411b44de3a"
+    },
+    {
+      "snapshotPath": "evidence/backend-program-parity.json",
+      "recordPath": "astra/evidence/backend-program-parity.json",
+      "bytes": 1815,
+      "sha256": "7d022f456ccac5a991f121aaf12673c0d45f81f873b4f387ed889df4d4ce1dd7"
+    },
+    {
+      "snapshotPath": "evidence/cold-media.json",
+      "recordPath": "astra/evidence/cold-media.json",
+      "bytes": 108,
+      "sha256": "a7fad2cc61a55b774e47d74c8fff5ccf82e4209215d60c5af3d3f79a06d5b0bb"
+    },
+    {
+      "snapshotPath": "evidence/cold-offline.json",
+      "recordPath": "astra/evidence/cold-offline.json",
+      "bytes": 108,
+      "sha256": "7f3ac8a46a1b99f328228df50c7544493ad3be4d03a52db14c9c6713fcb5b19b"
+    },
+    {
+      "snapshotPath": "evidence/digest-proof.json",
+      "recordPath": "astra/evidence/digest-proof.json",
+      "bytes": 328,
+      "sha256": "f6a53767949831b01c67405f4caaec1f3915b399d5ee166f633244acddd67883"
+    },
+    {
+      "snapshotPath": "evidence/m4-security.json",
+      "recordPath": "astra/evidence/m4-security.json",
+      "bytes": 131,
+      "sha256": "901afd289fd6374989434e58cb667413a37c230677330fd982fe7bb803ea9f15"
+    },
+    {
+      "snapshotPath": "evidence/m5-expiry-server.json",
+      "recordPath": "astra/evidence/m5-expiry-server.json",
+      "bytes": 210,
+      "sha256": "9be2afe7e1cd7e697c14feca4a68f63c1516f3cae7b5c5339622a274914b3156"
+    },
+    {
+      "snapshotPath": "evidence/raw-api.json",
+      "recordPath": "astra/evidence/raw-api.json",
+      "bytes": 103,
+      "sha256": "38677ab2d74675f3c93e4502c28d76754dc772edc599df2694116a7981515c87"
+    },
+    {
+      "snapshotPath": "evidence/run-record-validation.json",
+      "recordPath": "astra/evidence/run-record-validation.json",
+      "bytes": 525,
+      "sha256": "30ef6afa9432dfa7a0a12f683a8bb3867b5c1c4aefe6679285932b1aa87a15eb"
+    },
+    {
+      "snapshotPath": "evidence/sample-replay-result.json",
+      "recordPath": "astra/evidence/sample-replay-result.json",
+      "bytes": 183,
+      "sha256": "f0241cb19e970886fbfecab0118a502ce98f31bd87d064c5c648b1a62879390a"
+    },
+    {
+      "snapshotPath": "evidence/scale-replay-result.json",
+      "recordPath": "astra/evidence/scale-replay-result.json",
+      "bytes": 4696,
+      "sha256": "65dd153d9693e6df11a998981e6c78d58d1c9c113149cc8218db896f63059694"
+    },
+    {
+      "snapshotPath": "evidence/scale-final-replay-result.json",
+      "recordPath": "astra/evidence/scale-final-replay-result.json",
+      "bytes": 7099,
+      "sha256": "6a48a1536fa0ebbf286b4b31ceddd8af0b14fc2dcd1c83cf9daf904aea2da62e"
+    },
+    {
+      "snapshotPath": "evidence/scale-verify-10pct.json",
+      "recordPath": "astra/evidence/scale-verify-10pct.json",
+      "bytes": 4574,
+      "sha256": "afbc15c307dfd924ccb86bfafc1124b26c16fcc2471364488dfb3ab54e6b5e87"
+    },
+    {
+      "snapshotPath": "evidence/scale-verify-50pct.json",
+      "recordPath": "astra/evidence/scale-verify-50pct.json",
+      "bytes": 4597,
+      "sha256": "b28dbf687832837ad5d4495e71828936161f608b6da78cdc61ef627f0e2fe1b1"
+    },
+    {
+      "snapshotPath": "evidence/scale-verify-final.json",
+      "recordPath": "astra/evidence/scale-verify-final.json",
+      "bytes": 4623,
+      "sha256": "55e9bf18b14f653fb63ef03f997effc088f312af1e0b58acc55ba1a92ea281c3"
+    },
+    {
+      "snapshotPath": "evidence/scale-final-verify-10pct.json",
+      "recordPath": "astra/evidence/scale-final-verify-10pct.json",
+      "bytes": 6995,
+      "sha256": "dbea795f77147eddcc60224f3c0bca86de3e692120eaad1e97fe7afc812dca14"
+    },
+    {
+      "snapshotPath": "evidence/scale-final-verify-50pct.json",
+      "recordPath": "astra/evidence/scale-final-verify-50pct.json",
+      "bytes": 7004,
+      "sha256": "44e22942800ad17c87e8a40b466c9261f96558aa3e194c10baf5a9bea54f2e55"
+    },
+    {
+      "snapshotPath": "evidence/scale-final-verify-final.json",
+      "recordPath": "astra/evidence/scale-final-verify-final.json",
+      "bytes": 7026,
+      "sha256": "6f16571199336017f174137e9dbcd61a7d25925c1dc14ab24a644ee0e3ba6d5e"
+    },
+    {
+      "snapshotPath": "evidence/scale-doctor.txt",
+      "recordPath": "astra/evidence/scale-doctor.txt",
+      "bytes": 935,
+      "sha256": "8ba660bf1c1683b9198246c444359fa0b2fb91f09f46fe7fd1d2279fff60a828"
+    },
+    {
+      "snapshotPath": "evidence/scale-final-doctor.txt",
+      "recordPath": "astra/evidence/scale-final-doctor.txt",
+      "bytes": 1778,
+      "sha256": "c6e551ce9c11576e092a79633569f112a43769724a08c6a3f91899e2c3f85a2e"
+    },
+    {
+      "snapshotPath": "evidence/server-cleanup.json",
+      "recordPath": "astra/evidence/server-cleanup.json",
+      "bytes": 1529,
+      "sha256": "ceef6538fbdcb0aebdc09b0949c80bdc56506d4da59b9a4491a58e28d22dde6b"
+    },
+    {
+      "snapshotPath": "evidence/m8-attribution-upgrade.q",
+      "recordPath": "astra/evidence/m8-attribution-upgrade.q",
+      "bytes": 487,
+      "sha256": "baab126417906ffa6d6986fb1c3ee23bdd63c9d431307257ee37fc928deac24a"
+    },
+    {
+      "snapshotPath": "evidence/m8-attribution-backfill.txt",
+      "recordPath": "astra/evidence/m8-attribution-backfill.txt",
+      "bytes": 157,
+      "sha256": "09d1a6d516247fbe5790eaa2f5c9710315a061c658d275f991fe8ccbda7a16ef"
+    },
+    {
+      "snapshotPath": "evidence/m8-doctor.txt",
+      "recordPath": "astra/evidence/m8-doctor.txt",
+      "bytes": 1819,
+      "sha256": "eae9b653725f63ae6fbcd2145a83936ef376d11bca856ca73bc6a383824ce0e5"
+    },
+    {
+      "snapshotPath": "evidence/m8-typecheck-final2.txt",
+      "recordPath": "astra/evidence/m8-typecheck-final2.txt",
+      "bytes": 75,
+      "sha256": "771d62c58410dc75523b34dcc49386598f86320ed5c17f45b202466663bf870e"
+    },
+    {
+      "snapshotPath": "evidence/suite-status.json",
+      "recordPath": "astra/evidence/suite-status.json",
+      "bytes": 548,
+      "sha256": "1b274f2e3ac31d3c305233c567d2a7a0ace421b3da79e2371b23db4bf9dbf996"
+    },
+    {
+      "snapshotPath": "evidence/m1-suite.json",
+      "recordPath": "astra/evidence/m1-suite.json",
+      "bytes": 1035,
+      "sha256": "099bee7988d94698647732f5109e0e10d14b607fd0f290bc5a3aa3312f7ce3a9"
+    },
+    {
+      "snapshotPath": "evidence/m2-suite.json",
+      "recordPath": "astra/evidence/m2-suite.json",
+      "bytes": 2432,
+      "sha256": "2084cd8d7104e7295ff80aeb91f09b15c2d38d5af93d1e4f9121e219756a7e04"
+    },
+    {
+      "snapshotPath": "evidence/m3-suite.json",
+      "recordPath": "astra/evidence/m3-suite.json",
+      "bytes": 1037,
+      "sha256": "7536cda34ab256146f4b8d3e4164db98fec939886cf7f82d728d33ca66836fd6"
+    },
+    {
+      "snapshotPath": "evidence/m4-suite.json",
+      "recordPath": "astra/evidence/m4-suite.json",
+      "bytes": 939,
+      "sha256": "d51dc10b7f4b797fe46a5778507403c6418af57d4f80b128b36a1bb63fc30631"
+    },
+    {
+      "snapshotPath": "evidence/m5-suite.json",
+      "recordPath": "astra/evidence/m5-suite.json",
+      "bytes": 1200,
+      "sha256": "dbe3d4e679009d32453f355bec019eaa3b37cad51558d75f20927946c0a94f75"
+    },
+    {
+      "snapshotPath": "evidence/m6-1790205959123-suite.json",
+      "recordPath": "astra/evidence/m6-1790205959123-suite.json",
+      "bytes": 574,
+      "sha256": "bab845abe55b3c0c1daa1ac5018413791cb23b9feae84c8673aa0da14781bc92"
+    },
+    {
+      "snapshotPath": "evidence/m6-1790206081841-suite.json",
+      "recordPath": "astra/evidence/m6-1790206081841-suite.json",
+      "bytes": 952,
+      "sha256": "2f11a1c4239e32779372d0d67dbbe6276f91cea2aa4b60d4e37b97e03d7b91c6"
+    },
+    {
+      "snapshotPath": "evidence/m6-1790206116209-suite.json",
+      "recordPath": "astra/evidence/m6-1790206116209-suite.json",
+      "bytes": 902,
+      "sha256": "37175b64d0c2b205c939114d2106eb78114272ebfa48c7ebfaf87e54acec2838"
+    },
+    {
+      "snapshotPath": "evidence/m8-1790206487756-suite.json",
+      "recordPath": "astra/evidence/m8-1790206487756-suite.json",
+      "bytes": 1086,
+      "sha256": "e41962575a190265707207c285ec59cc2fe6b531983734fd5e761dd9ee53de28"
+    },
+    {
+      "snapshotPath": "evidence/m8-1790206547136-suite.json",
+      "recordPath": "astra/evidence/m8-1790206547136-suite.json",
+      "bytes": 1131,
+      "sha256": "41cf6a5116f53e81adfbc86b1d716bcdb728b3293e831ef17f6c54a05afd178f"
+    },
+    {
+      "snapshotPath": "evidence/m8-1790206789134-suite.json",
+      "recordPath": "astra/evidence/m8-1790206789134-suite.json",
+      "bytes": 222,
+      "sha256": "cfead37aeb29c5e91782933ba7dd212564394633ada0797f09f701af1a142fc9"
+    },
+    {
+      "snapshotPath": "evidence/m8-1790206860793-suite.json",
+      "recordPath": "astra/evidence/m8-1790206860793-suite.json",
+      "bytes": 1131,
+      "sha256": "8847a1f30962fc729c129a698dbba8de76a1c763d3f0558cdae7277916b4e239"
+    },
+    {
+      "snapshotPath": "evidence/m8-1790207303960-suite.json",
+      "recordPath": "astra/evidence/m8-1790207303960-suite.json",
+      "bytes": 1131,
+      "sha256": "1245f763290c93731dbf8e3d2c697196e9887c08c31ac7a360674abdb94dd81a"
+    },
+    {
+      "snapshotPath": "evidence/m8-regression-m1-suite.json",
+      "recordPath": "astra/evidence/m8-regression-m1-suite.json",
+      "bytes": 1035,
+      "sha256": "12f4a109651123f6a8a1fecc89f82ae7aab2c7dcc3074c1ea0dd2ff23e25db09"
+    },
+    {
+      "snapshotPath": "evidence/m8-regression-m2-suite.json",
+      "recordPath": "astra/evidence/m8-regression-m2-suite.json",
+      "bytes": 2432,
+      "sha256": "4037496df13728aab4fc1a14d1b25cf38ac6444e9db58a535aa1245026d773ab"
+    },
+    {
+      "snapshotPath": "evidence/m8-regression-m3-suite.json",
+      "recordPath": "astra/evidence/m8-regression-m3-suite.json",
+      "bytes": 1037,
+      "sha256": "45a32c8d999aee9f43894da9ecf1ab1a897dd0427b2cd989f082966171808727"
+    },
+    {
+      "snapshotPath": "evidence/m8-regression-m4-suite.json",
+      "recordPath": "astra/evidence/m8-regression-m4-suite.json",
+      "bytes": 939,
+      "sha256": "7966613d2cec6cde7b0f8f355749d80a96a28261e2068ed54c19897a617cfbf0"
+    },
+    {
+      "snapshotPath": "evidence/m8-regression-m5-suite.json",
+      "recordPath": "astra/evidence/m8-regression-m5-suite.json",
+      "bytes": 1200,
+      "sha256": "d1b1aea3cebf8307452cec0102398f3c017470d6ac147499974468132518bbde"
+    },
+    {
+      "snapshotPath": "evidence/m8-regression-m6-suite.json",
+      "recordPath": "astra/evidence/m8-regression-m6-suite.json",
+      "bytes": 902,
+      "sha256": "cf2141aaf1c477c6b87d253ef092a43dd2e672f855d3338290fcf3e1e2b37a5a"
+    },
+    {
+      "snapshotPath": "evidence/m1-choreo.jsonl",
+      "recordPath": "astra/evidence/m1-choreo.jsonl",
+      "bytes": 4416,
+      "sha256": "21242ede733fee7f124b991aa4719289a93735a919eb495a209b6a5a7b62765c"
+    },
+    {
+      "snapshotPath": "evidence/m2-choreo.jsonl",
+      "recordPath": "astra/evidence/m2-choreo.jsonl",
+      "bytes": 10244,
+      "sha256": "08c3b333e0ba9e2c7af01885b5877f803c8d20de6ee0f02b7e956de27d1cc13e"
+    },
+    {
+      "snapshotPath": "evidence/m3-choreo.jsonl",
+      "recordPath": "astra/evidence/m3-choreo.jsonl",
+      "bytes": 8145,
+      "sha256": "07f5dede55e08a135b83b6a415c96ade6d9e3ec61a4c79cd25511c7999c20b95"
+    },
+    {
+      "snapshotPath": "evidence/m4-choreo.jsonl",
+      "recordPath": "astra/evidence/m4-choreo.jsonl",
+      "bytes": 5778,
+      "sha256": "b2eaab1365f52d6109a638ae90be948d56e4b9859304faeb1cf8afd7a091d6fc"
+    },
+    {
+      "snapshotPath": "evidence/m5-choreo.jsonl",
+      "recordPath": "astra/evidence/m5-choreo.jsonl",
+      "bytes": 4362,
+      "sha256": "2acf1693bcc70df67c6c28397624fc2d9279e456e1ac1f6d94d5d4f7337a944d"
+    },
+    {
+      "snapshotPath": "evidence/m6-choreo.jsonl",
+      "recordPath": "astra/evidence/m6-choreo.jsonl",
+      "bytes": 3051,
+      "sha256": "8d883123a97cdf431230b594360d4f223299d0aedcf5830ecacdb9419b25f7ed"
+    },
+    {
+      "snapshotPath": "evidence/m8-choreo.jsonl",
+      "recordPath": "astra/evidence/m8-choreo.jsonl",
+      "bytes": 5174,
+      "sha256": "2250e13104b8b5c0637dc5b716178442b1b2fdb6e803634b2f913f1d76315613"
+    }
+  ]
+}

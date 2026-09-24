@@ -1,0 +1,41 @@
+{
+  "milestone": "m8",
+  "pass": false,
+  "coverage": {
+    "m8-a01": "six-authoritative-insights-totals-match-seeded-and-live-state",
+    "m8-a03": "seven-server-UTC-days-zero-filled-and-today-increments",
+    "m8-a04": "seven-server-UTC-days-zero-filled-and-today-increments"
+  },
+  "missing": [
+    "m8-a05",
+    "m8-a06",
+    "m8-a07"
+  ],
+  "results": [
+    {
+      "name": "six-authoritative-insights-totals-match-seeded-and-live-state",
+      "ids": [
+        "m8-a01"
+      ],
+      "pass": true
+    },
+    {
+      "name": "seven-server-UTC-days-zero-filled-and-today-increments",
+      "ids": [
+        "m8-a03",
+        "m8-a04"
+      ],
+      "pass": true
+    },
+    {
+      "name": "trending-top-like-count-and-newest-tie",
+      "ids": [
+        "m8-a05",
+        "m8-a07"
+      ],
+      "pass": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('sm-feed-card').filter({ hasText: '01M389YD12QM2SYR43R1PWYGM3' }) to be visible\u001b[22m\n"
+    }
+  ],
+  "recordedAt": "2026-09-23T23:35:19.943Z"
+}

@@ -1,0 +1,75 @@
+{
+  "scope": "Single-lane Astra holistic result; not an all-lane aggregate.",
+  "source": "scores/astra/FINAL.md",
+  "score": {
+    "scorer": {
+      "family": "astra",
+      "model": "gpt-6-astra",
+      "basis": "own Snapback 4 lane narrative files"
+    },
+    "backends": {
+      "snapback4": {
+        "overall": {
+          "score": 92,
+          "note": "final-report.md reports M1\u2013M6/M8 green and two successful scale replays. Integrated authorization, sync, and media were strong fits; Quarry\u2019s restricted shapes and documented work ceilings prevent an ideal score. Agent/environment correction costs are excluded."
+        },
+        "setup_and_docs": {
+          "score": 96,
+          "note": "diary.md M1 found the published password/profile path sufficient; M2 praised concrete scale and replication guidance. Guides supported later milestones. run-log.md attributes installation and watcher problems to agent/environment causes, with no established misleading documentation."
+        },
+        "data_modeling": {
+          "score": 87,
+          "note": "essay.md praises concise, unified schema, policy, aggregates, and scheduling, while describing restrictive program shapes and unfamiliar compiler vocabulary. diary.md M8 highlights subtle reference-driven index selection; the resulting implementation mistakes remain agent-attributed."
+        },
+        "authorization": {
+          "score": 97,
+          "note": "diary.md M3\u2013M5 describes membership-scoped sync, send-time recipients, retained pre-removal history, and assets sharing row rules. M8 reused membership authority for digests; final-report.md records successful server-side revocation and expiry proofs."
+        },
+        "queries_and_live": {
+          "score": 90,
+          "note": "diary.md M1\u2013M3 reports live updates and pagination without authored polling. M5 held offline search and M8 Trending worked; Global needed a separate event table, and queries required explicit bounds and carefully shaped merges."
+        },
+        "writes_and_transactions": {
+          "score": 96,
+          "note": "M3 arrival ordinals, M6 mutation identities and ordered settlement, and M8 durable markers/effect commit boundaries supported the required semantics (diary.md; essay.md). Both scale replays passed; run-log.md classifies incorrect write-ID encoding as agent-error."
+        },
+        "offline_sync": {
+          "score": 96,
+          "note": "essay.md describes platform-owned durable rows, media, and ordered mutations. final-report.md records cold-web queue/search persistence and M8 convergence proofs. Native runtime behavior remains unproven; composer races were agent errors, not sync defects."
+        },
+        "media_assets": {
+          "score": 98,
+          "note": "diary.md M4\u2013M5 describes upload validation, row-governed access, and one-fetch columns without separate signing or revocation services. final-report.md records recipient playback, revoked-fetch refusal, cold ordinary-media retention, and consumed-once exclusion."
+        },
+        "background_work": {
+          "score": 89,
+          "note": "M5 client-free expiry and M8 scheduled digest restart, authorization, and deduplication proofs passed (final-report.md). Effects and Quarry backfills worked, but the report documents atomic per-recipient digest computation potentially parking at job bounds."
+        },
+        "client_integration": {
+          "score": 92,
+          "note": "M1 hooks and generated operations supported live clients; M6 documented token-only access worked, and every milestone produced Hermes output (diary.md; final-report.md). Cold web launch required an authored app-shell service worker; native lifecycle evidence stops at builds."
+        },
+        "diagnostics_dev_loop": {
+          "score": 97,
+          "note": "run-log.md records actionable principal-leading-index, prediction-eligibility, and exact write-ID diagnostics. M8 doctor inspection helped uncover attribution mistakes. final-report.md reports no demonstrated Snapback defect; frontend, harness, and environment correction loops are excluded."
+        },
+        "scale_and_limits": {
+          "score": 90,
+          "note": "final-report.md records 167,243 settled actions, 100,015 messages, and 1,002 conversations on the completed program, with modest measured query growth. These are builder diagnostics, not the full independent probe matrix; finite work ceilings remain relevant."
+        },
+        "operations": {
+          "score": 91,
+          "note": "M2/M3 idempotent seeds, M8 Quarry attribution backfill, doctor inspection, fresh replay stores, and digest restart recovery worked (diary.md; final-report.md). Operational evidence is local; the separate M7 migration exercise was intentionally not run."
+        },
+        "verdict": "Snapback 4 was an excellent fit for this lane\u2019s messenger, substantially reducing synchronization and media-policy plumbing while requiring precision within Quarry\u2019s bounded programming model.",
+        "would_use_again_for": "I would use it again for private realtime applications needing durable offline writes and membership-controlled media, with workloads designed around the documented query and job ceilings."
+      }
+    },
+    "comparison_notes": [
+      "essay.md compares Snapback\u2019s integrated authorization, assets, expiry, and offline queues favorably with the composition work the author expects in Supabase or a conventional server stack.",
+      "diary.md and essay.md contrast Quarry\u2019s explicit bounds and local-execution eligibility with Convex\u2019s familiar application-language functions, identifying a tradeoff between integrated guarantees and authoring flexibility.",
+      "essay.md acknowledges SQL tooling and ecosystem familiarity as reasons to prefer Supabase for other teams.",
+      "These are the lane author\u2019s architectural comparisons, not measured competing builds or empirical comparisons with earlier Snapback releases."
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "at": "2026-09-24T00:11:42.797861+00:00",
+  "sessionId": "01a0d0bc-26ad-7f43-b3bc-e20e0d4aa692",
+  "sessionLog": "/Users/ccheever/.codex/sessions/2026/09/23/rollout-2026-09-23T17-06-26-01a0d0bc-26ad-7f43-b3bc-e20e0d4aa692.jsonl",
+  "sessionLogSha256": "5f54de108a9b684211e6aff49881dc394254ab4b7226c7444ae921da57e0ab66",
+  "toolCallCount": 7,
+  "audit": "All seven actual tool calls inspected: one registry lookup and six Node REPL calls. One filesystem read loaded only the brief and five named lane narratives; subsequent calls displayed those values. No application-source reads, prior-run/grading/other-lane/repository reads, mutation or runtime test.",
+  "calls": [
+    {
+      "at": "2026-09-24T00:06:34.385Z",
+      "name": "exec",
+      "callId": "call_CXlDqS9s6823PPqeFtfpVcrN",
+      "input": "text(ALL_TOOLS.filter(x=>/read.*file|file.*read|directory|terminal|execute|search/i.test(x.name+\" \"+x.description)));\n"
+    },
+    {
+      "at": "2026-09-24T00:06:48.267Z",
+      "name": "exec",
+      "callId": "call_EqV2lI6bnmM0ItGYzPdO0VAN",
+      "input": "const r = await tools.mcp__node_repl__js({code:\"var fs = await import('node:fs/promises'); var base = '/Users/ccheever/clique-sb4-20260923-astra-cal18'; var names = ['instrument/social-messenger.md','lanes/astra-snapback4/diary.md','lanes/astra-snapback4/essay.md','lanes/astra-snapback4/run-log.md','lanes/astra-snapback4/final-report.md','lanes/astra-snapback4/run-record.json']; var contents = await Promise.allSettled(names.map(n => fs.readFile(base + '/' + n,'utf8'))); nodeRepl.write(contents.map((r,i)=>({name:names[i],length:r.status==='fulfilled'?r.value.length:null,error:r.status==='rejected'?String(r.reason):null})));\",title:\"Read only the six authorized evidence files\"});\ntext(r);\n"
+    },
+    {
+      "at": "2026-09-24T00:06:52.201Z",
+      "name": "exec",
+      "callId": "call_pT9jcDEbKbxILWgZe89t3krK",
+      "input": "text(await tools.mcp__node_repl__js({code:\"nodeRepl.write(contents[1].value); nodeRepl.write(contents[2].value);\",title:\"Read Astra diary and essay in full\"}));\n"
+    },
+    {
+      "at": "2026-09-24T00:06:55.979Z",
+      "name": "exec",
+      "callId": "call_dzkY0dY0ATHO5mB3oc1rnVuV",
+      "input": "text(await tools.mcp__node_repl__js({code:\"nodeRepl.write(contents[3].value);\",title:\"Read complete attributed Astra run log\"}));\n"
+    },
+    {
+      "at": "2026-09-24T00:06:58.923Z",
+      "name": "exec",
+      "callId": "call_TnQrtjXWBYhFZg4BxD0lHFvq",
+      "input": "text(await tools.mcp__node_repl__js({code:\"nodeRepl.write(contents[4].value);\",title:\"Read full retained final report\"}));\n"
+    },
+    {
+      "at": "2026-09-24T00:07:02.779Z",
+      "name": "exec",
+      "callId": "call_nSvo2iUTZ62pTAS7LSVZV9F8",
+      "input": "text(await tools.mcp__node_repl__js({code:\"nodeRepl.write(contents[5].value); nodeRepl.write(contents[0].value.split('\\\\n').filter(l=>/^#{1,5} /.test(l)).join('\\\\n'));\",title:\"Read full run record and brief milestone outline\"}));\n"
+    },
+    {
+      "at": "2026-09-24T00:07:13.165Z",
+      "name": "exec",
+      "callId": "call_MooSp24kDQStQ9vUDKsL5Fs8",
+      "input": "text(await tools.mcp__node_repl__js({code:\"var brief = contents[0].value; nodeRepl.write(brief.slice(0,brief.indexOf('## Screens (pinned)'))); var milestoneHeaders = [...brief.matchAll(/^### M[1-8] \u2014.*$/gm)]; nodeRepl.write(milestoneHeaders.map((m,i)=>brief.slice(m.index, Math.min(m.index+3600, milestoneHeaders[i+1]?.index??brief.length))).join('\\\\n\\\\n'));\",title:\"Skim brief scope, scale envelope, and milestone requirements\"}));\n"
+    }
+  ],
+  "inputCustody": {
+    "diary.md": {
+      "snapshotSha256": "f8a4b79ce19e751c847bcbb3aa20c3758f177c679902df02c83138c4d9dd066d",
+      "fullSnapshotTextPresentInReturnedToolOutput": true,
+      "callIds": [
+        "call_pT9jcDEbKbxILWgZe89t3krK"
+      ]
+    },
+    "essay.md": {
+      "snapshotSha256": "9103fea487a583c5d9795fdde436c07f58e0ecf75beac6db6a618127e592f3f2",
+      "fullSnapshotTextPresentInReturnedToolOutput": true,
+      "callIds": [
+        "call_pT9jcDEbKbxILWgZe89t3krK"
+      ]
+    },
+    "run-log.md": {
+      "snapshotSha256": "0a671c9900fec61e3860c62bb710c4b50ccd733f3b5fe1d4e6e04a9a3591185b",
+      "fullSnapshotTextPresentInReturnedToolOutput": true,
+      "callIds": [
+        "call_dzkY0dY0ATHO5mB3oc1rnVuV"
+      ]
+    },
+    "final-report.md": {
+      "snapshotSha256": "9d59890a81b04b87ced55ab8c0e4932e72eb1f190a6ba171c8a8a2182ce35393",
+      "fullSnapshotTextPresentInReturnedToolOutput": true,
+      "callIds": [
+        "call_TnQrtjXWBYhFZg4BxD0lHFvq"
+      ]
+    },
+    "run-record.json": {
+      "snapshotSha256": "aa9aedff25e424d60bbcfbd54191878510389dd461b9c518591197f937bb8490",
+      "fullSnapshotTextPresentInReturnedToolOutput": true,
+      "callIds": [
+        "call_nSvo2iUTZ62pTAS7LSVZV9F8"
+      ]
+    }
+  }
+}

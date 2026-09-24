@@ -1,0 +1,88 @@
+{
+  "at": "2026-09-24T01:04:43.996349+00:00",
+  "restorationComparison": {
+    "evidence/sample-replay-state.json": {
+      "preGrade": {
+        "mode": 384,
+        "kind": "file",
+        "bytes": 6352,
+        "sha256": "0f20319c4457b5b5bd2c341399b9c48c38c0b34ddc80a5f0b374d38886ace970"
+      },
+      "postGrade": {
+        "mode": 384,
+        "kind": "file",
+        "bytes": 6352,
+        "sha256": "0f20319c4457b5b5bd2c341399b9c48c38c0b34ddc80a5f0b374d38886ace970"
+      },
+      "identical": true
+    },
+    "evidence/sample-replay.jsonl": {
+      "preGrade": {
+        "mode": 420,
+        "kind": "file",
+        "bytes": 29632,
+        "sha256": "9a98c79d0d656df93e7198df4568a7752272f507a00bbd8879a478ef6b5c2b1c"
+      },
+      "postGrade": {
+        "mode": 420,
+        "kind": "file",
+        "bytes": 46909,
+        "sha256": "ba62be00477e490a90a60419df9006b25de244a34e504ec620b99acdfdc48980"
+      },
+      "identical": false
+    },
+    "evidence/sample-replay-result.json": {
+      "preGrade": {
+        "mode": 420,
+        "kind": "file",
+        "bytes": 183,
+        "sha256": "f0241cb19e970886fbfecab0118a502ce98f31bd87d064c5c648b1a62879390a"
+      },
+      "postGrade": {
+        "mode": 420,
+        "kind": "file",
+        "bytes": 184,
+        "sha256": "0ec7d52d2bc5aa86464e57edcdb1c95a05c508efc66d65f55446636f190c7a38"
+      },
+      "identical": false
+    },
+    "evidence/suite-status.json": {
+      "preGrade": {
+        "mode": 420,
+        "kind": "file",
+        "bytes": 548,
+        "sha256": "1b274f2e3ac31d3c305233c567d2a7a0ace421b3da79e2371b23db4bf9dbf996"
+      },
+      "postGrade": {
+        "mode": 420,
+        "kind": "file",
+        "bytes": 548,
+        "sha256": "1b274f2e3ac31d3c305233c567d2a7a0ace421b3da79e2371b23db4bf9dbf996"
+      },
+      "identical": true
+    },
+    "replay-full-instance/.snapback4/store.sqlite": {
+      "preGrade": {
+        "mode": 384,
+        "kind": "file",
+        "bytes": 1381097472,
+        "sha256": "3b088e52b217f637c0c47286195ae67ac51ecba39d781cad7632b6bfcf32f3ff"
+      },
+      "postGrade": {
+        "mode": 384,
+        "kind": "file",
+        "bytes": 1381097472,
+        "sha256": "3b088e52b217f637c0c47286195ae67ac51ecba39d781cad7632b6bfcf32f3ff"
+      },
+      "identical": true
+    }
+  },
+  "historicalTraceCorrection": {
+    "traceLine": 684,
+    "statement": "This session is the first to emit all 18 M8 ids as structured results.",
+    "operatorFinding": "The cal17 record already has all 18 M8 IDs as structured results; this historical sentence is not adopted. The grader artifacts remain verbatim.",
+    "evidence": "../2026-09-22-snapback4-clique-astra-0.2.33/astra/m8-assertion-results.json",
+    "entryCount": 18
+  },
+  "externalTemporaryEvidence": "The grader removed /tmp/grader-clean and /tmp/grader-ajv during its own cleanup. Probe source/results, suite receipts and logs remain in the complete grade snapshot; terminal transcript remains in the packet."
+}

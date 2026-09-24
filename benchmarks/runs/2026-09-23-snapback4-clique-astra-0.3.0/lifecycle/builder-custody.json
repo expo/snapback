@@ -1,0 +1,123 @@
+{
+  "startedAt": "2026-09-24T00:05:41.463735+00:00",
+  "operatorPid": 70659,
+  "builder": {
+    "lane": "astra-snapback4",
+    "phase": "builder",
+    "pid": 27729,
+    "endedAt": "2026-09-24T00:04:47Z",
+    "endedEpoch": 1790208287,
+    "wallSeconds": 5388.895,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260923-astra-cal18/logs/astra-snapback4.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260923-astra-cal18/logs/astra-snapback4.stderr.log"
+  },
+  "source": "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4",
+  "snapshot": "/Users/ccheever/clique-sb4-20260923-astra-cal18/attempts/builder-completed",
+  "scope": "Complete pre-grade APFS clone; no exclusions. SHA256/mode/type/literal-symlink verification.",
+  "copy": {
+    "command": [
+      "/bin/cp",
+      "-cRp",
+      "/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4",
+      "/Users/ccheever/clique-sb4-20260923-astra-cal18/attempts/builder-completed"
+    ],
+    "pid": 71532,
+    "startedAt": "2026-09-24T00:05:48.166843+00:00",
+    "exitCode": 0,
+    "endedAt": "2026-09-24T00:05:53.768581+00:00",
+    "seconds": 5.604
+  },
+  "verified": true,
+  "entries": 46218,
+  "regularFiles": 40015,
+  "logicalFileBytes": 3398208205,
+  "narrative": {
+    "diary.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 9426,
+      "sha256": "f8a4b79ce19e751c847bcbb3aa20c3758f177c679902df02c83138c4d9dd066d"
+    },
+    "essay.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 9886,
+      "sha256": "9103fea487a583c5d9795fdde436c07f58e0ecf75beac6db6a618127e592f3f2"
+    },
+    "run-log.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 20708,
+      "sha256": "0a671c9900fec61e3860c62bb710c4b50ccd733f3b5fe1d4e6e04a9a3591185b"
+    },
+    "final-report.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 22715,
+      "sha256": "9d59890a81b04b87ced55ab8c0e4932e72eb1f190a6ba171c8a8a2182ce35393"
+    },
+    "run-record.json": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 16030,
+      "sha256": "aa9aedff25e424d60bbcfbd54191878510389dd461b9c518591197f937bb8490"
+    },
+    "FINAL.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 498,
+      "sha256": "1e26dce094e18e46e605a4effc00ce4935fa2582efe80d28e43292f6f1d6dbaa"
+    }
+  },
+  "missingNarratives": [],
+  "builderLogs": {
+    "logs/astra-snapback4.end.json": {
+      "bytes": 365,
+      "sha256": "4f7c0e2abbf269a60b55d52c92c3b422c95be1a93de013ef74008eb86fa28fba"
+    },
+    "logs/astra-snapback4.launch.json": {
+      "bytes": 311,
+      "sha256": "77a7303bfaecb7b7899db3ecd02e69bf165b61765efa2a969ed409594cd0530d"
+    },
+    "logs/astra-snapback4.ndjson": {
+      "bytes": 1639244,
+      "sha256": "f313f82890557a657069f85bfe752d51484bf21ce7dea319b0d009d92c9921c0"
+    },
+    "logs/astra-snapback4.operator.log": {
+      "bytes": 107,
+      "sha256": "98a76b91c2a7788a6f10d496601c2aed9a762edca712e5bbee6d04cfe4503fc4"
+    },
+    "logs/astra-snapback4.pid": {
+      "bytes": 6,
+      "sha256": "5775e5f42309028007ffc647585113456145079633cd2a9524407d2c2fc79811"
+    },
+    "logs/astra-snapback4.runner.pid": {
+      "bytes": 6,
+      "sha256": "62a53ff94cd2b6a9d4843ca6a049c760012155c79bb63bc7d6a881288c4db1ba"
+    },
+    "logs/astra-snapback4.start.json": {
+      "bytes": 1103,
+      "sha256": "7299ff123d33f75734174614c95ac84d1718224f653e4aa254eb6f309a876018"
+    },
+    "logs/astra-snapback4.stderr.log": {
+      "bytes": 1303,
+      "sha256": "258a8546125a1920ddc0f8d2de4143e8b9fa3d8cc708784002b54a2e432a60e3"
+    }
+  },
+  "frozenInputs": {
+    "INSTRUMENT.sha256": "89b8c59d734334c015eaed025a52488e4c6266aabd40e21ade6a75ffd35381d2",
+    "PROMPT_TEMPLATES.sha256": "33e54d45d451400c38d9e1f738ebcd0181b0fc6c8fbf97de60e4fc15033b0f2e",
+    "scripts/aggregate_scores.py": "c46a9011ecc7f06f199849636685d8a3eb6335d38143bb3956807a75aeba0a3b",
+    "scripts/render.py": "d5c2f678b368bdae9655d0b8fea3533fc6a045372f591fd28cedfe42d7d22b02",
+    "scripts/run_phase.py": "c2d4bde00c0b876ececf6fc895fe5a584dc74987d471af43530a6e5714dca3a5",
+    "scripts/summarize_grades.py": "afe2432995a4e570b792478296313da96f1b994f3b789c5616beb4c3fc7f6a3c",
+    "scripts/verify.py": "73aba5c4eccb0bf267fed4dd9ecf48c4147d2540fe313563931aba9439e6ba62",
+    "prompts/grade.template.md": "2021a6292d3f4b9a4313d5daf1af27fbe129f6a0978334a21c9de8e619adb88a",
+    "prompts/holistic.template.md": "5fa1a22a21ca614544fad4fdd81e6300f9b355d39a4be7e79afdabd0e7c5d4f3",
+    "prompts/m7.template.md": "af72982e03b62771e774d98c0b2e6c5eb0fad8baaed1ccb97e4905311405f712",
+    "prompts/score.previous.template.md": "cb93bdd7b7907419b5aa2b243cc34cde07deb2a91055e33d84d32824e38f52ce",
+    "prompts/template.md": "10a7006f2145b3fed7ce1d736e73b4a3fcbc8ddeb88354a81a052ea169b843f6"
+  },
+  "endedAt": "2026-09-24T00:06:08.685831+00:00"
+}

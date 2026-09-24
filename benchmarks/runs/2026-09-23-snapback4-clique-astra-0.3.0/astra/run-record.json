@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API session",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "snapback4": "0.3.0",
+      "snapback4-expo": "0.3.0",
+      "expo": "57.0.22",
+      "react": "19.2.3",
+      "react-native": "0.86.3",
+      "node": "24.18.0",
+      "host": "macOS arm64 / Apple M5 Max"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-23T22:35:06.000Z",
+    "finishedAt": "2026-09-24T00:04:19.000Z"
+  },
+  "firstGreenProofAt": "2026-09-23T22:43:19.032Z",
+  "wallClock": {
+    "totalSeconds": 5353,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 1079.5090000629425,
+      "m7Session": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": null,
+      "m7Session": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "environment",
+      "summary": "1790203094 error source=diagnostic attribution=environment evidence=evidence/install-router.log ERESOLVE react-dom latest requires React 19.3; retry pinned react-dom 19.2.3 to match published Expo starter.",
+      "evidence": "evidence/install-router.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790203094 correction-loop attribution=agent-error evidence=evidence/cli-help.txt duplicate init invocation raced delayed npx; second refused existing app.json, no overwrite. Use absolute node CLI entry.",
+      "evidence": "evidence/cli-help.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "environment",
+      "summary": "1790203295 error attribution=environment source=diagnostic evidence=evidence/install-choreography.log copied instrument retained read-only mode; chmod only lane copies, retry install.",
+      "evidence": "evidence/install-choreography.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "environment",
+      "summary": "1790203367 error attribution=environment source=diagnostic evidence=evidence/m1-choreo-run.log copied choreography imports ../metering; copying frozen dependency directories into lane.",
+      "evidence": "evidence/m1-choreo-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790203378 error attribution=agent-error source=diagnostic evidence=evidence/m1-choreo-run.log setup identity expects relative artifact paths; corrected.",
+      "evidence": "evidence/m1-choreo-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790203513 error source=diagnostic attribution=agent-error evidence=evidence/m2-check.txt guessed cross-table merge form; replace with global event index while Following uses declared timeline.",
+      "evidence": "evidence/m2-check.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "environment",
+      "summary": "1790203821 correction-loop attribution=environment evidence=evidence/m2-suite-failure.png Metro served M1 bundle after edits despite watch mode; reset cache and use Node watcher.",
+      "evidence": "evidence/m2-suite-failure.png",
+      "errorCode": null
+    },
+    {
+      "attribution": "environment",
+      "summary": "1790203867 error attribution=environment source=fixture evidence=evidence/m2-choreo-run.log default fixture path assumes original repository layout; use allowed input-only adapter pointing to lane instrument/fixtures.",
+      "evidence": "evidence/m2-choreo-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790203904 correction-loop attribution=agent-error evidence=evidence/m2-choreo-run.log follow helper expects feed tabs accessible from profile; moved feed navigation tabs into shell for all screens.",
+      "evidence": "evidence/m2-choreo-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790203976 correction-loop attribution=agent-error evidence=evidence/m2-choreo-run.log Expo Stack retained hidden composer locators and async tab route exposed stale feed; use Slot route composition plus immediate shared tab state.",
+      "evidence": "evidence/m2-choreo-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "environment",
+      "summary": "1790204061 correction-loop attribution=environment evidence=evidence/m2-choreo-run.log Metro still stale: CI=0 remains truthy to internal watchers; removed CI variable entirely and restarted.",
+      "evidence": "evidence/m2-choreo-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790204084 error attribution=agent-error evidence=evidence/m2-choreo-run.log restarting Metro during current failed choreography ended it with connection reset; preserve interrupted attempt and rerun.",
+      "evidence": "evidence/m2-choreo-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "environment",
+      "summary": "1790204456 error attribution=environment evidence=scripts/inspect-ui.mjs Metro missed newly created conversation routes (Unmatched Route); explicit clear-cache restart before milestone verification.",
+      "evidence": "scripts/inspect-ui.mjs",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790204556 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m3-choreo-run.log empty matching query returns zero by documented search semantics; added explicit people browse branch for member picker.",
+      "evidence": "evidence/m3-choreo-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790204569 error attribution=agent-error source=diagnostic evidence=evidence/m3-check.txt reserved read used as column; renamed readOrdinal.",
+      "evidence": "evidence/m3-check.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790204569 error attribution=agent-error source=diagnostic evidence=evidence/m3-check2.txt optional membership read required null coalescing; corrected to ??0.",
+      "evidence": "evidence/m3-check2.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790204569 error attribution=agent-error source=diagnostic evidence=evidence/m2-check2.txt,evidence/m2-check3.txt timeline extra at column needs default; events deletion cannot take repost reference; used own event unique key.",
+      "evidence": "evidence/m2-check2.txt,evidence/m2-check3.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790204785 error attribution=agent-error source=diagnostic evidence=tool-transcript accidental scratch redirect outside lane was refused by read-only root; no outside file written; scratch now scripts/m4-ui-fragment.txt.",
+      "evidence": "tool-transcript",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790204892 correction-loop attribution=agent-error evidence=evidence/m4-suite-run.log suite mistook local predicted media visibility for server settlement; wait for authoritative receiver history before asserting uploaded reference.",
+      "evidence": "evidence/m4-suite-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790205267 error attribution=agent-error source=diagnostic evidence=evidence/m5-check.txt private views sync requires principal-leading index; added index exactly as diagnostic instructed.",
+      "evidence": "evidence/m5-check.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790205422 correction-loop attribution=agent-error evidence=evidence/m5-regression-m1.json,evidence/m5-regression-m2.json,evidence/m5-regression-m3.json,evidence/m5-regression-m4.json regression runner overwrote first-green suite paths; restored exact bytes from retained stdout, verified all four choreography-bound SHA256 hashes; future suite receipts use unique timestamp names.",
+      "evidence": "evidence/m5-regression-m1.json,evidence/m5-regression-m2.json,evidence/m5-regression-m3.json,evidence/m5-regression-m4.json",
+      "errorCode": null
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1790205891 error attribution=ambiguous sample-replay action=2 evidence=evidence/sample-replay-run.log AssertionError [ERR_ASSERTION]: {\"state\":\"failed\",\"id\":\"500812832aef215c7a43c2a096\",\"why\":{\"code\":\"E_WRITE_ID\",\"family\":\"input\",\"message\":\"write id must be 26 uppercase Crockford base32 digits, starting with 0–7 (the mintId() form)\",\"guide\":\"writes\"}}",
+      "evidence": "evidence/sample-replay-run.log",
+      "errorCode": "E_WRITE_ID"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790205914 correction-loop attribution=agent-error source=diagnostic evidence=evidence/sample-replay-run.log E_WRITE_ID requires Crockford ULID shape; encode deterministic SHA128 in correct alphabet",
+      "evidence": "evidence/sample-replay-run.log",
+      "errorCode": "E_WRITE_ID"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790205914 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m6-check.txt presence guarded profile read made send nonpredictable; hoist payload reads before effect-only guard",
+      "evidence": "evidence/m6-check.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206050 correction-loop attribution=agent-error evidence=evidence/m6-suite-run.log push test assumed original Alice displayName after M1 choreography edited it; assert current authoritative profile value",
+      "evidence": "evidence/m6-suite-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206115 correction-loop attribution=agent-error evidence=evidence/m6-suite-run2.log sample receipt validation counted a register receipt from pre-ULID failed attempt; verify latest complete 50-action run",
+      "evidence": "evidence/m6-suite-run2.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206132 correction-loop attribution=agent-error evidence=evidence/m6-choreo-attempt1.log composer cleared text after pending prediction appeared, erasing next typed message; clear submitted text before dispatch",
+      "evidence": "evidence/m6-choreo-attempt1.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206500 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m8-check.txt generic post IDs needed typed references for maintained attribution; widened reply helper arguments explicitly; shaped merge result after lane block",
+      "evidence": "evidence/m8-check.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206501 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m8-check3.txt schedule duration only m/h/d; translate JSON seconds to minutes and honor production UTC anchor",
+      "evidence": "evidence/m8-check3.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206546 correction-loop attribution=agent-error evidence=evidence/m8-suite-run.log test used sm-feed-card instead of frozen sm-feed-item; corrected suite selector",
+      "evidence": "evidence/m8-suite-run.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206718 correction-loop attribution=agent-error evidence=evidence/m8-doctor.txt,evidence/m8-attribution-upgrade.q nested reply attribution had four null root-post captures; added explicit immutable reply target, backfilled via Quarry job, and counted nested received engagement",
+      "evidence": "evidence/m8-doctor.txt,evidence/m8-attribution-upgrade.q",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206718 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m8-attribution-check.txt typed post reference selected reply parent index; explicit generic-ID helper selects point lookup for attribution upgrade",
+      "evidence": "evidence/m8-attribution-check.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790206860 correction-loop attribution=agent-error evidence=evidence/backend.log,evidence/digest-proof-run.log,evidence/m8-suite-run3.log backend restart overlapped transient invalid attribution edit, so new host refused startup; freeze schema during restart proof and require readiness",
+      "evidence": "evidence/backend.log,evidence/digest-proof-run.log,evidence/m8-suite-run3.log",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790207072 correction-loop attribution=agent-error evidence=evidence/m8-typecheck2.txt online snapshot helper erased generic row type; explicit boundary return type fixes client compilation",
+      "evidence": "evidence/m8-typecheck2.txt",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790207131 correction-loop attribution=agent-error evidence=src/chats.tsx review found transient once-photo viewer could outlive tombstone or membership revocation; close/revoke viewer on either state change",
+      "evidence": "src/chats.tsx",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790207156 correction-loop attribution=agent-error evidence=src/session.tsx review added auth-screen transition when SDK observes remote session revocation",
+      "evidence": "src/session.tsx",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790207211 correction-loop attribution=agent-error evidence=scripts/choreo.mjs immutable suite-status snapshots and automatic receipt/observation archives added; earlier overwritten observation sidecars are not claimed as complete efficiency provenance",
+      "evidence": "scripts/choreo.mjs",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790208005 correction-loop attribution=agent-error evidence=scripts/validate-report.mjs report validator assumed optional ajv-formats installed; use existing AJV with explicit RFC3339 date-time validator",
+      "evidence": "scripts/validate-report.mjs",
+      "errorCode": null
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1790208005 classification-correction attribution=agent-error evidence=evidence/install-router.log React DOM ERESOLVE came from my unpinned install request, not a platform defect; original event retained",
+      "evidence": "evidence/install-router.log",
+      "errorCode": null
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 1195,
+    "files": 69,
+    "sharedUiLines": 3671
+  },
+  "authParity": {
+    "posture": "sessions",
+    "notes": "Published built-in password identity, expiring user sessions, confirmed server logoutAll. No application service credentials in client bundles."
+  },
+  "diary": "diary.md",
+  "notes": "Continuous M1-M6 then M8 all green; M7 not run per instruction. See milestone-records.json and replay-clocks.json. Base record only: full social-messenger composition awaits external harness-native token custody, orientation provenance and an independent grading session. No token estimates, efficiency score or grader results are fabricated. Raw clocks overlap during the first replay and M8; do not sum overlapping intervals. Original post count excludes replies; received engagement includes authored replies."
+}

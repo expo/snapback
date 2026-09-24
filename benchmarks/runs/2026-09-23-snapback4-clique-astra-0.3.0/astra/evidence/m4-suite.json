@@ -1,0 +1,49 @@
+{
+  "milestone": "m4",
+  "pass": true,
+  "coverage": {
+    "m4-a01": "photo-picker-upload-send",
+    "m4-a03": "video-picker-upload-send",
+    "m4-a06": "reaction-replace-clear-set-state",
+    "m4-a07": "reaction-replace-clear-set-state",
+    "m4-a09": "edited-caption-label"
+  },
+  "missing": [],
+  "results": [
+    {
+      "name": "photo-picker-upload-send",
+      "ids": [
+        "m4-a01"
+      ],
+      "pass": true
+    },
+    {
+      "name": "video-picker-upload-send",
+      "ids": [
+        "m4-a03"
+      ],
+      "pass": true
+    },
+    {
+      "name": "reaction-replace-clear-set-state",
+      "ids": [
+        "m4-a06",
+        "m4-a07"
+      ],
+      "pass": true
+    },
+    {
+      "name": "edited-caption-label",
+      "ids": [
+        "m4-a09"
+      ],
+      "pass": true
+    },
+    {
+      "name": "installed-starter-idempotency",
+      "ids": [],
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-23T23:08:15.499Z"
+}

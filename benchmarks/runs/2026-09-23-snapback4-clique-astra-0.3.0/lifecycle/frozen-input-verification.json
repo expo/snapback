@@ -1,0 +1,78 @@
+{
+  "at": "2026-09-23T22:33:27.648171+00:00",
+  "source": "/Users/ccheever/clique-sb4-20260922-astra-cal17",
+  "manifestHashes": {
+    "INSTRUMENT.sha256": "89b8c59d734334c015eaed025a52488e4c6266aabd40e21ade6a75ffd35381d2",
+    "PROMPT_TEMPLATES.sha256": "33e54d45d451400c38d9e1f738ebcd0181b0fc6c8fbf97de60e4fc15033b0f2e"
+  },
+  "scripts": {
+    "aggregate_scores.py": "c46a9011ecc7f06f199849636685d8a3eb6335d38143bb3956807a75aeba0a3b",
+    "render.py": "d5c2f678b368bdae9655d0b8fea3533fc6a045372f591fd28cedfe42d7d22b02",
+    "verify.py": "73aba5c4eccb0bf267fed4dd9ecf48c4147d2540fe313563931aba9439e6ba62",
+    "run_phase.py": "c2d4bde00c0b876ececf6fc895fe5a584dc74987d471af43530a6e5714dca3a5",
+    "summarize_grades.py": "afe2432995a4e570b792478296313da96f1b994f3b789c5616beb4c3fc7f6a3c"
+  },
+  "renderedPrompts": [
+    {
+      "prompt": "astra-snapback4.grade.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "5c9ad95c43f9738d32d58cd27c04e0a64fc73e29b59a9d23781ee6d6c080dd8e"
+    },
+    {
+      "prompt": "astra-snapback4.m7.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "46498e144333bd8a1efa9c2294dfb4f8d176690b67a54280594034fa981dd673"
+    },
+    {
+      "prompt": "astra-snapback4.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "a4cb58b602681ea23f779aa995a5096b0319a76008c4351f55446572801098b6"
+    },
+    {
+      "prompt": "astra-snapback4.score.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "d721957a8d9178ececc6028a6dd65c97c557a55c4b23b3bd6d44a29dcb8eb0ff"
+    },
+    {
+      "prompt": "grok-snapback4.grade.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "f8b563a35a4266c2fd5c4dd0539378ef3d5ae8a9872873d101ef8df1b3790817"
+    },
+    {
+      "prompt": "grok-snapback4.m7.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "5d0240a538ec9a7672b12efe2d196fad5b880e32713a10bab5bc0d64fba71cbd"
+    },
+    {
+      "prompt": "grok-snapback4.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "6d2ab8acba5dbb3a5f069d17d68c2277852fd9c6496f8856f43b8bd30c1fcb1a"
+    },
+    {
+      "prompt": "grok-snapback4.score.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "e8b4a43dcd2c53f23662d42628b89074b62f7376044bf6202c081294317c14e5"
+    },
+    {
+      "prompt": "muse-snapback4.grade.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "17afb4a3d1c7a9d733c1735285bbaea386b69726a26e3d09134d9a19a815181d"
+    },
+    {
+      "prompt": "muse-snapback4.m7.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "026c49b3bb3a978184306ff3589dd127aa0b85ec58903290872d75e9f537a9a1"
+    },
+    {
+      "prompt": "muse-snapback4.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "7b846fd8e1e2d85f2dc080d5fd1b6dbf8deb690bf29e372cb84b006e107dc81f"
+    },
+    {
+      "prompt": "muse-snapback4.score.md",
+      "onlyPackageVersionsAndPacketRootChanged": true,
+      "sha256": "957fa305ba7c0c547164781754223c9fb2d7adc1e1f7d0943a0b84aaa61424dc"
+    }
+  ],
+  "rawDiff": "results/rendered-prompts.diff"
+}

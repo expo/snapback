@@ -1,0 +1,45 @@
+{
+  "pass": true,
+  "files": [
+    {
+      "file": "snapback/insights.q",
+      "sha256": "c32071d73f4ab7caf1ff6bb7f56a85dec3a84a8118c2f52e2bb1713487274c49",
+      "replaySha256": "c32071d73f4ab7caf1ff6bb7f56a85dec3a84a8118c2f52e2bb1713487274c49"
+    },
+    {
+      "file": "snapback/social.q",
+      "sha256": "ed446fc293ede90b347cf0f9ef32e0880f7231c82023bce8b8576a411b44de3a",
+      "replaySha256": "ed446fc293ede90b347cf0f9ef32e0880f7231c82023bce8b8576a411b44de3a"
+    },
+    {
+      "file": "snapback/digest-config.q",
+      "sha256": "074aca8de44aec831050e2479386f460c5571c6e0e149a7e70dcde6a2d8c3e1f",
+      "replaySha256": "074aca8de44aec831050e2479386f460c5571c6e0e149a7e70dcde6a2d8c3e1f"
+    },
+    {
+      "file": "snapback/config.q",
+      "sha256": "898b1a1b6d39d760de04818818b698587a607a514af6d982d53f92106244b9a8",
+      "replaySha256": "898b1a1b6d39d760de04818818b698587a607a514af6d982d53f92106244b9a8"
+    },
+    {
+      "file": "snapback/chat.q",
+      "sha256": "d0734dba7c519dd455dac8a5aac081758dfce127ab25218c333a78a3d36db88c",
+      "replaySha256": "d0734dba7c519dd455dac8a5aac081758dfce127ab25218c333a78a3d36db88c"
+    },
+    {
+      "file": "snapback/digest.q",
+      "sha256": "9faad176f5c4b2ccc11447fa1693edeff4030bcf17180c323382d46d5971a05d",
+      "replaySha256": "9faad176f5c4b2ccc11447fa1693edeff4030bcf17180c323382d46d5971a05d"
+    },
+    {
+      "file": "snapback/attribution.q",
+      "sha256": "b367708c838c879cfa0c6b055217a274bdac93776f225ef9e9f28cde9d5bd6fd",
+      "replaySha256": "b367708c838c879cfa0c6b055217a274bdac93776f225ef9e9f28cde9d5bd6fd"
+    },
+    {
+      "file": "snapback/schema.q",
+      "sha256": "eaadfc389a83dd18e9af56c9533b0146bba4ef4613e13e2da8c1879b32445d3d",
+      "replaySha256": "eaadfc389a83dd18e9af56c9533b0146bba4ef4613e13e2da8c1879b32445d3d"
+    }
+  ]
+}

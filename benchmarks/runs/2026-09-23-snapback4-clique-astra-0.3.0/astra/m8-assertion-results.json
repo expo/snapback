@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "All six lifetime totals from insights.summary matched the grader's own recomputation from userPosts/userReplies/counts exactly (posts 80, likesReceived 117, repostsReceived 6, repliesReceived 12, followers 3, following 2 at the time of measurement). The UI tiles' aria-labels matched the same persona's server summary field by field."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo (m8-a02-insights-like-refresh)",
+      "note": "Harness receipt passed (1522 ms): Bob's like incremented Alice's likes-received total on refresh."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "summary.days has exactly 7 buckets and the day sequence is the contiguous server UTC range [today-6 .. today] with no gaps; a post created now incremented days[6].posts by exactly 1 and days[6].day equals floor(server at / 86400000)."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "4 of the 7 days had zero posts and zero likes, and all 7 sm-insights-day-row rows rendered (e.g. \"09-18 Posts 0 Likes received 0\") - zeroes are rendered, not omitted."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending",
+      "note": "With 12 likers the tied pair reached 12 likes over a live top-10 cut of 8, and Trending ranked them first and second ahead of an 8-like field. The Trending tab rendered the server's rank-1 post first."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending",
+      "note": "A post created 30 h ago (via the CLI --now seam, server-stamped) and then liked 13 times - more than the 12-like top pair - was absent from Trending, so the trailing-24 h window is enforced on server time and not by like rank."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending",
+      "note": "Two posts 1.5 s apart, both at 12 likes: Trending returned the newer first and the older second with equal likeCount."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "Shortened digest config (periodSeconds 120, anchor 00:00:00). Four fresh grader personas, all clients closed before the period closed, measured through the grader's own non-deduplicating worker. Exactly one digest for the active target with exactly the expected counts: newFollowers 1, newPostsInFollowing 1, unreadMessages 2, unreadChats 1. Emission was schedule-driven with no connected client and no client interaction."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "The persona with no activity in the period received zero digests for that period."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "The following period, with no new activity, emitted zero digests at all (0 payloads for periodEnd+120000)."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "The backend was SIGTERMed and restarted 116 s before the period closed. Three users received a digest for that period and the maximum per user was 1, with no duplicate. An explicit `snapback4 run digest.daily` re-run of the same period afterwards still left exactly 1. Because the grader's worker performs no deduplication, a genuine double emit would have appeared as two entries with distinct meta ids. digestMarkers is unique on (principal, periodEnd) and the job inserts a marker even when it emits nothing."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "Five messages were sent into a group the target is not a member of; the target's digest still reported unreadChats 1 and unreadMessages 2 - the outsider traffic contributed nothing. The actual member of that group received his own separate digest. Source: the job iterates only members[p.principal] and unreadIn excludes tombstoned rows; expired rows no longer exist."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo (m8-a13-same-account-message-live)",
+      "note": "Harness receipt passed (1355 ms): a message sent on Alice client 1 appeared live on Alice client 2."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo (m8-a14-cross-device-read-state)",
+      "note": "Harness receipt passed (2209 ms): opening the conversation on client 1 cleared sm-chats-unread on client 2."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo (m8-a15-dual-offline-convergence)",
+      "note": "Harness receipt passed (3596 ms): two warm-offline Alice clients each queued a message and both settled in observed server-arrival order with no loss and no duplicates."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo (m8-a16-dual-offline-receipts)",
+      "note": "Harness receipt passed: after the dual-offline reconnect the flushed messages' receipts advanced normally."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m6-native",
+      "note": "Native durable-queue-across-restart proof. No admissible artifact exists. simulator.md requires a booted iOS simulator running the installed build plus m8-ios-screen.mp4, schema-valid m8-ios-receipts.jsonl and m8-ios-run.json; the lane produced none of these, passed no --simulator-status to the harness, and its artifacts/mN-ios directories are `expo export` Hermes bundles (README states this plainly). The lane's own cold-offline probes are labelled platform:\"web\", restart:\"page reload offline\" and are builder assertions on the web carrier, which the frozen prompt excludes as a basis for simulator assertions. The precondition (an installed native app on a simulator) therefore never existed. m8-a17 specifically requires observing the queued bodies after the app process was terminated and relaunched while still offline; simulator.md states that a screenshot taken before process termination cannot satisfy it."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m6-native",
+      "note": "Native post-restart ordered flush and receipt advance. No admissible artifact exists. simulator.md requires a booted iOS simulator running the installed build plus m8-ios-screen.mp4, schema-valid m8-ios-receipts.jsonl and m8-ios-run.json; the lane produced none of these, passed no --simulator-status to the harness, and its artifacts/mN-ios directories are `expo export` Hermes bundles (README states this plainly). The lane's own cold-offline probes are labelled platform:\"web\", restart:\"page reload offline\" and are builder assertions on the web carrier, which the frozen prompt excludes as a basis for simulator assertions. The precondition (an installed native app on a simulator) therefore never existed. The M8 web dual-offline convergence evidence (m8-a15/a16, passed) is recorded separately and is not a substitute."
+    }
+  }
+}

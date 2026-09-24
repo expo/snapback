@@ -1,0 +1,390 @@
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/astra-snapback4.grade.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/astra-snapback4.grade.md
+@@ -1,18 +1,18 @@
+-You are the **grader** for one social-messenger lane, a fresh session from a different model family than the lane's builder. Follow the frozen grader prompt at `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/grader/grader-prompt.md` exactly; this wrapper only supplies the lane's inputs and records this run's deviations from the frozen protocol. Work only inside `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4`; write everything you produce under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/`.
++You are the **grader** for one social-messenger lane, a fresh session from a different model family than the lane's builder. Follow the frozen grader prompt at `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/grader/grader-prompt.md` exactly; this wrapper only supplies the lane's inputs and records this run's deviations from the frozen protocol. Work only inside `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4`; write everything you produce under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/grading/`.
+ 
+ ## Inputs
+ 
+-- The frozen checklist as atomic assertions: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/schema/social-messenger/assertions.json`; the dimension applicability manifest: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/schema/social-messenger/applicability.json`; the report schema: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/grader/grader-report.schema.json`; the brief: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/social-messenger.md`; the fixture pack (personas, passwords, media, shortened-windows and digest configs, starter logs): `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/fixtures/`.
+-- The built app with source: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4` (backend `snapback4-0.2.33`, built on the public npm packages snapback4@0.2.33 and snapback4-expo@0.2.24 (the CLI rides snapback4: `npx snapback4`)). Run instructions: the lane's `API.md` and `README.md` if present, `package.json` scripts, and the documented acceptance entrypoint (`npm run acceptance -- --milestone mN`). The lane's coverage manifest and harness receipts are under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4` (`coverage*.json`, `receipts/`, `evidence/`, `artifacts/`); the choreography receipts and any simulator artifacts are the only basis for O4.
+-- The lane's run record, if it wrote one: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/run-record.json` (may be absent; then grade from receipts and say so).
++- The frozen checklist as atomic assertions: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/schema/social-messenger/assertions.json`; the dimension applicability manifest: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/schema/social-messenger/applicability.json`; the report schema: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/grader/grader-report.schema.json`; the brief: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/social-messenger.md`; the fixture pack (personas, passwords, media, shortened-windows and digest configs, starter logs): `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/fixtures/`.
++- The built app with source: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4` (backend `snapback4-0.3.0`, built on the public npm packages snapback4@0.3.0 and snapback4-expo@0.3.0 (the CLI rides snapback4: `npx snapback4`)). Run instructions: the lane's `API.md` and `README.md` if present, `package.json` scripts, and the documented acceptance entrypoint (`npm run acceptance -- --milestone mN`). The lane's coverage manifest and harness receipts are under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4` (`coverage*.json`, `receipts/`, `evidence/`, `artifacts/`); the choreography receipts and any simulator artifacts are the only basis for O4.
++- The lane's run record, if it wrote one: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/run-record.json` (may be absent; then grade from receipts and say so).
+ 
+ ## What you must not read
+ 
+-The builder's `diary.md`, `essay.md`, `final-report.md`, `FINAL.md`, `run-log.md`, and any other lane under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/`. If any of them reaches you, stop and record a contaminated grading session.
++The builder's `diary.md`, `essay.md`, `final-report.md`, `FINAL.md`, `run-log.md`, and any other lane under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/`. If any of them reaches you, stop and record a contaminated grading session.
+ 
+ ## Environment
+ 
+-macOS arm64; Node 24.18.0 first on PATH; Playwright chromium is not pre-installed (install into a copy of `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/choreography` if you need the harness; never write into `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/`). Start the lane's backend and web client yourself from its documented instructions, on ports **49360–49379** only; record every PID you start and kill only those at the end. Never pkill/killall. Other lanes' ports are in use on this machine; do not touch them.
++macOS arm64; Node 24.18.0 first on PATH; Playwright chromium is not pre-installed (install into a copy of `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/choreography` if you need the harness; never write into `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/`). Start the lane's backend and web client yourself from its documented instructions, on ports **49360–49379** only; record every PID you start and kill only those at the end. Never pkill/killall. Other lanes' ports are in use on this machine; do not touch them.
+ 
+ ## Deviations you must record (this run is N=1 calibration, not a claim-eligible wave)
+ 
+@@ -22,10 +22,10 @@
+ 
+ ## Output (and nothing else)
+ 
+-1. `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/grader-report.json` conforming to the schema above: `reportVersion`, `lane` (`backend`, `runRecordPath`, `runScope` = `full`; nothing is struck in this run (`ENVIRONMENT.md`), so no assertion is `struck-by-environment`), `wave` (`id` = `full-3models-astra`, `probeSetSha256`), `grader` (`family` = `claude`, `model` = `claude-opus-5`, `sameFamilyGraded`, `calibrationPassed`, `sessionOutcome`), `assertionResults` keyed by assertion id, `coverageSpotVerification` (`verdict`, `sampledAssertionIds`), `defects` (severity-bucketed with evidence pointers), `probeResults` (empty, with the note), `oDimensionScores` (`O1`…`O5`, each with the anchor text cited, `null` where `applicability.json` says not applicable).
+-2. `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/trace.md`: the sanitized evidence and action trace — what you ran, what you observed — with credentials and any personal or incidental data redacted. Raw transcripts are never published.
++1. `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/grading/grader-report.json` conforming to the schema above: `reportVersion`, `lane` (`backend`, `runRecordPath`, `runScope` = `full`; nothing is struck in this run (`ENVIRONMENT.md`), so no assertion is `struck-by-environment`), `wave` (`id` = `full-3models-astra`, `probeSetSha256`), `grader` (`family` = `claude`, `model` = `claude-opus-5`, `sameFamilyGraded`, `calibrationPassed`, `sessionOutcome`), `assertionResults` keyed by assertion id, `coverageSpotVerification` (`verdict`, `sampledAssertionIds`), `defects` (severity-bucketed with evidence pointers), `probeResults` (empty, with the note), `oDimensionScores` (`O1`…`O5`, each with the anchor text cited, `null` where `applicability.json` says not applicable).
++2. `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/grading/trace.md`: the sanitized evidence and action trace — what you ran, what you observed — with credentials and any personal or incidental data redacted. Raw transcripts are never published.
+ 
+-Validate the report against the schema before you finish (a small Node script with the AJV that the choreography copy installs is fine). Finish by writing `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/DONE` containing `end=<epoch>`.
++Validate the report against the schema before you finish (a small Node script with the AJV that the choreography copy installs is fine). Finish by writing `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/grading/DONE` containing `end=<epoch>`.
+ 
+ 
+ ## Complete grade and comparable subtotal
+@@ -35,7 +35,7 @@
+ results and the 18 M8 results. The frozen grader-report schema only permits the
+ 101 M1–M7 IDs, so keep `grader-report.json` schema-valid with exactly those 101
+ IDs. Write the remaining 18 results to
+-`/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/m8-assertion-results.json` as a JSON object with exactly
++`/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/grading/m8-assertion-results.json` as a JSON object with exactly
+ these keys: `reportVersion` (1), `lane` (`astra-snapback4`), `grader`
+ (`family`: `claude`, `model`: `claude-opus-5`), `assertionManifest` (the path
+ and SHA-256 of `assertions.json`), and `assertionResults` (an object keyed by
+@@ -43,7 +43,7 @@
+ `grader-report.json`). Do not duplicate an ID across the two result files.
+ 
+ The actual September 5 and September 12 structured `assertionResults` carried
+-only the 101 IDs listed in `/Users/ccheever/clique-sb4-20260922-astra-cal17/GRADER_ASSERTIONS_101.txt`. Their notes
++only the 101 IDs listed in `/Users/ccheever/clique-sb4-20260923-astra-cal18/GRADER_ASSERTIONS_101.txt`. Their notes
+ could describe M8 observations, but they did not provide a machine-comparable
+ 18-ID M8 result set. Record both the frozen schema limitation and that prior
+ measurement-coverage gap in `trace.md`. The harness will validate the exact
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/astra-snapback4.m7.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/astra-snapback4.m7.md
+@@ -1,10 +1,10 @@
+-You are a senior product engineer picking up an existing production-shaped app you did not write, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4
++You are a senior product engineer picking up an existing production-shaped app you did not write, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4
+ 
+-This is the brief's **M7 — Day-2 evolution**: a fresh session with no builder context. Do not inspect other lanes under /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/, any Snapback source checkout, or any prior Clique implementation, diary, essay, or benchmark run. You may and must read this lane's own code, `API.md`, `README.md` if present, its acceptance suites, and its `run-log.md`/`final-report.md` for facts about the artifact you inherit; you may not read `diary.md` or `essay.md`.
++This is the brief's **M7 — Day-2 evolution**: a fresh session with no builder context. Do not inspect other lanes under /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/, any Snapback source checkout, or any prior Clique implementation, diary, essay, or benchmark run. You may and must read this lane's own code, `API.md`, `README.md` if present, its acceptance suites, and its `run-log.md`/`final-report.md` for facts about the artifact you inherit; you may not read `diary.md` or `essay.md`.
+ 
+-The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/): read `ENVIRONMENT.md`, then `social-messenger.md` §M7 and its global rulings, `CONTRACT.md`, `schema/social-messenger/assertions.json` (the M7 assertions), the fixtures README, and the choreography README (M7 runs only as the sole selected segment: `choreography.mjs m7`).
++The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/): read `ENVIRONMENT.md`, then `social-messenger.md` §M7 and its global rulings, `CONTRACT.md`, `schema/social-messenger/assertions.json` (the M7 assertions), the fixtures README, and the choreography README (M7 runs only as the sole selected segment: `choreography.mjs m7`).
+ 
+-The inherited app runs on **Snapback 4**, the public npm package `snapback4@0.2.33` (exact pin; use only its README, the guide served by `npx snapback4 guide`, `npx snapback4 why <CODE>`, its generated types, and this lane's existing app; never read a Snapback source checkout). Backend changes are Quarry (`snapback/*.q`) and must use the published CLI's documented schema-evolution path. Its native arm remains pinned to the public `snapback4-expo@0.2.24` used by the continuous builder. Nothing is struck from this run (`ENVIRONMENT.md`): acceptance 4 compares messages, media, receipts, and reactions.
++The inherited app runs on **Snapback 4**, the public npm package `snapback4@0.3.0` (exact pin; use only its README, the guide served by `npx snapback4 guide`, `npx snapback4 why <CODE>`, its generated types, and this lane's existing app; never read a Snapback source checkout). Backend changes are Quarry (`snapback/*.q`) and must use the published CLI's documented schema-evolution path. Its native arm remains pinned to the public `snapback4-expo@0.3.0` used by the continuous builder. Nothing is struck from this run (`ENVIRONMENT.md`): acceptance 4 compares messages, media, receipts, and reactions.
+ 
+ Data environment: **the pre-replay starter state.** Start a fresh backend instance seeded with the three starter segments (`starter-m1.log`, `starter-m2.log`, `starter-m3.log`) through the app's own seed path; do not reuse the scale replay's database. Before changing anything, export the **pre-M7 snapshot** through the app's custom-client API over the M6 field manifest, using each persona's token, to `m7/pre-snapshot/` (one file per persona plus a manifest with hashes). The grader compares the post-M7 state against it.
+ 
+@@ -21,4 +21,4 @@
+ 
+ Use only ports **49360–49379**; record every server PID; kill only those PIDs at the end; never pkill/killall/pattern kills. Safety limit: four hours of wall clock. Two consecutive capability failures end the session.
+ 
+-Create `m7/run-log.md` immediately (first lines: `lane id astra-clique-snapback4-full-20260913`, `model gpt-6-astra`, `effort=medium`, `backend=snapback4-0.2.33`, `phase=m7`, `start=<epoch>`), then append timestamped lines for every milestone event, error, retry, workaround, knowledge lookup with its source, and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Write `m7/diary.md` at the end (what you built, what felt easy, what fought you, what a migration on this backend is like compared to the alternatives you know), then `m7/essay-paragraphs.md` (the closing-essay paragraphs for this phase, before tallying numbers), then `m7/final-report.md` with raw start/end epochs, wall, status (`green`, `capability-failure`, `aborted`), suite and choreography results, the snapshot comparison result, the previously green suites' results, correction loops with attribution, and a candid gap list. End with `end=<epoch>`.
++Create `m7/run-log.md` immediately (first lines: `lane id astra-clique-snapback4-full-20260913`, `model gpt-6-astra`, `effort=medium`, `backend=snapback4-0.3.0`, `phase=m7`, `start=<epoch>`), then append timestamped lines for every milestone event, error, retry, workaround, knowledge lookup with its source, and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Write `m7/diary.md` at the end (what you built, what felt easy, what fought you, what a migration on this backend is like compared to the alternatives you know), then `m7/essay-paragraphs.md` (the closing-essay paragraphs for this phase, before tallying numbers), then `m7/final-report.md` with raw start/end epochs, wall, status (`green`, `capability-failure`, `aborted`), suite and choreography results, the snapshot comparison result, the previously green suites' results, correction loops with attribution, and a candid gap list. End with `end=<epoch>`.
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/astra-snapback4.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/astra-snapback4.md
+@@ -1,13 +1,13 @@
+-You are a senior product engineer building a production-shaped app from scratch, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4
++You are a senior product engineer building a production-shaped app from scratch, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4
+ 
+ This is an independent cold build. Do not inspect:
+-- sibling lanes under /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/ (except this one)
++- sibling lanes under /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/ (except this one)
+ - /Users/ccheever/projects/snapback or any other Snapback/Exact checkout, or any Snapback source anywhere
+ - any prior Clique or Coterie implementation, diary, essay, or benchmark run on this machine
+ 
+-Build Clique on **Snapback 4**. Install and use ONLY `snapback4@0.2.33` from the public npm registry (exact pin; it installs its platform binary for this host as an optional dependency, so `npx snapback4` works after `npm install snapback4@0.2.33`), its README (read the whole published surface first), the guide it serves (`npx snapback4 guide` and its keyword cards), `npx snapback4 why <CODE>`, and its generated types (`snapback/generated/api.ts`, written by `npx snapback4 check`). Discover the CLI and authoring surface only from that installed package. The backend is authored in Quarry (`snapback/*.q`); the whole backend is the schema, its rules, its `sync` lines, and its queries, mutations, jobs, and schedules. The client is an Expo Router app (web plus the iOS Hermes bundle export) using the installed package's local/replica and React client arms. Install and use ONLY `snapback4-expo@0.2.24` for the native Expo arm; do not substitute a source build. Record both exact package pins at the top of `run-log.md` before installing dependencies. Never read any Snapback source repository. If the published package cannot express something the brief requires, record it as a platform gap with the exact diagnostic and continue. Do not infer current limitations from an older Snapback release or benchmark run.
++Build Clique on **Snapback 4**. Install and use ONLY `snapback4@0.3.0` from the public npm registry (exact pin; it installs its platform binary for this host as an optional dependency, so `npx snapback4` works after `npm install snapback4@0.3.0`), its README (read the whole published surface first), the guide it serves (`npx snapback4 guide` and its keyword cards), `npx snapback4 why <CODE>`, and its generated types (`snapback/generated/api.ts`, written by `npx snapback4 check`). Discover the CLI and authoring surface only from that installed package. The backend is authored in Quarry (`snapback/*.q`); the whole backend is the schema, its rules, its `sync` lines, and its queries, mutations, jobs, and schedules. The client is an Expo Router app (web plus the iOS Hermes bundle export) using the installed package's local/replica and React client arms. Install and use ONLY `snapback4-expo@0.3.0` for the native Expo arm; do not substitute a source build. Record both exact package pins at the top of `run-log.md` before installing dependencies. Never read any Snapback source repository. If the published package cannot express something the brief requires, record it as a platform gap with the exact diagnostic and continue. Do not infer current limitations from an older Snapback release or benchmark run.
+ 
+-The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/). Read `ENVIRONMENT.md` first — it wins over the brief on environment facts — then `social-messenger.md` in full, `CONTRACT.md`, `schema/social-messenger/assertions.json`, the fixtures README and `action-schema.md`, the UI kit, and the choreography README. Read `protocol.md` for how results are recorded.
++The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/). Read `ENVIRONMENT.md` first — it wins over the brief on environment facts — then `social-messenger.md` in full, `CONTRACT.md`, `schema/social-messenger/assertions.json`, the fixtures README and `action-schema.md`, the UI kit, and the choreography README. Read `protocol.md` for how results are recorded.
+ 
+ This run builds **M1 → M2 → M3 → M4 → M5 → M6 → M8** in that order in this one continuous session, **with nothing struck from scope**: `ENVIRONMENT.md` strikes nothing. Do not attempt M7 (it is a separate fresh session run later). Implement everything as the brief specifies: avatars and image/video posts and messages (upload, inline render, revocation), reactions, edit/delete windows from the config files, disappearing messages (server-enforced expiry with no client open), view-once photos, chat name/description/color and background image, search, offline writes and the push seam, the custom-client API, the M6 replay adapter and the scale replay on its own clock against a fresh instance, insights, trending, the scheduled daily digest under the fixture pack's shortened digest config, and multi-device offline. Every milestone also produces an iOS Hermes bundle export as a build artifact; simulator proofs are not required.
+ 
+@@ -21,7 +21,7 @@
+ lane id astra-clique-snapback4-full-20260913
+ model gpt-6-astra
+ effort=medium
+-backend=snapback4-0.2.33
++backend=snapback4-0.3.0
+ start=<unix epoch seconds>
+ 
+ Append timestamped lines at every milestone start, green/failure, error, retry, workaround, knowledge lookup (source: model knowledge, published docs, package README/guide, package source, diagnostic, fixture, or web), and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Record the scale replay's own start/end epochs and its verification result against the invariant manifest.
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/astra-snapback4.score.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/astra-snapback4.score.md
+@@ -1,12 +1,12 @@
+-You are gpt-6-astra. In this benchmark run, one fresh session of your own model family built the production-shaped Clique social messenger on Snapback 4 (`snapback4@0.2.33` and `snapback4-expo@0.2.24`), alone and timed. Score the published Snapback 4 experience out of 100, holistically and by category, from that session's retained evidence.
++You are gpt-6-astra. In this benchmark run, one fresh session of your own model family built the production-shaped Clique social messenger on Snapback 4 (`snapback4@0.3.0` and `snapback4-expo@0.3.0`), alone and timed. Score the published Snapback 4 experience out of 100, holistically and by category, from that session's retained evidence.
+ 
+ ## Read these, and only these
+ 
+-The brief: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/social-messenger.md` (skim for the milestone shape; you are scoring the backend experience, not independently grading assertions).
++The brief: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/social-messenger.md` (skim for the milestone shape; you are scoring the backend experience, not independently grading assertions).
+ 
+-Your model family's lane: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4`. Read its `diary.md`, `essay.md`, `run-log.md`, `final-report.md`, and `run-record.json` where present in full. You may open this lane's source files to check a specific claim.
++Your model family's lane: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4`. Read its `diary.md`, `essay.md`, `run-log.md`, `final-report.md`, and `run-record.json` where present in full. You may open this lane's source files to check a specific claim.
+ 
+-Do **not** open another lane under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/`, any `grading/` or `m7/` directory, any prior benchmark run, or any Snapback source repository. This is a read-only task: run nothing, write nothing, change nothing. The harness retains your final output outside the lane.
++Do **not** open another lane under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/`, any `grading/` or `m7/` directory, any prior benchmark run, or any Snapback source repository. This is a read-only task: run nothing, write nothing, change nothing. The harness retains your final output outside the lane.
+ 
+ ## How to score
+ 
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/grok-snapback4.grade.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/grok-snapback4.grade.md
+@@ -1,18 +1,18 @@
+-You are the **grader** for one social-messenger lane, a fresh session from a different model family than the lane's builder. Follow the frozen grader prompt at `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/grader/grader-prompt.md` exactly; this wrapper only supplies the lane's inputs and records this run's deviations from the frozen protocol. Work only inside `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4`; write everything you produce under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4/grading/`.
++You are the **grader** for one social-messenger lane, a fresh session from a different model family than the lane's builder. Follow the frozen grader prompt at `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/grader/grader-prompt.md` exactly; this wrapper only supplies the lane's inputs and records this run's deviations from the frozen protocol. Work only inside `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4`; write everything you produce under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4/grading/`.
+ 
+ ## Inputs
+ 
+-- The frozen checklist as atomic assertions: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/schema/social-messenger/assertions.json`; the dimension applicability manifest: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/schema/social-messenger/applicability.json`; the report schema: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/grader/grader-report.schema.json`; the brief: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/social-messenger.md`; the fixture pack (personas, passwords, media, shortened-windows and digest configs, starter logs): `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/fixtures/`.
+-- The built app with source: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4` (backend `snapback4-0.2.33`, built on the public npm packages snapback4@0.2.33 and snapback4-expo@0.2.24 (the CLI rides snapback4: `npx snapback4`)). Run instructions: the lane's `API.md` and `README.md` if present, `package.json` scripts, and the documented acceptance entrypoint (`npm run acceptance -- --milestone mN`). The lane's coverage manifest and harness receipts are under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4` (`coverage*.json`, `receipts/`, `evidence/`, `artifacts/`); the choreography receipts and any simulator artifacts are the only basis for O4.
+-- The lane's run record, if it wrote one: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4/run-record.json` (may be absent; then grade from receipts and say so).
++- The frozen checklist as atomic assertions: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/schema/social-messenger/assertions.json`; the dimension applicability manifest: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/schema/social-messenger/applicability.json`; the report schema: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/grader/grader-report.schema.json`; the brief: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/social-messenger.md`; the fixture pack (personas, passwords, media, shortened-windows and digest configs, starter logs): `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/fixtures/`.
++- The built app with source: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4` (backend `snapback4-0.3.0`, built on the public npm packages snapback4@0.3.0 and snapback4-expo@0.3.0 (the CLI rides snapback4: `npx snapback4`)). Run instructions: the lane's `API.md` and `README.md` if present, `package.json` scripts, and the documented acceptance entrypoint (`npm run acceptance -- --milestone mN`). The lane's coverage manifest and harness receipts are under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4` (`coverage*.json`, `receipts/`, `evidence/`, `artifacts/`); the choreography receipts and any simulator artifacts are the only basis for O4.
++- The lane's run record, if it wrote one: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4/run-record.json` (may be absent; then grade from receipts and say so).
+ 
+ ## What you must not read
+ 
+-The builder's `diary.md`, `essay.md`, `final-report.md`, `FINAL.md`, `run-log.md`, and any other lane under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/`. If any of them reaches you, stop and record a contaminated grading session.
++The builder's `diary.md`, `essay.md`, `final-report.md`, `FINAL.md`, `run-log.md`, and any other lane under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/`. If any of them reaches you, stop and record a contaminated grading session.
+ 
+ ## Environment
+ 
+-macOS arm64; Node 24.18.0 first on PATH; Playwright chromium is not pre-installed (install into a copy of `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/choreography` if you need the harness; never write into `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/`). Start the lane's backend and web client yourself from its documented instructions, on ports **49360–49379** only; record every PID you start and kill only those at the end. Never pkill/killall. Other lanes' ports are in use on this machine; do not touch them.
++macOS arm64; Node 24.18.0 first on PATH; Playwright chromium is not pre-installed (install into a copy of `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/choreography` if you need the harness; never write into `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/`). Start the lane's backend and web client yourself from its documented instructions, on ports **49360–49379** only; record every PID you start and kill only those at the end. Never pkill/killall. Other lanes' ports are in use on this machine; do not touch them.
+ 
+ ## Deviations you must record (this run is N=1 calibration, not a claim-eligible wave)
+ 
+@@ -22,10 +22,10 @@
+ 
+ ## Output (and nothing else)
+ 
+-1. `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4/grading/grader-report.json` conforming to the schema above: `reportVersion`, `lane` (`backend`, `runRecordPath`, `runScope` = `full`; nothing is struck in this run (`ENVIRONMENT.md`), so no assertion is `struck-by-environment`), `wave` (`id` = `full-3models-grok`, `probeSetSha256`), `grader` (`family` = `claude`, `model` = `claude-opus-5`, `sameFamilyGraded`, `calibrationPassed`, `sessionOutcome`), `assertionResults` keyed by assertion id, `coverageSpotVerification` (`verdict`, `sampledAssertionIds`), `defects` (severity-bucketed with evidence pointers), `probeResults` (empty, with the note), `oDimensionScores` (`O1`…`O5`, each with the anchor text cited, `null` where `applicability.json` says not applicable).
+-2. `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4/grading/trace.md`: the sanitized evidence and action trace — what you ran, what you observed — with credentials and any personal or incidental data redacted. Raw transcripts are never published.
++1. `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4/grading/grader-report.json` conforming to the schema above: `reportVersion`, `lane` (`backend`, `runRecordPath`, `runScope` = `full`; nothing is struck in this run (`ENVIRONMENT.md`), so no assertion is `struck-by-environment`), `wave` (`id` = `full-3models-grok`, `probeSetSha256`), `grader` (`family` = `claude`, `model` = `claude-opus-5`, `sameFamilyGraded`, `calibrationPassed`, `sessionOutcome`), `assertionResults` keyed by assertion id, `coverageSpotVerification` (`verdict`, `sampledAssertionIds`), `defects` (severity-bucketed with evidence pointers), `probeResults` (empty, with the note), `oDimensionScores` (`O1`…`O5`, each with the anchor text cited, `null` where `applicability.json` says not applicable).
++2. `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4/grading/trace.md`: the sanitized evidence and action trace — what you ran, what you observed — with credentials and any personal or incidental data redacted. Raw transcripts are never published.
+ 
+-Validate the report against the schema before you finish (a small Node script with the AJV that the choreography copy installs is fine). Finish by writing `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4/grading/DONE` containing `end=<epoch>`.
++Validate the report against the schema before you finish (a small Node script with the AJV that the choreography copy installs is fine). Finish by writing `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4/grading/DONE` containing `end=<epoch>`.
+ 
+ 
+ ## Complete grade and comparable subtotal
+@@ -35,7 +35,7 @@
+ results and the 18 M8 results. The frozen grader-report schema only permits the
+ 101 M1–M7 IDs, so keep `grader-report.json` schema-valid with exactly those 101
+ IDs. Write the remaining 18 results to
+-`/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4/grading/m8-assertion-results.json` as a JSON object with exactly
++`/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4/grading/m8-assertion-results.json` as a JSON object with exactly
+ these keys: `reportVersion` (1), `lane` (`grok-snapback4`), `grader`
+ (`family`: `claude`, `model`: `claude-opus-5`), `assertionManifest` (the path
+ and SHA-256 of `assertions.json`), and `assertionResults` (an object keyed by
+@@ -43,7 +43,7 @@
+ `grader-report.json`). Do not duplicate an ID across the two result files.
+ 
+ The actual September 5 and September 12 structured `assertionResults` carried
+-only the 101 IDs listed in `/Users/ccheever/clique-sb4-20260922-astra-cal17/GRADER_ASSERTIONS_101.txt`. Their notes
++only the 101 IDs listed in `/Users/ccheever/clique-sb4-20260923-astra-cal18/GRADER_ASSERTIONS_101.txt`. Their notes
+ could describe M8 observations, but they did not provide a machine-comparable
+ 18-ID M8 result set. Record both the frozen schema limitation and that prior
+ measurement-coverage gap in `trace.md`. The harness will validate the exact
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/grok-snapback4.m7.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/grok-snapback4.m7.md
+@@ -1,10 +1,10 @@
+-You are a senior product engineer picking up an existing production-shaped app you did not write, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4
++You are a senior product engineer picking up an existing production-shaped app you did not write, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4
+ 
+-This is the brief's **M7 — Day-2 evolution**: a fresh session with no builder context. Do not inspect other lanes under /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/, any Snapback source checkout, or any prior Clique implementation, diary, essay, or benchmark run. You may and must read this lane's own code, `API.md`, `README.md` if present, its acceptance suites, and its `run-log.md`/`final-report.md` for facts about the artifact you inherit; you may not read `diary.md` or `essay.md`.
++This is the brief's **M7 — Day-2 evolution**: a fresh session with no builder context. Do not inspect other lanes under /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/, any Snapback source checkout, or any prior Clique implementation, diary, essay, or benchmark run. You may and must read this lane's own code, `API.md`, `README.md` if present, its acceptance suites, and its `run-log.md`/`final-report.md` for facts about the artifact you inherit; you may not read `diary.md` or `essay.md`.
+ 
+-The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/): read `ENVIRONMENT.md`, then `social-messenger.md` §M7 and its global rulings, `CONTRACT.md`, `schema/social-messenger/assertions.json` (the M7 assertions), the fixtures README, and the choreography README (M7 runs only as the sole selected segment: `choreography.mjs m7`).
++The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/): read `ENVIRONMENT.md`, then `social-messenger.md` §M7 and its global rulings, `CONTRACT.md`, `schema/social-messenger/assertions.json` (the M7 assertions), the fixtures README, and the choreography README (M7 runs only as the sole selected segment: `choreography.mjs m7`).
+ 
+-The inherited app runs on **Snapback 4**, the public npm package `snapback4@0.2.33` (exact pin; use only its README, the guide served by `npx snapback4 guide`, `npx snapback4 why <CODE>`, its generated types, and this lane's existing app; never read a Snapback source checkout). Backend changes are Quarry (`snapback/*.q`) and must use the published CLI's documented schema-evolution path. Its native arm remains pinned to the public `snapback4-expo@0.2.24` used by the continuous builder. Nothing is struck from this run (`ENVIRONMENT.md`): acceptance 4 compares messages, media, receipts, and reactions.
++The inherited app runs on **Snapback 4**, the public npm package `snapback4@0.3.0` (exact pin; use only its README, the guide served by `npx snapback4 guide`, `npx snapback4 why <CODE>`, its generated types, and this lane's existing app; never read a Snapback source checkout). Backend changes are Quarry (`snapback/*.q`) and must use the published CLI's documented schema-evolution path. Its native arm remains pinned to the public `snapback4-expo@0.3.0` used by the continuous builder. Nothing is struck from this run (`ENVIRONMENT.md`): acceptance 4 compares messages, media, receipts, and reactions.
+ 
+ Data environment: **the pre-replay starter state.** Start a fresh backend instance seeded with the three starter segments (`starter-m1.log`, `starter-m2.log`, `starter-m3.log`) through the app's own seed path; do not reuse the scale replay's database. Before changing anything, export the **pre-M7 snapshot** through the app's custom-client API over the M6 field manifest, using each persona's token, to `m7/pre-snapshot/` (one file per persona plus a manifest with hashes). The grader compares the post-M7 state against it.
+ 
+@@ -21,4 +21,4 @@
+ 
+ Use only ports **49360–49379**; record every server PID; kill only those PIDs at the end; never pkill/killall/pattern kills. Safety limit: four hours of wall clock. Two consecutive capability failures end the session.
+ 
+-Create `m7/run-log.md` immediately (first lines: `lane id grok-clique-snapback4-full-20260913`, `model grok-4.6`, `effort=xhigh`, `backend=snapback4-0.2.33`, `phase=m7`, `start=<epoch>`), then append timestamped lines for every milestone event, error, retry, workaround, knowledge lookup with its source, and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Write `m7/diary.md` at the end (what you built, what felt easy, what fought you, what a migration on this backend is like compared to the alternatives you know), then `m7/essay-paragraphs.md` (the closing-essay paragraphs for this phase, before tallying numbers), then `m7/final-report.md` with raw start/end epochs, wall, status (`green`, `capability-failure`, `aborted`), suite and choreography results, the snapshot comparison result, the previously green suites' results, correction loops with attribution, and a candid gap list. End with `end=<epoch>`.
++Create `m7/run-log.md` immediately (first lines: `lane id grok-clique-snapback4-full-20260913`, `model grok-4.6`, `effort=xhigh`, `backend=snapback4-0.3.0`, `phase=m7`, `start=<epoch>`), then append timestamped lines for every milestone event, error, retry, workaround, knowledge lookup with its source, and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Write `m7/diary.md` at the end (what you built, what felt easy, what fought you, what a migration on this backend is like compared to the alternatives you know), then `m7/essay-paragraphs.md` (the closing-essay paragraphs for this phase, before tallying numbers), then `m7/final-report.md` with raw start/end epochs, wall, status (`green`, `capability-failure`, `aborted`), suite and choreography results, the snapshot comparison result, the previously green suites' results, correction loops with attribution, and a candid gap list. End with `end=<epoch>`.
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/grok-snapback4.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/grok-snapback4.md
+@@ -1,13 +1,13 @@
+-You are a senior product engineer building a production-shaped app from scratch, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4
++You are a senior product engineer building a production-shaped app from scratch, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4
+ 
+ This is an independent cold build. Do not inspect:
+-- sibling lanes under /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/ (except this one)
++- sibling lanes under /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/ (except this one)
+ - /Users/ccheever/projects/snapback or any other Snapback/Exact checkout, or any Snapback source anywhere
+ - any prior Clique or Coterie implementation, diary, essay, or benchmark run on this machine
+ 
+-Build Clique on **Snapback 4**. Install and use ONLY `snapback4@0.2.33` from the public npm registry (exact pin; it installs its platform binary for this host as an optional dependency, so `npx snapback4` works after `npm install snapback4@0.2.33`), its README (read the whole published surface first), the guide it serves (`npx snapback4 guide` and its keyword cards), `npx snapback4 why <CODE>`, and its generated types (`snapback/generated/api.ts`, written by `npx snapback4 check`). Discover the CLI and authoring surface only from that installed package. The backend is authored in Quarry (`snapback/*.q`); the whole backend is the schema, its rules, its `sync` lines, and its queries, mutations, jobs, and schedules. The client is an Expo Router app (web plus the iOS Hermes bundle export) using the installed package's local/replica and React client arms. Install and use ONLY `snapback4-expo@0.2.24` for the native Expo arm; do not substitute a source build. Record both exact package pins at the top of `run-log.md` before installing dependencies. Never read any Snapback source repository. If the published package cannot express something the brief requires, record it as a platform gap with the exact diagnostic and continue. Do not infer current limitations from an older Snapback release or benchmark run.
++Build Clique on **Snapback 4**. Install and use ONLY `snapback4@0.3.0` from the public npm registry (exact pin; it installs its platform binary for this host as an optional dependency, so `npx snapback4` works after `npm install snapback4@0.3.0`), its README (read the whole published surface first), the guide it serves (`npx snapback4 guide` and its keyword cards), `npx snapback4 why <CODE>`, and its generated types (`snapback/generated/api.ts`, written by `npx snapback4 check`). Discover the CLI and authoring surface only from that installed package. The backend is authored in Quarry (`snapback/*.q`); the whole backend is the schema, its rules, its `sync` lines, and its queries, mutations, jobs, and schedules. The client is an Expo Router app (web plus the iOS Hermes bundle export) using the installed package's local/replica and React client arms. Install and use ONLY `snapback4-expo@0.3.0` for the native Expo arm; do not substitute a source build. Record both exact package pins at the top of `run-log.md` before installing dependencies. Never read any Snapback source repository. If the published package cannot express something the brief requires, record it as a platform gap with the exact diagnostic and continue. Do not infer current limitations from an older Snapback release or benchmark run.
+ 
+-The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/). Read `ENVIRONMENT.md` first — it wins over the brief on environment facts — then `social-messenger.md` in full, `CONTRACT.md`, `schema/social-messenger/assertions.json`, the fixtures README and `action-schema.md`, the UI kit, and the choreography README. Read `protocol.md` for how results are recorded.
++The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/). Read `ENVIRONMENT.md` first — it wins over the brief on environment facts — then `social-messenger.md` in full, `CONTRACT.md`, `schema/social-messenger/assertions.json`, the fixtures README and `action-schema.md`, the UI kit, and the choreography README. Read `protocol.md` for how results are recorded.
+ 
+ This run builds **M1 → M2 → M3 → M4 → M5 → M6 → M8** in that order in this one continuous session, **with nothing struck from scope**: `ENVIRONMENT.md` strikes nothing. Do not attempt M7 (it is a separate fresh session run later). Implement everything as the brief specifies: avatars and image/video posts and messages (upload, inline render, revocation), reactions, edit/delete windows from the config files, disappearing messages (server-enforced expiry with no client open), view-once photos, chat name/description/color and background image, search, offline writes and the push seam, the custom-client API, the M6 replay adapter and the scale replay on its own clock against a fresh instance, insights, trending, the scheduled daily digest under the fixture pack's shortened digest config, and multi-device offline. Every milestone also produces an iOS Hermes bundle export as a build artifact; simulator proofs are not required.
+ 
+@@ -21,7 +21,7 @@
+ lane id grok-clique-snapback4-full-20260913
+ model grok-4.6
+ effort=xhigh
+-backend=snapback4-0.2.33
++backend=snapback4-0.3.0
+ start=<unix epoch seconds>
+ 
+ Append timestamped lines at every milestone start, green/failure, error, retry, workaround, knowledge lookup (source: model knowledge, published docs, package README/guide, package source, diagnostic, fixture, or web), and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Record the scale replay's own start/end epochs and its verification result against the invariant manifest.
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/grok-snapback4.score.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/grok-snapback4.score.md
+@@ -1,12 +1,12 @@
+-You are grok-4.6. In this benchmark run, one fresh session of your own model family built the production-shaped Clique social messenger on Snapback 4 (`snapback4@0.2.33` and `snapback4-expo@0.2.24`), alone and timed. Score the published Snapback 4 experience out of 100, holistically and by category, from that session's retained evidence.
++You are grok-4.6. In this benchmark run, one fresh session of your own model family built the production-shaped Clique social messenger on Snapback 4 (`snapback4@0.3.0` and `snapback4-expo@0.3.0`), alone and timed. Score the published Snapback 4 experience out of 100, holistically and by category, from that session's retained evidence.
+ 
+ ## Read these, and only these
+ 
+-The brief: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/social-messenger.md` (skim for the milestone shape; you are scoring the backend experience, not independently grading assertions).
++The brief: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/social-messenger.md` (skim for the milestone shape; you are scoring the backend experience, not independently grading assertions).
+ 
+-Your model family's lane: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/grok-snapback4`. Read its `diary.md`, `essay.md`, `run-log.md`, `final-report.md`, and `run-record.json` where present in full. You may open this lane's source files to check a specific claim.
++Your model family's lane: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/grok-snapback4`. Read its `diary.md`, `essay.md`, `run-log.md`, `final-report.md`, and `run-record.json` where present in full. You may open this lane's source files to check a specific claim.
+ 
+-Do **not** open another lane under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/`, any `grading/` or `m7/` directory, any prior benchmark run, or any Snapback source repository. This is a read-only task: run nothing, write nothing, change nothing. The harness retains your final output outside the lane.
++Do **not** open another lane under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/`, any `grading/` or `m7/` directory, any prior benchmark run, or any Snapback source repository. This is a read-only task: run nothing, write nothing, change nothing. The harness retains your final output outside the lane.
+ 
+ ## How to score
+ 
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/muse-snapback4.grade.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/muse-snapback4.grade.md
+@@ -1,18 +1,18 @@
+-You are the **grader** for one social-messenger lane, a fresh session from a different model family than the lane's builder. Follow the frozen grader prompt at `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/grader/grader-prompt.md` exactly; this wrapper only supplies the lane's inputs and records this run's deviations from the frozen protocol. Work only inside `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4`; write everything you produce under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4/grading/`.
++You are the **grader** for one social-messenger lane, a fresh session from a different model family than the lane's builder. Follow the frozen grader prompt at `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/grader/grader-prompt.md` exactly; this wrapper only supplies the lane's inputs and records this run's deviations from the frozen protocol. Work only inside `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4`; write everything you produce under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4/grading/`.
+ 
+ ## Inputs
+ 
+-- The frozen checklist as atomic assertions: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/schema/social-messenger/assertions.json`; the dimension applicability manifest: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/schema/social-messenger/applicability.json`; the report schema: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/grader/grader-report.schema.json`; the brief: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/social-messenger.md`; the fixture pack (personas, passwords, media, shortened-windows and digest configs, starter logs): `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/fixtures/`.
+-- The built app with source: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4` (backend `snapback4-0.2.33`, built on the public npm packages snapback4@0.2.33 and snapback4-expo@0.2.24 (the CLI rides snapback4: `npx snapback4`)). Run instructions: the lane's `API.md` and `README.md` if present, `package.json` scripts, and the documented acceptance entrypoint (`npm run acceptance -- --milestone mN`). The lane's coverage manifest and harness receipts are under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4` (`coverage*.json`, `receipts/`, `evidence/`, `artifacts/`); the choreography receipts and any simulator artifacts are the only basis for O4.
+-- The lane's run record, if it wrote one: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4/run-record.json` (may be absent; then grade from receipts and say so).
++- The frozen checklist as atomic assertions: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/schema/social-messenger/assertions.json`; the dimension applicability manifest: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/schema/social-messenger/applicability.json`; the report schema: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/grader/grader-report.schema.json`; the brief: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/social-messenger.md`; the fixture pack (personas, passwords, media, shortened-windows and digest configs, starter logs): `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/fixtures/`.
++- The built app with source: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4` (backend `snapback4-0.3.0`, built on the public npm packages snapback4@0.3.0 and snapback4-expo@0.3.0 (the CLI rides snapback4: `npx snapback4`)). Run instructions: the lane's `API.md` and `README.md` if present, `package.json` scripts, and the documented acceptance entrypoint (`npm run acceptance -- --milestone mN`). The lane's coverage manifest and harness receipts are under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4` (`coverage*.json`, `receipts/`, `evidence/`, `artifacts/`); the choreography receipts and any simulator artifacts are the only basis for O4.
++- The lane's run record, if it wrote one: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4/run-record.json` (may be absent; then grade from receipts and say so).
+ 
+ ## What you must not read
+ 
+-The builder's `diary.md`, `essay.md`, `final-report.md`, `FINAL.md`, `run-log.md`, and any other lane under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/`. If any of them reaches you, stop and record a contaminated grading session.
++The builder's `diary.md`, `essay.md`, `final-report.md`, `FINAL.md`, `run-log.md`, and any other lane under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/`. If any of them reaches you, stop and record a contaminated grading session.
+ 
+ ## Environment
+ 
+-macOS arm64; Node 24.18.0 first on PATH; Playwright chromium is not pre-installed (install into a copy of `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/choreography` if you need the harness; never write into `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/`). Start the lane's backend and web client yourself from its documented instructions, on ports **49360–49379** only; record every PID you start and kill only those at the end. Never pkill/killall. Other lanes' ports are in use on this machine; do not touch them.
++macOS arm64; Node 24.18.0 first on PATH; Playwright chromium is not pre-installed (install into a copy of `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/choreography` if you need the harness; never write into `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/`). Start the lane's backend and web client yourself from its documented instructions, on ports **49360–49379** only; record every PID you start and kill only those at the end. Never pkill/killall. Other lanes' ports are in use on this machine; do not touch them.
+ 
+ ## Deviations you must record (this run is N=1 calibration, not a claim-eligible wave)
+ 
+@@ -22,10 +22,10 @@
+ 
+ ## Output (and nothing else)
+ 
+-1. `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4/grading/grader-report.json` conforming to the schema above: `reportVersion`, `lane` (`backend`, `runRecordPath`, `runScope` = `full`; nothing is struck in this run (`ENVIRONMENT.md`), so no assertion is `struck-by-environment`), `wave` (`id` = `full-3models-muse`, `probeSetSha256`), `grader` (`family` = `claude`, `model` = `claude-opus-5`, `sameFamilyGraded`, `calibrationPassed`, `sessionOutcome`), `assertionResults` keyed by assertion id, `coverageSpotVerification` (`verdict`, `sampledAssertionIds`), `defects` (severity-bucketed with evidence pointers), `probeResults` (empty, with the note), `oDimensionScores` (`O1`…`O5`, each with the anchor text cited, `null` where `applicability.json` says not applicable).
+-2. `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4/grading/trace.md`: the sanitized evidence and action trace — what you ran, what you observed — with credentials and any personal or incidental data redacted. Raw transcripts are never published.
++1. `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4/grading/grader-report.json` conforming to the schema above: `reportVersion`, `lane` (`backend`, `runRecordPath`, `runScope` = `full`; nothing is struck in this run (`ENVIRONMENT.md`), so no assertion is `struck-by-environment`), `wave` (`id` = `full-3models-muse`, `probeSetSha256`), `grader` (`family` = `claude`, `model` = `claude-opus-5`, `sameFamilyGraded`, `calibrationPassed`, `sessionOutcome`), `assertionResults` keyed by assertion id, `coverageSpotVerification` (`verdict`, `sampledAssertionIds`), `defects` (severity-bucketed with evidence pointers), `probeResults` (empty, with the note), `oDimensionScores` (`O1`…`O5`, each with the anchor text cited, `null` where `applicability.json` says not applicable).
++2. `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4/grading/trace.md`: the sanitized evidence and action trace — what you ran, what you observed — with credentials and any personal or incidental data redacted. Raw transcripts are never published.
+ 
+-Validate the report against the schema before you finish (a small Node script with the AJV that the choreography copy installs is fine). Finish by writing `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4/grading/DONE` containing `end=<epoch>`.
++Validate the report against the schema before you finish (a small Node script with the AJV that the choreography copy installs is fine). Finish by writing `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4/grading/DONE` containing `end=<epoch>`.
+ 
+ 
+ ## Complete grade and comparable subtotal
+@@ -35,7 +35,7 @@
+ results and the 18 M8 results. The frozen grader-report schema only permits the
+ 101 M1–M7 IDs, so keep `grader-report.json` schema-valid with exactly those 101
+ IDs. Write the remaining 18 results to
+-`/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4/grading/m8-assertion-results.json` as a JSON object with exactly
++`/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4/grading/m8-assertion-results.json` as a JSON object with exactly
+ these keys: `reportVersion` (1), `lane` (`muse-snapback4`), `grader`
+ (`family`: `claude`, `model`: `claude-opus-5`), `assertionManifest` (the path
+ and SHA-256 of `assertions.json`), and `assertionResults` (an object keyed by
+@@ -43,7 +43,7 @@
+ `grader-report.json`). Do not duplicate an ID across the two result files.
+ 
+ The actual September 5 and September 12 structured `assertionResults` carried
+-only the 101 IDs listed in `/Users/ccheever/clique-sb4-20260922-astra-cal17/GRADER_ASSERTIONS_101.txt`. Their notes
++only the 101 IDs listed in `/Users/ccheever/clique-sb4-20260923-astra-cal18/GRADER_ASSERTIONS_101.txt`. Their notes
+ could describe M8 observations, but they did not provide a machine-comparable
+ 18-ID M8 result set. Record both the frozen schema limitation and that prior
+ measurement-coverage gap in `trace.md`. The harness will validate the exact
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/muse-snapback4.m7.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/muse-snapback4.m7.md
+@@ -1,10 +1,10 @@
+-You are a senior product engineer picking up an existing production-shaped app you did not write, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4
++You are a senior product engineer picking up an existing production-shaped app you did not write, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4
+ 
+-This is the brief's **M7 — Day-2 evolution**: a fresh session with no builder context. Do not inspect other lanes under /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/, any Snapback source checkout, or any prior Clique implementation, diary, essay, or benchmark run. You may and must read this lane's own code, `API.md`, `README.md` if present, its acceptance suites, and its `run-log.md`/`final-report.md` for facts about the artifact you inherit; you may not read `diary.md` or `essay.md`.
++This is the brief's **M7 — Day-2 evolution**: a fresh session with no builder context. Do not inspect other lanes under /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/, any Snapback source checkout, or any prior Clique implementation, diary, essay, or benchmark run. You may and must read this lane's own code, `API.md`, `README.md` if present, its acceptance suites, and its `run-log.md`/`final-report.md` for facts about the artifact you inherit; you may not read `diary.md` or `essay.md`.
+ 
+-The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/): read `ENVIRONMENT.md`, then `social-messenger.md` §M7 and its global rulings, `CONTRACT.md`, `schema/social-messenger/assertions.json` (the M7 assertions), the fixtures README, and the choreography README (M7 runs only as the sole selected segment: `choreography.mjs m7`).
++The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/): read `ENVIRONMENT.md`, then `social-messenger.md` §M7 and its global rulings, `CONTRACT.md`, `schema/social-messenger/assertions.json` (the M7 assertions), the fixtures README, and the choreography README (M7 runs only as the sole selected segment: `choreography.mjs m7`).
+ 
+-The inherited app runs on **Snapback 4**, the public npm package `snapback4@0.2.33` (exact pin; use only its README, the guide served by `npx snapback4 guide`, `npx snapback4 why <CODE>`, its generated types, and this lane's existing app; never read a Snapback source checkout). Backend changes are Quarry (`snapback/*.q`) and must use the published CLI's documented schema-evolution path. Its native arm remains pinned to the public `snapback4-expo@0.2.24` used by the continuous builder. Nothing is struck from this run (`ENVIRONMENT.md`): acceptance 4 compares messages, media, receipts, and reactions.
++The inherited app runs on **Snapback 4**, the public npm package `snapback4@0.3.0` (exact pin; use only its README, the guide served by `npx snapback4 guide`, `npx snapback4 why <CODE>`, its generated types, and this lane's existing app; never read a Snapback source checkout). Backend changes are Quarry (`snapback/*.q`) and must use the published CLI's documented schema-evolution path. Its native arm remains pinned to the public `snapback4-expo@0.3.0` used by the continuous builder. Nothing is struck from this run (`ENVIRONMENT.md`): acceptance 4 compares messages, media, receipts, and reactions.
+ 
+ Data environment: **the pre-replay starter state.** Start a fresh backend instance seeded with the three starter segments (`starter-m1.log`, `starter-m2.log`, `starter-m3.log`) through the app's own seed path; do not reuse the scale replay's database. Before changing anything, export the **pre-M7 snapshot** through the app's custom-client API over the M6 field manifest, using each persona's token, to `m7/pre-snapshot/` (one file per persona plus a manifest with hashes). The grader compares the post-M7 state against it.
+ 
+@@ -21,4 +21,4 @@
+ 
+ Use only ports **49360–49379**; record every server PID; kill only those PIDs at the end; never pkill/killall/pattern kills. Safety limit: four hours of wall clock. Two consecutive capability failures end the session.
+ 
+-Create `m7/run-log.md` immediately (first lines: `lane id muse-clique-snapback4-full-20260913`, `model muse-spark-1.3`, `effort=xhigh`, `backend=snapback4-0.2.33`, `phase=m7`, `start=<epoch>`), then append timestamped lines for every milestone event, error, retry, workaround, knowledge lookup with its source, and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Write `m7/diary.md` at the end (what you built, what felt easy, what fought you, what a migration on this backend is like compared to the alternatives you know), then `m7/essay-paragraphs.md` (the closing-essay paragraphs for this phase, before tallying numbers), then `m7/final-report.md` with raw start/end epochs, wall, status (`green`, `capability-failure`, `aborted`), suite and choreography results, the snapshot comparison result, the previously green suites' results, correction loops with attribution, and a candid gap list. End with `end=<epoch>`.
++Create `m7/run-log.md` immediately (first lines: `lane id muse-clique-snapback4-full-20260913`, `model muse-spark-1.3`, `effort=xhigh`, `backend=snapback4-0.3.0`, `phase=m7`, `start=<epoch>`), then append timestamped lines for every milestone event, error, retry, workaround, knowledge lookup with its source, and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Write `m7/diary.md` at the end (what you built, what felt easy, what fought you, what a migration on this backend is like compared to the alternatives you know), then `m7/essay-paragraphs.md` (the closing-essay paragraphs for this phase, before tallying numbers), then `m7/final-report.md` with raw start/end epochs, wall, status (`green`, `capability-failure`, `aborted`), suite and choreography results, the snapshot comparison result, the previously green suites' results, correction loops with attribution, and a candid gap list. End with `end=<epoch>`.
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/muse-snapback4.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/muse-snapback4.md
+@@ -1,13 +1,13 @@
+-You are a senior product engineer building a production-shaped app from scratch, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4
++You are a senior product engineer building a production-shaped app from scratch, alone and timed. Work fully autonomously; there is no human to ask. Work only in the lane directory supplied as your current directory: /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4
+ 
+ This is an independent cold build. Do not inspect:
+-- sibling lanes under /Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/ (except this one)
++- sibling lanes under /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/ (except this one)
+ - /Users/ccheever/projects/snapback or any other Snapback/Exact checkout, or any Snapback source anywhere
+ - any prior Clique or Coterie implementation, diary, essay, or benchmark run on this machine
+ 
+-Build Clique on **Snapback 4**. Install and use ONLY `snapback4@0.2.33` from the public npm registry (exact pin; it installs its platform binary for this host as an optional dependency, so `npx snapback4` works after `npm install snapback4@0.2.33`), its README (read the whole published surface first), the guide it serves (`npx snapback4 guide` and its keyword cards), `npx snapback4 why <CODE>`, and its generated types (`snapback/generated/api.ts`, written by `npx snapback4 check`). Discover the CLI and authoring surface only from that installed package. The backend is authored in Quarry (`snapback/*.q`); the whole backend is the schema, its rules, its `sync` lines, and its queries, mutations, jobs, and schedules. The client is an Expo Router app (web plus the iOS Hermes bundle export) using the installed package's local/replica and React client arms. Install and use ONLY `snapback4-expo@0.2.24` for the native Expo arm; do not substitute a source build. Record both exact package pins at the top of `run-log.md` before installing dependencies. Never read any Snapback source repository. If the published package cannot express something the brief requires, record it as a platform gap with the exact diagnostic and continue. Do not infer current limitations from an older Snapback release or benchmark run.
++Build Clique on **Snapback 4**. Install and use ONLY `snapback4@0.3.0` from the public npm registry (exact pin; it installs its platform binary for this host as an optional dependency, so `npx snapback4` works after `npm install snapback4@0.3.0`), its README (read the whole published surface first), the guide it serves (`npx snapback4 guide` and its keyword cards), `npx snapback4 why <CODE>`, and its generated types (`snapback/generated/api.ts`, written by `npx snapback4 check`). Discover the CLI and authoring surface only from that installed package. The backend is authored in Quarry (`snapback/*.q`); the whole backend is the schema, its rules, its `sync` lines, and its queries, mutations, jobs, and schedules. The client is an Expo Router app (web plus the iOS Hermes bundle export) using the installed package's local/replica and React client arms. Install and use ONLY `snapback4-expo@0.3.0` for the native Expo arm; do not substitute a source build. Record both exact package pins at the top of `run-log.md` before installing dependencies. Never read any Snapback source repository. If the published package cannot express something the brief requires, record it as a platform gap with the exact diagnostic and continue. Do not infer current limitations from an older Snapback release or benchmark run.
+ 
+-The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/). Read `ENVIRONMENT.md` first — it wins over the brief on environment facts — then `social-messenger.md` in full, `CONTRACT.md`, `schema/social-messenger/assertions.json`, the fixtures README and `action-schema.md`, the UI kit, and the choreography README. Read `protocol.md` for how results are recorded.
++The authoritative instrument is `./instrument/` (also at /Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/). Read `ENVIRONMENT.md` first — it wins over the brief on environment facts — then `social-messenger.md` in full, `CONTRACT.md`, `schema/social-messenger/assertions.json`, the fixtures README and `action-schema.md`, the UI kit, and the choreography README. Read `protocol.md` for how results are recorded.
+ 
+ This run builds **M1 → M2 → M3 → M4 → M5 → M6 → M8** in that order in this one continuous session, **with nothing struck from scope**: `ENVIRONMENT.md` strikes nothing. Do not attempt M7 (it is a separate fresh session run later). Implement everything as the brief specifies: avatars and image/video posts and messages (upload, inline render, revocation), reactions, edit/delete windows from the config files, disappearing messages (server-enforced expiry with no client open), view-once photos, chat name/description/color and background image, search, offline writes and the push seam, the custom-client API, the M6 replay adapter and the scale replay on its own clock against a fresh instance, insights, trending, the scheduled daily digest under the fixture pack's shortened digest config, and multi-device offline. Every milestone also produces an iOS Hermes bundle export as a build artifact; simulator proofs are not required.
+ 
+@@ -21,7 +21,7 @@
+ lane id muse-clique-snapback4-full-20260913
+ model muse-spark-1.3
+ effort=xhigh
+-backend=snapback4-0.2.33
++backend=snapback4-0.3.0
+ start=<unix epoch seconds>
+ 
+ Append timestamped lines at every milestone start, green/failure, error, retry, workaround, knowledge lookup (source: model knowledge, published docs, package README/guide, package source, diagnostic, fixture, or web), and correction loop with attribution (snapback4-defect, agent-error, environment, or ambiguous) plus an evidence pointer. Record the scale replay's own start/end epochs and its verification result against the invariant manifest.
+--- /Users/ccheever/clique-sb4-20260922-astra-cal17/prompts/muse-snapback4.score.md
++++ /Users/ccheever/clique-sb4-20260923-astra-cal18/prompts/muse-snapback4.score.md
+@@ -1,12 +1,12 @@
+-You are muse-spark-1.3. In this benchmark run, one fresh session of your own model family built the production-shaped Clique social messenger on Snapback 4 (`snapback4@0.2.33` and `snapback4-expo@0.2.24`), alone and timed. Score the published Snapback 4 experience out of 100, holistically and by category, from that session's retained evidence.
++You are muse-spark-1.3. In this benchmark run, one fresh session of your own model family built the production-shaped Clique social messenger on Snapback 4 (`snapback4@0.3.0` and `snapback4-expo@0.3.0`), alone and timed. Score the published Snapback 4 experience out of 100, holistically and by category, from that session's retained evidence.
+ 
+ ## Read these, and only these
+ 
+-The brief: `/Users/ccheever/clique-sb4-20260922-astra-cal17/instrument/social-messenger.md` (skim for the milestone shape; you are scoring the backend experience, not independently grading assertions).
++The brief: `/Users/ccheever/clique-sb4-20260923-astra-cal18/instrument/social-messenger.md` (skim for the milestone shape; you are scoring the backend experience, not independently grading assertions).
+ 
+-Your model family's lane: `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/muse-snapback4`. Read its `diary.md`, `essay.md`, `run-log.md`, `final-report.md`, and `run-record.json` where present in full. You may open this lane's source files to check a specific claim.
++Your model family's lane: `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/muse-snapback4`. Read its `diary.md`, `essay.md`, `run-log.md`, `final-report.md`, and `run-record.json` where present in full. You may open this lane's source files to check a specific claim.
+ 
+-Do **not** open another lane under `/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/`, any `grading/` or `m7/` directory, any prior benchmark run, or any Snapback source repository. This is a read-only task: run nothing, write nothing, change nothing. The harness retains your final output outside the lane.
++Do **not** open another lane under `/Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/`, any `grading/` or `m7/` directory, any prior benchmark run, or any Snapback source repository. This is a read-only task: run nothing, write nothing, change nothing. The harness retains your final output outside the lane.
+ 
+ ## How to score
+ 

@@ -1,0 +1,38 @@
+{
+  "milestone": "m6",
+  "pass": true,
+  "coverage": {
+    "m6-a08": "server-push-text-and-once-photo-closed-recipient",
+    "m6-a09": "server-push-text-and-once-photo-closed-recipient",
+    "m6-a10": "headless-custom-client-every-operation",
+    "m6-a11": "headless-custom-client-every-operation",
+    "m6-a13": "frozen-action-schema-and-all-50-authoritative-intents"
+  },
+  "missing": [],
+  "results": [
+    {
+      "name": "server-push-text-and-once-photo-closed-recipient",
+      "ids": [
+        "m6-a08",
+        "m6-a09"
+      ],
+      "pass": true
+    },
+    {
+      "name": "headless-custom-client-every-operation",
+      "ids": [
+        "m6-a10",
+        "m6-a11"
+      ],
+      "pass": true
+    },
+    {
+      "name": "frozen-action-schema-and-all-50-authoritative-intents",
+      "ids": [
+        "m6-a13"
+      ],
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-23T23:47:56.375Z"
+}

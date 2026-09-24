@@ -1,0 +1,44 @@
+[
+  {
+    "milestone": "m1",
+    "path": "artifacts/m1-ios/_expo/static/js/ios/entry-b836fd338093bfb1876686bb60e03cd2.hbc",
+    "bytes": 2782324,
+    "sha256": "643272d9ce22914bc47d026270b2d04188a8cd54cb8e4a0e8013f6547edd966f"
+  },
+  {
+    "milestone": "m2",
+    "path": "artifacts/m2-ios/_expo/static/js/ios/entry-64ecba1f0b758024b67e6bb837a32a6e.hbc",
+    "bytes": 2808227,
+    "sha256": "5c5651bb8b92772337c6e11ac6d32c593e82afc010866a4458e713dbbf93e14b"
+  },
+  {
+    "milestone": "m3",
+    "path": "artifacts/m3-ios/_expo/static/js/ios/entry-c66373fe7926b3f321acc89095238177.hbc",
+    "bytes": 2832494,
+    "sha256": "420237ddfd817acb1de04f83595093c3780ea835e5a0213d0bff69600551e21d"
+  },
+  {
+    "milestone": "m4",
+    "path": "artifacts/m4-ios/_expo/static/js/ios/entry-3625be00df7c4688fb10a6a05b261085.hbc",
+    "bytes": 2838284,
+    "sha256": "82d79c75bc89752c0619dc1d2bee33a2f75cde890f2bfeb7c14f6f714fb821ce"
+  },
+  {
+    "milestone": "m5",
+    "path": "artifacts/m5-ios/_expo/static/js/ios/entry-c8e421b37b1bc42f02bebb5097b0c963.hbc",
+    "bytes": 2848124,
+    "sha256": "c3f17c2eac0802d0f8d94f9ef54c00a6813095a6b2b567e52272f07ad1841dc8"
+  },
+  {
+    "milestone": "m6",
+    "path": "artifacts/m6-ios/_expo/static/js/ios/entry-e9643292585bf087e86d5f2c30facee7.hbc",
+    "bytes": 2848123,
+    "sha256": "3acb68575a68c6a3900e9822d250a7fd0bb56571229ee01711618bdbd046fac2"
+  },
+  {
+    "milestone": "m8",
+    "path": "artifacts/m8-ios/_expo/static/js/ios/entry-4c933253a38197c35349bd6dd6479f6b.hbc",
+    "bytes": 2856845,
+    "sha256": "009b1f49d1a4036bda7f644ba13c046aee713d6a6771818c72b66d343570f4d7"
+  }
+]

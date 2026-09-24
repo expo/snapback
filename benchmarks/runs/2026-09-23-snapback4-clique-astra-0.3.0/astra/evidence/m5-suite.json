@@ -1,0 +1,63 @@
+{
+  "milestone": "m5",
+  "pass": true,
+  "coverage": {
+    "m5-a04": "view-once-first-image-render",
+    "m5-a05": "view-once-second-fetch-server-refusal",
+    "m5-a08": "group-rename-admin-only",
+    "m5-a09": "people-prefix-search",
+    "m5-a10": "chat-word-prefix-search",
+    "m5-a11": "all-message-search-grouped"
+  },
+  "missing": [],
+  "results": [
+    {
+      "name": "view-once-first-image-render",
+      "ids": [
+        "m5-a04"
+      ],
+      "pass": true
+    },
+    {
+      "name": "view-once-second-fetch-server-refusal",
+      "ids": [
+        "m5-a05"
+      ],
+      "pass": true
+    },
+    {
+      "name": "group-rename-admin-only",
+      "ids": [
+        "m5-a08"
+      ],
+      "pass": true
+    },
+    {
+      "name": "people-prefix-search",
+      "ids": [
+        "m5-a09"
+      ],
+      "pass": true
+    },
+    {
+      "name": "chat-word-prefix-search",
+      "ids": [
+        "m5-a10"
+      ],
+      "pass": true
+    },
+    {
+      "name": "all-message-search-grouped",
+      "ids": [
+        "m5-a11"
+      ],
+      "pass": true
+    },
+    {
+      "name": "installed-seed-idempotency",
+      "ids": [],
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-23T23:14:45.024Z"
+}

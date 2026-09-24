@@ -1,0 +1,26 @@
+snapback4 0.3.0
+  project   /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/replay-full-instance
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    ok: 40 tables, 25 synced, 49 operations
+  store     /Users/ccheever/clique-sb4-20260923-astra-cal18/lanes/astra-snapback4/replay-full-instance/.snapback4/store.sqlite at seq 167244, generation 1
+  backend   host generation 1 matches store
+  replay    on — new effects suppressed; schedules held (persisted dev policy)
+  storage   rows 223.2 MB (595201 rows, including engine-internal storage) · indexes 447.5 MB · log 303.9 MB (803552 events, 1.4× rows) · ops 36.6 MB · file 1317.2 MB
+  attribution likes: 0 null captures at postId.authorId
+  attribution likes: 5008 null captures at replyTarget.authorId
+  attribution replies: 0 null captures at postId.authorId
+  attribution replies: 2004 null captures at replyTarget.authorId
+  attribution reposts: 0 null captures at postId.authorId
+  attribution dailyLikes: 0 null-attributed contributions
+  attribution nestedReceivedReplies: 2004 null-attributed contributions
+  attribution receivedLikes: 0 null-attributed contributions
+  attribution receivedReplies: 0 null-attributed contributions
+  attribution receivedReposts: 0 null-attributed contributions
+  attribution replyDailyLikes: 5008 null-attributed contributions
+  attribution replyReceivedLikes: 5008 null-attributed contributions
+  requests  0 queued, 0 running, 0 done, 0 failed
+  schedule  dailyDigest every 2m → digest.daily; last boundary 1790206920000
+  schedule  feedPurgeRemovedEvery every 1m → feedPurgeRemoved; last boundary 1790206920000
+  effects   580024 suppressed, 0 deferred
+  types     generated
+  ok in 1548.8 ms

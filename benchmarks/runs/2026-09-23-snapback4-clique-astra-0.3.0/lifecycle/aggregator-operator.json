@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-24T01:01:36.316040+00:00",
+  "scope": "Unchanged three-lane aggregators. Expected missing-other-lane refusals are retained.",
+  "commands": [
+    {
+      "command": [
+        "python3",
+        "/Users/ccheever/clique-sb4-20260923-astra-cal18/scripts/summarize_grades.py"
+      ],
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "astra M8 supplement assertion-manifest pin is invalid\n"
+    },
+    {
+      "command": [
+        "python3",
+        "/Users/ccheever/clique-sb4-20260923-astra-cal18/scripts/aggregate_scores.py"
+      ],
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "holistic scorer has no lifecycle end record: grok\n"
+    }
+  ]
+}

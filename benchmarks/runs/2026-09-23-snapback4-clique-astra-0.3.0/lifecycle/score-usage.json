@@ -1,0 +1,13 @@
+{
+  "sessionId": "01a0d0bc-26ad-7f43-b3bc-e20e0d4aa692",
+  "sessionLogSha256": "5f54de108a9b684211e6aff49881dc394254ab4b7226c7444ae921da57e0ab66",
+  "totalTokenUsage": {
+    "input_tokens": 262308,
+    "cached_input_tokens": 216448,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 4723,
+    "reasoning_output_tokens": 2830,
+    "total_tokens": 267031
+  },
+  "cliTokensUsed": 50583
+}
