@@ -1,4 +1,4 @@
-//! The published digest recipes run against the engine, including their limits.
+//! The compatibility digest recipes run against the engine, including their limits.
 use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Engine, JobState, Store, Value, wire};
 use snapback4_core::engine::runner::Runner;
@@ -8,9 +8,7 @@ use std::collections::BTreeMap;
 use std::time::Instant;
 
 fn source() -> String {
-    let needle = "job digest(";
-    snapback4_lang::guide::quarry(snapback4_lang::guide::card("jobs").unwrap()).into_iter()
-        .find(|block| block.contains(needle)).expect("published digest recipe")
+    include_str!("../../../snapback4-lang/tests/fixtures/legacy-digest.q").into()
 }
 
 fn bound(source: &str) -> snapback4_lang::Bound {

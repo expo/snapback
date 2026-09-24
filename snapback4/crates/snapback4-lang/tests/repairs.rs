@@ -151,9 +151,9 @@ fn table_typed_helpers_bind_at_each_call_as_rows_or_references() {
 #[test]
 fn trending_card_ranks_the_day_and_reports_a_cut_set() {
     use snapback4_core::{Context, Engine, Value};
-    use snapback4_lang::guide::{card, quarry};
+    use snapback4_lang::guide::quarry;
     use std::collections::BTreeMap;
-    let block = quarry(card("feeds").unwrap()).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
+    let block = quarry(include_str!("fixtures/legacy-feed-recipes.md")).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
     let bound = compile(&[("schema.q".into(), block)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
@@ -182,9 +182,9 @@ fn trending_card_ranks_the_day_and_reports_a_cut_set() {
 #[test]
 fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_ceiling() {
     use snapback4_core::{Context, Engine, Value, value::object};
-    use snapback4_lang::guide::{card, quarry};
+    use snapback4_lang::guide::quarry;
     use std::collections::BTreeMap;
-    let block = quarry(card("feeds").unwrap()).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
+    let block = quarry(include_str!("fixtures/legacy-feed-recipes.md")).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
     let bound = compile(&[("schema.q".into(), block)]);
     assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
