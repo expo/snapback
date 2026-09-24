@@ -1,6 +1,6 @@
 # Snapback 4: a grant inserted already expired still names its row and group
 
-Status: Open — partly fixed 2026-09-23. Nothing leaks before a sweep; the physical sweep's `del` and scope remain (see Progress).
+Status: Closed 2026-09-24. A program commit retires the rows it inserted already expired (see Resolution).
 Priority: P3
 Observed: 2026-09-23
 Found by: Astra's fifth-round review of the in-commit grant fix
@@ -75,4 +75,43 @@ access. Two ways forward, a decision for the engine's owner:
 The same applies to any synced row with an `expire` column that was
 inserted already expired and later swept. Its `del` names a row no device
 received.
+
+## Resolution — 2026-09-24
+
+Charlie chose the third way: **a row whose lifetime ended by its own
+commit's end is retired in that commit.** The sweep then never sees it. The
+rule is in LLP 3000 §7. The review record is
+`llp/reviews/3000-retire-expired-births.astra.md`.
+
+- **At commit end.** `Runner::retire_expired_births` removes each row the
+  commit inserted into an expiring table if the row is expired at the
+  commit's `now`. It runs in mutations, job chunks, native chunks and the
+  Postgres adapter.
+- **Nothing is logged.** It uses the sweep's `remove`. The rows are born,
+  so the born-row rule withdraws their events and a born grant logs no
+  scope. A replacement beside a pre-commit predecessor still logs the
+  predecessor's owed scope.
+- **A row revived in its commit survives.** Here, revived means updated to
+  a lifetime that is still live before the commit ends.
+- **Aggregates.** They take one net change per row, applied after every
+  removal. A maintained table cannot expire.
+- **Cost.** The work is linear, because each audience key is scanned once.
+
+Tests are in `snapback4/crates/snapback4-sim/tests/reviews.rs`:
+
+- `an_already_expired_grant_is_retired_in_its_commit`: the sweep
+  reproduction above;
+- `a_row_revived_within_its_commit_survives`;
+- `an_already_expired_content_row_is_retired_and_counts_stay_true`;
+- `retirement_reaches_no_total_the_commit_never_held`;
+- `a_maintained_table_cannot_expire`.
+
+The core test `engine::retire_tests::retiring_expired_siblings_scans_their_key_once`
+covers the cost.
+
+**Not covered: seeds, loads and activation.** They write rows without a
+program, and they keep an already-expired row for the sweep. Its `del` and
+scope still reach the wire when it is swept. Those writes are the operator's,
+not the application's. If that ever matters, the same retirement can run at
+the end of a load.
 

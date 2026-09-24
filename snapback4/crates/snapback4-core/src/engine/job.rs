@@ -337,6 +337,7 @@ impl Engine {
                 }
             })();
             let outcome = outcome.and_then(|chunk| runner.check_final_exists().map(|()| chunk));
+            let outcome = outcome.and_then(|chunk| runner.retire_expired_births().map(|_| chunk));
             let events = runner.events.take();
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             let outbox = std::mem::take(&mut runner.outbox);

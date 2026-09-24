@@ -259,17 +259,32 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 let bound = binding(schema, &content_name, &sync).expect("validated audience");
                 let mut key = group.clone();
                 key.push(old.unwrap().field(&bound.principal)?.clone());
-                let mut bounds = Bounds::default();
-                loop {
-                    let rows = runner.tx.scan(table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32)?;
-                    let count = rows.len();
-                    for (candidate, stored) in rows {
-                        let candidate = row_image(&candidate, table);
-                        runner.meter.charge(MeterKind::Examined, 1)?;
-                        bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
-                        if !runner.context.now.is_some_and(|now| table.expired(&candidate, now)) { replaced = true; break; }
+                // A commit retiring its expired births removes only expired
+                // rows, which cannot change whether a live one remains.
+                #[cfg(feature = "sqlite")]
+                let memo = runner.retiring.as_ref().map(|_| (table_name.to_owned(), bound.group_index.clone(), canonical_json(&key)));
+                #[cfg(feature = "sqlite")]
+                let known = memo.as_ref().and_then(|memo| runner.retiring.as_ref().and_then(|retiring| retiring.live_keys.get(memo).copied()));
+                #[cfg(not(feature = "sqlite"))]
+                let known: Option<bool> = None;
+                match known {
+                    Some(known) => replaced = known,
+                    None => {
+                        let mut bounds = Bounds::default();
+                        loop {
+                            let rows = runner.tx.scan(table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32)?;
+                            let count = rows.len();
+                            for (candidate, stored) in rows {
+                                let candidate = row_image(&candidate, table);
+                                runner.meter.charge(MeterKind::Examined, 1)?;
+                                bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
+                                if !runner.context.now.is_some_and(|now| table.expired(&candidate, now)) { replaced = true; break; }
+                            }
+                            if replaced || count < 32 { break; }
+                        }
+                        #[cfg(feature = "sqlite")]
+                        if let (Some(memo), Some(retiring)) = (memo, runner.retiring.as_mut()) { retiring.live_keys.insert(memo, replaced); }
                     }
-                    if replaced || count < 32 { break; }
                 }
             }
             // A live deadline renewal is a join transition without a

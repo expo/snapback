@@ -30,6 +30,16 @@ Snapback 3 ([LLP 2000](./llp/2000-snapback3.rfc.md)), not a successor; its LLPs
 are numbered 3000 and up. Nothing below this line about gates, inventories,
 bootstraps, or proofs applies there, and none of Snapback 2's checks do either.
 
+**Working on Snapback 5?** It lives in [`snapback5/`](./snapback5/README.md)
+behind its own fence: read [`snapback5/AGENTS.md`](./snapback5/AGENTS.md),
+[LLP 4000](./llp/4000-snapback5.rfc.md),
+[LLP 3000.015](./llp/3000.015-shared-baseline-for-snapback5.spec.md) and
+[`snapback5/JOURNAL.md`](./snapback5/JOURNAL.md). It builds over the
+`snapback4-*` crates as a sibling treatment, with Snapback 4 as the control;
+its LLPs are numbered 4000 and up. Nothing below this line about gates,
+inventories, bootstraps or proofs applies there. Snapback 4's gates do not
+apply inside that fence except the inherited wasm budget.
+
 This project uses **Linked Literate Programming (LLP)**. The upstream LLP
 workflow is maintained at <https://github.com/ccheever/llp>; this repository
 keeps its own LLP corpus under [`llp/`](./llp/).
