@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 import { uploadAsset } from "../dist/assets.js";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
@@ -63,12 +64,24 @@ test("upload admission attempts are bounded and return the last refusal unchange
   assert.deepEqual(result, { ok: false, why: rateLimit });
 });
 
-for (const kind of ["ArrayBuffer", "Uint8Array", "subarray"]) test(`upload snapshots a caller-owned ${kind} before the first attempt`, async t => {
+for (const realm of ["current", "foreign"]) for (const host of ["web", "React Native"])
+for (const kind of ["ArrayBuffer", "Uint8Array", "subarray"]) test(`${host} upload snapshots a ${realm}-realm ${kind} before the first attempt`, async t => {
   immediateTimers(t);
-  const original = new Uint8Array(kind === "subarray" ? [8, 1, 2, 3, 7] : [1, 2, 3]);
+  if (host === "React Native") t.mock.method(globalThis, "Blob", class extends Blob {
+    constructor(parts, options) {
+      if (parts.some(part => part instanceof ArrayBuffer || ArrayBuffer.isView(part)))
+        throw new Error("Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported");
+      super(parts, options);
+    }
+  });
+  const values = kind === "subarray" ? [8, 1, 2, 3, 7] : [1, 2, 3];
+  const original = realm === "foreign" ? runInNewContext(`new Uint8Array(${JSON.stringify(values)})`) : new Uint8Array(values);
+  assert.equal(original instanceof Uint8Array, realm === "current");
+  assert.equal(original.buffer instanceof ArrayBuffer, realm === "current");
   const input = kind === "ArrayBuffer" ? original.buffer : kind === "subarray" ? original.subarray(1, 4) : original;
   const bodies = [];
   const result = await uploadAsset("http://uploads.invalid", {}, async (_, init) => {
+    if (host === "React Native") assert.ok(init.body instanceof Uint8Array, "send an owned view through the native buffer transport");
     bodies.push([...new Uint8Array(await new Response(init.body).arrayBuffer())]);
     original.fill(9);
     return bodies.length === 1 ? Response.json({ denied: rateLimit }, { status: 429 }) : Response.json({ asset });
