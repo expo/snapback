@@ -6,6 +6,7 @@ use super::*;
 
 impl Parser {
     pub(super) fn expression(&mut self, minimum: u8, stops: &[&str]) -> Fallible<Expr> {
+        let start = self.position;
         let mut left = self.prefix(stops)?;
         loop {
             let token = self.peek().clone();
@@ -47,6 +48,7 @@ impl Parser {
             let otherwise = self.expression(0, stops)?;
             left = Expr::If { then: Box::new(left), condition: Box::new(condition), otherwise: Box::new(otherwise), site };
         }
+        self.document.source.record(&left, &self.source, &self.tokens[start..self.position]);
         Ok(left)
     }
 
@@ -187,6 +189,10 @@ impl Parser {
     pub(super) fn postfix(&mut self, initial: Expr, stops: &[&str]) -> Fallible<Expr> {
         let mut value = initial;
         loop {
+            if let Expr::Read(read) = &value
+                && let Some(start) = self.tokens[..self.position].iter().position(|t| t.site == read.site) {
+                self.document.source.record(&value, &self.source, &self.tokens[start..self.position]);
+            }
             if self.is_stop(self.peek(), stops) {
                 // @ref LLP 3000.007#5.6 — a formerly inner index must not silently become the outer page's index.
                 if stops.contains(&"<where>") && !(self.at("by") && self.peek_at(1).value == ".") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {

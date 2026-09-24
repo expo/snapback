@@ -51,7 +51,7 @@ impl Binder<'_> {
             let mut page = read.clone();
             page.index = Some(index.name.clone());
             page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
-            let suggestion = format!("page with `first N` and a cursor: `{}` (declare `c: cursor ?`)", print::read_expr(&page));
+            let suggestion = format!("page with `first N` and a cursor: `{}` (declare `c: cursor ?`)", self.catalog.source.expression(&A::Read(page.clone())));
             let rewrite = if cap.is_none() { format!("declare `cap N{columns}` on {}, or {suggestion}", read.table) } else { suggestion };
             let message = match cap {
                 Some(cap) => format!("{}'s whole group has cap {cap}, above the {ceiling} examined ceiling; one read cannot examine the whole group", read.table),
@@ -62,7 +62,7 @@ impl Binder<'_> {
             } else { Diagnostic::new(&read.site, "E_QUARRY_BOUND", message, rewrite).guide("bounds") });
         };
         if !read.seeks.is_empty() && read.order_keys.is_empty() && !matches!(position, Position::Aggregate | Position::Exists) && !(position == Position::Domain && self.caller_kind == ProgramKind::Job) {
-            return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", "a seek needs an explicit page bound", format!("{} first 50 by {}", print::read_expr(read), index.name)).guide("bounds"));
+            return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", "a seek needs an explicit page bound", format!("{} first 50 by {}", self.catalog.source.expression(&A::Read(read.clone())), index.name)).guide("bounds"));
         }
         Ok((ast::RangeSpec { order: ast::Order::Asc, take: bound.maximum() as u32, cursor: None, site: read.site.clone() }, bound))
     }
@@ -78,7 +78,7 @@ impl Binder<'_> {
         let mut page = read.clone();
         page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: None, site: read.site.clone() });
         Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
-            format!("use `first N`: `{}`; for a complete read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE)", print::read_expr(&page), leading.join(", "))).guide("bounds"))
+            format!("use `first N`: `{}`; for a complete read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE)", self.catalog.source.expression(&A::Read(page.clone())), leading.join(", "))).guide("bounds"))
     }
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.
