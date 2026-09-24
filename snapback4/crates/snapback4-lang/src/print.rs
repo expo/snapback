@@ -2,6 +2,9 @@
 
 use crate::ast::*;
 
+/// Compound values remain grouped even when a diagnostic embeds them in a
+/// new comparison, arithmetic expression, assertion, or conditional arm.
+/// Keeping grouping here covers every rewrite caller, not just whole writes.
 pub fn expression(expr: &Expr) -> String {
     match expr {
         Expr::Name { name, .. } => name.clone(),
@@ -14,8 +17,8 @@ pub fn expression(expr: &Expr) -> String {
         },
         Expr::Array { items, .. } => format!("[{}]", items.iter().map(expression).collect::<Vec<_>>().join(", ")),
         Expr::Object { fields, .. } => format!("{{ {} }}", object_fields(fields)),
-        Expr::Unary { op, value, .. } => if op == "not" { format!("not {}", expression(value)) } else { format!("-{}", expression(value)) },
-        Expr::Binary { op, left, right, .. } => format!("{} {op} {}", expression(left), expression(right)),
+        Expr::Unary { op, value, .. } => if op == "not" { format!("(not {})", expression(value)) } else { format!("(-{})", expression(value)) },
+        Expr::Binary { op, left, right, .. } => format!("({} {op} {})", expression(left), expression(right)),
         Expr::Member { base, name, .. } => match base.as_ref() {
             Expr::Focal { .. } => format!(".{name}"),
             other => format!("{}.{name}", expression(other)),
@@ -25,15 +28,15 @@ pub fn expression(expr: &Expr) -> String {
             if n > 0 && matches!(name.as_str(), "day" | "hour" | "bucket") && matches!(arg, Expr::Literal { value: Literal::Number(_), .. }) { format!("{value}ms") }
             else { value }
         }).collect::<Vec<_>>().join(", ")),
-        Expr::Read(read) => read_expr(read),
+        Expr::Read(read) => read_operand(read),
         Expr::Merge(merge) => format!("merge {}{}{} {} {} by {}{}:", merge.table, merge.matching.as_ref().map_or(String::new(), |q| format!(" matching {}", expression(q))), merge.cursor.as_ref().map_or(String::new(), |c| format!(" after {}", expression(c))), if merge.order == Order::Asc { "first" } else { "last" }, merge.take, merge.index, merge.filter.as_ref().map_or(String::new(), |p| format!(" where {}", expression(p)))),
-        Expr::Exists { read, .. } => format!("exists {}", read_expr(read)),
-        Expr::Created { read, .. } => format!("created {}", read_expr(read)),
+        Expr::Exists { read, .. } => format!("exists {}", read_operand(read)),
+        Expr::Created { read, .. } => format!("created {}", read_operand(read)),
         Expr::Assert { value, code, .. } => format!("{} ! else {code}", expression(value)),
         Expr::ShapeUse { base, name, .. } => format!("{} {name}", expression(base)),
         Expr::Shape { base, fields, .. } => format!("{} {{ {} }}", expression(base), shape_fields(fields)),
         Expr::Walk { table, seed, column, depth, .. } => format!("walk {table}[{}] up .{column} depth {depth}", expression(seed)),
-        Expr::If { then, condition, otherwise, .. } => format!("{} if {} else {}", expression(then), expression(condition), expression(otherwise)),
+        Expr::If { then, condition, otherwise, .. } => format!("({} if {} else {})", expression(then), expression(condition), expression(otherwise)),
         Expr::Write { op, table, keys, fields, if_absent, condition, .. } => {
             let mut out = format!("{} {table}", op.word());
             if *op != WriteOp::Insert {
@@ -51,6 +54,13 @@ pub fn expression(expr: &Expr) -> String {
             out
         }
     }
+}
+
+// A predicate read's `where` otherwise consumes operators or postfix forms
+// supplied by its enclosing rewrite (e.g. `(rows where P) ! else MISSING`).
+fn read_operand(read: &ReadExpr) -> String {
+    let value = read_expr(read);
+    if read.filter.is_some() { format!("({value})") } else { value }
 }
 
 pub fn read_expr(read: &ReadExpr) -> String {

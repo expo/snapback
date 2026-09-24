@@ -730,14 +730,14 @@ impl Scan<'_> {
     }
 }
 
-// The shared rewrite printer omits precedence parentheses. Preserve them for
-// nested arithmetic/conditional operands in this note's written-value evidence.
+// Notes omit the outermost binary parentheses. Nested binary evidence still
+// needs grouping; the shared printer already groups conditional/unary values.
 fn evidence(expr: &Expr) -> String {
     match expr {
         Expr::Binary { op, left, right, .. } => {
             let operand = |value: &Expr| {
                 let text = evidence(value);
-                if matches!(value, Expr::Binary { .. } | Expr::If { .. }) { format!("({text})") } else { text }
+                if matches!(value, Expr::Binary { .. }) { format!("({text})") } else { text }
             };
             format!("{} {op} {}", operand(left), operand(right))
         }
