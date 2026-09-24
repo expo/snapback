@@ -77,7 +77,7 @@ discarded. Command:
 | Nearest-rank p95 | 29.376 ms | 19.892 ms |
 | Maximum time | 35.557 ms | 27.437 ms |
 
-Host: Black M5 Max, arm64, 18 logical CPUs, 128 GiB RAM, Rust 1.94.0, optimized
+Host: Black M5 Max, arm64, 18 logical CPUs, 128 GiB RAM, Rust 1.97.0, optimized
 test profile with debug information. Target artifacts were privately cloned
 from a warm checkout; no shared target or other agent's PID was modified.
 [Before](./scale-load-start.txt) and [after](./scale-load-end.txt) load samples
