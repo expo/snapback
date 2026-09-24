@@ -134,23 +134,23 @@ test('app replacement never persists a late successor before probing the kept se
   assert.ok(saved.every(value => JSON.parse(value).token !== 'next'));
 });
 
-for (const ending of ['sign-out', 'replacement']) test(`a rejected refresh cleans up only after sign-out (${ending})`, async t => {
+for (const credential of ['session', 'token']) for (const ending of ['sign-out', 'replacement', 'restore']) test(`a rejected refresh cleans up only after sign-out (${credential}, ${ending})`, async t => {
   const rotation = gate(), logouts = []; let rotating = false, queries = 0;
-  const client = createClient({ url, session: session('old'), fetch: async (input, init) => {
+  const client = createClient({ url, ...(credential === 'session' ? { session: session('old') } : { token: 'old' }), fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/auth/logout') { logouts.push(new Headers(init.headers).get('authorization')); return Response.json({ ok: true }); }
     if (path === '/auth/refresh') {
       rotating = true; await rotation.promise;
       throw new TypeError('fetch failed'); // No usable body: the old bearer may still be live.
     }
-    return Response.json(++queries === 1 ? ready() : ready('B', 1));
+    return Response.json(++queries === 1 ? ready() : ready(ending === 'restore' ? 'A' : 'B', 1));
   } });
   t.after(async () => { rotation.resolve(); await client.close(); });
   await client.query(q, {});
-  const changing = ending === 'replacement' ? client.query(q, {}) : null;
+  const changing = ending !== 'sign-out' ? client.query(q, {}) : null;
   const refresh = client.refreshSession(); await until(() => rotating);
   if (ending === 'sign-out') await client.signOut();
-  else assert.equal((await changing).denied.code, 'E_STORE_REPLACED');
+  else assert.equal((await changing).denied.code, ending === 'restore' ? 'E_STORE_RESTORE' : 'E_STORE_REPLACED');
   assert.equal((await refresh).ok, false);
   const before = logouts.length; rotation.resolve();
   if (ending === 'sign-out') {
@@ -159,7 +159,9 @@ for (const ending of ['sign-out', 'replacement']) test(`a rejected refresh clean
   } else {
     await delay(0); // Drain the rejected rotation's cleanup continuation.
     assert.deepEqual(logouts, [], 'replacement keeps the old bearer for its recovery probe');
-    assert.equal(client.session().token, 'old');
+    if (credential === 'session') assert.equal(client.session().token, 'old');
+    await client.signOut();
+    assert.equal(logouts.at(-1), 'Bearer old', 'explicit sign-out cleans up the held bearer');
   }
 });
 

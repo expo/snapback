@@ -47,6 +47,7 @@ export type ReadCut = "meter" | "words" | null;
  * A local observation may keep its last answer with `fresh: false` and `since`
  * only during an unavailable device read's server fallback, ending at fetch
  * settlement or any local commit, reset, adoption, generation, account change or close.
+ * Before the first answer use `loading`; a refusal carries its message in `denied`.
  */
 export type Read<T> =
   | { readonly data: T; readonly complete: boolean; readonly cut: ReadCut; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }

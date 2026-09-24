@@ -23,7 +23,7 @@ impl Binder<'_> {
             // Reassignment also checks structural assignability after the join.
             if !left_ty.assignable_to(&right_ty) && !right_ty.assignable_to(&left_ty) { return None; }
             Some(format!("spread both assigned values at their original sites:\nat {} replace `{}`:\nuse: {left_value}\nat {} replace `{}`:\nuse: {right_value}",
-                left.site(), print::expression(left), right.site(), print::expression(right)))
+                left.site(), self.catalog.source.expression(left), right.site(), self.catalog.source.expression(right)))
         })().unwrap_or_default();
         refusal(error, origins.last().unwrap().1.site(), rewrite)
     }

@@ -114,7 +114,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name"),
     ("E_QUARRY_SPREAD", "E_QUARRY_SPREAD refuses nullable operands and values without statically known fields"),
-    ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses shaping an already-joined local"),
+    ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses joining different row kinds"),
     ("E_QUARRY_RULE_SPELLING", "E_QUARRY_RULE_SPELLING locates a guessed table rule"),
     ("E_QUARRY_JOB_SCHEDULE", "E_QUARRY_JOB_SCHEDULE separates work from its clock"),
     ("E_QUARRY_KEY_ORDER", "E_QUARRY_KEY_ORDER means a positional component followed a named one"),
@@ -249,6 +249,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_STEP_RESULT", "E_STEP_RESULT means the external step returned invalid or oversized JSON, or settlement conflicts with its recorded outcome."),
     ("E_STEP_UNKNOWN", "E_STEP_UNKNOWN means settlement or parking named a step that was never begun in this invocation."),
     ("E_STORE", "E_STORE means the database operation failed, such as a SQLite writer lock held by another process."),
+    ("E_STORE_REPLACED", "The online client permanently denies reads and fails queued and in-flight writes on an identity change (`E_STORE_REPLACED`)"),
     ("E_STORE_RESTORE", "The client adopts `/schema` only when that watermark is a finite, nonnegative integer at or above its retained image-head evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing or invalid head is a retryable failure that neither adopts nor clears the evidence."),
     ("E_STRUCTURAL_FANOUT", "`matching`, merges and tables with expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`)."),
     ("E_SYNC", "E_SYNC means the sync declaration cannot deliver exactly its authorized audience."),

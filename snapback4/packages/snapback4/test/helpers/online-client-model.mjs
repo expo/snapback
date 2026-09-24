@@ -21,7 +21,7 @@ export function generate(seed, length = 32, vocabulary = operations) {
 }
 const microtasks = async () => { for (let i = 0; i < 100; i++) await Promise.resolve(); };
 
-export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0, oldestFailure = false, saturated = false, keepUnreachedSession = false } = {}) {
+export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0, oldestFailure = false, ordinaryFailureCode = 'E_UNIQUE', saturated = false, keepUnreachedSession = false } = {}) {
   const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
   const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
   const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
@@ -350,7 +350,7 @@ export async function execute(commands, tier, coverage = {}, { journalSize = 0, 
           const id = String(100_000 + n).padStart(26, '0');
           if (oldestFailure && n === 0) {
             count('journal.preloaded.ordinary-failure'); ordinaryFailedIds.add(id);
-            return { state: 'failed', id, why: { code: 'E_UNIQUE', family: 'input', message: 'a prior write failed its unique constraint' } };
+            return { state: 'failed', id, why: { code: ordinaryFailureCode, family: 'input', message: 'a prior write failed its unique constraint' } };
           }
           if (n < journalSize - unknownReceipts) return { state: 'sent', id, seq: 1, replayed: true };
           retiredWrites.add(id); admitted.add(id); terminalWrites.add(id);

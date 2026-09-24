@@ -4,7 +4,7 @@
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_DUPLICATE_FIELD", &["Rename or remove the second field"]),
     ("E_QUARRY_SPREAD", &["Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`"]),
-    ("E_QUARRY_SHAPE_JOIN", &["Shape each arm before joining these two kinds of value"]),
+    ("E_QUARRY_SHAPE_JOIN", &["Spread both row arms before joining, or build both arms with the same shape and kind"]),
     ("E_QUARRY_RULE_SPELLING", &["declare separate insert, update and delete rules for the operations intended"]),
     ("E_QUARRY_JOB_SCHEDULE", &["`job sweep every 1h:` with `job sweep():`, keep the indented body"]),
     ("E_QUARRY_KEY_ORDER", &["move all positional components first, then write the named tests"]),
@@ -142,6 +142,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_STEP_RESULT", &["External work may already have succeeded", "reconcile with the provider's stable key before replacement", "does not authorize an automatic repeat of the external request"]),
     ("E_STEP_UNKNOWN", &["Use `await ctx.step('mail', input, send)`", "Keep settlement under the same invocation and name"]),
     ("E_STORE", &["release an unintended competing writer or repair disk access, then retry the same request", "Keep an uncertain mutation's original ID"]),
+    ("E_STORE_REPLACED", &["Close it and create a new client, reconciling old intents before submitting new writes", "after retiring its pending intents"]),
     ("E_STORE_RESTORE", &["For a confirmed restore, stop the client and use a fresh device store and outbox for that restored backend", "retry and adoption do not repair a regressed store identity", "a missing or invalid head is a retryable failure that neither adopts nor clears the evidence"]),
     ("E_STRUCTURAL_FANOUT", &["uses the schema cap, without restating it", "Pinning `.readerId` decides visibility; it grants no read authority over another reader's inbox"]),
     ("E_SYNC", &["use `sync` to infer delivery to the owner", "guard new memberships with existing membership or creation of the group"]),

@@ -419,6 +419,16 @@ fn only_the_continuing_branch_contributes_its_declared_type() {
             for ready in [true, false] {
                 assert_eq!(engine.query("run", context(ready)).unwrap().data, Value::Int(if ready == then_returns { 1 } else { 2 }));
             }
+            // The continuing arm must retain its kind for the next assignment.
+            // An integer result alone cannot detect forgetting that declaration.
+            for exit in ["return 1", "require false else NO"] {
+                let incompatible = source.replace("return 1", exit)
+                    .replace(&format!("  s = {survivor}\n  return 2"), &format!("  s = {exited}\n  return 2"));
+                let diagnostic = refusal(&incompatible);
+                assert_eq!(diagnostic.code, "E_QUARRY_SHAPE_JOIN");
+                let assignment_line = incompatible.lines().position(|line| line == format!("  s = {exited}")).unwrap() + 1;
+                assert_eq!(diagnostic.site.line as usize, assignment_line, "{diagnostic:?}");
+            }
         }
     }
 }

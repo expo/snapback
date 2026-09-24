@@ -863,8 +863,11 @@ export function InboxList() {
 ```
 
 Unmounting a screen closes its observations; remounting starts from the client's
-current answer. `fresh: false` marks an answer that has not caught up; an empty
-or incomplete answer does not prove that no matching rows exist.
+current answer. Only a local unavailable-read fallback may keep its previous answer
+while the server fetch is pending, marked `fresh: false` with `since`; settlement
+or a local state change clears that retention. Online reads retain no old answer.
+Before the first answer the component shows loading; refusals show their message.
+An empty or incomplete answer does not prove that no matching rows exist.
 
 ### Assets
 

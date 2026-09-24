@@ -120,6 +120,12 @@ server even after full acquisition; updates within a cap group can still predict
 Replacing an expired same-id row also queues: the server may have swept it and
 refilled the cap before sync reaches the device. A held live row can still
 support an update within its cap group.
+
+NOT_FOUND means a point write has no target, or a write to an unreadable target
+was refused without disclosing its existence. It is also the conventional
+application code for `row ! else NOT_FOUND`. Check a readable target and retry;
+do not infer absence from a refused blind write.
+
 An alternate-key delete of a missing row refuses `NOT_FOUND` locally when the
 synced group proves absence; otherwise it queues for server resolution.
 
@@ -128,11 +134,6 @@ A local miss predicts `E_CONSTRAINT` only when the key proves readability
 and its synced group is fully held without a horizon. Otherwise either an
 ordinary insert or an upsert queues without a predicted row; the server
 decides the postcondition when the write arrives.
-
-NOT_FOUND means a point write has no target, or a write to an unreadable target
-was refused without disclosing its existence. It is also the conventional
-application code for `row ! else NOT_FOUND`. Check a readable target and retry;
-do not infer absence from a refused blind write.
 
 Defaults fill missing insert columns on the writing host, including the insert
 branch of `upsert`; updates and existing-row upserts never reapply defaults.

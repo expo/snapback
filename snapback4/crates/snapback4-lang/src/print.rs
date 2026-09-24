@@ -125,7 +125,6 @@ fn object_fields(fields: &[ObjectField], source: &Source<'_>) -> String {
     }).collect::<Vec<_>>().join(", ")
 }
 
-pub(crate) fn shape_fields(fields: &[ShapeField]) -> String { shape_with(fields, &|_| None) }
 fn shape_with(fields: &[ShapeField], source: &Source<'_>) -> String {
     fields.iter().map(|field| match field {
         ShapeField::Spread { .. } => "*".to_owned(), ShapeField::NamedSpread { name, .. } => format!("...{name}"),
