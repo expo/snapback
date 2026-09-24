@@ -368,8 +368,8 @@ mutation send():
     let mut engine = memory(source);
     engine.store().conn().execute_batch("CREATE TRIGGER fail_outbox BEFORE INSERT ON _outbox BEGIN SELECT RAISE(ABORT, 'injected outbox failure'); END;").unwrap();
     assert!(engine.mutate("send",Some("failed"),Context::system().at(1)).is_err());
-    let keys: i64 = engine.store().conn().query_row("SELECT count(*) FROM _effect_keys",[],|r|r.get(0)).unwrap();
-    assert_eq!(keys,0);
+    let tables: i64 = engine.store().conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'",[],|r|r.get(0)).unwrap();
+    assert_eq!(tables,0, "failed first emission rolls back the key table too");
     engine.store().conn().execute_batch("DROP TRIGGER fail_outbox").unwrap();
     engine.mutate("send",Some("good"),Context::system().at(2)).unwrap();
     assert_eq!(engine.effects(None,10).unwrap().len(),3);

@@ -1,0 +1,14 @@
+{
+  "name": "phase4-registry-expo",
+  "command": [
+    "node",
+    "reports/20260924-publication-0.4.0/verify-registry.mjs",
+    "--expo"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:58:15.697496+00:00",
+  "finished_at": "2026-09-24T11:58:17.483066+00:00",
+  "seconds": 1.785,
+  "exit_code": 0,
+  "log": "phase4-registry-expo.log"
+}

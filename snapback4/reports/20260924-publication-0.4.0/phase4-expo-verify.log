@@ -1,0 +1,35 @@
+{
+  "source": "20cb39bf0ffd49f619e3d904bbb7355bc19993bd",
+  "sourceTrees": {
+    "snapback4-device": "708272bad68589c64517f4a15063bfa1eee16bf1",
+    "snapback4-core": "fe93c1877be096ed7011da92327deb2b8006f08a"
+  },
+  "witnesses": {
+    "offline": {
+      "manifest": "offline-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 13.479,
+      "prime": true,
+      "relaunch": false,
+      "artifactHashesVerified": true,
+      "installedExecutableSha256": "fdf1cfe48e9ba0696c81b311486b7982fdf3735ce7dc10090f6b89e907b9782c"
+    },
+    "restart": {
+      "manifest": "restart-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 13.33,
+      "prime": true,
+      "relaunch": true,
+      "artifactHashesVerified": true,
+      "installedExecutableSha256": "fdf1cfe48e9ba0696c81b311486b7982fdf3735ce7dc10090f6b89e907b9782c"
+    }
+  },
+  "nativeArchives": {
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "2b5b33e8cabbd68d27a3c61fc88b3fdcea1d547a9703297f12fa0145951caea6",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "43e2780e8302cfb561c45f18e428032f77df6a8db1cd8ac6a915bb12ff02fc1a"
+  },
+  "integrity": "sha512-PtZPvTcF7FtLy+RMMyWgsekPuW9igYqwzAS8QC0SFnCi1k5Rwm2i/Sx6A9JrdrsoF/JL0IeOQRU6+SU4yxKZTA==",
+  "sha256": "72876aa43670d945581e614ca6557366175648a7b5295335aaedb0026af86253",
+  "bytes": 4809625,
+  "integrityChangeReason": "Core Store::prepare no longer creates _effect_keys; first Tx::effect_once does, inside its transaction. Both native slices rebuilt from core tree fe93c1877be096ed7011da92327deb2b8006f08a. Xcode also reversed AvailableLibraries order in Info.plist; sorted parsed plist values are identical. All other 14 packed files are byte-identical to phase 1."
+}

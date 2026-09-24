@@ -1,0 +1,84 @@
+✔ published 0.2.33 capability fence: timeline-v2 (1364.383667ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ timeline-v2 initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-hAIVC8/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 9283
+ℹ timeline-v2 adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ timeline-v2 stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-hAIVC8/prior
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    1 problem (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-hAIVC8/prior/.snapback4/store.sqlite at seq 1, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 69 B (1 rows) · indexes 56 B · log 83 B (1 events, 1.2× rows) · ops 0 B · file 196.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 503
+  types     generated
+  not ok in 2.6 ms 
+ℹ timeline-v2: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✔ published 0.2.33 capability fence: recorded-attribution (1012.247917ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ recorded-attribution initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-Vi2wc7/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 3125
+ℹ recorded-attribution adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ recorded-attribution stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-Vi2wc7/prior
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    1 problem (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-Vi2wc7/prior/.snapback4/store.sqlite at seq 1, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 56 B (1 rows) · indexes 9 B · log 67 B (1 events, 1.2× rows) · ops 0 B · file 188.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 472
+  types     generated
+  personas  alice
+  not ok in 2.9 ms 
+ℹ recorded-attribution: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✔ published 0.2.33 capability fence: maintained-column (1115.032708ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ maintained-column initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-al8aP6/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 2363
+ℹ maintained-column adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ maintained-column stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-al8aP6/candidate
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    1 problem (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-al8aP6/candidate/.snapback4/store.sqlite at seq 2, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 78 B (1 rows) · indexes 9 B · log 89 B (1 events, 1.1× rows) · ops 0 B · file 188.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 422
+  types     generated
+  not ok in 2.5 ms 
+ℹ maintained-column: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✖ published 0.2.33 control: capability-free bytes and stores stay compatible (993.635666ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed
+ℹ published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4552.822291
+
+✖ failing tests:
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:274:1
+✖ published 0.2.33 control: capability-free bytes and stores stay compatible (993.635666ms)
+  AssertionError [ERR_ASSERTION]: byte-for-byte stored 0.4 generation schema
+  + actual - expected
+  
+  + '{"tables":{"likes":{"columns":{"id":"Id","postId":{"Ref":{"table":"posts"}},"principal":"Principal"},"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"rules":{"read":"Allow","insert":{"Eq":[{"Field":"principal"},"Viewer"]},"update":"Deny","delete":"Deny"},"constraints":[{"Immutable":{"fields":["postId"]}}],"leave":"until-revoked","sync":{"audience":"Public"}},"posts":{"columns":{"authorId":"Principal","id":"Id"},"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"rules":{"read":"Allow","insert":{"Eq":[{"Field":"authorId"},"Viewer"]},"update":"Deny","delete":"Deny"},"constraints":[{"Immutable":{"fields":["authorId"]}}],"leave":"until-revoked","sync":{"audience":"Public"}}},"maintains":[],"auth":{"password":false,"guests":true},"operations":{"like":{"predicts":"eligible","sites":[],"requires":[]},"likes":{"runs":"device","sites":[{"site":"schema.q:21:9 (likes[] first 10)","table":"likes","index":"byId","kind":"scan","class":"held","reason":"scan likes by byId: held, no horizon; selected byId (); result: page; explicit by","rewrite":""}],"requires":[]},"posts":{"runs":"device","sites":[{"site":"schema.q:19:9 (posts[] first 10)","table":"posts","index":"byId","kind":"scan","class":"held","reason":"scan posts by byId: held, no horizon; selected byId (); result: page; explicit by","rewrite":""}],"requires":[]}}}'
+  - '{"auth":{"guests":true,"password":false},"maintains":[],"operations":{"like":{"predicts":"eligible","requires":[],"sites":[]},"likes":{"requires":[],"runs":"device","sites":[{"class":"held","index":"byId","kind":"scan","reason":"scan likes by byId: held, no horizon; selected byId (); result: page; explicit by","rewrite":"","site":"schema.q:21:9 (likes[] first 10)","table":"likes"}]},"posts":{"requires":[],"runs":"device","sites":[{"class":"held","index":"byId","kind":"scan","reason":"scan posts by byId: held, no horizon; selected byId (); result: page; explicit by","rewrite":"","site":"schema.q:19:9 (posts[] first 10)","table":"posts"}]}},"tables":{"likes":{"columns":{"id":"Id","postId":{"Ref":{"table":"posts"}},"principal":"Principal"},"constraints":[{"Immutable":{"fields":["postId"]}}],"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"leave":"until-revoked","rules":{"delete":"Deny","insert":{"Eq":[{"Field":"principal"},"Viewer"]},"read":"Allow","update":"Deny"},"sync":{"audience":"Public"}},"posts":{"columns":{"authorId":"Principal","id":"Id"},"constraints":[{"Immutable":{"fields":["authorId"]}}],"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"leave":"until-revoked","rules":{"delete":"Deny","insert":{"Eq":[{"Field":"authorId"},"Viewer"]},"read":"Allow","update":"Deny"},"sync":{"audience":"Public"}}}}'
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-040/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:332:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '{"tables":{"likes":{"columns":{"id":"Id","postId":{"Ref":{"table":"posts"}},"principal":"Principal"},"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"rules":{"read":"Allow","insert":{"Eq":[{"Field":"principal"},"Viewer"]},"update":"Deny","delete":"Deny"},"constraints":[{"Immutable":{"fields":["postId"]}}],"leave":"until-revoked","sync":{"audience":"Public"}},"posts":{"columns":{"authorId":"Principal","id":"Id"},"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"rules":{"read":"Allow","insert":{"Eq":[{"Field":"authorId"},"Viewer"]},"update":"Deny","delete":"Deny"},"constraints":[{"Immutable":{"fields":["authorId"]}}],"leave":"until-revoked","sync":{"audience":"Public"}}},"maintains":[],"auth":{"password":false,"guests":true},"operations":{"like":{"predicts":"eligible","sites":[],"requires":[]},"likes":{"runs":"device","sites":[{"site":"schema.q:21:9 (likes[] first 10)","table":"likes","index":"byId","kind":"scan","class":"held","reason":"scan likes by byId: held, no horizon; selected byId (); result: page; explicit by","rewrite":""}],"requires":[]},"posts":{"runs":"device","sites":[{"site":"schema.q:19:9 (posts[] first 10)","table":"posts","index":"byId","kind":"scan","class":"held","reason":"scan posts by byId: held, no horizon; selected byId (); result: page; explicit by","rewrite":""}],"requires":[]}}}',
+    expected: '{"auth":{"guests":true,"password":false},"maintains":[],"operations":{"like":{"predicts":"eligible","requires":[],"sites":[]},"likes":{"requires":[],"runs":"device","sites":[{"class":"held","index":"byId","kind":"scan","reason":"scan likes by byId: held, no horizon; selected byId (); result: page; explicit by","rewrite":"","site":"schema.q:21:9 (likes[] first 10)","table":"likes"}]},"posts":{"requires":[],"runs":"device","sites":[{"class":"held","index":"byId","kind":"scan","reason":"scan posts by byId: held, no horizon; selected byId (); result: page; explicit by","rewrite":"","site":"schema.q:19:9 (posts[] first 10)","table":"posts"}]}},"tables":{"likes":{"columns":{"id":"Id","postId":{"Ref":{"table":"posts"}},"principal":"Principal"},"constraints":[{"Immutable":{"fields":["postId"]}}],"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"leave":"until-revoked","rules":{"delete":"Deny","insert":{"Eq":[{"Field":"principal"},"Viewer"]},"read":"Allow","update":"Deny"},"sync":{"audience":"Public"}},"posts":{"columns":{"authorId":"Principal","id":"Id"},"constraints":[{"Immutable":{"fields":["authorId"]}}],"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"leave":"until-revoked","rules":{"delete":"Deny","insert":{"Eq":[{"Field":"authorId"},"Viewer"]},"read":"Allow","update":"Deny"},"sync":{"audience":"Public"}}}}',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

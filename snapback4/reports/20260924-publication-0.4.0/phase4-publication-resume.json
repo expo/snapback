@@ -1,0 +1,14 @@
+{
+  "name": "phase4-publication-resume",
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--resume"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:45:57.493702+00:00",
+  "finished_at": "2026-09-24T11:52:37.252003+00:00",
+  "seconds": 399.774,
+  "exit_code": 0,
+  "log": "phase4-publication-resume.log"
+}

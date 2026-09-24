@@ -1,0 +1,13 @@
+{
+  "name": "phase4-npm-identity",
+  "command": [
+    "npm",
+    "whoami"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:35:53.451196+00:00",
+  "finished_at": "2026-09-24T11:35:54.010398+00:00",
+  "seconds": 0.559,
+  "exit_code": 0,
+  "log": "phase4-npm-identity.log"
+}

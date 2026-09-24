@@ -75,8 +75,8 @@ job sweep():
         assert!(run.error.as_ref().is_some_and(|error| error.starts_with("E_BOUND:") && error.contains("heap")), "suffix={poison_suffix}: {run:?}");
         assert_eq!(run.chunks, 0);
         assert!(engine.effects(None, 10).unwrap().is_empty());
-        let keys: i64 = engine.store().conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap();
-        assert_eq!(keys, 0);
+        let tables: i64 = engine.store().conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'", [], |r| r.get(0)).unwrap();
+        assert_eq!(tables, 0, "refused first chunk rolls back the key table too");
         println!("inner domain, poisoned suffix={poison_suffix}: {run:?}");
     }
 }

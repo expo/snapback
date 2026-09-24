@@ -1,0 +1,62 @@
+✔ published 0.2.33 capability fence: timeline-v2 (818.054708ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ timeline-v2 initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-xZMz5d/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 9283
+ℹ timeline-v2 adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ timeline-v2 stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-xZMz5d/prior
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    1 problem (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-xZMz5d/prior/.snapback4/store.sqlite at seq 1, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 69 B (1 rows) · indexes 56 B · log 83 B (1 events, 1.2× rows) · ops 0 B · file 196.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 503
+  types     generated
+  not ok in 2.0 ms 
+ℹ timeline-v2: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✔ published 0.2.33 capability fence: recorded-attribution (594.202875ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ recorded-attribution initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-qCwEbd/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 3125
+ℹ recorded-attribution adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ recorded-attribution stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-qCwEbd/prior
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    1 problem (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-qCwEbd/prior/.snapback4/store.sqlite at seq 1, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 56 B (1 rows) · indexes 9 B · log 67 B (1 events, 1.2× rows) · ops 0 B · file 188.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 472
+  types     generated
+  personas  alice
+  not ok in 1.8 ms 
+ℹ recorded-attribution: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✔ published 0.2.33 capability fence: maintained-column (897.096ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ maintained-column initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-UIiYka/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 2363
+ℹ maintained-column adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ maintained-column stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-UIiYka/candidate
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    1 problem (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-UIiYka/candidate/.snapback4/store.sqlite at seq 2, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 78 B (1 rows) · indexes 9 B · log 89 B (1 events, 1.1× rows) · ops 0 B · file 188.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 422
+  types     generated
+  not ok in 1.6 ms 
+ℹ maintained-column: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✔ published 0.2.33 control: capability-free bytes and stores stay compatible (965.997208ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed
+ℹ published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3321.790625

@@ -48915,6 +48915,57 @@ meter relaxation, baseline snapshot repair, publication or push. The complete
 file map, merge resolutions, forms and evidence logs are recorded in
 reports/20260924-intent-integration-r2.md.
 
+
+## 2026-09-24 — snapback4-expo 0.4.0 native qualification, phase 1 only
+
+Prepared from `4af0ef82f9` in `~/projects/snapback-pub-040`, branch
+`sb4-intent/publish-040`. Version commit `8d52f3ea88` aligns the CLI,
+platform package, optional dependency, Cargo workspace and lockfiles, and
+Expo package at 0.4.0. No npm publication command or CLI publication
+script was run. The publication suite and installed CLI consumer proof are
+not part of this native-only phase.
+
+Node 24.18.0, Bun 1.4.2, Rust 1.97.0, Xcode 27.0 (27A266a). The frozen
+install passed in 0.778 s; the version-mismatch regression passed (1 test,
+55.763 s including cold compilation). `cargo build` passed in 16.973 s;
+`build-xcframework.sh` built both iOS slices in 79.837 s. Their object
+deployment metadata honors the advertised iOS 16.4 minimum.
+
+The chat-expo Release build passed in 65.349 s, zero errors and three
+warnings. CocoaPods first ran after the rebuilt xcframework existed and
+installed Snapback4Expo 0.4.0; the archive copied to the linker is
+byte-identical to the new simulator slice. Client/package prerequisites
+passed, including WASM at 485,461 B gzip under the unchanged 486,000 B
+budget, package compilation and the chat backend check.
+
+The published native witness verb/helper was driven by this worktree's
+`target/debug/snapback4`, not a registry CLI, on the dedicated iPhone 17 Pro
+iOS 26.5 simulator `83D9B076-D3E5-4045-AD0A-17AF5DBC137A`, port 44440.
+Offline with `--prime` passed in 8.958 s; restart with
+`--prime --relaunch` passed in 12.158 s, including durable pending sends
+across the offline relaunch and ordered settlement after reconnect.
+There were no failed qualification attempts or retries.
+
+`npm pack` passed in 0.916 s: 17 files, 4,809,589 bytes. Every packed
+file matches the qualified source. Unpublished tarball integrity:
+`sha512-yH1Ho6zhujUsi7uyF5iawUk2DaunFE9ewCrVenR8lHDGmWLTFs2plKhaDEuzKz59+WMIK7GXL3dHZToeoUau+Q==`
+The exact tarball is retained at
+`snapback4/target/expo-0.4.0/snapback4-expo-0.4.0.tgz` in this worktree.
+
+SHA-256 native archives:
+- iOS arm64: `972d05ece4565e63ff64b48285d1c6abb90eb631026fafe5a948ce4ae2af56e5`
+- iOS arm64 simulator: `735cf95fcc2b9b115d193b496dd5ccfbf6b90e45dc48af822b29456e056eb4b7`
+
+Committed source-tree digests used to build the device:
+- `snapback4-device`: `708272bad68589c64517f4a15063bfa1eee16bf1`
+- `snapback4-core`: `f1149e8831365b5102d53b3c49227c2798941214`
+
+All xcframework file hashes, tarball verification, command timings, native
+link evidence, app/CLI hashes, both manifests, receipts, logs and videos
+are under `reports/20260924-expo-0.4.0/`; `qualified.json` records
+`published: false`. The simulator is retained and shut down.
+
+
 ## 2026-09-24 — LLP 3000.013 Lane A, safe aggregate seek inference
 
 Fixed both final aggregate delta findings. Inference now uses required-argument
@@ -48985,3 +49036,143 @@ line budgets pass. No design deviation, new open problem, runtime change,
 authorization/disclosure relaxation, publication or push. Detailed file map,
 examples, the guide failure reproduction and logs are recorded in
 reports/20260924-intent-integration-r3.md.
+
+## 2026-09-24 — 0.4 publication fences: compatibility ruling and transactional once keys
+
+Supervisor ruling: **a 0.4 release requires a 0.4 server**. The 0.4 compiler
+may persist different selection facts, synthesized indexes and explanations.
+Published 0.2.33 `serve` correctly refuses the mixed-version release with
+`E_GENERATION: release source differs from its activated backend; deploy the
+source as a new release`. Old devices remain compatible with capability-free
+backends. The control now proves native and WASM install, adoption, queries
+and persisted reopen before checking byte pins; the matching 0.4 server serves
+successfully, and the old server refuses without changing the prepared
+release or checkpointed store bytes.
+
+The canonical control is 2,950 bytes, formerly 2,734. Its complete new pin
+contains exactly eight diagnostic-string changes: `first 10` in the two read
+sites and selected key/result/selection-reason text, each repeated in programs
+and schema operation metadata. The stored-schema pin accepts precisely those
+string changes against the real published encoding; no structural difference
+is erased. The timeline fence now expects `timeline-v2` (LLP 3000.013 §4),
+retaining old native/WASM install/adoption/reopen refusal checks.
+
+The shared SQLite store no longer creates `_effect_keys` during open. First
+use creates it inside the emitting transaction, so an outbox, heap or write
+meter failure rolls back the table along with its keys. Existing lifetime
+keys survive retries, reopen, replay suppression and outbox removal, as before
+(LLP 3000.013 §5.3). Native and engine refusal regressions assert no new table
+and unchanged raw SQLite bytes after successful opening/setup. Successful
+opening of an old store may still migrate existing job-bookkeeping columns;
+that setup is explicitly before the refused-adoption boundary.
+
+Affected qualification, with the packaged SQLite build policy:
+- Four real published-0.2.33 fence tests: 4 passed, 0 skipped, 3.351 s.
+- Core and device suites: 253.494 s, all passed (the log records ignored cases).
+- Five work-intent suites: 27 passed, 0 ignored, 21.491 s; permanent once-key
+  rollback, retry, replay, reopen and outbox-removal behavior remains covered.
+- CLI rebuild: 3.208 s. No ceiling or test was disabled.
+
+Attempts remain under `reports/20260924-publication-0.4.0/`. Phase 2's dry-run
+stopped on the original four client fences after 710.694 s, before staging.
+Phase 3's two control probes (1.453 and 1.046 s) exposed stored-schema drift
+and then the old-server refusal; the ruling above resolves that policy stop.
+Phase 4 fence attempts failed at fixture initialization boundaries (8.579 s),
+uncheckpointed successful-server WAL recovery (4.527 s), and Rust stored-field
+order versus canonical wire order (4.600 s), before the final 4/4 pass.
+The earlier append-only journal merge conflict was resolved preserving both
+entries. The phase-1 push attempt failed on the root hook's missing `acorn`;
+there is no further push authorization. No package has been published yet.
+The changed core requires a rebuilt xcframework and renewed native evidence.
+
+## 2026-09-24 — 0.4.0 published (snapback4, snapback4-darwin-arm64)
+
+`snapback4@0.4.0` and `snapback4-darwin-arm64@0.4.0` are published from
+qualified source `20cb39bf0ffd49f619e3d904bbb7355bc19993bd`, including final
+main `a1ca70c58d` and the publication-fence corrections recorded above.
+Registry metadata and downloaded tarballs match the exact staged bytes:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-mOso3FXTTsKgKeatmOe3mBX8wm9nEoCmEXf4fFMicxveUFo4IiM9IZ7xevcQ6uziThgvr8b+5w95ZRb9jbl+8A==` |
+| `snapback4-darwin-arm64` | `sha512-uhPlRv2+piSZw0x1eKMC2o/dlskwE+OnxW4FakNmT3ao7cmzA6IDeStv11kdZsj1t9DfoisCch68NVbMDqKQ6A==` |
+
+The complete source suite passed with **0 failures in 629 s**: client
+1,093 passed and 5 skipped in 617 s; Rust 214 s, with 138 test binaries and
+855 executions in the inventory. All four published-0.2.33 fences were enabled.
+`--dry-run` finished in 764.805 s including production build, signing, packing
+and installed-consumer proof. `--resume` repeated that consumer proof and
+published the exact tarballs in 399.774 s, including npm processing waits.
+Independent registry/download verification took 1.868 s.
+
+The production binary is **10,940,992 bytes**, SHA-256
+`a5d7683030251d50c36775777ca104715857eb29edd8e40d4ba6ca79074f3edf`. It is signed by
+`Developer ID Application: Charles Cheever (UD2ZVW5WU5)`, team `UD2ZVW5WU5`,
+with hardened runtime and timestamp; **not notarized**. Headless signing used
+the unchanged launchd relay from 0.3.0/0.3.1, delegating the same `codesign
+--sign` invocation, with no keychain or credential changes. The qualified
+SQLite build input remains `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`.
+The client tarball is 656,765 bytes (80 files);
+the platform tarball is 5,379,828 bytes (3 files).
+
+Compatibility policy: a 0.4 release requires a 0.4 server. Older native/WASM
+devices continue to install, adopt, query and reopen capability-free backends;
+capability-bearing backends are refused. Mixed-version server startup fails
+closed with `E_GENERATION` and preserves the prepared release/store bytes.
+
+The original red dry run and every subsequent failed fence attempt are retained
+in `reports/20260924-publication-0.4.0/`, together with timings, staged receipt
+and registry verification. No signing, consumer-proof or npm-publication
+attempt failed in phase 4. npm's asynchronous processing caused normal
+availability waits. Commits remain local; no push was made in phases 2–4.
+
+## 2026-09-24 — snapback4-expo 0.4.0 published
+
+`snapback4-expo@0.4.0` is published from the renewed native qualification
+of `20cb39bf0ffd49f619e3d904bbb7355bc19993bd`, including the transactional
+once-key fix. Registry metadata and the downloaded tarball match:
+`sha512-PtZPvTcF7FtLy+RMMyWgsekPuW9igYqwzAS8QC0SFnCi1k5Rwm2i/Sx6A9JrdrsoF/JL0IeOQRU6+SU4yxKZTA==`.
+The package is **4,809,625 bytes**, 17 files; SHA-256
+`72876aa43670d945581e614ca6557366175648a7b5295335aaedb0026af86253`.
+
+The phase-1 integrity `sha512-yH1Ho6zhujUsi7uyF5iawUk2DaunFE9ewCrVenR8lHDGmWLTFs2plKhaDEuzKz59+WMIK7GXL3dHZToeoUau+Q==`
+was intentionally superseded after the core fix. Exactly three packed files
+changed: both rebuilt native archives and `Info.plist`, whose AvailableLibraries
+array Xcode emitted in the reverse order (sorted parsed values are identical).
+The other 14 files are byte-identical to phase 1. The qualified source trees are:
+- device: `708272bad68589c64517f4a15063bfa1eee16bf1`;
+- core: `fe93c1877be096ed7011da92327deb2b8006f08a`.
+
+Native archive SHA-256:
+- iOS arm64, 6,035,792 bytes:
+  `43e2780e8302cfb561c45f18e428032f77df6a8db1cd8ac6a915bb12ff02fc1a`;
+- iOS arm64 simulator, 6,029,904 bytes:
+  `2b5b33e8cabbd68d27a3c61fc88b3fdcea1d547a9703297f12fa0145951caea6`.
+
+Both slices rebuilt in 65.467 s. The Release chat-expo app rebuilt in 29.515 s
+against the exact new simulator archive, confirmed at Xcode's linked copy.
+The existing CocoaPods integration had been installed after the framework
+existed and copied the rebuilt slice successfully. The owned simulator's old
+app/store was uninstalled before installing this build. Its installed executable
+matched the built app (SHA-256
+`fdf1cfe48e9ba0696c81b311486b7982fdf3735ce7dc10090f6b89e907b9782c`).
+
+The published CLI native witness, driven by this worktree's rebuilt CLI on
+simulator `83D9B076-D3E5-4045-AD0A-17AF5DBC137A`, passed:
+- `offline --prime`: 13.479 s;
+- `restart --prime --relaunch`: 13.330 s.
+
+Both artifact manifests and every referenced artifact hash were verified.
+Packing took 2.803 s; packed-file/qualification verification 0.255 s. npm publish
+returned success in 9.247 s, then the registry availability check waited
+247.249 s for asynchronous processing. Downloaded registry bytes match the
+qualified tarball. No native build, witness, packing or publication attempt
+failed in phase 4. The simulator was shut down after qualification.
+
+The final hashes and raw witness evidence are in
+`reports/20260924-expo-0.4.0-phase4/qualified.json`; the registry confirmation
+is in its adjacent `publication.json`. The full publication/attempt report is
+`reports/20260924-publication-0.4.0/REPORT.md`. Static native slices are supplied
+through the Expo package; the Developer ID signing record for the production
+CLI is in the preceding entry. Qualification here is iOS simulator only.
+All final evidence is committed locally on `sb4-intent/publish-040`; no push.

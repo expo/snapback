@@ -1,0 +1,27 @@
+{
+  "ios-arm64/libsnapback4_device.a": {
+    "minos": {
+      "16.4": 2
+    },
+    "legacy_min_iphoneos": {
+      "10.0": 372
+    },
+    "sdks": {
+      "n/a": 329,
+      "27.0": 1,
+      "26.2": 44
+    }
+  },
+  "ios-arm64-simulator/libsnapback4_device.a": {
+    "minos": {
+      "16.4": 2,
+      "14.0": 372
+    },
+    "legacy_min_iphoneos": {},
+    "sdks": {
+      "n/a": 329,
+      "27.0": 1,
+      "26.2": 44
+    }
+  }
+}

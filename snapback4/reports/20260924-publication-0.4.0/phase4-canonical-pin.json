@@ -1,0 +1,14 @@
+{
+  "name": "phase4-canonical-pin",
+  "command": [
+    "node",
+    "--test",
+    "/tmp/sb4-capture-capability-free-040.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:26:51.787999+00:00",
+  "finished_at": "2026-09-24T11:26:54.243306+00:00",
+  "seconds": 2.455,
+  "exit_code": 0,
+  "log": "phase4-canonical-pin.log"
+}

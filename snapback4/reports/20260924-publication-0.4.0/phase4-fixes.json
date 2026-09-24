@@ -1,0 +1,35 @@
+{
+  "phase": 4,
+  "policy": "A 0.4 release requires a 0.4 server. Old devices remain compatible with capability-free backends; mixed-version serve must refuse E_GENERATION without changing the prepared release/store.",
+  "canonical_backend": {
+    "old_bytes": 2734,
+    "new_bytes": 2950,
+    "changes": "Exactly eight site/reason string changes (two sites in programs and two in schema.operations); read spelling adds first 10 and explanations add selected key, result shape and selection reason. No runtime IR/table shape changes in this control."
+  },
+  "fix": "Shared SQLite Store::prepare no longer creates _effect_keys. Tx::effect_once creates it inside the emitting transaction on first use. Permanent keys, replay suppression, deduplication and write metering stay unchanged.",
+  "failed_attempts": [
+    {
+      "report": "phase4-fences.json",
+      "seconds": 8.579,
+      "reason": "New physical-byte assertions took native snapshots before successful legacy job-column migration; first mixed-version serve also established release store symlink."
+    },
+    {
+      "report": "phase4-fences-2.json",
+      "seconds": 4.527,
+      "reason": "Release byte snapshot included successful matching server WAL left by SIGTERM; old serve recovered/checkpointed it."
+    },
+    {
+      "report": "phase4-fences-3.json",
+      "seconds": 4.6,
+      "reason": "Stored Rust schema field order differs from /schema canonical key order; all behavioral and release/store preservation checks passed."
+    }
+  ],
+  "final_fences": {
+    "report": "phase4-fences-4.json",
+    "seconds": 3.351,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  "regression_scope": "Initial current open on real 0.2.33 store adds no _effect_keys; failed adoption on that opened store preserves raw SQLite bytes and every logical row/table. Current engine future-capability refusal adds no once-key table and preserves raw bytes. Failed first emissions roll back table creation under outbox, heap, and write-meter failures."
+}

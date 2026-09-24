@@ -1,0 +1,15 @@
+{
+  "base_commit": "4af0ef82f9306140200fbfd5a52cfe95abcd6345",
+  "build_commit": "8d52f3ea88989f38c7cae781beab9d1a62112ad8",
+  "trees": {
+    "snapback4-device": "708272bad68589c64517f4a15063bfa1eee16bf1",
+    "snapback4-core": "f1149e8831365b5102d53b3c49227c2798941214"
+  },
+  "toolchain": {
+    "node": "v24.18.0",
+    "bun": "1.4.2",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "xcode": "Xcode 27.0\nBuild version 27A266a",
+    "host": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83"
+  }
+}

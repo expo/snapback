@@ -1,0 +1,12 @@
+✔ capture canonical capability-free 0.4 backend (2390.449625ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ {"oldBytes":2734,"currentBytes":2950,"diffs":[{"path":"/programs/1/sites/0/reason","old":"scan posts by byId: held, no horizon","current":"scan posts by byId: held, no horizon; selected byId (); result: page; explicit by"},{"path":"/programs/1/sites/0/site","old":"schema.q:19:9 (posts[])","current":"schema.q:19:9 (posts[] first 10)"},{"path":"/programs/2/sites/0/reason","old":"scan likes by byId: held, no horizon","current":"scan likes by byId: held, no horizon; selected byId (); result: page; explicit by"},{"path":"/programs/2/sites/0/site","old":"schema.q:21:9 (likes[])","current":"schema.q:21:9 (likes[] first 10)"},{"path":"/schema/operations/likes/sites/0/reason","old":"scan likes by byId: held, no horizon","current":"scan likes by byId: held, no horizon; selected byId (); result: page; explicit by"},{"path":"/schema/operations/likes/sites/0/site","old":"schema.q:21:9 (likes[])","current":"schema.q:21:9 (likes[] first 10)"},{"path":"/schema/operations/posts/sites/0/reason","old":"scan posts by byId: held, no horizon","current":"scan posts by byId: held, no horizon; selected byId (); result: page; explicit by"},{"path":"/schema/operations/posts/sites/0/site","old":"schema.q:19:9 (posts[])","current":"schema.q:19:9 (posts[] first 10)"}]}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2427.607917

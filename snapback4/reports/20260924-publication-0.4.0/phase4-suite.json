@@ -1,0 +1,19 @@
+{
+  "source": "20cb39bf0ffd49f619e3d904bbb7355bc19993bd",
+  "suite": "passed",
+  "suiteSeconds": 629,
+  "rustSeconds": 214,
+  "clientSeconds": 617,
+  "client": {
+    "tests": 1098,
+    "passed": 1093,
+    "failed": 0,
+    "skipped": 5
+  },
+  "publishedFencesEnabled": true,
+  "publishedFenceVersion": "0.2.33",
+  "publishedFencesPassed": 4,
+  "sqliteBuildFlags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "signingRelaySha256": "06fa7db565ac920a7ee7d5d413410c3113757682c9549e3c7c9ddd1da1c46acf",
+  "log": "phase4-publication-dry-run.log"
+}

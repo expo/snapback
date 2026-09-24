@@ -1,0 +1,13 @@
+{
+  "name": "phase4-native-witness",
+  "command": [
+    "node",
+    "witness/expo.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:33:37.577252+00:00",
+  "finished_at": "2026-09-24T11:34:07.875970+00:00",
+  "seconds": 30.298,
+  "exit_code": 0,
+  "log": "phase4-native-witness.log"
+}

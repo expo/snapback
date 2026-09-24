@@ -1,0 +1,34 @@
+xcrun simctl boot 83D9B076-D3E5-4045-AD0A-17AF5DBC137A
+xcrun simctl bootstatus 83D9B076-D3E5-4045-AD0A-17AF5DBC137A -b
+Monitoring boot status for Snapback4-Expo-040-20260924 (83D9B076-D3E5-4045-AD0A-17AF5DBC137A).
+[2026-09-24 11:33:20 +0000] Status=2, isTerminal=NO, Elapsed=00:01.
+	Waiting on Data Migration
+		Reason:(null)
+		Migration Elapsed:00:00 seconds
+
+[2026-09-24 11:33:21 +0000] Status=4, isTerminal=NO, Elapsed=00:02.
+	Waiting on System App
+
+[2026-09-24 11:33:23 +0000] Status=4, isTerminal=NO, Elapsed=00:03.
+	Waiting on System App
+
+[2026-09-24 11:33:23 +0000] Status=4, isTerminal=NO, Elapsed=00:04.
+	Waiting on System App
+
+[2026-09-24 11:33:24 +0000] Status=4, isTerminal=NO, Elapsed=00:05.
+	Waiting on System App
+
+[2026-09-24 11:33:26 +0000] Status=4, isTerminal=NO, Elapsed=00:06.
+	Waiting on System App
+
+[2026-09-24 11:33:27 +0000] Status=4, isTerminal=NO, Elapsed=00:07.
+	Waiting on System App
+
+[2026-09-24 11:33:28 +0000] Status=4, isTerminal=NO, Elapsed=00:08.
+	Waiting on System App
+
+[2026-09-24 11:33:29 +0000] Status=4294967295, isTerminal=YES, Elapsed=00:09.
+	Finished
+
+xcrun simctl uninstall 83D9B076-D3E5-4045-AD0A-17AF5DBC137A dev.snapback4.chat
+xcrun simctl install 83D9B076-D3E5-4045-AD0A-17AF5DBC137A target/expo-release/Snapback4chat.app

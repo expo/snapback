@@ -1,0 +1,12 @@
+{
+  "node": "24.18.0",
+  "SNAPBACK4_FENCE_PUBLISHED": "/Users/ccheever/sb4-03-lanes/published-0.2.33",
+  "codesignRelay": "/Users/ccheever/sb4-03-lanes/codesign-relay/codesign",
+  "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT (set by unchanged publisher)",
+  "publisherChanged": false,
+  "pushAuthorized": false,
+  "phase1FailedPush": {
+    "seconds": 2.808,
+    "error": "pre-push ERR_MODULE_NOT_FOUND: acorn from packages/snapback-codegen/visibility-governance.mjs"
+  }
+}
