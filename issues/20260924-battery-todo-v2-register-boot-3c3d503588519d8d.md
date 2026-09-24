@@ -1,0 +1,42 @@
+# complete battery red: todo-v2-register-boot
+
+**Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Testing, CI
+**Date:** 2026-09-24
+**Battery gate:** `todo-v2-register-boot`
+**Failure signature:** `sha256:3c3d503588519d8d5ca5788eda85220c677191c437fb13f2f2e6a15ba23f7ebb`
+**First observed run:** `local.20260924T130725Z.942753a689cd`
+**Last observed run:** `local.20260924T130725Z.942753a689cd`
+**Last processed run:** `local.20260924T130725Z.942753a689cd`
+**Detected at revision:** `942753a689cd474aeff0cc571b2b4336ca4fe9f4`
+**Last observed revision:** `942753a689cd474aeff0cc571b2b4336ca4fe9f4`
+**Consecutive red runs:** `1`
+**Escalation:** `pending (1/4)`
+**Related:** LLP 0189 D-1, LLP 0175 D2.3
+
+## Summary
+
+The scheduled complete canonical battery reported `todo-v2-register-boot` as a root
+failure (exit 1). This ticket is keyed by gate plus the normalized
+root-failure signature and remains idempotent while open. Dependent `BLOCKED`
+results do not create tickets.
+
+## Standing claim cross-references
+
+- `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
+
+These are the standing published claims whose recorded LLP 0189 D-4 scope
+derives `todo-v2-register-boot` as claim-relevant for this battery revision.
+
+## Reproduce and repair
+
+```sh
+node demos/todo-v2/tests/acceptance/register-boot.mjs
+```
+
+Fix forward, rerun the complete battery, and let the next determinate pass close
+this signature. Four consecutive red observations require author escalation.
