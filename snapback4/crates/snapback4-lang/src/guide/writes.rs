@@ -1,6 +1,9 @@
 //! Writes and server-arrival ordering.
 pub(super) const CARD: &str = r##"# Writes
 
+Mutations insert, update and delete rows in one transaction.
+Rules and constraints apply before that transaction commits.
+
 ```quarry
 mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
   a = insert messages { roomId, authorId: viewer, body, at: now }                   -- the row; the id is minted unless given (`id: new`, or one you hold)
@@ -110,6 +113,11 @@ and its synced group is fully held without a horizon. Otherwise either an
 ordinary insert or an upsert queues without a predicted row; the server
 decides the postcondition when the write arrives.
 
+NOT_FOUND means a point write has no target, or a write to an unreadable target
+was refused without disclosing its existence. It is also the conventional
+application code for `row ! else NOT_FOUND`. Check a readable target and retry;
+do not infer absence from a refused blind write.
+
 Defaults fill missing insert columns on the writing host, including the insert
 branch of `upsert`; updates and existing-row upserts never reapply defaults.
 `upsert` inserts or patches: on an existing row, unnamed columns keep their
@@ -123,6 +131,14 @@ the engine; neither old nor the merged image is a program binding.
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
+
+E_INPUT means an argument or row value does not fit its declared type.
+Correct the named field or its declaration. A typed reference checks the id's
+shape; use `require exists t[id] else CODE` to require a visible target.
+
+E_CONFLICT means a conditional update found that the row changed.
+The refusal carries the current row only when its read rule admits the viewer.
+Read it and retry with a fresh edit.
 
 | Target before the write | Refusal details |
 | --- | --- |

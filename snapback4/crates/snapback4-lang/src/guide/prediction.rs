@@ -1,6 +1,62 @@
 //! The mutation's eligibility and the device's decision on a call.
 pub(super) const CARD: &str = r##"# Prediction: queued writes and local rows
 
+Prediction applies an eligible write to local rows while the server decides it.
+A write can still queue when the device cannot justify a prediction.
+
+```quarry
+table drafts:
+  owner: principal
+  body: text <=200
+  cap 100 by owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  sync to .owner
+
+table notes:
+  owner: principal
+  body: text <=200
+  at: time
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner last 100 by .at
+
+view noteCounts: count notes by .owner
+  read <- .owner = viewer
+  online only
+
+effect notify
+
+mutation saveDraft(id: drafts, body: text <=200) predicts:
+  draft = drafts[id] ! else NOT_FOUND
+  update drafts[draft] { body }                 -- held site
+
+mutation post(body: text <=200) predicts:
+  insert notes { owner: viewer, body, at: now }  -- no existence guard needed
+
+mutation guardedPost(id: notes, body: text <=200):
+  if not exists notes[id]:                      -- horizon site: a miss is unknown
+    insert notes { id, owner: viewer, body, at: now }
+  return null
+
+mutation countedPost(body: text <=200):
+  total = noteCounts[viewer]                    -- server site: predicts never
+  insert notes { owner: viewer, body, at: now }
+  return total
+
+mutation notifyPost(body: text <=200, recipient: principal) predicts:
+  insert notes { owner: viewer, body, at: now }
+  if not exists connected[recipient]:           -- presence decides only the emit
+    emit notify { recipient }
+  return null
+
+mutation falliblePost(body: text <=200, recipient: principal):
+  insert notes { owner: viewer, body, at: now }
+  emit notify { ratio: 1 / connected[recipient] } -- can divide by zero: never
+  return null
+```
+
 `pending` means the write has not settled; `sent` means the server committed it.
 A predicted row carries `pending: true`; a pending write may have no predicted row.
 Writes that do not predict show pending with `usePendingWrite(op)` from
@@ -14,12 +70,6 @@ repeat that analysis locally. It still validates arguments, rows, rules, coverag
 and runtime budgets. A hand-built or corrupted backend can therefore produce
 local query answers or predictions where a native device reports a structural refusal. The server
 rechecks every submitted mutation before committing it.
-
-Run `snapback4 check --residency --verbose` and `snapback4 why <op>` to see read sites:
-- `held`: the viewer's whole synced partition, or an inherited aggregate view.
-- `horizon`: a synced `last N` window; a held row can be read, but a miss
-  cannot prove absence beyond the horizon, so that call may queue without a row.
-- `server`: online-only data; a mutation reading it has `predicts: never`.
 
 `predicts: eligible` requires device-readable sites and synced writes;
 the call still needs its facts on this device and must fit the meter and rules.
@@ -75,59 +125,6 @@ readable outputs while hiding unreadable or unknown ones. Static eligibility
 and `predicts:` assertions are unchanged. The declared timeline still skips
 foreign engine-owned inbox copies before writing them. Ordinary recipe fan-out
 predicts all its copies and hides those whose `readerId` differs from the viewer.
-
-```quarry
-table drafts:
-  owner: principal
-  body: text <=200
-  cap 100 by owner
-  read <- .owner = viewer
-  insert <- .owner = viewer
-  update <- .owner = viewer
-  sync to .owner
-
-table notes:
-  owner: principal
-  body: text <=200
-  at: time
-  read <- .owner = viewer
-  insert <- .owner = viewer
-  sync to .owner last 100 by .at
-
-view noteCounts: count notes by .owner
-  read <- .owner = viewer
-  online only
-
-effect notify
-
-mutation saveDraft(id: drafts, body: text <=200) predicts:
-  draft = drafts[id] ! else NOT_FOUND
-  update drafts[draft] { body }                 -- held site
-
-mutation post(body: text <=200) predicts:
-  insert notes { owner: viewer, body, at: now }  -- no existence guard needed
-
-mutation guardedPost(id: notes, body: text <=200):
-  if not exists notes[id]:                      -- horizon site: a miss is unknown
-    insert notes { id, owner: viewer, body, at: now }
-  return null
-
-mutation countedPost(body: text <=200):
-  total = noteCounts[viewer]                    -- server site: predicts never
-  insert notes { owner: viewer, body, at: now }
-  return total
-
-mutation notifyPost(body: text <=200, recipient: principal) predicts:
-  insert notes { owner: viewer, body, at: now }
-  if not exists connected[recipient]:           -- presence decides only the emit
-    emit notify { recipient }
-  return null
-
-mutation falliblePost(body: text <=200, recipient: principal):
-  insert notes { owner: viewer, body, at: now }
-  emit notify { ratio: 1 / connected[recipient] } -- can divide by zero: never
-  return null
-```
 
 `why guardedPost` identifies the horizon read. The client-minted mutation id
 already dedupes a retry for that principal; reuse that write id when retrying.
@@ -238,7 +235,15 @@ mutation setLike(postId: id, liked: bool) predicts:
 ```
 
 
-## A call that cannot produce local rows
+## Operations
+
+Run `snapback4 check --residency --verbose` and `snapback4 why <op>` to see read sites:
+- `held`: the viewer's whole synced partition, or an inherited aggregate view.
+- `horizon`: a synced `last N` window; a held row can be read, but a miss
+  cannot prove absence beyond the horizon, so that call may queue without a row.
+- `server`: online-only data; a mutation reading it has `predicts: never`.
+
+## Refusals
 
 E_PREDICT means the device cannot establish this call's prediction from
 its held facts or submission IDs. For example, an `upsert` missing beyond
@@ -247,5 +252,4 @@ the write queued without predicted rows and lets the server judge it;
 observe its pending/failed/sent state instead of treating missing local
 rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
 the required partition, or redesign the read to need held facts; never
-invent an empty row or mint different IDs on replay.
-"##;
+invent an empty row or mint different IDs on replay."##;

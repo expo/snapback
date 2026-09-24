@@ -1,23 +1,8 @@
 //! The complete, compiled and executed Quarry language card.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
-programs and schedules, in any order; more `.q` files beside it are modules
-(their operations are `<module>.<name>`) sharing one namespace. Schedules use that
-qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
-bare module job gets this rewrite from `check --fix`. Comments
-start with `--`. Blocks indent with two spaces. Everything the compiler
-accepts is below; the suite compiles every block and runs the core program.
-
-Time arithmetic uses durations: `now + 1m` is one minute from now,
-and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
-produce UTC calendar ordinals. See `guide jobs` for scheduled work.
-
-`createRoom` below predicts: its room is readable through the membership
-inserted later in the same call. Reads authorize the current provisional
-image against all pending writes. `edit` of retained history after leaving
-the room also predicts, but the edited image is hidden until settlement.
-See `guide prediction`.
+Quarry defines your tables, access rules and backend operations.
+Queries and eligible mutations can run on devices that hold their inputs.
 
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
@@ -420,6 +405,24 @@ query intentDurations():
   return [500ms, 30s, 15m, 24h, 7d, bucket(now, 2m)]
 ```
 
+One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
+programs and schedules, in any order; more `.q` files beside it are modules
+(their operations are `<module>.<name>`) sharing one namespace. Schedules use that
+qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
+bare module job gets this rewrite from `check --fix`. Comments
+start with `--`. Blocks indent with two spaces. Everything the compiler
+accepts is below; the suite compiles every block and runs the core program.
+
+Time arithmetic uses durations: `now + 1m` is one minute from now,
+and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
+produce UTC calendar ordinals. See `guide jobs` for scheduled work.
+
+`createRoom` above predicts: its room is readable through the membership
+inserted later in the same call. Reads authorize the current provisional
+image against all pending writes. `edit` of retained history after leaving
+the room also predicts, but the edited image is hidden until settlement.
+See `guide prediction`.
+
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
 An enum fits `text <=N` when every variant has at most N characters and
 contains no control characters except tab, LF and CR. This is
@@ -480,7 +483,7 @@ route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry bod
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```
 
-## Fixing a refused line
+## Refusals
 
 E_QUARRY_SYNTAX means the parser could not read the form at the reported
 file, line and column. For example, `query answer:` is missing its argument
@@ -519,10 +522,6 @@ The event-free generation barrier makes devices reacquire; a missing stored
 field reads 0 without an authored literal default. See `guide maintains`
 for disclosure and stream cost, and `guide feeds` for Trending.
 
-
-
-
-
 Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why
@@ -559,8 +558,6 @@ The compiler selects or synthesizes indexes. A positional key must name one
 unambiguous declared unique key; named keys make the intended columns explicit.
 `search` declares searchable text, and unnamed `unique` declares a unique key.
 Duration literals are integer milliseconds in any expression.
-
-
 
 ## Materialized Following
 
@@ -704,6 +701,4 @@ mutation timelineRemove(postId: timelineCards):
 query timelineHome(c: cursor ?):
   return timeline[viewer] after c last 20 { *, post: timelineCards[.postId] }
 
-```
-
-"##;
+```"##;

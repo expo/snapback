@@ -72,25 +72,15 @@ card/effects/3:sendBrief | messages/insert | {"Exists":{"table":"members","index
 card/effects/3:split | never
 card/expire/1:postStory | eligible
 card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]} | read rule
-card/feeds/1:follow | never
-card/feeds/1:post | eligible
-card/feeds/1:remove | eligible
-card/feeds/1:repost | eligible
-card/feeds/1:unfollow | never
-card/feeds/1:unrepost | eligible
 card/feeds/2:follow | never
 card/feeds/2:post | eligible
-card/feeds/2:register | eligible
 card/feeds/2:remove | eligible
-card/feeds/2:reply | eligible
 card/feeds/2:repost | eligible
-card/feeds/2:setLike | $column:122ae999ced85a4e03b344dae04920e27483db53c056b97452de5b4e1c4067c5/maintain | "Deny" | read rule
-card/feeds/2:setLike | eligible
 card/feeds/2:unfollow | never
 card/feeds/2:unrepost | eligible
-card/feeds/4:create | never
-card/feeds/4:remove | never
-card/feeds/4:setLike | never
+card/feeds/3:create | never
+card/feeds/3:remove | never
+card/feeds/3:setLike | never
 card/indexes/2:checkin | never
 card/language/1:checkin | never
 card/language/1:createRoom | eligible
@@ -176,6 +166,28 @@ card/native/1:sendBrief | eligible
 card/native/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/native/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/native/1:split | never
+card/personas/1:checkin | never
+card/personas/1:createRoom | eligible
+card/personas/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/personas/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/personas/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/personas/1:edit | eligible
+card/personas/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/personas/1:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/personas/1:join | eligible
+card/personas/1:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/personas/1:leave | eligible
+card/personas/1:pagePass | never
+card/personas/1:post | eligible
+card/personas/1:react | eligible
+card/personas/1:react | postLikes/maintain | "Deny" | read rule
+card/personas/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/personas/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/personas/1:registerProfile | never
+card/personas/1:sendBrief | eligible
+card/personas/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/personas/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/personas/1:split | never
 card/prediction/1:countedPost | never
 card/prediction/1:falliblePost | never
 card/prediction/1:guardedPost | eligible
@@ -308,6 +320,28 @@ card/reads/4:sendBrief | eligible
 card/reads/4:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:split | never
+card/refusals/1:checkin | never
+card/refusals/1:createRoom | eligible
+card/refusals/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/refusals/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/refusals/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/refusals/1:edit | eligible
+card/refusals/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/refusals/1:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/refusals/1:join | eligible
+card/refusals/1:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/refusals/1:leave | eligible
+card/refusals/1:pagePass | never
+card/refusals/1:post | eligible
+card/refusals/1:react | eligible
+card/refusals/1:react | postLikes/maintain | "Deny" | read rule
+card/refusals/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/refusals/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/refusals/1:registerProfile | never
+card/refusals/1:sendBrief | eligible
+card/refusals/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/refusals/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/refusals/1:split | never
 card/residency/1:post | eligible
 card/routes/1:checkin | never
 card/routes/1:createRoom | eligible

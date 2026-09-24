@@ -49398,3 +49398,143 @@ No deviation or unresolved round 8 finding. No new API, Quarry form, storage
 format, authorization/disclosure rule, meter, native API, starter or version
 change. README remains 296/300 lines; modified source/test files remain below
 1,500 lines. Did not push or publish.
+
+## 2026-09-24 — Lane F: the feeds card teaches the builder path (0.4.1 candidate)
+
+Fetched origin and merged origin/main, fast-forwarding cleanly to ca6d975da
+with integrated 0.4.0 and Lane H's compact notes. Reordered the feeds card as
+Global union view, Following view, bounded Trending predicate and the plain
+Following contract. The contract states newest-first order, immediate own
+visibility, asynchronous follower delivery, 50 immediate backfill events and
+up to 1,000 total, next-read unfollow, pending-work completeness and immediate
+removal hiding. Engine details now live in a short How it works section. All
+older spellings, recipes, bridges, sizes and promotion advice live in one
+clearly headed final section.
+
+The card shrank from 571 to 292 lines, 3,904 to 1,798 whitespace words and
+26,499 to 12,251 UTF-8 bytes: 49% fewer lines and 54% fewer words/bytes. All
+four Quarry blocks compile without diagnostics or notes; removed the former
+feeds-block stream-note exception. A new structure test guards the teaching
+order and compatibility boundary. A new runtime test executes the published
+Following program through own visibility, immediate 50-event backfill,
+completion, delayed delivery, removal and unfollow. The older complete
+program is byte-for-byte equal to an existing legacy fixture; its Clique-size,
+Global atomicity and bridge expansion controls now use that unchanged fixture.
+Updated only deliberately changed prose expectations and the card source
+census entries. The current Trending oracle remains in place.
+
+Focused checks: guide 59 passed, readauth 81 passed, aggregate copies 64 passed
+and 4 ignored, feed bridge 12 passed. Frozen Bun install passed. Whitespace
+checks pass and changed Rust sources remain below 1,500 lines. README budget
+stays 292/300 lines; device artifact stays 1,744,842 B raw / 484,967 B gzip
+against the unchanged 486,000 B budget. Ran scripts/test.sh once after focused
+checks: `== 0 failure(s) in 406 s`. Client tests: 1,088 passed, 10 skipped.
+No introduced, baseline or environmental suite failure. One local new-test
+Debug formatting compile error was fixed before the passing guide run.
+
+No compiler, engine, authorization, disclosure, durability or meter change.
+No new form, package version bump, push, publication or deployment. No scope
+deviation or new open problem. The existing normally-within-a-second idle-host
+cadence is not a new wall-clock measurement or a backlog latency guarantee.
+Implementation commit: f920176cb. File map, examples, tests and evidence logs:
+reports/20260924-feeds-guide-041.md.
+
+## 2026-09-24 — Lane F round 2: feeds review closed and every card leads with its feature
+
+Fetched origin and merged origin/main; already up to date on a034a3670,
+which contains integrated 0.4.0 and Lane H's compact notes. Closed the feeds
+review findings: scoped the 40-event / 82-examination / 41-probe measurement
+to the older recipe in the final compatibility section; moved the two legacy
+operation refusals there; documented and executed non-owner remove as E_RULE;
+said older posts remain in posts, without inventing a profile table. Repaired
+the three requested why entries and adjacent Following source-shape, unique-pair
+and owned-row explanations to use the current view forms.
+
+The published Global block now runs with live/removed originals and an
+independent repost, including equal branch ids and post/actor/card checks.
+Following now runs with 1,005 originals, tied timestamps and a reply, checking
+own visibility, newest 50 immediately, exactly the newest 1,000 after backfill,
+retained older source rows, mapped fields, reply exclusion on both readers,
+asynchronous delivery, removal and unfollow. Three deliberate mutations each
+failed the intended assertion: reversed Global removal selection, removed reply
+filter, and a 10,000-event history window. Every altered file was restored
+byte-for-byte; no engine change remains.
+
+Audited all 29 canonical cards and their shared alias destinations. Each now
+starts with a title, two sentences explaining the feature, then its example.
+Feeds retains its named Global section before that example; the witness keeps
+its existing TSX harness. Moved operational and refusal material behind the
+builder path. Added compiled examples for personas, schema adoption and
+application refusals. All prior Quarry blocks are byte-for-byte unchanged.
+Removed repeated job module-naming and shape-completeness prose. Preserved all
+172 diagnostic-bearing paragraphs outside the requested feeds corrections
+byte-for-byte. A new opening-order guard and the existing why/inline-diagnostic
+censuses protect the organization and excerpt lookup. Updated the exact read
+authorization census for the two new language-context compilation sites.
+
+Focused results: guide 61 passed, CLI check/why 68 passed, readauth 81 passed.
+Frozen Bun install and whitespace checks pass; the largest changed Rust source
+is 1,187 lines. The feeds card is 302 lines. README stays 292/300 lines; WASM
+stays 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B budget.
+One full scripts/test.sh run: `== 0 failure(s) in 433 s`. Client tests:
+1,088 passed, 10 skipped. No introduced, baseline or environmental suite failure.
+The new title guard caught formatting defects, and the first mutation-check
+wrapper expected a different assertion message; these introduced development
+failures were corrected before qualification. The paragraph audit also caught
+and corrected a misplaced heading inside the sync explanation.
+
+The inherited full-history search example still deliberately emits its asserted
+N_NO_HORIZON note. Its example, warning and exact exception are unchanged;
+adding a horizon would change its contract, and suppressing the note would hide
+acquisition cost. All feeds and newly added examples are silent. No new note
+exception, engine, compiler admission, authority, disclosure, durability, meter,
+package version, push, publication or deployment change. Commits f3588f913 and
+971939d34 hold the implementation. Exact old/new first paragraphs for every
+card, the file map, review dispositions, inherited-note reproduction and logs
+are in reports/20260924-feeds-and-card-leads-r2.md.
+
+
+## 2026-09-24 — Lane F round 3: definitions survive card reordering
+
+Closed the round-2 reviews in commits 79e8f1869 and aa4209fcb. The bounds
+card no longer names E_BOUND incidentally in its heap paragraph; why again
+quotes the defining ceilings paragraph, including the refusing meter, ceiling,
+site and the reason counts are withheld. Audited the first matching paragraph
+for all 195 registered codes across 25 default cards. Added definitions before
+older code listings for E_RULE, E_INPUT, E_CONFLICT and NOT_FOUND; copied the
+ten published OIDC refusal paragraphs verbatim from SERVER.md into services;
+made the feed refusal rows state their meaning and defined the older profile-cap
+note in the final compatibility section. A separate defining-fact census now
+checks every code's actual card excerpt and its inline-diagnostic equivalent.
+
+Following now says the newest 50 arrive immediately, then the rest of a
+1,000-event window. Its text test pins that sentence and the sentence saying
+older posts stay in posts. Restored the search include separators; the all-card
+heading check also caught the second boundary's missing blank line. All 29
+card introductions and every published Quarry block remain unchanged.
+
+The Following execution test creates p0000 later than the tied p1004/p1003
+pair, requiring time before the id tiebreak in own and delivered pages. The
+new unrepost test creates and delivers a repost, calls the published mutation,
+and checks both owner and follower before and after cleanup while preserving
+the original. Nine deliberate mutations failed their intended assertions,
+including id-only ordering, no-op unrepost, the profile noun, both search joins,
+the old window wording, the displaced bound paragraph, the pre-fix definition
+set (31 failed facts), and an incidental first code mention. All altered bytes
+were restored; no compiler or engine change remains. During development the
+new repost test confused its source row id with its feed event id; corrected
+the assertion before qualification. No engine defect was found.
+
+Frozen Bun install passed. Guide: 66 passed; CLI check/why/diagnostics: 68
+passed. One full scripts/test.sh run: `== 0 failure(s) in 399 s`, exit 0.
+No introduced, baseline or environmental suite failure. Client tests: 1,088
+passed, 10 skipped. README remains 292/300 lines; WASM remains 1,744,842 B raw
+and 484,967 B gzip under the unchanged 486,000 B budget. Feeds is 303 lines;
+the largest changed Rust source is 1,192 lines. Whitespace checks passed.
+
+No round-3 deviation, new form, new open problem, package version, push or
+publication. Authorization, disclosure, durability and meters are unchanged.
+The inherited full-history search example's asserted N_NO_HORIZON note remains;
+all feed examples are silent and no note exception was added. The file map,
+regression evidence, reproduction for that inherited note and exact results
+are in reports/20260924-guide-review-r3.md. Logs: ~/sb4-intent/lane-f-r3-*.log.

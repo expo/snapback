@@ -1,4 +1,4 @@
-//! Global writes and ranking pages use the complete published programs.
+//! Historical Global writes and the current published Trending read.
 use super::{assert_stream_note, id, text, write};
 use snapback4_core::{Context, Engine, Value, WriteState, wire};
 use snapback4_lang::guide::{card, quarry};
@@ -25,8 +25,33 @@ fn all(e: &mut Engine, op: &str, now: i64) -> Vec<Value> {
 }
 
 #[test]
-fn global_projection_retries_removal_and_rollback_are_atomic() {
-    let source = quarry(card("feeds").unwrap()).remove(1);
+fn published_global_filters_originals_and_preserves_independent_reposts() {
+    let source = quarry(card("feeds").unwrap()).into_iter().find(|s| s.contains("query global(")).unwrap();
+    let mut e = engine(&source, false);
+    for (table, json) in [
+        ("posts", serde_json::json!({"id":"shared","authorId":"author","at":10,"removed":false})),
+        ("posts", serde_json::json!({"id":"removed","authorId":"author","at":20,"removed":true})),
+        ("reposts", serde_json::json!({"id":"shared","actorId":"fan","postId":"removed","at":30})),
+    ] {
+        let row = wire::row_from_json(e.schema().table(table).unwrap(), &json).unwrap();
+        e.seed_at(vec![(table.into(), row)], 100).unwrap();
+    }
+    let rows = all(&mut e, "global", 100);
+    assert_eq!(rows.len(), 2, "only the live original and the independent repost belong to Global");
+    for row in &rows { assert_eq!(row.field("id").unwrap(), &id("shared")); }
+    assert_eq!(rows[0].field("post").unwrap(), &id("removed"));
+    assert_eq!(rows[0].field("actor").unwrap(), &id("fan"));
+    assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(true));
+    assert_eq!(rows[0].field("card").unwrap().field("removed").unwrap(), &Value::Bool(true));
+    assert_eq!(rows[1].field("post").unwrap(), &id("shared"));
+    assert_eq!(rows[1].field("actor").unwrap(), &id("author"));
+    assert_eq!(rows[1].field("repost").unwrap(), &Value::Bool(false));
+    assert_eq!(rows[1].field("card").unwrap().field("removed").unwrap(), &Value::Bool(false));
+}
+
+#[test]
+fn legacy_global_projection_retries_removal_and_rollback_are_atomic() {
+    let source = quarry(include_str!("../fixtures/legacy-feed-recipes.md")).remove(1);
     let mut e = engine(&source,true);
     let mut clock = 0;
     for viewer in ["author","actor"] { write(&mut e,&mut clock,"register",viewer,&[("name",text(viewer))]); }

@@ -1,9 +1,7 @@
 # Proving it on an iOS simulator
 
-`snapback4 witness ios` drives an installed Release app on macOS. It builds
-nothing. Add `snapback4-expo/witness` to the app and rebuild its native module.
-The helper is null on ordinary launches. Mount this runner beside the chat
-screen, using the same local client and a conversation already seeded online:
+The iOS witness runs an installed app through offline scenarios and records its assertions.
+It captures receipts and screen recordings from a simulator on macOS.
 
 ```tsx
 import { useEffect, useRef } from "react";
@@ -61,10 +59,17 @@ export function WitnessRunner({ client, conversationId, onError }: {
 }
 ```
 
+`snapback4 witness ios` drives an installed Release app on macOS. It builds
+nothing. Add `snapback4-expo/witness` to the app and rebuild its native module.
+The helper is null on ordinary launches. Mount this runner beside the chat
+screen, using the same local client and a conversation already seeded online:
+
 Keep the actual chat screen visible: its observed query renders the two
 pending bubbles while the runner waits. An assertion must throw before its
 step completes. Add your own media, search or read-receipt assertions in the
 same way; the tool imposes no application receipt schema.
+
+## Operations
 
 ```sh
 xcrun simctl list devices available --json
@@ -139,7 +144,7 @@ renders those observations. The deterministic simulator remains the main
 engine harness; this witness covers native process, storage and UI boundaries.
 
 
-## Refused witness runs
+## Refusals
 
 E_WITNESS_INPUT means a flag, launch configuration or signal label is
 invalid. For example, invoking `witness ios` without a bundle ID cannot

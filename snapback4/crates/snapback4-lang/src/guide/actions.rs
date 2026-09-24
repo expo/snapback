@@ -1,10 +1,7 @@
 pub const CARD: &str = r##"# Actions: declared results and typed server handlers
 
-One `use server` in any module (`schema.q` is usual) enables the whole
-project; repeating it is harmless. Actions, routes and schedules naming an
-action require it. Effects (including secrets, retry, backoff, deadline and
-cancellation), jobs, schedules naming a job and service seats need no directive.
-E_SERVER_REQUIRED refuses each gated declaration; its rewrite is `use server`.
+Actions expose typed operations implemented by the application's TypeScript server handlers.
+Use them for work that calls external systems and reads or writes through Quarry operations.
 
 ```quarry
 use server
@@ -133,6 +130,8 @@ get `E_ACTION_LEASE`; user tokens get HTTP 401 `E_AUTH`. Results are JSON
 bounded by the unchanged 1 MiB output ceiling, and declared result fields are
 validated using the same scalar rules as arguments.
 
+## Operations
+
 `snapback4 dev` starts `snapback/server.ts` (or `.mts` or `.mjs`), falling back
 to `snapback/worker.ts` (or `.mts` or `.mjs`), with Node 24, `SNAPBACK_URL`
 and `SNAPBACK_SERVICE_TOKEN` for `service:worker`.
@@ -163,6 +162,14 @@ server entry's import graph strictly without running it. Node 24 requires
 extensions on relative TypeScript imports. Work and step records have no
 automatic retention expiry; their ids are never silently reusable. Parked
 work needs operator reconciliation; there is no resume command in this slice.
+
+## Refusals
+
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
+E_SERVER_REQUIRED refuses each gated declaration; its rewrite is `use server`.
 
 ## Action results and lifecycle refusals
 
@@ -312,6 +319,4 @@ or run `snapback4 guide actions`.
 E_OIDC_BINDING, E_OIDC_CALLBACK, E_OIDC_CONFIG, E_OIDC_EXCHANGE,
 E_OIDC_HANDOFF, E_OIDC_MINT, E_OIDC_PROVIDER, E_OIDC_RECIPE,
 E_OIDC_REPLAY and E_OIDC_TRANSACTION
-are explained in the package’s SERVER.md, under Identity refusal reference.
-
-"##;
+are explained in the package’s SERVER.md, under Identity refusal reference."##;

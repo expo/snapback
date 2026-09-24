@@ -1,6 +1,9 @@
 //! Search card, compiled with every other keyword card by tests/guide.rs.
 pub const CARD: &str = concat!(r##"# Search: word prefixes, on the server and on the device
 
+Search finds rows whose words begin with the terms a user types.
+The same word-prefix rules apply on the server and on the device.
+
 ```quarry
 table members:
   roomId: id
@@ -56,8 +59,6 @@ or digit). The columns before it are the search's scope; the columns
 after it order the page and end in `id`, so a cursor continues it. A
 words index serves `matching` and nothing else, and cannot be unique.
 
-The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries.
-
 Indexed tokens and query terms are both truncated to 64 Unicode characters
 after folding (at most 256 UTF-8 bytes). Longer terms therefore search with
 that truncated prefix. The full composite word entry, including scope,
@@ -110,7 +111,6 @@ Following that cursor does not clear the earlier page's incompleteness in `usePa
 past a device horizon is incomplete; a held group can fall back to the server.
 
 "##, include_str!("search_all.md"), r##"
-
 ## Membership search with an admin gate
 
 ```quarry
@@ -180,4 +180,8 @@ source-coverage line; that line never promises answer completeness.
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
 as do held queries and retained left groups, and pending predictable writes
-still prevent fallback."##);
+still prevent fallback.
+
+## Refusals
+
+The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries."##);

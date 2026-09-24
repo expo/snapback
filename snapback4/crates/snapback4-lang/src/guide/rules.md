@@ -1,5 +1,8 @@
 # Rules
 
+Rules decide who may read or write each row.
+They apply on the server and when a device reads or predicts local rows.
+
 ```quarry
 table docs:
   ownerId: principal
@@ -35,6 +38,11 @@ service grants); sync infers its audience without them, and ordinary extra disju
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
+
+E_RULE means a write rule denied the viewer, or a unique key collided with a
+hidden row. Reads hide rows instead of raising this refusal. Keep the rule and
+make the write satisfy it; use an admitted `upsert` to patch another
+principal's row. The table below describes refusals for hidden targets.
 
 | Target before the write | Refusal details |
 | --- | --- |

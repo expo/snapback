@@ -13,6 +13,25 @@ use snapback4_lang::guide::{self, KEYWORDS, LANGUAGE, card, codes, explain_code,
 use std::collections::BTreeMap;
 
 #[test]
+fn every_card_introduces_the_feature_before_examples_and_reference_details() {
+    for name in KEYWORDS {
+        let text = card(name).unwrap();
+        let mut paragraphs = text.split("\n\n");
+        assert!(paragraphs.next().unwrap().starts_with("# "), "{name}: title first");
+        let lead = paragraphs.next().unwrap();
+        assert!(!lead.starts_with(['#', '`']), "{name}: introduce the feature before syntax");
+        assert!(lead.split_whitespace().count() <= 45, "{name}: keep the introduction short");
+        assert!((1..=2).contains(&lead.matches('.').count()), "{name}: one or two sentences");
+        let (opening, _) = text.split_once("```").expect("every card has an example");
+        assert!(!opening.contains("--") && !opening.contains("E_") && !opening.contains("N_"), "{name}: flags and refusals follow the example");
+        if *name != "feeds" {
+            // Feeds introduces its Global example with the named feature section.
+            assert!(paragraphs.next().unwrap().starts_with("```"), "{name}: show the example next");
+        }
+    }
+}
+
+#[test]
 fn time_waiting_cards_point_to_cli_and_http_clock_controls() {
     for name in ["expire", "jobs", "effects"] {
         let card = snapback4_lang::guide::card(name).unwrap();
@@ -40,8 +59,10 @@ fn readme_reference(name: &str) -> &'static str {
 fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
     let feeds = card("feeds").unwrap();
     assert_eq!(feeds, readme_reference("feeds"));
-    for fact in ["durable delivery record", "1,000-event window", "for every examined row", "pending backfill or cleanup", "without prediction"] {
-        assert!(feeds.contains(fact), "missing {fact}");
+    let contract = feeds.split_once("## Following contract").unwrap().1.split_once("## Boundaries").unwrap().0
+        .split_whitespace().collect::<Vec<_>>().join(" ");
+    for fact in ["newest first", "Your own events appear immediately", "normally within a second", "copies their newest 50 live events immediately, then the rest of a 1,000-event window", "Older posts remain in `posts` and are not copied.", "Unfollow hides that actor on the next read", "your backfill or cleanup is pending", "Removal hides the event immediately", "without prediction"] {
+        assert!(contract.contains(fact), "missing {fact}");
     }
     for bad in ["skips a follower", "skip saturated readers", "A skipped follower", "not skipped\nauthors"] {
         assert!(!feeds.contains(bad), "{bad}");
@@ -52,12 +73,19 @@ fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
         assert!(codes().contains(&code));
     }
     for (code, facts) in [
-        ("E_RECIPE_RETIRED", vec!["maintain feed: timeline", "no author count or delivery size"]),
+        ("E_RECIPE_RETIRED", vec!["view following: activity", "the engine chooses delivery bounds"]),
+        ("E_TIMELINE_FILTER", vec!["view activity", "posts where .parentId = null and not .removed"]),
+        ("E_TIMELINE_READ", vec!["following last 20 by .at after c"]),
         ("FEED_PULL_CAP", vec!["32 shared authors", "rolled back", "new write ID"]),
         ("FEED_PROMOTION_PULL_CAP", vec!["32 shared-author slots", "rolled back", "public", "pullCounts", "server-run query", "used = 32"]),
     ] {
         let explanation = explain_code(code).unwrap();
         for fact in facts { assert!(explanation.contains(fact), "{code}: missing {fact}"); }
+        if ["E_RECIPE_RETIRED", "E_TIMELINE_FILTER", "E_TIMELINE_READ"].contains(&code) {
+            for old in ["maintain feed: timeline", "events posts where", "NAME[viewer]"] {
+                assert!(!explanation.contains(old), "{code}: why still teaches {old}");
+            }
+        }
     }
     for retired in ["E_RECIPE_BRIDGE", "E_RECIPE_CAPS"] { assert!(!codes().contains(&retired)); }
 }
@@ -455,10 +483,6 @@ fn every_card_compiles_clean() {
         let text = card(keyword).unwrap_or_else(|| panic!("no card for {keyword}"));
         let blocks = quarry(text);
         for (n, block) in blocks.iter().enumerate() {
-            if *keyword == "feeds" && n == 1 {
-                feeds::assert_stream_note(&compile(block));
-                continue;
-            }
             if *keyword == "search" && n == 1 {
                 // This historical full-history example intentionally has no horizon.
                 // Keep the exception on this block and this exact site; every
@@ -972,10 +996,14 @@ fn calibration_effects_jobs_and_seed_cards_explain_replay_flags() {
 }
 
 #[test]
-fn following_cards_pin_examinations() {
+fn following_cards_scope_older_recipe_measurements() {
     for (name, doc) in [("feeds", card("feeds").unwrap()), ("orientation destination", readme_reference("feeds"))] {
-        assert!(doc.contains("82 examinations"), "{name} must count examinations, including lookups");
-        assert!(doc.contains("41 tombstone probes"), "{name} must pin the tombstone work");
+        let (current, older) = doc.split_once("## Older spellings").unwrap();
+        assert!(!current.contains("82 examinations") && !current.contains("41 tombstone probes"), "{name}: old measurements are not current Following");
+        assert!(older.contains("older recipe measurement used 40 events with the newest 20 removed"));
+        assert!(older.contains("82 examinations") && older.contains("41 tombstone probes"));
+        assert!(!current.contains("FEED_ORIGINAL_REQUIRED") && !current.contains("FEED_NOT_AUTHOR"));
+        assert!(current.contains("A non-owner `remove` is refused"));
     }
 }
 
@@ -1146,9 +1174,8 @@ fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates(
     let docs = std::iter::once(("language", LANGUAGE)).chain(std::iter::once(("README",README)))
         .chain(KEYWORDS.iter().filter_map(|name|card(name).map(|text|(*name,text))));
     for (name,text) in docs {
-        for (index, source) in quarry(text).into_iter().enumerate() {
+        for source in quarry(text) {
             let bound=compile(&in_context(&source));
-            if name == "feeds" && index == 1 { feeds::assert_stream_note(&bound); continue; }
             assert!(bound.notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")),"{name}: {:?}",bound.notes);
         }
     }
@@ -1160,3 +1187,6 @@ fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates(
 
 #[path = "guide/intent.rs"]
 mod intent;
+
+#[path = "guide/definitions.rs"]
+mod definitions;
