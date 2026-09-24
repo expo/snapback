@@ -539,3 +539,86 @@ test("refresh started after a shared logout refuses before dispatch even if remo
   assert.equal((await restoreSession(url, store)).token, bob.session.token);
   assert.deepEqual((await b.client.query(list, {})).data, []);
 });
+
+for (const persistentFailure of [false, true]) test(`offline logout deletes credentials when its epoch write ${persistentFailure ? "keeps failing" : "exceeds quota"}`, { timeout: 15_000 }, async t => {
+  const { url } = await server(t), values = new Map();
+  const key = sessionKey(url), epochKey = key + ".epoch";
+  const size = () => [...values].reduce((total, [key, value]) => total + key.length + value.length, 0);
+  let quota = Infinity, offline = false, markerAttempts = 0, deletions = 0;
+  const store = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) {
+      if (values.get(key) === value) return; // A full store still permits unchanged writes.
+      if (offline && key === epochKey) markerAttempts++;
+      const growth = key.length + value.length - (values.has(key) ? key.length + values.get(key).length : 0);
+      if (size() + growth > quota || (offline && persistentFailure && key === epochKey)) {
+        throw new DOMException("session storage quota exceeded", "QuotaExceededError");
+      }
+      values.set(key, value);
+    },
+    async delete(key) { if (key === sessionKey(url)) deletions++; values.delete(key); },
+  };
+  const fetcher = (input, init) => { if (offline) throw Error("offline"); return fetch(input, init); };
+  const app = createApp({ url, sessionStore: store, fetch: fetcher }); t.after(() => app.close());
+  await app.ready; assert.equal((await app.auth.guest()).ok, true);
+  assert.equal(await store.get(epochKey), null);
+  quota = size(); offline = true;
+  await store.set(key, await store.get(key));
+  const result = await app.auth.logout();
+  assert.equal(deletions, 1, "deletion is attempted even when the first marker write fails");
+  assert.equal(markerAttempts, 2, "retry the marker after deletion frees space");
+  assert.equal(await restoreSession(url, store), null);
+  assert.equal(app.auth.state, "signed-out");
+  assert.equal(result.ok, !persistentFailure);
+  if (persistentFailure) {
+    assert.equal(result.why.code, "E_CLIENT");
+    assert.match(result.why.message, /quota exceeded/);
+    assert.deepEqual(app.auth.why, result.why);
+  } else {
+    assert.equal(await store.get(epochKey), "1", "the retry advances the epoch only once");
+    assert.equal(app.auth.why, undefined);
+  }
+  const reopened = createApp({ url, sessionStore: store, fetch: fetcher }); t.after(() => reopened.close());
+  assert.equal((await reopened.ready).ok, true);
+  assert.equal(reopened.auth.state, "signed-out");
+});
+
+test("near-expiry restoration retries a successor after automatic refresh is rejected during journal opening", { timeout: 20_000 }, async t => {
+  const { url } = await server(t), store = memorySessionStore();
+  let rotated, releaseResponse, journalHeld = false, releaseJournal, rejected = false;
+  const responseGate = new Promise(resolve => { releaseResponse = resolve; });
+  const journalGate = new Promise(resolve => { releaseJournal = resolve; });
+  const b = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/refresh") { rotated = (await response.clone().json()).session; await responseGate; }
+    return response;
+  } });
+  t.after(async () => { releaseResponse(); releaseJournal(); await b.close(); });
+  await b.ready; assert.equal((await b.auth.guest()).ok, true);
+  await keepSession(url, { ...b.client.session(), expiresAt: Date.now() + 60_000 }, store);
+  const refreshing = b.client.refreshSession();
+  await until(() => rotated, "B's rotation committed, with its response still held");
+  const a = createApp({ url, sessionStore: { ...store, async get(key) {
+    const value = await store.get(key);
+    if (key.endsWith(".writes") && !journalHeld) { journalHeld = true; await journalGate; }
+    return value;
+  } }, fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/refresh") {
+      assert.equal((await response.clone().json()).denied?.code, "E_AUTH");
+      rejected = true;
+    }
+    return response;
+  } });
+  t.after(async () => { releaseJournal(); await a.close(); });
+  await until(() => journalHeld && rejected, "A's constructor refresh was rejected while custody is opening");
+  releaseResponse(); assert.equal((await refreshing).ok, true);
+  await until(async () => (await restoreSession(url, store))?.token === rotated.token);
+  releaseJournal();
+  assert.equal((await a.ready).ok, true, "A must reopen the successor rather than return E_CLOSED");
+  assert.equal(a.auth.state, "signed-in"); assert.equal(a.auth.why, undefined);
+  assert.equal(a.client.session()?.token, rotated.token);
+  assert.equal((await restoreSession(url, store))?.token, rotated.token);
+  assert.deepEqual((await a.client.query(list, {})).data, []);
+  assert.deepEqual((await b.client.query(list, {})).data, [], "retry must not revoke the winning session family");
+});

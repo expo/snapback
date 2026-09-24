@@ -73,7 +73,14 @@ export function createApp(options: AppOptions): App {
   // Replacement and deletion share one lock across tabs. A server refusal
   // only owns its rejected token, never a successor kept by another runtime.
   const removeSession = (expectedToken?: string, restoring = false) => persist(() => storeLock(sessionKey(url), async () => {
-    if (expectedToken === undefined) await storage.set(epochKey, (BigInt(await readEpoch()) + 1n).toString());
+    let epoch: string | undefined, retryEpoch = false;
+    const advanceEpoch = async () => {
+      epoch ??= (BigInt(await readEpoch()) + 1n).toString();
+      await storage.set(epochKey, epoch);
+    };
+    if (expectedToken === undefined) {
+      try { await advanceEpoch(); } catch { retryEpoch = true; }
+    }
     const text = await storage.get(sessionKey(url));
     let token: string | undefined;
     try { const saved = text ? JSON.parse(text) : null; if (typeof saved?.token === "string") token = saved.token; } catch {}
@@ -81,9 +88,15 @@ export function createApp(options: AppOptions): App {
       if (restoring) throw new RestorationChanged();
       return;
     }
-    await storage.delete(sessionKey(url));
-    // Explicit clearing may drop a successor this runtime never observed.
-    if (token) void revokeSession(url, token, fetcher);
+    try {
+      await storage.delete(sessionKey(url));
+      // Explicit clearing may drop a successor this runtime never observed.
+      if (token) void revokeSession(url, token, fetcher);
+    } finally {
+      // Deletion can free quota for the marker. Keep both attempts under the
+      // session lock, retry the same epoch, and surface any remaining failure.
+      if (retryEpoch) await advanceEpoch();
+    }
   }));
   const sessionStore: SessionStore = {
     get: key => persist(() => storeLock(key, () => storage.get(key))),
@@ -261,7 +274,7 @@ export function createApp(options: AppOptions): App {
       const own = Object.assign(scope, { client, pause: () => { custody?.pause(); } });
       owner = own;
       const next = raw.session();
-      if (!next) { hide("restoring"); await release(); await removeSession(scope.session.token); if (revision === expected) publish("signed-out", null); return inactive(); }
+      if (!next) { hide("restoring"); await release(); await removeSession(scope.session.token, restoreToken !== undefined); if (revision === expected) publish("signed-out", null); return inactive(); }
       // Local opening can rotate a near-expiry bearer before returning.
       await keepSession(url, next, scopedStore);
       if (!scope.valid || closed || revision !== expected) {
