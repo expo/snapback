@@ -15,7 +15,7 @@ table editors:
   principal: principal
   unique docId, principal
   read <- exists editors[.docId, viewer]
-  insert <- exists docs[id = .docId, ownerId = viewer] or created docs[.docId]   -- a probe may name its columns; created: this mutation inserted the row
+  insert <- exists docs[.docId, ownerId = viewer] or created docs[.docId]   -- a probe may name its columns; created: this mutation inserted the row
   delete <- .principal = viewer
 ```
 
@@ -23,7 +23,9 @@ Each of `read`, `insert`, `update` and `delete` takes one rule over the row
 (`.col`), `viewer` and literals. A table without a rule for an effect denies
 it. `public 'why'` on its own line is the read rule. The compiler supplies indexes for `exists` probes; named
 equalities may cover a total unique key and check extra columns on that one row,
-for both `exists` and `created`, without an extra index. Every focal field used
+for both `exists` and `created`, without an extra index. A full positional unique
+key may come first, followed by named extra-column tests, as in
+`docs[.docId, ownerId = viewer]`. Every focal field used
 by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Rules
 compare with `=` and `!=` alone: a rule that varies with time is not an
 audience a partition can hold (use `expire`). A read rule that is exactly

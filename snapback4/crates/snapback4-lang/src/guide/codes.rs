@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_QUARRY_KEY_ORDER", "positional components identify a full declared unique key and come before named extra-column tests. Write members[org, viewer, role = 'admin']; guide reads."),
     ("E_QUARRY_SPREAD", "object spread needs a non-null row or object with statically known fields. Establish the row first: p = profiles[handle = h] ! else NOT_FOUND, then return { ...p, extra: true }. Later fields replace earlier fields; guide shapes."),
     ("E_QUARRY_RULE_SPELLING", "table rules are read <-, insert <-, update <- and delete <-. Replace select/view with read, create with insert, modify/edit with update, and remove with delete. A write <- line needs separate rules for the intended insert, update and delete operations; guide rules."),
     ("E_QUARRY_JOB_SCHEDULE", "a job declares work and a schedule declares when to run it. Replace job sweep every 1h: with job sweep():, keep its body, and add schedule sweepEvery every 1h: sweep; guide jobs."),

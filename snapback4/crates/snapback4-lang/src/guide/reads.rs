@@ -28,7 +28,14 @@ filtered lane reads the null-valued rows under the same rule.
 A cut during discovery or while any lane head is unknown is incomplete and
 has no cursor. A full page never certifies a prefix of an unfinished lane list.
 
-E_QUARRY_POSITIONAL_SCAN means a positional key would scan a population.
+A full positional unique key can be followed by named tests on that row:
+`members[org, viewer, role = 'admin']`. The prefix must identify one declared
+unique key; inferred indexes never resolve positions. E_QUARRY_KEY_ORDER
+means a positional component followed a named one: move all positional
+components first, then write the named tests.
+
+E_QUARRY_POSITIONAL_SCAN means a positional key would scan a population
+or fails to identify one full declared unique key before named tests.
 Use `posts where .authorId = owner last 20 by .at`; `posts[id = postId]` reads
 one id, and named keys such as `profiles[principal = viewer]` read unique keys.
 

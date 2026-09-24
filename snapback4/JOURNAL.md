@@ -49339,3 +49339,81 @@ four device and one CLI. Logs: /tmp/lane-k-full-suite.log and
 found. No push, publication, version bump, authorization relaxation, meter
 ceiling change or runtime redesign was performed; integration and blind
 reviews remain with the supervisor.
+
+
+## 2026-09-24 — LLP 3000.013 Lane K round 1: unique keys, then row tests
+
+Fetched origin/main at 9402e63bb and merged it as 85512d802. Mixed keys now
+normalize to named equalities before planning, rule binding and sync
+inference: `members[.org, viewer, role = 'admin']` and
+`docs[.docId, ownerId = viewer]`. The positional prefix must identify one
+full declared unique key with non-null columns. Synthesized indexes never
+resolve positions, and nullable unique declarations still count toward
+arity ambiguity. Extra tests, source authorization, created-row checks,
+indexes, IR and meters use the existing named path. Repeated named columns
+remain refused. E_QUARRY_KEY_ORDER gives the ordered rewrite; incomplete,
+non-unique or ambiguous prefixes use E_QUARRY_POSITIONAL_SCAN and name the
+key columns. Updated the reads/rules/language cards and registered the new
+code and why entry.
+
+Schedule periods accept ms/s/m/h/d above the unchanged one-minute floor.
+120s normalizes to 2m; 90s and 90001ms run at exact integer millisecond
+boundaries, including after reopening the store, without duplicate runs.
+1500ms is refused with “a schedule fires at most once a minute” and
+`every 1m`. Existing 2h, 1d at 08:00 and the previous large m/h/d range retain
+their meanings. doctor now displays exact seconds or milliseconds rather
+than truncating fractional-minute periods. The jobs and language cards teach
+the new spelling without changing the sample schedule's timing.
+
+Stopped part of the requested write-target extension: its premise is false
+on this checkout. With `unique org, principal`, even the all-named
+`update members[org = org, principal = viewer, role = 'admin'] { role: 'member' }`
+is refused with E_QUARRY_UNKNOWN (“no unique index over 3 columns”). Delete
+and upsert have the same limitation. Existing private WriteTarget IR has
+no residual-equality carrier; update conditions require a readable row and
+report conflicts, while the engine explicitly refuses an upsert condition.
+Choosing a read-before-write guard or new filtered-upsert behavior would
+require a design/authority decision rather than spelling sugar. No such
+change was made. Mixed targets compile and run wherever the equivalent
+named target already does (including a declared full matching unique index),
+and otherwise preserve its refusal. Reproduce both sides with
+`cargo test -p snapback4-lang --test mixed_keys mixed_write_targets_preserve_existing_named_target_admission`.
+A read-rule role residual also retains the named form's E_SYNC refusal;
+no broader device audience was inferred. This is tested explicitly.
+
+Added eight language mixed-key tests: schema/IR/audience equivalence;
+authorized answers, insert rules and created outcomes; sync refusal parity;
+wrong order; incomplete/non-unique/ambiguous keys; duplicate columns;
+nullable-key ambiguity; and write-target admission/execution parity.
+Added three schedule tests for all requested units, the minimum/overflow
+refusals, and exact execution/restart boundaries. Two device tests compare
+mixed/named answers and delivered audiences over memory and SQLite. One
+CLI clock test checks doctor's exact 90s/90001ms/2m output. The 57 guide
+tests remain clean. Final scoped checks totaled 71 passing tests.
+Development-only test setup failures (guide block placement/counts and a
+SQLite fixture using /tmp itself as its private parent) were ours and fixed.
+
+Ran scripts/test.sh three times, with eight Rust build/test workers and at
+most one full suite at once. First: `== 1 failure(s) in 233 s` — client
+W7r1 runWorker and doctor observe deferred presence effects reported an
+AbortError during shutdown; its isolated rerun passed. Second:
+`== 1 failure(s) in 175 s` — clock::grace_push_serve_keeps_deadline_and_reconnect_record_for_claim_after_restart
+observed a 35,001 ms interval against its 35,000 ms assertion; its isolated
+rerun passed. Both are pre-existing, timing-sensitive failures in unchanged
+worker behavior/assertions, classified as environmental/intermittent for
+this lane; neither appears in the supplied baseline's four recorded Rust
+failures. No worker code, assertion, skip or timeout was changed to obtain
+a green run. Final exact result: `== 0 failure(s) in 169 s`.
+Final client summary: 1,054 passed, 10 skipped, zero failed. The supplied
+baseline's four failures did not recur. Evidence:
+/tmp/lane-k-r1-full-suite.log, /tmp/lane-k-r1-full-suite-final.log,
+/tmp/lane-k-r1-full-suite-qualified.log, /tmp/lane-k-r1-worker-retry.log and
+/tmp/lane-k-r1-clock-retry.log.
+
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. Reference validation: 504 LLP documents, 9,236 references, zero
+errors and zero unchecked. Changed sources stay below 1,500 lines and
+whitespace checks pass. No engine/wire redesign, authorization relaxation,
+meter ceiling change, package publication or push. General residual write
+targets remain for the supervisor's design decision; the two intermittent
+suite races remain outside this lane's changes.

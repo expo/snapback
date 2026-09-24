@@ -75,7 +75,9 @@ schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
 A sweep by id visits every row ever written; a sweep by the period visits
 the period.
 `break` ends the sweep, `return` the job. Schedules accept `every 2m`,
-`every 1h` and `every 1d at 08:00`; the shortest period is 1m.
+`every 1h` and `every 1d at 08:00`. Periods accept `ms`, `s`, `m`, `h` and `d`:
+`every 120s` equals `every 2m`, and `every 90s` fires at exact 90-second
+boundaries. A schedule fires at most once a minute.
 A job in `snapback/jobs.q` is named `jobs.<name>` in every schedule;
 `schema.q` jobs use bare names. `check --fix` qualifies an unambiguous
 bare module job. Jobs are not on `api.ts`.

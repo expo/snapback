@@ -13,6 +13,7 @@ mod routes;
 mod server;
 mod key_bound;
 mod index_diagnostics;
+mod mixed_keys;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
@@ -55,6 +56,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
     catalog.feed_views = feeds;
+    mixed_keys::normalize(&mut catalog);
     intent::table_order(&mut catalog);
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);

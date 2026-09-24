@@ -47,8 +47,8 @@ table members:
   cap 100 by roomId                                    -- at most N rows per group; a product limit
   immutable roomId, principal                          -- columns no update may change
   read <- exists members[.roomId, viewer]
-  insert <- exists members[roomId = .roomId, principal = viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
-  delete <- .principal = viewer or exists members[roomId = .roomId, principal = viewer, role = 'admin']
+  insert <- exists members[.roomId, viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
+  delete <- .principal = viewer or exists members[.roomId, viewer, role = 'admin']
   sync to members[.roomId]
 
 table messages:
@@ -483,7 +483,7 @@ use server
 -- Server handlers declare results, secrets and work settings (guide actions).
 action summarizeRoom(room: rooms) returns { summary: text <=4000, source: rooms, tags: [text <=30] <=8 ? } secrets [MODEL_API_KEY] retry 3 backoff 2s deadline 1h cancellation allow
 action scheduledSummary(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:reporter'
-schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSummary
+schedule summariesEveryDay every 86400s at 08:00 as service:reporter: scheduledSummary
 route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry body or client operation
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```

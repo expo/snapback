@@ -571,7 +571,11 @@ pub fn data(options: &Options) -> i32 {
 }
 
 fn human_period(ms: u64) -> String {
-    if ms % 86_400_000 == 0 { format!("{}d", ms / 86_400_000) } else if ms % 3_600_000 == 0 { format!("{}h", ms / 3_600_000) } else { format!("{}m", ms / 60_000) }
+    if ms % 86_400_000 == 0 { format!("{}d", ms / 86_400_000) }
+    else if ms % 3_600_000 == 0 { format!("{}h", ms / 3_600_000) }
+    else if ms % 60_000 == 0 { format!("{}m", ms / 60_000) }
+    else if ms % 1_000 == 0 { format!("{}s", ms / 1_000) }
+    else { format!("{ms}ms") }
 }
 
 fn human(bytes: u64) -> String {

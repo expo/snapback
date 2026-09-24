@@ -354,6 +354,8 @@ impl<'a> Binder<'a> {
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
     fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl, String)> {
+        let normalized = super::mixed_keys::read(info, read, self.catalog)?;
+        let read = normalized.as_ref();
         super::validate_key_names(read)?;
         if !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_none()) {
             let declared = |index: &&ast::IndexDecl| !self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone()));
