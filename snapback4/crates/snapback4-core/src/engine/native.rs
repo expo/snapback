@@ -439,7 +439,7 @@ pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &B
     let mut runner = host.runner.expect("the chunk's runner");
     ChunkOutcome {
         step,
-        events: std::mem::take(&mut runner.events),
+        events: runner.events.take(),
         tables: runner.written_tables.iter().cloned().collect(),
         outbox: std::mem::take(&mut runner.outbox),
         rows_written: runner.rows_written,

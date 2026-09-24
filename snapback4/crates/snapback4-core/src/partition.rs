@@ -126,23 +126,32 @@ pub fn partitions(table_name: &str, sync: &Sync, row: &Value) -> Vec<String> {
 }
 
 #[cfg(feature = "sqlite")]
+mod pending;
+#[cfg(feature = "sqlite")]
+pub(crate) use pending::PendingEvents;
+#[cfg(all(test, feature = "sqlite"))]
+mod born_reference;
+#[cfg(all(test, feature = "sqlite"))]
+mod born_tests;
+
+#[cfg(feature = "sqlite")]
 mod log_events {
     use super::*;
-    pub(super) fn put(events: &mut Vec<Event>, table: &str, id: &str, new: &Value, after: &BTreeSet<String>) {
+    pub(super) fn put(events: &mut PendingEvents, table: &str, id: &str, new: &Value, after: &BTreeSet<String>) {
         let image = new.clone();
         for partition in after {
             events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(image.clone()) });
         }
     }
-    pub(super) fn del(events: &mut Vec<Event>, table: &str, id: &str, before: &BTreeSet<String>, after: &BTreeSet<String>) {
+    pub(super) fn del(events: &mut PendingEvents, table: &str, id: &str, before: &BTreeSet<String>, after: &BTreeSet<String>) {
         for partition in before.difference(after) {
             events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Del, id: id.to_owned(), data: None });
         }
     }
-    pub(super) fn scope(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value]) {
+    pub(super) fn scope(events: &mut PendingEvents, table: &str, partition: &str, group: &[Value]) {
         events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(Value::Array(group.to_vec())) });
     }
-    pub(super) fn join(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], expiry: Value) {
+    pub(super) fn join(events: &mut PendingEvents, table: &str, partition: &str, group: &[Value], expiry: Value) {
         events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Join, id: canonical_json(&group), data: Some(crate::value::object([("expiresAt", expiry)])) });
     }
 }
@@ -169,7 +178,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     let row_key = if LOG { Some((table_name.to_owned(), old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned())) } else { None };
     #[cfg(feature = "sqlite")]
     if let Some(key) = &row_key && old.is_none() {
-        let earlier = runner.events.iter().filter(|event| matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1).count();
+        let earlier = runner.events.row_count(key);
         runner.born_rows.insert(key.clone(), earlier);
     }
     if let Some(sync) = &table.sync {
@@ -184,9 +193,8 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         #[cfg(feature = "sqlite")]
         if LOG {
             let key = (table_name.to_owned(), id.clone());
-            let row_event = |event: &Event| matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1;
             if let Some(&earlier) = runner.born_rows.get(&key) {
-                withdraw(&mut runner.events, earlier, row_event);
+                runner.events.withdraw_row(&key, earlier);
                 // A born row whose lifetime has already ended is not live at
                 // this commit's end either: it logs nothing (the stream would
                 // re-read it as absent and send its id as a `del`).
@@ -275,7 +283,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 let key = (partition.clone(), content_name.clone(), canonical_json(group));
                 match runner.born_grants.get(&key).copied() {
                     Some(earlier) => {
-                        withdraw(&mut runner.events, earlier, |event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2);
+                        runner.events.withdraw_grant(&key, earlier);
                         // Siblings born beside it still carry the birth.
                         let row = old.expect("a revoked grant had an image");
                         let own = row.field("id")?.as_str()?.to_owned();
@@ -311,7 +319,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 let runner_now: &Runner<'_> = runner;
                 let predecessor = key_has_row(runner_now, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned())))?;
                 if !predecessor {
-                    let earlier = runner.events.iter().filter(|event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2).count();
+                    let earlier = runner.events.grant_count(&key);
                     runner.born_grants.insert(key, earlier);
                 }
             }
@@ -340,20 +348,6 @@ fn key_has_row(runner: &Runner<'_>, table_name: &str, index: &str, probe: &[Valu
             return Ok(false);
         }
     }
-}
-
-/// Drop the events `matches` selects after the first `keep` of them: what a
-/// row or a grant logged since it was born in this commit.
-#[cfg(feature = "sqlite")]
-fn withdraw(events: &mut Vec<Event>, keep: usize, matches: impl Fn(&Event) -> bool) {
-    let mut seen = 0;
-    events.retain(|event| {
-        if !matches(event) {
-            return true;
-        }
-        seen += 1;
-        seen <= keep
-    });
 }
 
 /// The rows of one group within the horizon, newest first when a horizon

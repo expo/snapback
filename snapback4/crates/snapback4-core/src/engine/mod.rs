@@ -504,7 +504,7 @@ impl Engine {
                     runner.rebuild_maintain(maintain)?;
                 }
             }
-            let events = std::mem::take(&mut runner.events);
+            let events = runner.events.take();
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             let written = runner.rows_written;
             drop(runner);
@@ -718,7 +718,7 @@ impl Engine {
                 }
             }
         }
-        let events = std::mem::take(&mut runner.events);
+        let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let written = runner.rows_written;
         drop(runner);
@@ -919,7 +919,7 @@ impl Engine {
         });
         let metered = runner.meter.used;
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        let events: Vec<Event> = std::mem::take(&mut runner.events);
+        let events: Vec<Event> = runner.events.take();
         let outbox = std::mem::take(&mut runner.outbox);
         let rows_written = runner.rows_written;
         let mut read_tables = runner.read_tables.clone();
@@ -999,7 +999,7 @@ impl Engine {
             runner.upsert(&table, &row.field("id")?.clone(), row)?;
             count += 1;
         }
-        let events = std::mem::take(&mut runner.events);
+        let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);
         if count > 0 {
@@ -1023,7 +1023,7 @@ impl Engine {
             Err(RuntimeError::Require { .. }) => 0,
             Err(error) => return Err(error),
         };
-        let events = std::mem::take(&mut runner.events);
+        let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);
         if removed > 0 {
@@ -1089,7 +1089,7 @@ impl Engine {
             runner.written_tables.insert(name);
         }
         if count > 0 { runner.rebuild_imported_columns()?; }
-        let events = std::mem::take(&mut runner.events);
+        let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);
         if count > 0 {
@@ -1119,7 +1119,7 @@ impl Engine {
             if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
             count += 1;
         }
-        let events = std::mem::take(&mut runner.events);
+        let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);
         if count > 0 {

@@ -1,6 +1,6 @@
 # Snapback 4: born-row and born-grant tracking scans every event in the commit (O(n²) per commit), in 0.3.0
 
-**Status:** Open — P1. A fix lane is targeting 0.3.1.
+**Status:** Resolved — 2026-09-23, by BORN-PERF (targets 0.3.1)
 **Date:** 2026-09-23
 **Owner:** the Snapback 4 0.3 program lead (0.3.0's release owner). The
 change came from `0388900b8`, "rows and grants born and undone inside one
@@ -66,3 +66,14 @@ them.
 Calibration #18 (`snapback4@0.3.0`) was already running when this was found.
 Its reading must check the builder's seed and replay timings for this
 confound.
+
+## Resolution — 2026-09-23
+
+`PendingEvents` keeps per-key live-event indices with tombstones, and
+compacts once when the events are consumed.
+- **Equivalence:** 512 randomized commits match a copy of the old
+  implementation, in both events and meters.
+- **Timing:** a 20,000-row commit went from 7.78 s to 0.97 s, the Following
+  envelope from 396.9 s to 31.4 s, and device w8b from 2,437.6 s to 49.6 s
+  (Office M1 Max).
+- **Report:** `snapback4/reports/20260923-born-perf.md`.

@@ -6,7 +6,9 @@ use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::meter::{Cut, Meter};
 #[cfg(feature = "sqlite")]
-use crate::partition::Event;
+use crate::partition::PendingEvents;
+#[cfg(feature = "sqlite")]
+use std::collections::HashMap;
 use crate::schema::Schema;
 use crate::rows::Rows;
 use crate::value::{Value, ValueError, canonical_json, object};
@@ -67,7 +69,7 @@ pub struct Runner<'a> {
     pub(crate) next_expiry: Option<i64>,
     /// Partition events, accumulated for the commit; a logless host builds none.
     #[cfg(feature = "sqlite")]
-    pub(crate) events: Vec<Event>,
+    pub(crate) events: PendingEvents,
     /// Synced rows this commit inserted, by (table, id), and grants it newly
     /// made, by (partition, content table, group), each with the number of
     /// its events logged before its birth (a row deleted and re-inserted, a
@@ -75,9 +77,9 @@ pub struct Runner<'a> {
     /// commit ends existed at no commit boundary, so only those earlier
     /// events stay.
     #[cfg(feature = "sqlite")]
-    pub(crate) born_rows: BTreeMap<(String, String), usize>,
+    pub(crate) born_rows: HashMap<(String, String), usize>,
     #[cfg(feature = "sqlite")]
-    pub(crate) born_grants: BTreeMap<(String, String, String), usize>,
+    pub(crate) born_grants: HashMap<(String, String, String), usize>,
     /// Queued effects with their grace dependencies.
     pub(crate) outbox: Vec<super::presence::Emission>,
     pub(super) effect_presence: super::presence::EffectPresence,
@@ -176,11 +178,11 @@ impl<'a> Runner<'a> {
             rows_written: 0,
             next_expiry: None,
             #[cfg(feature = "sqlite")]
-            events: Vec::new(),
+            events: PendingEvents::default(),
             #[cfg(feature = "sqlite")]
-            born_rows: BTreeMap::new(),
+            born_rows: HashMap::new(),
             #[cfg(feature = "sqlite")]
-            born_grants: BTreeMap::new(),
+            born_grants: HashMap::new(),
             outbox: Vec::new(),
             effect_presence: Default::default(),
             page_depth: 0,

@@ -239,7 +239,7 @@ impl PostgresEngine {
         });
         let metered = runner.meter.used;
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        let events = std::mem::take(&mut runner.events);
+        let events = runner.events.take();
         let outbox = std::mem::take(&mut runner.outbox);
         let writes = runner.rows_written;
         drop(runner);
@@ -299,7 +299,7 @@ impl PostgresEngine {
             runner.written_tables.insert(table_name);
             count += 1;
         }
-        let events = std::mem::take(&mut runner.events);
+        let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);
         if count > 0 {
@@ -321,7 +321,7 @@ impl PostgresEngine {
             count += 1;
         }
         runner.check_final_exists()?;
-        let events = std::mem::take(&mut runner.events);
+        let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);
         if count > 0 {
