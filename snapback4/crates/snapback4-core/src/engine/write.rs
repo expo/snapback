@@ -8,7 +8,6 @@ use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
-use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
 use crate::value::{Value, canonical_json};
 
@@ -71,6 +70,7 @@ impl Runner<'_> {
                 self.visible_collision(table_name, &existing, Effect::Insert)?;
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
             }
+            self.meter.charge(MeterKind::Examined, 1)?;
             self.remove(table_name, &existing)?;
         }
         self.check_constraints(table_name, None, &row, Effect::Insert)?;
@@ -392,23 +392,11 @@ impl Runner<'_> {
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
                     self.meter.charge(MeterKind::IndexEntries, 1)?;
+                    // @ref LLP 3000.013#11.1 — physical occupancy is conservative until sweep; never scan a cap group.
                     let count = if table.expire.is_none() {
                         self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
                     } else {
-                        let mut count = 0;
-                        let mut bounds = Bounds::default();
-                        loop {
-                            let rows = self.tx.scan(table_name, &index_name, &group, &bounds, Dir::Asc, 256)?;
-                            let fetched = rows.len();
-                            for (row, key) in rows {
-                                self.meter.charge(MeterKind::Examined, 1)?;
-                                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
-                                if !self.expired(&table, &row) { count += 1; }
-                                if count >= *max as u64 { break; }
-                            }
-                            if count >= *max as u64 || fetched < 256 { break; }
-                        }
-                        count
+                        self.tx.cap_count(table_name, by, &group)?
                     };
                     if count >= *max as u64 {
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.

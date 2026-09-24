@@ -133,7 +133,7 @@ impl Runner<'_> {
         if patch.as_object()?.contains_key("id") { return Err(RuntimeError::Input(format!("{} update patch cannot change id", target.table))); }
         self.read_tables.insert(target.table.clone());
         self.reserve_target_resolution(&target.table, &definition, &patch, upsert)?;
-        let old = self.lookup_live(&target.table, &target.index, index, &key, false)?;
+        let old = self.lookup_live_charged(&target.table, &target.index, index, &key, false, true)?;
         if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
             return Err(self.write_miss(&target.table, &target.index, &key));
         }

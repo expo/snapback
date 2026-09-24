@@ -4,6 +4,7 @@
 //! @ref LLP 3000#7-decisions-during-execution — evaluate storage portability before productizing it
 mod log;
 mod store;
+mod caps;
 mod authority;
 mod prefetch;
 mod tail;
@@ -99,6 +100,7 @@ impl PostgresEngine {
     fn attach(mut client: Client, schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
         client.batch_execute("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         client.batch_execute("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
+        caps::install(&mut client, &schema)?;
         Ok(Self { store: Store::new(client), schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
     }
 

@@ -182,6 +182,11 @@ impl Runner<'_> {
     }
 
     pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
+        self.lookup_live_charged(table_name, name, index, key, charge, false)
+    }
+
+    // @ref LLP 3000.013#11.1 — write-target skips pay examined; rule probes retain their population-independent accounting.
+    pub(super) fn lookup_live_charged(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool, charge_expired: bool) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if table.expire.is_none() && !self.device_work_active {
             return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
@@ -192,7 +197,7 @@ impl Runner<'_> {
             let count = rows.len();
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, table)?;
-                if charge && !self.device_work_active && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
+                if (charge || (charge_expired && self.expired(table, &row))) && !self.device_work_active && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
                 if !self.expired(table, &row) { return Ok(Some(row)); }
                 bounds.after = self.witness_position(&stored, index.components.len() + 1, key.len())?;
             }

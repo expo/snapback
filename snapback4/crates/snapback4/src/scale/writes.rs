@@ -18,11 +18,11 @@ impl Analysis<'_> {
         if kind != "delete" {
             for c in &table.constraints {
                 match c {
+                    Constraint::Unique { index } if table.expire.is_some() => self.expiry_write(name, index),
                     Constraint::Unique { index } => self.lookup_growth(name, index, &site),
                     Constraint::FinalExistsOnInsert { table, index, .. } => self.lookup_growth(table, index, &site),
-                    Constraint::Cap { .. } if table.expire.is_some() => self.growth(&site,
-                        Self::expiry_reason(name, "while enforcing the live-row cap"),
-                        "use a non-expiring capped domain"),
+                    Constraint::Cap { .. } if table.expire.is_some() => self.per_write(format!(
+                        "{name}: cap uses a maintained physical count; unswept expired rows count until removed; no population scan")),
                     _ => {}
                 }
             }
@@ -48,6 +48,10 @@ impl Analysis<'_> {
             self.per_write(format!("`{}`: at most {count} derived writes per source transition (old/new groups)", m.label()));
             if let Some(owner) = &m.private { self.maintained_writes(&owner.table, site, visited); }
         }
+    }
+
+    pub(super) fn expiry_write(&mut self, name: &str, index: &str) {
+        self.per_write(format!("{name}.{index}: constant full-key lookup plus only expired collisions on the same full key; skipping those collisions is bounded by the examined meter; server expiry sweep: 1-second tick, at most 2,000 rows per pass (backlog, downtime or failures can leave older rows)"));
     }
 
     fn per_write(&mut self, text: String) {

@@ -294,6 +294,10 @@ impl Rows for Tx<'_> {
         self.scan(table, name, prefix, bounds, dir, limit)
     }
 
+    fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        Ok(self.query("SELECT n FROM _cap_counts WHERE t = $1 AND k = $2", &[&table, &crate::rows::caps::key(by, group)])?
+            .first().map_or(0, |r| r.get::<_, i64>(0) as u64))
+    }
     fn count_prefix(&self, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         let lo = key::encode(prefix);
         let hi = key::upper_bound(&lo);
@@ -322,6 +326,7 @@ impl Rows for Tx<'_> {
                 entries += 1;
             }
         }
+        entries += self.update_cap_counts(table_name, table, old, Some(row))?;
         Ok(entries)
     }
 
@@ -336,6 +341,7 @@ impl Rows for Tx<'_> {
                 entries += 1;
             }
         }
+        entries += self.update_cap_counts(table_name, table, Some(old), None)?;
         Ok(entries)
     }
 }

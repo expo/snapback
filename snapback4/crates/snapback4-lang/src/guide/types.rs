@@ -160,8 +160,12 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   `retain delivered-history` (it keeps what it was given).
 - **Expire:** `expire at .expiresAt` (a `time ?` column; its sweep index is generated). A row past that time is
   absent to every reader on every host from that moment, before any rule;
-  the server sweeps it within a second and the deletion streams to each
-  device holding it. An already returned answer keeps the row until the
+  the server sweeps on a one-second tick, at most 2,000 rows per pass, and
+  the deletion streams to each device holding it. Backlog or downtime can
+  delay physical deletion. A `cap` on an expiring table uses a maintained
+  physical count: unswept expired rows still occupy capacity. Unique checks
+  skip expired collisions at the same full key under the examined meter;
+  unrelated live or expired rows are never scanned for a write's constraints. An already returned answer keeps the row until the
   next answer; a live reader that must hide it at its deadline drops it
   locally by `expiresAt` (the client example in CLIENT-AND-OPERATIONS.md).
   A typing indicator or short-lived presence row especially needs this

@@ -67,7 +67,7 @@ table messages:
   update <- .authorId = viewer
   delete <- .authorId = viewer
   retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
-  expire at .expiresAt                -- a row past that time is absent everywhere at once, then swept; a null time never expires
+  expire at .expiresAt                -- absent to reads at its deadline; null never expires; caps count unswept rows
   sync last 500 by .at     -- the horizon: a device acquires the newest N per group; older rows are online-only
 
 table posts:
