@@ -265,10 +265,10 @@ export function createClient(options: ClientOptions): Client {
     const rotation = rotateSession(base, token, doFetch);
     let retired = false;
     const retire = (result: SignIn) => {
-      if (retired || (!result.ok && !result.why.retryable)) return;
+      if (retired || (!result.ok && (credentials || !result.why.retryable))) return;
       retired = true;
-      // A transport rejection cannot establish that the old token was consumed.
-      // Without a successor body, attempt logout with the bearer we still know.
+      // Only sign-out owns old-bearer cleanup after a transport rejection.
+      // Store replacement keeps that bearer for createApp's recovery probe.
       void logout(base, result.ok ? result.session.token : token, doFetch);
     };
     // Never abort rotation: the server may already have consumed the old

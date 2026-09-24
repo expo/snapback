@@ -655,7 +655,8 @@ for (const ending of ['sign-out', 'replacement']) test(`committed refresh body s
 for (const kind of ['mutation', 'upload']) test(`local close cancels a ${kind} caller without aborting its committed response`, async t => {
   const { url, dir } = await server(t); let release, entered = false, signal, consumed = false;
   const gate = new Promise(resolve => { release = resolve; });
-  const app = createApp({ url, device: processDevice({ dir: join(dir, 'effect-device'), binary }), fetch: async (input, init) => {
+  const sessionStore = memorySessionStore(), options = { url, sessionStore, device: processDevice({ dir: join(dir, 'effect-device'), binary }) };
+  const app = createApp({ ...options, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     const effect = kind === 'mutation' ? path === '/m/add' : path === '/assets';
     const response = effect && kind === 'upload' ? Response.json({ asset: { id: 'unplaced', type: 'image/png', bytes: 1 } }) : await fetch(input, init);
@@ -671,5 +672,57 @@ for (const kind of ['mutation', 'upload']) test(`local close cancels a ${kind} c
   await until(() => entered); assert.equal(signal, undefined);
   await Promise.race([app.close(), delay(500).then(() => assert.fail('close waited for an effect body'))]);
   if (kind === 'upload') assert.equal((await outcome).why?.code, 'E_CLOSED');
-  release(); await outcome; await until(() => consumed, 'the background reply was consumed');
+  const write = await outcome;
+  if (kind === 'mutation') {
+    const offline = createApp({ ...options, fetch: async () => { throw new TypeError('offline'); } });
+    t.after(() => offline.close()); assert.equal((await offline.ready).ok, true);
+    const known = await offline.client.write(write.id);
+    assert.ok(known && ['pending', 'sent'].includes(known.state), 'reopening the SQLite device must retain the cancelled caller id');
+    await offline.close();
+  }
+  release(); await until(() => consumed, 'the background reply was consumed');
+  if (kind === 'mutation') {
+    const online = createApp(options); t.after(() => online.close()); await online.ready;
+    await until(async () => (await online.client.write(write.id))?.state === 'sent', 'the original id settles after reopening');
+    const rows = await until(async () => { const read = await online.client.query(list, {}); return read.data?.length && read.data; });
+    assert.equal(rows.length, 1, 'retrying the original id never duplicates the committed mutation');
+  }
+});
+
+
+test('online app keeps an unrotated bearer through replacement and the recovery probe accepts it', async t => {
+  const { url } = await server(t), sessionStore = memorySessionStore();
+  let releaseRefresh, releaseChange, releaseProbe, rotating = false, rejected = false, probing = false;
+  const refreshGate = new Promise(resolve => { releaseRefresh = resolve; });
+  const changeGate = new Promise(resolve => { releaseChange = resolve; });
+  const probeGate = new Promise(resolve => { releaseProbe = resolve; });
+  const probes = [], logouts = [];
+  const app = createApp({ url, sessionStore, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/auth/refresh') {
+      rotating = true; await refreshGate; rejected = true;
+      throw new TypeError('connection reset before reaching the server');
+    }
+    if (path === '/q/list' && JSON.parse(init.body).args.replace) {
+      await changeGate; return Response.json({ data: [], seq: 1, store_id: 'replacement' });
+    }
+    if (path === '/probe') { probes.push(new Headers(init.headers).get('authorization')); probing = true; await probeGate; }
+    if (path === '/auth/logout') logouts.push(new Headers(init.headers).get('authorization'));
+    return fetch(input, init);
+  } });
+  t.after(async () => { releaseRefresh(); releaseChange(); releaseProbe(); await app.close(); });
+  await app.ready; await app.auth.guest();
+  const prior = app.client, original = prior.session(); await prior.query(list, {});
+  const changing = prior.query(list, { replace: true }), refreshing = prior.refreshSession();
+  await until(() => rotating); releaseChange();
+  assert.equal((await changing).denied.code, 'E_STORE_REPLACED');
+  assert.equal((await refreshing).ok, false); await until(() => probing);
+  releaseRefresh(); await until(() => rejected); await delay(0);
+  assert.deepEqual(logouts, [], 'a failed rotation must not revoke the bearer used by recovery');
+  releaseProbe(); await until(() => app.auth.state !== 'restoring');
+  assert.equal(app.auth.state, 'signed-in'); assert.notEqual(app.client, prior);
+  assert.deepEqual(probes, [`Bearer ${original.token}`]);
+  assert.equal(app.client.session().token, original.token);
+  assert.equal((await restoreSession(url, sessionStore)).token, original.token);
+  assert.deepEqual((await app.client.query(list, {})).data, []);
 });

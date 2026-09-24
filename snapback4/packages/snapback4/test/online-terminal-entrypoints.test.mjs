@@ -134,7 +134,7 @@ test('app replacement never persists a late successor before probing the kept se
   assert.ok(saved.every(value => JSON.parse(value).token !== 'next'));
 });
 
-for (const ending of ['sign-out', 'replacement']) test(`a rejected refresh still attempts logout after ${ending}`, async t => {
+for (const ending of ['sign-out', 'replacement']) test(`a rejected refresh cleans up only after sign-out (${ending})`, async t => {
   const rotation = gate(), logouts = []; let rotating = false, queries = 0;
   const client = createClient({ url, session: session('old'), fetch: async (input, init) => {
     const path = new URL(input).pathname;
@@ -153,8 +153,14 @@ for (const ending of ['sign-out', 'replacement']) test(`a rejected refresh still
   else assert.equal((await changing).denied.code, 'E_STORE_REPLACED');
   assert.equal((await refresh).ok, false);
   const before = logouts.length; rotation.resolve();
-  await until(() => logouts.length > before);
-  assert.equal(logouts.at(-1), 'Bearer old', 'transport failure cannot prove that the old bearer was consumed');
+  if (ending === 'sign-out') {
+    await until(() => logouts.length > before);
+    assert.equal(logouts.at(-1), 'Bearer old', 'sign-out still owns cleanup of an unconsumed bearer');
+  } else {
+    await delay(0); // Drain the rejected rotation's cleanup continuation.
+    assert.deepEqual(logouts, [], 'replacement keeps the old bearer for its recovery probe');
+    assert.equal(client.session().token, 'old');
+  }
 });
 
 for (const ending of ['sign-out', 'replacement']) test(`refresh fetch rejects on abort: ${ending} still logs out next`, async t => {

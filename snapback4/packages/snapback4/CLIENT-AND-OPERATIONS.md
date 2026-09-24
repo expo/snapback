@@ -462,6 +462,8 @@ queued and in-flight writes without retry; whether those writes executed is unkn
 Create a new client to recover; `createApp` automatically closes, reopens and
 publishes its online client on `E_STORE_REPLACED`, retaining the session if the
 replacement store accepts it and retiring outstanding intents before reopening.
+A retryable refresh failure without a successor body preserves that bearer
+for the replacement probe; sign-out still attempts logout of the known token.
 An admitted `createApp` write reports a terminal outcome only after its durable
 retirement is saved; a failed save leaves the outcome `pending`, even during replacement.
 Terminal online clients expose `link() === "signed-out"` and refuse actions,
