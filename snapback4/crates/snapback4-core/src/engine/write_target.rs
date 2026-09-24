@@ -138,7 +138,9 @@ impl Runner<'_> {
             runner.read_tables.insert(target.table.clone());
             let mut expired_work = 0;
             let old = runner.lookup_live_charged(&target.table, &target.index, index, &key, false, Some(&mut expired_work))?;
-            if runner.device && (table.sync.is_none() || old.is_none()) { return Err(runner.write_miss(&target.table, &target.index, &key)); }
+            if runner.device && (table.sync.is_none() || (old.is_none() && !runner.upsert_absence_proven(&target.table, &target.index, &key)?)) {
+                return Err(runner.write_miss(&target.table, &target.index, &key));
+            }
             let Some(old) = old else { return Err(runner.no_write_target()); };
             // Preserve alternate delete's existing read gate, without exposing
             // the private target or charging a hidden population through Get.

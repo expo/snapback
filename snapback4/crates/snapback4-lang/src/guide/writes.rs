@@ -106,6 +106,11 @@ group. See `guide prediction` for the conditions and a set-membership recipe.
 An expiring cap counts unswept physical rows, which live snapshots omit.
 Occupancy-increasing writes queue without predicted rows and settle on the
 server even after full acquisition; updates within a cap group can still predict.
+Replacing an expired same-id row also queues: the server may have swept it and
+refilled the cap before sync reaches the device. A held live row can still
+support an update within its cap group.
+An alternate-key delete of a missing row refuses `NOT_FOUND` locally when the
+synced group proves absence; otherwise it queues for server resolution.
 
 For `after insert <- exists t[key]`, a local hit satisfies the postcondition.
 A local miss predicts `E_CONSTRAINT` only when the key proves readability

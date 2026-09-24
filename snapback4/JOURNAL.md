@@ -49533,3 +49533,44 @@ classifications are recorded in reports/20260924-intent-lane-p-round3.md.
 No round 3 requirement was deferred. The earlier expiring-cap prediction
 deferral, deferred secondary expiry cleanup and separate six-byte presence
 heap issue remain documented limits. No push, merge or publication.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 4: stale expiry capacity and delete absence
+
+Closed the two Grok round 2 runtime findings on top of round 3. The cap check
+now treats an expired predecessor as absent only on the device: its server
+slot may have been swept and refilled before sync. The server retains its real
+predecessor and still accepts an occupancy-neutral same-id replacement. The
+device queues both indistinguishable worlds, rolling back tentative cleanup.
+Alternate-key delete now returns local NOT_FOUND on a synced, proven absence;
+unknown/online-only absence queues. The authorization reservation still precedes
+lookup and the absence proof. No author rule or runtime ceiling changed.
+
+Added paired sweep/refill tests for four insert/upsert forms and two cap shapes
+on both devices (32 scenarios), including identical snapshots and queue entries,
+reopen, unchanged predecessor storage, settlement and ordered sync. Added local
+delete refusal/queue tests for complete, horizon-limited, online-only and
+unacquired coverage on both devices. A readable-but-unwritable live target now
+has complete update/upsert reply comparisons at zero and 3,000 hidden expired
+siblings, with a positive read control and unchanged storage. The prediction
+adapter's cap counters have direct memory/SQLite tests for expired physical
+rows, moves, deletes, savepoint rollback, prediction restoration and reset;
+memory also reopens. The existing neutral-write fixture now expects expired
+same-id replacements to queue while live updates/deletes keep predicting.
+
+Both reported device bugs were reproduced before the fixes. Deliberately
+returning zero from Predicting::cap_count failed both new adapter tests (0
+instead of 2). Moving the expiry charge after the successful read but before
+update authorization failed the new reply test (3,000 examinations instead of
+0). Both production sources were restored byte-for-byte after those experiments.
+Development also exposed four fixture mistakes of mine, all corrected: a
+missing mutable binding, an id/text rule comparison, a horizon without its
+ordering, and opening core SQLite without device side tables. No baseline
+failure is being repaired. Final qualification and measurements follow below.
+
+Targeted qualification: all 29 expiry tests pass in 13.27 s; both device counter
+unit tests pass. Every 9,000-send case still examines exactly one row, with zero
+or 3,000 unrelated expired rows. Reference audit: 505 LLP documents, 9,238 refs,
+zero errors or unchecked refs. Wasm is 1,754,043 B raw / 487,816 B gzip (+149 raw,
++189 gzip versus round 3, whole-artifact delta); budget stays 488,000 B. Started
+the complete harness with CARGO_INCREMENTAL=0 and serial client files, after
+restoring both deliberately mutated source files and completing targeted checks.

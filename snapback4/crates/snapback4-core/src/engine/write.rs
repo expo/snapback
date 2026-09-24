@@ -77,8 +77,8 @@ impl Runner<'_> {
             self.meter.charge(MeterKind::Examined, 1)?;
             self.remove(table_name, existing)?;
         }
-        // A same-id expired replacement preserves occupancy in each unchanged
-        // cap group, including on a device that actually holds its predecessor.
+        // The server's same-id expired replacement preserves occupancy in
+        // unchanged cap groups. A device cannot rely on an expired predecessor.
         self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
         self.charge_source_indexes(&table, None, Some(&row), entries)?;
@@ -399,7 +399,9 @@ impl Runner<'_> {
                         continue;
                     }
                     let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
-                    let moved = old.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
+                    // @ref LLP 3000.013#11.1 — an expired local predecessor may have been swept and its capacity refilled before sync arrives.
+                    let predecessor = old.filter(|row| !self.device || !self.expired(&table, row));
+                    let moved = predecessor.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
                     if !moved {
                         continue;
                     }

@@ -5,6 +5,9 @@ use common::{BoundaryMetadata, Host, Memory, Sqlite};
 
 use snapback4_device::device::Queued;
 
+#[path = "devices/review.rs"]
+mod review;
+
 fn queued(op: &str, write_id: &str, args: serde_json::Value, now: i64) -> Queued {
     Queued { id: write_id.into(), seq: 0, op: op.into(), args, new_ids: vec!["new".into()],
         predicted: vec![], viewer: "alice".into(), now, predictable: true,
@@ -194,14 +197,15 @@ mutation move():
             json!({"messageId":"old", "ordinal":1, "at":20, "expiresAt":null})
         } else { json!({}) };
         let entry = device.admit(queued(op, "write", args, now)).unwrap();
-        assert_eq!(entry.predictable, op != "move", "{} {op}: {entry:?}", host.label());
-        assert_eq!(entry.predicted.is_empty(), op == "move");
+        let queues = matches!(op, "move" | "add");
+        assert_eq!(entry.predictable, !queues, "{} {op}: {entry:?}", host.label());
+        assert_eq!(entry.predicted.is_empty(), queues);
         host.close(&name, device);
     }
 }
 
 #[test]
-fn occupancy_neutral_writes_predict_but_cap_group_moves_queue_on_both_devices() {
+fn live_neutral_writes_predict_but_expired_replacements_and_cap_moves_queue() {
     neutral(&mut Sqlite::new("expiry-neutral"));
     neutral(&mut Memory::new());
 }
