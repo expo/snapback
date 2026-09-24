@@ -125,8 +125,51 @@ fn dotted_keys_and_explicit_defaults_produce_the_same_schema_and_programs() {
         assert_eq!(semantics(&plain.schema),semantics(&b.schema));
         assert_eq!(plain.programs.iter().map(|p|semantics(&p.program)).collect::<Vec<_>>(),b.programs.iter().map(|p|semantics(&p.program)).collect::<Vec<_>>());
     }
-    let public = CLIQUE.replace("public 'Public posts'", "read <- allow").replace("public 'Public likes'", "read <- allow");
-    bound(&public);
+}
+
+#[test]
+fn uniformly_readable_rules_derive_allow_and_return_nonzero_totals() {
+    let source = CLIQUE.replace("public 'Public posts'", "read <- allow").replace("public 'Public likes'", "read <- allow");
+    let b = bound(&source);
+    for m in b.schema.maintains.iter().filter(|m| m.private.is_none()) {
+        assert_eq!(b.schema.tables[&m.target].rules.read, RuleExpr::Allow, "{}", m.target);
+    }
+    let mut e = engine(&source);
+    write(&mut e,"post","alice",&[("id",id("p")),("parentId",Value::Null),("at",Value::Int(86_400_001))]);
+    write(&mut e,"like","bob",&[("id",id("l")),("postId",id("p")),("at",Value::Int(86_400_002)),("weight",Value::Int(3))]);
+    let answer = e.query("totals",ctx("stranger",&[("owner",id("alice")),("postId",id("p")),("day",Value::Int(1))])).unwrap();
+    assert!(answer.complete && answer.cut.is_none());
+    for field in ["posts","dailyPosts","likes","dailyLikes"] {
+        assert_eq!(answer.data.field(field).unwrap(),&Value::Int(1),"{field}");
+    }
+}
+
+#[test]
+fn failed_maintain_generation_does_not_infer_a_rule_on_an_ordinary_table() {
+    let b = snapback4_lang::compile(&[
+        ("a.q".into(),"maintain totals: count missing by owner".into()),
+        ("b.q".into(),"table totals:\n  owner: principal\n  public".into()),
+    ]);
+    assert!(b.diagnostics.iter().any(|d|d.code == "E_QUARRY_UNKNOWN" && d.message.contains("unknown source table missing") && d.site.file == "a.q"),"{:?}",b.diagnostics);
+    assert!(b.schema.tables["totals"].rules.read.is_public());
+    assert!(b.schema.maintains.is_empty());
+}
+
+#[test]
+fn dotted_sum_column_matches_legacy_spelling_and_runs() {
+    let source = "table orders:\n  shopId: principal\n  amount: int\n  read <- allow\n  insert <- .shopId = viewer\nmaintain revenue: sum orders of .amount by shopId\nquery total(owner: principal):\n  return revenue[owner]\nmutation order(id: id, amount: int):\n  insert orders { id, shopId: viewer, amount }\n";
+    let dotted = bound(source);
+    let plain = bound(&source.replace("of .amount","of amount"));
+    assert_eq!(semantics(&dotted.schema),semantics(&plain.schema));
+    assert_eq!(dotted.programs.iter().map(|p|semantics(&p.program)).collect::<Vec<_>>(),plain.programs.iter().map(|p|semantics(&p.program)).collect::<Vec<_>>());
+    let mut e = engine(source);
+    for (name,amount) in [("a",13),("b",-3)] {
+        write(&mut e,"order","alice",&[("id",id(name)),("amount",Value::Int(amount))]);
+    }
+    let answer = e.query("total",ctx("stranger",&[("owner",id("alice"))])).unwrap();
+    assert!(answer.complete && answer.cut.is_none());
+    assert_eq!(answer.data,Value::Int(10));
+    assert!(compile(&source.replace("of .amount","of ..amount")).diagnostics.iter().any(|d|d.code == "E_QUARRY_SYNTAX"));
 }
 
 #[test]

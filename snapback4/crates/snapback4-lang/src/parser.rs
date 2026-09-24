@@ -473,6 +473,7 @@ impl Parser {
         let mut column = None;
         if aggregate.value == "sum" {
             self.take("of")?;
+            self.maybe(".");
             column = Some(self.word()?.value);
         }
         let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };

@@ -152,7 +152,7 @@ maintain receivedLikes: count likes by postId.authorId -- one immutable hop to a
 
 maintain messageCounts: count messages by roomId       -- an aggregate the engine keeps: read it by group and get the number, 0 when the group has no row
                                                      -- read derives the source's membership rule because roomId is a bare group key
-maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an int, decimal or money column
+maintain scoreTotals: sum posts of .score by authorId  -- count, or sum of an int, decimal or money column
   read <- allow
   online only                         -- mutations reading this maintain never predict
 

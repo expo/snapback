@@ -161,7 +161,8 @@ impl Catalog {
         }
         let mut catalog = Self { documents, tables, maintains, shapes, functions, effects };
         for maintain in catalog.maintains.values().filter(|m| m.read.is_none()) {
-            if !catalog.tables.contains_key(&maintain.name) { continue; }
+            // A colliding ordinary table can exist even when target generation failed.
+            if !catalog.tables.get(&maintain.name).is_some_and(|info| info.maintained.is_some()) { continue; }
             match super::maintains::derived_read(&catalog, maintain) {
                 Ok(read) => catalog.tables.get_mut(&maintain.name).unwrap().decl.rules.push(read),
                 Err(diagnostic) => diagnostics.push(diagnostic),

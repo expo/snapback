@@ -113,3 +113,34 @@ fn rule_fields_in_extra_probe_equalities_are_not_lost() {
     let b = compile(&source);
     assert!(b.diagnostics.iter().any(|d|d.code == "E_MAINTAIN_READ_RULE" && d.message.contains(".role")),"{:?}",b.diagnostics);
 }
+
+#[test]
+fn column_audience_rules_survive_calendar_grouping_and_service_grants() {
+    use snapback4_core::schema::{Audience, Sync};
+    for rule in [".owner = viewer", ".owner = viewer or viewer = 'service:ranker'"] {
+        for calendar in [false,true] {
+            let keys = if calendar { "owner, day(.at)" } else { "owner" };
+            let lookup = if calendar { "owner, day(now)" } else { "owner" };
+            let time_column = if calendar { "  at: time\n" } else { "" };
+            let source = format!("table entries:\n  owner: principal\n{time_column}  by byOwner: owner, id\n  read <- {rule}\n  sync to .owner\nmaintain totals: count entries by {keys}\nquery total(owner: principal):\n  return totals[{lookup}]\n");
+            let b = bound(&source);
+            let target = &b.schema.tables["totals"];
+            assert_eq!(target.rules.read.quarry(),rule);
+            assert_eq!(target.rules.read,b.schema.tables["entries"].rules.read);
+            assert_eq!(target.sync,Some(Sync {audience:Audience::Column("owner".into()),horizon:None}));
+            assert_eq!(target.residency.inherited_from.as_deref(),Some("entries"));
+            let mut e = engine(&source);
+            let mut row = json!({"id":"entry","owner":"alice"});
+            if calendar { row["at"] = json!(86_400_001); }
+            let row = wire::row_from_json(e.schema().table("entries").unwrap(),&row).unwrap();
+            e.seed_at(vec![("entries".into(),row)],86_400_010).unwrap();
+            for (who,allowed) in [("alice",true),("bob",false),("service:ranker",rule.contains("service:ranker"))] {
+                let answer = e.query("total",ctx(who,&[("owner",id("alice"))])).unwrap();
+                assert!(answer.complete && answer.cut.is_none());
+                assert_eq!(answer.data,Value::Int(i64::from(allowed)),"{rule}; {keys}; {who}");
+                let (events,_) = e.snapshot_at(who,86_400_010).unwrap();
+                assert_eq!(events.iter().filter(|event|event.table == "totals").count(),usize::from(who == "alice"),"a service grant adds no device audience");
+            }
+        }
+    }
+}

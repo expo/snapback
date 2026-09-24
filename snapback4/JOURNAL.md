@@ -47581,3 +47581,37 @@ isolates the target's aggregate forms and retains named indexes needed before
 Lane A integration. Did not implement `view`, planner/index synthesis, change
 engine admission or meters, add column prediction, change residency, fix the
 four baseline failures, run a new calibration, or push/publish.
+
+
+## 2026-09-24 — LLP 3000.013 lane B: review round 1
+
+Addressed all four blind-review findings. Read inference now checks that a
+catalog entry is a successfully generated maintain target, so a later file's
+ordinary table cannot make a failed missing-source declaration panic. The
+exact two-file counterexample is a regression that checks the located refusal
+and preserves the ordinary table's public policy. The maintain parser now
+accepts one optional dot after `sum … of`, as the in-table parser does; the
+language card uses the dotted spelling. The sum regression compares dotted
+and legacy schemas/programs, reads a nonzero total, and refuses a second dot.
+
+Strengthened allow inference coverage: the converted Clique fixture asserts
+Allow for every ordinary aggregate and reads nonzero original/daily post and
+received/daily like totals as a bystander. Column-audience coverage asserts
+exact derived rule text, the inherited owner audience with no horizon, and its
+source for both `by owner` and `by owner, day(.at)`, with and without the
+`viewer = 'service:ranker'` disjunct. Engine queries distinguish owner,
+outsider and service; snapshots confirm service grants add no device audience.
+The source retains an explicit owner index until Lane A index synthesis lands.
+
+Reproduced the missing-source panic and dotted-sum syntax refusal before their
+fixes. Affected tests passed: derived_maintains 11, maintains 14,
+maintained_columns 42, guide 55, recorded_round1 5 — 127 passed, zero failed.
+Temporarily changed uniformly-readable inference from allow to deny, then
+separately changed equality-rule inference to allow: each mutant failed its
+new regression. Restored production code and reran all 11 derived tests:
+`test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s`.
+`git diff --check` passed. Logs are `/tmp/lane-b-review1-tests.log`,
+`/tmp/lane-b-review1-mutant-allow.log`, `/tmp/lane-b-review1-mutant-eq.log`, and
+`/tmp/lane-b-review1-restored.log`. This round reran affected tests as requested;
+it did not rerun the full suite or change its previously recorded baseline
+failures, engine rules, residency defaults or meters. No push or publication.
