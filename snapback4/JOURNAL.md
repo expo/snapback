@@ -49372,3 +49372,49 @@ package version, push, publication or deployment change. Commits f3588f913 and
 971939d34 hold the implementation. Exact old/new first paragraphs for every
 card, the file map, review dispositions, inherited-note reproduction and logs
 are in reports/20260924-feeds-and-card-leads-r2.md.
+
+
+## 2026-09-24 — Lane F round 3: definitions survive card reordering
+
+Closed the round-2 reviews in commits 79e8f1869 and aa4209fcb. The bounds
+card no longer names E_BOUND incidentally in its heap paragraph; why again
+quotes the defining ceilings paragraph, including the refusing meter, ceiling,
+site and the reason counts are withheld. Audited the first matching paragraph
+for all 195 registered codes across 25 default cards. Added definitions before
+older code listings for E_RULE, E_INPUT, E_CONFLICT and NOT_FOUND; copied the
+ten published OIDC refusal paragraphs verbatim from SERVER.md into services;
+made the feed refusal rows state their meaning and defined the older profile-cap
+note in the final compatibility section. A separate defining-fact census now
+checks every code's actual card excerpt and its inline-diagnostic equivalent.
+
+Following now says the newest 50 arrive immediately, then the rest of a
+1,000-event window. Its text test pins that sentence and the sentence saying
+older posts stay in posts. Restored the search include separators; the all-card
+heading check also caught the second boundary's missing blank line. All 29
+card introductions and every published Quarry block remain unchanged.
+
+The Following execution test creates p0000 later than the tied p1004/p1003
+pair, requiring time before the id tiebreak in own and delivered pages. The
+new unrepost test creates and delivers a repost, calls the published mutation,
+and checks both owner and follower before and after cleanup while preserving
+the original. Nine deliberate mutations failed their intended assertions,
+including id-only ordering, no-op unrepost, the profile noun, both search joins,
+the old window wording, the displaced bound paragraph, the pre-fix definition
+set (31 failed facts), and an incidental first code mention. All altered bytes
+were restored; no compiler or engine change remains. During development the
+new repost test confused its source row id with its feed event id; corrected
+the assertion before qualification. No engine defect was found.
+
+Frozen Bun install passed. Guide: 66 passed; CLI check/why/diagnostics: 68
+passed. One full scripts/test.sh run: `== 0 failure(s) in 399 s`, exit 0.
+No introduced, baseline or environmental suite failure. Client tests: 1,088
+passed, 10 skipped. README remains 292/300 lines; WASM remains 1,744,842 B raw
+and 484,967 B gzip under the unchanged 486,000 B budget. Feeds is 303 lines;
+the largest changed Rust source is 1,192 lines. Whitespace checks passed.
+
+No round-3 deviation, new form, new open problem, package version, push or
+publication. Authorization, disclosure, durability and meters are unchanged.
+The inherited full-history search example's asserted N_NO_HORIZON note remains;
+all feed examples are silent and no note exception was added. The file map,
+regression evidence, reproduction for that inherited note and exact results
+are in reports/20260924-guide-review-r3.md. Logs: ~/sb4-intent/lane-f-r3-*.log.
