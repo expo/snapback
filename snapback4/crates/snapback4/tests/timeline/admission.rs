@@ -6,46 +6,26 @@ fn admission_refuses_every_unsupported_bridge_shape_and_missing_edge_bound() {
     let source=format!("{APP}{DECLARATION}");
     compile(&source);
     let cases = [
-        ("authors profiles by principal","authors posts by authorId","E_TIMELINE_SHAPE"),
-        ("principal: principal","principal: text <=50","E_TIMELINE_SHAPE"),
         ("authorId: principal","authorId: id","E_TIMELINE_SHAPE"),
         ("actorId: principal","actorId: principal ?","E_TIMELINE_SHAPE"),
         ("postId: posts","postId: profiles","E_TIMELINE_SHAPE"),
         ("at: time","at: int","E_TIMELINE_SHAPE"),
         ("followerId: principal","followerId: id","E_TIMELINE_SHAPE"),
         ("followedId: principal","followedId: id","E_TIMELINE_SHAPE"),
-        ("unique byPrincipal: principal","by byPrincipal: principal","E_TIMELINE_SHAPE"),
         ("unique byActorPost: actorId, postId","by byActorPost: actorId, postId","E_TIMELINE_SHAPE"),
         ("unique byPair: followerId, followedId","by byPair: followerId, followedId","E_TIMELINE_SHAPE"),
-        ("unique byPrincipal: principal","unique byPrincipal: principal\n  unique second: principal","E_TIMELINE_SHAPE"),
-        ("insert <- .principal = viewer","insert <- allow","E_TIMELINE_SHAPE"),
         ("insert <- .authorId = viewer","insert <- allow","E_TIMELINE_SHAPE"),
         ("insert <- .actorId = viewer","insert <- allow","E_TIMELINE_SHAPE"),
         ("insert <- .followerId = viewer","insert <- allow","E_TIMELINE_SHAPE"),
         ("update <- .authorId = viewer","update <- allow","E_TIMELINE_SHAPE"),
         ("immutable authorId, at","immutable authorId","E_TIMELINE_SHAPE"),
         ("postId: posts\n  at: time","postId: posts\n  at: int","E_TIMELINE_SHAPE"),
-        ("insert <- .principal = viewer","insert <- .principal = viewer\n  delete <- allow","E_TIMELINE_SHAPE"),
         ("update <- .authorId = viewer","update <- .authorId = viewer\n  delete <- .authorId = viewer","E_TIMELINE_SHAPE"),
-        ("delete <- .actorId = viewer","delete <- deny","E_TIMELINE_SHAPE"),
-        ("delete <- .followerId = viewer","delete <- deny","E_TIMELINE_SHAPE"),
         ("delete <- .actorId = viewer","delete <- .actorId = viewer\n  update <- .actorId = viewer","E_TIMELINE_SHAPE"),
         ("delete <- .followerId = viewer","delete <- .followerId = viewer\n  update <- .followerId = viewer","E_TIMELINE_SHAPE"),
-        ("table follows:","table follows:\n  reason: text <=50","E_TIMELINE_SHAPE"),
         ("removed: bool default false","removed: bool","E_TIMELINE_REMOVAL"),
         ("removed: bool default false","removed: bool default true","E_TIMELINE_REMOVAL"),
         ("removed: bool default false","removed: bool ?","E_TIMELINE_REMOVAL"),
-        ("cap 1000 by followerId","cap 999 by followerId","E_TIMELINE_FOLLOWS"),
-        ("cap 1000 by followedId","cap 999 by followedId","E_TIMELINE_FOLLOWS"),
-        ("cap 100000","cap 99999","E_TIMELINE_FOLLOWS"),
-        ("by byFollowed: followedId, followerId","by byFollowed: followerId, followedId","E_TIMELINE_FOLLOWS"),
-        ("by byFollowed: followedId, followerId","by byFollowed: at, followerId","E_TIMELINE_FOLLOWS"),
-        ("cap 1000 by followerId", "", "E_TIMELINE_FOLLOWS"),
-        ("cap 1000 by followedId", "", "E_TIMELINE_FOLLOWS"),
-        ("cap 100000", "", "E_TIMELINE_FOLLOWS"),
-        ("cap 1000 by followerId", "cap 1001 by followerId", "E_TIMELINE_FOLLOWS"),
-        ("cap 1000 by followedId", "cap 1001 by followedId", "E_TIMELINE_FOLLOWS"),
-        ("cap 100000", "cap 100001", "E_TIMELINE_FOLLOWS"),
         ("delete <- .actorId = viewer", "delete <- allow", "E_TIMELINE_SHAPE"),
         ("delete <- .followerId = viewer", "delete <- allow", "E_TIMELINE_SHAPE"),
     ];
@@ -55,11 +35,11 @@ fn admission_refuses_every_unsupported_bridge_shape_and_missing_edge_bound() {
         let d=b.diagnostics.iter().find(|d|d.code==code).unwrap_or_else(||panic!("{from}: {:?}",b.diagnostics));
         assert_eq!(d.guide,"feeds");assert!(!d.rewrite.is_empty());assert!(b.schema.timelines.is_empty());
     }
-    for extra in ["table feedAuthors:\n  x: int\n", "mutation feedPurgeRemoved():\n  return null\n"] {
+    for extra in ["table feedWork:\n  x: int\n", "mutation feedFeed():\n  return null\n"] {
         let b=snapback4_lang::compile(&[("schema.q".into(),format!("{source}\n{extra}"))]);
         assert!(b.diagnostics.iter().any(|d|d.code=="E_TIMELINE_SHAPE"),"{:?}",b.diagnostics);
     }
-    for table in ["profiles","posts","reposts","follows"] {
+    for table in ["posts","reposts","follows"] {
         let start=source.find(&format!("table {table}:\n")).unwrap();
         let end=source[start+1..].find("\ntable ").map_or(source.find("maintain feed").unwrap(),|n|start+1+n);
         for change in [0,1,2,3] {
@@ -83,13 +63,13 @@ fn timeline_read_shape_and_transition_classification() {
     for name in ["register","deleteProfile","publish","repost","unrepost","remove"] {
         assert_eq!(b.schema.operations[name].predicts.as_deref(),Some("eligible"),"{name}");
         let sites: Vec<_> = b.schema.operations[name].sites.iter().filter(|s|s.kind=="timeline transition").collect();
-        assert_eq!(sites.is_empty(), name == "deleteProfile", "{name}: deletion has no implicit reads; other transitions do");
-        assert!(sites.iter().all(|s|s.class!=snapback4_core::schema::SiteClass::Server && s.table!="feedPullCounts"), "{name}");
+        assert_eq!(sites.is_empty(), matches!(name, "register" | "deleteProfile"), "{name}: deletion has no implicit reads; other transitions do");
+        assert!(sites.iter().all(|s|s.class!=snapback4_core::schema::SiteClass::Server && s.table!="feedWork"), "{name}");
     }
     for name in ["follow","unfollow","refollow"] {
         let fact=&b.schema.operations[name];
         assert_eq!(fact.predicts.as_deref(),Some("never"),"{name}: {fact:?}");
-        assert!(fact.sites.iter().any(|s|s.kind=="timeline transition" && s.table=="feedPullCounts"));
+        assert!(fact.sites.iter().any(|s|s.kind=="timeline transition" && s.table=="feedWork"));
     }
     for read in ["feed first 10","feed[viewer] first 10","feed[viewer, viewer] last 10","feed[viewer] last 10 by byId"] {
         let b=snapback4_lang::compile(&[("schema.q".into(),format!("{APP}{DECLARATION}\nquery bad():\n  return {read}\n"))]);
@@ -140,9 +120,9 @@ mutation deletePost(postId: posts):
     assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code=="E_TIMELINE_REMOVAL"));
     assert_eq!(snapshot(&e),before);
     assert!(rows(&e,"posts").is_empty());
-    for table in ["feedPosts", "feedRemovedEvents", "feedFeed", "feedBroadcast"] {assert!(rows(&e,table).is_empty());}
+    for table in ["feedPosts", "feedRemovedEvents", "feedFeed", "feedWork"] {assert!(rows(&e,table).is_empty());}
     e.mutate("publish",None,context("a",&[("postId",id("p")),("removed",Value::Bool(false))],2)).unwrap();
-    for (n,(who,flag,code,writes)) in [("b",true,Some("E_RULE"),0),("a",false,None,1),("a",true,None,3),("a",true,None,1),("a",false,Some("E_TIMELINE_REMOVAL"),0)].into_iter().enumerate() {
+    for (n,(who,flag,code,writes)) in [("b",true,Some("E_RULE"),0),("a",false,None,1),("a",true,None,4),("a",true,None,1),("a",false,Some("E_TIMELINE_REMOVAL"),0)].into_iter().enumerate() {
         let before=snapshot(&e);let out=e.mutate("flag",None,context(who,&[("postId",id("p")),("removed",Value::Bool(flag))],3+n as i64)).unwrap();
         if let Some(code)=code {assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code==code),"{out:?}");assert_eq!(snapshot(&e),before);} else {assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");assert_eq!(out.metered.rows_written,writes);}
     }

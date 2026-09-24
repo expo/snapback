@@ -25,11 +25,11 @@ fn mutate(e: &mut Engine, op: &str, viewer: &str, args: &[(&str,Value)], now: i6
 }
 
 #[test]
-fn maximum_backfill_promotion_has_bounded_derived_bytes_and_private_partitions() {
+fn follow_preview_and_delivery_have_bounded_bytes_and_private_partitions() {
     let mut e=fixture::engine(true);
     let t=e.schema().timelines[0].clone();
     let bounds=cost::stream_bounds(e.schema(),&t).unwrap();
-    let (_,bound)=bounds.iter().find(|(name,_)|*name=="maximum-backfill promotion").unwrap();
+    let (_,bound)=bounds.iter().find(|(name,_)|*name=="follow preview").unwrap();
     assert!(bounds.iter().all(|(_,bytes)|bytes+512<CEILING));
     assert!(*bound+512<CEILING,"derived contribution plus reply framing must fit");
     for (op,bytes) in &bounds {println!("DERIVED_BOUND {op}: bytes={bytes} ceiling={CEILING} margin={}",CEILING-bytes);}
@@ -42,7 +42,7 @@ fn maximum_backfill_promotion_has_bounded_derived_bytes_and_private_partitions()
     }
     let long_bounds=cost::stream_bounds(&wide,&long).unwrap();
     assert!(long_bounds.iter().all(|(_,bytes)|bytes+512<CEILING));
-    let long_promotion=long_bounds.iter().find(|(name,_)|*name=="maximum-backfill promotion").unwrap().1;
+    let long_promotion=long_bounds.iter().find(|(name,_)|*name=="follow preview").unwrap().1;
     assert!(long_promotion>*bound);
     let author="a".repeat(135);let reader="r".repeat(135);
     let followers:Vec<_>=(0..PUSH_FOLLOWERS).map(|n|format!("{}f{n:03}","x".repeat(131))).collect();
@@ -50,7 +50,7 @@ fn maximum_backfill_promotion_has_bounded_derived_bytes_and_private_partitions()
     for n in 0..1000 {mutate(&mut e,"publish",&author,&[("postId",id(&format!("{}p{n:04}","p".repeat(130))))],n+2);}
     for who in &followers {mutate(&mut e,"follow",who,&[("authorId",id(&author))],1100);}
     let from=e.seq().unwrap();
-    assert_eq!(mutate(&mut e,"follow",&reader,&[("authorId",id(&author))],1200),1023);
+    assert_eq!(mutate(&mut e,"follow",&reader,&[("authorId",id(&author))],1200),52);
     for (class,who) in [("triggering reader",&reader),("author",&author),("existing follower",&followers[0]),("public only",&"outsider".into())] {
         let p=e.stream(who,from,1).unwrap();
         let seq=e.seq().unwrap();
@@ -59,19 +59,18 @@ fn maximum_backfill_promotion_has_bounded_derived_bytes_and_private_partitions()
         let copies=p.events.iter().filter(|ev|ev.table==t.table("Feed")).collect::<Vec<_>>();
         assert_eq!(copies.len(),if class=="triggering reader" {FOLLOW_BACKFILL} else {0});
         for ev in &p.events {
-            if matches!(ev.table.as_str(),"feedFeed"|"feedPulls") {
+            if matches!(ev.table.as_str(),"feedFeed"|"feedWork") {
                 assert_ne!(class,"public only");
                 assert_eq!(ev.data.as_ref().unwrap().field("readerId").unwrap(),&id(who));
             } else if class=="public only" {
                 assert!(e.schema().tables[&ev.table].rules.read.is_uniformly_readable());
             }
         }
-        assert_eq!(p.events.len(),match class {"triggering reader"=>FOLLOW_BACKFILL+3,"public only"=>2,_=>3});
+        assert_eq!(p.events.len(),match class {"triggering reader"=>FOLLOW_BACKFILL+2,"public only"=>1,_=>1});
         let derived:usize=p.events.iter().filter(|ev|t.owns(&ev.table)).map(|ev|serde_json::to_vec(&sync_wire::SyncEvent {
             data:ev.data.as_ref().map(snapback4_core::wire::Plain),id:&ev.id,kind:&ev.kind,seq:Some(ev.seq),table:&ev.table
         }).unwrap().len()+1).sum();
         assert!(derived<=*bound,"{class}: derived={derived}, bound={bound}");
-        if class=="triggering reader" {assert!(derived*100>*bound*90,"promotion must exercise near-maximal images");}
         let bytes=serde_json::to_vec(&delivery_wire::reply(&e,p)).unwrap().len();
         let framing=bytes-derived;
         assert!(bytes<=*bound+framing && bytes<CEILING);

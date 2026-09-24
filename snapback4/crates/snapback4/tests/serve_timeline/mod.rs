@@ -18,6 +18,7 @@ fn paired_tombstoned_repost_identity_is_unobservable() {
             let args = args.as_object().unwrap().iter().map(|(k,v)| (k.clone(), Value::Id(if k == "authorId" {persona_principal(v.as_str().unwrap())} else {v.as_str().unwrap().into()}))).collect();
             let ids = (0..5).map(|i| format!("setup-{n}-{i}")).collect::<Vec<_>>();
             supplied.extend(ids.clone());
+            if op == "remove" { while e.run_timeline_chunk(7).unwrap().is_some() {} }
             let out = e.mutate(op, None, Context::new(persona_principal(who), args).at(n as i64).with_ids(ids)).unwrap();
             assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
         }
@@ -26,7 +27,8 @@ fn paired_tombstoned_repost_identity_is_unobservable() {
     };
     drop(initial);
     // The new repost would deliver exactly this (C, removed) natural key.
-    let hidden_id = owned_id("feed", "Feed", &[Value::Id(persona_principal("c")), Value::Id("removed".into())]);
+    let epoch = images.iter().find(|(t,r)|t=="follows" && r.field("followedId").unwrap()==&Value::Id(persona_principal("a"))).unwrap().1.field("id").unwrap().clone();
+    let hidden_id = owned_id("feed", "Feed", &[Value::Id(persona_principal("c")), Value::Id("removed".into()), epoch]);
     assert!(images.iter().any(|(t,r)| t == "feedFeed" && r.field("id").unwrap() == &Value::Id(hidden_id.clone())));
     let ids = ["new-repost", "removed", "spare"].map(String::from);
     supplied.extend(ids.clone());

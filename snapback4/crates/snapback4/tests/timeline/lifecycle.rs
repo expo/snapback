@@ -7,23 +7,15 @@ fn adopt(e: &mut Engine, b: snapback4_lang::Bound) -> Result<u64,snapback4_core:
 fn bare() -> Engine { let b=compile(APP); Engine::memory(b.schema,[]).unwrap() }
 
 #[test]
-fn activation_registers_existing_profiles_atomically_up_to_1000() {
+fn activation_does_not_register_or_bound_existing_profiles() {
     for n in [0,1,1000,1001] {
         let mut e=bare();
         e.load((0..n).map(|n|("profiles".into(),object([("id",id(&format!("p{n}"))),("principal",id(&format!("a{n}")))])))).unwrap();
-        let before=snapshot(&e); let generation=e.generation();
-        let result=adopt(&mut e,bound(true));
-        if n>1000 {
-            assert_eq!(result.unwrap_err().code(),"E_TIMELINE_ACTIVATE");
-            assert_eq!(e.generation(),generation); assert_eq!(snapshot(&e),before);
-        } else {
-            result.unwrap();
-            assert_eq!(rows(&e,"feedAuthors").len(), n);
-            assert_eq!(rows(&e,"feedAuthors").iter().map(|r|r.field("principal").unwrap().as_str().unwrap().to_string()).collect::<std::collections::BTreeSet<_>>(),(0..n).map(|n|format!("a{n}")).collect());
-            assert!(rows(&e,"feedAuthors").iter().all(|r|r.field("shared").unwrap()==&Value::Bool(false)));
-            let before=snapshot(&e);
-            adopt(&mut e,bound(true)).unwrap(); assert_eq!(snapshot(&e),before);
-        }
+        adopt(&mut e,bound(true)).unwrap();
+        assert!(!e.schema().tables.contains_key("feedAuthors"));
+        assert_eq!(rows(&e,"profiles").len(),n);
+        assert!(OWNED.iter().all(|t|rows(&e,t).is_empty()));
+        let before=snapshot(&e);adopt(&mut e,bound(true)).unwrap();assert_eq!(snapshot(&e),before);
     }
 }
 
@@ -73,10 +65,10 @@ fn durable_history_survives_adoption_reopen_and_trusted_restore() {
     let before=snapshot(&e);let generation=e.generation();let following=page(&mut e);
     for table in OWNED {assert!(!before[table].is_empty(),"history must populate {table}");}
     let repost = rows(&e,"feedPosts").into_iter().find(|r|r.field("repost").unwrap()==&Value::Bool(true)).unwrap().field("id").unwrap().clone();
-    assert_eq!(following.as_array().unwrap().iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(), vec![id("broadcast"), repost, id("live")]);
+    assert_eq!(following.as_array().unwrap().iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(), vec![repost, id("live")]);
     for n in 1..51 {
         let page = e.query("following",context(&format!("r{n}"),&[],10000)).unwrap();
-        assert_eq!(page.data.as_array().unwrap().iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(),vec![id("broadcast"),id("live")]);
+        assert_eq!(page.data.as_array().unwrap().iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(),vec![id("live")]);
     }
     assert_eq!(rows(&e,"feedRemovedEvents")[0].field("eventId").unwrap(),&id("removed"));
     assert!(following.as_array().unwrap().iter().all(|r|r.field("id").unwrap()!=&id("removed")));
@@ -88,16 +80,15 @@ fn durable_history_survives_adoption_reopen_and_trusted_restore() {
     let mut restored=engine(true);adopt(&mut restored,with_ping()).unwrap();
     restored.load_trusted(before.clone().into_iter().flat_map(|(t,rs)|rs.into_iter().map(move |r|(t.clone(),r)))).unwrap();
     assert_eq!(snapshot(&restored),before);assert_eq!(restored.generation(),generation+1);assert_eq!(page(&mut restored),following);
-    for table in ["profiles","posts","reposts","follows"].into_iter().chain(OWNED) {
+    for table in ["posts","reposts","follows"].into_iter().chain(OWNED) {
         let original = before[table][0].clone();
         let mut absent = original.clone();
         let Value::Row(fields) = &mut absent else { panic!("stored {table} is not a row") };
         let suffix = table.strip_prefix("feed");
         // A real natural-key digest, not a merely well-formed or tampered id.
         let natural = match suffix {
-            Some("Authors") => "principal",
-            Some("Feed" | "Pulls" | "PullCounts" | "PullTotals") => "readerId",
-            Some("Broadcast" | "RemovedEvents") => "eventId",
+            Some("Feed" | "Work") => "readerId",
+            Some("RemovedEvents") => "eventId",
             _ => "id",
         };
         fields.insert(natural.into(), id("never-stored"));
@@ -133,7 +124,7 @@ fn durable_history_survives_adoption_reopen_and_trusted_restore() {
 
 #[test]
 fn sqlite_activation_refusals_leave_reopened_file_unchanged() {
-    for table in ["profiles","posts","reposts","follows"] {
+    for table in ["posts","reposts","follows"] {
         let dir=TempDir::new();let path=dir.0.join("store.sqlite");let b=compile(APP);
         let mut e=Engine::new(Store::open(&path).unwrap(),b.schema,[]).unwrap();
         let images=match table {
@@ -160,8 +151,21 @@ fn sqlite_activation_of_1000_profiles_survives_reopen() {
     let mut e=Engine::new(Store::open(&path).unwrap(),b.schema,[]).unwrap();
     e.load((0..1000).map(|n|("profiles".into(),object([("id",id(&format!("p{n}"))),("principal",id(&format!("a{n}")))])))).unwrap();
     drop(e);let mut e=Engine::open(Store::open(&path).unwrap()).unwrap();
-    adopt(&mut e,bound(true)).unwrap();assert_eq!(rows(&e,"feedAuthors").len(),1000);
+    adopt(&mut e,bound(true)).unwrap();assert!(!e.schema().tables.contains_key("feedAuthors"));
+    assert_eq!(rows(&e,"profiles").len(),1000);
     let before=snapshot(&e);let generation=e.generation();drop(e);
     let e=Engine::open(Store::open(&path).unwrap()).unwrap();assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);
     super::identity::assert_placement(&e,&[]);
+}
+
+#[test]
+fn legacy_timeline_store_refuses_before_open_or_adoption() {
+    let dir=TempDir::new();let path=dir.0.join("legacy.sqlite");let b=bound(true);
+    let e=Engine::new(Store::open(&path).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut legacy=e.schema().clone();legacy.timelines[0].version=1;
+    // 0.3 serialized no version field and carried the original capability.
+    let mut wire=serde_json::to_value(&legacy).unwrap();wire["timelines"][0].as_object_mut().unwrap().remove("version");
+    e.store().conn().execute("UPDATE _generations SET schema = ?1",[wire.to_string()]).unwrap();drop(e);
+    let error=match Engine::open(Store::open(&path).unwrap()) {Ok(_)=>panic!("legacy store opened"),Err(error)=>error};
+    assert_eq!(error.code(),"E_TIMELINE_REDEFINE");assert!(error.to_string().contains("fresh store"));
 }
