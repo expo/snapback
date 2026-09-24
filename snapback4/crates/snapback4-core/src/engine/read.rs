@@ -1084,13 +1084,17 @@ impl Runner<'_> {
                 self.page_depth += 1;
                 // Pages look ahead; existence needs only its first witness.
                 let mut lane_scan = lane.scan.clone();
-                // @ref LLP 3000.007#20.3 — validate the common cursor above, then translate its descriptor for each same-shaped table.
-                if lane_scan.table != first.scan.table && lane_scan.opaque_cursor
+                // @ref LLP 3000.007#20.3 — translate a validated shared position to each table/index with the same ordered suffix.
+                if (lane_scan.table != first.scan.table || lane_scan.index != first.scan.index) && lane_scan.opaque_cursor
                     && let Some(after) = lane_scan.after.as_deref()
                     && let Value::String(token) = self.expr(after)?
                 {
                     let mut position = crate::cursor::decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                    let table = &self.schema.tables[&lane_scan.table];
+                    let suffix = Self::merge_suffix(table, &table.indexes[&lane_scan.index], lane_scan.prefix.len());
+                    if position.suffix != suffix { return Err(RuntimeError::Schema("merge lanes need the same ordered cursor suffix".into())); }
                     position.table = lane_scan.table.clone();
+                    position.index = lane_scan.index.clone();
                     let token = crate::cursor::encode_cursor(self.schema, &position).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                     lane_scan.after = Some(Box::new(Expr::Literal(Value::String(token))));
                 }

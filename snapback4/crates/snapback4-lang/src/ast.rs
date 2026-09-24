@@ -122,6 +122,8 @@ pub struct ReadExpr {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeLane {
+    /// Nullable `in` needs one filtered scan, never a null index prefix.
+    pub nulls: Option<(String, Box<ReadExpr>)>,
     pub distinct: Option<Expr>,
     pub branch: Option<String>,
     pub planned: Option<Box<ReadExpr>>,

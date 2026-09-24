@@ -428,7 +428,7 @@ impl Parser {
                 loop_ = Some((name, domain));
             }
             self.newline()?;
-            lanes.push(MergeLane { distinct: None, branch: None, planned: None, project: None, table: lane_table, prefix, columns, loop_, site: lane_site });
+            lanes.push(MergeLane { nulls: None, distinct: None, branch: None, planned: None, project: None, table: lane_table, prefix, columns, loop_, site: lane_site });
         }
         self.take_kind(Kind::Dedent)?;
         if lanes.is_empty() {

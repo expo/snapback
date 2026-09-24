@@ -7,7 +7,9 @@ filter every row. A missing finite upper bound stays a metered residual scan;
 N_SPARSE_FILTER suggests `and .at <= now` when that is the intended window.
 Paging by a maintained order key such as `.likeCount` is not a snapshot:
 changes can move rows across a saved position. Restart to see the new order.
-Value lanes deduplicate values and skip null; each lane keeps its source rule.
+Value lanes deduplicate values; each lane keeps its source rule. Null never
+becomes an index pin. When a membership list includes null, one ordinary
+filtered lane reads the null-valued rows under the same rule.
 A cut during discovery or while any lane head is unknown is incomplete and
 has no cursor. A full page never certifies a prefix of an unfinished lane list.
 

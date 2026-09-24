@@ -110,14 +110,7 @@ impl Requests {
                 && !read.seeks.iter().any(|bound| (bound.op.starts_with('<')) == op.starts_with('<')) {
                 read.seeks.push(SeekBound { column, op, value, site: predicate.site().clone() });
             } else {
-                // Null values never open an intent lane. Residual evaluation
-                // keeps the same membership meaning when lane expansion is
-                // unavailable or another conjunct supplies the lanes.
-                let nullable = matches!(&predicate, Expr::Binary { op, left, .. } if op == "in" && column(left).is_some_and(|name| table.columns.get(name).is_some_and(|ty| ty.optional)));
-                if nullable && let Expr::Binary { left, site, .. } = &predicate {
-                    let guard = Expr::Binary { op: "!=".into(), left: left.clone(), right: Box::new(Expr::Literal { value: Literal::Null, site: site.clone() }), site: site.clone() };
-                    kept.push(Expr::Binary { op: "and".into(), left: Box::new(guard), right: Box::new(predicate.clone()), site: site.clone() });
-                } else { kept.push(predicate); }
+                kept.push(predicate);
             }
         }
         read.keys = columns.iter().filter_map(|column| pins.remove(column)).collect();
@@ -191,6 +184,16 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             if lanes && let Expr::Read(read) = value && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
                 for lane in &mut merge.lanes {
                     if let Some(read) = &mut lane.planned { requests.read(&tables, read, false); }
+                    if let Some((column, read)) = &mut lane.nulls {
+                        // Choose an ordinary index before adding the null
+                        // predicate: null membership must never become a pin.
+                        requests.read(&tables, read, false);
+                        let mut residual = read.filter.take().map(|value| vec![*value]).unwrap_or_default();
+                        residual.push(Expr::Binary { op: "=".into(),
+                            left: Box::new(Expr::Member { base: Box::new(Expr::Focal { site: read.site.clone() }), name: column.clone(), site: read.site.clone() }),
+                            right: Box::new(Expr::Literal { value: Literal::Null, site: read.site.clone() }), site: read.site.clone() });
+                        read.filter = conjunction(residual);
+                    }
                     if let Some((_, source)) = &mut lane.loop_ { walk::expression(source, &mut |value| {
                         if let Expr::Read(read) = value { requests.read(&tables, read, false); }
                     }); }

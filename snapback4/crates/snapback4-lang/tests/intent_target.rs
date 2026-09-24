@@ -85,21 +85,24 @@ fn view_cursor_keeps_equal_ids_across_tables_and_same_table_branches() {
 
 #[test]
 fn finite_windows_match_manual_trending_and_include_future_buckets() {
-    let source = "table posts:\n  at: time\n  likeCount: int\n  removed: bool\n  by byHourLikes: hour(at), likeCount, at, id\n  public 'posts'\nquery planned(c: cursor ?):\n  return posts where .at > now - 24h and .at <= now and not .removed last 3 by .likeCount, .at after c\nquery manual(c: cursor ?):\n  return merge posts after c last 3 by byHourLikes where .at > now - 24h and .at <= now and not .removed:\n    [h] for h in range(hour(now) - 24, hour(now) + 1)\nquery future(c: cursor ?):\n  return posts where .at > now - 24h and .at <= now + 3h last 20 by .likeCount, .at after c\nquery unbounded(c: cursor ?):\n  return posts where .at > now - 24h last 20 by .likeCount, .at after c\n";
+    let source = "table posts:\n  at: time\n  likeCount: int\n  removed: bool\n  by byHourLikes: hour(at), likeCount, at, id\n  by byRankAt: likeCount, at, id\n  public 'posts'\nquery planned(c: cursor ?):\n  return posts where .at > now - 24h and .at <= now and not .removed last 3 by .likeCount, .at after c\nquery manual(c: cursor ?):\n  return merge posts after c last 3 by byHourLikes where .at > now - 24h and .at <= now and not .removed:\n    [h] for h in range(hour(now) - 24, hour(now) + 1)\nquery future(c: cursor ?):\n  return posts where .at > now - 24h and .at <= now + 3h last 20 by .likeCount, .at after c\nquery oracle(c: cursor ?):\n  return posts by byRankAt where .at > now - 24h and .at <= now + 3h last 20 after c\nquery unbounded(c: cursor ?):\n  return posts where .at > now - 24h last 20 by .likeCount, .at after c\n";
     let bound = compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
     assert!(bound.notes.iter().any(|note| note.code == "N_SPARSE_FILTER" && note.rewrite.contains(".at <= now")));
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let now = 48 * 3_600_000 + 30 * 60_000;
     let data = |id: &str, at, likes, removed| ("posts".into(), Value::Row(BTreeMap::from([("id".into(), Value::Id(id.into())), ("at".into(), Value::Int(at)), ("likeCount".into(), Value::Int(likes)), ("removed".into(), Value::Bool(removed))]).into()));
-    engine.seed([data("old", now - 24 * 3_600_000 - 1, 999, false), data("a", now - 24 * 3_600_000 + 1, 5, false), data("b", now, 5, false), data("c", now, 5, false), data("removed", now, 99, true), data("future1", now + 3_600_000, 8, false), data("future2", now + 2 * 3_600_000, 9, false), data("future3", now + 3 * 3_600_000, 10, false)]).unwrap();
+    engine.seed([data("old", now - 24 * 3_600_000 - 1, 999, false), data("a", now - 24 * 3_600_000 + 1, 5, false), data("b", now, 5, false), data("c", now, 5, false), data("removed", now, 99, true), data("future1", now + 3_600_000, 8, false), data("future2", now + 2 * 3_600_000, 9, false), data("future3", now + 3 * 3_600_000, 10, false), data("pastEndpoint", now + 3 * 3_600_000 + 1, 999, false), data("pastBucket", now + 4 * 3_600_000, 999, false)]).unwrap();
     let planned = engine.query("planned", Context::new("alice", args(None)).at(now)).unwrap();
     let manual = engine.query("manual", Context::new("alice", args(None)).at(now)).unwrap();
     assert_eq!(planned.data, manual.data);
     assert!(planned.complete && manual.complete);
     let future = engine.query("future", Context::new("alice", args(None)).at(now)).unwrap();
     let unbounded = engine.query("unbounded", Context::new("alice", args(None)).at(now)).unwrap();
-    assert_eq!(future.data, unbounded.data);
+    let oracle = engine.query("oracle", Context::new("alice", args(None)).at(now)).unwrap();
+    assert!(future.complete && oracle.complete && unbounded.complete);
+    assert_eq!(future.data, oracle.data);
+    assert_eq!(unbounded.data.as_array().unwrap().len(), 9);
     assert_eq!(future.data.as_array().unwrap().len(), 7);
 }
 
@@ -314,20 +317,27 @@ fn declared_indexes_are_preferred_and_ambiguous_definitions_refuse() {
 }
 
 #[test]
-fn value_lanes_skip_null_before_opening_and_deduplicate() {
+fn value_lanes_filter_null_without_pinning_and_deduplicate() {
     let source = "table posts:\n  owner: principal ?\n  public 'posts'\nquery q(c: cursor ?):\n  return posts where .owner in [null, viewer, viewer] first 10 after c\nmutation m():\n  return posts where .owner in [null, viewer, viewer] first 10\n";
     let b = compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let query = &b.programs.iter().find(|p| p.program.name == "q").unwrap().program;
+    let scans = snapback4_core::ir::scans(query);
+    assert_eq!(scans.len(), 2, "nonnull value lanes plus one filtered null lane");
+    assert!(scans.iter().all(|scan| scan.prefix.iter().all(|key| !matches!(key,
+        snapback4_core::ir::IndexKeyExpr::Scalar(snapback4_core::ir::Expr::Literal(Value::Null))))));
+    assert!(scans.iter().any(|scan| scan.prefix.is_empty() && scan.filter.is_some()));
     let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed([("posts".into(), snapback4_core::value::object([("id", Value::Id("a".into())), ("owner", Value::Id("alice".into()))])),
         ("posts".into(), snapback4_core::value::object([("id", Value::Id("b".into())), ("owner", Value::Null)]))]).unwrap();
     let page = engine.query("q", Context::new("alice", args(None))).unwrap();
-    assert!(page.complete);
-    assert_eq!(page.data.as_array().unwrap().len(), 1);
+    assert!(page.complete && page.next.is_none());
+    assert_eq!(page.data.as_array().unwrap().len(), 2);
     assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("a".into()));
+    assert_eq!(page.data.as_array().unwrap()[1].field("id").unwrap(), &Value::Id("b".into()));
     let outcome = engine.mutate("m", Some("m"), Context::new("alice", BTreeMap::new())).unwrap();
     let snapback4_core::WriteState::Sent { result, .. } = outcome.state else { panic!("{outcome:?}"); };
-    assert_eq!(result.as_array().unwrap().len(), 1);
+    assert_eq!(result, page.data);
 }
 
 #[test]
