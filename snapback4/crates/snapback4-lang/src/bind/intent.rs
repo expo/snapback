@@ -6,10 +6,11 @@ use crate::ast::*;
 use crate::diag::{Diagnostic, Site};
 use std::collections::BTreeMap;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct Requests {
     indexes: BTreeMap<(String, String), IndexDecl>,
     errors: Vec<Diagnostic>,
+    contexts: super::intent_aggregates::Contexts,
 }
 
 // @ref LLP 3000.013#2.1 — intrinsic id resolves every table-local tie.
@@ -88,7 +89,8 @@ impl Requests {
                     // even when the predicate fixes one of its order fields.
                     if read.order_keys.contains(&column) || column == "id" {
                         if read.order_keys.first().map(String::as_str).unwrap_or("id") == column
-                            && !table.columns.get(&column).is_some_and(|ty| ty.optional) {
+                            && !table.columns.get(&column).is_some_and(|ty| ty.optional)
+                            && self.contexts.safe(read, &value) {
                             for op in [">=", "<="] {
                                 residual.push(Expr::Binary { op: op.into(), left: Box::new(Expr::Member { base: Box::new(Expr::Focal { site: predicate.site().clone() }), name: column.clone(), site: predicate.site().clone() }), right: Box::new(value.clone()), site: predicate.site().clone() });
                             }
@@ -130,7 +132,7 @@ impl Requests {
         let mut kept = Vec::new();
         for predicate in residual {
             if words.is_none() && let Some((column, op, value)) = comparison(&predicate)
-                && order.first() == Some(&column)
+                && order.first() == Some(&column) && self.contexts.safe(read, &value)
                 && !read.seeks.iter().any(|bound| (bound.op.starts_with('<')) == op.starts_with('<')) {
                 read.seeks.push(SeekBound { column, op, value, site: predicate.site().clone() });
             } else {
@@ -161,9 +163,9 @@ impl Requests {
 
 // @ref LLP 3000.013#2.1 — canonical pins and stable, shared schema indexes.
 pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
-    super::intent_aggregates::order(catalog);
+    let contexts = super::intent_aggregates::order(catalog);
     let tables = catalog.tables.clone();
-    let mut requests = Requests::default();
+    let mut requests = Requests { contexts, ..Default::default() };
     for table in catalog.tables.values_mut() {
         let original = &tables[&table.decl.name];
         for cap in &table.decl.caps {
@@ -214,13 +216,16 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     for doc in &mut catalog.documents {
         let mut visit = |value: &mut Expr, lanes: bool| {
             if let Expr::Read(read) = value && let Some(note) = super::intent_windows::missing_upper(&tables, read) { catalog.planner_notes.push(note); }
-            if lanes && let Expr::Read(read) = value && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
+            if lanes && let Expr::Read(read) = value
+                && !requests.contexts.domains.contains(&read.site.to_string())
+                && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
+                let mut candidate = requests.clone();
                 for lane in &mut merge.lanes {
-                    if let Some(read) = &mut lane.planned { requests.read(&tables, read, false); }
+                    if let Some(read) = &mut lane.planned { candidate.read(&tables, read, false); }
                     if let Some((column, read)) = &mut lane.nulls {
                         // Choose an ordinary index before adding the null
                         // predicate: null membership must never become a pin.
-                        requests.read(&tables, read, false);
+                        candidate.read(&tables, read, false);
                         let mut residual = read.filter.take().map(|value| vec![*value]).unwrap_or_default();
                         residual.push(Expr::Binary { op: "=".into(),
                             left: Box::new(Expr::Member { base: Box::new(Expr::Focal { site: read.site.clone() }), name: column.clone(), site: read.site.clone() }),
@@ -228,10 +233,13 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                         read.filter = conjunction(residual);
                     }
                     if let Some((_, source)) = &mut lane.loop_ { walk::expression(source, &mut |value| {
-                        if let Expr::Read(read) = value { requests.read(&tables, read, false); }
+                        if let Expr::Read(read) = value { candidate.read(&tables, read, false); }
                     }); }
                 }
-                *value = Expr::Merge(merge);
+                if super::intent_lanes::prefixes_decide_rules(&tables, &merge) {
+                    requests = candidate;
+                    *value = Expr::Merge(merge);
+                } else { requests.read(&tables, read, false); }
             } else if let Expr::Read(read) | Expr::Exists { read, .. } = value { requests.read(&tables, read, false); }
         };
         // Shared helpers/shapes and non-query programs keep ordinary scans:

@@ -131,17 +131,24 @@ fn required_enum_inequality_and_membership_have_identical_plans_and_pages() {
 fn enum_complements_handle_arguments_single_variants_and_nullable_residuals() {
     let source = format!("{TABLE}query page(excluded: enum('todo', 'doing', 'done'), c: cursor ?):\n  return tasks where .orgId = viewer and .status != excluded first 50 by .createdAt after c\n");
     let mut engine = engine(bound(&source));
-    for (excluded, expected) in [("done", vec!["a", "b", "c", "e", "f"]), ("todo", vec!["b", "d", "f"])] {
+    for (excluded, expected) in [("done", vec!["a", "b", "c", "e", "f"]), ("todo", vec!["b", "d", "f"]), ("doing", vec!["a", "c", "d", "e"])] {
         assert_eq!(pages(&mut engine, BTreeMap::from([("excluded".into(), Value::String(excluded.into()))])), expected.iter().map(|id| format!("alice-{id}")).collect::<Vec<_>>());
     }
-    for declaration in ["enum('done')", "enum('todo', 'doing', 'done') ?", "enum('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'done')"] {
+    for declaration in ["enum('done')", "enum('todo', 'doing', 'done') ?", "enum('a', 'b', 'c', 'd', 'e', 'f', 'g', 'done')", "enum('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'done')"] {
         let source = format!("table t:\n  status: {declaration}\n  public 't'\nquery page(c: cursor ?):\n  return t where .status != 'done' first 50 after c\n");
         let b = bound(&source);
+        let scans = snapback4_core::ir::scans(&b.programs[0].program);
+        let residual = declaration.ends_with('?') || declaration.contains("'h'");
+        assert_eq!(scans[0].filter.is_some(), residual, "{declaration}");
         let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
         engine.seed([("t".into(), object([("id", Value::Id("done".into())), ("status", Value::String("done".into()))]))]).unwrap();
         if declaration.ends_with('?') {
             engine.seed([("t".into(), object([("id", Value::Id("null".into())), ("status", Value::Null)]))]).unwrap();
-            assert_eq!(pages(&mut engine, BTreeMap::new()), ["null"]);
+            engine.seed([("t".into(), object([("id", Value::Id("todo".into())), ("status", Value::String("todo".into()))]))]).unwrap();
+            assert_eq!(pages(&mut engine, BTreeMap::new()), ["null", "todo"]);
+        } else if declaration.contains("'a'") {
+            engine.seed([("t".into(), object([("id", Value::Id("a".into())), ("status", Value::String("a".into()))]))]).unwrap();
+            assert_eq!(pages(&mut engine, BTreeMap::new()), ["a"]);
         } else { assert!(pages(&mut engine, BTreeMap::new()).is_empty()); }
     }
 }

@@ -104,6 +104,7 @@ impl Binder<'_> {
         let mut probe = self.clone();
         probe.focal = Some(("$filter".into(), Ty::Row(read.table.clone())));
         probe.kind = ProgramKind::Query;
+        probe.in_predicate = true;
         let (_, ty) = probe.expr(base, &mut setup::Body::default()).ok()?;
         if matches!(ty.required(), Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::Page(_, _) | Ty::Collection(_, _) | Ty::List(_, _)) { return None; }
         let mut page = read.clone();
@@ -113,7 +114,32 @@ impl Binder<'_> {
 
     pub(super) fn scan_filter(&mut self, read: &ReadExpr, index: &ast::IndexDecl) -> Fallible<(ReadExpr, Option<Box<Expr>>)> {
         let mut read = read.clone();
-        let Some(predicate) = read.filter.take() else { return Ok((read, None)); };
+        let Some(mut predicate) = read.filter.take() else { return Ok((read, None)); };
+        // Planning knows parameter declarations; binding also knows helper,
+        // local and lane selectors. Only present, infallible endpoints may
+        // leave the short-circuit predicate in either pass.
+        let required = self.scopes.iter().flat_map(|scope| scope.keys())
+            .filter(|name| self.binding(name).is_some_and(|binding| !binding.ty.is_optional()))
+            .cloned().collect();
+        if !read.order_keys.is_empty() && read.matching.is_none() {
+            let info = self.table(&read.table, &read.site)?;
+            let mut parts = Vec::new(); super::super::intent::split(*predicate, &mut parts);
+            let mut residual = Vec::new();
+            for part in parts {
+                let candidate = super::super::intent::comparison(&part).map(|(column, op, value)| (column, vec![op], value))
+                    .or_else(|| super::super::intent::equality(&part, info)
+                        .filter(|(column, _)| !self.key_ty(info, index, column).is_optional())
+                        .map(|(column, value)| (column, vec![">=".into(), "<=".into()], value)));
+                if let Some((column, ops, value)) = candidate
+                    && index.columns.get(read.keys.len()) == Some(&column)
+                    && super::super::intent_aggregates::safe_endpoint(&value, &required)
+                    && ops.iter().all(|op| !read.seeks.iter().any(|bound| bound.op.starts_with('<') == op.starts_with('<'))) {
+                    for op in ops { read.seeks.push(ast::SeekBound { column: column.clone(), op, value: value.clone(), site: part.site().clone() }); }
+                } else { residual.push(part); }
+            }
+            let Some(remaining) = super::super::intent::conjunction(residual) else { return Ok((read, None)); };
+            predicate = remaining;
+        }
         // A single next-column comparison is the same seek as its key spelling.
         if read.seeks.is_empty() && read.matching.is_none()
             && let A::Binary { op, left, right, site } = predicate.as_ref()
@@ -122,6 +148,7 @@ impl Binder<'_> {
             && matches!(base.as_ref(), A::Focal { .. })
             && index.columns.get(read.keys.len()) == Some(name)
             && !has_focal(right)
+            && super::super::intent_aggregates::safe_endpoint(right, &required)
         {
             read.seeks.push(ast::SeekBound { column: name.clone(), op: op.clone(), value: *right.clone(), site: site.clone() });
             self.notes.push(Diagnostic::new(site, "N_SEEK", "a `where` on the next index column is a seek; write it in the key", print::read_expr(&read)).guide("reads"));

@@ -49219,3 +49219,45 @@ The separate reference audit reports the inherited store.rs:809 broken
 that untouched core line is not in this diff. No push, package publication,
 version bump, index namespace change or budget increase. Full file-level report,
 engineering choices and reproductions: reports/20260924-intent-lane-a-041.md.
+
+## 2026-09-24 — Lane A round 10: streaming enum totals, safe seeks and continuation
+
+Closed the nullable/enum delta review. Unpaged count/sum keep ordinary streamed
+scans with residual enum and membership predicates, preserving uncapped query
+admission and null-on-interruption totals. Chose this permitted fallback rather
+than introducing a streaming union engine. Proposed value/window lanes now need
+a conservative prefix proof for every source read rule, including null fallback
+lanes. Both the enum complement and pre-existing `in` path otherwise keep one
+ordinary scan, allowing authorized rows to continue while retaining the
+non-uniform `complete: false` result. Declined plans leave no unused indexes.
+
+Shared seek endpoint proofs across aggregate inference, ordinary planning and
+typed binding: only present, infallible endpoints leave the predicate. Safe
+integer interval arithmetic still seeks; guarded optional values, division and
+unproved overflow stay residual so short-circuiting and narrowing hold. The
+named-shape speculative check now uses predicate context. Reads card examples
+and LLP §§2.1/5.1 explain these choices. The language card's two calendar-bound
+examples now correctly receive growing-work certificates because their
+unproved arithmetic stays residual. No engine authorization, admission,
+disclosure, cursor eligibility, meter or ceiling changed.
+
+Measured 118 affected language integration tests, four aggregate planner unit
+tests, 16 memory/SQLite device tests and 24 certificate tests passing. Six new
+tests exercise uncapped count/sum, null totals at examined=1, parenthesized
+nullable predicates with named shapes, complete cursor traversal through three
+authorized rows and hidden interleavings in both directions, guarded endpoints,
+and safe seeks examining at most one row. Strengthened the eight/nine enum
+boundary, middle-variant exclusion and nullable retained `todo`. The first five
+new tests fail against the pre-fix compiler; removing the eight-variant gate
+makes the strengthened nine-variant assertion fail. Four old targeted-test
+expectations changed intentionally (non-uniform lanes/cursors, unpaged
+membership count and calendar cost classes); all are green after migration.
+
+`bun install --frozen-lockfile` passed. Full `scripts/test.sh`:
+`== 0 failure(s) in 153 s` (exit 0); clients 1,054 passed, 10 skipped. No full-suite
+failures. Web wasm remains 1,744,842 bytes raw / 484,967 gzip under the unchanged
+486,000-byte budget. The separate reference audit still reports the inherited
+store.rs:809 `#5.3-effects-keyed-once` anchor, unchanged from 49131c3eb and already
+fixed in newer upstream. No push, publication, version bump, streamed-union
+implementation or budget increase. File-level report, exact tests, deliberate
+behavior changes and audit reproduction: reports/20260924-intent-lane-a-round10.md.

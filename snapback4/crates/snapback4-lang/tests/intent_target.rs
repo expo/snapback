@@ -218,11 +218,11 @@ fn union_cursor_uses_projected_keys_and_handles_inserts_and_order_pins() {
 #[test]
 fn domains_views_and_aggregates_keep_scan_admission() {
     let base = "table posts:\n  owner: principal\n  public 'posts'\nview activity:\n  posts { actor: .owner }\n";
-    for body in ["return count(posts where .owner in [viewer])", "return count(activity)", "return count(activity where .actor = 'alice')"] {
+    for body in ["return count(activity)", "return count(activity where .actor = 'alice')"] {
         let b = compile(&[("schema.q".into(), format!("{base}query q():\n  {body}\n"))]);
         assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_BOUND"), "{body}: {:?}", b.diagnostics);
     }
-    for body in ["return exists activity where .actor = 'alice'", "for row in activity:\n    return row.id\n  return null", "for row in activity where .actor = 'alice':\n    return row.id\n  return null"] {
+    for body in ["return count(posts where .owner in [viewer])", "return exists activity where .actor = 'alice'", "for row in activity:\n    return row.id\n  return null", "for row in activity where .actor = 'alice':\n    return row.id\n  return null"] {
         let b = compile(&[("schema.q".into(), format!("{base}query q():\n  {body}\n"))]);
         assert!(b.diagnostics.is_empty(), "{body}: {:?}", b.diagnostics);
     }

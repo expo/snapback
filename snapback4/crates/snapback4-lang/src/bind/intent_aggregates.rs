@@ -5,26 +5,49 @@ use std::collections::{BTreeMap, BTreeSet};
 
 // @ref LLP 3000.013#5.1 — choose an access path, leaving aggregate scan
 // admission and streaming to the consumer's existing binder/runtime contract.
-pub(super) fn order(catalog: &mut Catalog) {
+#[derive(Clone, Default)]
+pub(super) struct Contexts {
+    pub domains: BTreeSet<String>,
+    required: BTreeMap<String, BTreeSet<String>>,
+}
+impl Contexts {
+    pub fn safe(&self, read: &ReadExpr, value: &Expr) -> bool {
+        safe_endpoint(value, self.required.get(&read.site.to_string()).unwrap_or(&BTreeSet::new()))
+    }
+    fn visit(&mut self, value: &mut Expr, tables: &BTreeMap<String, TableInfo>, functions: &BTreeMap<String, FunctionDecl>, required: &BTreeSet<String>) {
+        if let Expr::Read(read) | Expr::Exists { read, .. } = value {
+            self.required.insert(read.site.to_string(), required.clone());
+        }
+        if let Expr::Call { name, args, .. } = value
+            && matches!(name.as_str(), "count" | "sum") && !functions.contains_key(name)
+            && let Some(Expr::Read(read)) = args.first() && read.range.is_none() {
+            self.domains.insert(read.site.to_string());
+        }
+        consumer(value, tables, functions, required);
+    }
+}
+pub(super) fn order(catalog: &mut Catalog) -> Contexts {
+    let mut contexts = Contexts::default();
     for doc in &mut catalog.documents {
         for program in &mut doc.programs {
             let required = required_args(&program.args);
-            let mut visit = |value: &mut Expr| consumer(value, &catalog.tables, &catalog.functions, &required);
+            let mut visit = |value: &mut Expr| contexts.visit(value, &catalog.tables, &catalog.functions, &required);
             intent_walk::statements(&mut program.prelude, &mut visit);
             intent_walk::statements(&mut program.body, &mut visit);
         }
         for function in &mut doc.functions {
             let required = required_args(&function.args);
-            let mut visit = |value: &mut Expr| consumer(value, &catalog.tables, &catalog.functions, &required);
+            let mut visit = |value: &mut Expr| contexts.visit(value, &catalog.tables, &catalog.functions, &required);
             match &mut function.body {
                 FunctionBody::Expression(value) => intent_walk::expression(value, &mut visit),
                 FunctionBody::Block(body) => intent_walk::statements(body, &mut visit),
             }
         }
         for shape in &mut doc.shapes {
-            intent_walk::shape(&mut shape.fields, &mut |value| consumer(value, &catalog.tables, &catalog.functions, &BTreeSet::new()));
+            intent_walk::shape(&mut shape.fields, &mut |value| contexts.visit(value, &catalog.tables, &catalog.functions, &BTreeSet::new()));
         }
     }
+    contexts
 }
 
 fn required_args(args: &[ArgDecl]) -> BTreeSet<String> {
@@ -72,15 +95,38 @@ fn choose(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>, required: &
     if let Some((column, _)) = column { read.order_keys.push(column.clone()); }
 }
 
-fn safe_endpoint(value: &Expr, required: &BTreeSet<String>) -> bool {
+pub(super) fn safe_endpoint(value: &Expr, required: &BTreeSet<String>) -> bool {
     // These values are present before any row predicate runs. Parameters
-    // cannot be reassigned or shadowed. Arithmetic can overflow, division can
-    // fail, and nullable/local/member values need proofs this pass does not own.
+    // cannot be reassigned or shadowed. Numeric interval proofs admit only
+    // arithmetic that stays within the safe-integer range for every input.
     match value {
         Expr::Literal { value, .. } => !matches!(value, Literal::Null),
         Expr::Name { name, .. } => matches!(name.as_str(), "now" | "viewer") || required.contains(name),
+        Expr::Unary { .. } | Expr::Binary { .. } => numeric_interval(value, required).is_some(),
         _ => false,
     }
+}
+
+
+fn numeric_interval(value: &Expr, required: &BTreeSet<String>) -> Option<(i128, i128)> {
+    let max = i128::from(snapback4_core::value::I53_MAX);
+    let (low, high) = match value {
+        Expr::Literal { value: Literal::Number(number), .. } => { let n = number.parse().ok()?; (n, n) }
+        Expr::Name { .. } if safe_endpoint(value, required) => (-max, max),
+        Expr::Unary { op, value, .. } if op == "-" => { let (lo, hi) = numeric_interval(value, required)?; (-hi, -lo) }
+        Expr::Binary { op, left, right, .. } => {
+            let (a, b) = numeric_interval(left, required)?;
+            let (c, d) = numeric_interval(right, required)?;
+            match op.as_str() {
+                "+" => (a + c, b + d),
+                "-" => (a - d, b - c),
+                "*" => { let products = [a * c, a * d, b * c, b * d]; (*products.iter().min()?, *products.iter().max()?) }
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    (low >= -max && high <= max).then_some((low, high))
 }
 
 #[cfg(test)]

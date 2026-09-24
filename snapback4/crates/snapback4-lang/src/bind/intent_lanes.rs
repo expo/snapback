@@ -101,3 +101,25 @@ fn enum_complement(predicate: &Expr, table: &TableInfo) -> Option<(String, Expr)
     };
     Some((column.into(), source))
 }
+
+// Conservative authorization proof before schema binding: every source-row
+// field read by the rule must be pinned, including any nullable fallback.
+// Declining an optimization preserves the ordinary scan's continuation; it
+// does not change the source rule or the merge runtime's disclosure contract.
+pub(super) fn prefixes_decide_rules(tables: &BTreeMap<String, TableInfo>, merge: &MergeExpr) -> bool {
+    merge.lanes.iter().all(|lane| lane.planned.iter().map(Box::as_ref)
+        .chain(lane.nulls.iter().map(|(_, read)| read.as_ref())).all(|read| {
+            let Some(table) = tables.get(&read.table) else { return false; };
+            // Derived readability is resolved later, so it has no proof here.
+            if table.maintained.is_some() { return false; }
+            let pinned = read.keys.iter().filter_map(|key| key.column.as_ref()).collect::<std::collections::BTreeSet<_>>();
+            table.decl.rules.iter().filter(|rule| rule.effect == Effect::Read).all(|rule| {
+                let mut predicate = rule.value.clone();
+                let mut decided = true;
+                super::intent_walk::expression(&mut predicate, &mut |value| {
+                    if let Some(column) = intent::column(value) && !pinned.iter().any(|name| name.as_str() == column) { decided = false; }
+                });
+                decided
+            })
+        }))
+}
