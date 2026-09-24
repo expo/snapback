@@ -49427,3 +49427,44 @@ reports only the inherited store.rs:809 anchor error (LLP 3000.013#5.3-effects-k
 reproduce with ./ref-check --verbose. No new reference error. File-by-file
 changes, audit decisions, examples and evidence are in
 [the round report](reports/20260924-intent-lane-a-r13.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane A, round 14: pure sweep-prefix setup
+
+The job guard now permits bounded, write-free and emit-free setup loops
+before a recorded sweep. It checks the entire loop, including domain
+expressions and inlined blocks, through the existing recursive effect
+analysis extracted into a shared module. Mutation population admission uses
+that same analysis with its existing emit allowance. Unsupported work loops
+still park with E_JOB_SWEEP before any chunk commits, whether alone or mixed
+before, between or after valid sweeps. Pure trailing loops also park because
+no following chunk would execute them. No new sweep domain was introduced.
+
+The compiled `t[sum([{ n: 1 }], .n)] by byScope` regression verifies a bounded
+DerivedArray setup before the Page sweep: 65 matching rows updated across at
+least two chunks, 130 inner-loop effects, the authored prelude replayed, and
+a row in another scope untouched. The negative fixture covers conditional
+arrays, lists, literal/expression ranges and argument lists, direct writes
+and emits, plus work hidden in domain/body expressions: 64 mixed-job cases
+with zero chunks, writes and effects. Two further cases reject pure setup
+with no following sweep. Restoring the old blanket guard fails the compiled
+prefix regression; restricting it to DerivedArray fails on a range emit loop.
+Both deliberate mutations were restored before qualification.
+
+**`scripts/test.sh`: `== 0 failure(s) in 753 s`**, exit 0. All groups ran with
+eight Rust processes and serialized client files on 16 CPUs. Rust passed in
+291 s; clients in 712 s (1,088 passed, 0 failed, 10 inventory skips). Affected
+checks: 9 review, 57 guide, 15 page-admission and 12 work-intent tests, all
+93 passed. Frozen Bun install and git diff --check passed. Device bytes are
+unchanged: **1,751,333 B raw / 487,832 B gzip**, below the same 488,000-byte
+budget. No source file exceeds the 1,500-line limit.
+
+The completed full run had no failures. One temporary fixture syntax error
+and one Cargo invocation from the wrong workspace were corrected during
+construction; neither remains. The separate reference audit retains only
+the inherited store.rs:809 reference to the nonexistent
+LLP 3000.013#5.3-effects-keyed-once anchor (reproduce: ./ref-check --verbose).
+No new reference error. No authorization, disclosure, residency or meter
+relaxation, IR change, version bump, publication or push. File-by-file changes,
+example, decisions and failure accounting are in
+[the round report](reports/20260924-intent-lane-a-r14.md).

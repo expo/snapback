@@ -1,4 +1,4 @@
-//! Rounds 12–13: generated alternatives preserve nested reads, cursor order and loop admission.
+//! Rounds 12–14: generated alternatives preserve nested reads, cursor order and loop admission.
 use snapback4_core::{Context, Engine, JobState, Value, ir::*, value::object};
 use std::collections::BTreeMap;
 fn bound(source: &str) -> snapback4_lang::Bound {
@@ -157,29 +157,56 @@ fn engine_parks_an_unrecorded_conditional_sweep_instead_of_skipping_it() {
     let mut p = b.programs[0].program.clone();
     let Stmt::Return(value) = p.body.pop().unwrap() else { panic!("domain") };
     p.name = "rawSweep".into(); p.kind = ProgramKind::Job;
-    p.body.push(Stmt::For { binding: "row".into(), domain: LoopDomain::DerivedArray { value, max: 10, bound_source: "page".into() }, body: vec![Stmt::Emit {
-        effect: "notify".into(), payload: field(var("row"), "id"), once: None,
-    }] });
+    p.args.insert("items".into(), ArgType::List { of: Some(Box::new(ArgType::Int)), max: 2 });
+    let domains = [
+        LoopDomain::DerivedArray { value, max: 10, bound_source: "page".into() },
+        LoopDomain::DerivedArray { value: Expr::Array(vec![lit(Value::Int(1))]), max: 1, bound_source: "list".into() },
+        LoopDomain::LiteralRange { start: 0, end_exclusive: 2 },
+        LoopDomain::ExpressionRange { start: lit(Value::Int(0)), end_exclusive: lit(Value::Int(2)) },
+        LoopDomain::ArgList { name: "items".into(), max: 2 },
+    ];
+    let work = [
+        Stmt::Emit { effect: "notify".into(), payload: lit(Value::Int(1)), once: None },
+        Stmt::Update { table: "t".into(), key: Expr::Literal(id("a")), patch: Expr::Object(BTreeMap::from([("n".into(), lit(Value::Int(99)))])) },
+    ];
     let valid = bound(&format!("{WORK}job ordinary():\n  total = 0\n  for n in range(0, 2):\n    total = total + n\n  for row in t:\n    for n in range(0, 2):\n      emit notify {{ n }}\n    update t[row.id] {{ n: 9 + total }}\nquery all():\n  return t\n"));
     let sweep = valid.programs.iter().find(|p| p.program.name == "ordinary").unwrap().program.clone();
     // Validate the complete top-level sequence before even the first valid
     // sweep can write, including unsupported loops before/between/after it.
-    for location in [None, Some(0), Some(sweep.body.len()), Some(sweep.body.len() * 2)] {
+    let mut unsupported = Vec::new();
+    for domain in domains { for statement in &work {
+        unsupported.push(Stmt::For { binding: "row".into(), domain: domain.clone(), body: vec![statement.clone()] });
+    } }
+    // A pure body cannot hide work in the expression that supplies its domain.
+    for statement in &work {
+        for range in [false, true] {
+            let value = Expr::Block { body: vec![statement.clone()], value: Box::new(if range { lit(Value::Int(0)) } else { Expr::Array(vec![lit(Value::Int(1))]) }) };
+            let domain = if range { LoopDomain::ExpressionRange { start: value, end_exclusive: lit(Value::Int(1)) } }
+                else { LoopDomain::DerivedArray { value, max: 1, bound_source: "list".into() } };
+            unsupported.push(Stmt::For { binding: "row".into(), domain, body: Vec::new() });
+        }
+        // Inlined helpers may also place work inside a body's expression.
+        unsupported.push(Stmt::For { binding: "row".into(), domain: LoopDomain::LiteralRange { start: 0, end_exclusive: 1 }, body: vec![Stmt::Let {
+            name: "value".into(), value: Expr::Block { body: vec![statement.clone()], value: Box::new(lit(Value::Int(0))) },
+        }] });
+    }
+    for bad in unsupported { for location in [None, Some(0), Some(sweep.body.len()), Some(sweep.body.len() * 2)] {
         let mut mixed = p.clone();
         if let Some(at) = location {
-            let bad = mixed.body.pop().unwrap();
             mixed.body = sweep.body.clone();
             mixed.body.extend(sweep.body.clone());
-            mixed.body.insert(at, bad);
+            mixed.body.insert(at, bad.clone());
+        } else {
+            mixed.body.push(bad.clone());
         }
         let mut e = Engine::memory(b.schema.clone(), [mixed]).unwrap();
         e.seed([("t".into(), object([("id", id("a")), ("n", Value::Int(1))]))]).unwrap();
-        let run = e.run_job("rawSweep", BTreeMap::from([("status".into(), Value::Null)]), 1).unwrap();
-        assert_eq!(run.state, JobState::Parked, "location={location:?}: {run:?}");
+        let run = e.run_job("rawSweep", BTreeMap::from([("status".into(), Value::Null), ("items".into(), Value::Array(vec![Value::Int(1)]))]), 1).unwrap();
+        assert_eq!(run.state, JobState::Parked, "location={location:?}, loop={bad:?}: {run:?}");
         assert!(run.error.as_ref().unwrap().contains("E_JOB_SWEEP"));
         assert_eq!(run.chunks, 0); assert_eq!(run.rows_written, 0);
         assert!(e.effects(None, 10).unwrap().is_empty());
-    }
+    } }
     let mut e = Engine::memory(valid.schema, valid.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed([("t".into(), object([("id", id("a")), ("n", Value::Int(1))]))]).unwrap();
     let run = e.run_job("ordinary", BTreeMap::new(), 1).unwrap();
@@ -187,4 +214,43 @@ fn engine_parks_an_unrecorded_conditional_sweep_instead_of_skipping_it() {
     assert_eq!(e.effects(None, 10).unwrap().len(), 2);
     let rows = e.query("all", Context::new("alice", BTreeMap::new())).unwrap();
     assert_eq!(rows.data.as_array().unwrap()[0].field("n"), Ok(&Value::Int(10)));
+}
+
+#[test]
+fn compiled_sweep_prefix_setup_runs_before_each_chunk() {
+    let b = bound("effect notify\ntable t:\n  scope: int\n  immutable scope\n  n: int\n  by byScope: scope, id\n  public 't'\n  update <- allow\n  sync public\njob computedPrefix():\n  total = 0\n  for n in range(0, 2):\n    total = total + n\n  for row in t[sum([{ n: 1 }], .n)] by byScope:\n    for n in range(0, 2):\n      emit notify { n }\n    update t[row.id] { n: 9 + total }\nquery all():\n  return t first 100 by .id\n");
+    let p = &b.programs.iter().find(|p| p.program.name == "computedPrefix").unwrap().program;
+    let setup = p.body.iter().position(|s| matches!(s, Stmt::For { domain: LoopDomain::DerivedArray { max: 1, bound_source, .. }, .. } if bound_source == "sum")).expect("sum must generate a bounded setup loop");
+    let sweep = p.body.iter().position(|s| matches!(s, Stmt::For { domain: LoopDomain::Page(_), .. })).unwrap();
+    assert!(setup < sweep);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed((0..66).map(|n| ("t".into(), object([("id", id(&format!("{n:03}"))), ("scope", Value::Int(if n == 0 { 2 } else { 1 })), ("n", Value::Int(0))])))).unwrap();
+    let run = e.run_job("computedPrefix", BTreeMap::new(), 1).unwrap();
+    assert_eq!(run.state, JobState::Done, "{run:?}");
+    assert!(run.chunks >= 2, "{run:?}");
+    assert_eq!(run.rows_written, 65);
+    assert_eq!(e.effects(None, 200).unwrap().len(), 130);
+    let rows = e.query("all", Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(rows.complete);
+    let rows = rows.data.as_array().unwrap();
+    assert_eq!(rows.len(), 66);
+    assert_eq!(rows[0].field("n"), Ok(&Value::Int(0)));
+    assert!(rows[1..].iter().all(|r| r.field("n") == Ok(&Value::Int(10))));
+}
+
+#[test]
+fn pure_setup_requires_a_following_sweep() {
+    let b = bound(&format!("{WORK}job ordinary():\n  for row in t:\n    update t[row.id] {{ n: 9 }}\n"));
+    for has_sweep in [false, true] {
+        let mut p = b.programs[0].program.clone();
+        if !has_sweep { p.body.clear(); }
+        p.body.push(Stmt::For { binding: "n".into(), domain: LoopDomain::LiteralRange { start: 0, end_exclusive: 2 }, body: Vec::new() });
+        let mut e = Engine::memory(b.schema.clone(), [p]).unwrap();
+        e.seed([("t".into(), object([("id", id("a")), ("n", Value::Int(1))]))]).unwrap();
+        let run = e.run_job("ordinary", BTreeMap::new(), 1).unwrap();
+        assert_eq!(run.state, JobState::Parked, "{run:?}");
+        assert!(run.error.as_ref().unwrap().contains("E_JOB_SWEEP"));
+        assert_eq!(run.chunks, 0); assert_eq!(run.rows_written, 0);
+        assert!(e.effects(None, 10).unwrap().is_empty());
+    }
 }

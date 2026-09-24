@@ -258,10 +258,13 @@ impl Engine {
         }
         let sweep = head.run.sweep as usize;
         // @ref LLP 3000.013#5.2 — only recorded table sweeps commit resumable work.
-        // A conditional/list loop is not a registered resumable sweep. Never
-        // certify skipped work as done, including for hand-authored/stored IR.
+        // Non-page loops may compute a prefix (for example a bounded sum).
+        // They must be write/emit-free, including their domain expressions,
+        // and precede a sweep whose metered setup will actually execute them.
+        // Unsupported work anywhere parks before the first chunk commits.
         let unsupported = program.body.iter().enumerate().find_map(|(position, statement)| match statement {
-            Stmt::For { binding, domain, .. } if !matches!(domain, LoopDomain::Page(_)) => Some((position + 1, binding)),
+            Stmt::For { binding, domain, .. } if !matches!(domain, LoopDomain::Page(_))
+                && (position >= setup_start || !super::read_only::statements::<false>(std::slice::from_ref(statement))) => Some((position + 1, binding)),
             _ => None,
         });
         if sweeps.is_empty() || unsupported.is_some() {

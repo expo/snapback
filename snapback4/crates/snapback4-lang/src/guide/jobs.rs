@@ -252,10 +252,12 @@ The runtime meter still refuses work that cannot finish.
 Optional presence filters belong inside a sweep body: `for row in tasks:`
 followed by `if status = null or row.status = status:`. A conditional read
 cannot be the sweep domain. E_JOB_SWEEP parks stored job IR with no recorded
-table sweep or any unsupported top-level loop domain before running a chunk,
-including when valid sweeps appear alongside that loop. Preludes and bounded
-inner loops keep their existing execution. Rebind the job with ordinary
-sweeps and queue it again.
+table sweep or an unsupported top-level work loop before running a chunk,
+including when valid sweeps appear alongside that loop. Bounded setup loops
+before a sweep may compute its prefix, such as `sum([{ n: 1 }], .n)`, provided
+both their domains and bodies are write-free and emit-free. They run again
+under each chunk's meter. Inner loops keep their existing execution. Rebind
+unsupported work as ordinary sweeps and queue the job again.
 
 E_JOB_CURSOR_INDEX means a chunk's scan key can move while the job writes.
 For example, a sweep `for t in tasks by .score:` is unsafe
