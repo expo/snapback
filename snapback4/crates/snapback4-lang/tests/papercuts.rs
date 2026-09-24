@@ -36,7 +36,7 @@ fn w9c_writes_nested_in_derived_loops_still_refuse() {
         assert_eq!(b.diagnostics.len(), 1, "{body}: {:?}", b.diagnostics);
         let d = &b.diagnostics[0];
         assert_eq!(d.code, "E_STRUCTURAL_FANOUT", "{body}: {d}");
-        assert!(d.rewrite.contains("members[] by byPrincipal"), "{d}");
+        assert!(d.rewrite.contains("for row in members:"), "{d}");
         println!("{body}: {d}");
     }
 }

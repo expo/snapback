@@ -6,7 +6,7 @@ use snapback4_core::{Context, Value, WriteState};
 const DAY: i64 = 86_400_000;
 
 fn recipe() -> String {
-    let card = snapback4_lang::guide::card("feeds").unwrap();
+    let card = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"));
     snapback4_lang::guide::quarry(card).into_iter().find(|s| s.contains("query rollingLikes():")).unwrap()
         .replace("  read <- .principal = viewer", "  read <- allow")
         .replace("  sync to .principal", "  sync public")

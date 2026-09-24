@@ -93,7 +93,7 @@ fn maintain_refusals_point_to_the_expression_and_offer_a_rewrite() {
 
 #[test]
 fn maintain_prefix_needs_a_bound_and_expiring_rank_is_refused() {
-    let bound = compile("maintain totals: count posts by author, at\n  read <- allow\nquery short():\n  return totals[viewer]\n");
+    let bound = compile("maintain totals: count posts by author, at\n  read <- allow\nquery short():\n  return totals[author = viewer]\n");
     assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_BOUND"), "{:?}", bound.diagnostics);
     let source = SOURCE.replace("  at: time", "  until: time\n  by byUntil: until\n  expire at .until\n  at: time");
     let bound = snapback4_lang::compile(&[("expiry.q".into(), format!("{source}\nmaintain totals: count posts by author\n  read <- allow\n  by byCount: value, id\n"))]);
@@ -130,12 +130,12 @@ fn expiring_rank_rewrite_routes_by_window_intent() {
     println!("{diagnostic}");
     assert_eq!(diagnostic.message, "maintain totals cannot order by value because source posts expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built");
     assert_eq!(diagnostic.guide, "feeds");
-    assert_eq!(diagnostic.rewrite, "for a window over the entity's own immutable time, use guide feeds' hour-lanes Trending over a non-expiring source; for contributions arriving in the window, use its live bounded rollingLikes read: a candidate or contribution scan cut makes the ranking incomplete");
+    assert_eq!(diagnostic.rewrite, "for an entity-time window over a non-expiring source, use the Trending predicate in guide feeds; for expiring contributions, stream each candidate's live count and rank only a complete candidate domain; a meter cut makes the ranking incomplete");
 }
 
 #[test]
 fn fresh_trending_has_no_writable_score_and_an_explicit_public_device_variant() {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+    let source = snapback4_lang::guide::quarry(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"))).into_iter()
         .find(|s| s.contains("query rollingLikes():")).unwrap();
     let private = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
     assert!(private.diagnostics.is_empty() && private.notes.is_empty());
@@ -159,7 +159,7 @@ fn fresh_trending_has_no_writable_score_and_an_explicit_public_device_variant() 
 
 #[test]
 fn w14a_hour_lanes_are_the_first_trending_answer() {
-    let feeds = snapback4_lang::guide::card("feeds").unwrap();
+    let feeds = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"));
     let first = feeds.split("## Trending:").nth(1).unwrap();
     assert!(first.starts_with(" posts younger than a day, ranked in the like's own transaction"));
     let source = snapback4_lang::guide::quarry(first).into_iter().next().unwrap();
@@ -195,8 +195,8 @@ fn retired_w15c_value_index_refusals_point_at_the_column() {
         let bound = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  by byCount: {key}\n"));
         let d=bound.diagnostics.iter().find(|d|d.code == "E_QUARRY_MAINTAIN").unwrap_or_else(||panic!("{key}: {:?}",bound.diagnostics));
         assert_eq!(d.message,"a maintain value index is a prefix of group fields, then value, id; fields cannot repeat");
-        assert!(d.rewrite.contains("likeCount: count likes by postId"));
-        assert!(d.rewrite.contains("by byLikes: likeCount, at, id"));
+        assert!(d.rewrite.contains("likeCount: count likes on posts"));
+        assert!(d.rewrite.contains("posts last 20 by .likeCount, .at after c"));
     }
 }
 
@@ -219,8 +219,8 @@ fn w15c_old_value_indexes_and_expiry_refusal_are_unchanged() {
 #[test]
 fn cards_pin_retirement_and_newest_first_column_recipe() {
     let maintains = snapback4_lang::guide::card("maintains").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(maintains.contains("Value indexes have a prefix of group fields, then value, id; each field appears once."));
-    let feeds = snapback4_lang::guide::card("feeds").unwrap();
+    assert!(maintains.contains("A maintained view has rows `{ id, <group columns>, value }`."));
+    let feeds = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"));
     let source = snapback4_lang::guide::quarry(feeds).into_iter().find(|s| s.contains("likeCount: count likes by postId")).unwrap();
     assert!(source.contains("by byHourLikes: hour(at), likeCount, at, id\n"));
     assert!(feeds.split_whitespace().collect::<Vec<_>>().join(" ").contains("Equal scores put the newest post first"));

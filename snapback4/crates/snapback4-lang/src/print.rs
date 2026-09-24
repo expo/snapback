@@ -54,6 +54,18 @@ pub fn expression(expr: &Expr) -> String {
 }
 
 pub fn read_expr(read: &ReadExpr) -> String {
+    if !read.order_keys.is_empty() && read.keys.iter().all(|key| key.column.is_some()) {
+        let mut predicates = read.keys.iter().map(|key| format!(".{} = {}", key.column.as_ref().unwrap(), expression(&key.value))).collect::<Vec<_>>();
+        predicates.extend(read.seeks.iter().map(|bound| format!(".{} {} {}", bound.column, bound.op, expression(&bound.value))));
+        if let Some(filter) = &read.filter { predicates.push(expression(filter)); }
+        let mut out = read.table.clone();
+        if !predicates.is_empty() { out.push_str(&format!(" where {}", predicates.join(" and "))); }
+        if let Some(matching) = &read.matching { out.push_str(&format!(" matching {}", expression(matching))); }
+        if let Some(range) = &read.range { out.push_str(&format!(" {} {}", if range.order == Order::Asc { "first" } else { "last" }, range.take)); }
+        out.push_str(&format!(" by {}", read.order_keys.iter().map(|key| format!(".{key}")).collect::<Vec<_>>().join(", ")));
+        if let Some(cursor) = read.range.as_ref().and_then(|range| range.cursor.as_ref()) { out.push_str(&format!(" after {}", expression(cursor))); }
+        return out;
+    }
     let mut out = format!("{}[{}]", read.table, read.keys.iter().map(key_part).chain(read.seeks.iter().map(|b| format!("{} {} {}", b.column, b.op, expression(&b.value)))).collect::<Vec<_>>().join(", "));
     if let Some(matching) = &read.matching {
         out.push_str(&format!(" matching {}", expression(matching)));

@@ -234,7 +234,7 @@ table conversations:
 table members:
   conversationId: conversations
   principal: principal
-  unique byPair: conversationId, principal
+  unique conversationId, principal
   public 'shared conversation membership'
   insert <- exists conversations[id = .conversationId, creator = viewer]
   online only
@@ -244,7 +244,6 @@ table messages:
   ordinal: int
   body: text <=200
   at: time
-  by byConversationOrdinal: conversationId, ordinal, id
   immutable conversationId, ordinal
   public 'shared message history'
   insert <- exists conversations[id = .conversationId, lastOrdinal = .ordinal]
@@ -265,7 +264,7 @@ mutation send(conversationId: conversations, body: text <=200):
   insert messages { conversationId, ordinal, body, at: now }
 
 query history(conversationId: conversations, c: cursor ?):
-  return messages[conversationId] after c last 50 by byConversationOrdinal
+  return messages where .conversationId = conversationId after c last 50 by .ordinal
 ```
 
 Pass the returned `next` as `c` to page newest first by ordinal. Reusing the
@@ -282,7 +281,7 @@ never the merged patch image: null or withheld when hidden at that read.
 A patch can grant read authority and then return its row. Omitted asset columns
 keep their placement. An explicit asset id on a row you cannot read must be your
 own upload, even if it equals the retained id. Update authority is checked
-before asset diagnostics. A readable maintain is an explicit delta read channel;
+before asset diagnostics. A readable aggregate view is an explicit delta read channel;
 `N_MAINTAIN_DELTA` notes potentially wider source update authority.
 A missing `upsert` predicts its insert when the synced group is held with no
 horizon, both the key and the materialized insert image prove readability,

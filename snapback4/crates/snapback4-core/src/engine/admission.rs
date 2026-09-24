@@ -279,11 +279,11 @@ impl Flow<'_> {
                     let pinned: Vec<_> = table.index(&scan.index).map(|index| index.columns().into_iter().take(scan.prefix.len()).collect()).unwrap_or_default();
                     let cap = table.constraints.iter().filter_map(|c| match c { Constraint::Cap { by, max } if by.iter().all(|key| pinned.contains(key)) => Some(*max), _ => None }).min();
                     match cap {
-                        Some(_) => format!("iterate the original group: `for row in {}[..] by {}:`; put the condition and work inside that loop", scan.table, scan.index),
-                        None if !pinned.is_empty() => format!("declare `cap {} by {}` on {}, then pin those columns and iterate the whole group: `for row in {}[..] by {}:`", scan.take.maximum(), pinned.join(", "), scan.table, scan.table, scan.index),
-                        _ => format!("move this pass to a job: `chunk row in {} first {} by {}:`", scan.table, scan.take.maximum(), scan.index),
+                        Some(_) => format!("iterate the original group: `for row in {}{}:`; put the condition and work inside that loop", scan.table, if pinned.is_empty() { String::new() } else { format!(" where {}", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and ")) }),
+                        None if !pinned.is_empty() => format!("declare `cap {} by {}` on {} only if it is a product limit, then iterate the whole group: `for row in {} where {}:`", scan.take.maximum(), pinned.join(", "), scan.table, scan.table, pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and ")),
+                        _ => format!("move this pass to a job: `for row in {}:`", scan.table),
                     }
-                } else { "pass a bounded list argument directly, or move the population pass to a job chunk".into() };
+                } else { "pass a bounded list argument directly, or move the population pass to a job sweep".into() };
                 self.error = Some(fanout(scan, site, &reason, &rewrite));
             }
         }
@@ -444,7 +444,8 @@ fn uniform_rewrite(schema: &Schema, scan: &Scan) -> String {
 fn read_emit_only(body: &[Stmt]) -> bool {
     body.iter().all(|stmt| match stmt {
         Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. }
-        | Stmt::Return(value) | Stmt::Emit { payload: value, .. } | Stmt::Require { condition: value, .. } => read_only_expr(value),
+        | Stmt::Return(value) | Stmt::Require { condition: value, .. } => read_only_expr(value),
+        Stmt::Emit { payload, once, .. } => read_only_expr(payload) && once.as_ref().is_none_or(read_only_expr),
         Stmt::Check { condition, current } => read_only_expr(condition) && current.key.iter().all(read_only_expr),
         Stmt::If { condition, then_body, else_body } => read_only_expr(condition) && read_emit_only(then_body) && read_emit_only(else_body),
         Stmt::For { domain, body, .. } => read_only_domain(domain) && read_emit_only(body),
@@ -479,7 +480,7 @@ fn read_only_expr(value: &Expr) -> bool {
         Expr::Binary { left, right, .. } => read_only_expr(left) && read_only_expr(right),
         Expr::Get(read) | Expr::Exists(read) => read.key.iter().all(read_only_expr),
         Expr::Scan(scan) => read_only_scan(scan),
-        Expr::Merge(merge) => merge.lanes.iter().all(|lane| read_emit_only(&lane.setup) && read_only_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(read_only_scan) && source.expressions().into_iter().all(read_only_expr))),
+        Expr::Merge(merge) => merge.position.as_ref().and_then(|position| position.after.as_deref()).is_none_or(read_only_expr) && merge.lanes.iter().all(|lane| lane.guard.as_ref().is_none_or(read_only_expr) && lane.project.as_ref().is_none_or(read_only_expr) && lane.distinct.as_ref().is_none_or(read_only_expr) && read_emit_only(&lane.setup) && read_only_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(read_only_scan) && source.expressions().into_iter().all(read_only_expr))),
         Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => true,
     }
 }

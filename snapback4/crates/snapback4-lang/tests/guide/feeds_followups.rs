@@ -26,7 +26,7 @@ fn all(e: &mut Engine, op: &str, now: i64) -> Vec<Value> {
 
 #[test]
 fn global_projection_retries_removal_and_rollback_are_atomic() {
-    let source = quarry(card("feeds").unwrap()).remove(0);
+    let source = quarry(card("feeds").unwrap()).remove(1);
     let mut e = engine(&source,true);
     let mut clock = 0;
     for viewer in ["author","actor"] { write(&mut e,&mut clock,"register",viewer,&[("name",text(viewer))]); }
@@ -75,7 +75,7 @@ fn global_projection_retries_removal_and_rollback_are_atomic() {
 
 #[test]
 fn every_rolling_rank_page_matches_sort_filter_oracle() {
-    let source = quarry(card("feeds").unwrap()).into_iter().find(|s|s.contains("likeCount: count likes by postId")).unwrap();
+    let source = quarry(card("feeds").unwrap()).into_iter().find(|s|s.contains("likeCount: count likes\n")).unwrap();
     let mut e = engine(&source,false);
     let now = 100 * 86_400_000 + 1_800_000;
     let mut expected = Vec::new();
@@ -115,7 +115,7 @@ fn every_rolling_rank_page_matches_sort_filter_oracle() {
     verify(&mut e,&expected,now+1);
     let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
     let why = snapback4_lang::bind::residency::operation_lines("trending",&b.schema.operations["trending"]);
-    assert!(why.contains("selected byHourLikes (hour = h)"),"{why}");
+    assert!(why.contains("$intent:") && why.contains("hour"),"{why}");
     let read = page(&mut e,"trending",now,Value::Null);
     println!("rolling 25 lanes: first page examined={} entries={} steps={} heap={} complete={} cut={:?}",read.metered.examined,read.metered.index_entries,read.metered.steps,read.metered.heap_bytes,read.complete,read.cut);
 }

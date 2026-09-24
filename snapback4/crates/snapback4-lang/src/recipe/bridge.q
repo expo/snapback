@@ -7,7 +7,7 @@
 -- Media and bodies stay in the app card. Removal retains that card for reposts.
 
 fn @PREFIX@AppRegister(profileId: @PROFILES@):
-  profile = @PROFILES@[profileId] ! else FEED_APP_NOT_FOUND
+  profile = @PROFILES@[id = profileId] ! else FEED_APP_NOT_FOUND
   require profile.@PRINCIPAL@ = viewer else FEED_APP_OWNER
   return @PREFIX@Register()
 
@@ -15,7 +15,7 @@ fn @PREFIX@AppPublish(postId: @POSTS@):
   post = @POSTS@[postId] ! else FEED_APP_NOT_FOUND
   require post.@AUTHOR@ = viewer else FEED_APP_OWNER
   profile = @PROFILES@[@PRINCIPAL@ = viewer] ! else FEED_APP_NOT_FOUND
-  author = @PREFIX@Authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
+  author = @PREFIX@Authors[principal = viewer] ! else FEED_AUTHOR_NOT_FOUND
   existing = @PREFIX@Posts[viewer, post.id, false]
   if existing != null:
     require existing.authorId = post.@AUTHOR@ and existing.at = post.@POST_TIME@ else FEED_APP_EVENT
@@ -39,7 +39,7 @@ fn @PREFIX@AppRepost(repostId: @REPOSTS@):
   require repost.@ACTOR@ = viewer else FEED_APP_OWNER
   post = @POSTS@[repost.@ORIGINAL@] ! else FEED_APP_NOT_FOUND
   profile = @PROFILES@[@PRINCIPAL@ = viewer] ! else FEED_APP_NOT_FOUND
-  author = @PREFIX@Authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
+  author = @PREFIX@Authors[principal = viewer] ! else FEED_AUTHOR_NOT_FOUND
   existing = @PREFIX@Posts[viewer, post.id, true]
   if existing != null:
     require existing.authorId = post.@AUTHOR@ and existing.at = repost.@REPOST_TIME@ else FEED_APP_EVENT

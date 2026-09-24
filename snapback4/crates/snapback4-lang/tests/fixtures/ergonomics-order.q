@@ -11,9 +11,9 @@ table messageClocks:
   sync to members[.conversationId]
 
 fn nextArrival(conversationId: conversations):
-  previous = messageClocks[conversationId]
+  previous = messageClocks[conversationId = conversationId]
   value = max(now * 1000, previous.last + 1) if previous != null else now * 1000
-  upsert messageClocks[conversationId] { last: value }
+  upsert messageClocks[conversationId = conversationId] { last: value }
   return value
 
 job backfill():

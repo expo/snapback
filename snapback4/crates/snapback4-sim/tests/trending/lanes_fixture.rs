@@ -8,7 +8,7 @@ pub const DAY: i64 = 24 * HOUR;
 pub const NOW: i64 = 100 * DAY + HOUR / 2;
 
 pub fn source(synced: bool) -> String {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+    let source = snapback4_lang::guide::quarry(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"))).into_iter()
         .find(|s| s.contains("likeCount: count likes by postId")).unwrap();
     if synced { source.replace("  insert <- .authorId = viewer", "  insert <- .authorId = viewer\n  sync public")
         .replace("  delete <- .principal = viewer", "  delete <- .principal = viewer\n  sync public") } else { source }

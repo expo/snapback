@@ -10,8 +10,7 @@ server and on the device over held rows.
 table members:
   roomId: id
   principal: principal
-  unique byRoomPrincipal: roomId, principal
-  by byPrincipalRoom: principal, roomId, id
+  unique roomId, principal
   cap 100 by roomId
   read <- exists members[.roomId, viewer]
   sync to members[.roomId]
@@ -20,23 +19,20 @@ table messages:
   roomId: id
   body: text <=4000
   at: time
-  by byRoomTime: roomId, at, id
-  by byRoomWords: roomId, words(body), at, id
-  by byWords: words(body), at, id
+  search body
   read <- exists members[.roomId, viewer]
   sync to members[.roomId]
 
 query searchHeld(q: text <=100, c: cursor ?) held:
-  return messages matching q after c last 20 by byWords
+  return messages matching q after c last 20 by .at
 
 -- everything, grouped by chat: any number of chats; a cut carries `next`
 query searchGrouped(q: text <=100, c: cursor ?):
-  return members[viewer] after c first 20 by byPrincipalRoom where exists (messages[.roomId] matching q) { roomId, hits: messages[.roomId] matching q last 3 by byRoomWords }
+  return members[principal = viewer] after c first 20 by .roomId where exists (messages[roomId = .roomId] by .at matching q) { roomId, hits: messages[roomId = .roomId] matching q last 3 by .at }
 
 -- one newest-first stream across chats: for a first screen; complete while the chats open in one read
 query searchNewest(q: text <=100, c: cursor ?):
-  return merge messages matching q after c last 20 by byRoomWords:
-    [m.roomId] for m in members[viewer]
+  return messages matching q where exists members[.roomId, viewer] last 20 by .at after c
 ```
 
 **Grouped.** Pass `c: read.next` to continue. A meter-cut filtered page
@@ -52,12 +48,11 @@ request shapes it with a fresh meter (§5.6). Use
 search screen, not an enumeration of every message in every chat.
 
 **Newest.** Pass `c: read.next` for the next globally ordered page. With the
-dense fixture below, 1,000 chats fit on all three hosts. Memory's shared row
-images fit a complete first page through 2,717 chats; 2,718–2,730
-open every head but cut while draining, with `next` and `complete: false`.
-SQLite prepays fetched row decoding and can heap-cut earlier, clearing the page
-to `data: null` with no `next`. Past 2,730 dense chats even memory's opening is cut (`complete: false, cut: 'meter'`)
-with no continuation; use the grouped form.
+dense fixture below, 1,000 chats fit on all three hosts. At the sampled widths
+2,717, 2,718, 2,730, 2,731 and 3,000, this predicate plan reaches the heap
+ceiling: `data: null`, `complete: false`, `cut: 'meter'`, no `next`.
+Use the grouped form when discovery cannot fit. These samples do not establish
+a universal membership limit: row sizes, search terms and plans affect cost.
 An owning uniform lazy traversal can resume a read-meter drain cut after its last
 fully shaped emitted row when the final answer is eligible; the heap exception below still applies.
 Following it does not clear the earlier page's incompleteness in `usePage`.
@@ -94,7 +89,7 @@ Sources include reads nested in the `matching` expression, not just the searched
 Cold acquisition costs every live message in every held chat; the query's
 cheap read does not make that acquisition cheap. This block intentionally emits N_NO_HORIZON
 for `messages` (full history is acquired). The scoped server operations
-compile without notes. Add `last 200 by byRoomTime` to the messages sync
+compile without notes. Add `last 200 by .at` to the messages sync
 line to acquire only the newest 200 per chat. That bounds acquisition,
 not later holdings, and word search then reports `complete: false`, even
 on an empty match: it cannot prove that older server history has no match.

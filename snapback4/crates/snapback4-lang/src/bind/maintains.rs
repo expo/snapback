@@ -1,5 +1,5 @@
 //! The deliberately row-local maintain language; no reads or contextual inputs.
-use super::catalog::TableInfo;
+use super::catalog::{Catalog, TableInfo};
 use crate::ast::*;
 use crate::diag::{Diagnostic, Fallible, Site};
 use crate::types::Ty;
@@ -16,15 +16,57 @@ fn restricted(expr: &Expr) -> Diagnostic {
         "store this fact in a source field and compare .field with a literal, or use a bounded job")
 }
 
+/// The leading dot is optional in the intent spelling of a bare group key.
+pub(super) fn bare_key(expr: &Expr) -> Option<&str> {
+    match expr {
+        Expr::Name { name, .. } => Some(name),
+        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => Some(name),
+        _ => None,
+    }
+}
+
+pub(super) fn normalize_keys(maintain: &mut MaintainDecl) {
+    for (field, key) in maintain.by.iter_mut().zip(&mut maintain.keys) {
+        if let Some(name) = bare_key(key) {
+            *field = name.to_owned();
+            *key = Expr::Name { name: name.to_owned(), site: key.site().clone() };
+        } else if let Some(name) = path(key) {
+            *field = name;
+        }
+    }
+}
+
+// @ref LLP 3000.013#3.2 — derive an ordinary rule, then admit it on the generated table.
+pub(super) fn derived_read(catalog: &Catalog, maintain: &MaintainDecl) -> Fallible<RuleDecl> {
+    let source = &catalog.tables[&maintain.source];
+    let constant = |name: &str| RuleDecl { effect: Effect::Read, bindings: vec![],
+        value: Expr::Name { name: name.into(), site: maintain.site.clone() }, site: maintain.site.clone() };
+    if source.decl.public.is_some() { return Ok(constant("allow")); }
+    let Some(read) = source.decl.rules.iter().find(|rule| rule.effect == Effect::Read) else { return Ok(constant("deny")); };
+    let bound = super::schema::bind_rule(catalog, source, read)?;
+    if bound.is_uniformly_readable() { return Ok(constant("allow")); }
+    let mut fields = BTreeSet::new();
+    bound.fields(&mut fields);
+    let bare: BTreeSet<_> = maintain.keys.iter().filter_map(bare_key).collect();
+    let missing: Vec<_> = fields.iter().filter(|field| !bare.contains(field.as_str())).map(|field| format!(".{field}")).collect();
+    if !missing.is_empty() {
+        return Err(Diagnostic::new(&maintain.site, "E_MAINTAIN_READ_RULE",
+            format!("maintain {} cannot derive {}'s read rule `{}`: {} are not bare group keys; calendar keys and reference paths do not preserve those fields",
+                maintain.name, maintain.source, crate::print::expression(&read.value), missing.join(", ")),
+            "read <- deny  -- replace deny with an explicit aggregate read rule over its group keys").guide("maintains"));
+    }
+    Ok(RuleDecl { site: maintain.site.clone(), ..read.clone() })
+}
+
 /// Only maintain binding sees these synthetic columns; ordinary programs never do.
 pub(super) fn recorded_paths(tables: &BTreeMap<String, TableInfo>, maintain: &MaintainDecl) -> Fallible<BTreeMap<String, ScalarType>> {
     fn visit(tables: &BTreeMap<String, TableInfo>, source: &TableInfo, expr: &Expr, out: &mut BTreeMap<String, ScalarType>) -> Fallible<()> {
         match expr {
             Expr::Member { base, name, .. } if !matches!(base.as_ref(), Expr::Focal { .. }) => {
                 let fail = |message: String| refusal(expr.site(), message, "use one immutable reference to a public table and an immutable target column (or id)");
-                let Expr::Name { name: reference, .. } = base.as_ref() else { return Err(fail("maintain reference paths have exactly one hop".into())); };
+                let Some(reference) = bare_key(base) else { return Err(fail("maintain reference paths have exactly one hop".into())); };
                 let Some(ScalarType { kind: TypeKind::Ref { table }, .. }) = source.columns.get(reference) else { return Err(fail(format!("{reference} must be a reference column of {}", source.decl.name))); };
-                if !source.decl.immutable.iter().any(|(fields, _)| fields.contains(reference)) { return Err(fail(format!("{}.{} must be immutable", source.decl.name, reference))); }
+                if !source.decl.immutable.iter().any(|(fields, _)| fields.iter().any(|field| field == reference)) { return Err(fail(format!("{}.{} must be immutable", source.decl.name, reference))); }
                 let target = tables.get(table).ok_or_else(|| fail(format!("unknown target table {table}")))?;
                 let reads: Vec<_> = target.decl.rules.iter().filter(|rule| rule.effect == Effect::Read).collect();
                 let public = match (target.decl.public.is_some(), reads.as_slice()) {
@@ -61,8 +103,7 @@ fn path(expr: &Expr) -> Option<String> {
     match expr {
         Expr::Member { base, name, .. } => match base.as_ref() {
             Expr::Focal { .. } => Some(name.clone()),
-            Expr::Name { name: reference, .. } => Some(format!("{reference}.{name}")),
-            _ => None,
+            other => bare_key(other).map(|reference| format!("{reference}.{name}")),
         },
         _ => None,
     }

@@ -1,7 +1,7 @@
 //! The complete, compiled and executed Quarry language card.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-One file, `snapback/schema.q`, holds tables, maintains, shapes, helpers,
+One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
 programs and schedules, in any order; more `.q` files beside it are modules
 (their operations are `<module>.<name>`) sharing one namespace. Schedules use that
 qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
@@ -9,7 +9,7 @@ bare module job gets this rewrite from `check --fix`. Comments
 start with `--`. Blocks indent with two spaces. Everything the compiler
 accepts is below; the suite compiles every block and runs the core program.
 
-Time arithmetic uses milliseconds: `now + 60000` is one minute from now,
+Time arithmetic uses durations: `now + 1m` is one minute from now,
 and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
 produce UTC calendar ordinals. See `guide jobs` for scheduled work.
 
@@ -29,14 +29,13 @@ table rooms:
   ownerId: principal                  -- principal | id | <table> (a reference to its row) | int | time (milliseconds) | bool
   kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video <=N
   tags: [text <=20] <=8               -- [type] <=N: a bounded list
-  parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique `byId`
+  parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique id
   createdAt: time default now          -- omitted on insert; evaluated on the writing host
-  by byOwner: ownerId, createdAt, id  -- `by` orders; a scan pins the leading columns and pages along the rest
   read <- exists members[.id, viewer]                                     -- rules: allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | created t[..] | and | or | not
   insert <- .ownerId = viewer
   update (old, next) <- old.ownerId = viewer and next.ownerId = viewer   -- an update rule may name both images
   delete <- deny
-  after insert <- exists members[.id, .ownerId, 'admin']                 -- a row that must exist by the end of the mutation that inserted this one
+  after insert <- exists members[roomId = .id, principal = .ownerId, role = 'admin']                 -- a row that must exist by the end of the mutation that inserted this one
   sync to members[.id]                -- each row reaches every principal with a members row whose roomId is this row's id
 
 table members:
@@ -44,28 +43,24 @@ table members:
   principal: principal
   role: enum('member', 'admin')
   joinedAt: time
-  unique byRoomPrincipal: roomId, principal else MEMBER_EXISTS -- `unique` orders and constrains
-  by byRoomPrincipalRole: roomId, principal, role
-  by byPrincipalRoom: principal, roomId, id
-  cap 100 by roomId                                    -- at most N rows per group; needs an index leading with the group
+  unique roomId, principal else MEMBER_EXISTS -- one row per key
+  cap 100 by roomId                                    -- at most N rows per group; a product limit
   immutable roomId, principal                          -- columns no update may change
   read <- exists members[.roomId, viewer]
   insert <- exists members[roomId = .roomId, principal = viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
-  delete <- .principal = viewer or exists members[.roomId, viewer, 'admin']
+  delete <- .principal = viewer or exists members[roomId = .roomId, principal = viewer, role = 'admin']
   sync to members[.roomId]
 
 table messages:
   roomId: rooms
   authorId: principal
   body: text <=4000 ?
+  search body
   photo: image <=10000000 ?           -- an upload the row holds (guide assets); `once` after the bound serves one view per principal
   clip: video <=50000000 ?
   editedAt: time ?
   expiresAt: time ?
   at: time
-  by byRoomTime: roomId, at, id
-  by byRoomWords: roomId, words(body), at, id   -- a words index: one entry per distinct word of the text columns; read with `matching` (guide search)
-  by byExpiresAt: expiresAt
   immutable roomId, authorId
   read <- exists members[.roomId, viewer]
   insert <- .authorId = viewer and exists members[.roomId, viewer]
@@ -73,7 +68,7 @@ table messages:
   delete <- .authorId = viewer
   retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
   expire at .expiresAt                -- a row past that time is absent everywhere at once, then swept; a null time never expires
-  sync last 500 by byRoomTime     -- the horizon: a device acquires the newest N per group; older rows are online-only
+  sync last 500 by .at     -- the horizon: a device acquires the newest N per group; older rows are online-only
 
 table posts:
   authorId: principal
@@ -82,19 +77,16 @@ table posts:
   parentId: id ?
   score: int
   at: time
-  by byAuthorTime: authorId, at, id
-  by byTime: at, id
   public 'posts are public'           -- the read rule as a table line, with its reason
   insert <- .authorId = viewer
   update <- deny
   delete <- .authorId = viewer
-  sync public last 200 by byTime      -- everyone holds the same rows
+  sync public last 200 by .at      -- everyone holds the same rows
 
 table follows:
   followerId: principal
   followedId: principal
-  unique byPair: followerId, followedId
-  by byFollowed: followedId, followerId
+  unique followerId, followedId
   cap 1000 by followerId
   read <- .followerId = viewer        -- exactly the audience of the sync line below
   insert <- .followerId = viewer
@@ -106,20 +98,20 @@ table reactions:
   principal: principal
   direction: int
   emoji: text <=20 default 'like'
-  unique byPostPrincipal: postId, principal
-  by byPrincipal: principal, id
+  unique postId, principal
   read <- .principal = viewer
   insert <- .principal = viewer
   update <- .principal = viewer
   delete <- .principal = viewer
-  sync to .principal last 500 by byPrincipal
+  sync to .principal last 500 by .id
 
 table profiles:
   principal: principal
   handle: text 3..20 format handle    -- a text format is checked on every write
   site: text <=200 format url ?
-  unique byPrincipal: principal
-  unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'
+  unique principal
+  search handle
+  unique handle else HANDLE_TAKEN 'That handle is taken.'
   public 'profiles are public'
   insert <- .principal = viewer
   update <- .principal = viewer
@@ -132,7 +124,6 @@ table ledger:
   weight: decimal 2
   note: json <=2000 ?
   at: time
-  by byOwnerTime: ownerId, at, id
   read <- .ownerId = viewer
   insert <- .ownerId = viewer
   update <- deny
@@ -146,43 +137,34 @@ table likes:
   public 'likes are public'
   insert <- .principal = viewer
   online only
-maintain receivedLikes: count likes by postId.authorId -- one immutable hop to a public target; attribution is recorded by the engine
-  read <- allow
+view receivedLikes: count likes by .postId.authorId -- one immutable hop to a public target; attribution is recorded by the engine
   online only
 
-maintain messageCounts: count messages by roomId       -- an aggregate the engine keeps: read it by group and get the number, 0 when the group has no row
-  read <- exists members[.roomId, viewer]
-maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an int, decimal or money column
-  read <- allow
-  online only                         -- mutations reading this maintain never predict
+view messageCounts: count messages by .roomId       -- an aggregate the engine keeps: read it by group and get the number, 0 when the group has no row
+                                                     -- read derives the source's membership rule because roomId is a bare group key
+view scoreTotals: sum posts of .score by .authorId  -- count, or sum of an int, decimal or money column
+  online only                         -- mutations reading this view never predict
 
-maintain originalPostCounts: count posts where .parentId = null by authorId
-  read <- allow
+view originalPostCounts: count posts where .parentId = null by .authorId
   online only
-maintain dailyPosts: count posts where .parentId = null by authorId, day(.at)
-  read <- allow
+view dailyPosts: count posts where .parentId = null by .authorId, day(.at)
   online only
-maintain hourlyPosts: count posts by authorId, hour(.at)
-  read <- allow
+view hourlyPosts: count posts by .authorId, hour(.at)
   online only
-maintain periodPosts: count posts by authorId, bucket(.at, 2m)
-  read <- allow
+view periodPosts: count posts by .authorId, bucket(.at, 2m)
   online only
-maintain digestPosts: count posts by authorId, day(.at, 8h)
-  read <- allow
+view digestPosts: count posts by .authorId, day(.at, 8h)
   online only
-maintain anchoredPeriods: count posts by authorId, bucket(.at, 1d, 8h)
-  read <- allow
+view anchoredPeriods: count posts by .authorId, bucket(.at, 1d, 8h)
   online only
-maintain reactionCounts: count reactions by principal, postId, emoji
+view reactionCounts: count reactions by .principal, .postId, emoji
   read <- .principal = viewer
-maintain postLikes: count reactions where .direction > 0 by postId
+view postLikes: count reactions where .direction > 0 by .postId
   read <- deny
   online only
-  by byCount: value, id
 
 query daily(c: cursor ?):
-  return dailyPosts[viewer] after c first 7 by byGroup { day, count: .value }
+  return dailyPosts where .authorId = viewer first 7 by .day after c { day, count: .value }
 query today():
   return dailyPosts[viewer, day(now)]
 query calendar():
@@ -192,9 +174,9 @@ query anchoredKeys():
 query digestToday():
   return digestPosts[viewer, day(now, 8h)]
 query mostLiked(c: cursor ?):
-  return postLikes after c last 10 by byCount { postId, count: .value }
+  return postLikes last 10 by .value after c { postId, count: .value }
 query chips(postId: posts, c: cursor ?):
-  return reactionCounts[viewer, postId] after c first 50 by byGroup { emoji, count: .value }
+  return reactionCounts where .principal = viewer and .postId = postId first 50 by .emoji after c { emoji, count: .value }
 
 fn kindLabel(value: text <=6): value                               -- every enum variant fits the text bound
 shape messageCard = { *, room: rooms[.roomId], count: messageCounts[.roomId] }
@@ -223,18 +205,18 @@ query helperRows(messageId: messages):
 
 query thread(roomId: rooms, c: cursor ?):                            -- `cursor ?` is the page argument; an omitted optional argument is null
   require exists members[roomId, viewer] else NOT_MEMBER              -- a refusal with the program's own code
-  return messages[roomId] by byRoomTime last 50 after c where .body != null and exists (members[.roomId, viewer] by byRoomPrincipal) messageCard   -- parentheses keep the explicit index on the inner read; messageCard shapes the page
+  return messages where .roomId = roomId and .body != null and exists members[.roomId, viewer] last 50 by .at after c messageCard   -- messageCard shapes the page after authorization
 
 query inbox(c: cursor ?):
-  return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
+  return members where .principal = viewer first 50 by .roomId after c { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
 
 query ancestors(roomId: rooms):
-  chain = walk rooms[roomId] up .parentId depth 8                   -- the row, its parent, and so on: at most `depth` rows
+  chain = walk rooms[roomId] up .parentId depth 8                   -- the seed row plus at most eight parent hops
   return chain { id, name }
 
 query digest(roomId: rooms):
   require exists members[roomId, viewer] else NOT_MEMBER
-  page = messages[roomId, at >= now - 86400000] last 100 by byRoomTime                     -- a page bound to a name; count, sum, slice, sort and shapes take it
+  page = messages where .roomId = roomId and .at >= now - 1d last 100 by .at                     -- a page bound to a name; count, sum, slice, sort and shapes take it
   (weeks, days) = divmod(count(page), 7)                             -- divmod binds quotient and remainder at once
   (lo, hi) = sorted(weeks, days)                                     -- two values in order
   counter = 0
@@ -243,7 +225,7 @@ query digest(roomId: rooms):
   offsets = []
   for i in range(0, 3):
     if i = 2:
-      continue                                                      -- advances the nearest for or chunk
+      continue                                                      -- advances the nearest loop
     else if i < 0:
       break                                                         -- else if is a nested conditional
     offsets = offsets + [i]                                         -- append in place, under the heap meter
@@ -266,33 +248,32 @@ query tokenDigest(token: text <=200):
 
 query search(roomId: rooms, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
-  return messages[roomId] matching q after c last 50 by byRoomWords   -- word-prefix search: uniform expansion bounded by the meter; admitted non-uniform scopes keep 32 words; newest first
+  return messages where .roomId = roomId matching q last 50 by .at after c   -- word-prefix search: uniform expansion bounded by the meter; admitted non-uniform scopes keep 32 words; newest first
 
 query everywhere(q: text <=100, c: cursor ?):
-  return merge messages matching q after c last 50 by byRoomWords:
-    [m.roomId] for m in members[viewer]
+  return messages matching q where exists members[.roomId, viewer] last 50 by .at after c
 
 query wholeRoster(roomId: rooms):
-  return members[roomId] by byRoomPrincipal                         -- the schema cap is the ascending whole-group bound
+  return members where .roomId = roomId                         -- the schema cap is the ascending whole-group bound
 
 query memberTotal():
   n = 0
-  for m in members[viewer]:                                        -- a uniform prefix under the query meter
+  for m in members where .principal = viewer:                                        -- a uniform prefix under the query meter
     n = n + 1
   return n
 
 query hasMessages(roomId: rooms):
-  return exists messages[roomId]                                  -- a prefix existence scan: first visible match, no page or cursor
+  return exists messages where .roomId = roomId                                  -- a prefix existence scan: first visible match, no page or cursor
 
 query groupedMessages(q: text <=100, c: cursor ?):
-  return members[viewer] after c first 20 by byPrincipalRoom where exists (messages[.roomId] matching q) { roomId, hits: messages[.roomId] matching q last 3 by byRoomWords }
+  return members where .principal = viewer and exists (messages[roomId = .roomId] matching q) first 20 by .roomId after c { roomId, hits: messages[roomId = .roomId] matching q last 3 by .at }
 
 query online(p: principal):
   return connected[p]                 -- how many connections the principal holds open on the server; `exists connected[p]` tests (guide presence)
 
 mutation pagePass(roomId: rooms): server
   n = 0
-  for row in members[roomId] first 10 by byRoomPrincipal:
+  for row in members where .roomId = roomId first 10 by .principal:
     n = n + 1
   return n
 
@@ -309,7 +290,7 @@ mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   row = insert messages { roomId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }   -- a conditional value: the arm not taken never runs, and `ttl` is present in the taken one
   recipients = []
-  for m in members[roomId] by byRoomPrincipal:
+  for m in members where .roomId = roomId:
     if m.principal != viewer:
       recipients = recipients + [m.principal]
   for p in recipients:                                              -- bounded derived lists may read and emit; row writes still need the complete-group proof
@@ -324,7 +305,7 @@ mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) p
   return null                                                        -- a bare `return` is the same
 
 mutation join(roomId: rooms, principal: principal):
-  require exists members[roomId, viewer, 'admin'] else NOT_ADMIN
+  require exists members[roomId = roomId, principal = viewer, role = 'admin'] else NOT_ADMIN
   return insert members { roomId, principal, role: 'member', joinedAt: now } if absent   -- the row, or null on a unique clash
 
 mutation leave(roomId: rooms):
@@ -343,15 +324,15 @@ mutation post(bodies: [text <=500] <=10):
 mutation split(total: int, people: [principal] <=8):
   insert ledger { ownerId: viewer, amount: share(total, people, viewer), weight: 1, at: now }   -- share: one person's part of an amount split evenly, deterministically
 
-job nightly(periodStart: time, periodEnd: time):                    -- the server's own work: sweeps as the system principal, one page per commit
+job nightly(periodStart: time, periodEnd: time):                    -- the server's own work: sweeps as the system principal, one engine-sized chunk per commit
   end = periodEnd                                                   -- the prelude runs again at the start of every chunk, under that chunk's meter
-  chunk r in rooms first 100 by byId:                                -- the index's columns are id or immutable, so nothing moves under the cursor
+  for r in rooms:                                -- the index's columns are id or immutable, so nothing moves under the cursor
     if r.createdAt >= end:
       break                                                          -- ends this sweep; `return` ends the job
     stamp(r.id)
-  chunk p in posts first 100 by byId:
+  for p in posts:
     for i in range(0, 2):                                            -- int expressions, under the step meter
-      update posts[p.id] { score: p.score + i }
+      update posts[id = p.id] { score: p.score + i }
 schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
@@ -360,89 +341,83 @@ effect sendDigest secrets [MAIL_API_KEY] retry 4 backoff 1m deadline 1d cancella
 table roomEntries:
   roomId: id
   at: time
-  by byRoomHour: roomId, hour(at), at, id
   public 'Room entries are public.'
 
 table checkins:
   principal: principal
   at: time
-  unique byPrincipalDay: principal, day(at) else ALREADY_CHECKED_IN 'One check-in per day.'
+  unique principal, day(at) else ALREADY_CHECKED_IN 'One check-in per day.'
   read <- .principal = viewer
   insert <- .principal = viewer
 
 query roomHour(roomId: id, c: cursor ?):
-  return roomEntries[roomId, hour(now) - 3] after c last 10 by byRoomHour
+  return roomEntries where .roomId = roomId and .at >= (hour(now) - 3) * 1h and .at < (hour(now) - 2) * 1h last 10 by .at after c
 
 query roomWindow(roomId: id, c: cursor ?):
-  return merge roomEntries after c last 10 by byRoomHour:
-    [roomId, h] for h in range(hour(now) - 3, hour(now) + 1)
+  return roomEntries where .roomId = roomId and .at >= (hour(now) - 3) * 1h and .at < (hour(now) + 1) * 1h last 10 by .at after c
 
 mutation checkin():
   return insert checkins { principal: viewer, at: now }
 
--- For Following, declare `maintain timeline: timeline`; `guide feeds` has the complete app.
-table timelineProfiles:
+
+table subjects:
+  at: time
+  voteCount: count votes
+  public
+  online only
+table votes:
+  subjectId: subjects
+  amount: int
+  public
+  online only
+effect intentDigest
+table recipients:
   principal: principal
-  unique byPrincipal: principal
-  cap 1008
-  immutable principal
-  public 'timelineProfiles'
-  insert <- .principal = viewer
-  sync public
-table timelineCards:
-  authorId: principal
+  public
+  online only
+table events:
+  recipient: principal
+  amount: int
   at: time
+  public
+  online only
+job intentDaily(periodStart: time, periodEnd: time):
+  for p in recipients:
+    n = count(events where .recipient = p.principal and .at >= periodStart and .at < periodEnd)
+    amount = sum(events where .recipient = p.principal and .at >= periodStart and .at < periodEnd, .amount)
+    if exists events where .recipient = p.principal:
+      emit intentDigest { recipient: p.principal, n, amount } once [p.principal, periodEnd]
+table intentPosts:
+  author: principal
+  handle: text <=30
+  body: text <=500
+  at: time default now
   removed: bool default false
-  cap 60000
-  immutable authorId, at
-  public 'cards'
-  insert <- .authorId = viewer
-  update <- .authorId = viewer
-  sync public
-table timelineReposts:
-  actorId: principal
-  postId: timelineCards
-  at: time
-  unique byActorPost: actorId, postId
-  cap 60000
-  immutable actorId, postId, at
-  public 'timelineReposts'
-  insert <- .actorId = viewer
-  delete <- .actorId = viewer
-  sync public
-table timelineFollows:
-  followerId: principal
-  followedId: principal
-  at: time default 0
-  unique byPair: followerId, followedId
-  by byFollowed: followedId, followerId
-  immutable followerId, followedId, at
-  cap 1000 by followerId
-  cap 1000 by followedId
-  cap 5921
-  public 'edges'
-  insert <- .followerId = viewer
-  delete <- .followerId = viewer
-  sync public
-
-maintain timeline: timeline
-  authors timelineProfiles by principal
-  events timelineCards by authorId, at removed by removed
-  reposts timelineReposts by actorId, postId, at
-  edges timelineFollows by followerId, followedId
-  size authors 1008, edges 5921
-
-mutation timelineRegister():
-  insert timelineProfiles { principal: viewer }
-mutation timelinePublish():
-  return insert timelineCards { authorId: viewer, at: now }
-mutation timelineFollow(authorId: principal):
-  insert timelineFollows { followerId: viewer, followedId: authorId, at: now } if absent
-mutation timelineRemove(postId: timelineCards):
-  update timelineCards[postId] { removed: true }
-query timelineHome(c: cursor ?):
-  return timeline[viewer] after c last 20 { *, post: timelineCards[.postId] }
-
+  unique handle else HANDLE_TAKEN 'That handle is taken.'
+  search body
+  public 'discoverable posts'
+table intentReposts:
+  actor: principal
+  at: time default now
+  public 'discoverable reposts'
+view intentCounts: count intentPosts by .author
+view intentActivity:
+  intentPosts where not .removed { actor: .author, at, repost: false }
+  intentReposts { actor, at, repost: true }
+query intentPage(owner: principal, c: cursor ?):
+  return intentPosts where .author = owner and not .removed last 20 by .at after c
+query intentIds(c: cursor ?):
+  return intentPosts first 20 by .id, .at after c -- table keys after id are redundant; uses byId
+query intentSearch(q: text <=100, c: cursor ?):
+  return intentPosts matching q last 20 by .at after c
+query intentGlobal(c: cursor ?):
+  return intentActivity last 20 by .at after c { id, actor, at, repost }
+query intentCount(owner: principal):
+  return intentCounts[owner]
+query intentSubject(subjectId: subjects):
+  return subjects[subjectId]
+query intentDurations():
+  return [500ms, 30s, 15m, 24h, 7d, bucket(now, 2m)]
 ```
 
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
@@ -455,11 +430,12 @@ After a scalar `where` predicate, a declared shape name shapes the page:
 row/object shape inside a predicate keeps its meaning; parenthesize it to
 make that scope explicit, or use `{ ...card }` explicitly for the page.
 
-Reads: `t[full unique key]` is a point; `t[prefix] [by index] [where predicate]`
-reads the ascending capped group, or a meter-bounded query loop/lane source;
-`t[prefix] [matching q] [after c] first|last N [by index] [where predicate]`
-is an explicit page. `exists t[keys]` and `exists (t[prefix] matching q)` test
-for a visible row without owning a page; rules keep exact-key probes.
+Reads: `t[id]` reads one row; `t[a, b]` needs one declared unique pair.
+Named keys select columns explicitly. `t where predicate first 20 by .at
+after c` pages matching rows. `last` reverses the order; id breaks ties.
+`count(t where predicate)` and `sum(t where predicate, .amount)` stream a
+domain. A cut total is unavailable, never a partial number. `exists` stops
+at a visible match; an unknown domain cannot establish absence.
 
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
 instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
@@ -482,12 +458,9 @@ the exact UTF-8 bytes without normalization and returns lowercase hexadecimal.
 It is not password hashing, low-entropy email anonymization, a signature, a
 MAC, or entropy generation; a digest is not automatically safe to publish.
 
-Table indexes also take `day(at)`, `hour(at)` or `bucket(at, 2h, 30m)`
-beside column names and `words(..)`: computed keys, not row columns (guide indexes).
-A query merge's `for` takes a prefix page, `range(a, b)` or a bounded list
-argument/expression, with one lane per value; `walk` is not admitted.
-
-
+`unique principal, day(at)` enforces calendar uniqueness. `search body`
+declares word-prefix search. The planner builds indexes for predicates,
+order, rule probes, sync, caps and expiry (`guide indexes`).
 
 ## With `use server`
 
@@ -521,9 +494,8 @@ E_QUARRY_UNKNOWN means a name cannot be resolved in this scope: a local,
 argument, table, column, index or helper may be misspelled or undeclared.
 For example, after `message = 'hello'`, `return mesage` must be
 `return message`. Check the declared spelling and the diagnostic's suggested
-name; declare a missing local before using it. For a missing index, use the
-named `by` line in the table's declaration; `snapback4 check --fix` can add
-it when the diagnostic marks that repair mechanical.
+name; declare a missing local before using it. For a page, name its predicate and order: `posts where .authorId = viewer
+last 20 by .at after c`. `snapback4 check --fix` applies only mechanical repairs.
 
 ## Left out on purpose, and the idiom
 
@@ -539,26 +511,17 @@ and evaluating it once, including when it is a call or read.
 - Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
 
 Maintained columns put an aggregate on the row it describes. Their source
-is ordinary and non-expiring, and `by` is one reference to the parent. The
+is ordinary and non-expiring. Omit `by` when exactly one source column references
+the parent; otherwise name that reference explicitly. The
 engine owns the column; a write result omits it. Read the row for its value.
 Adding or redefining it recounts existing sources in atomic activation.
 The event-free generation barrier makes devices reacquire; a missing stored
 field reads 0 without an authored literal default. See `guide maintains`
-for disclosure and stream cost, and `guide feeds` for hour-lane Trending.
+for disclosure and stream cost, and `guide feeds` for Trending.
 
-```quarry
-table subjects:
-  at: time
-  voteCount: count votes by subjectId
-  by byVotes: voteCount, at, id
-  public
-  online only
-table votes:
-  subjectId: subjects
-  amount: int
-  public
-  online only
-```
+
+
+
 
 Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
@@ -585,8 +548,162 @@ use a new ID. Explicit null and an omitted optional argument are different
 raw inputs even when validation gives them the same value. See `guide
 actions` for durable invocation collection and `guide writes` for mutations.
 
-## Timelines
+For a public Following feed, see `guide feeds`. Materialization requires
+public, fully synced sources with immutable mappings and owner write rules.
 
-For a public Following feed, use `maintain name: timeline`. The optional `size` clause defaults to 1,000 authors and 100,000 edges; `size authors 1008, edges 5921` fits the Clique fixture. `guide feeds` covers the complete program, caps, devices and lifecycle.
+## Reads and planned views
+
+A predicate states which rows belong in a read. `by .at` orders by a column;
+`first` ascends and `last` descends, with `id` breaking ties in that direction.
+The compiler selects or synthesizes indexes. A positional key must name one
+unambiguous declared unique key; named keys make the intended columns explicit.
+`search` declares searchable text, and unnamed `unique` declares a unique key.
+Duration literals are integer milliseconds in any expression.
+
+
+
+## Materialized Following
+
+The public activity union supplies a private delivered feed for each reader.
+
+```quarry
+-- Following materializes this public activity view; `guide feeds` has the complete app.
+table timelineProfiles:
+  principal: principal
+  unique byPrincipal: principal
+  cap 1008
+  immutable principal
+  public 'timelineProfiles'
+  insert <- .principal = viewer
+  sync public
+table timelineCards:
+  parentId: timelineCards ?
+  authorId: principal
+  at: time
+  removed: bool default false
+  immutable authorId, parentId, at
+  public 'cards'
+  insert <- .authorId = viewer
+  update <- .authorId = viewer
+  sync public
+table timelineReposts:
+  actorId: principal
+  postId: timelineCards
+  at: time
+  unique byActorPost: actorId, postId
+  immutable actorId, postId, at
+  public 'timelineReposts'
+  insert <- .actorId = viewer
+  delete <- .actorId = viewer
+  sync public
+table timelineFollows:
+  followerId: principal
+  followedId: principal
+  at: time default 0
+  unique byPair: followerId, followedId
+  by byFollowed: followedId, followerId
+  immutable followerId, followedId, at
+  public 'edges'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+  sync public
+
+view timelineActivity:
+  timelineCards where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }
+  timelineReposts { post: .postId, actor: .actorId, at, repost: true }
+view timeline: timelineActivity where .actor = viewer or exists timelineFollows[viewer, .actor]
+
+mutation timelineRegister():
+  insert timelineProfiles { principal: viewer }
+mutation timelinePublish():
+  return insert timelineCards { authorId: viewer, at: now }
+mutation timelineFollow(authorId: principal):
+  insert timelineFollows { followerId: viewer, followedId: authorId, at: now } if absent
+mutation timelineRemove(postId: timelineCards):
+  update timelineCards[postId] { removed: true }
+query timelineHome(c: cursor ?):
+  return timeline last 20 by .at after c { *, post: timelineCards[.post] }
+```
+
+## Older spellings that still compile
+
+Existing explicit indexes, merges, fixed chunks, aggregates and timelines keep
+their meaning. New code uses predicates, views and `for` sweeps. Following's
+view declaration is shown above; `guide feeds` owns its complete example.
+
+```quarry
+table oldEvents:
+  owner: principal
+  at: time
+  by byOwner: owner, at, id
+  public
+  online only
+maintain oldCounts: count oldEvents by owner
+  read <- allow
+query oldPage(c: cursor ?):
+  return oldEvents[viewer] last 20 by byOwner after c
+query oldMerged(c: cursor ?):
+  return merge oldEvents after c last 20 by byOwner:
+    [viewer]
+job oldSweep():
+  chunk e in oldEvents first 10 by byId:
+    delete oldEvents[e.id]
+-- For Following, declare `maintain timeline: timeline`; `guide feeds` has the complete app.
+table timelineProfiles:
+  principal: principal
+  unique principal
+  cap 1008
+  immutable principal
+  public 'timelineProfiles'
+  insert <- .principal = viewer
+  sync public
+table timelineCards:
+  parentId: timelineCards ?
+  authorId: principal
+  at: time
+  removed: bool default false
+  immutable authorId, parentId, at
+  public 'cards'
+  insert <- .authorId = viewer
+  update <- .authorId = viewer
+  sync public
+table timelineReposts:
+  actorId: principal
+  postId: timelineCards
+  at: time
+  unique actorId, postId
+  immutable actorId, postId, at
+  public 'timelineReposts'
+  insert <- .actorId = viewer
+  delete <- .actorId = viewer
+  sync public
+table timelineFollows:
+  followerId: principal
+  followedId: principal
+  at: time default 0
+  unique followerId, followedId
+  immutable followerId, followedId, at
+  public 'edges'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+  sync public
+
+maintain timeline: timeline
+  events timelineCards where .parentId = null and not .removed by authorId, at removed by removed
+  reposts timelineReposts by actorId, postId, at
+  edges timelineFollows by followerId, followedId
+
+mutation timelineRegister():
+  insert timelineProfiles { principal: viewer }
+mutation timelinePublish():
+  return insert timelineCards { authorId: viewer, at: now }
+mutation timelineFollow(authorId: principal):
+  insert timelineFollows { followerId: viewer, followedId: authorId, at: now } if absent
+mutation timelineRemove(postId: timelineCards):
+  update timelineCards[postId] { removed: true }
+query timelineHome(c: cursor ?):
+  return timeline[viewer] after c last 20 { *, post: timelineCards[.postId] }
+
+```
 
 "##;

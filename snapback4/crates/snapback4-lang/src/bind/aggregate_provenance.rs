@@ -307,7 +307,8 @@ impl Scan<'_> {
                     break;
                 }
                 Stmt::Expr { value, .. } => { self.expr(value, env, focal); }
-                Stmt::Emit { payload: value, .. } | Stmt::Require { condition: value, .. } => { self.expr(value, env, focal); }
+                Stmt::Require { condition: value, .. } => { self.expr(value, env, focal); }
+                Stmt::Emit { payload, once, .. } => { self.expr(payload, env, focal); if let Some(key) = once { self.expr(key, env, focal); } }
                 Stmt::If { condition, then_body, else_body, .. } => {
                     let value = self.expr(condition, env, focal);
                     let condition = self.selection(condition, &value);
@@ -404,7 +405,7 @@ impl Scan<'_> {
 
     fn read(&mut self, read: &ast::ReadExpr, env: &mut Env, focal: &Value) -> Value {
         // A key selects WHICH group is counted — its size is a fact about the data, so
-        // `count(likes[postId])` is derived (the maintain-copy footgun) and a key's bits
+        // `count(likes[postId = postId])` is derived (the maintain-copy footgun) and a key's bits
         // stay control. Seek bounds, `matching` text, the cursor and the filter decide
         // HOW MANY rows the page holds: their bits enter its cardinality (L28) —
         // `count(posts[] matching q …)` with an argument `q` stores a caller-controlled

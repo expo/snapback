@@ -27,7 +27,7 @@ fn following_w7r2_decrement_delete_and_refollow() { scenario(false); }
 
 #[test]
 fn following_count_deletion_is_reader_owned() {
-    let source = format!("{}\nmutation discardCount(readerId: principal):\n  delete pullCounts[readerId]\n", world::source());
+    let source = format!("{}\nmutation discardCount(readerId: principal):\n  delete pullCounts[readerId = readerId]\n", world::source());
     let bound = world::compiled(&source);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     case::seed(&mut engine, false);

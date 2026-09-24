@@ -164,7 +164,7 @@ test("online session: near-expiry rotates before a protected read; concurrent re
   assert.equal(refreshes, 1);
 });
 
-test("online session: a refresh cannot change principal or resurrect a closed client", async t => {
+test("online session: a refresh rejects principal changes and preserves a replacement through ordinary close", async t => {
   for (const close of [false, true]) {
     const entered = deferred(), release = deferred();
     const client = createClient({ url: "https://principal.invalid", session: session("old"), fetch: async () => {
@@ -178,10 +178,19 @@ test("online session: a refresh cannot change principal or resurrect a closed cl
     await entered.promise;
     const closing = close ? client.close() : undefined;
     release.resolve();
-    assert.equal((await refreshing).why.code, close ? "E_CLOSED" : "E_AUTH");
+    const result = await refreshing;
     await closing;
-    assert.notEqual(client.session()?.token, "next");
-    assert.deepEqual(observed, close ? [] : [null]);
+    if (close) {
+      assert.equal(result.ok, true);
+      assert.equal(client.session()?.token, "next");
+      assert.deepEqual(observed, [result.session]);
+      assert.equal((await client.query(query, {})).denied.code, "E_CLOSED");
+      assert.equal((await client.refreshSession()).why.code, "E_CLOSED");
+    } else {
+      assert.equal(result.why.code, "E_AUTH");
+      assert.notEqual(client.session()?.token, "next");
+      assert.deepEqual(observed, [null]);
+    }
   }
 });
 

@@ -28,7 +28,7 @@ mutation quiet(email: text <=254):
   return insert accounts { email, owner: viewer } if absent
 
 mutation put(email: text <=254):
-  return upsert accounts[email] { owner: viewer }
+  return upsert accounts[email = email] { owner: viewer }
 "#;
 
 #[test]
@@ -117,15 +117,15 @@ fn revocation_suppresses_history_without_deleting_the_devices_retained_copy() {
 fn audience_self_grants_and_unguarded_retargeting_are_refused_at_check() {
     let check = |source: String| snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(check(CHAT.into()).diagnostics.is_empty());
-    for rule in [".principal = viewer", "allow", "exists memberships[.conversationId, viewer, 'admin'] or .principal = viewer", "not exists memberships[.conversationId, viewer, 'admin']"] {
-        let source = CHAT.replace("insert <- exists memberships[.conversationId, viewer, 'admin']", &format!("insert <- {rule}"));
+    for rule in [".principal = viewer", "allow", "exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin'] or .principal = viewer", "not exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin']"] {
+        let source = CHAT.replace("insert <- exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin']", &format!("insert <- {rule}"));
         let bound = check(source);
         assert!(bound.diagnostics.iter().any(|d| d.message.contains("independent grant")), "{rule}: {:?}", bound.diagnostics);
     }
-    let fake_grant = CHAT.replace("insert <- exists memberships[.conversationId, viewer, 'admin']", "insert <- created requests[.conversationId]")
+    let fake_grant = CHAT.replace("insert <- exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin']", "insert <- created requests[groupId = .conversationId]")
         + "\ntable requests:\n  groupId: conversations\n  unique byGroup: groupId\n  read <- allow\n  insert <- allow\n";
     assert!(check(fake_grant).diagnostics.iter().any(|d| d.message.contains("independent grant")));
-    let decoy = CHAT.replace("insert <- exists memberships[.conversationId, viewer, 'admin']", "insert <- exists requests[.conversationId, viewer]")
+    let decoy = CHAT.replace("insert <- exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin']", "insert <- exists requests[.conversationId, viewer]")
         + "\ntable requests:\n  conversationId: conversations\n  principal: principal\n  unique byGroupPrincipal: conversationId, principal\n  read <- allow\n  insert <- .principal = viewer\n";
     assert!(check(decoy).diagnostics.iter().any(|d| d.message.contains("independent grant")));
     let mut wrong_recipient = check(CHAT.into()).schema;

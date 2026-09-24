@@ -15,6 +15,7 @@ mod lifecycle;
 mod verbs;
 mod timeline_cost;
 mod column_cost;
+mod scale;
 mod sync_wire;
 
 use snapback4_lang::guide;

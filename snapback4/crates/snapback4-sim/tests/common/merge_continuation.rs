@@ -53,7 +53,7 @@ fn predicate_top_one(op: &str, count: usize) {
 #[test]
 fn a_predicate_cursor_does_not_take_page_ownership_and_shapes_stay_complete() {
     let (source, rows) = grouped();
-    let source = source.replace("messages[.roomId] last 1", "messages[.roomId] after c last 1");
+    let source = source.replace("messages[roomId = .roomId] last 1", "messages[roomId = .roomId] after c last 1");
     with_fixture(&source, rows, |q| {
         for op in ["v2", "v3", "v4"] {
             let mut context = ctx(None);

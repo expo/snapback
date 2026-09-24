@@ -25,11 +25,11 @@ table counters:
   insert <- .owner = viewer
   sync to .owner
 query one(key: text <=30):
-  return counters[key]
+  return counters[key = key]
 mutation put(key: text <=30):
-  return upsert counters[key] {amount: 0}
+  return upsert counters[key = key] {amount: 0}
 mutation conditional(key: text <=30):
-  return update counters[key] {amount: 1} if .amount = 999
+  return update counters[key = key] {amount: 1} if .amount = 999
 mutation pass(owner: principal): server
   n = 0
   for row in counters[owner] first 10 by byOwner:

@@ -313,7 +313,7 @@ fn web_starter_embeds_reference_and_keeps_default_schema_only() {
     let dir = Dir::new();
     let output = dir.run("--web");
     assert!(output.status.success(), "{output:?}");
-    for file in ["src/App.tsx", "src/state.ts", "src/Composer.tsx", "shell.ts", "vite.config.ts", "index.html", "README.md"] {
+    for file in ["src/App.tsx", "src/state.ts", "src/Composer.tsx", "src/client.ts", "vite.config.ts", "index.html", "README.md"] {
         assert!(dir.0.join(file).is_file(), "{file}");
     }
     let checked = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
@@ -324,6 +324,10 @@ fn web_starter_embeds_reference_and_keeps_default_schema_only() {
     assert_eq!(bound.schema.operations["room"].runs.as_deref(), Some("device"));
     let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
     assert_eq!(package["dependencies"]["snapback4"], env!("CARGO_PKG_VERSION"));
+    assert!(package["scripts"]["build"].as_str().unwrap().ends_with("snapback4 web-shell dist"));
+    assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("createApp"));
+    assert!(fs::read_to_string(dir.0.join("src/App.tsx")).unwrap().contains("useAuth"));
+    assert!(!dir.0.join("shell.ts").exists());
     let plain = Dir::new();
     assert!(plain.run("").status.success());
     assert!(plain.0.join("snapback/schema.q").is_file());
@@ -338,7 +342,7 @@ fn web_starter_refuses_conflicts_before_writing() {
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
     }
-    for file in ["shell.ts", "src/state.ts", "index.html"] {
+    for file in ["src/client.ts", "src/state.ts", "index.html"] {
         let dir = Dir::new();
         let path = dir.0.join(file);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -361,7 +365,7 @@ fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
     files.sort(); files
 }
 
-const RETIRED: &str = "E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    authors profiles by principal\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n    size authors 1008, edges 5921\n  declare before event and edge data exists; see snapback4 guide feeds\n";
+const RETIRED: &str = "E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n  declare before event and edge data exists; see snapback4 guide feeds\n";
 const RECIPE_OPTIONS: [[&str; 2]; 7] = [
     ["--prefix", "feed"], ["--authors", "1008"], ["--edges", "5921"],
     ["--public-profiles", "profiles:principal"], ["--public-posts", "posts:authorId:at"],

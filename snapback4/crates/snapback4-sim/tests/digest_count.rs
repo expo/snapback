@@ -65,7 +65,7 @@ fn dropping_count_results_does_not_remove_sqlite_decode_allocations() {
         let mut args: BTreeMap<_, _> = [("conversationId".into(), Value::Id(chat.into())), ("principal".into(), Value::Id(principal.clone())),
             ("periodStart".into(), Value::Int(10_000)), ("periodEnd".into(), Value::Int(20_000)), ("readAt".into(), Value::Int(0))].into();
         let op = if quiet == 0 { "countPeriod" } else { args.remove("conversationId"); "countAll" };
-        let (control, allocated, elapsed) = measured(|| engine.query(op, Context::new(&principal, args).at(20_000)).unwrap());
+        let (control, allocated, elapsed) = measured(|| engine.query(op, Context::new(&principal, args.clone()).at(20_000)).unwrap());
         println!("count control quiet={quiet} rows={rows} body={body} recipients={recipients} heap={} examined={} steps={} writes={} rust_allocated={allocated} us={elapsed} complete={} state={:?}",
             control.metered.heap_bytes, control.metered.examined, control.metered.steps, control.metered.rows_written, control.complete, control.data);
         if (rows == 10_000 && body == 2000) || (rows >= 5000 && recipients == 50) {
@@ -75,6 +75,22 @@ fn dropping_count_results_does_not_remove_sqlite_decode_allocations() {
         } else {
             assert_eq!(control.data, Value::Int(rows as i64), "{control:?}");
             assert!(control.complete, "{control:?}");
+        }
+
+        if rows == 5000 && recipients == 50 {
+            // The exact retained failing control, with only the consumer changed:
+            // keep all message images and the unchanged 16 MiB job ceiling.
+            args.remove("conversationId");
+            let (run, allocated, elapsed) = measured(|| engine.run_job("streamPeriod", args, 20_000).unwrap());
+            assert_eq!(run.state, snapback4_core::JobState::Done, "{run:?}");
+            assert_eq!(run.chunks, 1);
+            // Pin this fixture's envelope tightly enough that doubling the
+            // per-row key scratch fails, even when the scratch is released.
+            assert!(run.heap_peak <= 370_500, "transient scratch envelope: {run:?}");
+            let effects = engine.effects(None, 10).unwrap();
+            assert_eq!(effects.len(), 1);
+            assert_eq!(effects[0].payload.field("n").unwrap(), &Value::Int(4900));
+            println!("count retained-fixture streaming candidates=5000 hits=4900 recipients=50 peak_heap={} ceiling={} chunks={} rust_allocated={allocated} us={elapsed}", run.heap_peak, Ceilings::job().heap_bytes, run.chunks);
         }
 
         let tx = engine.store_mut().read_transaction().unwrap();

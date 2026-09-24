@@ -161,12 +161,13 @@ impl Flow<'_> {
                     if !block_value { self.reject(&origins, "the returned value", &site); }
                     returned.extend(origins);
                 }
-                Stmt::Emit { payload, .. } => {
+                Stmt::Emit { payload, once, .. } => {
                     // A guard on emit need not taint a constant read key inside its
                     // payload. It still controls any write/refusal a helper performs.
                     let before = self.effect_control.clone();
                     self.effect_control.extend(control.iter().cloned());
                     self.expr(payload, env, &Origins::new(), &site);
+                    if let Some(key) = once { self.expr(key, env, &Origins::new(), &site); }
                     self.effect_control = before;
                 }
                 Stmt::Break => self.reject(control, "break", &site),

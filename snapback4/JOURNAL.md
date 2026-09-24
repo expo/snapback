@@ -47513,3 +47513,1404 @@ membership boundaries. Rolling-rank oracle coverage and separate follow-graph
 growth/hub/boundary evidence are recorded without native/acquisition or release
 speedup claims. Details and the completed/unmet ledger:
 [`reports/20260923-cal18-followups/scale.md`](./reports/20260923-cal18-followups/scale.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane B: maintained views without boilerplate
+
+Implemented on `sb4-intent/b-derived` in `9e217054c`, for supervisor review
+and integration; not pushed or published. The parser admits a maintain without
+a property block/read line and an in-table count/sum without `by`. The catalog
+normalizes dotted group keys, derives an ordinary read declaration from the
+source, and sends it through the unchanged binder, disclosure and partition
+checks. A public/allow source derives allow; other rules retain every referenced
+field only when it is a bare group key, including fields in probe equalities.
+Missing fields refuse with E_MAINTAIN_READ_RULE. Explicit rules still win.
+Maintained columns infer exactly one required or optional source reference to
+the parent; zero or multiple references refuse with
+E_MAINTAINED_COLUMN_REFERENCE, listing candidates and an explicit rewrite.
+Both refusals have registered why text and prose on the maintains card. The
+maintains and language cards compile derived-read and by-less count examples.
+
+All nine Clique aggregates compile and run in maintain spelling, including
+`count posts by parentId` as an ordinary maintain and recorded
+`count posts by parentId.authorId`; no self-reference admission change was
+needed. The fixture checks public scalar totals, daily groups, missing zeros,
+insert/delete deltas, nested replies and credit surviving target deletion.
+`posts.likeCount: count likes`, `repostCount: count reposts` and a by-less
+`sum likes of .weight` use the existing private totals and mirrors. Their
+write-result stripping, ownership, activation and meters are unchanged.
+
+Residency is unchanged: without `online only`, a maintain inherits its source's
+sync if the audience is public or all audience columns survive as bare group
+keys. The inherited aggregate has no horizon, remains until-revoked, and does
+not inherit delivered-history. No source sync or a lost audience column means
+no aggregate sync (server-only). Public sources with subset delivery retain the
+existing server/unknown-local completeness classification. Maintains still do
+not accept a sync line of their own; private column storage never inherits sync.
+
+Measured on the shared Linux host: the seven new regressions passed in 0.04 s.
+They cover the Clique oracle; semantic identity of dotted/undotted and
+explicit/inferred defaults; denied, private, calendar and path readability;
+reference ambiguity, optional references and sums; unchanged residency and
+admission; private snapshot/stream delivery and revocation on a real memory
+Device using production sync encoding; and rule-probe extra equalities. The
+existing maintains (14), maintained columns (42), recorded attribution (5) and
+guide (55) tests passed. WebAssembly was 1,707,362 B raw / 472,890 B gzip against
+the unchanged 474,000 B budget. `./ref-check --verbose` passed: 504 LLP docs,
+9,208 refs in 25,435 files, 0 errors, 0 unchecked. These are correctness and
+build observations, not performance or calibration claims.
+
+Ran `bun install --frozen-lockfile`, then `scripts/test.sh` once. Exact summary:
+`== 1 failure(s) in 236 s` (exit 1; failing step: `cargo test`). All four failed
+Rust cases also fail in `/home/ccheever/sb4-intent/baseline-test.log`:
+
+- Baseline: `cargo test -p snapback4-core --test schema_capabilities_legacy genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+- Baseline: `cargo test -p snapback4-device --test device uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+- Baseline: `cargo test -p snapback4-device --test readauth census::authoring_census`.
+- Baseline: `cargo test -p snapback4 --test check w9b_why_operation_keeps_residency_and_cost_output`.
+
+No introduced or additional environmental failure was observed. All other suite
+steps passed; client tests reported 994 passed, 10 skipped, 0 failed out of
+1,004. Full log: `/home/ccheever/sb4-intent/lane-b-test.log`.
+
+No design deviations. Engineering choices: optional `MaintainDecl.read` marks
+inference; an empty `ColumnAggregate.by` exists only until catalog resolution;
+a source with no read rule derives deny; failed readability inference suggests
+explicit deny as the conservative starting rewrite. The acceptance fixture
+isolates the target's aggregate forms and retains named indexes needed before
+Lane A integration. Did not implement `view`, planner/index synthesis, change
+engine admission or meters, add column prediction, change residency, fix the
+four baseline failures, run a new calibration, or push/publish.
+
+
+## 2026-09-24 — LLP 3000.013 lane B: review round 1
+
+Addressed all four blind-review findings. Read inference now checks that a
+catalog entry is a successfully generated maintain target, so a later file's
+ordinary table cannot make a failed missing-source declaration panic. The
+exact two-file counterexample is a regression that checks the located refusal
+and preserves the ordinary table's public policy. The maintain parser now
+accepts one optional dot after `sum … of`, as the in-table parser does; the
+language card uses the dotted spelling. The sum regression compares dotted
+and legacy schemas/programs, reads a nonzero total, and refuses a second dot.
+
+Strengthened allow inference coverage: the converted Clique fixture asserts
+Allow for every ordinary aggregate and reads nonzero original/daily post and
+received/daily like totals as a bystander. Column-audience coverage asserts
+exact derived rule text, the inherited owner audience with no horizon, and its
+source for both `by owner` and `by owner, day(.at)`, with and without the
+`viewer = 'service:ranker'` disjunct. Engine queries distinguish owner,
+outsider and service; snapshots confirm service grants add no device audience.
+The source retains an explicit owner index until Lane A index synthesis lands.
+
+Reproduced the missing-source panic and dotted-sum syntax refusal before their
+fixes. Affected tests passed: derived_maintains 11, maintains 14,
+maintained_columns 42, guide 55, recorded_round1 5 — 127 passed, zero failed.
+Temporarily changed uniformly-readable inference from allow to deny, then
+separately changed equality-rule inference to allow: each mutant failed its
+new regression. Restored production code and reran all 11 derived tests:
+`test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s`.
+`git diff --check` passed. Logs are `/tmp/lane-b-review1-tests.log`,
+`/tmp/lane-b-review1-mutant-allow.log`, `/tmp/lane-b-review1-mutant-eq.log`, and
+`/tmp/lane-b-review1-restored.log`. This round reran affected tests as requested;
+it did not rerun the full suite or change its previously recorded baseline
+failures, engine rules, residency defaults or meters. No push or publication.
+
+## 2026-09-24 — LLP 3000.013 lane D: streamed totals, adaptive jobs, lifetime effect keys
+
+Landed direct table/prefix-domain count/sum/exists on the existing Scan IR,
+with prepaid per-row decoding and release of exactly its transient heap
+charge. Scan authorization, expiry, structural admission and coverage remain;
+expiring mutation scans still refuse. Unfinished or uncovered query scalars
+are unavailable, while job/mutation cuts abort. Paged existence predicates
+retain their existing inclusive retry behavior without inventing a verdict.
+Stable top-level job for sweeps commit from K=64, halve only meter-refused
+attempts after rollback, freeze evaluated bounds and the upper key with the
+cursor, and park at K=1. Fixed chunks, range/list preludes, break and return
+retain their meanings. Loop-carried prelude locals refuse. Run and doctor
+show chunk size, retries and peak heap. Emit once keys are canonical Value
+arrays with the effect name, durable independently of the outbox, and atomic
+with enqueue/replay suppression. Duplicate enqueue is a no-op; a replayed
+period consumes its key; device prediction claims none.
+
+The retained 5,000-candidate/4,900-hit fixture with 50 recipients per row now
+finishes in one job chunk at 4,102,784 B peak metered heap under the unchanged
+16,777,216 B ceiling. Its original decoded cumulative charge remains
+22,940,000 B; cumulative Rust allocation churn is still 48,089,110 B for the
+streaming run, not a live-heap/RSS claim. The combined scheduled fixture has
+10,000 busy-chat rows, 5,000 period candidates, 50 active users and a probe
+with 100 memberships: exactly 50 digests across restart/retry/rerun, 26 chunks,
+K=2 after five retries, peak 13,188,641 B including refused attempts. Twelve
+new simulator tests, the retained controls, compiled guide examples and CLI
+telemetry checks pass. PostgreSQL support is compile-checked only.
+
+Final scripts/test.sh: `== 1 failure(s) in 194 s` (`cargo test`). Its four
+failing tests are the recorded baseline schema-capability legacy comparison,
+word-expansion fixture, authoring census, and CLI why-text assertion. The new
+card census entries are recorded; remaining census differences match baseline.
+The first full pass had two lane failures (WASM ratchet and corpus walker
+compile error), both fixed; its serial client run passed. Final WASM is
+1,712,075 B raw / 475,001 B gzip versus the same-host 1,707,362 / 472,890
+baseline (+4,713 / +2,111). Per AGENTS.md's explicit byte-budget policy, raise
+474,000 to 476,000 B, leaving 999 B; no runtime ceiling changes. Ref-check:
+504 LLP docs, 9,211 refs, 0 errors, 0 unchecked.
+
+Did not add predicate-read parsing, new aggregate/sweep IR variants, marker
+tables, provider exactly-once delivery, runtime ceiling increases, a full
+cross-lane target-clique integration, publication, or pushes. Full-text matching
+keeps its existing merge consumer. The report records file-by-file changes,
+forms, tests, decisions, exact results and baseline reproductions:
+`reports/20260924-intent-work.md`.
+
+## 2026-09-24 — LLP 3000.013 lane D, Astra review round 1
+
+Addressed all five findings. Streaming scalar availability now observes only
+its own reads through a scoped coverage frame; enclosing query/component
+flags stay monotone, so an inner resolved count, sum or existence test keeps
+the outer non-uniform page and continuation. Adaptive pages stop after K
+selected rows without fetching a lookahead row. Schema-capped non-uniform
+query counts/sums retain their existing bounded path, and explicitly paged
+job prelude loops remain ordinary loops. Added five simulator regressions,
+including 1,025 distinct permanent effect keys refusing with E_BOUND and
+rolling back all keys/effects. Deliberately removing the write-meter charge
+makes that regression fail; the charge was restored before verification.
+
+All 156 affected tests pass. Two 1,500,000-character rows now finish in two
+chunks at K=1 after six retries, with exactly two effects; the reported
+21,011,158 B peak includes refused larger attempts, not a successful chunk.
+The original retained recipient-heavy fixture still completes in one chunk
+at 4,102,784 B peak under the unchanged 16 MiB ceiling. Scheduled scale still
+emits 50 digests in 26 chunks, K=2 after five retries, peak 13,188,641 B.
+The varying-cost first chunk's peak falls from 137,081 to 128,645 B.
+
+scripts/test.sh: `== 1 failure(s) in 187 s` (`cargo test`). All four failing
+tests are baseline: schema-capability legacy comparison, word-expansion
+fixture, authoring census and CLI why-text assertion. The census difference
+is exactly the baseline's 12 actual-only / 1 expected-only entries. No new
+or environmental suite failures remain. WASM: 1,713,043 B raw / 475,320 B
+gzip, +968 / +319 from the preceding lane commit, within the unchanged
+476,000 B budget. Ref-check: 504 LLP docs, 9,211 refs, zero errors/unchecked.
+
+No new syntax, diagnostics, admission relaxation, runtime ceiling increase,
+outbox behavior change, or work on the inherited failures. No push or
+publication. File-by-file changes, executable forms, test evidence and
+baseline reproductions: `reports/20260924-intent-work-r1.md`.
+
+## 2026-09-24 — intent lane G: per-operation scale certificates
+
+Lane G implements the scale certificate for LLP 3000.013 on
+`sb4-intent/g-scale` (implementation commit `829a21e25`). Every successful
+`check` prints a scale summary. Each `check --cost` operation starts with
+its verdict, while all previous cost lines remain. `check --json --cost`
+adds `scale`, an array of operation certificates containing `class`,
+`bounds`, `growth_sites`, `per_chunk`, `per_write` and `whole_job`, plus
+`scaleSummary`. The existing human cost report remains on stderr in JSON
+mode. `why <operation>` receives the same added verdict.
+
+The analysis walks the program IR and schema, including nested shapes,
+loops, lane discovery/setup, rule probes and implicit maintained reads.
+It uses the engine's `scan_visibility` analysis. Residual predicates,
+non-uniform read rules, uncapped domains, word expansion, expiry skips,
+expiring aggregate recounts and data-derived ranges report their growth
+sites and rewrites. Compiler boolean temporaries are rendered as Quarry
+expressions. Jobs are assessed per chunk and name whole-sweep work
+separately. Recorded attribution, maintained aggregates/columns and the
+existing Following delivery cost are included in the verdict.
+
+Engineering choices where the lane brief was silent:
+
+- Bounds are conservative admitted meter work, with lookahead and nested
+  multiplicity included. Writes use the shared runtime ceilings because
+  constraints, prediction authority, derived writes and partition work
+  compose with the authored writes. A failed charge may appear above those
+  ceilings in a trace. No static bytes/steps admission was introduced.
+- Native modules and external actions conservatively use `grows`, naming
+  the absent Quarry body; this is lack of a static independence proof,
+  not a measured claim that every handler scales with the corpus.
+- A range depending only on arguments or the clock is independent of
+  corpus size; its admitted iterations remain bounded by the step meter.
+- This lane adds no Quarry grammar or refusal code. Its compiled bounds-card
+  examples use the existing spellings. Predicate reads from lane A use the
+  same Scan/Merge analysis, including synthesized index names. New IR from
+  other lanes still needs integration: in particular, a new MergeLane
+  projection must be traversed with candidate multiplicity, and streaming
+  or self-chunking variants must preserve their domain's growth facts.
+
+Measured/verified:
+
+- `cargo test -p snapback4 --test scale`: **9 passed**, including explicit
+  class pins for all 45 core language-card operations (34 constant, 11
+  grows), all 11 chat operations (10 constant, external `invite` grows),
+  and all 15 clique-03 operations (13 constant, `following` and `trending`
+  grow because they filter removal/timestamp candidates). Jobs in these
+  counts are per chunk.
+- Additional certificate tests check residual versus pinned reads, uncapped
+  lane discovery versus bounded lists, stored-data versus input ranges,
+  hidden rows, expiring rule probes and live aggregate recounts, a schema
+  cap repairing a whole-domain read, and a renamed/synthesized IR index
+  with an argument page bound. CLI tests retain the old cost lines and
+  verify ordinary-check summaries and structured JSON.
+- Engine witnesses seed **100 then 1,200 rows** and check **pages 1–50**
+  against row/probe bounds, including nested point and page shapes. A
+  sparse filter and a whole-domain count both examine the growing corpus.
+  These are logical-work witnesses, not latency or benchmark-score claims.
+- `cargo test -p snapback4-lang --test guide`: **55 passed**, including the
+  new bounds-card examples without diagnostics or notes.
+- `cargo test -p snapback4 --test check`: **67 passed, 1 baseline failure**
+  (`w9b_why_operation_keeps_residency_and_cost_output`, the same assertion
+  at check.rs:413 as the host baseline).
+- Actual clique-03 CLI output: `scale: 13 of 15 operations are constant; 2
+  grow with data (following, trending); 1 job(s) assessed per chunk — check
+  --cost explains`.
+- Required `scripts/test.sh`: **`== 2 failure(s) in 257 s`**, exit 1.
+  Failed stages: `cargo test`, `client tests`. The build, wasm, docs budget,
+  release guard, package typecheck/build, chat check/typecheck, Expo
+  typecheck and fixture-wrapper tests passed. Full log:
+  `/home/ccheever/sb4-intent/lane-g-test.log`.
+
+Every full-suite failure and its attribution:
+
+1. **Baseline** — core `schema_capabilities_legacy`:
+   `genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+2. **Baseline** — device `device`:
+   `uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+3. **Baseline** — device `readauth`: `census::authoring_census`.
+4. **Baseline** — CLI `check`:
+   `w9b_why_operation_keeps_residency_and_cost_output`.
+5. **Environmental/timing-dependent, inferred** — client
+   `web-navigation.test.mjs:225`, `mutate waits for outbox persistence
+   before the exit transport can see it`: two exit requests versus one.
+   It passed in the host baseline and passed the isolated rerun:
+   `node --test --test-name-pattern='mutate waits for outbox persistence before the exit transport can see it' packages/snapback4/test/web-navigation.test.mjs`
+   (**1 passed, 0 failed**, log
+   `/home/ccheever/sb4-intent/lane-g-client-recheck.log`). No client or engine
+   runtime source changed. Its precise scheduling cause was not proven or
+   repaired. Reproduce the observed concurrent run with `scripts/test.sh`.
+
+For the four baseline Rust failures, reproduce with
+`cargo test -p <crate> --test <target> <test-name>` using the crate/target/name
+above. No new certificate failure remains. No changes were made to runtime
+meters, authorization, disclosure, storage, delivery or publication. The
+new-form target-clique program awaits the other implementation lanes; this
+lane tested its relevant residual/pinned reads, domains and lane shapes
+through the current compiler and IR. No push or package publication.
+
+## 2026-09-24 — intent lane G: review round 1 scale bounds
+
+Addressed all four Astra Medium findings against the interpreter's actual
+charging paths. `crates/snapback4/src/scale.rs` now allows one opening plus
+up to `take` refills per merge lane, including duplicate pops in overlapping
+lanes, lookahead and repeated rule evaluation. The allowance covers both
+small batched merges and the one-row lazy path. Every mutation/job scan
+also includes its Cut::Abort admission, including potential refills. Walks
+count the seed at depth zero and share ordinary point accounting for their
+rows, expiry and authorization; their nested work uses the inclusive total.
+
+Added `src/scale/dependencies.rs`: a monotone fixed-point pass over loop
+bodies, including nested IR expressions, propagates loop-carried stored-data
+dependencies before the cost pass visits the body once. Dependency propagation
+cannot add rows, probes or writes. A point-maintained population count passed
+through `x = y; y = p` now makes a later `range(0, x)` grow with population.
+
+One related correction beyond the four exact reproductions: do not clip
+structural bounds to meter ceilings, since the refused charge is recorded
+first. Meter-limited scans include that last examined charge; implicit-write
+allowances include a possible bulk maintain or rule reservation. Ceilings
+remain unchanged in the engine and are still reported separately in JSON.
+The bounds card explains refills, admission, seed depth, dependencies and
+refused-charge allowances; the language card's walk comment now correctly
+says the seed plus eight parent hops. No new syntax or refusal codes.
+
+`tests/scale.rs` includes five engine witnesses from
+`tests/scale/witnesses.rs`:
+
+- Authorized first-20 merges run at 1, 8 and 9 lanes, with distinct and
+  overlapping authors. Nine overlapping lanes charge **378 examined rows,
+  189 probes**, covered by the certificate's **378 rows, 378 probes**;
+  nine distinct lanes charge **58 rows, 29 probes**. The deliberately
+  conservative probe allowance includes reservation and evaluation.
+- A depth-one authorized walk examines **2 rows, 2 probes**; its nested
+  grant projection examines **4 rows, 2 probes**. Both fit their bounds.
+- A first-20 mutation scan examines **22 rows**; the per-chunk job certificate
+  also includes admission and reports 22.
+- A loop-carried maintained count makes the measured execution grow from
+  **84 to 534 steps** when population rises from 10 to 100, and is classified
+  `grows`. A bounded companion reads the count twice and certifies exactly
+  **2 examined rows**, showing fixed-point passes do not reprice reads.
+- Query probes, a mutation scan and a meter-bounded population scan record
+  their **8,193rd** charge at an 8,192 ceiling; certificates cover those cuts.
+
+All nine original scale tests also pass; language/chat/clique operation
+classes are unchanged. `cargo test -p snapback4 --test scale`: **14 passed,
+0 failed**. `cargo test -p snapback4-lang --test guide`: **55 passed, 0 failed**.
+Negative verification: temporarily replacing both rule-probe contributions
+with `self.probes(0)` makes the authorized merge, walk and probe-ceiling
+witnesses fail (**2 passed, 3 failed** among the five witnesses). Restored
+the analyzer and reran the passing scale suite. Logs:
+`/home/ccheever/sb4-intent/lane-g-round1-{scale,guide,probe-mutant}.log`.
+
+No runtime, authorization, disclosure, durability, meter ceilings, parser,
+planner or client behavior changed. No push or package publication. The
+implementation remains on the existing IR; future lane additions still need
+their exhaustive IR visitor integration. Full-suite results follow below.
+
+Required full run: `scripts/test.sh` exited 1 with exact summary
+**`== 2 failure(s) in 164 s`**. Failed stages: `cargo test`, `client tests`.
+All other stages passed. Log:
+`/home/ccheever/sb4-intent/lane-g-round1-test.log`.
+
+Every failure and reproduction:
+
+1. **Baseline** — `cargo test -p snapback4-core --test schema_capabilities_legacy genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+2. **Baseline** — `cargo test -p snapback4-device --test device uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+3. **Baseline** — `cargo test -p snapback4-device --test readauth census::authoring_census`.
+4. **Baseline** — `cargo test -p snapback4 --test check w9b_why_operation_keeps_residency_and_cost_output` (the other 67 CLI check tests passed).
+5. **Environmental/intermittent, inferred** — client `transport-http.test.mjs:75`,
+   `sync request-line boundaries and a deliberate body ceiling` failed on the
+   oversized-body request at line 101 with `fetch failed`, cause `ECONNRESET`.
+   This test passed in the host baseline and passed an immediate isolated
+   rerun (**1 passed, 0 failed, 0 skipped**):
+   `node --test --test-name-pattern='sync request-line boundaries and a deliberate body ceiling' packages/snapback4/test/transport-http.test.mjs`.
+   Log: `/home/ccheever/sb4-intent/lane-g-round1-http-recheck.log`.
+   The concurrent reproduction is `scripts/test.sh`; the precise cause of
+   the connection reset remains unproven and outside this lane. The previous
+   full run's web-navigation timing failure did not recur.
+
+No introduced failures remain in the affected tests, and no part of the four
+requested fixes is deferred. The extra refused-charge witness and allowance
+are the only scope extension in this review round, required to keep the
+certificate above the engine's recorded work even at a cut. Merge admission
+is accounted for in the IR cost model; the current authoring admission still
+refuses mutation merges, so measured mutation coverage uses an admitted plain
+page. No authoring admission was weakened to construct a test.
+
+## 2026-09-24 — intent lane G: review round 2 admission and search witnesses
+
+Confirmed Grok's High finding was already fixed by round 1 commit
+`bc08ca4e5`: `scale.rs` adds one examined admission unit for every mutation
+or job scan and none for queries. The classification uses the program kind,
+so it also applies to that mutation's device prediction; no separate server-
+only exception exists. No production analyzer or runtime change was needed
+in this round, and query bounds remain unchanged.
+
+Extended `crates/snapback4/tests/scale/witnesses.rs` with these measurements
+and assertions against the real engine:
+
+- The full first-20 mutation page charges and certifies **22 examined rows**;
+  the query control charges and certifies **21**.
+- The first-4 job chunk certifies **6 examined rows**, including admission.
+- `mutation nearLimit`, a first-1 scan repeated 2,730 times, completes and
+  both charges and certifies **8,190 examined rows** (two below the ceiling).
+- Grok's `mutation many`, a first-1 scan repeated 4,000 times, certifies
+  **12,000 rows**. Execution refuses with `E_BOUND` after recording the
+  **8,193rd** charge against its unchanged 8,192 ceiling, within the bound.
+- The equivalent 4,000-scan query completes without a meter cut and both
+  charges and certifies **8,000 rows**. Mutation assertions use the shared
+  `metered.examined <= bounds.rows_examined` helper for both complete and
+  refused execution.
+
+Addressed the Low finding with a separate public, non-expiring `notes`
+fixture: `notes matching q after c first 20 by byWords` has exactly one
+growth reason, **matching words and candidate notes rows (additional search
+terms filter)**. Its ordinary first-20 page remains constant at 21 rows.
+The fixture compiles without notes, runs `cof` against coffee/coffers/tea,
+returns two rows, and checks its engine meters against the certificate.
+Temporarily disabling the WordPrefix growth arm makes this test fail;
+restored the analyzer after that negative verification. This avoids expiry
+or another growth reason masking the missing search arm.
+
+Affected suite: `cargo test -p snapback4 --test scale`: **16 passed,
+0 failed**. Negative search-arm check: **0 passed, 1 expected failure**.
+Logs: `/home/ccheever/sb4-intent/lane-g-round2-scale.log` and
+`/home/ccheever/sb4-intent/lane-g-round2-search-mutant.log`.
+
+No new syntax, production changes, scope deviations or deferred review
+findings. Existing authorization, admission and meter ceilings are unchanged.
+No push or package publication. Full-suite verification follows below.
+
+Required full run: `scripts/test.sh` exited 1 with exact summary
+**`== 1 failure(s) in 113 s`**. Only the `cargo test` stage failed;
+all client tests and other stages passed. The restored analyzer passed all
+16 scale tests again in the full run. Log:
+`/home/ccheever/sb4-intent/lane-g-round2-test.log`.
+
+Every failure is present in the host baseline; reproduction commands:
+
+1. **Baseline** — `cargo test -p snapback4-core --test schema_capabilities_legacy genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+2. **Baseline** — `cargo test -p snapback4-device --test device uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+3. **Baseline** — `cargo test -p snapback4-device --test readauth census::authoring_census`.
+4. **Baseline** — `cargo test -p snapback4 --test check w9b_why_operation_keeps_residency_and_cost_output` (67 other check tests passed).
+
+No introduced or environmental failures occurred in this full run. Neither
+of the prior full runs' intermittent client failures recurred. Both round 2
+findings are handled; no additional open problem was found.
+
+## 2026-09-24 — LLP 3000.013 lane E: app-owned accounts and exported shells
+
+Implemented `snapback4/app` with auth state/actions, session restoration and
+rotation, account-fenced client replacement, local-device outbox reuse, and
+per-account durable online intents recovered with their original IDs and
+arguments. Added `AppProvider`/`useAuth` without changing the Client contract.
+Credential-storage failures keep authenticated clients hidden, preserve
+uncertain writes, and allow logout cleanup to be retried; signed-out completion
+waits for credential deletion. Web persistence remains explicit.
+
+The JS CLI shim now owns `snapback4 web-shell`: every exported static file is
+precached in a content-hashed cache, every HTML entry registers idempotently,
+and offline navigations recover the shell. Cross-origin requests pass through;
+API responses do not enter the shell cache. The JS implementation needs no
+platform binary. Generated Expo and Vite starters use the app API and finish
+their web builds with that command. The README first screen replaces its
+handwritten account controller with the same forms.
+
+Measured: 29 focused app/React/shell tests passed; the final cleanup follow-up
+passed all 10 app tests. Generated Expo/web entrypoints typecheck, the language
+guide passed 55 tests, and the Rust initializer passed 18. Chromium restored a
+fresh offline page, then reloaded, with shell, account and replica intact after
+both backend and shell server stopped (1,483 ms witness, not a speed claim).
+The broader starter journey passed account isolation, original-ID ordered
+replay with no duplicate rows, receipt persistence and guest credential
+clearing. Its failed worker-only update step remains unqualified after three
+attempts: the fixture did not observe the expected failed asset download, and
+no installing/waiting worker appeared. The 3-round fix-loop rule stops that
+investigation; the worker's unit cases pass. Reproduction and logs are in the
+[lane report](./reports/20260924-lane-e-client.md).
+
+Latest complete `scripts/test.sh`: **`== 1 failure(s) in 100 s`** (cargo test).
+All four failures also occur in the untouched host baseline: legacy schema
+capabilities, the search wasm fixture, authoring census and the why-operation
+cost-output assertion. Client tests: 1,009 passed, 10 skipped, zero failed.
+The final small logout-everywhere storage-error change was checked with the
+10-test targeted app run afterward. An earlier full run also had a raw-HTTP
+action-settlement socket closure; its targeted rerun and later full runs
+passed. This is recorded as intermittent/environmental, not a proven baseline
+failure. No affected suite failure remains attributable to this lane.
+
+Did not alter engine authority, disclosure, meters, the Client contract, Quarry
+syntax or reference-app calibration modes. Did not run a native Expo simulator
+on Linux, claim integrated target-Clique qualification, push or publish. Custom
+SessionStores shared concurrently by separate non-browser processes remain
+unsupported because the existing store card has no compare-and-swap; browser
+tabs use Web Locks. Detailed files, examples, decisions and open reproductions
+are in the same lane report.
+
+
+## 2026-09-24 — LLP 3000.013 lane E review round 1
+
+Addressed all five Astra Medium findings in `cfadff4d9`. Logout invalidates
+per-opener session persistence and deletes credentials outside the network
+queue; late restoration cannot restore them. Ordinary close retains rotation
+ownership until the replacement is persisted. Shared online journal owners
+notify their own hooks independently and finish their argument reservations
+after durable settlement. Shell navigations now use the active build's cached
+HTML online too, so waiting-deployment HTML cannot escape its asset set.
+
+Measured: 37 focused app/custody/React/shell tests passed, plus all 11 online
+session tests. Real-server races hold schema/logout/rotation responses and
+prove credential deletion or successor preservation as appropriate. The shared
+300-write test measures at most 256 retained argument identities and zero
+pending reservations for each owner; the React test proves both pending hooks
+settle after only one durable retirement. Both Chromium witnesses pass. The
+expanded starter witness now qualifies its previously timed-out failed-update
+phase, old-tab asset retention, activation, and an unused lazy chunk loaded
+offline after online navigation while the next deployment waits. No assertion
+was skipped. The earlier timeout's exact cause remains unisolated; it is not
+claimed to be a pre-existing witness defect. Cold-offline shell/account/replica
+reopen passed with both servers stopped (1,431 ms, not a performance claim).
+
+Final complete suite: **`== 2 failure(s) in 123 s`**, cargo and client aggregates.
+The four Rust failures match the untouched host baseline (legacy schema
+capabilities, search wasm fixture, authoring census, why cost output). Client
+results were 1,016 passed, 10 skipped and one intermittent `ECONNRESET` in the
+unchanged retained-history test's raw HTTP request to its restarted fixture
+server; that exact test passed an isolated rerun. An earlier 149-second full
+run also caught the old assertion that ordinary close discards a rotation;
+it was deliberately updated and now passes, including proof that closed
+clients still refuse new work. Exact test names, logs and reproductions are in
+[the review report](./reports/20260924-lane-e-review1.md).
+
+Did not alter authorization, disclosure, meters, Client vocabulary or ceilings;
+did not run a native Expo simulator, push or publish. The second review family
+is still pending. The original handoff report links forward to this result.
+
+
+## 2026-09-24 — LLP 3000.013 lane E review round 2: storage ownership
+
+Addressed all four Grok findings in `3bbb80328`. Session and journal key
+segments now use injective fixed-width hexadecimal encoding before reaching
+any store; generated and documented SecureStore adapters pass keys through
+unchanged. Journals record backend and owner and every pending intent carries
+its owner. Foreign or malformed records are preserved under a separate key,
+then an empty owned journal opens with an `auth.why` warning. If preservation
+fails, original bytes remain, sign-in succeeds, and writes stay blocked until
+preservation is possible.
+
+Failed app opens now revoke and clear their kept bearer before publishing
+signed-out. Session replacement and deletion use the same Web Lock, and a
+server refusal deletes only the same token still stored, preserving another
+tab's rotated successor. Explicit clearing revokes a successor it drops.
+
+Measured: all 73 final affected tests passed. The generated Expo Go adapter
+keeps four formerly colliding principal pairs and colliding backend URLs
+separate. A foreign recorded intent never dispatches even at the correct safe
+key. Real-server tests prove failed-open cleanup before state publication and
+stale-refresh preservation for online and local clients. Corrupt JSON, invalid
+shapes, unavailable preservation and quarantine-name entropy failure are
+covered. Both generated starters and README examples typecheck. Both Chromium
+witnesses pass, including offline account/replica reopen with both servers
+stopped (1,498 ms, not a performance claim) and full starter deployment updates.
+
+Complete suite: **`== 1 failure(s) in 145 s`**, cargo aggregate only. Client
+results: 1,030 passed, 10 skipped, zero failed. The same four Rust tests fail
+in the untouched baseline: legacy schema capabilities, search wasm fixture,
+authoring census and why cost output. A final quarantine-name failure guard
+and its test were verified by the 73-test affected run after that snapshot.
+Exact names, reproduction commands and the corrected initial focused failure
+are in [the review report](./reports/20260924-lane-e-review2.md).
+
+The pre-release storage format changes: ambiguous old keys and ownerless
+journals cannot be safely imported automatically. Their bytes remain untouched;
+sign in again after upgrading and recover old records only with verified
+ownership. Local device outboxes and server data do not change. Did not change
+engine authorization, disclosure, meters, Client vocabulary or ceilings; did
+not run a native Expo simulator, push or publish.
+
+## 2026-09-24 — LLP 3000.013 Lane A: intent reads and planned views
+
+Implemented on `sb4-intent/a-planner` from `6d9f3e001`: predicate reads and
+column ordering, deterministic reserved index synthesis, declared-only
+positional key resolution, named probes and sync indexes in written order,
+search declarations, unnamed unique keys, durations, all three view parser
+forms, and typed planned unions. Shared server/device execution authorizes
+each source before filtering/projection, identifies rows by branch and source
+id, translates a view-owned cursor per lane, and retains incomplete value
+source discovery. Constant-incompatible branches are pruned before scanning.
+
+The index-name-free Clique subset runs Global, thread, user posts, Trending,
+people search and authorized membership search-all. Finite Trending matches
+the hand-written merge on ties, removals, partial oldest buckets and future
+upper bounds. New tests cover equal source ids, repeated branches, both cursor
+directions, interleaved inserts, empty/pruned cursors, nullable order keys,
+unequal caps, missing coverage on memory/SQLite devices, and a live subscription
+invalidated by either source table. Positional compatibility fixtures were
+migrated; four historical golden digests change only because `Require.site`
+columns moved after named-key spelling. All eight lowering shards pass.
+
+Final `scripts/test.sh`: `== 1 failure(s) in 154 s`. Its only failure is
+`snapback4-core::schema_capabilities_legacy::genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`,
+also present in `~/sb4-intent/baseline-test.log` (`== 1 failure(s) in 276 s`).
+No introduced failures remain in that final run. The 21 intent tests, four
+device union tests, 55 guide tests and 995 client tests pass (10 client skips).
+Earlier intermittent acquisition/worker shutdown failures passed isolated
+reruns and the final full run. Evidence: `/tmp/lane-a-suite-releasecheck.log`;
+full inventory and reproductions: `reports/20260924-intent-lane-a.md`.
+
+`build-wasm.sh` measured 1,735,736 bytes raw / 480,624 bytes gzip on Rust 1.97.0,
+wasm-bindgen 0.2.127, no wasm-opt. The host baseline measured 1,707,362 raw /
+472,890 gzip: +28,374 raw / +7,734 gzip for the combined interpreter changes.
+The final gzip exceeds the previous 474,000-byte ceiling by 6,624 bytes. Raise
+`metrics/wasm-budget.json` to 481,000 bytes, leaving 376 bytes. This measures
+the whole artifact, not independent feature costs; the compiler is outside
+that artifact. No execution meter ceiling changed.
+
+Did not implement Lane B's aggregate readability, Lane C's feed binding,
+Lane D's streaming aggregates/self-chunking, a Cartesian planner for multiple
+lane-producing conjuncts, or calendar-name collision support. Additional
+conjuncts, shared helper/shape bodies and non-query programs retain ordinary
+residual scans and existing admission. Declared indexes with extra components
+after the needed id get a separate canonical index. The inherited expression
+printer's omitted grouping in some cost explanations remains a presentation
+issue; execution is covered. These limits and concrete reproductions are in
+the report. No package was published and no commit was pushed.
+
+## 2026-09-24 — LLP 3000.013 lane C: durable Following, epoch question stopped
+
+Implemented the no-cap timeline declaration path on `sb4-intent/c-following`:
+engine-owned delivery/backfill/cleanup/purge records, bounded transactional
+chunks and cursors, own-copy prediction, public-source admission, immutable
+originals filters, a 50-event follow preview and 1,000-event backfill window,
+256 synchronous unfollow deletes, epoch-bound reader work/copies, truthful
+pending completeness and stale-scan continuations. Dev/serve wake delivery on
+commit; replay still delivers. Doctor exposes pending/parked work. `timeline-v2`
+fences native/Wasm 0.3 devices and opening a v1 store; no migration was written.
+
+Measured post writes: five followers = four, 900 followers = four. First pages:
+five follows = 61 examinations, 500 follows = 61. Delivery to 900 followers took
+four chunks/901 copies; crash/reopen and compatible index adoption resumed with
+no duplicates (latest isolated run 140 ms). Actual HTTP delivery in dev replay
+measured 73 ms. Both device stores pass 26 timeline tests; the counted/uncounted
+oracle and reduced Clique fixture agree after explicit delivery drain. The
+final full suite reported `== 1 failure(s) in 173 s` (`cargo test`): only the
+three remaining host-baseline failures (search Wasm fixture snapshot, read-auth
+census, why-operation output). Client tests: 994 passed, zero failed, ten existing
+skips. Wasm gzip: 473,253 bytes within the unchanged 474,000-byte budget.
+
+Stopped the unresolved fan-out epoch requirement: one post task spans many
+edge epochs and currently discovers recipients during its chunks. Verified
+counterexample: 1,100 pending posts, then a new follow, then drain yields 1,100
+copies despite backfill's 1,000-event window. No eligibility redesign was made;
+this needs supervisor resolution before merge. Reader-specific tasks and copies
+are epoch-bound and refollow cleanup is tested. Lane A's landing was not signaled,
+so FeedView binding/rebase remains deferred. The guide lane still owns the rest
+of the old card prose. No push, publication, migration or meter increase.
+
+File-by-file work, exact test replacements, failures and the copyable stopped
+counterexample: [lane report](reports/20260924-following-v2/report.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane C review round 1: admission order and metered delivery
+
+Fixed all five Astra findings. Engine-owned private edge admissions now mint
+fresh epochs from commit sequence and intra-transaction write ordinal, so reused
+application edge ids cannot let retired cleanup delete new copies. Backfill owns
+pre-follow events within the 1,000-event window; delivery owns later events.
+Completed delivery records retain admission metadata until removal. Trusted
+restores advance the sequence floor. Reserved `$timeline:` follower indexes
+cannot collide with authored indexes. Timeline scans now precharge decoded
+payload, retained rows and keys under the unchanged heap ceiling. Ordinary jobs
+retain their existing meters; the first full run caught and the fix removed an
+over-broad check of their empty purge grants.
+
+Measured post writes remain 4 for both five and 900 followers; first-page
+examinations remain 61 for both five and 500 follows. Follow preview/unfollow now
+cost at most 53/259 writes, including the owned admission insert/delete. Reused
+`fixed-edge` refollow converges to all 600 unique events. Both drain orders retain
+exactly 1,000 of 1,100 older events; a newer backdated event is delivered separately.
+The 256 × 100,000-character edge-payload probe refuses before materializing the
+batch and parks without copies or cursor progress. Pre-cleanup pagination checks
+the whole sequence; removing the epoch predicate makes its regression fail.
+Fifteen background tests, both device stores, the counted/uncounted oracle,
+reduced Clique, all twelve digest tests and replay delivery pass.
+
+Final `scripts/test.sh`: `== 1 failure(s) in 197 s` (`cargo test`), only the three
+supplied-baseline failures: search Wasm fixture snapshot, read-auth census and
+why-operation output. Client tests: 994 passed, zero failed, ten existing skips.
+Wasm: 1,708,510 bytes raw / 473,320 gzip, below the unchanged 474,000-byte budget.
+The initial round-1 suite's three introduced digest failures were fixed; one
+unrelated HTTP admission timing failure passed isolated retry and the final suite.
+No ceiling, source disclosure rule or device prediction boundary was relaxed.
+FeedView binding still waits for Lane A; no rebase, migration, push or publication.
+The prior epoch/window blocker is resolved by the supervisor's one-producer rule.
+File-by-file changes, tests and reproductions: [round-1 report](reports/20260924-following-v2/review-round1.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane C review round 2: device fence and backlog proofs
+
+Shared the server's timeline version check with device open and adoption. Saved
+v1 timelines now refuse with `E_TIMELINE_REDEFINE` and fresh-store guidance before
+installation, even when a newer backend is supplied. Memory and SQLite tests
+preserve metadata, source rows and queued writes on every refused path; genuine
+legacy bytes remain decodable. Replaced two old tests that expected legacy
+execution with six compatibility/refusal tests.
+
+Confirmed round 1's engine admission order and one-producer rule cover both
+sides of a saved delivery cursor. Promoted the 1,100-pending-event counterexample
+to a committed regression expecting exactly the newest 1,000. Added proofs that
+late followers before and after a saved cursor converge identically and a full
+256-edge skipped chunk keeps scanning. The pre-cleanup refollow page now asserts
+20 distinct ids backed by new-epoch copies, alongside the existing complete
+50-event pagination proof. No delivery runtime redesign was needed.
+
+All 56 affected tests passed. Post writes remain 4/4 for five/900 followers;
+first-page examinations remain 61/61 for five/500 follows. The 900-follower
+crash/reopen run took 460 ms, four chunks and 901 copies. The wide-payload scan
+still refuses at the unchanged heap ceiling without committing copies or cursor
+progress. Wasm is 1,708,992 bytes raw / 473,405 gzip, below the unchanged 474,000
+budget. The reference check reports zero errors or unchecked refs.
+
+Required `scripts/test.sh`: `== 1 failure(s) in 192 s` (`cargo test`). Only the
+three supplied-baseline failures remain: search Wasm fixture snapshot, read-auth
+census and why-operation output. No introduced or environmental failures in this
+round. Client tests: 994 passed, zero failed, ten existing skips. FeedView binding
+still waits for Lane A's announced landing. No migration, disclosure change,
+meter increase, device prediction expansion, rebase, push or publication.
+Implementation: `e1ef352ea`. File-by-file changes, tests, failures and reproductions:
+[round-2 report](reports/20260924-following-v2/review-round2.md).
+
+## 2026-09-24 — LLP 3000.013 lane D, Grok review round 2
+
+Addressed all four findings. Streaming key-decode and key-copy scratch is
+released with each row; one retained cursor/key reservation remains and grows
+only for a larger key. Inner aborting domains now decode one prepaid row at a
+time, charge selected images and buffers before retaining them, and release
+decoder scratch separately. Their existing select-before-body semantics stay.
+Adaptive job pages fetch one candidate at a time for every read-rule class,
+with key work prepaid. Round 1 had already removed the forced 32-row fetch.
+Added four simulator regressions and tightened both retained digest heap
+assertions. Temporary mutations doubling scratch, removing retention charges,
+restoring 32-row job fetches and bypassing row rules each fail the intended
+regression; all faults were restored before final verification.
+
+The original retained 5,000-candidate / 4,900-hit / 50-recipient fixture peaks
+at 370,216 B (previously 4,102,784 B), below its new 370,500 B test envelope
+and the unchanged 16 MiB job ceiling. Its cumulative Rust allocation counter
+is 48,089,687 B, not a live-heap or RSS claim. The ordinal/once digest peaks
+at 372,756 B; scheduled scale still emits 50 digests in 26 chunks, K=2 after
+five retries, across restart/rerun, at 1,309,094 B peak. A 16,370-row domain
+with 256-character index keys peaks at 22,233 B. Non-uniform sweeps with legal
+large JSON payloads finish at K=2 and K=1 under differing per-item work; a
+too-large inner domain refuses before reaching a deliberately malformed final
+row, rolling back all keys/effects. The read-rule regression visits three
+rows in a permitted prefix and excludes the denied row from count and sum.
+
+149 affected tests pass, one existing test ignored; PostgreSQL compiles.
+scripts/test.sh: `== 1 failure(s) in 151 s` (`cargo test`), solely the four
+recorded baseline failures: legacy schema capability, word-expansion fixture,
+authoring census and CLI why text. The census difference matches baseline
+exactly. No new or environmental failures remain. WASM is 1,714,371 B raw /
+475,536 B gzip, within the unchanged 476,000 B budget. Ref-check: 504 LLP docs,
+9,212 refs, zero errors/unchecked. Largest changed source: 1,289 lines.
+
+No admission, authorization, expiry, effect transaction, replay/prediction,
+syntax or IR changes; no runtime ceiling increase, push or publication.
+File-by-file details, executable forms, measurements, fault-injection results
+and baseline reproductions: `reports/20260924-intent-work-r2.md`.
+
+## 2026-09-24 — intent lane G: delta review write-ceiling witness
+
+Addressed Astra's remaining Low finding in
+`crates/snapback4/tests/scale/witnesses.rs`. The shared `covers` helper now
+compares `metered.rows_written <= bounds.writes` as well as examined rows
+and rule probes, so every engine witness checks the write allowance.
+
+Added `write_certificate_includes_the_refused_1025th_insert`: a mutation
+loops over `range(0, 1025)` and inserts one public, online-only row each
+iteration. The engine records **1,025 writes**, refuses with **E_BOUND**
+against its unchanged **1,024-write** ceiling, and the certificate covers
+the refused charge with **1,025 writes**. A subsequent query finds no rows,
+confirming transaction rollback.
+
+`cargo test -p snapback4 --test scale`: **17 passed, 0 failed**. Verified the
+specific regression by temporarily removing `.saturating_add(rows)` from
+the write allowance: the new test fails in `covers` with **1,025 charged
+writes > 1,024 certified writes** (**0 passed, 1 expected failure**). The
+recorded engine trace also has 0 examined rows, 1,025 index entries,
+0 probes, 9,226 steps and 559,650 heap bytes: the write ceiling is the limit
+being exercised. Restored the production analyzer afterward. Logs:
+`/home/ccheever/sb4-intent/lane-g-delta-scale.log` and
+`/home/ccheever/sb4-intent/lane-g-delta-write-mutant.log`.
+
+No production code, authoring form, authorization, disclosure, durability
+or runtime meter changed. No scope deviation, deferred finding, push or
+package publication. Full-suite verification follows below.
+
+Required full run: `scripts/test.sh` exited 1 with exact summary
+**`== 1 failure(s) in 144 s`**. Only `cargo test` failed; client tests and all
+other stages passed. The restored analyzer passed **17 scale tests** again
+in the full run. Log: `/home/ccheever/sb4-intent/lane-g-delta-test.log`.
+
+Every failure is a known host baseline failure; reproduction commands:
+
+1. **Baseline** — `cargo test -p snapback4-core --test schema_capabilities_legacy genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+2. **Baseline** — `cargo test -p snapback4-device --test device uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+3. **Baseline** — `cargo test -p snapback4-device --test readauth census::authoring_census`.
+4. **Baseline** — `cargo test -p snapback4 --test check w9b_why_operation_keeps_residency_and_cost_output`.
+
+No introduced or environmental failure occurred in this full run. The delta
+review finding is closed; no additional open problem was found.
+
+## 2026-09-24 — lane E delta review: conditional restoration and exported routes
+
+Landed the four delta findings. Restored session saves compare against their
+captured token under the shared session lock and retry opening when another app
+has replaced it; stale cleanup preserves the successor's session family.
+Auth rejection now captures the current revision so a preceding failed login
+cannot strand the app in restoring. The shell resolves exported directory
+indexes and extensionless HTML before the root entry, online and offline.
+A valid journal transplanted between backends for the same principal is now
+covered through the generated Expo SecureStore adapter.
+
+Measured: 87 affected tests passed, including nine new regression cases.
+The earlier bugs reproduced before the fixes; removing only the journal's
+backend check makes the new transplant test fail. Both Chromium witnesses
+passed, including the previously timed-out worker update and cold-offline
+account/replica reopening with both servers stopped (3,481 ms on this run,
+not a performance claim).
+
+Complete suite: **`== 2 failure(s) in 146 s`**, cargo and client aggregates.
+All four Rust failures match the untouched baseline. Across the eight client
+test processes, 1,073 passed, 10 skipped, and one acquisition assertion failed
+because a write was already sent when pending was expected. Its isolated
+rerun passed; a controlled pause before close in a temporary copy reproduced
+the same outcome. The fixture and local-client implementation are unchanged
+from the lane base, and the fixture permits mutation dispatch while blocking
+sync. Classified environmental/timing-sensitive; left outside this review.
+Exact failures, reproduction commands, proof logs and file-by-file changes
+are in [the delta report](./reports/20260924-lane-e-delta.md).
+
+Did not change the Client contract, engine authorization/disclosure, meters,
+ceilings or Quarry forms. Did not run a native Expo simulator or integrated
+Clique qualification, fix unrelated baseline/timing failures, push or publish.
+
+## 2026-09-24 — LLP 3000.013 integration: intent lanes and Clique qualification
+
+Integrated B, D, G, E, A and C with separate no-ff merges in the commissioned
+order and a successful workspace build after each. Then merged the available
+D `2f9afbb13`, G `542df62f4` and E `4e21d8688` review fixes, again building
+between merges. Preserved each lane's journal and all features, diagnostics
+and regression tests. The actual existing worktree is `~/sb4-intent/lane-i`,
+branch `sb4-intent/integration`; the named integration directory was absent.
+
+Combined predicate planning inside permanent emission keys with structural
+scale analysis of projected/cross-table/bucketed merges, streamed aggregates
+and adaptive job sweeps. Six certificate tests cover conservative work bounds;
+two tests execute the supplied Clique target with all nine derived views,
+authorized search/history and predicate streaming, restartable digest chunks
+and durable once keys. Only Following/home remain excluded as commissioned:
+the full target reports E_VIEW_FEED_PENDING and the dependent E_QUARRY_UNKNOWN.
+Trending uses the requested `.at <= now` upper bound.
+
+Measured the 67-profile/5,000-period-row Clique digest at two chunks, K=64,
+zero retries and 311,014 B peak heap, down from 6,612,305 B before D's key-scratch
+fix. The count returns 4,949 authorized rows and reports 650 B retained heap
+after transient release, not a peak. Reopen resumes the sweep; rerunning emits
+no duplicate effects. The 16,777,216 B runtime heap ceiling is unchanged.
+The original recipient-heavy streaming fixture peaks at 370,216 B; all 24
+focused digest/work/review/integration tests passed.
+
+Final WASM on Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt:
+1,743,957 B raw / 484,640 B gzip. Against the same-host unmodified baseline
+1,707,362 / 472,890 this is +36,595 raw / +11,750 gzip. The combined projected
+merge, streaming/prepaid domain and metered timeline paths exceed the inherited
+481,000 B ratchet by 3,640 B. Raise it to 485,000 B, leaving 360 B. These are
+whole-artifact deltas, not independent per-feature attribution; no runtime
+meter ceiling changed. The measurement, reason and budget land together.
+
+Audited the four pre-existing main failures: schema/word fixtures changed only
+intentional diagnostic metadata before C's intentional v2 capability change;
+w9b gained intended lookup-selection detail; the remaining integrated census
+changed only inspected feeds-card occurrences. Refreshed that census without
+changing authorization assertions. First full run: `== 1 failure(s) in 730 s`,
+only that integration expectation mismatch, then corrected. Final full run:
+**`== 0 failure(s) in 307 s`**. All stages pass, including all four named baseline
+tests, 81 readauth, 68 CLI check, 23 scale tests and 1,075 client tests (10 skips).
+E's timing-sensitive W5c acquisition case also passes alone, 1/1; it did not
+reproduce here. The historical scheduling counterexample remains documented.
+Reference audit: 504 LLP documents, 9,226 refs, zero errors or unchecked refs.
+Every changed source file stays within 1,500 lines.
+
+Did not bind Following's new view form (C's next increment), redesign the
+language, relax authorization/disclosure/durability/meters, run a new browser
+or native-device witness, deliver through a real provider, make a calibration
+score claim, push or publish. File-by-file changes, merge resolutions, target
+forms, baseline reasoning and reproduction commands are in
+[the integration report](./reports/20260924-intent-integration.md). Full logs:
+`~/sb4-intent/integration-suite-{1,final}.log`.
+
+## 2026-09-24 — LLP 3000.013 lane D, Astra delta review
+
+Fixed the unknown-input regression in streaming scalars. Their coverage frame
+now inherits prior missing-fact, horizon, word-expansion and presence
+uncertainty, including binder-hoisted bounds and saved locals. It still keeps
+an outer page's non-uniformity separate. Without per-value coverage
+provenance, earlier unknown coverage is conservatively retained even if the
+reads might be independent, as the review requested. The bounds card states
+that a fallback does not establish coverage.
+
+Added three tests: all of count/sum/exists with an unknown hoisted prefix;
+all three with an unknown saved filter local; and a memory-store cursor
+reservation at a refusal boundary. The coverage tests also prove known
+absence returns zero/false and known inputs agree with server totals. With a
+5,000 B heap allowance, one 32-character-key row fits, but adding a
+256-character-key row refuses at 5,089 B charged, including the refused
+charge. Deleting just the retained-cursor heap charge makes this test fail
+with an incorrect complete count of two. Restored the charge before checks.
+
+87 affected tests pass: 25 intent/control/review, seven device components and
+55 guide tests. The recipient-heavy 5,000-candidate / 4,900-hit / 50-recipient
+control remains at 370,216 B peak under the unchanged 16 MiB job ceiling.
+The ordinal/once variant peaks at 372,756 B; scheduled scale still emits 50
+digests across restart/rerun in 26 chunks, final K=2 after five retries, at
+1,309,094 B peak including refused attempts.
+
+scripts/test.sh: `== 1 failure(s) in 184 s` (`cargo test`). All four failures
+are baseline: legacy schema capability, word-expansion fixture, authoring
+census and CLI why text. The census mismatch remains exactly the baseline's
+12 actual-only / one expected-only entries. No new or environmental failures.
+WASM: 1,714,421 B raw / 475,748 B gzip, within the unchanged 476,000 B budget.
+Ref-check: 504 LLP docs, 9,212 refs, zero errors/unchecked. Largest changed
+source: 1,298 lines. No syntax, IR, admission, authorization, expiry, effects
+or runtime ceiling changes; no per-value provenance redesign, push or
+publication. Details and baseline reproductions:
+`reports/20260924-intent-work-r3.md`.
+
+## 2026-09-24 — LLP 3000.013 lane D, Grok delta review
+
+Inner job domains now release a selected row's decode/scratch allowance
+before charging its retained image and row-vector growth. They retain no
+unused result-key vector; the cursor reservation remains. Selection still
+precedes body execution, every row is prepaid before decoding, and retained
+rows, buffers and non-transient work remain charged. The bounds card records
+the handoff. Added three simulator tests for the exact three-large-row case,
+unused-key allowance near the examined ceiling, and uniform schema-capped
+count/sum under a meter cut. The existing binder upgrade needs no code change.
+
+Three rows with 2,000,000-character bodies now complete one chunk at K=64,
+zero retries, emitting count three, at 16,014,923 B peak under the unchanged
+16 MiB ceiling. Previously this parked at K=1 with 18,015,233 B including the
+refused charge. A 16,370-row inner domain falls from 5,565,503 B to 4,484,226 B
+peak by dropping unused keys. Moving the retained-row charge before scratch
+release now fails the large-row test. Deleting the uniform aggregate upgrade
+now fails with partial count three instead of null. Both temporary mutations
+were restored before final checks. The oversized-domain/malformed-suffix
+test still refuses before the bad decode and rolls back all effects and keys.
+
+90 affected tests pass: 28 intent/control/review, seven device component and
+55 guide tests. The original recipient-heavy 5,000-candidate / 4,900-hit /
+50-recipient control remains at 370,216 B; the ordinal/once fixture peaks at
+372,664 B. Scheduled scale still emits 50 digests across restart/rerun in 26
+chunks, final K=2, five retries, at 1,297,161 B peak including refused attempts.
+
+scripts/test.sh: `== 1 failure(s) in 164 s` (`cargo test`), solely the four
+baseline failures: legacy schema capability, word-expansion fixture,
+authoring census and CLI why text. The census difference is baseline-identical
+(12 actual-only / one expected-only). No new or environmental failures.
+WASM: 1,714,464 B raw / 475,764 B gzip, within the unchanged 476,000 B budget.
+Ref-check: 504 LLP docs, 9,212 refs, zero errors/unchecked. Largest changed
+source: 1,302 lines. No syntax, IR, diagnostic, admission, authorization,
+expiry, effect or runtime ceiling changes; no push or publication. Details,
+forms, mutation evidence and baseline reproductions:
+`reports/20260924-intent-work-r4.md`.
+
+## 2026-09-24 — lane E Grok delta: shared logout epochs and safe restore cleanup
+
+Landed all three findings. A persisted epoch now binds sign-in, restore and
+refresh ownership across app instances. Logout advances it under the same
+session lock as deletion; obsolete saves revoke their late successor and
+retire their client without replacing a newer login. Invalid/expired session
+cleanup compares the exact bytes read and never invokes remote logout. A
+replacement causes restoration to retry. The SecureStore tests now include
+the `ab`/`慢` collision that variable-width hex encoding would introduce.
+
+Measured: ten new regression cases; all 136 final affected tests passed.
+Real-server probes cover held online/local rotations across logout and Bob's
+login, an old sign-in returning late, refresh starting after failed remote
+revocation, and garbage cleanup racing a rotated session. Removing only hex
+padding fails the strengthened uniqueness check. Both Chromium witnesses
+passed, including worker updates and fresh offline account/replica reopening
+with both servers stopped (1,575 ms on this run, not a performance claim).
+
+Final complete suite: **`== 2 failure(s) in 159 s`**, cargo and client
+aggregates. The four Rust failures match the untouched baseline. Across all
+client processes, 1,083 passed, 10 skipped and one unchanged release-recovery
+fixture failed: its scheduler completed on an empty table before the fixture
+inserted the row that would park the job. The isolated rerun passed; a
+controlled startup delay in a temporary copy reproduced the same assertion.
+Classified environmental/timing-sensitive. The earlier full run was
+`== 1 failure(s) in 109 s`, baseline Rust failures only. Initial focused-test
+barrier failures were corrected to accommodate epoch capture before transport;
+all original outcome assertions remain. Exact failures and reproductions are
+in [the Grok delta report](./reports/20260924-lane-e-grok-delta.md).
+
+Did not change the Client contract, engine authorization/disclosure, meters,
+ceilings or Quarry forms. Did not run a native Expo simulator or integrated
+Clique qualification, fix the unrelated baseline/timing failures, push or
+publish. The epoch is separate safe-key metadata; absent metadata starts at
+zero, and the marker survives bearer deletion.
+
+## 2026-09-24 — lane E final delta: quota cleanup and cross-tab qualification
+
+Landed all three final findings. Logout now attempts bearer deletion when its
+epoch write fails, retries the same marker after deletion frees space under
+the same session lock, and reports any remaining storage failure. Constructor
+cleanup now retries restoration when automatic near-expiry refresh was refused
+and another app has saved a successor. A new Chromium witness controls a
+session read/write race across two pages sharing localStorage, then verifies
+Bob's persisted account, fresh-page restoration and Alice's successor revocation.
+
+Measured: three new real-server tests reproduced the reported failures before
+the fixes; all 34 app tests and all 139 affected tests passed afterward.
+The cross-tab witness passes with Web Locks and fails the account-isolation
+assertion when only that call is removed from the built artifact. The first
+witness barrier was too weak because its async browser predicate was accepted
+early; explicit awaited polling corrected it before qualification. Both existing
+Chromium witnesses pass, including the previously timed-out worker update and
+cold-offline account/replica restoration with both servers stopped (1,526 ms,
+not a performance claim).
+
+The initial full run was **`== 1 failure(s) in 233 s`**: environmental disk
+exhaustion stopped two Rust test-artifact builds. Clearing only this worktree's
+old incremental cache freed about 15 GB. The final full run was
+**`== 1 failure(s) in 185 s`**, cargo aggregate only, with the same four Rust
+failures as the untouched baseline. Both full runs passed 1,087 client tests,
+with 10 skips and no client failures. Exact failures, logs, reproductions and
+file-by-file changes are in [the final delta report](./reports/20260924-lane-e-final-delta.md).
+
+No deviation from the final review brief. Did not change the Client contract,
+Quarry forms, authorization/disclosure, meters or ceilings; did not run a native
+Expo simulator or integrated Clique qualification, fix unrelated baseline/timing
+defects, push or publish. Chromium was available and the new witness ran here.
+
+## 2026-09-24 — LLP 3000.013 Lane A, first review corrections
+
+Fixed all six supplied Astra findings: preserve projected id aliases in source
+ordering and cursor seeks; assign wrapped projected pages to ViewPosition.after;
+charge projected scans' store allocations, fetched source payloads, materialization
+and retention before projection; retain ordered nullable equality as a residual;
+lower one-source non-query views through ordinary admitted scans plus shapes;
+and restore the audience-uniqueness test with named probes and a compiling
+positive control. Audited the 70 pre-existing test/fixture files changed by the
+lane for refusal assertions masked by positional resolution. Added seven language
+regressions and four device regressions (memory and SQLite, including reopen).
+
+Focused checks passed: 7 review regressions, 8 device view tests, 25 simulator
+review tests and 94 affected language tests. `scripts/test.sh` ended exactly
+`== 1 failure(s) in 198 s`; the only failure is the baseline legacy schema
+round-trip assertion in `schema_capabilities_legacy`, with no introduced or
+environmental failures. All 995 client tests passed (10 skipped). Full evidence
+and the baseline's script-step versus Rust-target count correction are in
+`reports/20260924-intent-lane-a-review-1.md`; full log:
+`/tmp/lane-a-review-full-suite.log`.
+
+The 20 MB id-only view now hits heap with no continuation: 18,010,681 B on the
+server, 20,009,121 B on a memory device and 18,010,683 B on SQLite. A one-row
+memory projection charges 3,004,795 B including fetched source lookahead.
+WASM is 1,736,220 B raw / 480,743 B gzip, +484 / +119 over the reviewed artifact;
+the 481,000 B budget is unchanged. These are whole-artifact deltas. Did not
+change authorization, raise a meter, import Lane D's streaming implementation,
+redesign query view cursors, fix baseline failures, push or publish. Integration
+must combine the projected-scan metering condition with Lane D's existing
+metered-payload conditions. Grok findings were not supplied in this turn.
+
+## 2026-09-24 — LLP 3000.013 Lane A, second review corrections
+
+Fixed the supplied Grok null-membership finding: nullable `in` now opens one
+ordinary filtered null lane under the source read rule, while deduplicated
+non-null values retain their pinned lanes. The compiler caches the value list
+once during discovery and reuses a null sentinel through existing metered IR;
+null never becomes an index pin. Removed the incorrect non-null guard from
+residual membership, including mutations. Shared cursors translate between
+compatible indexes so the filtered lane pages with the value-pinned lanes.
+The reads card now states this behavior. This latest review correction
+supersedes the earlier instruction to omit null matches.
+
+Strengthened the finite-window test with rows one millisecond past the upper
+endpoint and in the next bucket, and an ordinary-scan oracle retaining both
+endpoints: bounded results contain 7 rows; the unbounded control contains 9.
+The reviewer probe file was absent. Added four language regressions covering
+both page directions, words, projection, duplicate/empty/null-only lists,
+source authorization, step/examined cuts and evaluated store prefixes. Added
+Memory and SQLite device tests covering sync, reopen and missing coverage.
+
+All 87 focused language tests and 10 device view tests passed. The full
+`scripts/test.sh` result is exactly `== 1 failure(s) in 165 s`; the sole failure
+is the baseline legacy schema equality assertion in `schema_capabilities_legacy`.
+There are no introduced or environmental failures. All 995 client tests passed,
+10 skipped. Full log: `/tmp/lane-a-r2-full-suite.log`; file-by-file corrections,
+regression proofs and the baseline reproduction are recorded in
+`reports/20260924-intent-lane-a-review-2.md`. Reference checks and diff whitespace
+checks pass; changed source files remain below 1,500 lines.
+
+WASM measures 1,736,564 B raw / 480,855 B gzip, +344 / +112 over the first-review
+artifact. This is a whole-artifact delta, not component attribution. The
+481,000 B budget stays unchanged, with 145 B headroom. Did not add serialized
+IR fields, widen lazy-merge or mutation admission, relax authorization or
+coverage, raise a meter, fix baseline failures, import integration changes,
+push or publish. Ordinary filtered null scans may examine more rows; the
+existing meter bounds that work.
+
+
+## 2026-09-24 — LLP 3000.013 lane C: Following view binding on integration
+
+Fetched and fast-forward merged `sb4-intent/integration` at `2bbae4740`. Bound
+`view following: activity where .actor = viewer or exists follows[viewer, .actor]`
+by union structure and declared column/key types. Every mapping still passes the
+existing public/full-sync, owner, immutability and unique-key admission. Reads
+page the same delivered inbox, map the view's field names, then apply ordinary
+shapes. A negative boolean conjunct identifies the optional one-way removal
+flag; views without that flag need no invented source column. Invalid shapes
+now explain `E_VIEW_FEED_SHAPE`; unsupported orders name the chronological page
+rewrite. The compiled feeds and language cards show the view form.
+
+Restored the exact target Clique fixture. It passes Following lifecycle and
+pagination alongside aggregates, Global, search and the restartable digest.
+Both device stores prove offline shaped pages, reopen, pending completeness,
+invalidation dependencies, immediate revocation/removal and own-copy prediction;
+follow/unfollow still queue without prediction. Existing timeline and independent
+Clique oracles pass. Post/read assertions remain 4/4 writes for five/900 followers
+and 61/61 examinations for five/500 follows. `check --cost` reports one inbox scan
+and a truthful grows verdict for retired-epoch/tombstone skips; its scan label now
+preserves descending `last` order. No runtime bound was raised.
+
+All 203 distinct affected tests passed. Required `scripts/test.sh` completed with
+`== 0 failure(s) in 204 s`: no introduced, baseline or environmental failures.
+Client totals: 1085 tests, 1075 passed, 0 failed, 10 existing skips. Wasm is
+1,743,912 bytes raw / 484,496 gzip, below the integrated 485,000-byte ratchet.
+The reference check passes; changed source files remain below 1,500 lines.
+No scheduler change, private feed materialization, migration, push or publication.
+No remaining Following dependency gate or review-request deviation. The existing
+wide-payload task parking limit remains; adaptive retry is outside this binding.
+Implementation `151b5d7af`, cost correction `49876e86c`; file-by-file work, tests,
+boundaries and reproductions: [Following view report](reports/20260924-following-view/report.md).
+
+### 2026-09-24 — LLP 3000.013 lane C: Following view delta-review proofs
+
+Closed both review gaps with tests. The repost lifecycle now explicitly requires
+Bob as the actor when Bob reposts Alice's post. New server, memory-device and
+SQLite-device tests deliver 600 events, unfollow, then refollow before background
+cleanup: 344 old-epoch copies coexist with the new epoch's 50-copy preview. They
+prove the view's first page contains 20 distinct event ids backed by the new
+epoch, and all pages return exactly the newest 50 events once each while
+`complete` remains false. The device tests apply both transitions through sync.
+
+Confirmed sensitivity by temporarily changing the view's actor projection to
+the original author (the assertion fails with Alice versus Bob), then removing
+only the view path's epoch check (all three new refollow tests fail with 16
+distinct ids in 20 rows). Restored both mutations; runtime sources are unchanged.
+All 11 affected tests pass afterward. Required `scripts/test.sh`:
+`== 0 failure(s) in 97 s`; no introduced, baseline or environmental failures.
+Reference check: zero errors, zero unchecked references. Wasm remains 484,496
+gzip bytes against the unchanged 485,000-byte budget. No language, runtime,
+meter, migration or scheduling changes; no push or publication. The existing
+wide-payload parking limit is unchanged. Details and reproductions:
+[delta review report](reports/20260924-following-view/delta-review.md).
+
+## 2026-09-24 — LLP 3000.013 lane F: the guide teaches intent
+
+Restated the running language program, feature cards and package examples with
+predicate/column reads, unnamed uniqueness, search declarations, durations,
+planned and aggregate views, automatic job sweeps, streaming scalars and keyed
+emissions. The README keeps the app/account entry and adds the whole model at
+268 lines against its unchanged 300-line budget. The Following section's first
+474 lines and the README's Following reference remain with lane C. Existing
+algorithm and compatibility tests now read preserved historical fixtures;
+current-guide tests execute the current text. Compiler/core changes only alter
+diagnostic repair text. Every changed source file remains within 1,500 lines.
+
+Added execution witnesses for the language core and the published digest.
+Planned branches retain two equal source ids, removed posts stay out of Global,
+search and predicate reads agree, and maintained values and durations execute.
+The core job's half-open period counts two events and sums 16. The digest counts
+125 qualifying messages out of 130, uses 20,255 heap bytes and writes one effect;
+reopening the store and running the period again writes nothing. A non-member
+gets no digest. Trending's 85-post oracle uses 35 examined, 697 steps and 37,260
+heap bytes for its first complete page. The current newest-search plan completes
+1,000 memberships in 3,040 examined with 20 rows and continuation; sampled widths
+2,717 through 3,000 hit the heap ceiling on server, memory and SQLite devices.
+The card states these measurements instead of the old memory-only boundary.
+WASM is 1,743,957 bytes raw / 484,641 gzip, within the unchanged 485,000 budget.
+
+The guide suite has 57 passing tests; authorization has 81. All client shards
+have 1,075 passing tests and ten skips. Full-suite results and the complete
+failure inventory are in [the lane report](./reports/20260924-intent-guide.md).
+Earlier failures were this lane's fixture, wording, census, measured-plan or
+stale-import errors; none was assigned to the baseline or environment.
+
+Stopped the index-free role-sensitive after-insert example: its exact probe
+still requires an explicit index, and dropping the role check would weaken the
+postcondition. The default-order finite-window streaming count still refuses;
+the published example uses `by .at`. New Following binding remains lane C's
+work. Kept the existing full-history search and Following stream-cost note
+exceptions, so this does not claim the strict zero-note target is complete.
+Reproductions and counterexamples are in the report. Did not change compiler
+admission, engine behavior, authorization, disclosure, durability or meters;
+did not run a new browser/native-device witness, contact a delivery provider,
+claim a calibration score, push or publish.
+
+Final full suite: **`== 0 failure(s) in 351 s`**, exit 0. Reference audit:
+504 LLP documents, 9,226 references, zero errors or unchecked references.
+No final failures remain.
+
+## 2026-09-24 — LLP 3000.013 integration round 1: complete Following target
+
+Merged final D `eadb198d5`, E `d778b9266`, current A `dd0552d79`, final C
+`4e2e890e1` and F `827c0d752` with no-ff merges, building the workspace after
+each. G `542df62f4` was already included; its requested merge was a no-op and
+its build passed. A's subsequent delta is reserved for the next round.
+Read-path conflicts retain A's full projected-source payload charges, D's
+coverage and retained-domain allowance handoff, and C's prepaid timeline scans.
+F's guide prose and examples survive alongside C's compiled Following block;
+the final compatibility block and every lane's journal entries are preserved.
+
+The complete target now runs Following with its planned activity union, all
+nine derived views, maintained columns, Global, bounded Trending, search,
+history, insights and digest. Its only difference from the supplied target is
+the previously commissioned `.at <= now` endpoint. CLI check reports 21 tables,
+13 operations, zero diagnostics and five unsuppressed advisory notes. Following
+is correctly classified as growing work on one inbox scan. The target test
+checks shaped repost actor versus original author; the full lifecycle covers
+65 events, paging, replies, delivery, removal, unfollow/refollow and unrepost.
+Digest restart and permanent emission keys still pass: two chunks, K=64, zero
+retries, 310,936 B peak heap on 67 profiles and 5,000 period rows.
+
+Fixed the two stray prose dots in language comments. The README reference map
+now names Following as a view, Global as a planned view and Trending as a
+predicate read. Its whole-model section includes a standalone compiled union,
+Following and two-bound Trending example. Reflowed prose retains the onboarding
+wording and executable blocks at 292/300 lines. No guide example required a
+runtime workaround or new note exception. The census adds only four occurrences
+for the preserved compatibility block: 271 mutations, the same 49 private write
+sites, no removed authority record or assertion.
+
+WASM on Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt measures
+1,744,850 B raw / 485,005 B gzip, +893 raw / +365 gzip versus the preceding
+integration. This is the combined projected-source payload metering, scalar
+coverage, retained-domain handoff and Following runtime delta, not per-feature
+attribution. It exceeds the inherited 485,000 B ratchet by five bytes; raise
+the artifact budget to 486,000 B, leaving 995 B. Runtime ceilings are unchanged.
+The measured reason, ratchet and journal land in the same commit.
+
+Qualification: 75 focused language/guide and nine simulator tests pass. The
+initial focused census mismatch was an integration expectation and was reviewed
+before its four-entry refresh. Required full suite: **`== 0 failure(s) in 279 s`**.
+All stages pass, including all four former baseline failures, 81 authorization
+tests, 68 CLI check tests and 1,088 client tests (10 skips). Both historically
+intermittent acquisition and release-restore cases pass alone, 1/1 each, without
+modifying timing or assertions. Reference and whitespace checks pass; no changed
+source exceeds 1,500 lines. Logs: `~/sb4-intent/integration-r1-*.log`.
+
+Did not merge A's later delta, redesign delivery, weaken authorization,
+disclosure, durability or runtime meters, add adaptive retry to wide-payload
+Following tasks, run new browser/native-device witnesses, deliver via a real
+provider, push or publish. Existing compiler handoffs and metered task-parking
+limits remain documented. The complete file inventory, conflicts, forms,
+measurements and reproductions are in
+[the round 1 report](./reports/20260924-intent-integration-r1.md).
+
+## 2026-09-24 — LLP 3000.013 Lane A, nullable membership delta review
+
+Fixed both supplied Astra delta findings. Planned lanes now use the existing
+authored-merge dependency check and preserve lane-dependent residual selectors
+in eager setup. Deduplication remains bound to the original discovered value;
+each scan sees its own selector instead of the last lane's value. Range sources
+cannot produce null, so they bypass null fallback planning and binding.
+
+Before the fix, the scalar regression paged ids 0, 2 instead of 0, 1, 2,
+nullable-owner ordering omitted Alice's authorized rows, and optional-column
+range membership refused with E_QUARRY_TYPE. Added three language regressions
+for scalar list ordering, literal/dynamic/empty ranges and multi-owner mutation
+results. Expanded the shared fixture to two authorized owners, matching hidden
+rows and an authorized nonmatch. Plain, word and projected queries now test
+one-row pages ordered by the optional membership column in both directions.
+Strengthened the Memory and SQLite device tests with the same distinct-owner
+case after sync/reopen, retaining missing-coverage and disclosure assertions.
+
+All 93 affected language tests and 10 device view tests passed. The exact
+`scripts/test.sh` result is `== 1 failure(s) in 141 s`: only the unchanged
+baseline legacy schema equality assertion in `schema_capabilities_legacy`.
+There are no introduced or environmental failures. All 995 client tests passed,
+10 skipped. Full log: `/tmp/lane-a-delta-full-suite.log`; file-by-file evidence,
+examples and the baseline reproduction are in
+`reports/20260924-intent-lane-a-delta-review.md`. Reference and whitespace checks
+pass; changed source files stay below 1,500 lines.
+
+WASM stays at 1,736,564 B raw / 480,855 B gzip under the unchanged 481,000 B
+budget. Did not change the interpreter or serialized IR, broaden lazy merge
+preparation, relax authorization/admission, raise meters, import integration
+changes, fix baseline failures, push or publish. No design deviation.
+
+## 2026-09-24 — LLP 3000.013 Lane A, guide planner gaps and second delta review
+
+Named after-insert probes now synthesize an exact index over every named
+column in written order, including role beyond a covered unique key. The
+language card no longer needs its explicit role index. An aggregate access-path
+pass chooses a range seek for unpaged count, sum and exists without authored
+order; it prefers finite windows and then canonical column names, preserving
+existing scan admission. View cursors keep a literal id field in its written
+order instead of moving it behind later keys.
+
+Added exact-role transaction/rollback, digest seek, admission, ordering and
+planner tests, plus Memory/SQLite regressions for literal-id pages after reopen
+in both directions and rejected 1 MB source rows. All 114 affected tests pass.
+In an isolated checkout of integration cf803ffcafcb4ce8e1e585fffe70be444679940f,
+all five runtime tests pass, including capped and uncapped count/sum/exists
+using Lane D's existing streaming binder. The live integration checkout was
+not modified. Existing nullable-membership and range regressions still pass.
+
+The rejected-row Memory fixtures cut at 20,012,761 B (residual) and 20,015,237 B
+(second word); SQLite cuts at 18,011,619 B and 18,014,448 B respectively. Moving
+the payload charge after rejection makes both Memory cases incorrectly return
+complete empty pages at 46,681 B and 21,277 B, and the new tests fail. Restored
+the engine byte-for-byte before final verification; this round changes no
+runtime or serialized IR. WASM remains 1,736,564 B raw / 480,855 B gzip under
+the unchanged 481,000 B budget.
+
+Stopped the prescribed table-cursor change under the design-stop instruction.
+For `t first 1 by .id, .at after c`, appending id after dedup produces
+`(id, at, id)`, which core schema validation rejects as duplicate column id.
+Without that append the table form still refuses with E_CURSOR_INDEX. It needs
+a supervisor decision about cursor admission or index schema, recorded with
+both reproductions in `reports/20260924-intent-lane-a-followup-review.md`.
+Did not silently reorder id, alter uniqueness, relax schema validation,
+authorization or admission, increase meters, import Lane D, push or publish.
+
+Exact full-suite result: `== 1 failure(s) in 171 s`. Only the unchanged baseline
+legacy schema equality test in schema_capabilities_legacy fails; there are no
+introduced or environmental failures. All 995 client tests pass, 10 skipped.
+Full log: `/tmp/lane-a-followup-full-suite.log`. Reference and whitespace checks
+pass; changed source files remain below 1,500 lines. The report records the
+file-by-file changes, forms, test proofs, lane boundary and open design stop.
+
+## 2026-09-24 — LLP 3000.013 Lane A, final table-order ruling
+
+Implemented the supervisor's ruling resolving the prior table-cursor design
+stop. Authored table orders truncate at the first id before view expansion and
+predicate/index planning. `t first 1 by .id, .at after c` now uses only byId
+and has identical executable IR, table/index schema, pages and opaque cursor
+tokens to `by .id`; both ascending and descending pages are verified. Keys
+before id remain effective. View orders retain keys after id because separate
+branches can carry the same source id. Original read spellings remain available
+for diagnostics and cost explanations.
+
+Added three regressions for table plan/page equality (plain, middle-id, pinned,
+value-lane and word reads), nested reads including view projection expressions,
+and union pages whose branch ids collide. The latter verifies later timestamps
+still order equal ids in both directions. The language card includes a compiled
+example; the reads card and LLP record the ruling. All 117 affected tests pass,
+including prior nullable/range and Memory/SQLite view regressions. No runtime,
+IR, uniqueness, schema-validation, authorization, admission or meter changes;
+no design deviation, push or publication.
+
+Exact full-suite result: `== 1 failure(s) in 142 s`, only the unchanged baseline
+schema_capabilities_legacy equality test. No introduced or environmental
+failures. All 995 client tests pass, 10 skipped; WASM remains 1,736,564 B raw /
+480,855 B gzip under the unchanged budget. Reference and whitespace checks pass;
+changed source files remain below 1,500 lines. Full log:
+`/tmp/lane-a-final-order-full-suite.log`; file-by-file report and reproductions:
+`reports/20260924-intent-lane-a-final-order.md`.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 2: final planner fixes
+
+Merged Lane A at `3562069d8` with `--no-ff` as `bca135b13`, preserving
+Following's binder setup, the rewritten guide and every lane's examples,
+tests, diagnostics and journal entries. The post-merge workspace build
+passed. Final-insert probes now synthesize exact written-order indexes;
+unpaged aggregates infer range seeks; table orders truncate after intrinsic
+id while view orders keep later keys; nullable range membership and rejected
+source-row heap regressions remain covered. The final table-order ruling
+resolves A's historical design stop.
+
+Removed the remaining explicit role index from the app card and the reads
+card's aggregate `by .at` workaround. The language card carries the role-index
+removal and compiled id-order example from A. All 57 guide tests pass; the
+README remains 292/300 lines. The complete Clique fixture already spelled
+its digest without `by .at`, so its text is unchanged. Strengthened its test
+to require the `(conversationId, tombstone, at, id)` index and both exact time
+seek bounds, plus an empty range that skips 5,000 rows under examined=20.
+An additional uncapped count/sum/exists regression proves A's seek planning
+runs through D's streaming admission without changing bounds or authority.
+
+Measured the target digest at two chunks, K=64, zero retries and 312,580 B
+peak heap across 67 profiles and 5,000 period rows. The count retains 823 B;
+authorized totals, restart, once suppression, Following delivery and lifecycle
+all pass. CLI check reports 21 tables, 13 operations, zero diagnostics and
+the same five advisory notes. WASM remains 1,744,850 B raw / 485,005 B gzip;
+compiler changes stay outside the device artifact. Keep the 486,000 B ratchet
+with 995 B headroom and record the reason in metrics/wasm-budget.json.
+
+140 focused tests passed: 103 language, three planner, 14 device, three target
+and 17 scale. The first complete suite was `== 1 failure(s) in 273 s`: our
+integration expectation in `scale::language_operation_classes` lacked the
+new `intentIds` guide query. Its classification is correctly constant: a
+public, non-expiring byId scan with no residual, at most 21 examined rows.
+Added the operation and assertions proving that bound; the isolated scale
+target passed. The final complete suite is `== 0 failure(s) in 262 s`, with
+1,088 client tests passed and 10 skipped. No intermittent client failure
+occurred. Reference validation has zero errors and zero unchecked references;
+all changed source files remain below 1,500 lines.
+
+No design deviation, new open problem, engine redesign, authorization or
+meter relaxation, baseline snapshot repair, publication or push. The complete
+file map, merge resolutions, forms and evidence logs are recorded in
+reports/20260924-intent-integration-r2.md.

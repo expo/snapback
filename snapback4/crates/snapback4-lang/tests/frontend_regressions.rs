@@ -68,12 +68,12 @@ fn self_witness_notes_name_only_the_unpinned_deciding_columns() {
         .replace(rule, ".principal = viewer or exists memberships[.chatKey, viewer, 'admin']"));
     let note = blocked.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .principal, which the scan does not pin"), "{note:?}");
-    assert!(note.rewrite.contains("by byPrincipal: principal"), "{note:?}");
+    assert!(note.rewrite.contains("pin .principal with where equalities"), "{note:?}");
     assert!(!note.rewrite.contains("principal, principal"), "{note:?}");
     let residual = bound(&source.replace(rule, &format!("{rule} or .role = 'admin'")));
     let note = residual.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .role, which the scan does not pin"), "{note:?}");
-    assert!(note.rewrite.contains("by byRole: role, chatKey, principal"), "{note:?}");
+    assert!(note.rewrite.contains("pin .role with where equalities"), "{note:?}");
 }
 
 fn engine(source: &str) -> Engine {
@@ -150,7 +150,7 @@ mutation create():
 mutation rename():
   return upsert profiles[owner=viewer] { name: 'New name' }
 mutation score(id: profiles):
-  return upsert profiles[id] { score: 2 }
+  return upsert profiles[id = id] { score: 2 }
 mutation clear():
   return upsert profiles[owner=viewer] { bio: null }
 mutation absent():
@@ -747,14 +747,14 @@ fn operation_uniqueness_uses_the_qualified_name_and_preserves_both_sites() {
 #[test]
 fn numeric_rule_literals_use_the_same_checked_domain_as_program_literals() {
     for literal in ["1.5", "-1.5", "9007199254740992", "-9007199254740992", "18446744073709551616", "-18446744073709551616"] {
-        for rule in [format!(".n = {literal}"), format!("exists targets[{literal}]")] {
+        for rule in [format!(".n = {literal}"), format!("exists targets[n = {literal}]")] {
             let source = format!("table targets:\n  n: int\n  unique byN: n\n  read <- allow\ntable t:\n  n: int\n  read <- {rule}\n");
             let compiled = compile(&[("schema.q".into(), source)]);
             assert!(compiled.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE" && d.site.line == 7), "literal {literal}: {:?}", compiled.diagnostics);
         }
     }
     for literal in ["0", "1", "-1", "9007199254740991", "-9007199254740991"] {
-        let compiled = bound(&format!("table targets:\n  n: int\n  unique byN: n\n  read <- allow\ntable t:\n  n: int\n  read <- .n = {literal} or exists targets[{literal}]\n"));
+        let compiled = bound(&format!("table targets:\n  n: int\n  unique byN: n\n  read <- allow\ntable t:\n  n: int\n  read <- .n = {literal} or exists targets[n = {literal}]\n"));
         let json = serde_json::to_value(&compiled.schema.tables["t"].rules.read).unwrap();
         assert_eq!(json["Or"][0]["Eq"][1]["Literal"]["Int"], literal.parse::<i64>().unwrap());
         assert_eq!(json["Or"][1]["Exists"]["key"][0]["Literal"]["Int"], literal.parse::<i64>().unwrap());
@@ -961,16 +961,16 @@ table votes:
 mutation unchecked(postId: posts, direction: int):
   upsert votes[postId, viewer] { direction }
 mutation checked(postId: posts, direction: int):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   upsert votes[postId, viewer] { direction }
 mutation insertVote(postId: posts):
   insert votes { postId, principal: viewer, direction: 1 }
 mutation changeVote(voteId: votes, postId: posts):
   update votes[voteId] { postId }
 mutation removePost(postId: posts):
-  delete posts[postId]
+  delete posts[id = postId]
 query post(postId: posts):
-  return posts[postId]
+  return posts[id = postId]
 "#;
     let id = |s: &str| Value::Id(s.into());
     let kind = ArgType::Ref { table: "posts".into() };
@@ -1029,7 +1029,7 @@ fn actions_declare_typed_admission_and_unknown_results_without_a_quarry_body() {
     assert!(api.contains("invite: Action<{ email: string; tags?: string[] | null }, unknown>"), "{api}");
     assert!(api.contains("name: \"mail.send\""), "{api}");
     assert!(api.contains("kind: \"action\""), "{api}");
-    for source in ["use server\naction x():\n  return 1\n", "use server\naction x(a: int, a: int)\n", "use server\naction x() <- exists profiles[viewer]\n", "use server\naction x(n: int) <- n = 1\n", "use server\naction x()\naction x()\n", "use server\nquery x():\n  return 1\naction x()\n", "use server\naction x(item: missing)\n"] {
+    for source in ["use server\naction x():\n  return 1\n", "use server\naction x(a: int, a: int)\n", "use server\naction x() <- exists profiles[principal = viewer]\n", "use server\naction x(n: int) <- n = 1\n", "use server\naction x()\naction x()\n", "use server\nquery x():\n  return 1\naction x()\n", "use server\naction x(item: missing)\n"] {
         assert!(!compile(&[("schema.q".into(), source.into())]).diagnostics.is_empty(), "accepted {source}");
     }
     let conflict = compile(&[("schema.q".into(), "use server\naction mail()\n".into()), ("mail.q".into(), "query inbox():\n  return 1\n".into())]);
@@ -1183,7 +1183,7 @@ fn named_probe_equalities_need_only_a_total_unique_key() {
         let source = source.replace("unique byKey: key", replacement);
         let source = if replacement.starts_with("unique") { source.replace("key: text 1..64", "key: text 1..64 ?") } else { source };
         let bad = compile(&[("schema.q".into(), source)]);
-        assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_UNKNOWN" && d.rewrite.contains("do not cover a total unique key")), "{:?}", bad.diagnostics);
+        assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_BOUND" && d.rewrite.contains("first N")), "{:?}", bad.diagnostics);
     }
     for extra in ["missing = viewer", "admin = 2", "admin = unknown"] {
         let bad = compile(&[("schema.q".into(), source.replace("admin = viewer", extra))]);
@@ -1229,7 +1229,7 @@ fn null_checks_narrow_snapshot_fields_and_surviving_paths() {
         "return readiness.changedAt < periodStart if readiness != null and readiness.changedAt != null else false",
         "return not (readiness = null or readiness.changedAt = null) and readiness.changedAt < periodStart",
     ] {
-        let compiled = bound(&format!("{schema}query repair(periodStart: time):\n  readiness = feedReady[viewer]\n  {body}\n"));
+        let compiled = bound(&format!("{schema}query repair(periodStart: time):\n  readiness = feedReady[principal = viewer]\n  {body}\n"));
         let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
         for (at, expected) in [(None, false), (Some(0), true), (Some(20), false)] {
             engine.seed([("feedReady".into(), snapback4_core::value::object([("id", Value::Id("r".into())), ("principal", Value::Id("alice".into())), ("changedAt", at.map_or(Value::Null, Value::Int))]))]).unwrap();
@@ -1240,12 +1240,12 @@ fn null_checks_narrow_snapshot_fields_and_surviving_paths() {
     }
     for body in [
         "if readiness.changedAt != null:\n    return true\n  return readiness.changedAt < periodStart",
-        "if readiness.changedAt != null:\n    readiness = feedReady[viewer]\n    return readiness.changedAt < periodStart",
-        "if readiness.changedAt != null:\n    for i in range(0, 2):\n      x = readiness.changedAt < periodStart\n      readiness = feedReady[viewer]\n  return false",
-        "if readiness.changedAt != null:\n    if periodStart > 0:\n      readiness = feedReady[viewer]\n    return readiness.changedAt < periodStart",
-        "if feedReady[viewer].changedAt != null:\n    return feedReady[viewer].changedAt < periodStart",
+        "if readiness.changedAt != null:\n    readiness = feedReady[principal = viewer]\n    return readiness.changedAt < periodStart",
+        "if readiness.changedAt != null:\n    for i in range(0, 2):\n      x = readiness.changedAt < periodStart\n      readiness = feedReady[principal = viewer]\n  return false",
+        "if readiness.changedAt != null:\n    if periodStart > 0:\n      readiness = feedReady[principal = viewer]\n    return readiness.changedAt < periodStart",
+        "if feedReady[principal = viewer].changedAt != null:\n    return feedReady[principal = viewer].changedAt < periodStart",
     ] {
-        let bad = compile(&[("schema.q".into(), format!("{schema}query repair(periodStart: time):\n  readiness = feedReady[viewer] ! else MISSING\n  {body}\n"))]);
+        let bad = compile(&[("schema.q".into(), format!("{schema}query repair(periodStart: time):\n  readiness = feedReady[principal = viewer] ! else MISSING\n  {body}\n"))]);
         assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{body}: {:?}", bad.diagnostics);
     }
 }

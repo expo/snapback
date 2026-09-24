@@ -67,7 +67,7 @@ fn p3_a_commit_larger_than_the_page_streams_whole() {
 #[test]
 fn p4_a_grant_that_ends_in_its_commit_delivers_nothing() {
     let source = format!(
-        "{CHAT}\nmutation blip(conversationId: conversations, principal: principal):\n  require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN\n  row = insert memberships {{ conversationId, principal, role: 'member', joinedAt: now }}\n  delete memberships[row]\n  return null\n"
+        "{CHAT}\nmutation blip(conversationId: conversations, principal: principal):\n  require exists memberships[conversationId = conversationId, principal = viewer, role = 'admin'] else NOT_ADMIN\n  row = insert memberships {{ conversationId, principal, role: 'member', joinedAt: now }}\n  delete memberships[row]\n  return null\n"
     );
     let mut engine = chat_engine_from(&source, &["dev:alice", "dev:bob"]);
     sent(&mut engine, "s1", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("secret".into()))], &["m-secret"]);
@@ -97,7 +97,10 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
     // 8: a second disjunct admits viewers the sync never delivers to.
     refused(CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and"), "sync cannot infer an audience");
     // 7: a non-unique audience index would revoke a group another row still grants.
-    refused(CHAT.replace("unique byConversationPrincipal: conversationId, principal", "by byConversationPrincipal: conversationId, principal"), "must be unique");
+    let audience = "table memberships:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  read <- exists memberships[conversationId = .conversationId, principal = viewer]\n  sync to memberships[.conversationId]\n";
+    let valid = snapback4_lang::compile(&[("schema.q".into(), audience.into())]);
+    assert!(valid.diagnostics.is_empty(), "{:?}", valid.diagnostics);
+    refused(audience.replace("unique byConversationPrincipal:", "by byConversationPrincipal:"), "must be unique");
     // 2: the recipient column is the probe's, not any principal column of the target.
     refused(
         CHAT.replace("  role: enum('member', 'admin')\n", "  role: enum('member', 'admin')\n  invitedBy: principal\n")
@@ -107,12 +110,15 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
             .replace("insert memberships { conversationId, principal, role: 'member', joinedAt: now } if absent", "insert memberships { conversationId, principal, invitedBy: viewer, role: 'member', joinedAt: now } if absent"),
         "binds viewer to memberships.principal",
     );
-    // The Clique lane at M4: `check` accepted a synced table without an index
-    // to take a group's rows from; the first `/sync` then failed E_SCHEMA.
-    refused(CHAT.replace("  by byConvTime: conversationId, at, id\n  immutable conversationId, authorId", "  immutable conversationId, authorId").replace("sync last 500 by byConvTime", "sync"), "leading with conversationId");
     // 5: an aggregate delivered wider than its source, at the core boundary.
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    // Planning now supplies missing enumeration indexes. The core boundary
+    // still rejects a schema that cannot enumerate the synced group.
+    let mut missing_index = bound.schema.clone();
+    missing_index.tables.get_mut("messages").unwrap().sync.as_mut().unwrap().horizon = None;
+    missing_index.tables.get_mut("messages").unwrap().indexes.retain(|_, index| index.columns().first().map(String::as_str) != Some("conversationId"));
+    assert!(snapback4_core::schema::validate(&missing_index).iter().any(|issue| issue.message.contains("leading with conversationId")));
     let mut schema = bound.schema.clone();
     schema.tables.get_mut("messageCounts").unwrap().sync = Some(snapback4_core::schema::Sync { audience: snapback4_core::schema::Audience::Public, horizon: None });
     schema.tables.get_mut("messageCounts").unwrap().rules.read = snapback4_core::schema::RuleExpr::Allow;

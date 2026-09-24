@@ -1,13 +1,56 @@
-# Maintains: filtered contributions, calendar groups, pages and rank
+# Views: plan, maintain or materialize
 
-A maintain is an engine-owned table with rows { id, <group columns>, value }.
-A full group-key lookup returns its scalar, zero when no group exists.
-An explicit first/last page returns existing rows, with ordinary shapes and
-cursors. A short key reads a prefix: a proven source cap supplies its bound,
-or a uniform query loop/lane may use the meter; otherwise write first/last N.
-byGroup orders the complete group
-tuple. Source caps can prove a distinct-group bound; no new target cap is
-enforced.
+A `view` names derived data. A filter or projection is planned when read.
+Branches form a union without a copied application table. An aggregate is
+maintained in the source write's transaction. Public Following is materialized
+per reader when its source and edge rules admit that disclosure (`guide feeds`).
+
+```quarry
+table posts:
+  author: principal
+  body: text <=500
+  at: time
+  removed: bool default false
+  public 'public posts'
+  online only
+table reposts:
+  actor: principal
+  post: posts
+  at: time
+  public 'public reposts'
+  online only
+view activity:
+  posts where not .removed { post: .id, actor: .author, at, repost: false }
+  reposts { post, actor, at, repost: true }
+query global(c: cursor ?):
+  return activity last 20 by .at after c
+view postCount: count posts by .author
+query total(author: principal):
+  return postCount[author]
+```
+
+Each union branch runs under its own source's read rule before filtering or
+projection. Branches have compatible fields and types. Identity includes both
+branch and source id; equal ids in different tables remain distinct events.
+The exposed `id` is the source id. Include a branch discriminator, such as
+`repost`, when forming a client list key.
+A predicate on a projected column reaches each source; a constant predicate
+selects branches. Order fields must map to source columns in every branch.
+
+A maintained view has rows `{ id, <group columns>, value }`. A full group key
+returns a scalar. An authorized miss is zero; a hidden hit and hidden miss are
+both null. Pages return existing groups, using `first`/`last`, `by .column`
+and `after c`. A domain may use an inherited product cap or the runtime meter.
+Source caps can bound distinct groups; no new target cap is enforced.
+
+Omit `read` to derive readability: a public/allow source gives `read <- allow`;
+otherwise every field in its read rule must survive as a bare group key, and
+that same rule protects the aggregate. Calendar keys and reference paths do
+not preserve rule fields. E_MAINTAIN_READ_RULE names missing fields; state an
+explicit `read <-` when the aggregate needs its own audience. An explicit
+rule always wins. Residency is unchanged: sync is inherited only when all
+source audience columns survive as bare keys, without the source horizon;
+otherwise the aggregate stays server-only. `online only` opts out.
 
 A predicate accepts scalar comparisons, and/or/not, boolean literals and bare
 required boolean columns. Equality permits null; ordering requires compatible
@@ -31,10 +74,10 @@ The ordinal is floor((at - offset) / period); offsets are nonnegative whole
 durations smaller than the period, including 0ms. hour(.at, 30m) works too.
 The same offset belongs in scalar lookups: day(now, 8h). Days remain exactly
 86,400,000 ms; no timezone or daylight-saving adjustment is applied. Changing the offset
-rebuilds the maintain without adding a source column.
+rebuilds the view without adding a source column.
 
 The following Clique summaries are online-only. Add source sync when its
-audience is invertible, and omit the maintain's online only to inherit it
+audience is invertible, and omit the view's online only to inherit it
 when every audience column survives as a bare key.
 
 ```quarry
@@ -44,7 +87,6 @@ table posts:
   at: time
   score: int
   immutable authorId, parentId, at
-  by byAuthor: authorId, id
   public 'posts are public'
   online only
 
@@ -53,7 +95,7 @@ table likes:
   at: time
   immutable postId
   principal: principal
-  unique byPostPrincipal: postId, principal
+  unique postId, principal
   public 'likes are public'
   online only
 
@@ -61,68 +103,53 @@ table reactions:
   messageId: id
   emoji: text <=20
   principal: principal
-  by byMessage: messageId, id
   cap 50 by messageId
   public 'reaction counts are public'
   online only
 
-maintain originalPostCounts: count posts where .parentId = null by authorId
-  read <- allow
+view originalPostCounts: count posts where .parentId = null by .authorId
   online only
-maintain dailyPosts: count posts where .parentId = null by authorId, day(.at)
-  read <- allow
+view dailyPosts: count posts where .parentId = null by .authorId, day(.at)
   online only
-maintain hourlyPosts: sum posts of score by authorId, hour(.at)
-  read <- allow
+view hourlyPosts: sum posts of .score by .authorId, hour(.at)
   online only
-maintain periodPosts: count posts by authorId, bucket(.at, 2m)
-  read <- allow
+view periodPosts: count posts by .authorId, bucket(.at, 2m)
   online only
-maintain digestPosts: count posts by authorId, bucket(.at, 1d, 8h)
-  read <- allow
+view digestPosts: count posts by .authorId, bucket(.at, 1d, 8h)
   online only
-maintain reactionCounts: count reactions by messageId, emoji
-  read <- allow
+view reactionCounts: count reactions by .messageId, .emoji
   online only
-maintain receivedLikes: count likes by postId.authorId
-  read <- allow
+view receivedLikes: count likes by .postId.authorId
   online only
-maintain dailyLikes: count likes by postId.authorId, day(.at)
-  read <- allow
+view dailyLikes: count likes by .postId.authorId, day(.at)
   online only
-maintain trend: count likes where postId.parentId = null by hour(postId.at), postId.at, postId
-  read <- allow
+view trend: count likes where postId.parentId = null by hour(postId.at), .postId.at, .postId
   online only
-maintain receivedReplies: count posts where .parentId != null by parentId.authorId
-  read <- allow
+view receivedReplies: count posts where .parentId != null by .parentId.authorId
   online only
-maintain postLikes: count likes by postId
-  read <- allow
+view postLikes: count likes by .postId
   online only
-  by byCount: value, id
 
 query today():
   return dailyPosts[viewer, day(now)]
 query reactionChips(messageId: id):
-  return reactionCounts[messageId] by byGroup { emoji, count: .value }
+  return reactionCounts where .messageId = messageId by .emoji { emoji, count: .value }
 query mostLiked(c: cursor ?):
-  return postLikes after c last 10 by byCount { postId, count: .value }
+  return postLikes after c last 10 by .value { postId, count: .value }
 
 query digestToday():
   return digestPosts[viewer, bucket(now, 1d, 8h)]
 ```
 
-Value indexes have a prefix of group fields, then value, id; each field
-appears once. For post-time ties, declare `likeCount: count likes by postId`
-on posts and `by byLikes: likeCount, at, id` on that parent.
-Pin every scope field before value; use value, id alone for global ranking.
-last N descends by value and id on both stores; pass next
-as the cursor. A direct page cursor binds its evaluated prefix and active
+Order aggregate rows with `last 10 by .value after c`. For post-time ties
+and zero-like posts, put `likeCount: count likes` on posts and read them
+`last 10 by .likeCount, .at after c`. The planner supplies the index.
+A direct page cursor binds its evaluated prefix and active
 generation; reuse after adoption or under another prefix is refused. It stays
 valid across ordinary writes in that generation; scores can move between pages. Only existing nonzero groups
 appear: an unliked post does not acquire a zero-like candidate.
 
-A maintain key or equality predicate may name ref.col, exactly one hop. The
+An aggregate group key or equality predicate may name ref.col, exactly one hop. The
 source ref must have a table reference type and be immutable; the target's read
 rule must be public or allow; col must be immutable on that target, or its id.
 Private targets, mutable references/columns, unknown columns and further hops
@@ -142,12 +169,12 @@ The source still needs its independent insert rule, such as .principal = viewer.
 Adding a path captures existing rows once against live targets at activation;
 an id reused before capture supplies its new value. Rebuilding or changing a
 predicate over an existing path preserves all captures, including nulls.
-Removing every maintain that uses a path drops it; re-adding it captures anew.
+Removing every aggregate view that uses a path drops it; re-adding it captures anew.
 Capturing or dropping paths emits no row events for those sources and their
 aggregate rebuilds: a new generation discards old device images and reacquires
 snapshots. Later unrelated rebuilds still record their commits and events.
 doctor reports null captures per source path and
-live selected contributions with null attribution per maintain. A null capture
+live selected contributions with null attribution per aggregate view. A null capture
 on an optional, unselected branch is normal; inspect the selected-contribution
 count before treating it as missing credit. `sql` can inspect the recorded
 fields on the affected source rows. Creating a missing target later does not
@@ -167,18 +194,14 @@ The server's capture is authoritative. check --residency lists that implicit
 target dependency; check --cost lists the extra point reads.
 
 A UTC day is not a rolling 24-hour window. For posts younger than a day,
-put `likeCount: count likes by postId` on posts and index
-`hour(at), likeCount, at, id`. Merge 25 hour lanes with the exact time filter;
-`guide feeds` gives the full query. Zero-like posts are included and equal
-scores put the newest post first. For contributions arriving in the last day on
-posts of any age, its `rollingLikes()` sorts live counts at read time;
-a meter cut makes that bounded ranking incomplete. The optional scheduled
-ranked-table recipe buys a job-computed score or stored device page, with
-delayed scores. A value-order index over an expiring source remains refused:
-the sweep updates physical aggregates and indexes transactionally, but live
-values change before the sweep, so stored top-N can miss a winner.
+put `likeCount: count likes` on posts and read the predicate `.at > now - 1d
+and .at <= now last 10 by .likeCount, .at`. `guide feeds` has the complete
+query. Zero-like posts participate. A value-order index over an expiring
+source remains refused: live values change before physical sweeping, so
+stored top-N can miss a winner. Use live counts within the runtime meter or
+an explicitly delayed job-written ranking for that different product.
 Unranked expiring aggregates recompute live contributions before the sweep;
-every expiring maintain uses an internal selected-group/source-id index.
+every expiring aggregate view uses an internal selected-group/source-id index.
 Zero-sum occupancy uses one entry. If the meter interrupts a live group or a
 maintained point lookup, the Quarry query returns `data: null, complete: false`
 without a continuation; an unfinished count is neither zero nor a partial total.
@@ -186,7 +209,7 @@ A missing group still reads as zero when its lookup completes.
 
 An inherited aggregate has no horizon and remains until-revoked even when its
 source retains delivered-history. After leave, retained source rows are
-history, not a complete aggregate. A public inherited maintain sends every
+history, not a complete aggregate. A public inherited aggregate view sends every
 group to every device; reading only the top ten does not shrink acquisition.
 An online-only side effect does not prevent source-write prediction; reading
 that aggregate does. An unknown local aggregate base is never assumed zero.
@@ -205,7 +228,7 @@ restrict the aggregate read rule when the delta is private (guide rules).
 Even a hidden aggregate can disclose a constraint outcome: near an integer
 endpoint, a hidden selected contribution can make a write fail with
 E_OVERFLOW while an excluded contribution commits. Work reservation does not
-prevent this overflow bit; the refusal names only the maintain and column,
+prevent this overflow bit; the refusal names only the view and column,
 and the failed transaction rolls back.
 
 Adding or changing a filter, key, duration, offset, dependent literal default or index
@@ -243,7 +266,7 @@ table replies:
 table postLikes:
   postId: posts
   principal: principal
-  unique byPair: postId, principal
+  unique postId, principal
   immutable postId, principal
   public 'likes of originals'
   insert <- .principal = viewer
@@ -251,20 +274,16 @@ table postLikes:
 table replyLikes:
   replyId: replies
   principal: principal
-  unique byPair: replyId, principal
+  unique replyId, principal
   immutable replyId, principal
   public 'likes of replies'
   insert <- .principal = viewer
   delete <- .principal = viewer
 
-maintain originalLikesReceived: count postLikes by postId.authorId
-  read <- allow
-maintain replyLikesReceived: count replyLikes by replyId.authorId
-  read <- allow
-maintain directRepliesReceived: count replies where .replyTarget = null by postId.authorId
-  read <- allow
-maintain nestedRepliesReceived: count replies where .replyTarget != null by replyTarget.authorId
-  read <- allow
+view originalLikesReceived: count postLikes by .postId.authorId
+view replyLikesReceived: count replyLikes by .replyId.authorId
+view directRepliesReceived: count replies where .replyTarget = null by .postId.authorId
+view nestedRepliesReceived: count replies where .replyTarget != null by .replyTarget.authorId
 
 mutation original(body: text <=500):
   return insert posts { authorId: viewer, body }
@@ -318,19 +337,18 @@ paths, including nulls, stay unchanged. Do not backfill recorded engine fields
 or drop/re-add paths as an accidental history repair. An immutable incorrect
 reference needs an explicit data migration with an author-chosen identity policy.
 
-## Refused maintain expressions
+## Refused aggregate expressions
 
 E_QUARRY_MAINTAIN means a predicate, grouping expression or read is outside
-the maintain forms. For example, `count posts where .at > now by authorId`
+the aggregate view forms. For example, `view recent: count posts where .at > now by .authorId`
 cannot maintain a moving time predicate without a write. Store a row-local
-fact, group a required time column with `day(.at)`, or use the bounded live
-query or scheduled Trending recipe on `guide feeds`. Predicates compare
+fact, group a required time column with `day(.at)`, or read the time predicate at query time (`guide feeds`). Predicates compare
 source scalars, admitted recorded paths and literals; never viewer, now or helpers. Read a scalar
 with every group key, such as `dailyPosts[viewer, day(now)]`; a partial key
 reads a prefix page under the ordinary bounds rules (`guide bounds`).
 The diagnostic names the expression to repair.
 
-A generated maintain target exposes its full path-named group columns. In a
+A generated aggregate target exposes its full path-named group columns. In a
 shape or predicate, `.postId.authorId` selects that literal column on
 `receivedLikes`; it does not traverse a reference. Named index keys use
 `receivedLikes[postId.authorId = author]`, and sort uses
@@ -351,20 +369,16 @@ table votes:
   postId: articles
   immutable postId
   read <- allow
-maintain receivedLikes: count votes by postId.authorId
-  read <- allow
-  by ranking: value, id
-maintain trend: count votes by hour(postId.createdAt), postId.createdAt, postId
-  read <- allow
+view receivedLikes: count votes by .postId.authorId
+view trend: count votes by hour(postId.createdAt), .postId.createdAt, .postId
 query ranking(c: cursor ?):
-  return receivedLikes after c last 10 by ranking { authorId: .postId.authorId, count: .value }
-query trending():
-  rows = trend first 100 by byGroup { post: .postId, at: .postId.createdAt, count: .value }
-  return sort(rows, '-at')
+  return receivedLikes after c last 10 by .value { authorId: .postId.authorId, count: .value }
+query attributed(c: cursor ?):
+  return trend first 20 by .hour, .postId after c { post: .postId, at: .postId.createdAt, count: .value }
 ```
 
 Insert capture resolves each path inside the write transaction before row
-validation, indexes and maintain deltas. An untrusted import uses its batch's
+validation, indexes and aggregate deltas. An untrusted import uses its batch's
 winning target images and the import clock; an earlier committed null stays
 null when a target arrives in a later batch. Imports reject supplied recorded
 fields. Trusted restoration preserves stored captures without resolving them.
@@ -377,15 +391,14 @@ When the group is a row, put its aggregate on that row:
 ```quarry
 table posts:
   at: time
-  likeCount: count likes by postId
-  by byLikes: likeCount, at, id
+  likeCount: count likes
   public
   insert <- allow
   online only
 table likes:
   postId: posts
   principal: principal
-  unique byPostPrincipal: postId, principal
+  unique postId, principal
   public
   insert <- .principal = viewer
   delete <- .principal = viewer
@@ -393,11 +406,16 @@ table likes:
 mutation like(postId: posts):
   insert likes { postId, principal: viewer } if absent
 query trending(c: cursor ?):
-  return posts after c last 20 by byLikes { * }
+  return posts after c last 20 by .likeCount, .at { * }
 ```
 
-The other form is `total: sum source of amount where .selected by parentId`.
-The predicate has the maintain grammar above. The one grouping column must
+Omit `by` when exactly one source column references the parent, as above.
+This also works for `total: sum likes of .weight`. With no reference or several,
+E_MAINTAINED_COLUMN_REFERENCE lists the candidates: declare a reference if
+needed, then select it with `likeCount: count likes by .postId`.
+
+The other form is `total: sum source of .amount where .selected by .parentId`.
+The predicate has the aggregate grammar above. The one grouping column must
 reference this parent table; optional null references contribute nothing.
 The source is ordinary and cannot expire. Tables a timeline maps are
 ordinary here: `likeCount` on the posts a Following timeline maps is the
@@ -432,7 +450,7 @@ physical storage work.
 A contributing commit streams the whole parent image to each parent
 partition, coalesced once per row. N_MAINTAINED_COLUMN_STREAM names that cost
 on the parent's sync line. Use a column for a count readers want with the
-row; use `maintain … online only` when the counter changes far more often
+row; use `view …` with `online only` when the counter changes far more often
 than the row is read. Include the parent's size in that choice: a 4,000-byte
 parent costs every holder about 4 KB per contributing commit.
 
@@ -472,3 +490,88 @@ server-run watches re-run. Unchanged declarations preserve totals.
 
 The Postgres evaluation backend refuses maintained columns and their private
 maintains with E_POSTGRES_MAINTAINED_COLUMN. Use the SQLite engine for this form.
+
+## N_PUBLIC_AGGREGATE_COPY: a public derived column keeps ordinary write authority
+
+N_PUBLIC_AGGREGATE_COPY is a note, not an error. Every write to a public or
+uniformly readable column is computed from table or aggregate reads, but
+`insert <- allow` or `update <- allow` (or a provably unrestricted equivalent)
+lets any principal run any mutation that writes it. The note names the column
+and a written expression, such as `p.score + 1` in `like`. Declare
+`likeCount: count likes` on the parent row, as Trending does above.
+For a derivation a column cannot express, pin a copied score to the engine's
+count in both insert and update rules:
+
+```quarry
+table posts:
+  author: principal
+  public 'posts'
+  insert <- .author = viewer
+
+table likes:
+  postId: posts
+  principal: principal
+  unique postId, principal
+  immutable postId, principal
+  public 'likes'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+
+view likeCounts: count likes by .postId
+  online only
+
+table ranked:
+  postId: posts
+  score: int
+  unique postId
+  immutable postId
+  public 'ranking'
+  insert <- exists likeCounts[postId = .postId, value = .score] or (.score = 0 and not exists likeCounts[postId = .postId])
+  update (old, next) <- exists likeCounts[postId = next.postId, value = next.score] or (next.score = 0 and not exists likeCounts[postId = next.postId])
+
+mutation refresh(postId: posts):
+  upsert ranked[postId = postId] { postId, score: likeCounts[postId] }
+```
+
+The zero case matters: a count group has no row without contributions. These
+rules reject a forged score; keeping a copy fresh is still the application's
+responsibility. For another derived fact, pin the copied value to its source
+row with an `exists` rule. Maintains produce numeric counts and sums; the note
+leads with the pinning rule for a non-numeric copy, such as a nullable author.
+
+The client calls declared operations, not arbitrary table writes. This note
+identifies latent table permission, not proof that a current mutation accepts
+an arbitrary score. It follows values through bindings, helper calls, objects,
+shapes, arithmetic and loops across all Quarry programs and helpers, including
+jobs, once per column. The written value must be computed from reads (possibly
+with ambient values); an argument may choose which derived value is written
+but may not supply the value itself or how many values contribute to it.
+A purely ambient write (`viewer`, `now`,
+a minted id or a literal) disqualifies the column, except a literal insert or
+omitted literal default may initialize a
+column that has another read-derived write. A literal update or upsert is not
+that exception. Presence (`connected`) is ambient, not a table aggregate.
+An upsert's returned id keeps the supplied id key's data provenance: an
+argument supplies it, a read derives it, and an id minted without an id key
+is ambient.
+
+A collection carries cardinality separately from its items: a read page's is
+read-derived, an argument list's or argument-bounded range's is supplied, and a
+literal list's is ambient. Shapes, slices and sorts preserve that cardinality;
+a filter may add its predicate's dependence. `count` consumes cardinality,
+while sums, element picks and loop accumulations consume it with their data.
+Branches, loop exits, sort/group keys and slice/element positions
+carry control provenance through helper writes and nested fields; that control
+does not enter the verdict. The note names a caller-dependent choice, such as
+`p.score + 1` or `p.score - 1`, chosen by `liked` in `setLike`. An unknown
+dependence or an exhausted analysis budget stays silent; it never becomes read
+evidence. Literal insert initialization keeps the exception above, including
+inside a branch.
+
+Restricted rules, private targets, immutable columns, append-only tables and
+aggregate targets do not receive it. Job-only writers under `deny` stay silent.
+Actions have no Quarry write body; their external steps call declared mutations,
+whose arguments are included. A native job can write tables outside this syntax
+census, so its presence makes the all-writers proof unknown and silent. The note does not infer meaning from column names,
+and its absence is not proof that a ranking cannot be forged. Sync and
+`online only` do not change write authority.

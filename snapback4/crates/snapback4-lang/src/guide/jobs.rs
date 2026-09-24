@@ -1,6 +1,6 @@
 //! The jobs card. Quarry examples are compiled by tests/guide.rs.
 // @ref LLP 3000.007#21.1 — digest work seeks the period through each recipient's memberships.
-// @ref LLP 3000.011.001.000#3 — live counts and the durable business marker share one transaction.
+// @ref LLP 3000.013#5 — streamed totals, adaptive sweeps and lifetime emission keys.
 pub(super) const CARD: &str = r##"# Jobs and schedules: the server's own work, on its own clock
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
@@ -22,6 +22,30 @@ refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
 With `--fresh`, the count dies with the in-memory store; `doctor` and local
 `run` inspect the separate on-disk store.
 
+A top-level `for p in recipients:` is an adaptive sweep. The engine chooses
+the iterations per transaction, retries a meter-refused chunk at a smaller size,
+and parks if one iteration cannot fit. Each successful chunk commits its
+cursor and writes together. `doctor` and `run` report the chunk size, retry
+count and peak heap. Inner domain loops share the chunk's meter. The sweep index must contain only
+`id` or immutable columns. Its evaluated prefix and seek bounds are persisted
+with the cursor; its prelude runs again before each chunk.
+An explicitly paged `for` before the first sweep stays
+in that prelude and does not create commits of its own. Declare per-item
+locals inside the loop. A prelude local assigned by the sweep is refused
+because it cannot carry a value across independent commits. Rule, constraint
+and generation refusals park immediately, without reducing the chunk size.
+
+A domain `count` or `sum` has no page clause: it authorizes and filters each
+row, folds its value, then releases the transient row. All work remains metered;
+a job or mutation refuses the whole transaction if a total cannot finish.
+Jobs run as the system principal; this example establishes each recipient's
+scope by iterating that recipient's current memberships. Each recipient's
+live counts and effect key below commit in one transaction.
+`once` removes the need for a marker table; worker/provider delivery retries
+still need an idempotency key.
+
+
+
 Jobs in `snapback/jobs.q` are named `jobs.<name>` even in that file's schedules;
 `schema.q` jobs use their bare names. `check --fix` qualifies an unambiguous bare module job.
 Effects are global declarations shared by every file; jobs are module-qualified
@@ -35,8 +59,6 @@ table invites:
   inviteeId: principal
   sentAt: time
   reminded: bool
-  by byInvitee: inviteeId, id
-  by bySentAt: sentAt, id
   immutable sentAt
   read <- .inviteeId = viewer
   insert <- deny
@@ -44,7 +66,7 @@ table invites:
   delete <- deny
 
 job remind(periodStart: time, periodEnd: time):
-  chunk i in invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt:
+  for i in invites where .sentAt >= periodStart and .sentAt < periodEnd by .sentAt:
     if not i.reminded:
       update invites[i.id] { reminded: true }
 schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
@@ -67,14 +89,13 @@ See `guide actions` and `guide routes` for the gated declarations.
 A job is a sequence of sweeps, optionally preceded by statements. Those
 statements run at the start of every chunk under its meter; their bindings
 are visible in every chunk. A write belongs to a chunk, never the prelude.
-Each `chunk x in table[prefix] first N by
-index:` walks one index a page per commit as the system principal (every
-rule passes; validation, constraints, aggregates and partitions apply)
-under the job ceilings (guide bounds). The cursor commits with the rows, so
+A top-level `for x in table where predicate:` walks a stable domain as the
+system principal. Every rule passes; validation, constraints, views and
+partitions still apply. It runs under the job ceilings (guide bounds). The cursor commits with the rows, so
 a chunk is wholly done or not started and a restart resumes at the next
 one; the index's columns are `id` or `immutable`, so nothing moves under
 the cursor, and rows inserted past the key captured when the sweep began
-are not visited, so a sweep over its own table ends. A refused chunk parks
+are not visited, so a sweep over its own table ends. A refused fixed chunk parks
 the job with its refusal (`snapback4 doctor` lists runs). No client calls
 a job: a schedule fires it at a period boundary of the server's clock,
 never twice for the same boundary across restarts, passing `periodStart`
@@ -140,7 +161,7 @@ effect push
 
 table profiles:
   principal: principal
-  unique byPrincipal: principal
+  unique principal
   public 'profiles are public'
   insert <- .principal = viewer
 
@@ -155,10 +176,8 @@ table members:
   conversationId: conversations
   principal: principal
   readOrdinal: int default 0
-  unique byConversationPrincipal: conversationId, principal
-  by byPrincipalConversation: principal, conversationId, id
+  unique conversationId, principal
   cap 50 by conversationId
-  cap 1000 by principal
   immutable conversationId, principal
   read <- exists members[.conversationId, viewer]
   insert <- exists members[.conversationId, viewer] or created conversations[.conversationId]
@@ -174,131 +193,65 @@ table messages:
   tombstone: bool default false
   at: time
   expiresAt: time ?
-  unique byConversationOrdinal: conversationId, ordinal
-  by byTime: at, id
-  by byConversationTime: conversationId, at, id
-  by byExpiresAt: expiresAt
+  unique conversationId, ordinal
   immutable conversationId, senderId, ordinal, at
   read <- exists members[.conversationId, viewer]
   insert <- .senderId = viewer and exists members[.conversationId, viewer]
   update <- .senderId = viewer
   expire at .expiresAt
-  sync last 500 by byConversationOrdinal
+  sync last 500 by .ordinal
 
 fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, periodStart: time, periodEnd: time):
-  n = count(messages[conversationId, at >= periodStart, at < periodEnd] first 101 by byConversationTime where not .tombstone and .senderId != reader and .ordinal > readOrdinal)
-  require n <= 100 else DIGEST_CHAT_BOUND
-  return n
+  return count(messages where .conversationId = conversationId and .at >= periodStart and .at < periodEnd and not .tombstone and .senderId != reader and .ordinal > readOrdinal)
 
-query inbox(periodStart: time, periodEnd: time):
-  rows = []
-  for m in members[viewer] first 1000 by byPrincipalConversation:
-    rows = rows + [{ conversationId: m.conversationId, unread: unreadIn(m.conversationId, viewer, m.readOrdinal, periodStart, periodEnd) }]
-  return rows
-
-table digestMarkers:
-  principal: principal
-  periodEnd: time
-  unique byPrincipalPeriod: principal, periodEnd
-  read <- deny
-  insert <- deny
-  update <- deny
-  delete <- deny
-  online only
+query inbox(periodStart: time, periodEnd: time, c: cursor ?):
+  return members where .principal = viewer first 20 by .conversationId after c { conversationId, unread: unreadIn(.conversationId, viewer, .readOrdinal, periodStart, periodEnd) }
 
 job digest(periodStart: time, periodEnd: time):
-  chunk p in profiles first 1 by byId:
-    if exists digestMarkers[p.principal, periodEnd]:
-      continue
+  for p in profiles:
     unread = 0
     chats = 0
-    for m in members[p.principal] first 1000 by byPrincipalConversation:
+    for m in members where .principal = p.principal:
       n = unreadIn(m.conversationId, p.principal, m.readOrdinal, periodStart, periodEnd)
       if n > 0:
         chats = chats + 1
         unread = unread + n
     if unread > 0:
-      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats }
-    insert digestMarkers { principal: p.principal, periodEnd }
+      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats } once [p.principal, periodEnd]
 schedule daily every 1d at 08:00: digest
 ```
 
-The period seek scales with memberships plus period messages in those chats,
-including expired-but-unswept candidates, not the unread history. The meter
-also includes scan attempts, profile and marker lookups, and page lookahead;
-1,000 memberships plus 5,000 messages is not a 6,000-examination chunk.
-Keep the entire profile's work at or below 16,384 examined rows, with the
-other job meters also fitting (guide bounds). A refused profile commits
-neither a marker nor an effect. Earlier profiles' committed effects remain.
-The suite measures the current example and pins its examined boundary;
-large bodies can hit the 16 MiB heap ceiling before the examined ceiling.
+The period predicate seeks messages in each recipient's current memberships.
+Expired, tombstoned, own, already-read and out-of-period messages contribute
+nothing. Streaming releases each decoded row after counting it; it retains no
+page of bodies. All examinations, steps and retained values still count against
+the job's meters. A meter refusal rolls back the whole attempted chunk before
+retrying fewer recipients. One recipient that cannot fit parks the job with
+E_BOUND; inspect `snapback4 doctor` and the named read before rerunning.
 
-A schedule never fires twice for the same boundary across restarts; missed
-boundaries coalesce into one run for the latest period, so a digest for a
-day the server was down is never queued. The marker makes a new manual or
-replacement run for the same recipient and period skip completed work,
-including zero-unread recipients. The marker and any emit commit atomically
-with the chunk's cursor. A crash before that commit leaves both absent;
-a crash after it leaves both durable. Two queued runs use the same marker.
+Each recipient's live total and emission key commit together. A crash before
+commit leaves both absent; a crash after it leaves both durable. Rerunning the
+same period skips an already emitted effect. A zero-unread recipient records
+no key and can emit on a later rerun if its live state changed. `once` is
+emission deduplication, not a completion marker or a snapshot across chunks.
+The worker still deduplicates `(targetUserId, periodEnd)` at its provider.
 
-Markers contain no message bodies, are unreadable by ordinary principals
-and never sync. Keep them for the life of the store in this recipe: deleting
-a marker while accepting an old rerun reopens that delivery. The business
-key `(targetUserId, periodEnd)` remains the same when implementation policy
-changes. This is durable effect admission, not exactly-once external delivery.
-Have the worker and provider deduplicate that business key when an effect
-lease is retried; an effect's own `meta.id` alone does not identify the period.
+A schedule never fires twice for the same boundary across restarts. Missed
+boundaries coalesce into one run for the latest period. No automatic backfill
+for missed days is implied. Do not accumulate a live unread total over several
+commits: expiry, membership and read ordinals can change between them.
 
-## Past one profile's chunk envelope
-
-This recipe computes exact live state for one recipient in one transaction.
-It supports at most 1,000 memberships and 100 qualifying period messages per
-chat, and the entire recipient must fit the unchanged job meters. The helper
-reads up to 101 matches and refuses DIGEST_CHAT_BOUND before emitting if the
-chat exceeds 100. `count(first N ...)` counts that page, not the whole range.
-A larger `first` alone neither proves an exact total nor removes the heap
-cost of decoding stored message bodies. Read projections still fetch the
-stored rows before shaping them.
-
-The membership limit is enforced by `cap 1000 by principal` in this schema.
-A `first 1000` loop without that matching cap is not a proof that it visited
-every chat. The per-chat helper uses a different proof: read one beyond its
-100-message product limit and explicitly refuse. Keep the schema cap or the
-overflow check when adapting either part; a completed job and durable marker
-alone do not certify that an authored bounded count covered the whole domain.
-
-Row width matters even when the result is just an integer. The retained
-recipient-heavy count fixture has 5,000 candidates, 4,900 qualifying messages,
-31-byte bodies and 50 recipient IDs per message; it exceeds the unchanged
-16 MiB heap ceiling. That is not a 5,000-message universal limit: the existing
-small-row fixture counts 10,000, while 10,000 rows with 2,000-byte bodies refuse.
-Measure your stored message shape and all components of one recipient together.
-Selecting fewer fields in a returned shape does not avoid decoding those
-stored fields. No projected-count execution path is promised by this recipe.
-
-The previous `digestLarge` example accumulated membership chunks and deleted
-its totals after emitting. It was not a correct alternative for a live unread
-digest: between counting and emission a message can expire, be deleted or
-become read, or membership can end. Rechecking only membership cannot repair
-those stale counts; deleting totals does not prevent a replacement run from
-emitting twice. Do not use a paged live accumulator for this contract.
-
-A larger chat or whole-recipient total may still park with E_BOUND. Inspect
-`snapback4 doctor`, reduce the supported product scope or change the design,
-and rerun only after the recipient fits. Earlier committed recipients keep
-their markers and are skipped by the replacement run. There is no automatic
-exact multi-chunk live digest or digest installer. Counts of followers or
-Following posts are separate product components: add them inside this same
-recipient transaction, prove their read scope and completeness, and include
-their work when measuring the envelope. This message-only example does not
-claim to implement those components.
+DIGEST_CHAT_BOUND belongs to the older bounded digest recipe. That refusal
+rolled back the recipient without an effect or marker. Replace its paged
+count with `count(messages where .conversationId = conversationId and .at >=
+periodStart and .at < periodEnd)` and its marker with `emit … once` as above.
+The runtime meter still refuses work that cannot finish.
 
 ## Refused jobs and schedules
 
 E_JOB_CURSOR_INDEX means a chunk's scan key can move while the job writes.
-For example, a sweep `chunk t in tasks first 100 by byScore:` is unsafe
-when `score` is mutable: moving a row could skip or revisit it. Sweep by
-`byId`, or declare the index's non-id columns `immutable` when they truly
+For example, a sweep `for t in tasks by .score:` is unsafe
+when `score` is mutable: moving a row could skip or revisit it. Use `for t in tasks:` to sweep by id, or declare its order columns `immutable` when they truly
 never change. Keep mutable scores out of the resume key; the chunk cursor
 and its writes commit together.
 

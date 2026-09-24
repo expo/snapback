@@ -167,7 +167,9 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   assert.equal(transform({ src, options: { platform: "ios" } }).src, src);
   const shipped = read(join(root, "packages/snapback4/dist/web.js"));
   assert.ok(transform({ src: shipped, options: { platform: "web" } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
-  assert.equal(read(join(dir, "src/client.ts")), read(join(reference, "src/client.ts")));
+  assert.match(read(join(dir, "src/client.ts")), /createApp/);
+  assert.match(read(join(dir, "App.tsx")), /AppProvider|useAuth/);
+  assert.equal(actual.scripts["build:web"], "expo export -p web && snapback4 web-shell dist");
   const schema = read(join(dir, "snapback/schema.q"));
   assert.doesNotMatch(schema, /^\s*(?:use\s+server\b|action\s|route\s)/m);
   assert.doesNotMatch(schema, /^\s*schedule\b.*:\s*invite\b/m);
@@ -188,9 +190,9 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   assertCoreTree(dir);
 });
 
-test("Expo generated template typechecks against the reference toolchain", (t) => {
+for (const starter of ["expo", "web"]) test(`${starter} generated template typechecks against the reference toolchain`, (t) => {
   const { dir, run } = fixture(t);
-  run("init", "--expo"); run("check");
+  run("init", `--${starter}`); run("check");
   symlinkSync(join(root, "node_modules"), join(dir, "node_modules"), "dir");
   const config = ts.readConfigFile(join(dir, "tsconfig.json"), ts.sys.readFile);
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, dir);
@@ -210,18 +212,15 @@ query list(c: cursor ?):
   return items[viewer] after c first 10 -- keep this comment
 `;
 
-test("check --fix repairs ambiguity then the cursor index in one run and preserves comments", (t) => {
+test("check --fix preserves ambiguous positional intent and repairs an explicit cursor index", (t) => {
   const { dir, run, invoke } = fixture(t);
   mkdirSync(join(dir, "snapback"));
-  writeFileSync(join(dir, "snapback/schema.q"), ambiguous.replace("  by byTitle: title, id", "  by byOtherOwner: owner, title, id"));
-  const before = invoke("check", "--json");
-  assert.equal(before.status, 1);
-  assert.equal(JSON.parse(before.stdout).problems[0].code, "E_QUARRY_AMBIGUOUS");
-  const fixed = run("check", "--fix", "--json");
-  assert.equal(JSON.parse(fixed.stdout).ok, true);
-  assert.match(fixed.stderr, /fix: .*E_QUARRY_AMBIGUOUS/);
-  assert.match(fixed.stderr, /fix: .*E_CURSOR_INDEX/);
-  assert.match(read(join(dir, "snapback/schema.q")), /by byOwner -- keep this comment/);
+  const source = ambiguous.replace("  by byTitle: title, id", "  by byOtherOwner: owner, title, id");
+  writeFileSync(join(dir, "snapback/schema.q"), source);
+  const fixed = invoke("check", "--fix", "--json");
+  assert.equal(fixed.status, 1);
+  assert.equal(JSON.parse(fixed.stdout).problems[0].code, "E_QUARRY_POSITIONAL_SCAN");
+  assert.equal(read(join(dir, "snapback/schema.q")), source);
   // Force the cursor tie-break repair across module files as well.
   writeFileSync(join(dir, "snapback/schema.q"), ambiguous.split("query list")[0]);
   writeFileSync(join(dir, "snapback/reads.q"), "query list(c: cursor ?):\n  return items[viewer] after c first 10 by byOwner -- keep me\n");
@@ -245,7 +244,7 @@ test("check --fix leaves unmarked rewrites and prints the diagnostic", (t) => {
   assert.equal(read(join(dir, "snapback/schema.q")), source);
 });
 
-test("an elif and an ambiguous key are fixed together", (t) => {
+test("an elif is repaired while an ambiguous positional key needs an author choice", (t) => {
   const { dir, run, invoke } = fixture(t);
   mkdirSync(join(dir, "snapback"));
   const source = ambiguous.replace("  by byTitle: title, id", "  by byOtherOwner: owner, title, id") + "\nquery choose(n: int):\n  if n = 0:\n    return 0\n  elif n = 1:\n    return 1\n  else:\n    return 2\n";
@@ -254,9 +253,13 @@ test("an elif and an ambiguous key are fixed together", (t) => {
   const alias = before.problems?.find((d) => d.code === "E_QUARRY_UNSUPPORTED" && /elif/.test(d.message));
   assert.ok(alias, "elif has an exact mechanical diagnostic");
   assert.equal(alias.mechanical, true, "lane L's exact spelling rewrite must call .mechanical()");
-  run("check", "--fix");
-  assert.doesNotMatch(read(join(dir, "snapback/schema.q")), /\belif\b/);
-  assert.match(read(join(dir, "snapback/schema.q")), /first 10 by byOwner/);
+  const fixed = invoke("check", "--fix", "--json");
+  assert.equal(fixed.status, 1);
+  assert.equal(JSON.parse(fixed.stdout).problems[0].code, "E_QUARRY_POSITIONAL_SCAN");
+  const repaired = read(join(dir, "snapback/schema.q"));
+  assert.doesNotMatch(repaired, /\belif\b/);
+  assert.equal(repaired, source.replace("elif", "else if"));
+  writeFileSync(join(dir, "snapback/schema.q"), repaired.replace("items[viewer]", "items[viewer] by byOtherOwner"));
   run("check");
 });
 
@@ -500,25 +503,26 @@ test("processDevice defaults to Node spawn and file writing in a new directory",
 });
 
 
-test("W5c Expo starter waits for online acquisition and opens offline without syncing", async (t) => {
+test("Expo starter selects web, native and online app devices with explicit session stores", (t) => {
   const { dir, run } = fixture(t);
   run("init", "--expo");
-  const text = read(join(dir, "src/client.ts"));
-  const compiled = ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
-  for (const link of ["online", "offline"]) {
-    let release, syncs = 0, opened = false;
-    const barrier = new Promise(resolve => { release = resolve; });
-    const client = { link: () => link, sync: () => { syncs++; return barrier; } };
-    const context = { exports: {}, process: { env: { EXPO_PUBLIC_SNAPBACK_PERSONA: "alice" } }, require: name => {
-      if (name === "snapback4/local") return { createLocalClient: async () => client };
-      if (name === "snapback4-expo") return { nativeAvailable: () => true, nativeDevice: {} };
+  const compiled = ts.transpileModule(read(join(dir, "src/client.ts")), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  for (const [platform, native, tier] of [["web", false, "web"], ["ios", true, "native"], ["ios", false, "online"]]) {
+    const nativeDevice = {}, webDevice = {}, webStore = {};
+    let options;
+    const context = { exports: {}, process: { env: {} }, require: name => {
+      if (name === "react-native") return { Platform: { OS: platform } };
+      if (name === "snapback4/app") return { createApp: value => { options = value; return value; } };
+      if (name === "snapback4/auth") return { localStorageSessionStore: () => webStore };
+      if (name === "snapback4/web") return { webDevice: () => webDevice };
+      if (name === "snapback4-expo") return { nativeAvailable: () => native, nativeDevice };
       return {};
     } };
     vm.runInNewContext(compiled, context);
-    const opening = context.exports.openClient().then(value => { opened = true; return value; });
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal(syncs, link === "online" ? 1 : 0);
-    assert.equal(opened, link === "offline");
-    release(); assert.equal(await opening, client);
+    assert.equal(context.exports.tier, tier);
+    assert.equal(options.device, tier === "web" ? webDevice : native ? nativeDevice : undefined);
+    assert.ok(options.sessionStore);
+    if (tier === "web") assert.equal(options.sessionStore, webStore);
+    else assert.equal(typeof options.sessionStore.get, "function");
   }
 });

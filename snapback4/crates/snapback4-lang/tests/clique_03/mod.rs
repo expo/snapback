@@ -113,6 +113,7 @@ pub fn run_fixture(full: bool) {
         "CLIQUE_SEED {}",
         json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"replay":stats,"stored":m.source_counts(e.store())})
     );
+    drain(&mut e, m.now);
     m.check_following(&mut e);
     let (device, path) = lifecycle::adopt(&mut e, &m);
     m.check(&mut e);
@@ -129,3 +130,5 @@ pub fn run_fixture(full: bool) {
         json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"posts":counts["posts"],"replies":counts["replies"],"likes":counts["likes"],"edges":counts["follows"]})
     );
 }
+
+fn drain(e: &mut Engine, now:i64) { while e.run_timeline_chunk(now).unwrap().is_some() {} assert_eq!(e.timeline_work_counts().unwrap()[0].2,0); }

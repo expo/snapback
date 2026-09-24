@@ -5,7 +5,7 @@ fn fixture(eager: bool, rejected: u64, words: usize) -> (String, Vec<(String, Va
     // Uniform matching stays lazy even without an id suffix; the eager control
     // uses an admitted membership-and-author rule with per-row authorization.
     let suffix = "at";
-    let source = format!("table rooms:\n  public 'rooms'\n  sync public\ntable messages:\n  roomId: rooms\n  body: text <=200\n  at: time\n  by byRoomWords: roomId, words(body), {suffix}\n  public 'messages'\n  sync public\nquery has(roomId: rooms, q: text <=100):\n  return exists (messages[roomId] matching q by byRoomWords)\nquery grouped(q: text <=100, c: cursor ?):\n  return rooms after c first 2 by byId where exists (messages[.id] matching q by byRoomWords)\n");
+    let source = format!("table rooms:\n  public 'rooms'\n  sync public\ntable messages:\n  roomId: rooms\n  body: text <=200\n  at: time\n  by byRoomWords: roomId, words(body), {suffix}\n  public 'messages'\n  sync public\nquery has(roomId: rooms, q: text <=100):\n  return exists (messages[roomId = roomId] matching q by byRoomWords)\nquery grouped(q: text <=100, c: cursor ?):\n  return rooms after c first 2 by byId where exists (messages[.id] matching q by byRoomWords)\n");
     let source = if eager {
         format!("table members:\n  roomId: rooms\n  principal: principal\n  unique byRoomPrincipal: roomId, principal\n  by byPrincipal: principal, id\n  read <- .principal = viewer\n  sync to .principal\n{source}")
             .replace("  body: text <=200", "  author: principal\n  body: text <=200")

@@ -4,7 +4,7 @@ use snapback4_core::{Context, Value, WriteState};
 use snapback4_device::device::Queued;
 
 fn run<H: Host>(host: &mut H) {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+    let source = snapback4_lang::guide::quarry(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"))).into_iter()
         .find(|source| source.contains("job scoreTrending():")).expect("the feeds card needs the scheduled Trending recipe");
     let (mut server, backend) = compile(&source);
     let now = snapback4_core::now_ms();
@@ -51,7 +51,7 @@ fn run<H: Host>(host: &mut H) {
 #[test] fn trending_recipe_predicts_on_memory() { run(&mut Memory::new()); }
 
 fn tied_pages<H: Host>(host: &mut H) {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+    let source = snapback4_lang::guide::quarry(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"))).into_iter()
         .find(|source| source.contains("job scoreTrending():")).unwrap();
     let (mut server, backend) = compile(&source);
     let now = snapback4_core::now_ms();

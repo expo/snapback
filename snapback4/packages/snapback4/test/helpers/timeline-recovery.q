@@ -58,7 +58,7 @@ mutation register():
   insert profiles { principal: viewer }
 mutation publish():
   insert posts { id: 'original', authorId: viewer, at: now }
-  for i in range(0, 1021):
+  for i in range(0, 1020):
     insert notes { owner: viewer, body: '' }
 mutation grow(noteId: notes, body: text <=9000):
   update notes[noteId] { body }

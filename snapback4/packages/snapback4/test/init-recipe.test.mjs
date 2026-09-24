@@ -9,11 +9,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const binary = process.env.SNAPBACK4_BIN ?? resolve(root, "../../target/debug/snapback4");
 const retired = `E_RECIPE_RETIRED: the Following recipe installer is retired; no files written
   rewrite: maintain feed: timeline
-    authors profiles by principal
     events posts by authorId, at removed by removed
     reposts reposts by actorId, postId, at
     edges follows by followerId, followedId
-    size authors 1008, edges 5921
   declare before event and edge data exists; see snapback4 guide feeds
 `;
 const options = [

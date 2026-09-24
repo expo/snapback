@@ -5,8 +5,7 @@ pub const CARD: &str = concat!(r##"# Search: word prefixes, on the server and on
 table members:
   roomId: id
   principal: principal
-  unique byRoomPrincipal: roomId, principal
-  by byPrincipalRoom: principal, roomId, id
+  unique roomId, principal
   cap 100 by roomId
   read <- exists members[.roomId, viewer]
   insert <- allow
@@ -16,8 +15,7 @@ table messages:
   body: text <=4000 ?
   caption: text <=200 ?
   at: time
-  by byRoomWords: roomId, words(body, caption), at, id   -- the scope, the words, the order, the id
-  by byWords: words(body, caption), at, id                -- unscoped: every chat, the rule checked per row
+  search body, caption
   read <- exists members[.roomId, viewer]
   insert <- allow
 
@@ -25,32 +23,33 @@ table profiles:
   principal: principal
   displayName: text <=50
   handle: text <=30 format handle
-  unique byPrincipal: principal
-  by byNameWords: words(displayName, handle), id
+  unique principal
+  search displayName, handle
   public 'profiles are public'
   insert <- .principal = viewer
 
 query inRoom(roomId: id, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
-  return messages[roomId] matching q after c last 50 by byRoomWords
+  return messages[roomId = roomId] matching q after c last 50 by .at
 
 query people(q: text <=100, c: cursor ?):
-  return profiles matching q after c first 20 by byNameWords
+  return profiles matching q after c first 20 by .id
 
 query allPeople(c: cursor ?):
-  return profiles after c first 20 by byId
+  return profiles after c first 20 by .id
 ```
 
 `matching ''` matches nothing, including when the needle contains only whitespace or punctuation.
 Use `allPeople` while the search box is empty and `people` once the user types.
 This directory uses two queries and a client branch: `allPeople` pages the
-whole directory in `byId` order; `people` searches through `byNameWords`,
-whose trailing `id` orders the matches, not alphabetically by display name.
+whole directory by id; `people` returns matches in that same order. Neither
+query sorts alphabetically by display name.
 Continue each query with its own `next`; do not sort only the first page
 and treat it as the whole directory. Reset the cursor when switching queries or changing the search text.
 Normalize whitespace-only input to `''` in the client if it should browse too.
 
-`words(cols)` is an index component: one entry per distinct word of the
+`search body, caption` declares the searchable columns. The planner supplies
+the words index: one entry per distinct word of the
 named text columns, in that position, folded the same way everywhere
 (NFC, lowercase, a word boundary at every character that is not a letter
 or digit). The columns before it are the search's scope; the columns
@@ -68,15 +67,14 @@ ordering columns and appended id, must fit the portable 2048-byte index key.
 word it is a prefix of ("cof": coffee, coffers, cofounder — one seek each,
 bounded by the meter for a uniform scope; at most 32 words for an admitted
 non-uniform scope, whose page remains `complete: false` even below that bound), and those words
-merge as ordered lanes into one page — newest first when the index says
-so. Every further term must be a prefix of some word of the row ("cof
+merge as ordered lanes into one page — newest first with `last 20 by .at`. Every further term must be a prefix of some word of the row ("cof
 car" finds "COFFEE for Carol"). Mid-word text does not match; an empty
 search matches nothing, not everything; an expired row is gone at once;
 an edit re-tokenizes. A uniform scope (the rule decided by the room)
 costs one verdict per scope; with a total unique `(chatKey, principal)` key
 on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by the
 chat alone because the row is its own witness, so a roster page pinned by
-the chat is complete and no second table is needed. The unscoped `byWords` under a per-room rule
+the chat is complete and no second table is needed. An unscoped search under a per-room rule
 checks the rule per row and is never `complete` (`N_NEVER_COMPLETE` names
 it); use the grouped or newest form below, or read on the device.
 
@@ -126,12 +124,10 @@ table memberships:
   conversationId: conversations
   principal: principal
   role: enum('member', 'admin')
-  unique byConversationPrincipal: conversationId, principal
-  by byConversationPrincipalRole: conversationId, principal, role
-  by byPrincipalConversation: principal, conversationId, id
+  unique conversationId, principal
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
-  insert <- exists memberships[.conversationId, viewer, 'admin'] or created conversations[.conversationId]
+  insert <- exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin'] or created conversations[.conversationId]
   sync to memberships[.conversationId]
 
 table messages:
@@ -140,41 +136,39 @@ table messages:
   body: text <=4000 ?
   caption: text <=200 ?
   at: time
-  by byConvTime: conversationId, at, id
-  by byConvWords: conversationId, words(body, caption), at, id
+  search body, caption
   read <- exists memberships[.conversationId, viewer]
   insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
-  sync to memberships[.conversationId] last 500 by byConvTime
+  sync to memberships[.conversationId] last 500 by .at
 
 table profiles:
   principal: principal
   displayName: text <=50
   handle: text <=30 format handle
-  unique byPrincipal: principal
-  unique byHandle: handle
-  by byNameWords: words(displayName, handle), id
+  unique principal
+  unique handle
+  search displayName, handle
   public 'profiles are public'
   insert <- .principal = viewer
   update <- .principal = viewer
 
 query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
-  return messages[conversationId] matching q after c last 50 by byConvWords
+  return messages[conversationId = conversationId] matching q after c last 50 by .at
 
 -- everything, grouped by chat
 query searchGrouped(q: text <=100, c: cursor ?):
-  return memberships[viewer] after c first 20 by byPrincipalConversation where exists (messages[.conversationId] matching q) { conversationId, hits: messages[.conversationId] matching q last 3 by byConvWords }
+  return memberships[principal = viewer] after c first 20 by .conversationId where exists (messages[conversationId = .conversationId] by .at matching q) { conversationId, hits: messages[conversationId = .conversationId] matching q last 3 by .at }
 
 -- a globally newest-first screen while every chat opens in one read
 query searchNewest(q: text <=100, c: cursor ?):
-  return merge messages matching q after c last 20 by byConvWords:
-    [m.conversationId] for m in memberships[viewer]
+  return messages matching q where exists memberships[.conversationId, viewer] last 20 by .at after c
 
 query people(q: text <=100, c: cursor ?):
-  return profiles matching q after c first 20 by byNameWords
+  return profiles matching q after c first 20 by .id
 
 query allPeople(c: cursor ?):
-  return profiles after c first 20 by byId
+  return profiles after c first 20 by .id
 ```
 
 This version gives conversations their own table and lets an admin add members.

@@ -7,6 +7,17 @@ and `run` address an operation. If `digest.q` declares `effect notify` and
 `job daily()`, write `emit notify { ... }`, register `effects: { notify: ... }`
 in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: digest.daily`).
 
+`emit notify { … } once [recipient, periodEnd]` admits at most one effect
+for that effect name and canonical Value array for the store's lifetime.
+A repeated key skips the emit and continues the transaction. `once` deduplicates
+emission, not completion: an iteration that emits nothing records no key. Keys survive
+outbox settlement, retries, restarts and replacement runs. The key and emit
+roll back together if the transaction fails. `--replay` also records the key:
+repeating that period after replay cannot deliver the suppressed effect.
+Device prediction discards emits and never claims keys. A key does not
+promise exactly-once provider delivery; the worker still uses provider
+idempotency for an ambiguous external outcome.
+
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
 New emits are counted as `suppressed` by `doctor`, with no queued payload:
 they are never delivered, including after restarting with or without `--replay`.
@@ -32,8 +43,7 @@ effect notify secrets [PUSH_API_KEY] retry 8 backoff 2s deadline 1d cancellation
 table members:
   roomId: id
   principal: principal
-  unique byRoomPrincipal: roomId, principal
-  by byPrincipalRoom: principal, roomId, id
+  unique roomId, principal
   cap 100 by roomId
   read <- exists members[.roomId, viewer]
   insert <- exists members[.roomId, viewer]
@@ -44,15 +54,14 @@ table messages:
   authorId: principal
   body: text <=4000
   at: time
-  by byRoomTime: roomId, at, id
   read <- exists members[.roomId, viewer]
   insert <- .authorId = viewer and exists members[.roomId, viewer]
-  sync last 500 by byRoomTime
+  sync last 500 by .at
 
 mutation send(roomId: id, body: text <=4000):
   require exists members[roomId, viewer] else NOT_MEMBER
   msg = insert messages { roomId, authorId: viewer, body, at: now }
-  for m in members[roomId] by byRoomPrincipal:
+  for m in members where .roomId = roomId by .principal:
     if m.principal != viewer and not exists connected[m.principal]:
       emit notify { targetUserId: m.principal, roomId, preview: slice(body, 0, 80) }
   return { id: msg.id }
@@ -187,8 +196,7 @@ effect notify
 table memberships:
   conversationId: id
   principal: principal
-  unique byConversationPrincipal: conversationId, principal
-  by byPrincipalConversation: principal, conversationId, id
+  unique conversationId, principal
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
   insert <- exists memberships[.conversationId, viewer]
@@ -199,15 +207,14 @@ table messages:
   authorId: principal
   body: text <=4000
   at: time
-  by byConvTime: conversationId, at, id
   read <- exists memberships[.conversationId, viewer]
   insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
-  sync last 500 by byConvTime
+  sync last 500 by .at
 
 mutation send(conversationId: id, body: text <=4000):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   msg = insert messages { conversationId, authorId: viewer, body, at: now }
-  for m in memberships[conversationId] by byConversationPrincipal:
+  for m in memberships where .conversationId = conversationId by .principal:
     if m.principal != viewer and not exists connected[m.principal]:
       emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
   return { id: msg.id }
@@ -215,11 +222,11 @@ mutation send(conversationId: id, body: text <=4000):
 
 For a digest, **seek the period, filter the ordinal**. The complete recipe on `guide jobs` shares `unreadIn` with the viewer's inbox for the same period and walks
 each recipient's own memberships; the job may read expiring messages directly.
-`snapback4 guide jobs` explains the 16,384-examined chunk envelope, the measured
-hub, the single totals-table fallback past it, and restart/re-run behavior.
-Emits commit with the chunk cursor, but queueing a parked run again or manually
-running the same period creates another run and can emit again. Use
-`(targetUserId, periodEnd)` as the worker's idempotency key, or an emission marker.
+`snapback4 guide jobs` shows a streaming total inside an automatic recipient
+sweep. Each recipient must still fit one transaction's meters. Emit with
+`once [targetUserId, periodEnd]` to deduplicate admission across reruns, and
+use the same business key for provider retries. A zero-unread recipient emits
+nothing and records no key.
 
 ## Effect lifecycle refusals
 
@@ -266,4 +273,12 @@ settlements are refused. For example, a worker finishing a push after
 `POST /effects/<id>/cancel` cannot mark that old effect sent. Inspect the
 provider using the effect's idempotency key before creating another effect.
 Cancellation stops further admitted work, but cannot undo a provider call
-already in flight."##;
+already in flight.
+
+```quarry
+effect onceNotify
+mutation remind(recipient: principal, periodEnd: time):
+  emit onceNotify { recipient, periodEnd } once [recipient, periodEnd]
+  return true
+```
+"##;

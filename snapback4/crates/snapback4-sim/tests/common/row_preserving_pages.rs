@@ -3,7 +3,7 @@ use snapback4_core::{Context, Value, engine::ReadCut, ir::{Builtin, Expr, Stmt},
 use std::collections::BTreeSet;
 
 const TABLE: &str = "table members:\n  roomId: id\n  principal: principal\n  by byPrincipalRoom: principal, roomId, id\n  read <- .principal = viewer\n  sync\n";
-const PAGE: &str = "members[viewer] after c first 20 by byPrincipalRoom";
+const PAGE: &str = "members[principal = viewer] after c first 20 by byPrincipalRoom";
 
 pub fn compile(source: &str) -> snapback4_lang::Bound {
     let mut bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
@@ -222,7 +222,7 @@ fn w13i_group_does_not_extend_the_returned_shape_mark() {
 
 #[test]
 fn w13i_cursor_notes_keep_their_existing_triggers() {
-    let source = format!("{TABLE}\nquery plain():\n  return members[viewer] first 20 by byPrincipalRoom\nquery grouped():\n  return group(members[viewer] first 20 by byPrincipalRoom, 'roomId')\nquery sorted():\n  return sort(members[viewer] first 20 by byPrincipalRoom, 'id')\nquery cursor(c: cursor ?):\n  return group({PAGE}, 'roomId')\n");
+    let source = format!("{TABLE}\nquery plain():\n  return members[principal = viewer] first 20 by byPrincipalRoom\nquery grouped():\n  return group(members[principal = viewer] first 20 by byPrincipalRoom, 'roomId')\nquery sorted():\n  return sort(members[principal = viewer] first 20 by byPrincipalRoom, 'id')\nquery cursor(c: cursor ?):\n  return group({PAGE}, 'roomId')\n");
     let bound = compile(&source);
     let notes = bound.notes.iter().filter(|note| note.code == "N_NO_CURSOR").collect::<Vec<_>>();
     assert_eq!(notes.len(), 1, "{:?}", bound.notes);

@@ -104,6 +104,10 @@ pub struct SeekBound {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReadExpr {
+    /// Computed lane keys introduced by the planner, never written as fields.
+    pub computed: std::collections::BTreeMap<String, Expr>,
+    /// Column order in the intent spelling; an index name remains `index`.
+    pub order_keys: Vec<String>,
     pub table: String,
     pub keys: Vec<KeyPart>,
     pub seeks: Vec<SeekBound>,
@@ -118,6 +122,12 @@ pub struct ReadExpr {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeLane {
+    /// Nullable `in` needs one filtered scan, never a null index prefix.
+    pub nulls: Option<(String, Box<ReadExpr>)>,
+    pub distinct: Option<Expr>,
+    pub branch: Option<String>,
+    pub planned: Option<Box<ReadExpr>>,
+    pub project: Option<Vec<ShapeField>>,
     pub table: Option<String>,
     pub prefix: Vec<Expr>,
     pub columns: Option<Vec<Option<String>>>,
@@ -127,6 +137,7 @@ pub struct MergeLane {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeExpr {
+    pub view_order: Vec<String>,
     pub table: String,
     pub matching: Option<Box<Expr>>,
     pub filter: Option<Box<Expr>>,
@@ -204,7 +215,7 @@ pub enum Stmt {
     Expr { value: Expr, site: Site },
     Require { condition: Expr, code: String, site: Site },
     Return { value: Expr, site: Site },
-    Emit { effect: String, payload: Expr, site: Site },
+    Emit { effect: String, payload: Expr, once: Option<Expr>, site: Site },
     If { condition: Expr, then_body: Vec<Stmt>, else_body: Vec<Stmt>, site: Site },
     For { name: String, domain: Expr, body: Vec<Stmt>, site: Site },
     /// `break`: the enclosing `for` or `chunk` ends.
@@ -281,6 +292,7 @@ pub struct ColumnAggregate {
     pub source: String,
     pub of: Option<String>,
     pub filter: Option<Expr>,
+    /// Empty until reference inference in the catalog when `by` is omitted.
     pub by: String,
 }
 
@@ -309,6 +321,7 @@ pub struct CapDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TableDecl {
+    pub search: Vec<String>,
     pub name: String,
     pub columns: Vec<ColumnDecl>,
     pub indexes: Vec<IndexDecl>,
@@ -335,7 +348,7 @@ pub struct MaintainDecl {
     pub source: String,
     pub column: Option<String>,
     pub by: Vec<String>,
-    pub read: RuleDecl,
+    pub read: Option<RuleDecl>,
     pub online_only: bool,
     pub site: Site,
 }
@@ -430,6 +443,8 @@ pub struct Document {
     pub tables: Vec<TableDecl>,
     pub maintains: Vec<MaintainDecl>,
     pub timelines: Vec<TimelineDecl>,
+    pub views: Vec<ViewDecl>,
+    pub feed_views: Vec<FeedView>,
     pub effects: Vec<EffectDecl>,
     pub shapes: Vec<ShapeDecl>,
     pub functions: Vec<FunctionDecl>,
@@ -448,6 +463,29 @@ pub struct TimelineDecl {
     pub posts: [String; 4],
     pub reposts: [String; 4],
     pub edges: [String; 3],
-    pub size: crate::recipe::FollowingCaps,
+    pub size: Option<crate::recipe::FollowingCaps>,
+    pub filter: Option<Expr>,
+    pub site: Site,
+}
+
+/// Planned union branches retain their source sites for type/order diagnostics.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewDecl {
+    pub name: String,
+    pub branches: Vec<ViewBranch>,
+    pub site: Site,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewBranch {
+    pub source: String,
+    pub predicate: Option<Expr>,
+    pub fields: Vec<ShapeField>,
+    pub site: Site,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FeedView {
+    pub name: String,
+    pub source: String,
+    pub predicate: Expr,
     pub site: Site,
 }

@@ -6,7 +6,7 @@ const DAY: i64 = 86_400_000;
 const PERIOD: i64 = 60_000;
 
 fn recipe() -> String {
-    snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+    snapback4_lang::guide::quarry(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"))).into_iter()
         .find(|source| source.contains("job scoreTrending():")).expect("the feeds card needs the scheduled Trending recipe")
 }
 
@@ -44,7 +44,7 @@ fn drain(engine: &mut Engine, now: i64) -> u64 {
 }
 
 fn live_engine() -> Engine {
-    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+    let source = snapback4_lang::guide::quarry(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../snapback4-lang/tests/fixtures/legacy-feed-recipes.md"))).into_iter()
         .find(|source| source.contains("query rollingLikes():")).expect("the feeds card needs the fresh bounded ranking recipe");
     // Retain W12's bounded-sort engine coverage after the post-window card moves to lanes.
     let source = source + "\nquery trending():\n  candidates = posts[at > now - 86400000, at <= now] first 4095 by byTime { postId: .id, at, score: likeCounts[.id] }\n  return slice(sort(candidates, '-score', '-at', '-postId'), 0, 10)\n";

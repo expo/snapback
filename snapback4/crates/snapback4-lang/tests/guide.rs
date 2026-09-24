@@ -37,15 +37,10 @@ fn readme_reference(name: &str) -> &'static str {
 }
 
 #[test]
-fn feeds_card_preserves_promotion_refusals_and_orientation() {
+fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
     let feeds = card("feeds").unwrap();
     assert_eq!(feeds, readme_reference("feeds"));
-    for fact in ["51st follower permanently promotes", "FEED_PULL_CAP", "FEED_PROMOTION_PULL_CAP",
-        "no follower is silently skipped", "50 followers indefinitely", "51 reads",
-        "1,023 total writes including the app edge", "865-event window", "1,001 private copies",
-        "tables empty and at most the declared number of existing profiles", "size authors 1008, edges 5921",
-        "follow and promotion roll back, including the app edge", "Every saturated follower must free a slot",
-        "retry the refused follow with a new write ID", "server-run query", "public `follows` and `feedPullCounts`", "`used = 32`"] {
+    for fact in ["durable delivery record", "1,000-event window", "for every examined row", "pending backfill or cleanup", "without prediction"] {
         assert!(feeds.contains(fact), "missing {fact}");
     }
     for bad in ["skips a follower", "skip saturated readers", "A skipped follower", "not skipped\nauthors"] {
@@ -57,7 +52,7 @@ fn feeds_card_preserves_promotion_refusals_and_orientation() {
         assert!(codes().contains(&code));
     }
     for (code, facts) in [
-        ("E_RECIPE_RETIRED", vec!["maintain feed: timeline", "size authors 1008, edges 5921"]),
+        ("E_RECIPE_RETIRED", vec!["maintain feed: timeline", "no author count or delivery size"]),
         ("FEED_PULL_CAP", vec!["32 shared authors", "rolled back", "new write ID"]),
         ("FEED_PROMOTION_PULL_CAP", vec!["32 shared-author slots", "rolled back", "public", "pullCounts", "server-run query", "used = 32"]),
     ] {
@@ -129,18 +124,18 @@ fn w14b_first_account_screen_is_self_contained() {
     let path = readme.split_once("## Reference map").expect("one optional reference map").0;
     for text in [
         "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npx snapback4 dev",
-        "use identity password", "table profiles:", "unique byHandle:", "avatar: image",
+        "use identity password", "table profiles:", "unique handle", "avatar: image",
         "query handleAvailable(", "query myProfile(", "mutation saveProfile(",
-        "signup(", "login(", "keepSession(", "restoreSession(", "sessionStore",
-        "nativeDevice", "webDevice()", "createClient(", "createLocalClient(", "acquired",
-        "client.upload(", "avatar: { id:", "client.mutate(api.saveProfile", "client.write(",
-        "\"pending\"", "\"denied\"", "\"sent\"", "\"failed\"", "\"loading\"",
+        "signup(", "login(", "createApp(", "useAuth()", "AppProvider", "sessionStore",
+        "nativeDevice", "webDevice()", "localStorageSessionStore()", "acquired", "web-shell dist",
+        "client.upload(", "avatar: { id:", "useMutation(api.saveProfile)", "save.run(",
+        "\"pending\"", "\"denied\"", "`sent`", "\"failed\"", "\"loading\"",
         "post-signup", "terminal", "cold-offline", "1,024 UTF-8 bytes", "8 characters",
-        "// src/account.ts", "// src/client.ts", "// App.tsx",
+        "// src/client.ts", "// App.tsx",
     ] { assert!(path.contains(text), "in-file first-screen path omits {text}"); }
     assert!(!path.contains("]("), "required setup is in-file; external lookups belong in the reference map");
     assert!(!path.contains("guest("), "the first account is password-only");
-    assert!(path.find("client.upload(").unwrap() < path.find("avatar: { id: uploaded.asset.id }").unwrap());
+    assert!(path.find("client.upload(").unwrap() < path.find("avatar: { id: result.asset.id }").unwrap());
     let source = quarry(path).into_iter().find(|block| block.contains("table profiles:")).unwrap();
     let bound = clean("first account", &source);
     assert!(bound.schema.auth.password && !bound.schema.auth.guests);
@@ -270,11 +265,11 @@ fn failed(outcome: &snapback4_core::MutationOutcome) -> &str {
 fn the_language_card_compiles_and_runs() {
     let source = in_context(&quarry(LANGUAGE)[1]);
     let bound = clean("the language card", &source);
-    let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).filter(|name| !name.starts_with("timeline")).collect();
+    let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).filter(|name| !name.starts_with("intent")).collect();
     assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
-    assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
+    assert_eq!(bound.schema.effects, ["notify", "sendDigest", "intentDigest"]);
     assert!(bound.server);
-    assert_eq!(bound.schema.schedules.len(), 3);
+    assert_eq!(bound.schema.schedules.len(), 2);
     assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
     assert_eq!(bound.schema.routes["providerEvent"].service.as_deref(), Some("service:reporter"));
     assert_eq!(bound.schema.routes["roomExport"].service, None);
@@ -303,7 +298,8 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(failed(&duplicate), "HANDLE_TAKEN");
     let WriteState::Failed { why, .. } = duplicate.state else { unreachable!() };
     assert_eq!(why.message, "That handle is taken.");
-    assert_eq!(why.detail.as_deref(), Some("profiles.byHandle already has a row where handle = 'alice'"));
+    let handle_index = bound.schema.tables["profiles"].indexes.iter().find(|(_, index)| index.unique && index.columns() == ["handle"]).unwrap().0;
+    assert_eq!(why.detail.as_deref(), Some(format!("profiles.{handle_index} already has a row where handle = 'alice'").as_str()));
 
     // createRoom: `new` takes the first minted id; the second insert the next; `after insert` holds.
     let created = engine.mutate("createRoom", Some("c1"), Context::new(alice, args(&[("name", text("General")), ("kind", text("open")), ("tags", Value::Array(vec![text("new")]))])).at(1_000).with_ids(["r1".to_owned(), "m1".to_owned()])).unwrap();
@@ -446,7 +442,7 @@ fn the_language_card_compiles_and_runs() {
     // everyNight: the schedule fires from its next boundary, once.
     let (day, three) = (86_400_000, 10_800_000);
     assert_eq!(engine.fire_schedules(day + three + 1_000).unwrap(), Vec::<String>::new());
-    assert_eq!(engine.fire_schedules(2 * day + three + 1_000).unwrap(), vec!["everyNight".to_owned(), "summariesEveryDay".to_owned(), "timelinePurgeRemovedEvery".to_owned()]);
+    assert_eq!(engine.fire_schedules(2 * day + three + 1_000).unwrap(), vec!["everyNight".to_owned(), "summariesEveryDay".to_owned()]);
     assert_eq!(engine.action_counts().unwrap().get("queued"), Some(&1));
     assert!(engine.fire_schedules(2 * day + three + 1_000).unwrap().is_empty());
 }
@@ -454,29 +450,31 @@ fn the_language_card_compiles_and_runs() {
 /// Every keyword card's blocks bind clean, alone or beside the language card.
 #[test]
 fn every_card_compiles_clean() {
+    let mut errors = Vec::new();
     for keyword in KEYWORDS {
         let text = card(keyword).unwrap_or_else(|| panic!("no card for {keyword}"));
         let blocks = quarry(text);
         for (n, block) in blocks.iter().enumerate() {
-            if *keyword == "feeds" && n == 0 {
+            if *keyword == "feeds" && n == 1 {
                 feeds::assert_stream_note(&compile(block));
                 continue;
             }
             if *keyword == "search" && n == 1 {
-                // The lane brief explicitly permits notes documented by this section.
+                // This historical full-history example intentionally has no horizon.
                 // Keep the exception on this block and this exact site; every
                 // other card and every server operation must still compile silently.
                 let bound = compile(block);
                 assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
                 assert_eq!(bound.notes.iter().map(|note| (note.code.as_str(), note.site.line, note.guide.as_str())).collect::<Vec<_>>(),
-                    [("N_NO_HORIZON", 10, "sync")]);
+                    [("N_NO_HORIZON", 9, "sync")]);
                 assert!(bound.notes[0].message.starts_with("table messages:"));
                 assert!(text.contains("This block intentionally emits N_NO_HORIZON"));
                 continue;
             }
-            clean(&format!("card {keyword}, block {}", n + 1), &in_context(block));
+            if std::panic::catch_unwind(|| clean(&format!("card {keyword}, block {}", n + 1), &in_context(block))).is_err() { errors.push(format!("{keyword}: {}", n + 1)); }
         }
     }
+    assert!(errors.is_empty(), "unclean blocks: {errors:?}");
     // The relocation preserves compiling adoption instructions for already installed apps.
     let adoption = quarry(include_str!("../src/recipe/ADOPTION.md"));
     assert!(!adoption.is_empty(), "installed-app adoption must remain executable");
@@ -486,7 +484,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 3, "the language card separates the server opt-in and maintained-column example");
+    assert_eq!(quarry(LANGUAGE).len(), 4, "one running core, server extension, Following view and compatibility block");
 }
 
 #[test]
@@ -937,17 +935,16 @@ fn direct_and_merged_cursor_generation_contracts_are_distinct() {
 
 #[test]
 fn language_following_uses_the_declaration() {
-    let bound = clean("language", &language());
+    let compatibility = quarry(LANGUAGE).pop().unwrap();
+    let bound = clean("older timeline spelling", &compatibility);
     assert_eq!(bound.schema.timelines.len(), 1);
     assert_eq!(bound.schema.operations["timelineHome"].runs.as_deref(), Some("device"));
     let sites = &bound.schema.operations["timelineHome"].sites;
-    for table in ["timelineFeed", "timelinePulls", "timelineBroadcast", "timelineRemovedEvents"] {
+    for table in ["timelineFeed", "timelineEdges", "timelineRemovedEvents", "timelineWork"] {
         assert!(sites.iter().any(|site| site.table == table), "missing {table}: {sites:?}");
     }
-    assert!(!sites.iter().any(|site| site.table == "timelineFollows" || site.table == "follows"));
     assert_eq!(bound.schema.operations["timelineFollow"].predicts.as_deref(), Some("never"));
-    assert!(bound.schema.tables["timelinePulls"].constraints.iter().any(|constraint|
-        matches!(constraint, snapback4_core::schema::Constraint::Cap { by, max: 32 } if by == &["readerId"])));
+    assert!(!bound.schema.tables.contains_key("timelinePulls"));
     assert!(LANGUAGE.contains("guide feeds"));
     assert!(!language().contains("table feed:"));
 }
@@ -1107,18 +1104,20 @@ fn digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation() {
     assert_eq!(recipes, [digest.clone()], "one intact digest, reached from the orientation");
     clean("digest", &digest);
     assert!(!quarry(jobs).iter().any(|b| b.contains("job digestLarge(")), "no live paged accumulator");
-    assert!(digest.contains("at >= periodStart, at < periodEnd"));
+    assert!(digest.contains(".at >= periodStart and .at < periodEnd"));
     assert!(digest.contains(".ordinal > readOrdinal"));
-    assert!(digest.contains("require n <= 100 else DIGEST_CHAT_BOUND"));
-    assert!(digest.contains("insert digestMarkers { principal: p.principal, periodEnd }"));
+    assert!(digest.contains("count(messages where"));
+    assert!(!digest.contains("first 101") && !digest.contains("table digestMarkers"));
+    assert!(digest.contains("once [p.principal, periodEnd]"));
+    assert!(digest.contains("for p in profiles:"));
     assert_eq!(snapback4_lang::diag::guide_for("DIGEST_CHAT_BOUND"), "jobs");
     assert!(explain_code("DIGEST_CHAT_BOUND").unwrap().contains("without an effect or marker"));
     let remind = quarry(jobs).into_iter().find(|b| b.contains("job remind(")).unwrap();
     assert!(remind.contains("immutable sentAt"));
-    assert!(remind.contains("invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt"));
+    assert!(remind.contains("for i in invites where .sentAt >= periodStart and .sentAt < periodEnd by .sentAt:"));
     // `why` names the job door too, and neither text promises a backfill:
     // missed boundaries coalesce into one run for the latest period.
-    assert!(explain_code("E_STRUCTURAL_FANOUT").unwrap().contains("or use a job chunk, which may read a table with expiry"));
+    assert!(explain_code("E_STRUCTURAL_FANOUT").unwrap().contains("or use a job sweep, which may read a table with expiry"));
     for text in [jobs, readme_reference("jobs")] {
         assert!(text.contains("never twice for the\nsame boundary") || text.contains("never twice for the same boundary"));
         assert!(!text.contains("exactly once across restarts") && !text.contains("exactly once per\nboundary"));
@@ -1149,7 +1148,7 @@ fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates(
     for (name,text) in docs {
         for (index, source) in quarry(text).into_iter().enumerate() {
             let bound=compile(&in_context(&source));
-            if name == "feeds" && index == 0 { feeds::assert_stream_note(&bound); continue; }
+            if name == "feeds" && index == 1 { feeds::assert_stream_note(&bound); continue; }
             assert!(bound.notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")),"{name}: {:?}",bound.notes);
         }
     }
@@ -1158,3 +1157,6 @@ fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates(
         assert!(bound.notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")),"{:?}",bound.notes);
     }
 }
+
+#[path = "guide/intent.rs"]
+mod intent;

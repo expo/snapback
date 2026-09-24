@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import ts from "typescript";
+import { createApp } from "../dist/app.js";
 import { memorySessionStore } from "../dist/auth.js";
 import { processDevice } from "../dist/native.js";
 
@@ -25,12 +26,12 @@ const until = async (read, label) => {
 for (const tier of ["online", "local"]) test(`README first account: ${tier}, generated API, password, avatar, reopen and denied read`, { timeout: 120_000 }, async t => {
   const schema = blocks.find(b => b[1] === "quarry" && b[2].includes("table profiles:"))?.[2];
   assert.ok(schema, "README must contain its password profile schema");
-  const examples = blocks.filter(b => b[1] !== "quarry").map(b => ({ text: b[2], file: b[2].match(/^\/\/ (src\/\w+\.ts|App\.tsx)\n/)?.[1] }));
-  assert.deepEqual(examples.map(b => b.file), ["src/account.ts", "src/client.ts", "App.tsx"]);
+  const examples = blocks.filter(b => b[1] !== "quarry" && b[2].startsWith("// ")).map(b => ({ text: b[2], file: b[2].match(/^\/\/ (src\/\w+\.ts|App\.tsx)\n/)?.[1] }));
+  assert.deepEqual(examples.map(b => b.file), ["src/client.ts", "App.tsx"]);
   const dir = mkdtempSync(join(pkg, ".first-account-"));
-  let host, client;
+  let host, client, screen;
   t.after(async () => {
-    await client?.close();
+    await screen?.close();
     if (host && host.exitCode === null) { const done = new Promise(r => host.once("exit", r)); host.kill("SIGTERM"); await done; }
     rmSync(dir, { recursive: true, force: true });
   });
@@ -75,11 +76,10 @@ for (const tier of ["online", "local"]) test(`README first account: ${tier}, gen
   assert.match(generated, /saveProfile/);
   mkdirSync(join(dir, "node_modules"), { recursive: true });
   symlinkSync(pkg, join(dir, "node_modules/snapback4"));
-  for (const file of ["snapback/generated/api.ts", "src/account.ts"]) {
+  for (const file of ["snapback/generated/api.ts"]) {
     const source = readFileSync(join(dir, file), "utf8").replace('"../snapback/generated/api"', '"../snapback/generated/api.mjs"');
     writeFileSync(join(dir, file.replace(/\.ts$/, ".mjs")), ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext }));
   }
-  const { account } = await import(pathToFileURL(join(dir, "src/account.mjs")));
   const { api } = await import(pathToFileURL(join(dir, "snapback/generated/api.mjs")));
   let output = "";
   host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
@@ -100,41 +100,41 @@ for (const tier of ["online", "local"]) test(`README first account: ${tier}, gen
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = memorySessionStore();
   const device = tier === "local" ? processDevice({ dir: join(dir, "device"), binary }) : undefined;
-  const open = () => account(url, store, device);
-  let screen = await open();
-  assert.equal(await screen.restore(), null);
-  client = await screen.signIn("signup", `${tier}@example.com`, "long-password");
+  const open = () => createApp({ url, sessionStore: store, device });
+  screen = open(); await screen.ready;
+  assert.equal(screen.auth.state, "signed-out");
+  assert.equal((await screen.auth.signup(`${tier}@example.com`, "long-password")).ok, true);
+  client = screen.client;
   const principal = client.viewer();
   if (tier === "local") assert.equal(client.acquired, true, "the documented opener completes acquisition");
   assert.equal((await client.query(api.handleAvailable, { handle: "alice" })).data, true, "availability is checked after signup");
-  assert.equal(await screen.profile(), "profile", "a signed-in account without a profile resumes onboarding");
+  assert.equal((await client.query(api.myProfile, {})).data, null, "a signed-in account without a profile resumes onboarding");
   loseSaveReply = true;
-  const saved = await screen.save("alice");
+  const saved = await screen.mutate(api.saveProfile, { handle: "alice" });
   assert.equal(saved.state, "pending", "a lost confirmation keeps the recorded intent");
-  assert.ok(await store.get(`account.write.${url}`));
-  await client.close(); client = undefined; replyLost = false;
-  screen = await open(); client = await screen.restore();
-  const settled = await until(async () => { const w = await screen.recover(); return w?.state === "pending" ? undefined : w; }, "same-ID save after reopen");
+  await screen.close(); client = undefined; replyLost = false;
+  screen = open(); await screen.ready; client = screen.client;
+  const settled = await until(async () => { const w = await client.write(saved.id); return w?.state === "pending" ? undefined : w; }, "same-ID save after reopen");
   assert.equal(settled.state, "sent");
   assert.equal(settled.id, saved.id);
-  assert.equal(await store.get(`account.write.${url}`), null);
   assert.equal(client.viewer(), principal, "pending recovery keeps the signed-in account");
   // A real supported PNG: upload first, then place its ID through the generated mutation.
   const png = new Blob([Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=", "base64")], { type: "image/png" });
-  assert.equal((await screen.save("alice", png)).state, "sent");
-  const profile = await screen.profile();
+  const uploaded = await client.upload(png); assert.equal(uploaded.ok, true);
+  assert.equal((await screen.mutate(api.placeAvatar, { avatar: { id: uploaded.asset.id } })).state, "sent");
+  const profile = (await client.query(api.myProfile, {})).data;
   assert.equal(profile.handle, "alice");
   assert.ok(profile.avatar?.id);
   const asset = await client.asset(profile.avatar.id);
   assert.ok("url" in asset); asset.revoke();
-  await client.close(); client = undefined;
-  screen = await open(); client = await screen.restore();
+  await screen.close(); client = undefined;
+  screen = open(); await screen.ready; client = screen.client;
   assert.equal(client.viewer(), principal, "reopen restores the persisted password session");
-  assert.equal((await screen.profile()).avatar.id, profile.avatar.id);
-  await client.close(); client = undefined;
-  screen = await open(); client = await screen.signIn("login", `${tier}@example.com`, "long-password");
+  assert.equal(((await client.query(api.myProfile, {})).data).avatar.id, profile.avatar.id);
+  await screen.close(); client = undefined;
+  screen = open(); await screen.ready; assert.equal((await screen.auth.login(`${tier}@example.com`, "long-password")).ok, true); client = screen.client;
   assert.equal(client.viewer(), principal);
-  assert.equal((await screen.profile()).handle, "alice");
+  assert.equal(((await client.query(api.myProfile, {})).data).handle, "alice");
   const refused = await client.query(api.profileFor, { owner: "user:someone-else" });
   assert.equal(refused.denied?.code, "PROFILE_PRIVATE", "a denied read is not missing-profile onboarding");
   t.diagnostic(`first account ${tier}: generated_types=1 signup=1 login=1 profile=1 avatar=1 reopen=1 denied=1 pending_same_id=1`);

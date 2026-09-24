@@ -126,9 +126,9 @@ impl Binder<'_> {
                 out.push(Stmt::Require { condition: expr, code: code.clone(), site: Some(site.to_string()) });
                 Ok(())
             }
-            S::Emit { effect, payload, site } => {
+            S::Emit { effect, payload, once, site } => {
                 if self.in_prelude {
-                    return Err(placement(site, "a write belongs to a chunk", "move emit into the chunk body"));
+                    return Err(placement(site, "a write belongs to a chunk", "move emit inside a top-level `for row in table:` job sweep"));
                 }
                 if self.kind == ProgramKind::Query {
                     return Err(Diagnostic::new(site, "E_EMIT_IN_QUERY", "queries cannot emit effects", "change query to mutation before emitting an effect"));
@@ -137,9 +137,18 @@ impl Binder<'_> {
                     return Err(unknown(site, format!("unknown effect {effect}"), format!("declare `effect {effect}` at the top level; a worker with a service token claims what is emitted (guide effects)")));
                 }
                 let start = out.len();
-                let (expr, _) = self.expr(payload, out)?;
+                let (mut expr, _) = self.expr(payload, out)?;
                 if self.record_ownership { out.own(start, setup::Owner::Payload); }
-                out.push(Stmt::Emit { effect: effect.clone(), payload: expr });
+                let once = once.as_ref().map(|key| {
+                    if !matches!(key, A::Array { .. }) {
+                        return Err(type_error(key.site(), "once requires an array of key values", "emit notify { ... } once [recipient, periodEnd]"));
+                    }
+                    let mut setup = setup::Body::default();
+                    let (key, _) = self.expr(key, &mut setup)?;
+                    self.sequence_setup([&mut expr].into_iter(), setup, out);
+                    Ok(key)
+                }).transpose()?;
+                out.push(Stmt::Emit { effect: effect.clone(), payload: expr, once });
                 Ok(())
             }
             S::If { condition, then_body, else_body, site: _ } => {
@@ -183,7 +192,14 @@ impl Binder<'_> {
                 if self.binding(name).is_some_and(|binding| binding.parameter) {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), "give the loop item a fresh name"));
                 }
+                let before = self.visible_bindings();
                 let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
+                if self.caller_kind == ProgramKind::Job && self.loops == 0 && matches!(&loop_domain, LoopDomain::Page(scan) if scan.take == Bound::Meter) {
+                    let after = self.visible_bindings();
+                    if let Some((name, _)) = before.iter().find(|(name, old)| after.get(*name).is_some_and(|new| old.revision != new.revision)) {
+                        return Err(placement(site, format!("automatic sweep carries local {name} across iterations, but chunks commit independently"), format!("declare {name} inside the `for row in table:` body for per-item work, or store cross-chunk progress in a table")).guide("jobs"));
+                    }
+                }
                 self.sources.insert(format!("for/{binding}"), (site.clone(), print::expression(domain)));
                 out.push_for(binding, loop_domain, body_out);
                 Ok(())
@@ -356,7 +372,21 @@ impl Binder<'_> {
 
     pub(super) fn loop_domain(&mut self, domain: &A, out: &mut setup::Body) -> Fallible<(LoopDomain, Ty)> {
         if let A::Read(read) = domain && let Some(shaped) = self.page_shape(read) { return self.loop_domain(&shaped, out); }
+        if let A::Name { name, site } = domain && self.binding(name).is_none() && self.catalog.tables.contains_key(name) {
+            let read = ReadExpr { order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
+            let (scan, _) = self.scan_at(&read, out, prefix::Position::Domain)?;
+            return Ok((LoopDomain::Page(scan), Ty::Row(name.clone())));
+        }
         match domain {
+            A::Name { name, .. } if self.binding(name).is_none() && self.catalog.view_reads.contains_key(name) => {
+                let mut merge = self.catalog.view_reads[name].clone(); merge.site = domain.site().clone();
+                self.loop_domain(&A::Merge(merge), out)
+            }
+            A::Merge(merge) if merge.index.is_empty() => {
+                let (value, ty) = self.planned_view(merge, out, prefix::Position::Domain)?;
+                let item = match ty { Ty::Page(table, _) => Ty::Row(table), Ty::Collection(item, _) => *item, _ => unreachable!("planned collection") };
+                Ok((LoopDomain::DerivedArray { value, max: merge.take, bound_source: "planned domain".into() }, item))
+            }
             A::Read(read) if self.is_page(read, ReadMode::FilteredPoint)? => {
                 let (scan, _) = self.scan_at(read, out, prefix::Position::Domain)?;
                 Ok((LoopDomain::Page(scan), Ty::Row(read.table.clone())))

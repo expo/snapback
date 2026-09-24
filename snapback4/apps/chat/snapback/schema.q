@@ -33,7 +33,7 @@ table conversations:
   insert <- .creatorId = viewer
   update <- deny
   delete <- deny
-  after insert <- exists memberships[.id, .creatorId, 'admin']
+  after insert <- exists memberships[conversationId = .id, principal = .creatorId, role = 'admin']
   sync                 -- a member's device holds its conversations
 
 table memberships:
@@ -47,8 +47,8 @@ table memberships:
   cap 50 by conversationId
   immutable conversationId, principal, joinedAt
   read <- exists memberships[.conversationId, viewer]
-  insert <- exists memberships[.conversationId, viewer, 'admin']
-  delete <- .principal = viewer or exists memberships[.conversationId, viewer, 'admin']
+  insert <- exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin']
+  delete <- .principal = viewer or exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin']
   sync     -- and the roster of each
 
 table messages:
@@ -80,7 +80,7 @@ query inbox():
     { conversationId, conversation: conversations[.conversationId], count: messageCounts[.conversationId] }
 
 mutation addMember(conversationId: conversations, principal: principal):
-  require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN
+  require exists memberships[conversationId = conversationId, principal = viewer, role = 'admin'] by byConversationPrincipalRole else NOT_ADMIN
   return insert memberships { conversationId, principal, role: 'member', joinedAt: now } if absent
 
 mutation leave(conversationId: conversations):

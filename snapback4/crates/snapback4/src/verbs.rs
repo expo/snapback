@@ -191,16 +191,19 @@ pub fn check(options: &Options) -> i32 {
         }
     } else { None };
     let details = acquisition.is_none() || options.flags.contains_key("verbose");
+    let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze(&bound.schema, &p.program)).collect();
+    let scale_summary = crate::scale::summary(&certificates);
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     if options.json {
-        println!("{}", json!({ "ok": true, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "scaleSummary": scale_summary, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         if details {
             for report in diagnostic_reports(&bound.notes, "note: ", true) { println!("{report}"); }
         }
     }
+    if !options.json { println!("{scale_summary}"); }
     if details && !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
     if details && options.flags.contains_key("residency") && !options.json { println!("{}", residency::facts(&bound)); }
     if !details && options.flags.contains_key("residency") && !options.json {
@@ -229,7 +232,11 @@ pub fn check(options: &Options) -> i32 {
 /// The structural cost class of a program: what `check --cost` prints
 /// instead of a price (LLP 2000.000 §6).
 fn cost_report(bound: &Bound, program: &ir::Program) -> String {
-    let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name)];
+    let certificate = crate::scale::analyze(&bound.schema, program);
+    let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {}", certificate.line())];
+    for growth in &certificate.growth_sites {
+        lines.push(format!("      {}: {}; rewrite: {}", growth.site, growth.reason, growth.rewrite));
+    }
     if program.native {
         lines.push(match program.kind {
             ProgramKind::Query => format!("    native read: the module's reads go through the host as the viewer, metered under the read ceilings ({} rows examined), {} fuel; no writes, no cursor; on a device, over the rows it holds", snapback4_core::Ceilings::default().examined, snapback4_core::engine::native::FUEL_PER_READ),
@@ -270,9 +277,15 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
             let digits = snapback4_core::Ceilings::default().examined.to_string();
             let examined = digits.chars().enumerate().map(|(i, c)| format!("{}{c}", if i > 0 && (digits.len() - i) % 3 == 0 { "," } else { "" })).collect::<String>();
             format!(" rows ≤ meter ({examined} examined)")
-        } else if site.kind == "scan" { format!(" first {}", site.take) } else { String::new() };
+        } else if site.kind == "scan" {
+            format!(" {} {}", if scan.is_some_and(|scan| scan.order == ir::Order::Desc) { "last" } else { "first" }, site.take)
+        } else { String::new() };
         let kind = if scan.is_some_and(|s| s.range.is_some()) { "prefix seek" } else { site.kind };
         lines.push(format!("    {kind} {}.{}{take} — {hoist}", site.table, site.index));
+        if let Some(selection) = bound.programs.iter().find(|bound| bound.program.name == program.name).and_then(|bound| bound.selection(&site.site))
+            && selection.contains("synthesized;") {
+            lines.push(format!("      {selection}"));
+        }
         if let Some(scan) = scan {
             lines.push(if scan.existence { "      exists: first match, no page overflow or cursor" } else { "      sort/group/sum/count consume this page, not the whole population" }.into());
             if let Some(filter) = &scan.filter {
@@ -431,7 +444,7 @@ pub fn run(options: &Options) -> i32 {
                 for line in engine.take_native_logs() {
                     eprintln!("native {line}");
                 }
-                let body = json!({ "job": run.name, "id": run.id, "state": run.state, "chunks": run.chunks, "rowsWritten": run.rows_written, "error": run.error });
+                let body = json!({ "job": run.name, "id": run.id, "state": run.state, "chunks": run.chunks, "chunkSize": run.chunk_size, "retries": run.retries, "heapPeak": run.heap_peak, "rowsWritten": run.rows_written, "error": run.error });
                 println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
                 if run.state == snapback4_core::JobState::Done { 0 } else { 1 }
             }
@@ -661,9 +674,12 @@ pub fn doctor(options: &Options) -> i32 {
                         let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
                         lines.push(format!("schedule  {} every {}{} → {}; {}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02}", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target, match last { Some(at) => format!("last boundary {at}"), None => "not yet started (a running server starts it)".into() }));
                     }
+                    if let Ok(work) = engine.timeline_work_counts() {
+                        for (name, pending, parked) in work { lines.push(format!("timeline  {name}: {pending} pending delivery work, {parked} parked")); }
+                    }
                     if let Ok(runs) = engine.jobs(5) {
                         for run in runs {
-                            lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{}{}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
+                            lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{} (chunk size {}, retries {}, peak heap {}){}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.chunk_size, run.retries, run.heap_peak, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
                         }
                     }
                     if let Ok((counts, deferred)) = effect_health(&engine, now) && !counts.is_empty() {

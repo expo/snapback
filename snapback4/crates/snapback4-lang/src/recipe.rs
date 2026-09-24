@@ -138,7 +138,7 @@ fn rename_module(source: &str, prefix: &str, module: &str) -> Result<(String, BT
         edit.name(&maintain.site, &maintain.source, 3);
         if let Some(filter) = &maintain.filter { edit.expr(filter); }
         for key in &maintain.keys { edit.expr(key); }
-        edit.expr(&maintain.read.value);
+        if let Some(read) = &maintain.read { edit.expr(&read.value); }
     }
     for shape in &doc.shapes { edit.name(&shape.site, &shape.name, 1); edit.shape(&shape.fields); }
     for function in &doc.functions {
@@ -264,7 +264,7 @@ impl Rename {
             match stmt {
                 Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } => self.expr(value),
                 Stmt::Require { condition, .. } => self.expr(condition),
-                Stmt::Emit { effect, payload, site } => { self.name(site, effect, 1); self.expr(payload); }
+                Stmt::Emit { effect, payload, once, site } => { self.name(site, effect, 1); self.expr(payload); if let Some(key) = once { self.expr(key); } }
                 Stmt::If { condition, then_body, else_body, .. } => { self.expr(condition); self.body(then_body); self.body(else_body); }
                 Stmt::For { domain, body, .. } => { self.expr(domain); self.body(body); }
                 Stmt::Break { .. } | Stmt::Continue { .. } => {},

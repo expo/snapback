@@ -15,6 +15,15 @@ mod key_bound;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
+mod feed_view;
+mod intent;
+mod intent_aggregates;
+mod intent_walk;
+mod intent_views;
+mod view_predicate;
+mod intent_lanes;
+mod intent_windows;
+mod intent_sync;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -24,6 +33,7 @@ pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {
+    pub view_types: std::collections::BTreeMap<String, crate::types::Ty>,
     /// Authoring-only opt-in; never stored in the core schema, IR or wire.
     pub server: bool,
     pub schema: Schema,
@@ -39,9 +49,14 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
+    let feeds = feed_view::expand(&mut documents, &mut diagnostics);
     let documents = timeline::expand(documents, &mut diagnostics);
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
-    let catalog = Catalog::build(documents, &mut diagnostics);
+    let mut catalog = Catalog::build(documents, &mut diagnostics);
+    catalog.feed_views = feeds;
+    intent::table_order(&mut catalog);
+    intent_views::expand(&mut catalog, &mut diagnostics);
+    intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
     // Timeline ownership is resolved after the ordinary schema checks.
@@ -49,6 +64,16 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         diagnostics.push(columns::refusal(&catalog.site_for(&issue.path), issue.message));
     }
     key_bound::check(&catalog, &schema, &mut diagnostics);
+    let mut view_types: std::collections::BTreeMap<_, _> = catalog.feed_views.iter().map(|(name, plan)| (name.clone(), plan.ty())).collect();
+    for doc in &catalog.documents {
+        for decl in doc.programs.iter().filter(|decl| decl.name.starts_with("$view:")) {
+            if let Some(bound) = program::Binder::bind(&catalog, &schema, "schema", decl, &mut diagnostics) {
+                view_types.extend(bound.view_types);
+            }
+        }
+    }
+    catalog.view_types = view_types.clone();
+    for doc in &mut catalog.documents { doc.programs.retain(|decl| !decl.name.starts_with("$view:")); }
     let mut programs = Vec::new();
     let mut names = std::collections::BTreeMap::new();
     let mut api_roots = std::collections::BTreeMap::new();
@@ -118,8 +143,8 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
                 let mut rewrite = error.rewrite;
                 if rewrite.starts_with("iterate the original group:") && let Some(page) = error.page_site.as_ref().and_then(|site| bound.sources.get(site))
                     && let Some(scan) = snapback4_core::ir::scans(&bound.program).into_iter().find(|scan| Some(&scan.site) == error.page_site.as_ref()) {
-                    let spelling = format!("{}[..]", scan.table);
-                    rewrite = rewrite.replace(&spelling, &page.1);
+                    let group = whole_group_rewrite(&catalog, &page.1, scan);
+                    rewrite = format!("iterate the original group: `for row in {group}:`; put the condition and work inside that loop");
                 }
                 diagnostics.push(Diagnostic::new(site, error.code, message, rewrite).guide("programs"));
                 false
@@ -136,14 +161,14 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     }
     schema.operations.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name));
     schema.action_specs.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name && bound.program.kind == snapback4_core::ir::ProgramKind::Action));
-    let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).collect();
+    let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).chain(catalog.planner_notes.clone()).collect();
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
     notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
-    Bound { server, schema, programs, personas, diagnostics, notes }
+    Bound { view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 fn operation_name(module: &str, name: &str) -> String {
@@ -175,7 +200,7 @@ fn validate_key_names(read: &crate::ast::ReadExpr) -> crate::diag::Fallible<()> 
 /// `periodStart: time` and `periodEnd: time`, and nothing else.
 fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> Result<snapback4_core::schema::Schedule, Diagnostic> {
     use snapback4_core::ir::{ArgType, ProgramKind};
-    let rewrite = format!("job {}(periodStart: time, periodEnd: time):\n  chunk p in profiles first 100 by byId:\n    ...", decl.target);
+    let rewrite = format!("job {}(periodStart: time, periodEnd: time):\n  for p in profiles:\n    ...", decl.target);
     let Some(target) = programs.iter().find(|p| p.program.name == decl.target) else {
         let candidates: Vec<_> = programs.iter().filter(|p| matches!(p.program.kind, ProgramKind::Job | ProgramKind::Action) && p.program.name.rsplit_once('.').is_some_and(|(_, name)| name == decl.target)).collect();
         if let [target] = candidates.as_slice() {
@@ -215,7 +240,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
     // holds reaches it, and stays. Say so once per table, with the index a
     // horizon would name, before the table grows.
     for (name, table, sync) in schema.synced() {
-        if sync.horizon.is_some() || schema.maintain_for(name).is_some() || residency::needs_whole_partition(schema, name) {
+        if sync.horizon.is_some() || schema.maintain_for(name).is_some() || residency::needs_whole_partition(schema, name)
+            || schema.timelines.iter().any(|t| t.maps(name) || t.owns(name)) {
             continue;
         }
         let prefix: Vec<String> = match &sync.audience {
@@ -241,7 +267,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     || table.columns.get(column.as_str()) == Some(&snapback4_core::schema::ColumnType::Time)
             })
         };
-        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len() && orders_by_mint_time(index)).map(|(index_name, _)| index_name.clone());
+        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.is_plain() && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len() && orders_by_mint_time(index)).map(|(index_name, _)| index_name.clone());
         // A `cap` over columns that are not the sync group bounds rows per group, not
         // what a device acquires. An author who wrote one has already tried to bound
         // this table and will read an unqualified note as not having noticed.
@@ -251,8 +277,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         });
         let site = catalog.site_for(&format!("tables.{name}"));
         let rewrite = match ordered {
-            Some(ref index) => format!("{} last 500 by {index}", sync.line()),
-            None => format!("by by{}At: {}at, id  -- then: {} last 500 by by{}At", if prefix.is_empty() { "".to_owned() } else { "Group".to_owned() }, prefix.iter().map(|c| format!("{c}, ")).collect::<String>(), sync.line(), if prefix.is_empty() { "" } else { "Group" }),
+            Some(ref index) => format!("{} last 500 by .{}", sync.line(), table.indexes[index].columns()[prefix.len()]),
+            None => format!("{} last 500 by .id", sync.line()),
         };
         let affected = residency::incompatible_horizon_pages(schema, programs, name, ordered.as_deref());
         let rewrite = if affected.is_empty() { rewrite } else {
@@ -283,11 +309,11 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 let cap = if !pinned.is_empty() && schema.group_bound(table, &pinned).is_none() && page.merge_site.is_none() && schema.maintain_for(table).is_none() && schema.tables[table].indexes[&page.index].is_plain() {
                     let limit = take.min(snapback4_core::Ceilings::default().examined);
                     let by = format!(" by {}", pinned.join(", "));
-                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read the whole group: `{table}[..]`; other metered work can still cut the read")
+                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read `{table} where {}` without a page clause; other metered work can still cut the read", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and "))
                 } else {
-                    "read the whole group: `t[..]`, when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
+                    "read the whole group with its where predicate and no page clause when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
                 };
-                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>; {cap}", bound.program.name, table)).guide("reads"));
+                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order; {cap}", bound.program.name)).guide("reads"));
             }
         }
         // Wide merges still pay for lane discovery and authorization, even
@@ -371,13 +397,13 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             let existing = index.is_plain().then(|| table.indexes.iter().find(|(_, candidate)| candidate.is_plain() && candidate.columns() == leading)).flatten();
             let columns = leading.join(", ");
             let search_rewrite = matching_merge_rewrite(schema, scan, table);
-            let scope_rewrite = existing.map(|(name, _)| format!("use the existing index `{name}: {columns}`; pin {} as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
+            let scope_rewrite = existing.map(|(name, _)| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `{name}: {columns}` supports it; or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
             notes.push(
                 Diagnostic::new(
                     &bound.site,
                     "N_NEVER_COMPLETE",
                     format!("{} {}: the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
-                    search_rewrite.clone().or(scope_rewrite).unwrap_or_else(|| format!("scan by an index leading with {columns} (`by by{}: {columns}`); pin the missing rule columns as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>())),
+                    search_rewrite.clone().or(scope_rewrite).unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", "))),
                 )
                 .guide(if search_rewrite.is_some() { "search" } else { "reads" }),
             );
@@ -402,10 +428,10 @@ fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, tabl
         let deciding = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
         if !deciding.iter().all(|field| scope.contains(field)) { return None; }
         let fields = table.index(&scan.index)?.word_component()?.1;
-        let (words_index, _) = table.indexes.iter().find(|(_, index)| index.word_component().is_some_and(|(position, text)| index.columns()[..position] == scope && text == fields))?;
-        let (source_index, _) = membership.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().first() == columns.get(principal) && index.columns().last().is_some_and(|column| column == "id"))?;
-        let prefix = key.iter().zip(&columns).filter_map(|(term, column)| matches!(term, RuleTerm::Field(_)).then(|| format!("m.{column}"))).collect::<Vec<_>>().join(", ");
-        Some(format!("merge {} matching q last {} by {words_index}: [{prefix}] for m in {members}[viewer] by {source_index} — one verdict per scope; complete while every head opens and the page fits in one read; or read the page on the device", scan.table, scan.take.maximum()))
+        let (_, words_index) = table.indexes.iter().find(|(_, index)| index.word_component().is_some_and(|(position, text)| index.columns()[..position] == scope && text == fields))?;
+        let _ = membership.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().first() == columns.get(principal) && index.columns().last().is_some_and(|column| column == "id"))?;
+        let order = words_index.columns().into_iter().skip(scope.len()).map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ");
+        Some(format!("{} matching q where {} last {} by {order} after c — one verdict per scope; complete while every head opens and the page fits in one read; or read the page on the device", scan.table, table.rules.read.quarry(), scan.take.maximum()))
     })
 }
 
@@ -429,7 +455,8 @@ pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Me
     fn in_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a snapback4_core::ir::Merge>) {
         for stmt in stmts {
             match stmt {
-                Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => in_expr(value, out),
+                Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => in_expr(value, out),
+            Stmt::Emit { payload: value, once, .. } => { in_expr(value, out); if let Some(value) = once { in_expr(value, out); } },
                 Stmt::If { condition, then_body, else_body } => {
                     in_expr(condition, out);
                     in_stmts(then_body, out);
@@ -443,4 +470,20 @@ pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Me
     let mut out = Vec::new();
     in_stmts(stmts, &mut out);
     out
+}
+
+// Admission rewrites remove the rejected page bound, retaining its exact pins.
+fn whole_group_rewrite(catalog: &Catalog, source: &str, scan: &snapback4_core::ir::Scan) -> String {
+    let (doc, errors) = crate::parse_document("rewrite.q", &format!("query group():\n  return {source}\n"));
+    if errors.is_empty() && let Some(crate::ast::Stmt::Return { value: crate::ast::Expr::Read(read), .. }) = doc.programs.first().and_then(|program| program.body.first()) {
+        let mut read = read.clone();
+        intent::Requests::default().read(&catalog.tables, &mut read, false);
+        let index = catalog.tables.get(&scan.table).and_then(|info| info.indexes.iter().find(|index| index.name == scan.index));
+        let pins = read.keys.iter().enumerate().filter_map(|(i, key)| {
+            let column = key.column.as_ref().or_else(|| index.and_then(|index| index.columns.get(i)))?;
+            Some(format!(".{column} = {}", crate::print::expression(&key.value)))
+        }).collect::<Vec<_>>();
+        return if pins.is_empty() { read.table } else { format!("{} where {}", read.table, pins.join(" and ")) };
+    }
+    source.into()
 }

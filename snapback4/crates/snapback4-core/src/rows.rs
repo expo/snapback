@@ -192,6 +192,12 @@ pub enum PrefetchRequest {
 pub enum AcquiredBoundary { Whole, Key(Vec<u8>) }
 
 pub trait Rows {
+    /// Claim an effect's canonical lifetime key inside the current transaction.
+    /// Devices discard emits before reaching this operation.
+    fn effect_once(&self, _effect: &str, _key: &str) -> Result<bool, RuntimeError> {
+        Err(RuntimeError::Store("effect keys require a writable server transaction".into()))
+    }
+
     /// Whether the current image comes from the device prediction overlay.
     fn provisional_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     /// A predicted attribution may use only a currently covered target image.

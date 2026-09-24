@@ -17,6 +17,8 @@ use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 use crate::rows::word_heap;
 #[path = "word_merge.rs"]
 mod word_merge;
+#[path = "view_merge.rs"]
+mod view_merge;
 
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
 #[derive(Clone)]
@@ -447,7 +449,7 @@ impl Runner<'_> {
         if rules::scan_visibility(self.schema, scan).uniform { return self.merge_lazy(None, Some(scan)); }
         let Some((merge, word)) = self.word_lanes(scan)? else {
             if self.page_depth == 0 && scan.opaque_cursor {
-                self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next: None }, std::iter::empty())?;
+                self.record_page(scan.site.clone(), PagePosition { view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next: None }, std::iter::empty())?;
             }
             return Ok(Vec::new());
         };
@@ -587,15 +589,15 @@ impl Runner<'_> {
         let lanes = words.into_iter().map(|token| {
             let mut generated = scan.clone();
             generated.prefix = scope.iter().cloned().chain([Value::String(token)]).map(|v| IndexKeyExpr::Scalar(Expr::Literal(v))).collect();
-            MergeLane { setup: Vec::new(), scan: generated, source: None, binding: String::new() }
+            MergeLane { guard: None, distinct: None, branch: None, project: None, setup: Vec::new(), scan: generated, source: None, binding: String::new() }
         }).collect();
-        Ok(Some((Merge { site: scan.site.clone(), lanes }, word)))
+        Ok(Some((Merge { position: None, view: None, order_keys: Vec::new(), site: scan.site.clone(), lanes }, word)))
     }
 
     fn take(&self, bound: &Bound) -> Result<usize, RuntimeError> {
         Ok(match bound {
             Bound::Literal(value) => *value as usize,
-            Bound::Meter => bound.maximum() as usize,
+            Bound::Meter => self.meter.ceilings.examined.min(usize::MAX as u64 - 1) as usize,
             Bound::Arg { name, max } => {
                 let value = self.context.args.get(name).ok_or_else(|| RuntimeError::Input(format!("missing take arg {name}")))?.as_int()?;
                 if value < 0 || value > *max as i64 {
@@ -678,6 +680,11 @@ impl Runner<'_> {
             }
             Some(_) => return Err(RuntimeError::Input("an opaque cursor is a string or null".into())),
         }
+        if let Some((site, position)) = &self.view_seek && site == &scan.site {
+            self.meter.heap(word_heap::values(&position.values))?;
+            if position.inclusive { bounds.at_or_after = Some(position.values.clone()); }
+            else { bounds.after = Some(position.values.clone()); }
+        }
         if let Some(range) = &scan.range {
             bounds.gt = range.gt.as_deref().map(|v| self.expr(v)).transpose()?;
             bounds.gte = range.gte.as_deref().map(|v| self.expr(v)).transpose()?;
@@ -685,6 +692,49 @@ impl Runner<'_> {
             bounds.lte = range.lte.as_deref().map(|v| self.expr(v)).transpose()?;
         }
         Ok(bounds)
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub(super) fn freeze_job_domain(&mut self, scan: &Scan) -> Result<Scan, RuntimeError> {
+        let mut frozen = scan.clone();
+        frozen.prefix = self.prefix_values(scan)?.into_iter().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value))).collect();
+        if let Some(range) = &mut frozen.range {
+            for value in [&mut range.gt, &mut range.gte, &mut range.lt, &mut range.lte] {
+                if let Some(expr) = value { **expr = Expr::Literal(self.expr(expr)?); }
+            }
+        }
+        for value in [&mut frozen.before, &mut frozen.after] {
+            if let Some(expr) = value { **expr = Expr::Literal(self.expr(expr)?); }
+        }
+        Ok(frozen)
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub(super) fn job_page(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        let prefix = self.prefix_values(scan)?;
+        let table = &self.schema.tables[&scan.table];
+        let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
+        self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, None, true, false)
+    }
+
+    /// An aborting domain retains a bounded result vector, but decodes only
+    /// one prepaid row at a time. Each selected image replaces that iteration's
+    /// decode scratch with its retained row/vector allowance.
+    pub(super) fn metered_domain(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
+        self.schema.refuse_private(&scan.table)?;
+        let prefix = self.prefix_values(scan)?;
+        let table = &self.schema.tables[&scan.table];
+        let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
+        self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, None, false, true).map(|(rows, _)| rows)
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub(super) fn job_upper(&mut self, scan: &Scan) -> Result<Option<Vec<u8>>, RuntimeError> {
+        let prefix = self.prefix_values(scan)?;
+        let table = &self.schema.tables[&scan.table];
+        let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
+        self.read_charge(MeterKind::Examined, 1)?;
+        Ok(self.tx.scan_metered(&scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1, &mut self.meter)?.pop().map(|(_, key)| key))
     }
 
     /// A bounded page. Returns the visible rows, at most `take`, and records
@@ -718,6 +768,7 @@ impl Runner<'_> {
             return self.scan_words(scan).map(|rows| (rows, Vec::new()));
         }
         let prefix = self.prefix_values(scan)?;
+        self.timeline_read_pending(&scan.table, &scan.index, &prefix)?;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         // @ref LLP 3000.007#18.1 — generated word lanes share the search's merge cursor, not a direct cursor scoped to one word.
@@ -745,6 +796,57 @@ impl Runner<'_> {
     /// expressions still govern uniformity; freezing them into literals would
     /// lose facts such as a prefix pinned to `viewer`.
     fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        self.scan_consumed(scan, prefix, bounds, take, word, None, false, false)
+    }
+
+    // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
+    pub(super) fn stream_aggregate(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
+        // Prefixes may be hoisted, and filter/projection locals evaluated
+        // before this frame. Without input provenance, conservatively retain
+        // earlier unknown coverage. An enclosing page's non-uniformity alone
+        // does not make the scalar's inputs unknown; observe its own scans.
+        // Ordinary query/component flags remain monotone throughout the scan.
+        let inputs = super::components::Frame {
+            beyond: self.beyond_horizon,
+            unknown: self.missing_fact.is_some(),
+            words: self.word_cut_at.is_some(),
+            presence: self.presence_unknown,
+            ..Default::default()
+        };
+        let outer = self.components.scalar.replace(inputs);
+        let result = self.stream_aggregate_scoped(scan, projection);
+        let coverage = self.components.scalar.take().expect("scalar coverage scope");
+        self.components.scalar = outer;
+        let value = result?;
+        if !coverage.coverage().complete {
+            self.scalar_unavailable = true;
+            return Err(RuntimeError::Prediction(format!("{}: streaming aggregate needs complete domain coverage", scan.site)));
+        }
+        Ok(value)
+    }
+
+    fn stream_aggregate_scoped(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
+        self.schema.refuse_private(&scan.table)?;
+        let prefix = self.prefix_values(scan)?;
+        let table = &self.schema.tables[&scan.table];
+        let index = &table.indexes[&scan.index];
+        let bounds = self.bounds(scan, table, index, Some(&prefix))?;
+        let mut total = 0_i128;
+        self.page_depth += 1;
+        let result = self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, Some((&mut total, projection)), false, false);
+        self.page_depth -= 1;
+        result?;
+        if scan.existence && total == 0 && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
+            let prefix = self.prefix_values(scan)?;
+            let retained = self.retained_group(&scan.table, &scan.index, &prefix)?;
+            self.horizon_coverage(scan, &prefix, retained);
+        }
+        // @ref LLP 3000.013#5.1 — a domain total has no partial scalar answer, including on a device with unknown coverage.
+        self.meter.require_uncapped()?;
+        Value::int(total).map_err(Into::into)
+    }
+
+    fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<(&mut i128, Option<&Expr>)>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
@@ -788,13 +890,42 @@ impl Runner<'_> {
         let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
         let mut crossed = false;
-        let metered_word = word.is_some_and(|w| w.metered);
-        if metered_word { self.meter.heap(word_heap::bounds(&bounds))?; }
+        // Internal timeline scans retain complete source rows, including arbitrary
+        // application payload. Use the same pre-allocation ledger as word scans.
+        // Ordinary jobs may hold an empty Purge grant; that is not a transition.
+        let metered_payload = word.is_some_and(|w| w.metered) || self.view_scan_active
+            || matches!(&self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_)));
+        let streaming = aggregate.is_some();
+        let transient = streaming || metered_domain;
+        if metered_payload || transient { self.meter.heap(word_heap::bounds(&bounds))?; }
         let mut cursor = bounds.clone();
-        let batch = if visibility.uniform { take + 1 } else { (take + 1).max(32) };
+        // One retained cursor/key allowance, outside the transient row scope.
+        // Key payload sizes vary: only grow this reservation when a
+        // larger key is encountered, before its decode or clone can allocate.
+        let mut cursor_heap = 0;
+        let batch = if transient || job_page { 1 } else if visibility.uniform { take + 1 } else { (take + 1).max(32) };
+        let mut row_heap = None;
+        let mut row_bytes = 0;
+        let mut consumed = 0;
+
         'outer: loop {
-            let fetched = if metered_word { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
+            if transient {
+                if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
+                row_bytes = 0;
+                if !self.read_charge(MeterKind::Steps, 1)? { break; }
+                row_heap = Some(self.meter.mark());
+            }
+            let fetch_heap = self.meter.used.heap_bytes;
+            // No adaptive lookahead, even for non-uniform rules. A later chunk
+            // establishes exhaustion; every new candidate must first fit.
+            let fetched = if metered_payload || transient || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
                 else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
+            if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
+            // The store ledger prices allocation (shared memory row handles
+            // are cheap). A view also retains the full source payload while
+            // scanning, even for rejected rows and fields its shape omits.
+            // Charge the entire fetched buffer before filtering or projecting.
+            if self.view_scan_active { self.meter.heap(fetched.iter().map(|(row, _)| row.heap_bytes()).sum())?; }
             if fetched.is_empty() {
                 break;
             }
@@ -807,11 +938,22 @@ impl Runner<'_> {
                     capped = true;
                     break 'outer;
                 }
-                // Decode scratch and the retained seek position, before decoding the key.
-                if metered_word { self.meter.heap(word_heap::key_decode(index.components.len() + 1, key.len()))?; }
+                // The previous cursor remains reserved while the new key is
+                // decoded. Transient consumers release scratch with this row.
+                if metered_payload || transient || job_page {
+                    let scratch = word_heap::key_decode(index.components.len() + 1, key.len());
+                    if transient {
+                        let retained = scratch + word_heap::allocation(key.len());
+                        if retained > cursor_heap { self.meter.heap(retained - cursor_heap)?; cursor_heap = retained; }
+                    }
+                    self.meter.heap(scratch)?;
+                    if transient { row_bytes += scratch; }
+                }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
-                if metered_word { self.meter.heap(word_heap::materialize(&row, table))?; }
+                let materialized = if metered_payload || transient || job_page { word_heap::materialize(&row, table) } else { 0 };
+                if materialized > 0 { self.meter.heap(materialized)?; }
                 materialize_optional_fields(&mut row, table);
+                if transient { row_bytes += materialized; }
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
                     continue;
@@ -820,7 +962,7 @@ impl Runner<'_> {
                 // first word still has to carry the rest.
                 let unmatched = if let Some(word) = word.filter(|word| !word.terms.is_empty()) {
                     let texts = word.fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok()));
-                    let tokens = if metered_word { word_heap::tokenize(&mut self.meter, texts)? } else { crate::words::row_tokens(texts) };
+                    let tokens = if metered_payload { word_heap::tokenize(&mut self.meter, texts)? } else { crate::words::row_tokens(texts) };
                     !crate::words::row_matches(&tokens, &word.terms)
                 } else { false };
                 if unmatched {
@@ -840,7 +982,7 @@ impl Runner<'_> {
                 }
                 if allowed {
                     self.note_expiry(table, &row);
-                    let aggregate = self.live_aggregate(&scan.table, row)?;
+                    let live_row = self.live_aggregate(&scan.table, row)?;
                     // @ref LLP 3000.007#20.21 — a cut aggregate is unavailable, not a
                     // partial contribution presented as a total. The push that used to
                     // happen here matched maintained point reads, which now refuse
@@ -849,12 +991,16 @@ impl Runner<'_> {
                         capped = true;
                         break 'outer;
                     }
-                    let Some(row) = aggregate else { continue; };
+                    let Some(row) = live_row else { continue; };
                     let row = super::recorded::public_image(table, row);
-                    if metered_word { self.meter.heap(word_heap::allocation(key.len()))?; }
+                    if metered_payload || transient || job_page {
+                        let scratch = word_heap::allocation(key.len());
+                        self.meter.heap(scratch)?;
+                        if transient { row_bytes += scratch; }
+                    }
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
-                        if metered_word { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
+                        if metered_payload { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
                         let prior = self.env.insert("$filter".into(), row.clone());
                         // @ref LLP 3000.007#20.22 — predicate reads are below the page; restore depth even when evaluating one fails.
                         let page_depth = self.page_depth;
@@ -864,27 +1010,49 @@ impl Runner<'_> {
                         self.filter_depth -= 1;
                         self.page_depth = page_depth;
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
-                        let matched = matched?.as_bool()?;
-                        if metered_word { self.meter.heap(word_heap::text(&scan.site))?; }
+                        if metered_payload { self.meter.heap(word_heap::text(&scan.site))?; }
                         self.meter.at(&scan.site);
-                        if self.read_capped() {
+                        if self.read_capped() && (matched.is_ok() || matches!(&matched, Err(RuntimeError::Bound { kind, .. }) if *kind != MeterKind::HeapBytes)) {
                             capped = true;
                             // The paved existence predicate has no verdict when its
                             // one-row search starves. Retry that membership; general
                             // counting predicates keep their existing forward progress.
-                            filter_interrupted = matches!(&**filter, Expr::Binary { op: BinaryOp::Gt, left, right }
+                            filter_interrupted = self.schema.timelines.iter().any(|t| scan.table == t.table("Feed")) || matches!(&**filter, Expr::Binary { op: BinaryOp::Gt, left, right }
                                 if matches!(right.as_ref(), Expr::Literal(Value::Int(0)))
                                 && matches!(left.as_ref(), Expr::Builtin { builtin: Builtin::Count, args }
                                     if matches!(args.as_slice(), [Expr::Scan(inner)] if inner.existence)));
                             break 'outer;
                         }
+                        let matched = matched?.as_bool()?;
                         if !matched { continue; }
+                    }
+                    if let Some((total, projection)) = &mut aggregate {
+                        let amount = if let Some(projection) = projection {
+                            let prior = self.env.insert("$filter".into(), row.clone());
+                            let value = self.expr(projection);
+                            match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
+                            value?.as_int()? as i128
+                        } else { 1 };
+                        **total += amount;
+                        consumed += 1;
+                        if scan.existence && consumed == take { break 'outer; }
+                        continue;
                     }
                     if visible.len() == take {
                         has_more = true;
                         break 'outer;
                     }
-                    if metered_word {
+                    if metered_domain {
+                        // Decoding is finished: replace its scratch allowance
+                        // with the retained image before fetching another row.
+                        // Domains consume only rows; the live cursor is already
+                        // reserved and no unused result keys need to be kept.
+                        drop(key);
+                        if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
+                        row_bytes = 0;
+                        self.meter.heap(row.heap_bytes())?;
+                        word_heap::push(&mut self.meter, &mut visible, row)?;
+                    } else if metered_payload {
                         // Charge retention of a store-provided row and the emitted raw key
                         // before either output vector grows; moves do not copy row bodies.
                         self.meter.heap(word_heap::allocation(key.len()))?;
@@ -894,7 +1062,7 @@ impl Runner<'_> {
                         visible.push(row);
                         keys.push(key.clone());
                     }
-                    if scan.existence && visible.len() == take { break 'outer; }
+                    if (scan.existence || job_page) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 } else {
                     self.next_expiry = row_expiry_mark;
@@ -904,6 +1072,7 @@ impl Runner<'_> {
                 break;
             }
         }
+        if let Some(mark) = row_heap { self.meter.release_row_heap(mark, row_bytes); }
         // @ref LLP 3000.007#20.22 — a device page is complete by its acquisition boundary, carried on the wire, not by a count.
         // An existence probe is exempt (W13c): a held witness below the floor still proves existence.
         if self.device && !scan.existence && horizon.is_some() {
@@ -928,6 +1097,7 @@ impl Runner<'_> {
                 if crate::rows::scan_range(&prefix, &bounds, dir).is_some_and(|(lo, _)| lo < *floor) { has_more = true; }
             }
         }
+        self.note_value_source_page(has_more);
         if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
             self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
         }
@@ -941,7 +1111,7 @@ impl Runner<'_> {
             let mut next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
             // @ref LLP 3000.007#20.24.1 — retry an interrupted predicate once; no emission at the same inclusive input position must not advertise a loop.
             if filter_interrupted && visible.is_empty() && next.is_some() && next == bounds.at_or_after { next = None; }
-            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
+            self.record_page(scan.site.clone(), PagePosition { view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
         }
         Ok((visible, keys))
     }
@@ -971,6 +1141,7 @@ impl Runner<'_> {
 
     pub(super) fn outcome_next_cursor(&self) -> Result<Option<String>, RuntimeError> {
         // @ref LLP 3000.007.000#3 — publish merge candidates using the final answer's class, without deleting raw position-loss evidence.
+        if self.value_source_incomplete { return Ok(None); }
         if self.non_uniform && self.page.as_ref().is_some_and(|page| page.merge) { return Ok(None); }
         let next = self.next_cursor()?;
         // @ref LLP 3000.007#14 — ruling 35: a follow that cannot progress refuses
@@ -1007,9 +1178,11 @@ impl Runner<'_> {
     pub(super) fn next_cursor(&self) -> Result<Option<String>, RuntimeError> {
         let Some(page) = &self.page else { return Ok(None) };
         let Some(values) = &page.next else { return Ok(None) };
-        let table = self.schema.table(&page.table).expect("scanned table");
-        let index = table.index(&page.index).expect("scanned index");
-        let suffix = if page.merge { Self::merge_suffix(table, index, page.prefix_len) } else { Self::cursor_suffix(table, index, page.prefix_len) };
+        let suffix = if let Some(suffix) = &page.view_suffix { suffix.clone() } else {
+            let table = self.schema.table(&page.table).expect("scanned table");
+            let index = table.index(&page.index).expect("scanned index");
+            if page.merge { Self::merge_suffix(table, index, page.prefix_len) } else { Self::cursor_suffix(table, index, page.prefix_len) }
+        };
         encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone(), inclusive: page.inclusive, scope: page.prefix.as_ref().map(|prefix| CursorScope { generation: self.context.generation, prefix: prefix.clone() }) })
             .map(Some)
             .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
@@ -1022,6 +1195,7 @@ impl Runner<'_> {
     }
 
     fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
+        if merge.view.is_some() { return self.merge_view(merge); }
         // Keep the disclosure-sensitive non-uniform scan traversal unchanged.
         // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
         if rules::lazy_merge(self.schema, merge) {
@@ -1067,13 +1241,17 @@ impl Runner<'_> {
                 self.page_depth += 1;
                 // Pages look ahead; existence needs only its first witness.
                 let mut lane_scan = lane.scan.clone();
-                // @ref LLP 3000.007#20.3 — validate the common cursor above, then translate its descriptor for each same-shaped table.
-                if lane_scan.table != first.scan.table && lane_scan.opaque_cursor
+                // @ref LLP 3000.007#20.3 — translate a validated shared position to each table/index with the same ordered suffix.
+                if (lane_scan.table != first.scan.table || lane_scan.index != first.scan.index) && lane_scan.opaque_cursor
                     && let Some(after) = lane_scan.after.as_deref()
                     && let Value::String(token) = self.expr(after)?
                 {
                     let mut position = crate::cursor::decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                    let table = &self.schema.tables[&lane_scan.table];
+                    let suffix = Self::merge_suffix(table, &table.indexes[&lane_scan.index], lane_scan.prefix.len());
+                    if position.suffix != suffix { return Err(RuntimeError::Schema("merge lanes need the same ordered cursor suffix".into())); }
                     position.table = lane_scan.table.clone();
+                    position.index = lane_scan.index.clone();
                     let token = crate::cursor::encode_cursor(self.schema, &position).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                     lane_scan.after = Some(Box::new(Expr::Literal(Value::String(token))));
                 }
@@ -1104,6 +1282,7 @@ impl Runner<'_> {
             }
         });
         let has_more = candidates.len() > take;
+        self.note_value_source_page(has_more);
         candidates.truncate(take);
         if self.page_depth == 0 && !first.scan.opaque_cursor && has_more {
             self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
@@ -1111,16 +1290,48 @@ impl Runner<'_> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
+            self.record_page(merge.site.clone(), PagePosition { view_suffix: None, table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
 
     fn lane_values(&mut self, lane: &MergeLane) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
-        match &lane.source {
-            Some(LaneSource::Scan(scan)) => Ok(Box::new(self.scan(scan)?.into_iter())),
-            Some(source) => self.domain(&source.domain()),
-            None => Ok(Box::new(std::iter::once(Value::Null))),
+        let prior_discovery = self.discovering_values;
+        self.discovering_values |= lane.distinct.is_some();
+        let values = (|| -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
+            Ok(match &lane.source {
+                Some(LaneSource::Scan(scan)) => Box::new(self.scan(scan)?.into_iter()),
+                Some(source) => self.domain(&source.domain())?,
+                None => Box::new(std::iter::once(Value::Null)),
+            })
+        })();
+        self.discovering_values = prior_discovery;
+        if lane.distinct.is_some() && (self.read_capped() || self.page_overflow || self.beyond_horizon || self.presence_unknown) {
+            self.value_source_incomplete = true;
+        }
+        let values = values?;
+        let Some(distinct) = &lane.distinct else { return Ok(values); };
+        let prior = self.env.get(&lane.binding).cloned();
+        let mut seen = BTreeSet::new();
+        let mut unique = Vec::new();
+        for value in values {
+            if !self.read_charge(MeterKind::Steps, 1)? { break; }
+            self.env.insert(lane.binding.clone(), value.clone());
+            let key = self.expr(distinct)?;
+            if key == Value::Null { continue; }
+            let key = canonical_json(&key);
+            self.meter.heap(key.len() as u64 + 64)?;
+            if seen.insert(key) { self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?; unique.push(value); }
+        }
+        if let Some(prior) = prior { self.env.insert(lane.binding.clone(), prior); } else { self.env.remove(&lane.binding); }
+        Ok(Box::new(unique.into_iter()))
+    }
+
+    pub(super) fn note_value_source_page(&mut self, has_more: bool) {
+        if self.discovering_values && has_more {
+            self.value_source_incomplete = true;
+            self.page_overflow = true;
+            self.components.note(|frame| frame.overflow = true);
         }
     }
 

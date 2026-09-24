@@ -122,18 +122,16 @@ const tables = {
 };
 const maintains = {
   feed: `maintain feed: timeline
-    authors profiles by principal
     events posts by authorId, at removed by removed
     reposts reposts by actorId, postId, at
-    edges follows by followerId, followedId
-    size authors 1008, edges 5921`,
+    edges follows by followerId, followedId`,
   receivedLikes: `maintain receivedLikes: count likes by postId.authorId read <- allow`,
   receivedReplies: `maintain receivedReplies: count replies by postId.authorId read <- allow online only`,
   dailyReceivedLikes: `maintain dailyReceivedLikes: count likes by postId.authorId, day(.at) read <- allow online only`,
   dailyReceivedReplies: `maintain dailyReceivedReplies: count replies by postId.authorId, day(.at) read <- allow online only`,
 };
 const queries = {
-  following: `query following(c: cursor ?): return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[.actorId], author: profiles[.authorId] }`,
+  following: `query following(c: cursor ?): return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[.actorId], author: profiles[principal = .authorId] }`,
   thread: `query thread(postId: posts, c: cursor ?): return replies[postId] after c first 20 by byPost`,
   trending: `query trending(c: cursor ?): return merge posts after c last 10 by byHourLikes where .at > now - 86400000 and .at <= now and not .removed: [h] for h in range(hour(now) - 24, hour(now) + 1)`,
   insights: `query insights(authorId: principal, d: int): return { likes: receivedLikes[authorId], replies: receivedReplies[authorId], dailyLikes: dailyReceivedLikes[authorId, d], dailyReplies: dailyReceivedReplies[authorId, d] }`,
@@ -141,11 +139,11 @@ const queries = {
 const mutations = {
   register: `mutation register(name: text <=80): return insert profiles { principal: viewer, name } if absent`,
   post: `mutation post(body: text <=4000): return insert posts { authorId: viewer, body, at: now }`,
-  reply: `mutation reply(postId: posts, body: text <=500): require exists posts[postId] else FEED_APP_NOT_FOUND return insert replies { postId, authorId: viewer, body, at: now }`,
-  like: `mutation like(postId: posts): require exists posts[postId] else FEED_APP_NOT_FOUND require posts[postId].removed = false else FEED_POST_REMOVED insert likes { postId, principal: viewer, at: now } if absent`,
+  reply: `mutation reply(postId: posts, body: text <=500): require exists posts[id = postId] else FEED_APP_NOT_FOUND return insert replies { postId, authorId: viewer, body, at: now }`,
+  like: `mutation like(postId: posts): require exists posts[id = postId] else FEED_APP_NOT_FOUND require posts[id = postId].removed = false else FEED_POST_REMOVED insert likes { postId, principal: viewer, at: now } if absent`,
   unlike: `mutation unlike(postId: posts): if exists likes[postId, viewer]: delete likes[postId, viewer]`,
-  repost: `mutation repost(postId: posts): require exists posts[postId] else FEED_APP_NOT_FOUND require posts[postId].removed = false else FEED_POST_REMOVED return insert reposts { actorId: viewer, postId, at: now } if absent`,
-  remove: `mutation remove(postId: posts): update posts[postId] { removed: true }`,
+  repost: `mutation repost(postId: posts): require exists posts[id = postId] else FEED_APP_NOT_FOUND require posts[id = postId].removed = false else FEED_POST_REMOVED return insert reposts { actorId: viewer, postId, at: now } if absent`,
+  remove: `mutation remove(postId: posts): update posts[id = postId] { removed: true }`,
   unrepost: `mutation unrepost(postId: posts): if exists reposts[viewer, postId]: delete reposts[viewer, postId]`,
   follow: `mutation follow(authorId: principal): insert follows { followerId: viewer, followedId: authorId, at: now } if absent`,
   unfollow: `mutation unfollow(authorId: principal): if exists follows[viewer, authorId]: delete follows[viewer, authorId]`,

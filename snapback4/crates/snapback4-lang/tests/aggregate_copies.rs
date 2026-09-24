@@ -35,7 +35,7 @@ table ranked:
   update <- allow
   sync public last 100 by byScore
 fn refreshRank(postId: posts):
-  upsert ranked[postId] { postId, score: likeCounts[postId], at: now, expiresAt: now + 86400000 }
+  upsert ranked[postId = postId] { postId, score: likeCounts[postId], at: now, expiresAt: now + 86400000 }
   return null
 mutation refresh(postId: posts):
   refreshRank(postId)
@@ -64,7 +64,7 @@ fn three_calibration_write_shapes_report_the_copied_column_once() {
     // 0.2.25: helper; 0.2.26: backfill job (no principal-callable writer);
     // 0.2.27: direct mutation. All three contain an actual maintain copy.
     let job = SOURCE.split("fn refreshRank").next().unwrap().to_owned() +
-        "job backfill():\n  chunk p in posts first 50 by byId:\n    upsert ranked[p.id] { postId: p.id, score: likeCounts[p.id], at: now, expiresAt: now + 86400000 }\n";
+        "job backfill():\n  chunk p in posts first 50 by byId:\n    upsert ranked[postId = p.id] { postId: p.id, score: likeCounts[p.id], at: now, expiresAt: now + 86400000 }\n";
     let direct = SOURCE.replace("fn refreshRank(postId: posts):", "mutation refreshRank(postId: posts):")
         .split("mutation refresh(postId:").next().unwrap().to_owned();
     for (version, source) in [("0.2.25", SOURCE.to_owned()), ("0.2.26", job.replace("ranked", "trendingRows")), ("0.2.27", direct.replace("ranked", "trendingPosts"))] {
@@ -85,7 +85,7 @@ fn three_calibration_write_shapes_report_the_copied_column_once() {
 #[test]
 fn aggregate_only_restricted_private_immutable_and_ambient_writes_stay_silent() {
     let increment = SOURCE.split("fn refreshRank").next().unwrap().to_owned() +
-        "mutation bump(postId: posts):\n  row = ranked[postId] ! else ROW_MISSING\n  update ranked[row.id] { score: row.score + 1 }\n";
+        "mutation bump(postId: posts):\n  row = ranked[postId = postId] ! else ROW_MISSING\n  update ranked[id = row.id] { score: row.score + 1 }\n";
     for source in [
         SOURCE.split("table ranked:").next().unwrap().to_owned(),
         SOURCE.replace("insert <- allow", "insert <- deny").replace("update <- allow", "update <- deny"),
@@ -146,17 +146,17 @@ fn every_card_and_published_quarry_block_has_no_aggregate_copy_note() {
 
 #[test]
 fn aggregate_copy_card_section_is_verbatim_and_discoverable() {
-    let section = guide::card("feeds").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").unwrap().1;
+    let section = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").unwrap().1;
     assert!(section.contains("Every write to a public or"));
     assert!(section.contains("p.score + 1"));
     assert!(section.contains("but may not supply the value itself or how many values contribute to it."));
-    let column = section.find("likeCount: count likes by postId").unwrap();
+    let column = section.find("likeCount: count likes").unwrap();
     let pin = section.find("both insert and update rules").unwrap();
     assert!(column < pin, "lead with the maintained column, then pinning for other derivations");
-    assert!(guide::card("feeds").unwrap().ends_with(section));
+    assert!(guide::card("maintains").unwrap().ends_with(section));
     assert_eq!(snapback4_lang::diag::guide_for(CODE), "feeds");
     let explanation = guide::explain_code(CODE).unwrap();
-    assert!(explanation.contains("Every write to a public or"));
+    assert!(explanation.contains("ordinary public column computed from reads"));
     assert!(explanation.ends_with("Full card: snapback4 guide feeds"));
 }
 
@@ -167,8 +167,8 @@ fn aggregate_copy_claim_is_reached_from_the_orientation() {
     // the claim lives there in full (its wording is pinned by the card test above).
     assert!(README.split_once("## Reference map").unwrap().1.contains("`guide feeds`"));
     assert!(!README.contains("## N_PUBLIC_AGGREGATE_COPY:"), "the claim is no longer duplicated in the README");
-    let claim = guide::card("feeds").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
-    assert!(claim.contains("Every write to a public or") && claim.contains("likeCount: count likes by postId"));
+    let claim = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
+    assert!(claim.contains("Every write to a public or") && claim.contains("likeCount: count likes"));
 }
 
 #[test]
@@ -254,7 +254,7 @@ fn unrestricted_rankings(schema: &Schema) -> Vec<String> {
 #[test]
 fn ranking_guard_checks_bound_rules_for_both_upsert_arms() {
     // The review's caller-supplied score, indexed so the ranking invariant applies.
-    let source = "table leaderboard:\n  postId: id\n  score: int\n  unique byPost: postId\n  by byScore: score, id\n  public 'the ranking is public'\n  insert <- allow\n  update <- allow\nmutation setScore(postId: id, score: int):\n  upsert leaderboard[postId] { postId, score }\n";
+    let source = "table leaderboard:\n  postId: id\n  score: int\n  unique byPost: postId\n  by byScore: score, id\n  public 'the ranking is public'\n  insert <- allow\n  update <- allow\nmutation setScore(postId: id, score: int):\n  upsert leaderboard[postId = postId] { postId, score }\n";
     assert!(copies(&bind(source)).is_empty(), "this is not a maintain-copy heuristic");
     assert_eq!(unrestricted_rankings(&bind(source).schema).len(), 2);
     for rule in ["allow", "true", "not deny", "allow and true", "viewer = viewer", "viewer = 'service:ranker' or allow"] {
@@ -276,7 +276,7 @@ fn ranking_guard_checks_bound_rules_for_both_upsert_arms() {
     assert_eq!(unrestricted_rankings(&bind(&renamed).schema).len(), 2);
 }
 
-const INCREMENT: &str = "table posts:\n  score: int\n  public 'posts'\n  insert <- allow\n  update <- allow\nmutation create():\n  return insert posts { score: 0 }\nmutation like(postId: posts):\n  p = posts[postId] ! else NOT_FOUND\n  update posts[p.id] { score: p.score + 1 }\n";
+const INCREMENT: &str = "table posts:\n  score: int\n  public 'posts'\n  insert <- allow\n  update <- allow\nmutation create():\n  return insert posts { score: 0 }\nmutation like(postId: posts):\n  p = posts[id = postId] ! else NOT_FOUND\n  update posts[id = p.id] { score: p.score + 1 }\n";
 
 #[test]
 fn every_write_from_reads_including_prior_image_reports_once() {
@@ -357,14 +357,14 @@ fn corpus_aggregate_copy_sites_are_pinned() {
 fn provenance_flows_through_helpers_shapes_aliases_sums_and_jobs() {
     let prefix = INCREMENT.split("mutation create").next().unwrap();
     for (name, suffix) in [
-        ("alias", "mutation like(postId: posts):\n  p = posts[postId] ! else NOT_FOUND\n  score = p.score + 1\n  value = { score, unrelated: postId }\n  update posts[p.id] { score: value.score }\n"),
-        ("helper", "fn bump(p: posts):\n  return { score: p.score + 1 }\nmutation like(postId: posts):\n  p = posts[postId] ! else NOT_FOUND\n  value = bump(p)\n  update posts[p.id] { score: value.score }\n"),
-        ("shape", "shape projection = { score: .score + 1 }\nmutation like(postId: posts):\n  p = posts[postId] ! else NOT_FOUND\n  value = p projection\n  update posts[p.id] { score: value.score }\n"),
-        ("count", "mutation like(postId: posts):\n  update posts[postId] { score: count(posts[] first 5 by byId) }\n"),
-        ("sum", "mutation like(postId: posts):\n  update posts[postId] { score: sum(posts[] first 5 by byId, .score) }\n"),
-        ("group", "mutation like(postId: posts):\n  g = first(group(posts[] first 5 by byId, 'score')) ! else EMPTY\n  update posts[postId] { score: count(g.items) }\n"),
-        ("job prelude", "job refresh():\n  total = count(posts[] first 5 by byId)\n  chunk p in posts first 5 by byId:\n    update posts[p.id] { score: total }\n"),
-        ("uninvoked helper", "fn refresh(postId: posts):\n  p = posts[postId] ! else NOT_FOUND\n  update posts[p.id] { score: p.score + 1 }\n  return null\n"),
+        ("alias", "mutation like(postId: posts):\n  p = posts[id = postId] ! else NOT_FOUND\n  score = p.score + 1\n  value = { score, unrelated: postId }\n  update posts[id = p.id] { score: value.score }\n"),
+        ("helper", "fn bump(p: posts):\n  return { score: p.score + 1 }\nmutation like(postId: posts):\n  p = posts[id = postId] ! else NOT_FOUND\n  value = bump(p)\n  update posts[id = p.id] { score: value.score }\n"),
+        ("shape", "shape projection = { score: .score + 1 }\nmutation like(postId: posts):\n  p = posts[id = postId] ! else NOT_FOUND\n  value = p projection\n  update posts[id = p.id] { score: value.score }\n"),
+        ("count", "mutation like(postId: posts):\n  update posts[id = postId] { score: count(posts[] first 5 by byId) }\n"),
+        ("sum", "mutation like(postId: posts):\n  update posts[id = postId] { score: sum(posts[] first 5 by byId, .score) }\n"),
+        ("group", "mutation like(postId: posts):\n  g = first(group(posts[] first 5 by byId, 'score')) ! else EMPTY\n  update posts[id = postId] { score: count(g.items) }\n"),
+        ("job prelude", "job refresh():\n  total = count(posts[] first 5 by byId)\n  chunk p in posts first 5 by byId:\n    update posts[id = p.id] { score: total }\n"),
+        ("uninvoked helper", "fn refresh(postId: posts):\n  p = posts[id = postId] ! else NOT_FOUND\n  update posts[id = p.id] { score: p.score + 1 }\n  return null\n"),
     ] {
         let source = format!("{prefix}{suffix}");
         let bound = compile(&[("schema.q".into(), source)]);
@@ -376,15 +376,15 @@ fn provenance_flows_through_helpers_shapes_aliases_sums_and_jobs() {
 #[test]
 fn argument_or_ambient_writer_disqualifies_across_the_catalog() {
     for (name, writer) in [
-        ("argument alias", "mutation choose(postId: posts, amount: int):\n  alias = amount\n  update posts[postId] { score: alias }\n"),
-        ("argument arithmetic", "mutation choose(postId: posts, amount: int):\n  p = posts[postId] ! else NOT_FOUND\n  update posts[postId] { score: p.score + amount }\n"),
-        ("helper argument", "fn identity(value: int): value\nmutation choose(postId: posts, amount: int):\n  update posts[postId] { score: identity(amount) }\n"),
-        ("helper writer", "fn save(postId: posts, value: int):\n  update posts[postId] { score: value }\n  return null\nmutation choose(postId: posts, amount: int):\n  save(postId, amount)\n"),
-        ("shape argument", "mutation choose(postId: posts, amount: int):\n  p = posts[postId] ! else NOT_FOUND\n  s = p { score: amount }\n  update posts[postId] { score: s.score }\n"),
-        ("literal update", "mutation choose(postId: posts):\n  update posts[postId] { score: 0 }\n"),
-        ("literal upsert", "mutation choose(postId: posts):\n  upsert posts[postId] { score: 0 }\n"),
-        ("job argument", "job choose(amount: int):\n  chunk p in posts first 5 by byId:\n    update posts[p.id] { score: amount }\n"),
-        ("write result argument", "mutation choose(amount: int):\n  p = insert posts { score: amount }\n  update posts[p.id] { score: p.score + 1 }\n"),
+        ("argument alias", "mutation choose(postId: posts, amount: int):\n  alias = amount\n  update posts[id = postId] { score: alias }\n"),
+        ("argument arithmetic", "mutation choose(postId: posts, amount: int):\n  p = posts[id = postId] ! else NOT_FOUND\n  update posts[id = postId] { score: p.score + amount }\n"),
+        ("helper argument", "fn identity(value: int): value\nmutation choose(postId: posts, amount: int):\n  update posts[id = postId] { score: identity(amount) }\n"),
+        ("helper writer", "fn save(postId: posts, value: int):\n  update posts[id = postId] { score: value }\n  return null\nmutation choose(postId: posts, amount: int):\n  save(postId, amount)\n"),
+        ("shape argument", "mutation choose(postId: posts, amount: int):\n  p = posts[id = postId] ! else NOT_FOUND\n  s = p { score: amount }\n  update posts[id = postId] { score: s.score }\n"),
+        ("literal update", "mutation choose(postId: posts):\n  update posts[id = postId] { score: 0 }\n"),
+        ("literal upsert", "mutation choose(postId: posts):\n  upsert posts[id = postId] { score: 0 }\n"),
+        ("job argument", "job choose(amount: int):\n  chunk p in posts first 5 by byId:\n    update posts[id = p.id] { score: amount }\n"),
+        ("write result argument", "mutation choose(amount: int):\n  p = insert posts { score: amount }\n  update posts[id = p.id] { score: p.score + 1 }\n"),
     ] {
         let bound = compile(&[("schema.q".into(), INCREMENT.into()), ("other.q".into(), writer.into())]);
         assert!(bound.diagnostics.is_empty(), "{name}: {:?}", bound.diagnostics);
@@ -412,7 +412,7 @@ mutation mark(id: messages):
   p = messages[id] ! else NOT_FOUND
   update messages[id] { readOrdinal: p.readOrdinal + 1, editedAt: now, done: true, lastSeen: now }
 "#;
-    for source in [source.to_owned(), INCREMENT.replace("insert <- allow", "insert <- deny").replace("update <- allow", "update <- deny").replace("mutation like(postId: posts):\n  p = posts[postId] ! else NOT_FOUND\n  update posts[p.id] { score: p.score + 1 }", "job like():\n  chunk p in posts first 5 by byId:\n    update posts[p.id] { score: p.score + 1 }")] {
+    for source in [source.to_owned(), INCREMENT.replace("insert <- allow", "insert <- deny").replace("update <- allow", "update <- deny").replace("mutation like(postId: posts):\n  p = posts[id = postId] ! else NOT_FOUND\n  update posts[id = p.id] { score: p.score + 1 }", "job like():\n  chunk p in posts first 5 by byId:\n    update posts[id = p.id] { score: p.score + 1 }")] {
         let bound = compile(&[("schema.q".into(), source)]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         assert!(copies(&bound).is_empty(), "{:?}", bound.notes);
@@ -429,18 +429,18 @@ mutation mark(id: messages):
 fn literal_birth_defaults_and_instantiated_helpers_preserve_the_column_proof() {
     for source in [
         INCREMENT.replace("score: int", "score: int default 0").replace("insert posts { score: 0 }", "insert posts {}"),
-        INCREMENT.replace("update posts[p.id] { score: p.score + 1 }", "(value, rest) = divmod(p.score, 2)\n  update posts[p.id] { score: value + rest }"),
-        INCREMENT.replace("update posts[p.id] { score: p.score + 1 }", "score = 0\n  for row in posts[] first 5 by byId:\n    score = score + row.score\n  update posts[p.id] { score }"),
-        format!("fn save(postId: posts, score: int):\n  update posts[postId] {{ score }}\n  return null\n{}", INCREMENT.replace("update posts[p.id] { score: p.score + 1 }", "save(p.id, p.score + 1)")),
+        INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }", "(value, rest) = divmod(p.score, 2)\n  update posts[id = p.id] { score: value + rest }"),
+        INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }", "score = 0\n  for row in posts[] first 5 by byId:\n    score = score + row.score\n  update posts[id = p.id] { score }"),
+        format!("fn save(postId: posts, score: int):\n  update posts[id = postId] {{ score }}\n  return null\n{}", INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }", "save(p.id, p.score + 1)")),
     ] {
         let bound = bind(&source);
         assert_eq!(copies(&bound).len(), 1, "{source}\n{:?}", bound.notes);
     }
-    let helper = format!("fn save(postId: posts, score: int):\n  update posts[postId] {{ score }}\n  return null\n{}\nmutation choose(postId: posts, score: int):\n  save(postId, score)\n", INCREMENT.replace("update posts[p.id] { score: p.score + 1 }", "save(p.id, p.score + 1)"));
+    let helper = format!("fn save(postId: posts, score: int):\n  update posts[id = postId] {{ score }}\n  return null\n{}\nmutation choose(postId: posts, score: int):\n  save(postId, score)\n", INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }", "save(p.id, p.score + 1)"));
     assert!(copies(&bind(&helper)).is_empty());
-    let source = format!("{INCREMENT}\nmutation presence(postId: posts):\n  update posts[postId] {{ score: connected[viewer] }}\n");
+    let source = format!("{INCREMENT}\nmutation presence(postId: posts):\n  update posts[id = postId] {{ score: connected[viewer] }}\n");
     assert!(copies(&bind(&source)).is_empty());
-    let presence = INCREMENT.replace("update posts[p.id] { score: p.score + 1 }", "n = 0\n  if exists connected[viewer]:\n    n = 1\n  update posts[p.id] { score: n }");
+    let presence = INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }", "n = 0\n  if exists connected[viewer]:\n    n = 1\n  update posts[id = p.id] { score: n }");
     assert!(copies(&bind(&presence)).is_empty());
 }
 
@@ -453,8 +453,8 @@ fn a_named_upsert_key_is_a_written_value_on_insert() {
 #[test]
 fn published_pinning_rule_accepts_zero_and_true_count_and_refuses_forgery() {
     use snapback4_core::{Context, Engine, Value, WriteState};
-    let source = guide::quarry(guide::card("feeds").unwrap()).into_iter().find(|block| block.contains("table ranked:") && block.contains("update (old, next) <- exists likeCounts")).unwrap();
-    let source = format!("{source}\nmutation setScore(postId: posts, score: int):\n  upsert ranked[postId] {{ postId, score }}\nmutation like(postId: posts):\n  insert likes {{ postId, principal: viewer }} if absent\n");
+    let source = guide::quarry(guide::card("maintains").unwrap()).into_iter().find(|block| block.contains("table ranked:") && block.contains("update (old, next) <- exists likeCounts")).unwrap();
+    let source = format!("{source}\nmutation setScore(postId: posts, score: int):\n  upsert ranked[postId = postId] {{ postId, score }}\nmutation like(postId: posts):\n  insert likes {{ postId, principal: viewer }} if absent\n");
     let bound = bind(&source);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
@@ -483,12 +483,12 @@ fn a_native_writer_makes_the_all_writers_proof_unknown() {
 #[test]
 fn l26_statement_constants_and_read_loop_counts_choose_deltas_without_supplying_data() {
     for body in [
-        "delta = 0\n  if choice:\n    delta = 1\n  else:\n    delta = 2\n  update posts[p.id] { score: p.score + delta }",
-        "delta = 0\n  for i in range(0, p.score):\n    delta = delta + 1\n  update posts[p.id] { score: p.score + delta }",
-        "delta = 0\n  for row in posts[] first 5 by byId:\n    if choice:\n      break\n    delta = delta + row.score\n  update posts[p.id] { score: p.score + delta }",
+        "delta = 0\n  if choice:\n    delta = 1\n  else:\n    delta = 2\n  update posts[id = p.id] { score: p.score + delta }",
+        "delta = 0\n  for i in range(0, p.score):\n    delta = delta + 1\n  update posts[id = p.id] { score: p.score + delta }",
+        "delta = 0\n  for row in posts[] first 5 by byId:\n    if choice:\n      break\n    delta = delta + row.score\n  update posts[id = p.id] { score: p.score + delta }",
     ] {
         let source = INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, choice: bool, amount: int):")
-            .replace("update posts[p.id] { score: p.score + 1 }", body);
+            .replace("update posts[id = p.id] { score: p.score + 1 }", body);
         assert_eq!(copies(&bind(&source)).len(), 1, "{source}");
     }
     let source = format!("fn choose(amount: int):\n  for i in range(0, amount):\n    return 1\n  return 2\n{}", INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, amount: int):")
@@ -529,7 +529,7 @@ fn malformed_helper_calls_never_panic_or_supply_read_evidence() {
             .replace("p.score + 1", value) + "  return null\nfn identity(value: int): value\nquery ok():\n  return 0\n";
         assert!(copies(&bind(&source)).is_empty(), "{value} must remain unknown");
     }
-    let source = format!("{INCREMENT}\nfn unused(postId: posts, amount: int):\n  return at(update posts[postId] {{ score: amount }})\n");
+    let source = format!("{INCREMENT}\nfn unused(postId: posts, amount: int):\n  return at(update posts[id = postId] {{ score: amount }})\n");
     assert!(copies(&bind(&source)).is_empty(), "a malformed call must still visit writes in its arguments");
     assert_eq!(copies(&bind(INCREMENT)).len(), 1);
 }
@@ -582,7 +582,7 @@ fn repeated_helper_provenance_is_cached_without_losing_writes() {
     source.push_str("  return null\n");
     source.push_str(INCREMENT);
     bounded_provenance("2000 calls to a 2000-binding helper", source, 0);
-    let source = format!("fn save(postId: posts, score: int):\n  update posts[postId] {{ score }}\n  return score\n{}\nmutation chosen(postId: posts, score: int):\n  save(postId, score)\n", INCREMENT.replace("update posts[p.id] { score: p.score + 1 }", "save(p.id, p.score + 1)"));
+    let source = format!("fn save(postId: posts, score: int):\n  update posts[id = postId] {{ score }}\n  return score\n{}\nmutation chosen(postId: posts, score: int):\n  save(postId, score)\n", INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }", "save(p.id, p.score + 1)"));
     assert!(copies(&bind(&source)).is_empty(), "the cache must distinguish read and argument provenance");
 }
 
@@ -594,7 +594,7 @@ fn l26_slice_positions_choose_ambient_deltas_without_supplying_data() {
         "selected = first(slice([[1], [-1]], offset, offset + 1)) ! else BAD_OFFSET\n  delta = first(selected) ! else EMPTY",
     ] {
         let source = INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, offset: int):")
-            .replace("update posts[p.id] { score: p.score + 1 }", &format!("{selection}\n  update posts[p.id] {{ score: p.score + delta }}"));
+            .replace("update posts[id = p.id] { score: p.score + 1 }", &format!("{selection}\n  update posts[id = p.id] {{ score: p.score + delta }}"));
         let bound = bind(&source);
         for note in copies(&bound) { println!("{note}"); }
         assert_eq!(copies(&bound).len(), 1, "{source}");
@@ -605,8 +605,8 @@ fn l26_slice_positions_choose_ambient_deltas_without_supplying_data() {
 
 #[test]
 fn a_loop_carried_table_row_count_is_derived() {
-    let source = INCREMENT.replace("update posts[p.id] { score: p.score + 1 }",
-        "total = 0\n  for row in posts[] first 5 by byId:\n    total = total + 1\n  update posts[postId] { score: total }");
+    let source = INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }",
+        "total = 0\n  for row in posts[] first 5 by byId:\n    total = total + 1\n  update posts[id = postId] { score: total }");
     let bound = bind(&source);
     let notes = copies(&bound);
     assert_eq!(notes.len(), 1, "{:?}", bound.notes);
@@ -619,7 +619,7 @@ fn a_loop_carried_table_row_count_is_derived() {
 fn l26_break_chooses_how_many_read_values_are_summed() {
     for exit in ["if choice:\n      break", "if row.score > 0:\n      if choice:\n        break"] {
         let source = INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, choice: bool):")
-            .replace("update posts[p.id] { score: p.score + 1 }", &format!("delta = 0\n  for row in posts[] first 5 by byId:\n    delta = delta + row.score\n    {exit}\n  update posts[p.id] {{ score: p.score + delta }}"));
+            .replace("update posts[id = p.id] { score: p.score + 1 }", &format!("delta = 0\n  for row in posts[] first 5 by byId:\n    delta = delta + row.score\n    {exit}\n  update posts[id = p.id] {{ score: p.score + delta }}"));
         let bound = bind(&source);
         for note in copies(&bound) { println!("{note}"); }
         assert_eq!(copies(&bound).len(), 1, "{source}");
@@ -631,7 +631,7 @@ fn l26_break_chooses_how_many_read_values_are_summed() {
 fn append_only_derived_insertions_are_silent() {
     for source in [
         "table log:\n  n: int\n  public 'log'\n  insert <- allow\nmutation append():\n  last = first(log[] last 1 by byId)\n  insert log { n: (last.n ?? 0) + 1 }\n".to_owned(),
-        format!("{}table log:\n  n: int\n  public 'log'\n  insert <- allow\nmutation append(postId: posts):\n  p = posts[postId] ! else MISSING\n  insert log {{ n: p.score }}\n", INCREMENT.split("mutation create").next().unwrap()),
+        format!("{}table log:\n  n: int\n  public 'log'\n  insert <- allow\nmutation append(postId: posts):\n  p = posts[id = postId] ! else MISSING\n  insert log {{ n: p.score }}\n", INCREMENT.split("mutation create").next().unwrap()),
     ] {
         assert_eq!(copies(&bind(&source)).len(), 1, "the insertion otherwise qualifies");
         let (catalog, mut schema) = catalog_schema(&source);
@@ -655,18 +655,18 @@ fn a_public_write_of_a_widened_recursive_value_is_silent() {
 fn l26_statement_helper_and_loop_control_choose_read_derived_writes() {
     let mut failures = Vec::new();
     for (label, helpers, body) in [
-        ("statement", "", "if choice:\n    update posts[p.id] { score: p.score + 1 }\n  else:\n    update posts[p.id] { score: p.score - 1 }"),
-        ("helper cache", "fn save(postId: posts, score: int):\n  update posts[postId] { score }\n  return score\n", "save(p.id, p.score + 1)\n  if choice:\n    save(p.id, p.score + 1)\n  else:\n    save(p.id, p.score - 1)"),
+        ("statement", "", "if choice:\n    update posts[id = p.id] { score: p.score + 1 }\n  else:\n    update posts[id = p.id] { score: p.score - 1 }"),
+        ("helper cache", "fn save(postId: posts, score: int):\n  update posts[id = postId] { score }\n  return score\n", "save(p.id, p.score + 1)\n  if choice:\n    save(p.id, p.score + 1)\n  else:\n    save(p.id, p.score - 1)"),
         ("loop branch", "", "for row in posts[] first 5 by byId:\n    if choice:\n      update posts[row.id] { score: row.score + 1 }"),
-        ("loop count", "", "for i in range(0, offset):\n    update posts[p.id] { score: p.score + 1 }"),
+        ("loop count", "", "for i in range(0, offset):\n    update posts[id = p.id] { score: p.score + 1 }"),
         ("break after write", "", "for row in posts[] first 5 by byId:\n    update posts[row.id] { score: row.score + 1 }\n    if choice:\n      break"),
-        ("cached helper before break", "fn save(postId: posts, score: int):\n  update posts[postId] { score }\n  return score\n", "for row in posts[] first 5 by byId:\n    save(row.id, row.score + 1)\n  for row in posts[] first 5 by byId:\n    save(row.id, row.score + 1)\n    if choice:\n      break"),
-        ("expression helper", "fn save(postId: posts, score: int):\n  update posts[postId] { score }\n  return score\n", "value = save(p.id, p.score + 1) if choice else save(p.id, p.score - 1)"),
-        ("short circuit", "fn save(postId: posts, score: int):\n  update posts[postId] { score }\n  return true\n", "value = choice or save(p.id, p.score + 1)"),
-        ("guarded return helper", "fn save(postId: posts, score: int):\n  update posts[postId] { score }\n  return null\n", "if choice:\n    return save(p.id, p.score + 1)\n  return save(p.id, p.score - 1)"),
+        ("cached helper before break", "fn save(postId: posts, score: int):\n  update posts[id = postId] { score }\n  return score\n", "for row in posts[] first 5 by byId:\n    save(row.id, row.score + 1)\n  for row in posts[] first 5 by byId:\n    save(row.id, row.score + 1)\n    if choice:\n      break"),
+        ("expression helper", "fn save(postId: posts, score: int):\n  update posts[id = postId] { score }\n  return score\n", "value = save(p.id, p.score + 1) if choice else save(p.id, p.score - 1)"),
+        ("short circuit", "fn save(postId: posts, score: int):\n  update posts[id = postId] { score }\n  return true\n", "value = choice or save(p.id, p.score + 1)"),
+        ("guarded return helper", "fn save(postId: posts, score: int):\n  update posts[id = postId] { score }\n  return null\n", "if choice:\n    return save(p.id, p.score + 1)\n  return save(p.id, p.score - 1)"),
     ] {
         let source = format!("{helpers}{}", INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, choice: bool, offset: int):")
-            .replace("update posts[p.id] { score: p.score + 1 }", body));
+            .replace("update posts[id = p.id] { score: p.score + 1 }", body));
         let bound = bind(&source);
         for note in copies(&bound) { println!("{label}: {note}"); }
         if copies(&bound).len() != 1 { failures.push(label); }
@@ -679,16 +679,16 @@ fn l26_statement_helper_and_loop_control_choose_read_derived_writes() {
 #[test]
 fn review_control_does_not_turn_ambient_writes_into_read_evidence() {
     for body in [
-        "if p.score > 0:\n    update posts[p.id] { score: 1 }",
+        "if p.score > 0:\n    update posts[id = p.id] { score: 1 }",
         "for row in posts[] first 5 by byId:\n    update posts[row.id] { score: 1 }",
         "for row in posts[] first 5 by byId:\n    update posts[row.id] { score: 1 }\n    if row.score > 0:\n      break",
     ] {
-        let source = INCREMENT.replace("update posts[p.id] { score: p.score + 1 }", body);
+        let source = INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }", body);
         assert!(copies(&bind(&source)).is_empty(), "{source}");
         assert_eq!(copies(&bind(&source.replace("{ score: 1 }", "{ score: p.score + 1 }"))).len(), 1);
     }
     let guarded = INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, choice: bool):")
-        .replace("update posts[p.id] { score: p.score + 1 }", "if choice:\n    return null\n  update posts[p.id] { score: p.score + 1 }");
+        .replace("update posts[id = p.id] { score: p.score + 1 }", "if choice:\n    return null\n  update posts[id = p.id] { score: p.score + 1 }");
     assert_eq!(copies(&bind(&guarded)).len(), 1, "a no-write early return only guards the remaining write");
     let initialized = INCREMENT.replace("mutation create():\n  return insert posts { score: 0 }", "mutation create(choice: bool):\n  if choice:\n    insert posts { score: 0 }");
     assert_eq!(copies(&bind(&initialized)).len(), 1, "a literal birth value remains initialization under control");
@@ -707,9 +707,9 @@ fn l26_sort_and_group_keys_choose_elements_without_supplying_their_fields() {
         "count(group(choices, 'key'))",
         "sum(group(choices, 'key'), 1)",
     ] {
-        let body = format!("choices = [{{ key: offset, delta: 1, nested: {{ delta: 1 }} }}, {{ key: 0, delta: -1, nested: {{ delta: -1 }} }}]\n  delta = {selection}\n  update posts[p.id] {{ score: p.score + delta }}");
+        let body = format!("choices = [{{ key: offset, delta: 1, nested: {{ delta: 1 }} }}, {{ key: 0, delta: -1, nested: {{ delta: -1 }} }}]\n  delta = {selection}\n  update posts[id = p.id] {{ score: p.score + delta }}");
         let source = INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, offset: int):")
-            .replace("update posts[p.id] { score: p.score + 1 }", &body);
+            .replace("update posts[id = p.id] { score: p.score + 1 }", &body);
         let bound = bind(&source);
         for note in copies(&bound) { println!("{selection}: {note}"); }
         if copies(&bound).len() != 1 { failures.push(selection); }
@@ -727,7 +727,7 @@ fn review_scalar_selection_and_projection_keep_dependence() {
     }
     for pair in ["sorted", "divmod"] {
         let source = INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, offset: int):")
-            .replace("update posts[p.id] { score: p.score + 1 }", &format!("(left, right) = {pair}(offset, p.score)\n  update posts[p.id] {{ score: left + right }}"));
+            .replace("update posts[id = p.id] { score: p.score + 1 }", &format!("(left, right) = {pair}(offset, p.score)\n  update posts[id = p.id] {{ score: left + right }}"));
         assert!(copies(&bind(&source)).is_empty());
     }
     let source = INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, offset: int):")
@@ -738,7 +738,7 @@ fn review_scalar_selection_and_projection_keep_dependence() {
 #[test]
 fn review_unknown_forms_stay_silent() {
     let mut failures = Vec::new();
-    for expression in ["p.score + missing[postId]", "p.score + (1 if created posts[postId] else -1)"] {
+    for expression in ["p.score + missing[postId]", "p.score + (1 if created posts[id = postId] else -1)"] {
         let source = INCREMENT.replace("mutation like(postId: posts):", "fn like(postId: posts):").replace("p.score + 1", expression) + "  return null\n";
         let bound = bind(&source);
         for note in copies(&bound) { println!("{expression}: {note}"); }
@@ -798,8 +798,8 @@ fn review_expansion_and_total_budget_abandon_read_proofs() {
 #[test]
 fn l26_optional_shape_presence_selects_a_read_derived_field() {
     for projection in ["{ delta: p.score }", "choiceShape"] {
-        let source = format!("shape choiceShape = {{ delta: posts[postId].score }}\n{}", INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, choice: bool):")
-            .replace("update posts[p.id] { score: p.score + 1 }", &format!("selected = ({{ a: 0 }} if choice else null) {projection}\n  update posts[p.id] {{ score: selected.delta ?? 0 }}")));
+        let source = format!("shape choiceShape = {{ delta: posts[id = postId].score }}\n{}", INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, choice: bool):")
+            .replace("update posts[id = p.id] { score: p.score + 1 }", &format!("selected = ({{ a: 0 }} if choice else null) {projection}\n  update posts[id = p.id] {{ score: selected.delta ?? 0 }}")));
         let bound = bind(&source);
         for note in copies(&bound) { println!("{projection}: {note}"); }
         assert_eq!(copies(&bound).len(), 1, "{projection}: caller chooses presence, not field data");
@@ -816,7 +816,7 @@ fn l26_conditional_delta_is_control_and_toggle_message_names_both_arms() {
     assert!(notes[0].message.contains("`p.score + (1 if value else -1)`, chosen by `value` in `like`"), "{}", notes[0]);
     println!("expression: {}", notes[0]);
     let source = INCREMENT.replace("mutation like(postId: posts):", "mutation setLike(postId: posts, liked: bool):")
-        .replace("update posts[p.id] { score: p.score + 1 }", "if liked:\n    update posts[p.id] { score: p.score + 1 }\n  else:\n    update posts[p.id] { score: p.score - 1 }");
+        .replace("update posts[id = p.id] { score: p.score + 1 }", "if liked:\n    update posts[id = p.id] { score: p.score + 1 }\n  else:\n    update posts[id = p.id] { score: p.score - 1 }");
     let bound = bind(&source);
     let notes = copies(&bound);
     assert_eq!(notes.len(), 1);
@@ -827,11 +827,11 @@ fn l26_conditional_delta_is_control_and_toggle_message_names_both_arms() {
 #[test]
 fn l26_control_alone_does_not_manufacture_read_data() {
     for body in [
-        "delta = 1 if p.score > 0 else -1\n  update posts[p.id] { score: delta }",
-        "for row in posts[] first 5 by byId:\n    delta = 0\n    delta = delta + 1\n    update posts[p.id] { score: delta }",
-        "choices = [{ key: p.score, delta: 1 }, { key: 0, delta: -1 }]\n  update posts[p.id] { score: (first(sort(choices, 'key')) ! else EMPTY).delta }",
+        "delta = 1 if p.score > 0 else -1\n  update posts[id = p.id] { score: delta }",
+        "for row in posts[] first 5 by byId:\n    delta = 0\n    delta = delta + 1\n    update posts[id = p.id] { score: delta }",
+        "choices = [{ key: p.score, delta: 1 }, { key: 0, delta: -1 }]\n  update posts[id = p.id] { score: (first(sort(choices, 'key')) ! else EMPTY).delta }",
     ] {
-        let source = INCREMENT.replace("update posts[p.id] { score: p.score + 1 }", body);
+        let source = INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }", body);
         assert!(copies(&bind(&source)).is_empty(), "{source}");
     }
 }
@@ -856,8 +856,8 @@ fn l26_selected_argument_fields_still_supply_data() {
 #[test]
 #[ignore = "L29: loops prefer silence"]
 fn l26_a_constant_helper_called_in_a_read_loop_has_no_read_data() {
-    let source = format!("fn constant():\n  x = 0\n  x = x + 1\n  return x\n{}", INCREMENT.replace("update posts[p.id] { score: p.score + 1 }",
-        "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = constant()\n  update posts[p.id] { score: delta }"));
+    let source = format!("fn constant():\n  x = 0\n  x = x + 1\n  return x\n{}", INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }",
+        "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = constant()\n  update posts[id = p.id] { score: delta }"));
     assert!(copies(&bind(&source)).is_empty());
     assert_eq!(copies(&bind(&source.replace("score: delta", "score: p.score + delta"))).len(), 1);
 }
@@ -917,7 +917,7 @@ fn review_f13_different_conditions_of_the_same_arguments_name_both_arms() {
         ("set: bool, enabled: bool", "set and enabled and not exists likes[postId, viewer]", "enabled and not set", "enabled, set"),
     ] {
         let source = INCREMENT.replace("mutation like(postId: posts):", &format!("mutation like(postId: posts, {args}):"))
-            .replace("update posts[p.id] { score: p.score + 1 }", &format!("if {yes}:\n    update posts[p.id] {{ score: p.score + 1 }}\n  else:\n    if {no}:\n      update posts[p.id] {{ score: max(0, p.score - 1) }}"))
+            .replace("update posts[id = p.id] { score: p.score + 1 }", &format!("if {yes}:\n    update posts[id = p.id] {{ score: p.score + 1 }}\n  else:\n    if {no}:\n      update posts[id = p.id] {{ score: max(0, p.score - 1) }}"))
             + "table likes:\n  postId: posts\n  principal: principal\n  unique byPair: postId, principal\n  public 'likes'\n";
         let bound = bind(&source);
         let notes = copies(&bound);
@@ -936,7 +936,7 @@ fn review_f14_rewrite_only_offers_maintains_for_supported_value_types() {
         assert_eq!(notes.len(), 1, "{ty}");
         println!("F14 {ty}: {}", notes[0]);
         if matches!(ty, "int" | "decimal 2" | "money USD 2") {
-            assert!(notes[0].rewrite.starts_with("declare likeCount: count likes by postId"), "{ty}: {}", notes[0]);
+            assert!(notes[0].rewrite.starts_with("declare likeCount: count likes"), "{ty}: {}", notes[0]);
         } else {
             assert_eq!(notes[0].rewrite, "pin copies.value to its source in both insert and update rules; see guide feeds for the rule", "{ty}");
         }
@@ -948,8 +948,8 @@ fn review_f14_rewrite_only_offers_maintains_for_supported_value_types() {
 #[test]
 #[ignore = "F15: helper-mediated carried increments do not yet receive READ cardinality evidence"]
 fn review_f15_helper_increment_over_read_rows_should_supply_cardinality_evidence() {
-    let source = format!("fn increment(n: int):\n  return n + 1\n{}", INCREMENT.replace("update posts[p.id] { score: p.score + 1 }",
-        "total = 0\n  for row in posts[] first 5 by byId:\n    total = increment(total)\n  update posts[p.id] { score: total }"));
+    let source = format!("fn increment(n: int):\n  return n + 1\n{}", INCREMENT.replace("update posts[id = p.id] { score: p.score + 1 }",
+        "total = 0\n  for row in posts[] first 5 by byId:\n    total = increment(total)\n  update posts[id = p.id] { score: total }"));
     assert_eq!(copies(&bind(&source.replace("total = increment(total)", "total = total + 1"))).len(), 1, "direct carried addition supplies READ cardinality evidence");
     assert_eq!(copies(&bind(&source)).len(), 1, "equivalent addition through a helper should also supply it");
 }
@@ -957,7 +957,7 @@ fn review_f15_helper_increment_over_read_rows_should_supply_cardinality_evidence
 
 fn cardinality_source(helpers: &str, body: &str) -> String {
     format!("{helpers}{}", INCREMENT.replace("mutation like(postId: posts):", "mutation like(postId: posts, xs: [int] <=10, amount: int, choice: bool):")
-        .replace("update posts[p.id] { score: p.score + 1 }", body))
+        .replace("update posts[id = p.id] { score: p.score + 1 }", body))
 }
 
 #[test]
@@ -981,7 +981,7 @@ fn review_f16_shaped_argument_cardinality_is_supplied_even_when_every_item_is_re
         ("conditional", "count((xs { ignored: p.score }) if choice else [{ ignored: p.score }])"),
         ("coalesce", "count((xs { ignored: p.score }) ?? [{ ignored: p.score }])"),
     ] {
-        let source = cardinality_source(helpers, &format!("update posts[p.id] {{ score: {value} }}"));
+        let source = cardinality_source(helpers, &format!("update posts[id = p.id] {{ score: {value} }}"));
         let bound = bind(&source);
         for note in copies(&bound) { println!("{label}: {note}"); }
         if !copies(&bound).is_empty() { failures.push(label); }
@@ -994,13 +994,13 @@ fn review_f16_accumulations_consume_argument_read_and_literal_cardinality() {
     let mut failures = Vec::new();
     for (domain, expected) in [("range(0, amount)", 0), ("xs", 0), ("xs { ignored: p.score }", 0),
         ("range(0, p.score)", 1), ("posts[] first 5 by byId", 1), ("[1, -1]", 1)] {
-        let body = format!("delta = 0\n  for i in {domain}:\n    delta = delta + 1\n  update posts[p.id] {{ score: p.score + delta }}");
+        let body = format!("delta = 0\n  for i in {domain}:\n    delta = delta + 1\n  update posts[id = p.id] {{ score: p.score + delta }}");
         let bound = bind(&cardinality_source("", &body));
         for note in copies(&bound) { println!("{domain}: {note}"); }
         if copies(&bound).len() != expected { failures.push(domain); }
     }
     assert!(failures.is_empty(), "wrong accumulation cardinality: {failures:?}");
-    let body = "delta = 0\n  for i in range(0, p.score):\n    delta = delta + 1\n  update posts[p.id] { score: delta }";
+    let body = "delta = 0\n  for i in range(0, p.score):\n    delta = delta + 1\n  update posts[id = p.id] { score: delta }";
     assert_eq!(copies(&bind(&cardinality_source("", body))).len(), 1, "read range alone supplies READ");
 }
 
@@ -1009,14 +1009,14 @@ fn review_f16_read_and_literal_collections_keep_cardinality_separate_from_items(
     for value in ["count(posts[] first 5 by byId)", "sum(posts[] first 5 by byId, .score)",
         "count((posts[] first 5 by byId) { ignored: amount })", "sum((posts[] first 5 by byId) { ignored: 1 }, 1)",
         "p.score + count([amount, amount])", "p.score + count([{ ignored: amount }])"] {
-        assert_eq!(copies(&bind(&cardinality_source("", &format!("update posts[p.id] {{ score: {value} }}")))).len(), 1, "{value}");
+        assert_eq!(copies(&bind(&cardinality_source("", &format!("update posts[id = p.id] {{ score: {value} }}")))).len(), 1, "{value}");
     }
     for value in ["count([p.score])", "count([{ ignored: p.score }])", "sum((posts[] first 5 by byId) { ignored: amount }, .ignored)"] {
-        assert!(copies(&bind(&cardinality_source("", &format!("update posts[p.id] {{ score: {value} }}")))).is_empty(), "{value}");
+        assert!(copies(&bind(&cardinality_source("", &format!("update posts[id = p.id] {{ score: {value} }}")))).is_empty(), "{value}");
     }
     // A capped prefix is a collection even without an explicit first/last range.
     let source = SOURCE.replace("  unique byPair: postId, principal", "  unique byPair: postId, principal\n  cap 10 by postId")
-        .replace("score: likeCounts[postId]", "score: count(likes[postId])");
+        .replace("score: likeCounts[postId]", "score: count(likes[postId = postId])");
     assert_eq!(copies(&bind(&source)).len(), 1);
 }
 
@@ -1025,7 +1025,7 @@ fn review_f17_tokens_and_stored_lists_preserve_both_provenances() {
     let helpers = "fn size(xs: [json <=1024] <=10): count(xs)\n";
     for (base, expected) in [("tokens(text)", 0), ("tokens(p.body)", 1), ("p.numbers", 1)] {
         for projection in [format!("count({base} {{ ignored: p.score }})"), format!("sum({base}, p.score)")] {
-            let source = cardinality_source(helpers, &format!("update posts[p.id] {{ score: {projection} }}"))
+            let source = cardinality_source(helpers, &format!("update posts[id = p.id] {{ score: {projection} }}"))
                 .replace("score: int", "score: int\n  body: text <=100 default ''\n  numbers: [int] <=10")
                 .replace("xs: [int] <=10", "text: text <=100, xs: [int] <=10")
                 .replace("insert posts { score: 0 }", "insert posts { score: 0, numbers: [] }");
@@ -1037,9 +1037,9 @@ fn review_f17_tokens_and_stored_lists_preserve_both_provenances() {
 #[test]
 fn review_f17_opaque_shapes_and_unmodelled_recurrences_stay_unknown() {
     for body in [
-        "update posts[p.id] { score: count(raw { ignored: p.score }) }",
-        "opaque = { ignored: p.score }\n  mixed = opaque if choice else xs\n  update posts[p.id] { score: count(mixed { ignored: p.score }) }",
-        "delta = 0\n  for i in range(0, amount):\n    delta = increment(delta)\n  update posts[p.id] { score: p.score + delta }",
+        "update posts[id = p.id] { score: count(raw { ignored: p.score }) }",
+        "opaque = { ignored: p.score }\n  mixed = opaque if choice else xs\n  update posts[id = p.id] { score: count(mixed { ignored: p.score }) }",
+        "delta = 0\n  for i in range(0, amount):\n    delta = increment(delta)\n  update posts[id = p.id] { score: p.score + delta }",
     ] {
         // The heterogeneous shape is an uncalled-helper audit case: ordinary
         // binding rejects it, but every catalog writer still needs a safe proof.
@@ -1047,7 +1047,7 @@ fn review_f17_opaque_shapes_and_unmodelled_recurrences_stay_unknown() {
             .replace("xs: [int] <=10", "raw: json <=1024, xs: [int] <=10") + "  return null\n";
         assert!(copies(&bind(&source)).is_empty(), "{source}");
     }
-    assert_eq!(copies(&bind(&cardinality_source("", "update posts[p.id] { score: p.score + (1 if choice else 2) }"))).len(), 1);
+    assert_eq!(copies(&bind(&cardinality_source("", "update posts[id = p.id] { score: p.score + (1 if choice else 2) }"))).len(), 1);
 }
 
 
@@ -1063,9 +1063,9 @@ fn review_f16_exact_shaped_count_review_program_stays_silent() {
 #[test]
 fn review_f17_implicit_prefix_projection_is_unknown_until_its_collection_shape_is_known() {
     let implicit = SOURCE.replace("  unique byPair: postId, principal", "  unique byPair: postId, principal\n  cap 10 by postId")
-        .replace("score: likeCounts[postId]", "score: count(likes[postId] { ignored: likeCounts[postId] })");
-    let explicit = implicit.replace("count(likes[postId] {", "count((likes[postId] first 10 by byPair) {");
-    assert!(copies(&bind(&implicit)).is_empty(), "a type-selected row/page must not be guessed by the note pass");
+        .replace("score: likeCounts[postId]", "score: count(likes[postId = postId] { ignored: likeCounts[postId] })");
+    let explicit = implicit.replace("count(likes[postId = postId] {", "count((likes[postId = postId] first 10 by byPair) {");
+    assert_eq!(copies(&bind(&implicit)).len(), 1, "a planned named scan has a known collection shape");
     assert_eq!(copies(&bind(&explicit)).len(), 1, "the same page with a known collection shape");
 }
 
@@ -1075,11 +1075,11 @@ fn review_f17_loop_recurrence_aliases_helpers_and_nonadditive_forms_stay_unknown
         "next = delta + 1\n    delta = next", "delta = delta * 2", "(next, rest) = sorted(delta + 1, delta + 2)\n    delta = next",
         "next = delta + 1\n    if choice:\n      delta = next\n    else:\n      delta = next + 1"] {
         for domain in ["range(0, amount)", "posts[] first 5 by byId"] {
-            let body = format!("delta = 1\n  for row in {domain}:\n    {recurrence}\n  update posts[p.id] {{ score: p.score + delta }}");
+            let body = format!("delta = 1\n  for row in {domain}:\n    {recurrence}\n  update posts[id = p.id] {{ score: p.score + delta }}");
             assert!(copies(&bind(&cardinality_source("fn increment(n: int): n + 1\n", &body))).is_empty(), "{body}");
         }
     }
-    let body = "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = delta + 1\n  update posts[p.id] { score: delta }";
+    let body = "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = delta + 1\n  update posts[id = p.id] { score: delta }";
     assert_eq!(copies(&bind(&cardinality_source("", body))).len(), 1);
 }
 
@@ -1091,8 +1091,8 @@ fn review_f17_collection_choices_cache_keys_and_consumers_keep_cardinality() {
     assert_eq!(copies(&bind(&cardinality_source(helper, &body.replace("save(xs {", "save((posts[] first 5 by byId) {")))).len(), 1);
     for selector in ["min", "max", "sorted"] {
         let body = if selector == "sorted" {
-            "(left, right) = sorted(xs, [p.score])\n  update posts[p.id] { score: count(left { ignored: p.score }) }".to_owned()
-        } else { format!("values = {selector}(xs, [p.score])\n  update posts[p.id] {{ score: count(values {{ ignored: p.score }}) }}") };
+            "(left, right) = sorted(xs, [p.score])\n  update posts[id = p.id] { score: count(left { ignored: p.score }) }".to_owned()
+        } else { format!("values = {selector}(xs, [p.score])\n  update posts[id = p.id] {{ score: count(values {{ ignored: p.score }}) }}") };
         assert!(copies(&bind(&cardinality_source("", &body))).is_empty(), "{selector}: caller collection length survives selection");
         assert_eq!(copies(&bind(&cardinality_source("", &body.replace("xs, [p.score]", "[p.score], [p.score]").replace("score: count(", "score: p.score + count(")))).len(), 1, "{selector}: a finite ambient cardinality choice");
     }
@@ -1102,13 +1102,13 @@ fn review_f17_collection_choices_cache_keys_and_consumers_keep_cardinality() {
 fn review_f17_text_length_and_filter_cardinality_use_the_consumed_channel() {
     for (value, expected) in [("count(p.body)", 1), ("count(sha256(p.body))", 0), ("p.score + count(sha256(p.body))", 1),
         ("count(slice(p.body, amount, amount + 1))", 1), ("count(tokens(p.body))", 1), ("count(tokens(text))", 0)] {
-        let source = cardinality_source("", &format!("update posts[p.id] {{ score: {value} }}"))
+        let source = cardinality_source("", &format!("update posts[id = p.id] {{ score: {value} }}"))
             .replace("score: int", "score: int\n  body: text <=100 default ''")
             .replace("xs: [int] <=10", "text: text <=100, xs: [int] <=10");
         assert_eq!(copies(&bind(&source)).len(), expected, "{value}");
     }
     for (predicate, expected) in [(".score > amount", 0), (".score > 0", 1)] {
-        let body = format!("update posts[p.id] {{ score: count(posts[] first 5 by byId where {predicate}) }}");
+        let body = format!("update posts[id = p.id] {{ score: count(posts[] first 5 by byId where {predicate}) }}");
         assert_eq!(copies(&bind(&cardinality_source("", &body))).len(), expected, "filter: {predicate}");
     }
 }
@@ -1117,12 +1117,12 @@ fn review_f17_text_length_and_filter_cardinality_use_the_consumed_channel() {
 #[test]
 fn review_f17_appended_and_write_returned_lists_keep_cardinality() {
     for (domain, expected) in [("xs", 0), ("range(0, amount)", 0), ("posts[] first 5 by byId", 1), ("[1, -1]", 1)] {
-        let body = format!("values = [p.score]\n  for row in {domain}:\n    values = values + [p.score]\n  update posts[p.id] {{ score: p.score + count(values {{ ignored: p.score }}) }}");
+        let body = format!("values = [p.score]\n  for row in {domain}:\n    values = values + [p.score]\n  update posts[id = p.id] {{ score: p.score + count(values {{ ignored: p.score }}) }}");
         assert_eq!(copies(&bind(&cardinality_source("", &body))).len(), expected, "append over {domain}");
     }
     for (input, expected) in [("xs", 0), ("[p.score]", 1)] {
         let schema = "table scratch:\n  values: [int] <=10\n  public 'scratch'\n  insert <- allow\n";
-        let body = format!("written = insert scratch {{ values: {input} }}\n  update posts[p.id] {{ score: p.score + count(written.values {{ ignored: p.score }}) }}");
+        let body = format!("written = insert scratch {{ values: {input} }}\n  update posts[id = p.id] {{ score: p.score + count(written.values {{ ignored: p.score }}) }}");
         let bound = bind(&cardinality_source(schema, &body));
         let hits = copies(&bound).into_iter().filter(|note| note.message.contains("posts.score ")).count();
         assert_eq!(hits, expected, "write result from {input}");
@@ -1131,7 +1131,7 @@ fn review_f17_appended_and_write_returned_lists_keep_cardinality() {
 
 #[test]
 fn review_f19_conditional_reset_cannot_hide_argument_cardinality() {
-    let source = "table posts:\n  score: int\n  public 'posts'\n  update <- allow\n\nmutation setScore(amount: int, reset: bool):\n  p = posts['seed'] ! else MISSING\n  delta = 0\n  for i in range(0, amount):\n    if reset:\n      delta = 0\n    delta = delta + 1\n  update posts[p.id] { score: p.score + delta }\n";
+    let source = "table posts:\n  score: int\n  public 'posts'\n  update <- allow\n\nmutation setScore(amount: int, reset: bool):\n  p = posts['seed'] ! else MISSING\n  delta = 0\n  for i in range(0, amount):\n    if reset:\n      delta = 0\n    delta = delta + 1\n  update posts[id = p.id] { score: p.score + delta }\n";
     let bound = bind(source);
     for note in copies(&bound) { println!("F19 conditional reset: {note}"); }
     assert!(copies(&bound).is_empty());
@@ -1155,7 +1155,7 @@ fn review_f19_every_nested_assignment_consumes_argument_cardinality() {
         ("break in nested loop", "for j in [1, 2]:\n      break\n      delta = 0"),
     ] {
         for domain in ["range(0, amount)", "xs", "xs { ignored: p.score }"] {
-            let body = format!("delta = p.score\n  for i in {domain}:\n    {assignments}\n  update posts[p.id] {{ score: p.score + delta }}");
+            let body = format!("delta = p.score\n  for i in {domain}:\n    {assignments}\n  update posts[id = p.id] {{ score: p.score + delta }}");
             let bound = bind(&cardinality_source("", &body));
             if !copies(&bound).is_empty() { failures.push(format!("{label}: {domain}")); }
         }
@@ -1165,7 +1165,7 @@ fn review_f19_every_nested_assignment_consumes_argument_cardinality() {
 
 #[test]
 fn review_f19_inner_argument_loop_survives_a_read_loop_join() {
-    let body = "delta = 0\n  for row in posts[] first 5 by byId:\n    for i in range(0, amount):\n      if choice:\n        delta = 0\n      delta = delta + 1\n  update posts[p.id] { score: p.score + delta }";
+    let body = "delta = 0\n  for row in posts[] first 5 by byId:\n    for i in range(0, amount):\n      if choice:\n        delta = 0\n      delta = delta + 1\n  update posts[id = p.id] { score: p.score + delta }";
     assert!(copies(&bind(&cardinality_source("", body))).is_empty());
     assert_eq!(copies(&bind(&cardinality_source("", &body.replace("range(0, amount)", "range(0, p.score)")))).len(), 1);
 }
@@ -1174,23 +1174,23 @@ fn review_f19_inner_argument_loop_survives_a_read_loop_join() {
 fn review_f19_read_cardinality_still_notes_and_outside_assignments_stay_precise() {
     for domain in ["posts[] first 5 by byId", "range(0, p.n)"] {
         for assignments in ["delta = delta + 1", "if choice:\n      delta = 0\n    delta = delta + 1"] {
-            let body = format!("delta = 0\n  for i in {domain}:\n    {assignments}\n  update posts[p.id] {{ score: delta }}");
+            let body = format!("delta = 0\n  for i in {domain}:\n    {assignments}\n  update posts[id = p.id] {{ score: delta }}");
             let source = cardinality_source("", &body).replace("score: int", "score: int\n  n: int default 0");
             assert_eq!(copies(&bind(&source)).len(), 1, "{domain}: {assignments}");
         }
     }
     for body in [
-        "delta = 0\n  if choice:\n    delta = 0\n  delta = delta + 1\n  update posts[p.id] { score: p.score + delta }",
-        "delta = 0\n  for i in range(0, amount):\n    delta = delta + 1\n  delta = 1\n  update posts[p.id] { score: p.score + delta }",
-        "delta = p.score\n  for i in range(0, amount):\n    unused = 0\n  update posts[p.id] { score: delta }",
+        "delta = 0\n  if choice:\n    delta = 0\n  delta = delta + 1\n  update posts[id = p.id] { score: p.score + delta }",
+        "delta = 0\n  for i in range(0, amount):\n    delta = delta + 1\n  delta = 1\n  update posts[id = p.id] { score: p.score + delta }",
+        "delta = p.score\n  for i in range(0, amount):\n    unused = 0\n  update posts[id = p.id] { score: delta }",
     ] {
         assert_eq!(copies(&bind(&cardinality_source("", body))).len(), 1, "{body}");
     }
-    let source = cardinality_source("", "delta = 0\n  for i in missing:\n    if choice:\n      delta = 0\n    delta = delta + 1\n  update posts[p.id] { score: p.score + delta }");
+    let source = cardinality_source("", "delta = 0\n  for i in missing:\n    if choice:\n      delta = 0\n    delta = delta + 1\n  update posts[id = p.id] { score: p.score + delta }");
     let (catalog, schema) = catalog_schema(&source);
     assert!(provenance::notes(&catalog, &schema).is_empty(), "an unknown domain cannot supply a proof");
     let helper = "fn constant():\n  x = 0\n  x = x + 1\n  return x\n";
-    let body = "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = constant()\n  update posts[p.id] { score: p.score + delta }";
+    let body = "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = constant()\n  update posts[id = p.id] { score: p.score + delta }";
     assert_eq!(copies(&bind(&cardinality_source(helper, body))).len(), 1, "the constant-helper positive remains noted");
 }
 
@@ -1198,12 +1198,12 @@ fn review_f19_read_cardinality_still_notes_and_outside_assignments_stay_precise(
 #[ignore = "L29: loops prefer silence"]
 fn l29_unconditional_reset_precision() {
     for body in [
-        "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = 1\n  update posts[p.id] { score: delta }",
-        "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = 0\n    delta = delta + 1\n  update posts[p.id] { score: delta }",
+        "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = 1\n  update posts[id = p.id] { score: delta }",
+        "delta = 0\n  for row in posts[] first 5 by byId:\n    delta = 0\n    delta = delta + 1\n  update posts[id = p.id] { score: delta }",
     ] {
         assert!(copies(&bind(&cardinality_source("", body))).is_empty(), "{body}");
     }
-    let body = "delta = 0\n  for i in range(0, amount):\n    delta = 0\n    delta = delta + 1\n  update posts[p.id] { score: p.score + delta }";
+    let body = "delta = 0\n  for i in range(0, amount):\n    delta = 0\n    delta = delta + 1\n  update posts[id = p.id] { score: p.score + delta }";
     assert_eq!(copies(&bind(&cardinality_source("", body))).len(), 1, "superseded precision: the loop stores at most one");
 }
 
@@ -1211,7 +1211,7 @@ fn l29_unconditional_reset_precision() {
 fn round6_seek_bounds_and_matching_text_shape_a_pages_cardinality_but_keys_only_select() {
     // Round 6 (Grok): a seek bound or `matching` text the caller supplies decides HOW MANY rows a
     // page holds, so a count of it is caller-controlled (silent); a key selects WHICH group,
-    // whose size is a fact about the data, so `count(likes[postId])` stays the footgun (noted).
+    // whose size is a fact about the data, so `count(likes[postId = postId])` stays the footgun (noted).
     let schema = "table posts:\n  body: text <=200\n  score: int\n  by byBodyWords: words(body), id\n  by byScore: score, id\n  public 'posts'\n  insert <- allow\n  update <- allow\n";
     // A `matching` page inside a mutation is refused by admission (E_STRUCTURAL_FANOUT), so the
     // pass's `matching` cardinality rule is defensive; the seek bound is the reachable case.
@@ -1224,7 +1224,7 @@ fn round6_seek_bounds_and_matching_text_shape_a_pages_cardinality_but_keys_only_
         let bound = bind(&format!("{schema}{mutation}"));
         assert_eq!(copies(&bound).len(), notes, "{label}: {:?}", bound.notes);
     }
-    let keyed = bind(&SOURCE.replace("score: likeCounts[postId]", "score: count(likes[postId] first 100 by byPair)"));
+    let keyed = bind(&SOURCE.replace("score: likeCounts[postId]", "score: count(likes[postId = postId] first 100 by byPair)"));
     assert_eq!(copies(&keyed).len(), 1, "a key selects the group; its count is derived: {:?}", keyed.notes);
 }
 
@@ -1235,9 +1235,9 @@ fn round6_helpers_named_like_syntactic_builtins_are_unknown_where_the_binder_byp
     // provenance to the binding (round 6, GPT). Each is silent (UNKNOWN), never noted.
     let schema = "table posts:\n  score: int\n  public 'posts'\n  update <- allow\n";
     for (label, program) in [
-        ("divmod", "fn divmod(a: int, b: int): 0\nmutation setScore(amount: int):\n  p = posts['seed'] ! else MISSING\n  (q, r) = divmod(amount, 1)\n  update posts[p.id] { score: p.score + q }\n"),
-        ("sorted", "fn sorted(a: int, b: int): 0\nmutation setScore(amount: int):\n  p = posts['seed'] ! else MISSING\n  (lo, hi) = sorted(amount, 1)\n  update posts[p.id] { score: p.score + lo }\n"),
-        ("range", "fn range(a: int, b: int): [0]\nmutation setScore(amount: int):\n  p = posts['seed'] ! else MISSING\n  delta = 0\n  for i in range(0, amount):\n    delta = delta + 1\n  update posts[p.id] { score: p.score + delta }\n"),
+        ("divmod", "fn divmod(a: int, b: int): 0\nmutation setScore(amount: int):\n  p = posts['seed'] ! else MISSING\n  (q, r) = divmod(amount, 1)\n  update posts[id = p.id] { score: p.score + q }\n"),
+        ("sorted", "fn sorted(a: int, b: int): 0\nmutation setScore(amount: int):\n  p = posts['seed'] ! else MISSING\n  (lo, hi) = sorted(amount, 1)\n  update posts[id = p.id] { score: p.score + lo }\n"),
+        ("range", "fn range(a: int, b: int): [0]\nmutation setScore(amount: int):\n  p = posts['seed'] ! else MISSING\n  delta = 0\n  for i in range(0, amount):\n    delta = delta + 1\n  update posts[id = p.id] { score: p.score + delta }\n"),
     ] {
         let bound = compile(&[("schema.q".into(), format!("{schema}{program}"))]);
         assert!(copies(&bound).is_empty(), "{label}: {:?} {:?}", bound.diagnostics, bound.notes);

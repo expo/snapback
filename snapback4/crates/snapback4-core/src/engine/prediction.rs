@@ -23,7 +23,8 @@ pub fn total_expr(expr: &Expr) -> bool {
 
 pub fn total_body(body: &[Stmt]) -> bool {
     body.iter().all(|stmt| match stmt {
-        Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Emit { payload: value, .. } => total_expr(value),
+        Stmt::Let { value, .. } | Stmt::Assign { value, .. } => total_expr(value),
+        Stmt::Emit { payload, once, .. } => total_expr(payload) && once.as_ref().is_none_or(total_expr),
         Stmt::If { condition, then_body, else_body } => total_expr(condition) && total_body(then_body) && total_body(else_body),
         _ => false,
     })

@@ -126,7 +126,7 @@ fn output_budget_refuses_indivisible_results_and_rolls_back_mutations() {
 
 #[test]
 fn updating_one_created_row_keeps_sibling_facts() {
-    let source = "table grants:\n  name: text <=10\n  unique byName: name\n  read <- allow\n  insert <- allow\n  update <- allow\ntable items:\n  name: text <=10\n  read <- allow\n  insert <- created grants[.name]\nmutation add():\n  a = insert grants {name: 'a'}\n  b = insert grants {name: 'b'}\n  update grants[a] {name: 'c'}\n  insert items {name: 'b'}\n  insert items {name: 'c'}\n  return null\n";
+    let source = "table grants:\n  name: text <=10\n  unique byName: name\n  read <- allow\n  insert <- allow\n  update <- allow\ntable items:\n  name: text <=10\n  read <- allow\n  insert <- created grants[name = .name]\nmutation add():\n  a = insert grants {name: 'a'}\n  b = insert grants {name: 'b'}\n  update grants[a] {name: 'c'}\n  insert items {name: 'b'}\n  insert items {name: 'c'}\n  return null\n";
     let mut e = engine(source);
     assert!(matches!(e.mutate("add", Some("a"), ctx()).unwrap().state, WriteState::Sent { .. }));
     assert_eq!(e.store().count("items").unwrap(), 2);
@@ -134,7 +134,7 @@ fn updating_one_created_row_keeps_sibling_facts() {
 
 #[test]
 fn inserted_constraint_images_survive_later_updates_and_deletes() {
-    let source = "table targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\n  insert <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  after insert <- exists targets[.name]\nmutation remove():\n  s = insert sources {name: 'a'}\n  delete sources[s]\nmutation change():\n  s = insert sources {name: 'a'}\n  update sources[s] {name: 'b'}\n  insert targets {name: 'b'}\n";
+    let source = "table targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\n  insert <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  after insert <- exists targets[name = .name]\nmutation remove():\n  s = insert sources {name: 'a'}\n  delete sources[s]\nmutation change():\n  s = insert sources {name: 'a'}\n  update sources[s] {name: 'b'}\n  insert targets {name: 'b'}\n";
     let mut e = engine(source);
     for op in ["remove", "change"] {
         assert!(matches!(e.mutate(op, Some(op), ctx()).unwrap().state, WriteState::Failed { why, .. } if why.code == "E_CONSTRAINT"));
@@ -230,7 +230,7 @@ fn cursorless_nonunique_scans_keep_live_siblings_after_an_expired_batch() {
 
 #[test]
 fn job_chunks_enforce_final_exists_and_rollback_the_whole_chunk() {
-    let mut e=engine("table inputs:\n  read <- allow\n  sync public\ntable targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  after insert <- exists targets[.name]\njob j():\n  chunk i in inputs first 5 by byId:\n    insert sources {name: 'ghost'}\n");
+    let mut e=engine("table inputs:\n  read <- allow\n  sync public\ntable targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  after insert <- exists targets[name = .name]\njob j():\n  chunk i in inputs first 5 by byId:\n    insert sources {name: 'ghost'}\n");
     seed(&mut e,"inputs",serde_json::json!([{"id":"one"}]));
     let run=e.run_job("j",BTreeMap::new(),1000).unwrap();
     assert_eq!(run.state,snapback4_core::JobState::Parked);
@@ -310,7 +310,7 @@ fn projected_reads_retain_the_next_visible_expiry() {
 
 #[test]
 fn expired_rows_are_absent_to_uniqueness_caps_final_exists_and_maintains() {
-    let mut e=engine("table targets:\n  code: text <=10\n  until: time ?\n  unique byCode: code\n  by byExpiry: until\n  expire at .until\n  cap 1 by code\n  read <- allow\n  insert <- allow\n  sync public\nmaintain counts: count targets by code\n  read <- allow\ntable sources:\n  code: text <=10\n  insert <- allow\n  after insert <- exists targets[.code]\nmutation add():\n  insert targets {code: 'same',until: null}\nmutation source():\n  insert sources {code: 'same'}\nquery count():\n  return counts['same'] by byGroup\nquery one():\n  return targets['same'] by byCode\n");
+    let mut e=engine("table targets:\n  code: text <=10\n  until: time ?\n  unique byCode: code\n  by byExpiry: until\n  expire at .until\n  cap 1 by code\n  read <- allow\n  insert <- allow\n  sync public\nmaintain counts: count targets by code\n  read <- allow\ntable sources:\n  code: text <=10\n  insert <- allow\n  after insert <- exists targets[code = .code]\nmutation add():\n  insert targets {code: 'same',until: null}\nmutation source():\n  insert sources {code: 'same'}\nquery count():\n  return counts['same'] by byGroup\nquery one():\n  return targets['same'] by byCode\n");
     seed(&mut e,"targets",serde_json::json!([{"id":"old","code":"same","until":10}]));
     assert_eq!(e.query("count",ctx()).unwrap().data,Value::Int(0));
     let snapshot=e.snapshot_at("dev:alice",1000).unwrap().0;

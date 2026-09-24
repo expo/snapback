@@ -3,6 +3,17 @@
 use super::*;
 
 impl Binder<'_> {
+    /// Bare tables are domains only at an aggregate/loop consumer; ordinary
+    /// names keep their lexical meaning and ordinary pages keep their bounds.
+    fn aggregate_domain(&self, value: &A) -> Option<ReadExpr> {
+        match value {
+            A::Read(read) if read.range.is_none() && read.matching.is_none() => Some(read.clone()),
+            A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) =>
+                Some(ReadExpr { order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() }),
+            _ => None,
+        }
+    }
+
     // ----- expressions -----
 
     /// An expression whose value is used (bound, returned, or a final
@@ -54,6 +65,15 @@ impl Binder<'_> {
     pub(super) fn expr(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let site = expr.site();
         match expr {
+            A::Name { name, .. } if self.binding(name).is_none() && self.catalog.view_reads.contains_key(name) => {
+                let mut merge = self.catalog.view_reads[name].clone();
+                merge.site = site.clone();
+                self.planned_view(&merge, out, prefix::Position::Page)
+            }
+            A::Name { name, .. } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) => {
+                self.read(&ReadExpr { computed: Default::default(), table: name.clone(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: Some("byId".into()),
+                    order_keys: vec!["id".into()], range: None, matching: None, site: site.clone() }, out)
+            }
             A::Name { name, .. } => self.name(name, site),
             A::Focal { .. } => match &self.focal {
                 Some((var, ty)) => Ok((ir::var(var), ty.clone())),
@@ -318,6 +338,19 @@ impl Binder<'_> {
     }
 
     pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if op == "in" {
+            let (value, ty) = self.expr(left, out)?;
+            let value = self.snapshot(value, out);
+            let (domain, item) = self.loop_domain(right, out)?;
+            if !ty.comparable(&item) { return Err(type_error(site, format!("in compares {} with {}", ty.name(), item.name()), "use a list of values of the column's type")); }
+            let found = self.temp("contains");
+            let binding = self.temp("member");
+            out.push(Stmt::Let { name: found.clone(), value: ir::lit(Value::Bool(false)) });
+            let body = vec![Stmt::If { condition: Expr::Binary { op: BinaryOp::Eq, left: Box::new(value), right: Box::new(ir::var(&binding)) },
+                then_body: vec![Stmt::Assign { name: found.clone(), value: ir::lit(Value::Bool(true)) }, Stmt::Break], else_body: Vec::new() }];
+            out.push(Stmt::For { binding, domain, body });
+            return Ok((ir::var(&found), Ty::Bool));
+        }
         if op == "??" {
             let (l, lt) = self.expr(left, out)?;
             let tmp = self.temp("or");
@@ -480,6 +513,10 @@ impl Binder<'_> {
             }
             "count" => {
                 arity(1, "count(list)")?;
+                if let Some(read) = self.aggregate_domain(&args[0]) && self.is_page(&read, ReadMode::FilteredPoint)? {
+                    let (scan, _) = self.scan_at(&read, out, prefix::Position::Aggregate)?;
+                    return Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![Expr::Scan(scan)] }, Ty::Int));
+                }
                 let (e, t) = self.expr(&args[0], out)?;
                 if matches!(t, Ty::Text(_)) {
                     return Ok((Expr::Builtin { builtin: Builtin::Len, args: vec![e] }, Ty::Int));
@@ -540,9 +577,25 @@ impl Binder<'_> {
                 Ok((Expr::Builtin { builtin: Builtin::Join, args: vec![list, sep] }, Ty::Text(max)))
             }
             "sum" if args.len() == 2 => {
+                let source = if let Some(read) = self.aggregate_domain(&args[0]) {
+                    let (scan, _) = self.scan_at(&read, out, prefix::Position::Aggregate)?;
+                    if scan.take == Bound::Meter {
+                        let saved = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
+                        let mut setup = setup::Body::default();
+                        let projected = self.expr(&args[1], &mut setup);
+                        self.focal = saved;
+                        let (projection, ty) = projected?;
+                        if !ty.is_numeric() || !setup.is_empty() {
+                            return Err(type_error(args[1].site(), "a streaming sum needs a required numeric column", "sum(messages[prefix] by index, .amount)"));
+                        }
+                        return Ok((Expr::Builtin { builtin: Builtin::Sum, args: vec![Expr::Scan(scan), projection] }, ty));
+                    }
+                    let ty = Ty::Page(read.table, scan.take.maximum() as u32);
+                    (Expr::Scan(scan), ty)
+                } else { self.expr(&args[0], out)? };
                 // `sum(page, .x)`: the rows' field, summed — a loop that
                 // pushes each projection, then the sum of the list.
-                let (source, source_ty) = self.expr(&args[0], out)?;
+                let (source, source_ty) = source;
                 let (domain, item_ty) = match (&source, &source_ty) {
                     (Expr::Scan(scan), Ty::Page(table, _)) => (LoopDomain::Page(scan.clone()), Ty::Row(table.clone())),
                     (_, Ty::Page(table, max)) => (LoopDomain::DerivedArray { value: source.clone(), max: *max, bound_source: "sum".into() }, Ty::Row(table.clone())),

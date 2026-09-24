@@ -32,7 +32,7 @@ A mutation with `predicts: "never"` (a server site or `: server`) may pass
 over a bounded plain prefix page whose read rule is uniform over its prefix,
 without a complete schema-capped group. `matching`, merges and tables with
 expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation
-keeps the complete-group requirement for page loops: `for row in t[prefix]:`
+keeps the complete-group requirement for page loops: `for row in t where .owner = viewer:`
 uses the schema cap, without restating it. An explicit `first N` remains legal;
 an explicit bound below the cap still fails that proof. A job's inner loop may
 also read a capped group this way. A bounded list loop whose
@@ -49,8 +49,7 @@ The pass is atomic and still aborts above 1,024 rows written. `check --cost`
 prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
 For structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
-The table names are the language card's; a `job` is `chunk row in
-t[prefix] first N by index:` sweeps (guide jobs), or `native`: the app's
+The table names are the language card's; a `job` is `for row in table where predicate:` sweeps (guide jobs), or `native`: the app's
 own Rust, hosted as wasm; a `query` may be `native` too, run on the server
 as the viewer and on a device over its rows (guide native). Operations in `schema.q`
 are called by name (`api.thread`); operations in `snapback/feed.q` are
@@ -110,9 +109,9 @@ resolvers, no migrations to write, no subscriptions to manage: a table's
 over what the device holds.
 
 **Two ways to run.** `snapback4 init` starts local-first: declare `sync`
-and open `createLocalClient` so the device holds its partition and works
+and pass a device to `createApp` so the client holds its partition and works
 offline. `snapback4 init --online` writes a schema with no `sync` lines
-and a `src/client.ts` on `createClient`. Its queries run on the server and
+and a `src/client.ts` on `createApp` without a device. Its queries run on the server and
 stay live through `/changes`, with no replica. Both tiers use the same
 rules, meter, identity, assets and jobs. Add `sync` and open a local-first
 client when the app needs offline data. `init --expo` adds the phone

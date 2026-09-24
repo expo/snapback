@@ -96,8 +96,6 @@ fn equality_recovery_preserves_an_independent_syntax_error() {
 #[test]
 fn reproduced_diagnostics() {
     let expected = [
-        (INDEX, "schema.q:7:10 — E_QUARRY_UNKNOWN: members has no index whose prefix takes 2 keys; its indexes are byId (id), byRoom (room, id)\n  rewrite: by byRoomPrincipal: room, principal, id — check --fix applies it\n  guide: indexes"),
-        (PROBE, "schema.q:8:11 — E_QUARRY_UNKNOWN: chats has no index with 2 columns matching this key\n  rewrite: by byKeyAdmin: key, admin — check --fix applies it\n  guide: indexes"),
         (ONCE, "schema.q:1:15 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint; declare it on the owning table column\n  rewrite: photo: image <=10000000 ? — check --fix applies it\n  guide: language"),
         (SHAPE, "schema.q:5:41 — E_QUARRY_UNKNOWN: shape wildcard already includes field tombstone\n  rewrite: { * } — check --fix applies it\n  guide: shapes"),
         (PARENS, "schema.q:1:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses\n  rewrite: query trending(): — check --fix applies it\n  guide: language"),
@@ -153,9 +151,9 @@ fn table_typed_helpers_bind_at_each_call_as_rows_or_references() {
 #[test]
 fn trending_card_ranks_the_day_and_reports_a_cut_set() {
     use snapback4_core::{Context, Engine, Value};
-    use snapback4_lang::guide::{card, quarry};
+    use snapback4_lang::guide::quarry;
     use std::collections::BTreeMap;
-    let block = quarry(card("feeds").unwrap()).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
+    let block = quarry(include_str!("fixtures/legacy-feed-recipes.md")).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
     let bound = compile(&[("schema.q".into(), block)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
@@ -184,9 +182,9 @@ fn trending_card_ranks_the_day_and_reports_a_cut_set() {
 #[test]
 fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_ceiling() {
     use snapback4_core::{Context, Engine, Value, value::object};
-    use snapback4_lang::guide::{card, quarry};
+    use snapback4_lang::guide::quarry;
     use std::collections::BTreeMap;
-    let block = quarry(card("feeds").unwrap()).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
+    let block = quarry(include_str!("fixtures/legacy-feed-recipes.md")).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
     let bound = compile(&[("schema.q".into(), block)]);
     assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();

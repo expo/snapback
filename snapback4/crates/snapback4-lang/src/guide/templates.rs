@@ -6,7 +6,6 @@ table todos:
   title: text <=200
   done: bool
   ownerId: principal
-  by byOwner: ownerId, id
   cap 1000 by ownerId
   read <- .ownerId = viewer
   insert <- .ownerId = viewer
@@ -15,7 +14,7 @@ table todos:
   sync to .ownerId                        -- each owner's device holds its own todos
 
 query list(c: cursor ?):
-  return todos[viewer] after c first 100 by byOwner
+  return todos where .ownerId = viewer after c first 100 by .id
 
 mutation add(title: text <=200):
   return insert todos { title, done: false, ownerId: viewer }
@@ -38,7 +37,6 @@ table todos:
   title: text <=200
   done: bool
   ownerId: principal
-  by byOwner: ownerId, id
   cap 1000 by ownerId
   read <- .ownerId = viewer
   insert <- .ownerId = viewer
@@ -46,7 +44,7 @@ table todos:
   delete <- .ownerId = viewer
 
 query list(c: cursor ?):
-  return todos[viewer] after c first 100 by byOwner
+  return todos where .ownerId = viewer after c first 100 by .id
 
 mutation add(title: text <=200):
   return insert todos { title, done: false, ownerId: viewer }

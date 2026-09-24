@@ -16,7 +16,7 @@ local query answers or predictions where a native device reports a structural re
 rechecks every submitted mutation before committing it.
 
 Run `snapback4 check --residency --verbose` and `snapback4 why <op>` to see read sites:
-- `held`: the viewer's whole synced partition, or an inherited maintain.
+- `held`: the viewer's whole synced partition, or an inherited aggregate view.
 - `horizon`: a synced `last N` window; a held row can be read, but a miss
   cannot prove absence beyond the horizon, so that call may queue without a row.
 - `server`: online-only data; a mutation reading it has `predicts: never`.
@@ -80,7 +80,6 @@ predicts all its copies and hides those whose `readerId` differs from the viewer
 table drafts:
   owner: principal
   body: text <=200
-  by byOwner: owner, id
   cap 100 by owner
   read <- .owner = viewer
   insert <- .owner = viewer
@@ -91,12 +90,11 @@ table notes:
   owner: principal
   body: text <=200
   at: time
-  by byOwnerTime: owner, at, id
   read <- .owner = viewer
   insert <- .owner = viewer
-  sync to .owner last 100 by byOwnerTime
+  sync to .owner last 100 by .at
 
-maintain noteCounts: count notes by owner
+view noteCounts: count notes by .owner
   read <- .owner = viewer
   online only
 
@@ -154,7 +152,7 @@ instead of offering the horizon rewrite. A `last N` page on the horizon's
 own index may keep the rewrite; a call still queues if its page exhausts
 the acquired horizon.
 
-`why countedPost` identifies the `online only` maintain: opting a maintain
+`why countedPost` identifies the `online only` view: opting an aggregate view
 out of sync makes mutations reading it `predicts: never`. `notifyPost` stays
 eligible: the server decides the effects at commit. Presence deciding rows,
 a refusal or the returned value costs prediction; so does fallible presence
@@ -193,7 +191,7 @@ that may assign it discards its fact. Other locals keep their mint facts.
 A private viewer-keyed table cannot prove absence by an unrelated caller-supplied id.
 
 Membership-scoped reactions and likes need particular care. With
-`sync to members[.conversationId] last 500 by byConversation`, a first write
+`sync to members[.conversationId] last 500 by .id`, a first write
 cannot prove absence outside the window. Even without that horizon, a key
 `(messageId, principal)` does not decide `exists members[.conversationId, viewer]`:
 it omits `conversationId`. A viewer-keyed rule `.principal = viewer` with no
@@ -219,7 +217,7 @@ a predicted row, even if the source row's own insert proof passes.
 table likes:
   owner: principal
   postId: id
-  unique byOwnerPost: owner, postId
+  unique owner, postId
   cap 1000 by owner
   read <- .owner = viewer
   insert <- .owner = viewer

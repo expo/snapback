@@ -23,23 +23,23 @@ table records:
   update <- allow
   sync to .owner last 100 by byOwner
 mutation edit(key: text <=80):
-  return update records[key] {amount: 0}
+  return update records[key = key] {amount: 0}
 mutation editId(target: records):
-  return update records[target] {amount: 0}
+  return update records[id = target] {amount: 0}
 mutation conditional(key: text <=80, expected: int):
-  return update records[key] {amount: 0} if .amount = expected
+  return update records[key = key] {amount: 0} if .amount = expected
 mutation immutable(key: text <=80, guess: text <=80):
-  return update records[key] {frozen: guess}
+  return update records[key = key] {frozen: guess}
 mutation put(key: text <=80):
-  return upsert records[key] {amount: 0}
+  return upsert records[key = key] {amount: 0}
 mutation full(key: text <=80):
-  return upsert records[key] {owner: 'alice', secret: 'supplied', frozen: 'fixed', amount: 0}
+  return upsert records[key = key] {owner: 'alice', secret: 'supplied', frozen: 'fixed', amount: 0}
 mutation add(key: text <=80):
   return insert records {key, owner: viewer, secret: 'supplied', frozen: 'fixed', amount: 0}
 mutation quiet(key: text <=80):
   return insert records {key, owner: viewer, secret: 'supplied', frozen: 'fixed', amount: 0} if absent
 query one(key: text <=80):
-  return records[key]
+  return records[key = key]
 "#;
 fn compile(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
@@ -205,14 +205,14 @@ fn w1_an_immutable_patch_on_a_hidden_row_ignores_matching_and_mismatching_guesse
 #[test]
 fn w1_incomplete_patch_upsert_does_not_tell_hidden_deny_from_absent() {
     unchanged_pair(&SOURCE.replace("update <- allow", "update <- deny"), "put", json!({"key":"lookup"}), 7);
-    let source = format!("{}\nmutation incompleteAsset(key: text <=80, photo: image <=1000):\n  upsert records[key] {{amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
+    let source = format!("{}\nmutation incompleteAsset(key: text <=80, photo: image <=1000):\n  upsert records[key = key] {{amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
     unchanged_pair(&source, "incompleteAsset", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), 7);
     let mut e = world(SOURCE, true, 7);
     assert!(matches!(call(&mut e, "put", "bob", json!({"key":"lookup"}), "yes").state, WriteState::Sent { .. }));
 }
 #[test]
 fn w1_the_merged_image_is_not_in_result_current_or_the_program() {
-    let source = format!("{SOURCE}\nmutation shape(key: text <=80):\n  written = upsert records[key] {{amount: 0}}\n  require written = null else LEAK\n  return {{written, read: records[key]}}\n");
+    let source = format!("{SOURCE}\nmutation shape(key: text <=80):\n  written = upsert records[key = key] {{amount: 0}}\n  require written = null else LEAK\n  return {{written, read: records[key = key]}}\n");
     let mut observations = Vec::new();
     for amount in [7, 19] {
         let mut e = world(&source, true, amount);
@@ -319,7 +319,7 @@ fn wa3_hidden_patch_preserves_foreign_asset_without_disclosing_id() {
         replies.push(observation);
     }
     equal_observations(&replies);
-    let source = format!("{}\nmutation asset(key: text <=80, photo: image <=1000):\n  update records[key] {{amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
+    let source = format!("{}\nmutation asset(key: text <=80, photo: image <=1000):\n  update records[key = key] {{amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
     unchanged_pair(&source, "asset", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), 7);
 }
 #[test]
@@ -356,7 +356,7 @@ fn wa5_revoked_result_and_conflict_current_are_not_retrievable() {
         equal_observations(&observations);
     }
     // Arbitrary scalars are withheld too, including after a real revocation.
-    let source = format!("{SOURCE}\nmutation scalar(key: text <=80):\n  r = records[key] ! else NOT_FOUND\n  return r.secret\n");
+    let source = format!("{SOURCE}\nmutation scalar(key: text <=80):\n  r = records[key = key] ! else NOT_FOUND\n  return r.secret\n");
     let mut observations = Vec::new();
     for secret in ["REVOKED1", "REVOKED2"] {
         let mut e = world(&source, true, 7);
@@ -403,7 +403,7 @@ fn m3_a_non_predicting_pass_over_a_hidden_prefix_does_not_abort_when_a_query_wou
     let source = PAGE.replace("items[owner] first 1100 by byOwner", "items[] first 1100 by byOwner");
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"));
-    let helper = format!("{SOURCE}\nfn countVisible():\n  n = 0\n  for r in records[viewer] first 10 by byOwner:\n    n = n + 1\n  return n\nmutation checked(key: text <=80): server\n  return update records[key] {{amount: 0}} if countVisible() = 1\n");
+    let helper = format!("{SOURCE}\nfn countVisible():\n  n = 0\n  for r in records[viewer] first 10 by byOwner:\n    n = n + 1\n  return n\nmutation checked(key: text <=80): server\n  return update records[key = key] {{amount: 0}} if countVisible() = 1\n");
     let mut e = world(&helper, true, 7);
     assert_eq!(call(&mut e, "checked", "alice", json!({"key":"lookup"}), "helper").reply(Some("helper"))["state"], "sent");
     let unpinned = helper.replace("records[viewer] first 10", "records[] first 10");
@@ -519,7 +519,7 @@ fn a_unique_upsert_evaluates_its_key_once_and_conditions_keep_helper_bindings_pr
     let WriteState::Sent { result, .. } = result.state else { panic!("{result:?}") };
     assert_eq!(result.field("key"), Ok(&Value::Id("fresh".into())));
     assert_eq!(result.field("id"), Ok(&Value::Id("effect".into())));
-    let source = format!("{SOURCE}\nfn matchesSecret(secret: text <=80):\n  normalized = lower(secret)\n  return normalized = 'private'\nmutation checked(key: text <=80):\n  sentinel = 'caller'\n  written = update records[key] {{amount: 0}} if matchesSecret(.secret)\n  return {{sentinel, written}}\n");
+    let source = format!("{SOURCE}\nfn matchesSecret(secret: text <=80):\n  normalized = lower(secret)\n  return normalized = 'private'\nmutation checked(key: text <=80):\n  sentinel = 'caller'\n  written = update records[key = key] {{amount: 0}} if matchesSecret(.secret)\n  return {{sentinel, written}}\n");
     let mut bodies = Vec::new();
     for amount in [7, 19] {
         let mut e = world(&source, true, amount);
@@ -535,7 +535,7 @@ fn a_unique_upsert_evaluates_its_key_once_and_conditions_keep_helper_bindings_pr
 
 #[test]
 fn w2_complete_patch_upsert_with_a_foreign_asset_is_one_word_absent_or_hidden() {
-    let source = format!("{}\nmutation completeAsset(key: text <=80, photo: image <=1000):\n  upsert records[key] {{owner: 'alice', secret: 'supplied', frozen: 'fixed', amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
+    let source = format!("{}\nmutation completeAsset(key: text <=80, photo: image <=1000):\n  upsert records[key = key] {{owner: 'alice', secret: 'supplied', frozen: 'fixed', amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
     unchanged_pair(&source, "completeAsset", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), 7);
     let asset = snapback4_core::assets::Asset { id: "foreign-upload".into(), owner: "carol".into(), kind: snapback4_core::assets::AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 1000, home: None, released_at: None };
     let mut pair = Vec::new();
@@ -632,7 +632,7 @@ fn exhausted_target_pairs() {
                 let base = SOURCE.replace("secret: text <=80", "secret: text <=4000").replace("read <- .owner = viewer", "read <- exists grants[.id, viewer]")
                     .replace("  sync to .owner last 100 by byOwner\n", "").replace("update <- allow", "update <- exists grants[.id, viewer]");
                 let prelude = if resource == "probes" { "  for i in range(0, 8192):\n    w = work[id = 'work']\n" } else { "  for i in range(0, 2000):\n    p = pad\n" };
-                let statement = format!("{} records[{}] {{{}}}{}", if address == "upsert" {"upsert"} else {"update"}, if address == "id" {"target"} else {"key"},
+                let statement = format!("{} records[{}] {{{}}}{}", if address == "upsert" {"upsert"} else {"update"}, if address == "id" {"id = target"} else {"key = key"},
                     if guard == "immutable" {"frozen: 'wrong'"} else {"amount: 0"}, if guard == "conditional" {" if .amount = 7"} else {""});
                 let source = format!("{base}\ntable grants:\n  record: text <=80\n  principal: principal\n  unique byPair: record, principal\n  read <- allow\ntable work:\n  record: records\n  read <- exists grants[.record, viewer]\nmutation warm(pad: text <=4000, key: text <=80, target: records): server\n{prelude}  return null\nmutation pressure(pad: text <=4000, key: text <=80, target: records): server\n{prelude}  {statement}\n");
                 // A rule's key types match target IDs, including serialized caller IDs.
@@ -663,7 +663,7 @@ fn exhausted_target_pairs() {
 
 #[test]
 fn w3_hidden_maintain_overflow_never_serializes_the_retained_contribution() {
-    let source = format!("{SOURCE}\nmaintain totals: sum records of amount by secret\n  read <- deny\nmutation move(key: text <=80):\n  update records[key] {{secret: 'B'}}\n");
+    let source = format!("{SOURCE}\nmaintain totals: sum records of amount by secret\n  read <- deny\nmutation move(key: text <=80):\n  update records[key = key] {{secret: 'B'}}\n");
     let mut observations = Vec::new();
     for contribution in [1, 2] {
         let mut e = engine(&source);
@@ -683,7 +683,7 @@ fn w3_hidden_maintain_overflow_never_serializes_the_retained_contribution() {
 
 #[test]
 fn w3_explicit_foreign_asset_guess_does_not_test_hidden_placement() {
-    let source = format!("{SOURCE}\nmutation asset(key: text <=80, photo: image <=1000):\n  update records[key] {{photo}}\n");
+    let source = format!("{SOURCE}\nmutation asset(key: text <=80, photo: image <=1000):\n  update records[key = key] {{photo}}\n");
     for explicit in [true, false] {
         let mut observations = Vec::new();
         for held in ["G", "H"] {
@@ -740,7 +740,7 @@ fn w3_historical_w_receipt_is_resanitized_on_replay() {
 #[test]
 fn w3_hidden_upsert_ignores_immutables_and_absent_upsert_inserts_them() {
     for guess in ["fixed", "wrong"] {
-        let source = format!("{SOURCE}\nmutation profile(key: text <=80):\n  return upsert records[key] {{owner: viewer, secret: 'supplied', frozen: '{guess}', amount: 0}}\n");
+        let source = format!("{SOURCE}\nmutation profile(key: text <=80):\n  return upsert records[key = key] {{owner: viewer, secret: 'supplied', frozen: '{guess}', amount: 0}}\n");
         let mut observations = Vec::new();
         for hidden in [true, false] {
             let mut e = world(&source, hidden, 7);
@@ -843,7 +843,7 @@ fn w4_ignored_immutable_patch_preserves_maintains_and_delivery() {
         let mut observations = Vec::new();
         for ignored in [false, true] {
             let patch = if ignored {"amount: 0, frozen: 'wrong'"} else {"amount: 0"};
-            let source = format!("{base}\nmaintain totals: sum records of amount by frozen\n  read <- allow\n  online only\nmutation change(key: text <=80):\n  update records[key] {{{patch}}}\n");
+            let source = format!("{base}\nmaintain totals: sum records of amount by frozen\n  read <- allow\n  online only\nmutation change(key: text <=80):\n  update records[key = key] {{{patch}}}\n");
             let mut e = engine(&source);
             let mut target = row("target", "lookup", "alice", 7, "PRIVATE");
             let mut sibling = row("sibling", "sibling", "alice", 3, "PRIVATE");

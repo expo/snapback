@@ -5,7 +5,7 @@ mod identity;
 
 #[test]
 fn paired_tombstoned_repost_identity_is_unobservable() {
-    let source = format!("use personas a, b, c\n{}{}\nmutation register():\n  insert profiles {{ principal: viewer }}\nmutation follow(authorId: principal):\n  insert follows {{ followerId: viewer, followedId: authorId }}\nmutation publish(postId: id):\n  insert posts {{ id: postId, authorId: viewer, at: 7 }}\nmutation remove(postId: posts):\n  update posts[postId] {{ removed: true }}\nmutation repost(postId: posts):\n  insert reposts {{ actorId: viewer, postId, at: 8 }}\n",
+    let source = format!("use personas a, b, c\n{}{}\nmutation register():\n  insert profiles {{ principal: viewer }}\nmutation follow(authorId: principal):\n  insert follows {{ followerId: viewer, followedId: authorId }}\nmutation publish(postId: id):\n  insert posts {{ id: postId, authorId: viewer, at: 7 }}\nmutation remove(postId: posts):\n  update posts[id = postId] {{ removed: true }}\nmutation repost(postId: posts):\n  insert reposts {{ actorId: viewer, postId, at: 8 }}\n",
         include_str!("../timeline/app.q"), include_str!("../timeline/declaration.q"));
     let initial = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &source);
     let mut supplied = Vec::new();
@@ -18,6 +18,7 @@ fn paired_tombstoned_repost_identity_is_unobservable() {
             let args = args.as_object().unwrap().iter().map(|(k,v)| (k.clone(), Value::Id(if k == "authorId" {persona_principal(v.as_str().unwrap())} else {v.as_str().unwrap().into()}))).collect();
             let ids = (0..5).map(|i| format!("setup-{n}-{i}")).collect::<Vec<_>>();
             supplied.extend(ids.clone());
+            if op == "remove" { while e.run_timeline_chunk(7).unwrap().is_some() {} }
             let out = e.mutate(op, None, Context::new(persona_principal(who), args).at(n as i64).with_ids(ids)).unwrap();
             assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
         }
@@ -26,7 +27,8 @@ fn paired_tombstoned_repost_identity_is_unobservable() {
     };
     drop(initial);
     // The new repost would deliver exactly this (C, removed) natural key.
-    let hidden_id = owned_id("feed", "Feed", &[Value::Id(persona_principal("c")), Value::Id("removed".into())]);
+    let epoch = images.iter().find(|(t,r)|t=="feedEdges" && r.field("actorId").unwrap()==&Value::Id(persona_principal("a"))).unwrap().1.field("epoch").unwrap().clone();
+    let hidden_id = owned_id("feed", "Feed", &[Value::Id(persona_principal("c")), Value::Id("removed".into()), epoch]);
     assert!(images.iter().any(|(t,r)| t == "feedFeed" && r.field("id").unwrap() == &Value::Id(hidden_id.clone())));
     let ids = ["new-repost", "removed", "spare"].map(String::from);
     supplied.extend(ids.clone());

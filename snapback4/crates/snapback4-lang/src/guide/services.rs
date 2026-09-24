@@ -5,13 +5,13 @@ pub(super) const CARD: &str = r##"# Services: a worker's seat, and accounts the 
 table rankings:
   postId: id
   score: int
-  unique byPost: postId
+  unique postId
   read <- allow
   insert <- viewer = 'service:ranker'     -- a text literal beside viewer names a principal
   update <- viewer = 'service:ranker'
 
 mutation rank(postId: id, score: int):
-  upsert rankings[postId] { postId, score }
+  upsert rankings[postId = postId] { postId, score }
 ```
 
 `snapback4 token --service ranker [--days 365] [--release <dir>]` prints,

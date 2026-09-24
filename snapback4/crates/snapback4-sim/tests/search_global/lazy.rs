@@ -6,7 +6,7 @@ use std::cell::RefCell;
 type Query<'a> = dyn FnMut(&str, Option<String>, &str) -> QueryOutcome + 'a;
 
 fn source(take: usize, memberships: usize) -> String {
-    format!("{}\nquery wide(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last {take} by byRoomWords:\n    [m.roomId] for m in members[viewer] first {memberships} by byPrincipalRoom\n", fixture::source())
+    format!("{}\nquery wide(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last {take} by byRoomWords:\n    [m.roomId] for m in members[principal = viewer] first {memberships} by byPrincipalRoom\n", fixture::legacy_source())
 }
 
 fn ids(page: &QueryOutcome) -> Vec<String> {
@@ -52,7 +52,7 @@ fn w13f_clique_every_row_hits_in_1000_lanes() {
     for (table, row) in &mut rows { if table == "messages" { body(row, "coffee".into()); } }
     let expected: Vec<_> = (0..30).rev().flat_map(|n| (0..1000).rev().map(move |room| format!("r{room:04}-{n:02}"))).collect();
     // The first page stays the card's 20; the full walk uses 200 to keep this scale control cheap.
-    let source = source(20, 1000) + "\nquery wideWalk(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 200 by byRoomWords:\n    [m.roomId] for m in members[viewer] first 1000 by byPrincipalRoom\n";
+    let source = source(20, 1000) + "\nquery wideWalk(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 200 by byRoomWords:\n    [m.roomId] for m in members[principal = viewer] first 1000 by byPrincipalRoom\n";
     with_fixture(&source, rows, |q| {
         let first = q("wide", None, "cof");
         assert!(first.complete && first.next.is_some());

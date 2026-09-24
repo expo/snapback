@@ -43,7 +43,7 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
     let next = runner.outcome_next_cursor()?;    Ok(QueryOutcome {
-        complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.beyond_horizon && !runner.presence_unknown,
+        complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
         capped_at: runner.meter.capped_at.clone(),
         word_cut_at: runner.word_cut_at.clone(),
@@ -126,7 +126,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
         let data = value?;
         runner.charge_output(&data)?;
         Ok(QueryOutcome {
-            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.beyond_horizon,
+            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon,
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),
@@ -161,7 +161,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#18.2 — retained history suppresses fallback only when no independent unknown or incomplete reason remains.
     fn only_retained_incomplete(&self) -> bool {
-        self.missing_fact.is_none() && self.meter.capped_at.is_none() && self.word_cut_at.is_none() && !self.non_uniform && !self.page_overflow && !self.page_position_lost() && !self.presence_unknown
+        self.missing_fact.is_none() && self.meter.capped_at.is_none() && self.word_cut_at.is_none() && !self.non_uniform && !self.page_overflow && !self.page_position_lost() && !self.timeline_pending && !self.presence_unknown
     }
 
     // @ref LLP 3000.007#6.2 — preserve the first undecidable site's evaluated key.

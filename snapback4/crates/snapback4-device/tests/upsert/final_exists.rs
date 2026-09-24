@@ -20,7 +20,7 @@ table sources:
   read <- .owner = viewer
   insert <- .owner = viewer
   update <- .owner = viewer
-  after insert <- exists targets[.name]
+  after insert <- exists targets[name = .name]
   sync
 mutation put():
   upsert sources[viewer, 'x'] {}
@@ -86,7 +86,7 @@ fn unpinned_insert_sqlite() { unknown_worlds("add", 0); }
 fn unpinned_insert_memory() { unknown_worlds("add", 1); }
 
 fn held_worlds(op: &str, pinned: bool) {
-    let source = if pinned { SOURCE.replace("unique byName: name", "unique byName: owner, name").replace("exists targets[.name]", "exists targets[viewer, .name]") }
+    let source = if pinned { SOURCE.replace("unique byName: name", "unique byName: owner, name").replace("exists targets[name = .name]", "exists targets[viewer, .name]") }
         else { SOURCE.to_owned() };
     for present in [false, true] {
         // The unpinned case is the positive-hit control: finding the held row

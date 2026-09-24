@@ -71,12 +71,16 @@ impl Parser {
             let mut probe_stops = stops.to_vec();
             probe_stops.push("<probe-shape>");
             let value = self.prefix(&probe_stops)?;
+            let value = if token.value == "exists" && let Expr::Name { name, site } = &value {
+                Expr::Read(ReadExpr { order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() })
+            } else { value };
             let Expr::Read(read) = value else {
                 return Err(syntax(value.site(), format!("{} requires an indexed read t[key]", token.value)));
             };
-            if read.range.is_some() || !read.seeks.is_empty() || read.filter.is_some() || (token.value == "created" && read.matching.is_some()) {
+            if read.range.is_some() || (token.value == "created" && (!read.seeks.is_empty() || read.filter.is_some() || read.matching.is_some())) {
                 let plain = ReadExpr { range: None, matching: if token.value == "exists" { read.matching.clone() } else { None }, filter: None, seeks: Vec::new(), ..read.clone() };
-                return Err(syntax_with(&read.site, format!("{} takes a plain indexed read{}; no where, first, last, after or seek", token.value, if token.value == "exists" { " or matching read" } else { "" }), format!("{} {}", token.value, print::read_expr(&plain))));
+                let message = if token.value == "exists" { "exists takes a domain read; omit first, last and cursor clauses" } else { "created takes a plain indexed read; no where, first, last, after or seek" };
+                return Err(syntax_with(&read.site, message, format!("{} {}", token.value, print::read_expr(&plain))));
             }
             return self.postfix(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } }, stops);
         }
@@ -102,7 +106,15 @@ impl Parser {
             }
             Kind::Number => {
                 self.position += 1;
-                Expr::Literal { value: Literal::Number(token.value.clone()), site: token.site }
+                let mut value = token.value.clone();
+                if self.peek().site.line == token.site.line && self.peek().site.col == token.site.col + token.value.len() as u32
+                    && let Some(multiplier) = super::views::duration_unit(&self.peek().value) {
+                    self.position += 1;
+                    value = token.value.parse::<i64>().ok().and_then(|n| n.checked_mul(multiplier))
+                        .filter(|n| *n <= snapback4_core::value::I53_MAX)
+                        .ok_or_else(|| syntax_with(&token.site, "duration exceeds the representable integer range", "use a smaller integer duration, such as 24h"))?.to_string();
+                }
+                Expr::Literal { value: Literal::Number(value), site: token.site }
             }
             _ if token.value == "true" || token.value == "false" || token.value == "null" => {
                 self.position += 1;
@@ -152,7 +164,7 @@ impl Parser {
                 };
                 self.take(")")?;
                 let mut value = value;
-                if stops.contains(&"<where>") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
+                if stops.contains(&"<where>") && !(self.at("by") && self.peek_at(1).value == ".") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
                     if (self.at("by") && read.index.is_some()) || (self.at("matching") && read.matching.is_some()) {
                         let scoped: Vec<_> = stops.iter().copied().filter(|stop| *stop != "<where>").collect();
                         return self.postfix(value, &scoped);
@@ -177,7 +189,7 @@ impl Parser {
         loop {
             if self.is_stop(self.peek(), stops) {
                 // @ref LLP 3000.007#5.6 — a formerly inner index must not silently become the outer page's index.
-                if stops.contains(&"<where>") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
+                if stops.contains(&"<where>") && !(self.at("by") && self.peek_at(1).value == ".") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
                     let modifier = self.word()?.value;
                     if modifier == "by" { read.index = Some(self.word()?.value); }
                     else {
@@ -222,7 +234,7 @@ impl Parser {
                 // `t first N by index`: the whole table's page, the empty
                 // prefix spelled without brackets, as `chunk` takes it.
                 let Expr::Name { name, site } = value else { unreachable!() };
-                value = Expr::Read(ReadExpr { table: name, keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site });
+                value = Expr::Read(ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: name, keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site });
             } else if matches!(value, Expr::Read(_)) && self.at("before") {
                 return Err(unsupported(&self.peek().site.clone(), "before", "use after c; reverse display order in the client when needed"));
             } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by" | "where") {
@@ -281,7 +293,7 @@ impl Parser {
             }
         }
         self.take("]")?;
-        Ok(ReadExpr { table: table.to_owned(), keys, index: None, range: None, filter: None, matching: None, seeks, site: site.clone() })
+        Ok(ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: table.to_owned(), keys, index: None, range: None, filter: None, matching: None, seeks, site: site.clone() })
     }
 
     pub(super) fn parse_range(&mut self, mut read: ReadExpr, probe: bool) -> Fallible<ReadExpr> {
@@ -337,9 +349,12 @@ impl Parser {
                     }
                 }
                 _ => {
-                    let candidate = self.word()?.value;
-                    if read.index.is_none() {
-                        read.index = Some(candidate);
+                    if self.maybe(".") {
+                        read.order_keys.push(self.word()?.value);
+                        while self.maybe(",") { self.take(".")?; read.order_keys.push(self.word()?.value); }
+                    } else {
+                        let candidate = self.word()?.value;
+                        if read.index.is_none() { read.index = Some(candidate); }
                     }
                 }
             }
@@ -417,13 +432,13 @@ impl Parser {
                 loop_ = Some((name, domain));
             }
             self.newline()?;
-            lanes.push(MergeLane { table: lane_table, prefix, columns, loop_, site: lane_site });
+            lanes.push(MergeLane { nulls: None, distinct: None, branch: None, planned: None, project: None, table: lane_table, prefix, columns, loop_, site: lane_site });
         }
         self.take_kind(Kind::Dedent)?;
         if lanes.is_empty() {
             return Err(syntax_with(&site, "merge requires at least one lane", "[viewer]"));
         }
-        Ok(MergeExpr { table, matching, filter, index, order, take, cursor, lanes, site })
+        Ok(MergeExpr { view_order: Vec::new(), table, matching, filter, index, order, take, cursor, lanes, site })
     }
 
     pub(super) fn parse_shape_fields(&mut self) -> Fallible<Vec<ShapeField>> {

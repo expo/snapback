@@ -6,17 +6,36 @@ use snapback4_core::schema::{self as core, columns::{ColumnOwner, GROUP}};
 use std::collections::BTreeMap;
 
 pub fn refusal(site: &Site, message: impl Into<String>) -> Diagnostic {
-    Diagnostic::new(site,"E_MAINTAINED_COLUMN",message,"write the source rows, or use a separate maintain for this aggregate").guide("maintains")
+    Diagnostic::new(site,"E_MAINTAINED_COLUMN",message,"write the source rows, or use a separate view for this aggregate").guide("maintains")
 }
 
 pub fn resolve(tables: &mut BTreeMap<String,TableInfo>, diagnostics: &mut Vec<Diagnostic>) {
     let declarations = tables.clone();
     for (name,info) in tables {
         for column in &mut info.decl.columns {
-            let Some(aggregate) = &column.maintained else { continue };
+            let Some(aggregate) = &mut column.maintained else { continue };
             let Some(source) = declarations.get(&aggregate.source) else {
                 diagnostics.push(refusal(&column.site,format!("{name}.{} names unknown ordinary source {}",column.name,aggregate.source))); continue;
             };
+            // @ref LLP 3000.013#3.2 — infer only a unique reference to the owning table.
+            if aggregate.by.is_empty() {
+                let candidates: Vec<_> = source.columns.iter().filter_map(|(field, kind)|
+                    (kind.kind == TypeKind::Ref { table: name.clone() }).then_some(field.clone())).collect();
+                if let [reference] = candidates.as_slice() {
+                    aggregate.by = reference.clone();
+                } else {
+                    let by = candidates.first().map_or("postId", String::as_str);
+                    let mut form = aggregate.of.as_ref().map_or_else(|| format!("count {}", aggregate.source), |of| format!("sum {} of .{of}", aggregate.source));
+                    if let Some(filter) = &aggregate.filter { form.push_str(&format!(" where {}", crate::print::expression(filter))); }
+                    diagnostics.push(Diagnostic::new(&column.site, "E_MAINTAINED_COLUMN_REFERENCE",
+                        format!("{name}.{} needs exactly one reference from {} to {name}; candidates: {}", column.name, aggregate.source,
+                            if candidates.is_empty() { "none".into() } else { candidates.join(", ") }),
+                        format!("{}: {form} by {by}{}", column.name, if candidates.is_empty() { format!("; declare {by}: {name} on {}", aggregate.source) } else { String::new() })).guide("maintains"));
+                    continue;
+                }
+            } else {
+                aggregate.by = aggregate.by.trim_start_matches('.').to_owned();
+            }
             if source.decl.expire.is_some() {
                 diagnostics.push(refusal(&column.site,format!("{name}.{} cannot use expiring source {}; use a separate maintain, which reads live contributions",column.name,aggregate.source)));
             }
@@ -41,7 +60,7 @@ pub fn recorded(tables: &mut BTreeMap<String,TableInfo>, diagnostics: &mut Vec<D
     for (table,column,a) in declarations {
         let decl = MaintainDecl { name:format!("{table}.{}",column.name), aggregate:if a.of.is_some() { "sum" } else { "count" }.into(),
             source:a.source.clone(),column:a.of,by:vec![a.by.clone()],keys:vec![Expr::Name {name:a.by,site:column.site.clone()}],filter:a.filter,
-            indexes:vec![],read:RuleDecl {effect:Effect::Read,bindings:vec![],value:Expr::Name {name:"deny".into(),site:column.site.clone()},site:column.site.clone()},online_only:true,site:column.site };
+            indexes:vec![],read:Some(RuleDecl {effect:Effect::Read,bindings:vec![],value:Expr::Name {name:"deny".into(),site:column.site.clone()},site:column.site.clone()}),online_only:true,site:column.site };
         match super::maintains::recorded_paths(tables,&decl) {
             Ok(paths) => if let Some(source) = tables.get_mut(&decl.source) {source.recorded.extend(paths)},
             Err(d) => diagnostics.push(d),
@@ -88,7 +107,7 @@ pub fn notes(catalog: &Catalog, schema: &core::Schema) -> Vec<Diagnostic> {
         if parent.sync.is_some() {
             notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{name}.sync")),"N_MAINTAINED_COLUMN_STREAM",
                 format!("{name}: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change"),
-                "use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use maintain … online only").guide("maintains"));
+                "use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use a view with online only").guide("maintains"));
         }
     }
     for m in schema.maintains.iter().filter(|m|m.private.is_some()) {

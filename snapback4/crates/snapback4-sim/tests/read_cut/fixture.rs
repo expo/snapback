@@ -22,9 +22,9 @@ table messages:
 query all(q: text <=100, c: cursor ?):
   return messages matching q after c last 10 by byWords
 query scoped(roomId: id, q: text <=100, c: cursor ?):
-  return messages[roomId] matching q after c last 10 by byRoomWords
+  return messages[roomId = roomId] matching q after c last 10 by byRoomWords
 query filtered(roomId: id, c: cursor ?):
-  return messages[roomId] after c last 10 by byTime where .body = 'missing'
+  return messages[roomId = roomId] after c last 10 by byTime where .body = 'missing'
 "#;
 
 pub fn seed(visible: usize, hidden: usize) -> Vec<(String, Value)> {

@@ -93,6 +93,7 @@ pub(crate) enum HeapSite {
 
 #[derive(Clone, Debug)]
 pub struct MeterMark {
+    heap_peak: u64,
     used: Metered,
     capped_at: Option<(MeterKind, String)>,
     #[cfg(feature = "sqlite")]
@@ -101,6 +102,8 @@ pub struct MeterMark {
 
 #[derive(Clone, Debug)]
 pub struct Meter {
+    /// High water mark, including released transient row scopes.
+    pub heap_peak: u64,
     pub ceilings: Ceilings,
     pub used: Metered,
     pub cut: Cut,
@@ -113,7 +116,7 @@ pub struct Meter {
 
 impl Meter {
     pub fn new(ceilings: Ceilings, cut: Cut) -> Self {
-        Self { ceilings, used: Metered::default(), cut, capped_at: None, site: String::new(),
+        Self { heap_peak: 0, ceilings, used: Metered::default(), cut, capped_at: None, site: String::new(),
             #[cfg(feature = "sqlite")] heap_once: 0 }
     }
 
@@ -132,6 +135,7 @@ impl Meter {
         let slot = self.used.slot(kind);
         *slot = slot.saturating_add(amount);
         let actual = *slot;
+        if kind == MeterKind::HeapBytes { self.heap_peak = self.heap_peak.max(actual); }
         let ceiling = self.ceilings.of(kind);
         if actual <= ceiling {
             return Ok(true);
@@ -152,11 +156,12 @@ impl Meter {
     /// `rollback_candidate`), so a hidden hit costs what a miss costs and a
     /// hoisted-false range costs what an empty one costs.
     pub fn mark(&self) -> MeterMark {
-        MeterMark { used: self.used, capped_at: self.capped_at.clone(),
+        MeterMark { heap_peak: self.heap_peak, used: self.used, capped_at: self.capped_at.clone(),
             #[cfg(feature = "sqlite")] heap_once: self.heap_once }
     }
 
     pub fn restore(&mut self, mark: MeterMark) {
+        self.heap_peak = mark.heap_peak;
         self.used = mark.used;
         self.capped_at = mark.capped_at;
         #[cfg(feature = "sqlite")]
@@ -170,6 +175,17 @@ impl Meter {
         self.used.heap_bytes = mark.used.heap_bytes;
         #[cfg(feature = "sqlite")]
         { self.heap_once = mark.heap_once; }
+    }
+
+    /// Release only the store/row/key scratch part of an incremental scan.
+    /// Retained cursor, selected row and buffer allowances are charged
+    /// separately; filter allocations and helper bindings remain cumulative.
+    pub(crate) fn release_row_heap(&mut self, mark: MeterMark, bytes: u64) {
+        self.used.heap_bytes = self.used.heap_bytes.saturating_sub(bytes);
+        #[cfg(feature = "sqlite")]
+        { self.heap_once = mark.heap_once; }
+        #[cfg(not(feature = "sqlite"))]
+        { let _ = mark; }
     }
 
     /// Whether `kind` has room for `amount` more without charging.

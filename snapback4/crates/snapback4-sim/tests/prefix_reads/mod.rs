@@ -98,7 +98,7 @@ fn w13c_undefined_compiler_temporaries_are_internal_with_operation_and_site() {
 
 #[test]
 fn w13c_rule_exists_keeps_one_probe_across_expired_siblings() {
-    let source = "table permits:\n  room: text <=10\n  until: time ?\n  by byRoom: room\n  by byExpiry: until\n  expire at .until\n  read <- deny\ntable targets:\n  room: text <=10\n  by byRoom: room, id\n  read <- exists permits[.room]\nquery check():\n  return targets['g'] first 1 by byRoom\n";
+    let source = "table permits:\n  room: text <=10\n  until: time ?\n  by byRoom: room\n  by byExpiry: until\n  expire at .until\n  read <- deny\ntable targets:\n  room: text <=10\n  by byRoom: room, id\n  read <- exists permits[room = .room]\nquery check():\n  return targets['g'] first 1 by byRoom\n";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let bytes = serde_json::to_string(&bound.schema.tables["targets"].rules.read).unwrap();
@@ -123,12 +123,12 @@ fn w13c_rule_exists_keeps_one_probe_across_expired_siblings() {
 }
 
 #[test]
-fn w13c_existence_cut_before_a_live_match_returns_false_on_a_capped_answer() {
+fn w13c_existence_cut_before_a_live_match_returns_no_scalar_on_a_capped_answer() {
     let mut engine = engine(PREFIX);
     engine.seed([member("r1", "dev:alice", 0), message("a", "r1", Value::Int(1)), message("b", "r1", Value::Int(1)), message("c", "r1", Value::Null)]).unwrap();
     engine.set_ceilings(snapback4_core::Ceilings { examined: 2, ..Default::default() });
     let answer = engine.query("hasMessages", Context::new("dev:alice", args(&[("roomId", id("r1"))])).at(100)).unwrap();
-    assert_eq!(answer.data, Value::Bool(false));
+    assert_eq!(answer.data, Value::Null); // LLP 3000.013: an unfinished existence search has no verdict.
     assert!(!answer.complete && answer.next.is_none());
     assert_eq!(answer.cut, Some(snapback4_core::engine::ReadCut::Meter));
 }

@@ -28,7 +28,7 @@ table everything:
   photo: image <=10000000 once ?      -- an upload (guide assets); `once` serves one view per principal
   clip: video <=50000000 ?
   tags: [text <=20] <=8               -- a bounded list of a scalar type; `?` after the whole type, never on the element
-  unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'
+  unique handle else HANDLE_TAKEN 'That handle is taken.'
   read <- .who = viewer
   insert <- .who = viewer
   update <- deny
@@ -39,7 +39,7 @@ query enumLabel(kind: enum('a', 'b')):
   return label(kind)
 
 query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take the same types, plus `cursor ?`
-  return everything[handle]
+  return everything[handle = handle]
 ```
 
 `?` after a type makes it optional: null when absent, and an omitted
@@ -51,7 +51,8 @@ CODE` before the write (guide writes). `=`
 and `!=` are total (null equals null); `<` and friends need present operands:
 narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. A null guard
 also narrows a bound row's field (`r.changedAt != null`), until the local is rebound. `time`
-arithmetic: `time - time` is an int, `time + int` a time. `/` and `%` give
+arithmetic: `time - time` is an int, `time + int` a time. Duration literals are integer milliseconds:
+`now + 30s`, `now - 1d`, `500ms`, `15m` and `7d`. `/` and `%` give
 the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.
 An enum is accepted as `text <=N` only if every variant fits N characters
 and contains no control characters except tab, LF and CR,
@@ -92,8 +93,8 @@ E_OVERFLOW means integer arithmetic left the value model's range of
 `9007199254740991 + 1` cannot be represented. Bound the inputs and
 intermediate arithmetic before adding or multiplying. Decimal and money
 columns store integer minor units in that same range; they do not provide
-larger integers. For an overflowing maintain, reduce its contributions or
-split the grouping; the refusal names the maintain and value column without
+larger integers. For an overflowing aggregate, reduce its contributions or
+split the grouping; the refusal names the view and value column without
 revealing a hidden computed sum, and the failed write rolls back.
 
 E_FIELD means a runtime field selection has no such field. For example,
@@ -108,7 +109,7 @@ that is not evidence that the row exists.
 For complete index, rule and expiry recipes, open `guide indexes`,
 `guide rules` or `guide expire` directly.
 
-- Every table has an implicit `id` and a unique `byId` index.
+- Every table has an implicit unique `id`.
 - **Types:** `principal`, `id`, `<table>` (a reference to that table's
   id), `int` (within ±(2^53 − 1); there are no floats), `time`
   (milliseconds), `bool`, `decimal <scale>`, `money <CUR> [scale]` (both
@@ -130,25 +131,13 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   writes: a metered point read that refuses absent and hidden targets
   alike. Target deletion and dependent-row cleanup are the application's
   policy, expressed in mutations and rules.
-- **Indexes:** `by name: cols` orders rows; `unique name: cols` also
-  constrains them. Add `else HANDLE_TAKEN 'That handle is taken.'` to a
-  unique index to supply its refusal code and message; `detail` retains the
-  original index text for development. The message literal is optional;
-  `else HANDLE_TAKEN` says `the program refused with HANDLE_TAKEN`.
-  Codes follow `require`: UPPER_SNAKE, never `E_`, declared at the use site.
-  Without the hook the `E_CONSTRAINT` message is unchanged. A point read needs a unique index over its key;
-  In a program, `exists` uses an exact-key index when present, or a strict prefix scan. Rule probes need an index over exactly their keys. Named equalities covering a total
-  unique key check extra columns on the one row, with no extra index; a scan needs an index whose
-  leading columns are the scan's prefix, and pages in the order of the
-  remaining columns; a cursor needs an index ending in `id` or a unique one.
-  `by index` names one when two match. `by name: scope, words(text cols),
-  at, id` is a words index: one entry per distinct word of the named text
-  columns, read with `matching` (`guide search`) and nothing else.
-  `day(at)`, `hour(at)` and `bucket(at, 2h, 30m)` are time key components in
-  a table's `by` or `unique` list, at any position, once per function per index;
-  they use a required time column and add no column to the row.
-- **Constraints:** `cap N by cols` (at most N rows per group; needs an index
-  leading with those columns), `immutable cols`, `after insert <- exists
+- **Keys and search:** `unique handle` or `unique postId, principal` enforces
+  a product key. Add `else HANDLE_TAKEN 'That handle is taken.'` for a visible
+  collision's code and message. Named keys cover ambiguous arities. Use
+  `search body, caption` for word-prefix search. Predicates and `by .at`
+  choose access indexes automatically; `guide indexes` explains inspection
+  and optional tuning. `unique principal, day(at)` gives calendar uniqueness.
+- **Constraints:** `cap N by cols` (at most N rows per group; a product constraint), `immutable cols`, `after insert <- exists
   t[..]` (a row that must exist by the end of the mutation that inserted
   this one).
 - **Rules:** `read`, `insert`, `update`, `delete`, each `<-` one
@@ -159,9 +148,9 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   `exists t[id = .docId, ownerId = viewer]`), `created t[..]` (insert rules
   only: true when this mutation inserted the probed row), `and`, `or`,
   `not`. `update (old, next) <- old.x = next.x` names both images. A table
-  with no rule for an effect denies it. A rule may probe existence on a maintain
+  with no rule for an effect denies it. A rule may probe existence on an aggregate view
   over an expiring source at one unit, but `check` refuses an equality on its
-  `value` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the maintain in the program;
+  `value` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the view in the program;
   its live value cannot be probed at one unit. Equalities on non-expiring
   maintains and ordinary tables are unchanged. Rules compare with `=` and `!=`
   only; the system principal consults no rules. Write authority and refusal
@@ -169,8 +158,7 @@ For complete index, rule and expiry recipes, open `guide indexes`,
 - **Sync** (`guide sync`) and **retain**: `retain until-revoked` (the default: a
   device drops a group's rows when it leaves the group) or
   `retain delivered-history` (it keeps what it was given).
-- **Expire:** `expire at .expiresAt` (a `time ?` column with an index
-  leading with it, `by byExpiresAt: expiresAt`). A row past that time is
+- **Expire:** `expire at .expiresAt` (a `time ?` column; its sweep index is generated). A row past that time is
   absent to every reader on every host from that moment, before any rule;
   the server sweeps it within a second and the deletion streams to each
   device holding it. An already returned answer keeps the row until the
@@ -184,7 +172,7 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   removal at that instant.
   A null time never expires. Disappearing messages
   are one field on insert, `expiresAt: now + ttl if ttl != null else
-  null` with `ttl: int ?`; nothing else to write. A `maintain` over an
+  null` with `ttl: int ?`; nothing else to write. A maintained `view` over an
   expiring table recomputes its live source group at read time, before the
   sweep; a partial device reports `complete: false`. If the meter interrupts
   a maintained lookup or live group, the query returns `data: null,
@@ -192,6 +180,5 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   Value-order indexes over expiring sources are refused
   (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,
   so stored top-N can miss a winner. For a window over the entity's own
-  immutable time, `guide feeds` gives hour lanes over a non-expiring source;
-  for contributions arriving in the window, its live bounded `rollingLikes()`
-  read remains necessary, and a candidate or contribution scan cut makes it incomplete."##;
+  immutable time, `guide feeds` gives a predicate over a non-expiring source. A rolling
+  contribution window still needs live counts; a cut makes that answer incomplete."##;

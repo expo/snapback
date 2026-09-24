@@ -129,7 +129,7 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
 /// The guide card a diagnostic points at; `language` is the language card.
 pub fn guide_for(code: &str) -> &'static str {
     match code {
-        code if code.starts_with("E_TIMELINE_") || code == "N_TIMELINE_PROFILE_CAP" => "feeds",
+        code if code.starts_with("E_TIMELINE_") || code == "N_TIMELINE_PROFILE_CAP" || code == "N_TIMELINE_COMPAT" => "feeds",
         "N_PUBLIC_AGGREGATE_COPY" => "feeds",
         "E_QUARRY_SYNTAX" => "language",
         "E_QUARRY_UNSUPPORTED" => "language",
@@ -142,12 +142,14 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_EMIT_IN_QUERY" => "programs",
         "E_QUARRY_MODIFIER_SCOPE" | "N_NO_CURSOR" | "N_SEEK" | "N_NEVER_COMPLETE" | "E_SHAPE_EXCEEDS_METER" => "reads",
         "N_WIDE_MERGE" | "E_HOST_UNICODE" => "search",
+        "E_QUARRY_POSITIONAL_SCAN" => "reads",
+        "E_VIEW_FEED_SHAPE" => "feeds",
         "N_SPARSE_FILTER" | "E_RECIPE_RETIRED" | "FEED_APP_NOT_FOUND" | "FEED_APP_OWNER" | "FEED_APP_EVENT" | "FEED_PULL_CAP" | "FEED_PROMOTION_PULL_CAP" | "FEED_PULL_COUNT_MISSING" | "FEED_EVENT_REMOVED" | "FEED_ORIGINAL_REQUIRED" | "FEED_NOT_AUTHOR" | "FEED_CANNOT_FOLLOW_SELF" | "FEED_AUTHOR_NOT_FOUND" | "FEED_POST_NOT_FOUND" => "feeds",
         "N_NO_HORIZON" | "E_STORE_RESTORE" | "E_QUARRY_RETAIN" => "sync",
         "N_MAINTAIN_SYNCED" | "N_NOW_SERVER" | "N_NOT_PREDICTABLE" => "residency",
         "N_MAINTAIN_DELTA" | "E_RULE" => "rules",
         "E_NOT_PREDICTABLE" | "N_HORIZON_GUARD" | "E_PREDICT" => "prediction",
-        "N_MAINTAINED_COLUMN_STREAM" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "E_MAINTAINED_COLUMN" | "E_MAINTAINED_COLUMN_PRIVATE" | "E_MAINTAINED_COLUMN_RESULT" | "E_POSTGRES_MAINTAINED_COLUMN" | "E_RECORDED_FIELD" | "E_QUARRY_MAINTAIN" => "maintains",
+        "N_MAINTAINED_COLUMN_STREAM" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "E_MAINTAINED_COLUMN" | "E_MAINTAINED_COLUMN_REFERENCE" | "E_MAINTAIN_READ_RULE" | "E_MAINTAINED_COLUMN_PRIVATE" | "E_MAINTAINED_COLUMN_RESULT" | "E_POSTGRES_MAINTAINED_COLUMN" | "E_RECORDED_FIELD" | "E_QUARRY_MAINTAIN" => "maintains",
         "E_SCHEMA_CAPABILITY" => "sync",
         "E_QUARRY_MAINTAIN_EXPIRE" | "E_QUARRY_LIVE_MAINTAIN_PROBE" => "expire",
         "E_ADOPT" => "types",

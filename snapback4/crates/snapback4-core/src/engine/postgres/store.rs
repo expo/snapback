@@ -24,6 +24,7 @@ CREATE TABLE i (t TEXT COLLATE \"C\" NOT NULL, ix TEXT COLLATE \"C\" NOT NULL, k
 CREATE TABLE _commits (seq BIGINT PRIMARY KEY, at BIGINT NOT NULL, program TEXT NOT NULL, principal TEXT NOT NULL, kind TEXT NOT NULL, touched TEXT NOT NULL, writes BIGINT NOT NULL);
 CREATE TABLE _log (partition TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL REFERENCES _commits(seq), ord BIGINT NOT NULL, t TEXT NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(partition,seq,ord));
 CREATE TABLE _ops (principal TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL, outcome TEXT NOT NULL, name TEXT NOT NULL, args_digest TEXT NOT NULL, at BIGINT NOT NULL, PRIMARY KEY(principal,id));
+CREATE TABLE _effect_keys (effect TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(effect, key));
 CREATE TABLE _outbox (id TEXT PRIMARY KEY, seq BIGINT NOT NULL REFERENCES _commits(seq), effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts BIGINT NOT NULL, at BIGINT NOT NULL);
 CREATE TABLE _principal_generations (principal TEXT COLLATE \"C\" PRIMARY KEY, generation BIGINT NOT NULL);
 CREATE TABLE _sessions (token_digest TEXT COLLATE \"C\" PRIMARY KEY, principal TEXT COLLATE \"C\" NOT NULL, kind TEXT NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL, family TEXT COLLATE \"C\");
@@ -227,6 +228,10 @@ impl Tx<'_> {
 }
 
 impl Rows for Tx<'_> {
+    fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
+        Ok(!self.query("INSERT INTO _effect_keys(effect, key) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING effect", &[&effect, &key])?.is_empty())
+    }
+
     fn prefetch(&self, requests: &[crate::rows::PrefetchRequest]) { self.fill_prefetch(requests); }
     fn prefetch_enabled(&self) -> bool { self.prefetch_enabled }
 

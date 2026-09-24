@@ -201,7 +201,7 @@ fn s10_s11_evidence_already_repaired_at_the_base_keeps_positive_cases() {
           read = false
   return 'read' if read else 'delivered' if delivered else 'sent'
 
-shape messageCard = { *, sender: profiles[.senderId], quote: messages[.quoteId] { id, body, sender: profiles[.senderId] }, receipt: state(.) }
+shape messageCard = { *, sender: profiles[principal = .senderId], quote: messages[.quoteId] { id, body, sender: profiles[principal = .senderId] }, receipt: state(.) }
 query history(id: messages):
   return messages[id] messageCard
 "#;
@@ -329,7 +329,7 @@ fn w16h_a_scalar_field_access_is_told_to_drop_the_field_not_to_read_a_row() {
 #[test]
 fn w16h_a_bool_optional_condition_is_not_told_to_compare_against_null() {
     let schema = "table prefs:\n  owner: principal\n  muted: bool ?\n  nickname: text <=40 ?\n  unique byOwner: owner\n  public 'p'\n  insert <- .owner = viewer\n  sync public last 500 by byOwner\n";
-    let query = |field: &str| format!("{schema}query q(who: principal):\n  p = prefs[who] ! else NOT_FOUND\n  if p.{field}:\n    return 1\n  return 0\n");
+    let query = |field: &str| format!("{schema}query q(who: principal):\n  p = prefs[owner = who] ! else NOT_FOUND\n  if p.{field}:\n    return 1\n  return 0\n");
 
     let optional_bool = bind("schema.q", &query("muted"));
     assert_eq!(optional_bool.diagnostics[0].message, "if needs a bool condition, got bool ?");

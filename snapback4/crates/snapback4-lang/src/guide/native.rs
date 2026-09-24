@@ -13,7 +13,7 @@ real loops and a typed schema without putting them into Quarry.
 `snapback/native/` is a Cargo package the app owns — `crate-type =
 ["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native` —
 and `snapback4 check` writes `snapback/generated/native.rs` (a constant
-per table, index and maintain; a `serde` struct per table), builds the
+per table, index and aggregate view; a `serde` struct per table), builds the
 package for `wasm32-unknown-unknown` into `snapback/generated/native.wasm`
 (cold about ten seconds, then a cargo no-op), and refuses if a declared
 job is not one the module implements. `dev` rebuilds on every save under
@@ -75,7 +75,7 @@ it.
 One chunk per call, one transaction per chunk, under the job ceilings
 (guide bounds): the job returns `Next::Again(state)` to be called again with
 that state after the chunk commits — a scan's `next` is the natural state,
-so a crash resumes at the next page as a Quarry `chunk` resumes by its
+so a crash resumes at the next page as a Quarry `for` sweep resumes by its
 cursor — or `Next::Done`. Every `Ctx` read and write is the interpreter's
 own on the chunk's transaction (`get`, `lookup`, `maintained`, `scan`,
 `mint`, `insert`, `insert_if_absent`, `update`, `upsert`, `upsert_by`,

@@ -98,8 +98,8 @@ fn unresolved_index_choices_keep_the_exact_mechanical_refusal() {
         let source = format!("{indexes}query followed():\n  return exists follows[viewer, 'bob']\n");
         let b = bound(&source);
         assert_eq!(b.diagnostics.len(), 1);
-        assert_eq!(b.diagnostics[0].to_string(), "schema.q:15:17 — E_QUARRY_AMBIGUOUS: follows has 2 indexes matching this key: byPair, byFollowed; choose one\n  rewrite: follows[viewer, 'bob'] by byPair — check --fix applies it\n  guide: indexes");
-        let mut e = engine(clean(&source.replace("follows[viewer, 'bob']", &b.diagnostics[0].rewrite)));
+        assert_eq!(b.diagnostics[0].code, "E_QUARRY_POSITIONAL_SCAN");
+        let mut e = engine(clean(&source.replace("follows[viewer, 'bob']", "follows[follower = viewer, followed = 'bob'] by byPair")));
         assert_eq!(e.query("followed", context()).unwrap().data, Value::Bool(true));
     }
 }
@@ -170,7 +170,7 @@ fn optional_read_and_writing_helper_rewrites_evaluate_the_base_once() {
 #[test]
 fn review_inner_index_ownership_requires_an_explicit_scope() {
     let schema = SCHEMA.replace("byAuthor", "byReverse").replace("byFollowed", "byReverse");
-    let ambiguous = "posts['bob'] first 1 where exists follows[viewer, .author] by byReverse";
+    let ambiguous = "posts[author = 'bob'] first 1 where exists follows[viewer, .author] by byReverse";
     let b = bound(&format!("{schema}query page():\n  return {ambiguous}\n"));
     println!("before/after scope diagnostics: {:?}", b.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>());
     assert_eq!(b.diagnostics.len(), 1, "the old inner index must not silently move to posts");
@@ -181,8 +181,8 @@ fn review_inner_index_ownership_requires_an_explicit_scope() {
     assert!(d.mechanical);
     for (read, expected) in [
         (ambiguous.replace("follows[viewer, .author] by byReverse", &d.rewrite), 0),
-        ("posts['bob'] first 1 by byReverse where exists follows[viewer, .author]".into(), 1),
-        ("posts['bob'] first 1 where (exists follows[viewer, .author] by byReverse)".into(), 0),
+        ("posts[author = 'bob'] first 1 by byReverse where exists follows[viewer, .author]".into(), 1),
+        ("posts[author = 'bob'] first 1 where (exists follows[viewer, .author] by byReverse)".into(), 0),
     ] {
         let mut e = engine(clean(&format!("{schema}query page():\n  return {read}\n")));
         assert_eq!(e.query("page", context()).unwrap().data.as_array().unwrap().len(), expected, "{read}");
@@ -205,12 +205,12 @@ fn review_parentheses_separate_both_explicit_indexes() {
 }
 
 #[test]
-fn review_exact_type_index_wins_before_unique_preference() {
+fn positional_key_resolves_the_only_declared_unique_arity() {
     let source = "table t:\n  a: int\n  b: time\n  c: int\n  by byA: a, c\n  unique byB: b, c\n  public 'rows'\nquery probe(x: int):\n  return exists t[x, 0]\nquery timed(x: time):\n  return exists t[x, 0]\n";
     let b = clean(source);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed([("t".into(), object([("id", Value::Id("row".into())), ("a", Value::Int(1)), ("b", Value::Int(2)), ("c", Value::Int(0))]))]).unwrap();
-    for (op, x, expected) in [("probe", 1, true), ("probe", 2, false), ("timed", 1, false), ("timed", 2, true)] {
+    for (op, x, expected) in [("probe", 1, false), ("probe", 2, true), ("timed", 1, false), ("timed", 2, true)] {
         let actual = e.query(op, Context::new("alice", BTreeMap::from([("x".into(), Value::Int(x))]))).unwrap().data;
         println!("{op}({x}) = {actual:?}");
         assert_eq!(actual, Value::Bool(expected));

@@ -3,6 +3,7 @@
 // device's to keep (in memory, or wherever the app keeps secrets). A
 // deployed server refuses development personas, so this is the only door.
 
+import { storeKey } from "./app-storage.ts";
 import type { Refusal, Session, SignIn, SessionRevocation } from "./contract.ts";
 
 export type { Session, SignIn, SessionRevocation } from "./contract.ts";
@@ -97,7 +98,7 @@ export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "se
   };
 }
 
-export const sessionKey = (url: string) => `snapback4:${url.replace(/\/$/, "")}:session`;
+export const sessionKey = (url: string) => storeKey("session", url.replace(/\/$/, ""));
 
 /** The session kept for a server, if it has not expired. */
 export async function restoreSession(url: string, store: SessionStore = defaultSessionStore): Promise<Session | null> {
@@ -106,15 +107,12 @@ export async function restoreSession(url: string, store: SessionStore = defaultS
   if (!raw) return null;
   try {
     const session = JSON.parse(raw) as Session;
-    if (!isSession(session)) {
-      await store.delete(key);
-      return null;
-    }
-    return session;
-  } catch {
-    await store.delete(key);
-    return null;
-  }
+    if (isSession(session)) return session;
+  } catch { /* Invalid JSON follows the same cleanup path as an expired session. */ }
+  // A store may condition cleanup on the exact bytes returned by get. Let a
+  // changed-snapshot or storage failure propagate instead of deleting twice.
+  await store.delete(key);
+  return null;
 }
 
 export async function keepSession(url: string, session: Session, store: SessionStore = defaultSessionStore): Promise<void> {

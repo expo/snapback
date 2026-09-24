@@ -10,7 +10,7 @@ table records:
 query point(count: int, key: records):
   for i in range(0, count):
     prior = records['visible']
-  return records[key]
+  return records[id = key]
 "#;
 
 pub fn rows() -> Vec<(String, Value)> {

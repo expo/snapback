@@ -28,6 +28,7 @@ pub(super) enum Flow {
 /// One evaluated cursor-bearing page; the return plan selects its owner.
 #[derive(Clone, Debug)]
 pub(crate) struct PagePosition {
+    pub view_suffix: Option<Vec<crate::cursor::CursorColumn>>,
     pub table: String,
     pub index: String,
     pub order: Order,
@@ -89,6 +90,10 @@ pub struct Runner<'a> {
     pub(crate) page: Option<PagePosition>,
     pub(crate) pages: BTreeMap<String, PagePosition>,
     /// Matching scopes share one validated cursor image within a query.
+    /// Validated view position translated to one source index, scoped to its scan.
+    pub(super) view_seek: Option<(String, crate::cursor::CursorPosition)>,
+    /// Projected source scans pay for fetched payloads before discarding fields.
+    pub(super) view_scan_active: bool,
     pub(super) word_cursor: Option<(String, crate::cursor::CursorPosition)>,
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,
@@ -104,9 +109,13 @@ pub struct Runner<'a> {
     /// that was `complete` only when few hidden rows were walked would
     /// count them.
     pub(crate) non_uniform: bool,
+    pub(super) scalar_unavailable: bool,
     /// The program's page had more rows than it returned and no cursor to
     /// continue on: the result is not `complete`, and the card says so.
     pub(crate) page_overflow: bool,
+    pub(super) discovering_values: bool,
+    pub(super) value_source_incomplete: bool,
+    pub(crate) timeline_pending: bool,
     /// First scope whose word expansion exceeded 32; incomplete, without
     /// stopping later lanes or setting the query's meter cut.
     pub(crate) word_cut_at: Option<String>,
@@ -189,6 +198,8 @@ impl<'a> Runner<'a> {
             page: None,
             pages: BTreeMap::new(),
             word_cursor: None,
+            view_seek: None,
+            view_scan_active: false,
             discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),
@@ -196,7 +207,11 @@ impl<'a> Runner<'a> {
             shape_positions: BTreeMap::new(),
             shape_cursors: BTreeMap::new(),
             non_uniform: false,
+            scalar_unavailable: false,
             page_overflow: false,
+            discovering_values: false,
+            value_source_incomplete: false,
+            timeline_pending: false,
             word_cut_at: None,
             device: false,
             event_free: false,
@@ -244,6 +259,10 @@ impl<'a> Runner<'a> {
             Ok(_) => Ok(Value::Null),
             Err(RuntimeError::Bound { kind, .. }) if self.meter.cut == Cut::Cap
                 && (kind == MeterKind::HeapBytes || self.meter.capped_at.as_ref().is_some_and(|cut| cut.0 == kind)) => {
+                self.page = None;
+                Ok(Value::Null)
+            }
+            Err(RuntimeError::Prediction(_)) if self.meter.cut == Cut::Cap && self.scalar_unavailable => {
                 self.page = None;
                 Ok(Value::Null)
             }
@@ -398,10 +417,21 @@ impl<'a> Runner<'a> {
                     self.delete(table, key.as_str()?)?;
                     Flow::Next
                 }
-                Stmt::Emit { effect, payload } => {
+                Stmt::Emit { effect, payload, once } => {
                     let payload = self.expr(payload)?;
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
+                    }
+                    let key = once.as_ref().map(|key| self.expr(key)).transpose()?;
+                    if let Some(key) = &key { key.as_array()?; }
+                    // @ref LLP 3000.013#5.3 — the permanent key is in the same transaction, including replay suppression.
+                    if !self.discard_effects && !self.device && let Some(key) = key {
+                        self.meter.step(1)?;
+                        let encoded = canonical_json(&Value::Array(vec![Value::String(effect.clone()), key]));
+                        self.meter.heap(encoded.len() as u64)?;
+                        if !self.tx.effect_once(effect, &encoded)? { return Ok(Flow::Next); }
+                        self.meter.charge(MeterKind::RowsWritten, 1)?;
+                        self.rows_written += 1;
                     }
                     // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
                     let presence = self.emission_presence()?;
@@ -421,6 +451,7 @@ impl<'a> Runner<'a> {
                     let shaped = returned.into_iter().flat_map(|returned| &returned.shapes)
                         .filter_map(|shape| self.shape_positions.get(shape)).min_by_key(|position| position.rows);
                     self.page = self.page_owner.as_ref().and_then(|owner| self.pages.get(owner)).map(|page| PagePosition {
+                        view_suffix: page.view_suffix.clone(),
                         table: page.table.clone(), index: page.index.clone(), order: page.order, prefix_len: page.prefix_len,
                         prefix: page.prefix.clone(), merge: page.merge, interrupted: page.interrupted,
                         next: shaped.map_or_else(|| page.next.clone(), |position| position.next.clone()),
@@ -450,10 +481,13 @@ impl<'a> Runner<'a> {
     pub(super) fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
         let values = match domain {
             LoopDomain::Page(scan) => {
-                let values = self.scan(scan)?;
+                // @ref LLP 3000.013#5.2 — uncapped inner job domains must pay before decoding/retaining each row, not after materializing a whole page.
+                let prepaid = scan.take == Bound::Meter && self.meter.cut == Cut::Abort
+                    && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)));
+                let values = if prepaid { self.metered_domain(scan)? } else { self.scan(scan)? };
                 #[cfg(feature = "postgres")]
                 self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, self.tx);
-                self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?;
+                if !prepaid { self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?; }
                 Ok(values)
             }
             LoopDomain::LiteralRange { start, end_exclusive } => {
@@ -621,6 +655,15 @@ impl<'a> Runner<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
+                if matches!(builtin, Builtin::Count | Builtin::Sum) && let Some(Expr::Scan(scan)) = args.first()
+                    && (scan.take == Bound::Meter || scan.existence) && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)))
+                    && ((matches!(builtin, Builtin::Count) && args.len() == 1) || (matches!(builtin, Builtin::Sum) && args.len() == 2)) {
+                    let result = self.stream_aggregate(scan, args.get(1));
+                    if matches!(&result, Err(RuntimeError::Bound { kind: MeterKind::Steps, .. })) && self.meter.cut == Cut::Cap {
+                        self.meter.capped_at.get_or_insert((MeterKind::Steps, scan.site.clone()));
+                    }
+                    return result;
+                }
                 if args.len() != builtin.arity() && !(matches!(builtin, Builtin::Calendar { .. }) && args.len() == 2) {
                     return Err(RuntimeError::Input(format!("builtin {builtin:?} takes {} arguments, received {}", builtin.arity(), args.len())));
                 }

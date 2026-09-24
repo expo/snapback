@@ -54,7 +54,7 @@ fn pages(e: &mut Engine, viewer: &str) -> Vec<Value> {
 
 #[test]
 fn complete_feeds_program_runs_at_clique_size() {
-    let source = quarry(card("feeds").unwrap()).remove(0);
+    let source = quarry(card("feeds").unwrap()).remove(1);
     let (doc, errors) = snapback4_lang::parse_document("schema.q", &source);
     assert!(errors.is_empty());
     assert_eq!(doc.tables.len(), 7);
@@ -63,13 +63,12 @@ fn complete_feeds_program_runs_at_clique_size() {
     assert_stream_note(&b);
     assert_eq!(b.schema.timelines.len(), 1);
     assert_eq!(b.schema.timelines[0].name, "feed");
-    assert_eq!(b.schema.timelines[0].author_cap, 1008);
-    assert_eq!(b.schema.timelines[0].edge_cap, 5921);
+    assert_eq!(b.schema.timelines[0].version, 2);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     let mut clock = 0;
     for n in 0..1008 { write(&mut e, &mut clock, "register", &format!("u{n:04}"), &[("name", text(&format!("User {n}")))]); }
     assert_eq!(e.store().rows("profiles").unwrap().len(), 1008);
-    assert_eq!(e.store().rows("feedAuthors").unwrap().len(), 1008);
+    assert!(!e.schema().tables.contains_key("feedAuthors"));
     let mut originals = Vec::new();
     for n in 0..25 { originals.push(write(&mut e, &mut clock, "post", "u0000", &[("body", text(&format!("Pushed {n}")))]).field("id").unwrap().clone()); }
     let outsider = write(&mut e, &mut clock, "post", "u0900", &[("body", text("Not followed"))]).field("id").unwrap().clone();
@@ -95,14 +94,12 @@ fn complete_feeds_program_runs_at_clique_size() {
     assert_eq!(e.store().rows("feedPosts").unwrap(), events, "replies create no timeline events");
     assert_eq!(e.store().rows("replies").unwrap().len(), 3);
     for n in 1..50 { write(&mut e, &mut clock, "follow", &format!("u{n:04}"), &[("authorId", id("u0000"))]); }
-    let promoted = |e: &Engine| e.store().rows("feedAuthors").unwrap().iter().find(|r| r.field("principal") == Ok(&id("u0000"))).unwrap().field("shared").unwrap().clone();
-    assert_eq!(promoted(&e), Value::Bool(false)); // 50 followers
     write(&mut e, &mut clock, "follow", "u0050", &[("authorId", id("u0000"))]);
-    assert_eq!(promoted(&e), Value::Bool(true)); // 51st follower
     let shared = write(&mut e, &mut clock, "post", "u0000", &[("body", text("Shared"))]).field("id").unwrap().clone();
     let boost = write(&mut e, &mut clock, "repost", "u0001", &[("postId", originals[0].clone())]);
     assert_ne!(boost, Value::Null);
     assert_eq!(write(&mut e, &mut clock, "repost", "u0001", &[("postId", originals[0].clone())]), Value::Null);
+    while e.run_timeline_chunk(clock).unwrap().is_some() {}
     let before = pages(&mut e, "u1007");
     assert_eq!(before.len(), 27);
     let repost = &before[0];
@@ -125,7 +122,6 @@ fn complete_feeds_program_runs_at_clique_size() {
     assert_eq!(remaining[0].field("id").unwrap(), repost.field("id").unwrap());
     assert_eq!(pages(&mut e, "u0000").len(), 25); // implicit own membership
     for n in 1..=50 { write(&mut e, &mut clock, "unfollow", &format!("u{n:04}"), &[("authorId", id("u0000"))]); }
-    assert_eq!(promoted(&e), Value::Bool(true));
     write(&mut e, &mut clock, "follow", "u0900", &[("authorId", id("u0000"))]);
     assert_eq!(pages(&mut e, "u0900").len(), 26); // own event + pushed history + shared
     write(&mut e, &mut clock, "unrepost", "u0001", &[("postId", originals[0].clone())]);

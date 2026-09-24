@@ -66,7 +66,7 @@ pub fn profiles(hook: &str) -> String {
 mutation create(handle: text 1..30):
   return insert profiles {{ handle }}
 mutation rename(profile: profiles, handle: text 1..30):
-  update profiles[profile] {{ handle }}
+  update profiles[id = profile] {{ handle }}
 mutation tryCreate(handle: text 1..30):
   return insert profiles {{ handle }} if absent
 query all():

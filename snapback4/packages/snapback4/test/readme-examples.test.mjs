@@ -1,3 +1,4 @@
+import { sessionKey } from "../dist/auth.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
@@ -122,14 +123,15 @@ test("README TypeScript examples compile and call every public function", (t) =>
   assert.deepEqual([...diagnostics, ...missing.map(name => `${name} needs a call in a README ts/tsx block`)], []);
 });
 
-test("R1a Queries lists matching merges over scope lanes", () => {
-  const queries = (read(join(root, "../../crates/snapback4-lang/src/guide/reads.rs")).split("- **Reads:")[1]?.split("- **")[0] ?? "").replace(/\s+/g, " ");
-  assert.ok(queries.includes("merge t matching q [after c] last N by wordsIndex:"), "Queries must spell the matching merge");
-  assert.ok(queries.includes("scope lanes"));
+test("Queries teach predicate reads and engine-chosen scope lanes", () => {
+  const queries = read(join(root, "../../crates/snapback4-lang/src/guide/reads.rs")).replace(/\s+/g, " ");
+  assert.ok(queries.includes("messages where .roomId = roomId"));
+  assert.ok(queries.includes("last 20 by .at after c"));
+  assert.ok(queries.includes("the author writes no lane list"));
   assert.ok(read(join(root, "README.md")).includes("`guide reads`"));
 });
 
-test("Expo Go README session store normalizes SecureStore keys and round-trips a session", async () => {
+test("Expo Go README session store preserves encoded SecureStore keys and round-trips a session", async () => {
   const readme = ["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n");
   const source = readme.match(/const sessionStore = [\s\S]*?;/)?.[0];
   assert.ok(source, "README declares its SecureStore adapter");
@@ -143,12 +145,12 @@ test("Expo Go README session store normalizes SecureStore keys and round-trips a
   };
   const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022 });
   const store = new Function("SecureStore", `${js}\nreturn sessionStore;`)(SecureStore);
-  const key = "snapback4:session:http://127.0.0.1:4400";
+  const key = sessionKey("http://127.0.0.1:4400");
   await store.set(key, "saved-session");
   assert.equal(await store.get(key), "saved-session");
   await store.delete(key);
   assert.equal(await store.get(key), null);
-  assert.deepEqual(keys, Array(4).fill("snapback4_session_http___127.0.0.1_4400"));
+  assert.deepEqual(keys, Array(4).fill(key));
 });
 
 
