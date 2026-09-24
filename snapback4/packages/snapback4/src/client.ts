@@ -107,6 +107,7 @@ export function createClient(options: ClientOptions): Client {
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
   let seq = 0;
+  let minimumReadSeq = 0, queryEpoch = 0;
   const linkListeners = new Set<(link: Link) => void>();
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
@@ -286,21 +287,24 @@ export function createClient(options: ClientOptions): Client {
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; nextExpiry: number | null; transportOffline?: boolean }> {
-    if (closed) return { read: { denied: ended() }, tables: [], seq, nextExpiry: null };
-    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq, nextExpiry: null };
+  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean }> {
+    const epoch = queryEpoch;
+    if (closed) return { read: { denied: ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args });
-    if (!credentials) return { read: { denied: auth() }, tables: [], seq, nextExpiry: null };
-    if (!result.ok) return { read: { denied: offline() }, tables: [], seq, nextExpiry: null, transportOffline: true };
+    if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+    if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null, transportOffline: true };
     const json = result.json;
-    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq, nextExpiry: null };
+    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? minimumReadSeq), epoch, nextExpiry: null };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
+    if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? minimumReadSeq), epoch, nextExpiry };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
+    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry };
   }
+
+  const currentRead = (result: { seq: number; epoch: number }) => result.epoch === queryEpoch && result.seq >= minimumReadSeq;
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
@@ -326,19 +330,10 @@ export function createClient(options: ClientOptions): Client {
     }
     watch.inFlight = true;
     try {
-      const { read, tables, nextExpiry, transportOffline } = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch));
+      const { tables, nextExpiry } = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: currentRead });
       if (closed || watches.get(watch.key) !== watch) return;
-      if (!credentials) {
-        watch.publish({ denied: auth() });
-        notify(watch);
-        return;
-      }
       watch.tables = new Set(tables);
       scheduleExpiry(watch, nextExpiry);
-      if (watch.snapshot !== read || transportOffline) {
-        watch.publish(transportOffline ? { loading: true } : read);
-        notify(watch);
-      }
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;
@@ -387,6 +382,8 @@ export function createClient(options: ClientOptions): Client {
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         generation = json.generation;
+        minimumReadSeq = Math.max(minimumReadSeq, json.seq);
+        if (changedGeneration) queryEpoch++;
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
@@ -412,6 +409,7 @@ export function createClient(options: ClientOptions): Client {
     if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
     if (json.state === "sent") {
       const at = Number(json.seq ?? 0);
+      minimumReadSeq = Math.max(minimumReadSeq, at);
       const outcome = json.replayed === true
         ? { state: "sent", id: entry.id, seq: at, replayed: true } as const
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
@@ -465,7 +463,11 @@ export function createClient(options: ClientOptions): Client {
       return act(op, args, options, options?.id ?? mintId(), post, () => closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined);
     },
     async query(op, args) {
-      return (await runQuery(op, args)).read;
+      for (;;) {
+        const result = await runQuery(op, args);
+        if (currentRead(result)) return result.read;
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
     },
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       const key = `${op.name}:${JSON.stringify(args)}`;

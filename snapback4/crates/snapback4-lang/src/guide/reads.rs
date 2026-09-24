@@ -44,10 +44,10 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage or a page without continuation. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
-An observation keeps a previous answer with `fresh: false` and its `since` only
-while a replacing fetch is in flight, never after it settles. Unavailable,
-failed or impossible fetches become `loading`; explained refusals become
-`denied`, and authority changes clear kept answers immediately.
+Online observations retain nothing and discard responses older than observed commits.
+A local observation may keep its previous answer with `fresh: false` and `since`
+only during an unavailable device read's server fallback, ending at fetch
+settlement or any local commit, reset, adoption, generation, account change or close.
 A ready list read always carries an array; an absent point can still be null.
 `usePage` keeps earlier pages visible while a later page is unavailable.
 For ordinary device reads, online fallback asks the server only for a missing
@@ -84,8 +84,8 @@ Successful `query` and `observe` answers include `Read.meter`:
 `Read.meter.cut` keeps the precise reason even for a non-uniform server read;
 it is `meter`, `words` or null, with `meter` winning when both limits cut.
 These are the engine's counters for that answer, not latency or process memory;
-`probes` is rule_probes and `heapBytes` is charged heap work. An observation
-keeps its previous answer's counters during its replacing fetch. Local device reads
+`probes` is rule_probes and `heapBytes` is charged heap work. A local fallback
+keeps its previous answer's counters only until the fetch settles. Local device reads
 have no meter; use the online client to inspect the server for the same account.
 `meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.
 Loopback dev includes the field without either; `serve` ignores the header and never returns

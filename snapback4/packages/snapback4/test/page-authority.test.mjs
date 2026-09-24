@@ -8,7 +8,6 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createLocalClient } from '../dist/local.js';
 import { createClient } from '../dist/client.js';
 import { processDevice } from '../dist/native.js';
-import { ReadAuthority } from '../dist/read-authority.js';
 import { memorySessionStore } from '../dist/auth.js';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
 const query = name => ({ kind: 'query', name });
@@ -73,9 +72,7 @@ for (const postCommitFailure of [false, true]) test(`applied revocation clears k
   await until(f.entered, 'old server answer held');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
   await until(() => page.getSnapshot().loading, 'heap abort settles as unavailable');
-  assert.equal(server.getSnapshot().data[0].body, 'private', 'only the pending fetch retains its answer');
-  assert.equal(server.getSnapshot().fresh, false);
-  assert.ok(Number.isFinite(server.getSnapshot().since));
+  assert.deepEqual(server.getSnapshot(), { loading: true }, 'server-run queries retain nothing');
   if (postCommitFailure) f.failAfterApply();
   await f.post('/m/revoke');
   if (postCommitFailure) await assert.rejects(f.client.sync(), /fallible work after committed revocation/);
@@ -116,7 +113,7 @@ test('transport failures are loading and an explained server refusal lasts until
         if (transport) throw Error('transport failed');
         return Response.json({ denied: { code: 'E_OFFLINE', family: 'rule', message: 'explicit refusal' } });
       }
-      return Response.json({ loading: true, nextExpiry: Date.now() + 25 });
+      return Response.json({ loading: true, seq: 1, nextExpiry: Date.now() + 25 });
     } });
     t.after(() => client.close());
     const watch = client.observe(query('page'), {});
@@ -145,13 +142,24 @@ test('a local observation has no remembered answer after a failed replacing fetc
   watch.close();
 });
 
+test('a local server-run observation never retains a previous answer during HTTP', { timeout: 30_000 }, async t => {
+  const f = await fixture(t), watch = f.client.observe(query('serverPage'), {});
+  await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial server answer');
+  f.hold(); watch.close(); watch.subscribe(() => {});
+  await until(f.entered, 'server rerun without a local commit');
+  assert.deepEqual(watch.getSnapshot(), { loading: true }, 'only a device fallback may retain an answer');
+  f.release();
+  await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'replacement server answer');
+  watch.close();
+});
+
 test('a predicted membership removal clears a kept private answer before the pending send', { timeout: 30_000 }, async t => {
   const f = await fixture(t), watch = f.client.observe(query('privatePage'), {});
   await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'private answer');
   f.hold('privatePage');
   await f.post('/m/setCost', { grow: true }); await f.client.sync();
   await until(f.entered, 'replacing fetch');
-  assert.equal(watch.getSnapshot().fresh, false);
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
   f.offline(); await f.client.sync();
   const write = await f.client.mutate({ kind: 'mutation', name: 'revoke' }, {});
   assert.equal(write.state, 'pending');
@@ -161,28 +169,20 @@ test('a predicted membership removal clears a kept private answer before the pen
 });
 
 
-for (const operation of ['expireSecret', 'expireMember']) for (const classifier of [true, false])
-  test(`predicted ${operation}: retention ends within one fetch (classifier ${classifier})`, { timeout: 30_000 }, async t => {
+for (const operation of ['expireSecret', 'expireMember'])
+  test(`predicted ${operation}: every commit clears the pending observation`, { timeout: 30_000 }, async t => {
     const f = await fixture(t), watch = f.client.observe(query('privatePage'), {});
     await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'private answer');
     const id = watch.getSnapshot().data[0].id;
-    if (!classifier) {
-      const original = ReadAuthority.prototype.committed;
-      ReadAuthority.prototype.committed = () => false;
-      t.after(() => { ReadAuthority.prototype.committed = original; });
-    }
     f.hold('privatePage');
     await f.post('/m/setCost', { grow: true }); await f.client.sync();
     await until(f.entered, 'unavailable replacing fetch held');
-    assert.equal(watch.getSnapshot().data[0].body, 'private');
-    assert.equal(watch.getSnapshot().fresh, false);
-    assert.ok(Number.isFinite(watch.getSnapshot().since));
+    assert.deepEqual(watch.getSnapshot(), { loading: true });
     f.holdWrites();
     const write = await f.client.mutate({ kind: 'mutation', name: operation }, { ...(operation === 'expireSecret' ? { id } : {}), at: Date.now() - 1000 });
     assert.equal(write.state, 'pending');
     assert.ok((await f.core().call({ op: 'queued' })).ok.find(entry => entry.id === write.id).predicted.length, 'real expiry prediction');
-    if (classifier) assert.deepEqual(watch.getSnapshot(), { loading: true }, 'expiry clears the answer before HTTP settles');
-    else assert.equal(watch.getSnapshot().data[0].body, 'private', 'classifier disabled: the one fetch is the only retention bound');
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, 'every local prediction clears pending observations');
     f.release();
     await until(() => watch.getSnapshot().loading, 'one unavailable fetch clears the private row');
     f.offline(); await f.client.sync();
@@ -197,8 +197,7 @@ test('online client drops a heap-aborted private answer within one fetch, includ
   f.hold('privatePage');
   await f.client.mutate({ kind: 'mutation', name: 'setCost' }, { grow: true });
   await until(f.entered, 'online replacement fetch');
-  assert.equal(watch.getSnapshot().data[0].body, 'private');
-  assert.equal(watch.getSnapshot().fresh, false);
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
   f.release();
   await until(() => watch.getSnapshot().loading, 'heap abort ends retention');
   await f.client.mutate({ kind: 'mutation', name: 'revoke' }, {});
@@ -206,5 +205,21 @@ test('online client drops a heap-aborted private answer within one fetch, includ
   await until(() => watch.getSnapshot().loading, 'revoked unavailable read stays loading');
   await delay(20);
   assert.deepEqual(watch.getSnapshot(), { loading: true });
+  watch.close();
+});
+
+test('online revoke fences an already authorized HTTP response held across its commit', { timeout: 30_000 }, async t => {
+  const f = await fixture(t, true), watch = f.client.observe(query('privatePage'), {}), values = [];
+  watch.subscribe(() => values.push(watch.getSnapshot()));
+  await until(() => watch.getSnapshot().data?.[0]?.body === 'private', 'initial authorized answer');
+  f.hold('privatePage');
+  await f.client.mutate({ kind: 'mutation', name: 'setCost' }, { grow: false });
+  await until(f.entered, 'authorized response held in transport');
+  assert.equal((await f.client.mutate({ kind: 'mutation', name: 'revoke' }, {})).state, 'sent');
+  values.length = 0;
+  f.release();
+  await until(() => watch.getSnapshot().data?.length === 0, 'post-revocation answer');
+  assert.ok(values.every(read => !read.data?.some(row => row.body === 'private')), 'revoked row must never reappear, even transiently');
+  assert.ok(f.requests.filter(path => path === '/q/privatePage').length >= 3, 'old response was refetched');
   watch.close();
 });

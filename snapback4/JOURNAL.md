@@ -49623,3 +49623,116 @@ No new language form: ordinary privatePage(), heldPage() held and expiry
 mutations in the fixture compile and run. No unresolved Lane J issue or design
 deviation remains. Native evidence uses the real SQLite process device and
 shared native client; no iOS simulator, publication, version bump or push.
+
+## 2026-09-24 — Lane J round 4: local fallback courtesy, monotonic online reads
+
+Implemented the supervisor's narrower contract. The online generation race was
+a second publication in refresh(): fetch() had published an answer, a generation
+reset could replace it with loading while the caller resumed, and refresh()
+then republished the old answer as fresh. Separately, a successful mutation did
+not fence a pre-commit query response. The real-server reproduction held an
+authorized privatePage HTTP response across a successful revoke and observed
+the revoked row reappear, fresh, before the next rerun removed it.
+
+client.ts now retains nothing: fetch starts loading and watch.fetch() alone
+publishes its result. Mutation acknowledgements and change notifications advance
+a minimum acceptable sequence. Direct queries and observations discard and
+refetch responses below it; publication checks the fence after the asynchronous
+query continuation. A generation epoch also fences direct reads when the
+generation changes without a sequence increase. Retries yield to the event loop
+so a repeatedly stale transport cannot starve cancellation. Refusals without a
+sequence remain explicit refusals; unsequenced unavailable responses carry no
+data and remain loading. Ready responses retain their actual server sequence.
+
+read-observation.ts defaults to no retention. local.ts opts in only after a
+device evaluation needs server fallback, including composition's unavailable
+component. Server-run reads and backend/native recovery fetches do not retain.
+Every successful apply (including private staging), admission, settlement and
+clear_rows invalidates all answers and remembered server responses before
+notification or rerun. Existing reset/adoption/generation/account/close fences
+remain. The schema/program classifier and its tests are deleted; local-reads.ts
+contains only the watch shape and unconditional clear/revision helper. No
+classifier remains in use. Composition retires its old answer immediately at
+HTTP settlement when publishResult=false, before further device work. A closed
+local observation stops retrying when a commit fenced its pending read.
+
+Engineering choices: the minimum query sequence is separate from the changes
+poll cursor, so a mutation acknowledgement cannot skip another table's change
+notification. Local direct query caches remain supported, but every applied
+commit now retires them too. Unrelated commits may blank and rerun observations,
+as explicitly accepted in this round. The retained answer is only a courtesy;
+the classifier no longer decides its lifetime. No Quarry form, Read type,
+engine/wire semantics, refusal code, disclosure rule or meter ceiling changed.
+
+File-by-file tests and documentation:
+- online-read-order.test.mjs: no online retention; stale responses after both
+  writes and change notifications for direct reads and observations; a buffered
+  fetch continuation crossing a generation reset; same-sequence generation
+  fencing for direct reads. The buffered-continuation test deterministically
+  observes the asynchronous gap between fetch publication and its caller.
+- page-authority.test.mjs: the real HTTP revoke reproduction, heap aborts,
+  applied revocations, expiry predictions and pending writes under unconditional
+  invalidation; server-run local reads retain nothing even without a commit.
+- read-observation.test.mjs: existing settlement/reset tests opt in explicitly;
+  a new composition test requires loading at HTTP settlement and proves the raw
+  server component is not published before composition.
+- local-reads.test.mjs: unconditional clearing of kept answers, remembered data
+  and pending publication. read-authority.test.mjs was removed with its subject.
+- fixtures/page-observation.mjs: real native/SQLite and Chromium/IndexedDB
+  two-device inbox; a controlled nextExpiry schedules a rerun without changing
+  rows, both hooks keep their page during fallback, a pending prediction clears
+  both immediately, and server fallback still starts while the send is pending.
+  The real server supplies all data; the transport controls only retry timing.
+- client-seams.test.mjs, react.test.mjs and readme-examples.test.mjs: replace
+  online/server-run retention expectations with loading and server answers;
+  typing deadlines still extend and clean up with no synthetic stale repaint.
+- page-ready.test.mjs: remembered data cannot survive an intervening commit.
+- retained-history.test.mjs: a sync during composition forces a new request;
+  since belongs to that replacement's captured sync time.
+- client-lifecycle.test.mjs: idle polls remain quiet; committed changes and
+  predictions invalidate all observations. The unchanged pending-watch close
+  regression caught and verifies the new retry exit.
+- repair-b-round7.test.mjs: private staging commits may rerun the published
+  image, but no staged row or identity becomes visible before publication.
+- contract.ts, CLIENT-AND-OPERATIONS.md and guide/reads.rs: the narrowed
+  two-sentence contract, with meter prose restricted to local fallback.
+
+The real revoke regression failed before the fix, exposing a transient private
+publication. Ten mutation checks were caught: reintroducing the second online
+publication; deleting the write floor, changes floor, generation fence or
+publication check; enabling online retention or local server-run retention;
+removing local commit invalidation; deleting composition cleanup; and disabling
+local fallback retention. In particular, the previously surviving composition
+cleanup mutation now fails. Sources were restored after each check. Evidence:
+/tmp/lane-j-r4-before.log, /tmp/lane-j-r4-revoke-before.log,
+/tmp/lane-j-r4-mutations.log and /tmp/lane-j-r4-mutant-*.log.
+
+Affected validation passed 50/50. Earlier focused runs found one obsolete
+remembered-answer assertion, the two old composed-since assertions, and a web
+fixture remount that recreated its page observation; the replacement timer
+journey preserves that observation while exercising the same real device read.
+The first full scripts/test.sh reported exactly `== 1 failure(s) in 152 s`:
+client tests had two failed assertions and two timed-out/cancelled tests, all
+ours, with no baseline or environmental failures:
+- local observations skip idle sync and rerun only after a changed page is
+  applied: an obsolete exact rerun-count expectation timed out.
+- closing a pending watch prevents its response from scheduling expiry or
+  rerunning dirty work: the commit fence caused a closed local read to retry;
+  fixed the implementation and kept this regression unchanged.
+- local prediction invalidation reruns only observations of written tables:
+  the old selective-invalidation expectation timed out.
+- private identity leaves published watches and adoption unchanged until
+  publication: the old no-rerun expectation conflicts with every-commit clearing;
+  retained and strengthened the no-staged-data assertion.
+Lifecycle follow-ups passed 3/3; private-staging follow-ups passed 3/3.
+
+Final scripts/test.sh: `== 0 failure(s) in 100 s`. Main client shard: 1,098
+tests, 1,088 passed, 10 existing skips, zero failures or cancellations. All
+other shards, Rust targets, guide checks, builds and typechecks passed. Logs:
+/tmp/lane-j-r4-full-suite.log, /tmp/lane-j-r4-full-suite-final.log,
+/tmp/lane-j-r4-affected-final.log, /tmp/lane-j-r4-routing.log,
+/tmp/lane-j-r4-updated-pins.log, /tmp/lane-j-r4-lifecycle.log and
+/tmp/lane-j-r4-staging.log. Source files remain below 1,500 lines. No open
+implementation issue or design deviation remains. Existing privatePage(),
+heldPage() held and expiry mutations still compile and run; no new language
+form was added. No iOS simulator, version bump, publication or push was done.

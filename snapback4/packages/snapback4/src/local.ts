@@ -8,7 +8,7 @@
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
 import { ReadObservation } from "./read-observation.ts";
-import { ReadAuthority, type LocalWatch as Watch } from "./read-authority.ts";
+import { LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
 import { syncTransport } from "./local-sync.ts";
@@ -330,7 +330,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const watches = new Map<string, Watch>();
   const serverAnswers = new Map<string, { read: Extract<Read<unknown>, { data: unknown }>; at: number; tables: Set<string> }>();
   const settled = new Map<string, (write: Write) => void>();
-  const answers = new ReadAuthority();
+  const answers = new LocalReads();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
   let caughtUp = false;
   let identityChecked = false;
@@ -428,7 +428,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (observed) return;
       observed = true;
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
-      if (!result.denied && ["apply", "admit", "settle", "clear_rows"].includes(String(request.op)) && answers.committed(request, result.ok, backend!)) invalidateAnswers(delivery);
+      if (!result.denied && ["apply", "admit", "settle", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery);
       if (!result.denied && request.op === "apply") {
         for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
       }
@@ -940,7 +940,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       while (true) {
         const revision = incarnation, authority = answers.revision;
         const result = await evaluateLocal(op, args, revision, authority, watch);
-        if ((revision === incarnation && authority === answers.revision) || closed) return { ...result, incarnation: revision, authority };
+        if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
       }
     })();
     active.add(work);
@@ -963,7 +963,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (last) for (const table of last.tables) tables.add(table);
       return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: !last };
     };
-    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean } = remembered, remember = true) => {
+    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean } = remembered, remember = true, retain = false) => {
       const fetch = async () => {
         // A held query must not turn missing local coverage into a server scan, even during reset.
         if (held) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: true };
@@ -991,7 +991,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           return { read, tables, nextExpiry };
         }
       };
-      return watch ? watch.fetch(fetch, () => notify(watch), remember) : fetch();
+      return watch ? watch.fetch(fetch, () => notify(watch), { publishResult: remember, retain }) : fetch();
     };
     // A rerun started by observation must not read the old partition while
     // its reset is still queued behind a send. Current server reads are safe.
@@ -1021,10 +1021,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     };
     const first = await local();
     if (first.terminal) return first.result;
-    if (!held && "loading" in first.result.read && link === "online") return server(() => first.result);
+    if (!held && "loading" in first.result.read && link === "online") return server(() => first.result, true, true);
     const { outcome } = first;
     // @ref LLP 3000.007#18.2 — a left group answers from delivered rows, online and offline, including watch reruns.
-    if (outcome.denied) return wantsServer(outcome) ? link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true } : first.result;
+    if (outcome.denied) return wantsServer(outcome) ? link === "online" ? server(remembered, true, true) : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true } : first.result;
     const pending = async () => (await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0));
     const components = Object.values(outcome.components ?? {});
     // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — one original server query, then a second local observation and one publication of independent fields.
@@ -1033,7 +1033,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       serverAnswers.delete(key);
       let failed = false;
       const composedSince = lastSyncAt;
-      const remote = await server(() => { failed = true; return first.result; }, false);
+      const remote = await server(() => { failed = true; return first.result; }, false, true);
       if (!("data" in remote.read)) return remote;
       const second = await local();
       if (revision !== incarnation) return { read: { loading: true }, tables, nextExpiry: null };
@@ -1049,7 +1049,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
       return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
     }
-    if (wantsServer(outcome) && link === "online" && !await pending()) return server();
+    if (wantsServer(outcome) && link === "online" && !await pending()) return server(remembered, true, true);
     return first.result;  }
 
   function notify(watch: Watch) {

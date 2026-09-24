@@ -720,7 +720,7 @@ query search():
   t.diagnostic("hidden words=32,33 hidden rows=8193 identical full-response pairs=3");
 });
 
-for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} uniform continuation and nonuniform cuts bridge one replacing fetch`, { timeout: 30000 }, async t => {
+for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} server-run observations retain nothing during a replacing fetch`, { timeout: 30000 }, async t => {
   const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only") + "\nmutation pulse(): server\n  return null\n");
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${n}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
   seeds.push(...Array.from({ length: 33 }, (_, n) => ({ table: "privateWords", row: { id: `p${n}`, owner: "dev:alice", body: `cof${n}`, at: n } })));
@@ -743,14 +743,7 @@ for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} uniform cont
   assert.equal(before[2].next, null, "the nonuniform discovery cut has no continuation");
   hold = true;
   assert.equal((await client.mutate(mutation("pulse"), {})).state, "sent");
-  await until(() => watches.every(({ watch }) => watch.getSnapshot().fresh === false));
-  watches.forEach(({ watch, cut, complete }, n) => {
-    const after = watch.getSnapshot();
-    assert.equal(after.cut, cut); assert.equal(after.complete, complete);
-    assert.equal(after.next, before[n].next);
-    assert.deepEqual(after.data, before[n].data); assert.deepEqual(after.meter, before[n].meter);
-    assert.ok(Number.isFinite(after.since));
-  });
+  await until(() => watches.every(({ watch }) => watch.getSnapshot().loading));
   hold = false; release();
   await until(() => watches.every(({ watch }) => watch.getSnapshot().fresh));
   offline = true;

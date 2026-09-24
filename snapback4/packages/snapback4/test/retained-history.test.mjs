@@ -432,7 +432,8 @@ query wordBoth():
     assert.deepEqual(result.data, { left: expected("left", 1), held: expected("held", 0) });
     assert.equal(result.fresh, false);
     assert.equal(result.complete, false);
-    assert.equal(result.since, before, "composed since must precede the server read, not follow the in-flight sync");
+    assert.equal(result.since, querySince, "composed since belongs to the replacement request after the commit fence");
+    assert.ok(querySince >= after, "the sync commit discards and refetches the earlier HTTP response");
     return;
   }
   if (scenario === "R2 mixed result") {

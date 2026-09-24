@@ -7,6 +7,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
   };
   const q = name => ({ kind: "query", name }), m = name => ({ kind: "mutation", name });
   const apps = [], watches = [], replies = [], requests = [];
+  const expiryArmed = new Set();
   let offline = false, holdWrite = false, holdInbox = false, releaseInbox, inboxGate, unmount;
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname.split("/").slice(-2).join("/");
@@ -17,7 +18,14 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
       else init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
     });
     if (holdInbox && path === "q/inbox") await inboxGate;
-    return fetch(input, init);
+    const response = await fetch(input, init);
+    // Schedule one rerun per observation without committing device rows. The
+    // data comes from the real server; only the retry deadline is controlled.
+    if (path === "q/inbox" && !expiryArmed.has(init.body)) {
+      expiryArmed.add(init.body);
+      return Response.json({ ...await response.json(), nextExpiry: Date.now() + 2000 });
+    }
+    return response;
   };
   try {
     const sessions = memorySessionStore();
@@ -47,24 +55,28 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     const inbox = reader.client.observe(q("inbox"), {}); watches.push(inbox);
     const snapshots = [];
     inbox.subscribe(() => snapshots.push(inbox.getSnapshot()));
-    const hooks = await mount(reader); unmount = hooks?.close;
+    let hooks = await mount(reader); unmount = hooks?.close;
     await until(() => inbox.getSnapshot().data?.[0]?.unread === 3, "published inbox");
     if (hooks) await until(() => hooks.read().query.data?.[0]?.unread === 3 && hooks.read().page.items[0]?.unread === 3, "both hooks published inbox");
     check(replies.some(row => row.name === "inbox" && row.reply.ok?.loading), "the cold device's unread domain crosses its horizon");
-    const before = requests.filter(path => path === "q/inbox").length;
     const publicationStart = snapshots.length;
     holdInbox = true; inboxGate = new Promise(resolve => { releaseInbox = resolve; });
-    holdWrite = true;
-    const pending = await reader.mutate(m("resetRead"), { chat: dm.result });
-    check(pending.state === "pending" && reader.client.link() === "online", "pending prediction while online");
-    const direct = reader.client.query(q("inbox"), {});
-    await until(() => requests.filter(path => path === "q/inbox").length > before && inbox.getSnapshot().fresh === false, "pending server replacement");
+    const before = requests.filter(path => path === "q/inbox").length;
+    await until(() => requests.filter(path => path === "q/inbox").length > before && inbox.getSnapshot().fresh === false, "local server fallback");
     const kept = inbox.getSnapshot();
     check(kept.data?.[0]?.unread === 3 && Number.isFinite(kept.since), "published inbox bridges the server fetch");
     if (hooks) await until(() => hooks.read().query.fresh === false && hooks.read().page.read.fresh === false, "both hooks bridge the fetch");
     if (hooks) check(hooks.read().query.data[0].unread === 3 && hooks.read().page.items[0].unread === 3, "neither hook blanks its first page during the fetch");
     check(snapshots.slice(publicationStart).every(read => "data" in read), "no blank while the replacing fetch is in flight");
     check(inbox.getSnapshot().since === kept.since, "since is stable during the fetch");
+    holdWrite = true;
+    const pending = await reader.mutate(m("resetRead"), { chat: dm.result });
+    check(pending.state === "pending" && reader.client.link() === "online", "pending prediction while online");
+    check(inbox.getSnapshot().loading, "every local prediction clears the courtesy answer immediately");
+    if (hooks) await until(() => hooks.read().query.loading && hooks.read().page.read.loading, "commit clears both hooks");
+    const pendingBefore = requests.filter(path => path === "q/inbox").length;
+    const direct = reader.client.query(q("inbox"), {});
+    await until(() => requests.filter(path => path === "q/inbox").length > pendingBefore, "fallback starts despite pending write");
     holdInbox = false; releaseInbox();
     check((await direct).data?.[0]?.unread === 3, "server answers despite pending prediction");
     await until(() => inbox.getSnapshot().fresh === true, "server answer replaces kept inbox");

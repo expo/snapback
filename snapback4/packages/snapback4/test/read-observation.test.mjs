@@ -1,16 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setTimeout as delay } from 'node:timers/promises';
 import { ReadObservation } from '../dist/read-observation.js';
-import { createClient } from '../dist/client.js';
 const ready = data => ({ data, complete: true, cut: null, fresh: true });
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
-const until = async read => { for (let n = 0; n < 500; n++) { if (read()) return; await delay(10); } assert.fail('observation did not settle'); };
 
 for (const outcome of ['answer', 'loading', 'denied', 'failure']) test(`one replacing fetch ends retention: ${outcome}`, async () => {
   const watch = new ReadObservation(), gate = deferred();
   watch.publish(ready(['private']));
-  const work = watch.fetch(() => gate.promise, () => {});
+  const work = watch.fetch(() => gate.promise, () => {}, { retain: true });
   assert.deepEqual(watch.snapshot.data, ['private']);
   assert.equal(watch.snapshot.fresh, false);
   assert.ok(Number.isFinite(watch.snapshot.since));
@@ -34,7 +31,7 @@ for (const outcome of ['answer', 'loading', 'denied', 'failure']) test(`one repl
 test('reset during a fetch clears its answer immediately and fences the returned publication', async () => {
   const watch = new ReadObservation(), gate = deferred();
   watch.publish(ready(['private']));
-  const work = watch.fetch(() => gate.promise, () => {});
+  const work = watch.fetch(() => gate.promise, () => {}, { retain: true });
   watch.reset({ loading: true });
   assert.deepEqual(watch.snapshot, { loading: true });
   gate.resolve({ read: ready(['private']) });
@@ -42,33 +39,15 @@ test('reset during a fetch clears its answer immediately and fences the returned
   assert.deepEqual(watch.snapshot, { loading: true });
 });
 
-test('online generation change clears an in-flight kept answer and fences its old response', async t => {
-  let queries = 0, changes = 0;
-  const old = deferred(), change = deferred();
-  const client = createClient({ url: 'http://generation.test', persona: 'alice', fetch: async (url, init) => {
-    const path = new URL(url).pathname;
-    if (path === '/changes') {
-      if (++changes === 1) return Response.json({ seq: 1, generation: 1, tables: [] });
-      if (changes === 2) return Response.json(await change.promise);
-      return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
-    }
-    if (path.startsWith('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 1 });
-    if (++queries === 1) return Response.json({ data: ['private'], complete: true, seq: 1, tables: ['secrets'] });
-    if (queries === 2) return Response.json(await old.promise);
-    return Response.json({ loading: true });
-  } });
-  t.after(async () => { change.resolve({ seq: 2, generation: 2, tables: [] }); old.resolve({ loading: true }); await client.close(); });
-  const watch = client.observe({ kind: 'query', name: 'page' }, {});
-  await until(() => watch.getSnapshot().data && changes >= 2);
-  await client.mutate({ kind: 'mutation', name: 'rerun' }, {});
-  await until(() => queries === 2 && watch.getSnapshot().fresh === false);
-  change.resolve({ seq: 2, generation: 2, tables: [] });
-  // Entering the next change request proves the generation was applied. Check
-  // now: waiting for loading could accidentally pass on the link watchdog.
-  await until(() => changes >= 3);
-  assert.deepEqual(watch.getSnapshot(), { loading: true });
-  old.resolve({ data: ['private'], complete: true, seq: 1 });
-  await until(() => queries >= 3);
-  assert.deepEqual(watch.getSnapshot(), { loading: true });
-  watch.close();
+test('composition retires the previous answer at HTTP settlement before device composition finishes', async () => {
+  const watch = new ReadObservation(), gate = deferred(), publications = [];
+  watch.publish(ready(['private']));
+  const work = watch.fetch(() => gate.promise, () => publications.push(watch.snapshot), { retain: true, publishResult: false });
+  assert.deepEqual(watch.snapshot.data, ['private']);
+  gate.resolve({ read: ready(['remote']) });
+  const result = await work;
+  assert.deepEqual(result.read.data, ['remote'], 'caller can compose the new HTTP answer');
+  assert.deepEqual(watch.snapshot, { loading: true }, 'old answer is gone before further device work');
+  assert.deepEqual(publications.at(-1), { loading: true });
+  assert.ok(publications.every(read => !read.data?.includes('remote')), 'raw uncomposed HTTP answer is never published');
 });

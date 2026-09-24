@@ -260,7 +260,7 @@ test("local sync shrinks response-bound pages at one cursor and exposes an indiv
   }
 });
 
-test("local observations skip idle sync and rerun only after a changed page is applied", { timeout: 5000 }, async (t) => {
+test("local observations skip idle polls and rerun after a committed page", { timeout: 5000 }, async (t) => {
   const changes = [], log = [];
   let syncs = 0;
   const device = emptyDevice({ call: async (request) => {
@@ -285,8 +285,9 @@ test("local observations skip idle sync and rerun only after a changed page is a
   await until(() => changes.length === 2, "idle poll did not continue");
   assert.deepEqual(log, ["query"], "an idle poll neither applies an empty sync page nor reruns the query");
   changes[1].answer = Response.json({ seq: 1, tables: ["rows"], generation: 1 }); changes[1].resolve();
-  await until(() => log.length === 3, "changed poll did not apply and rerun");
-  assert.deepEqual(log, ["query", "apply", "query"], "the changed page applies before its observation reruns");
+  await until(() => log.length >= 3, "changed poll did not apply and rerun");
+  assert.deepEqual(log.slice(0, 2), ["query", "apply"], "the commit precedes its reruns");
+  assert.ok(log.slice(2).every(entry => entry === "query"), "committed invalidation and sync completion may both request a rerun");
   unsubscribe(); observed.close(); await client.close();
 });
 
@@ -548,7 +549,7 @@ test("a failed native replacement falls back without a stale local answer and is
   await client.close();
 });
 
-test("local prediction invalidation reruns only observations of written tables", { timeout: 5000 }, async (t) => {
+test("every local prediction invalidates observations, including unrelated tables", { timeout: 5000 }, async (t) => {
   const backend = {
     generation: 1,
     schema: { tables: {
@@ -582,8 +583,7 @@ test("local prediction invalidation reruns only observations of written tables",
   const ua = a.subscribe(() => {}), ub = b.subscribe(() => {});
   await until(() => runs.readA === 1 && runs.readB === 1, "initial observations did not run");
   const write = client.mutate(mutation("changeA"), {});
-  await until(() => runs.readA === 2, "written table did not invalidate its observation");
-  assert.equal(runs.readB, 1, "unrelated observation reran for a prediction on another table");
+  await until(() => runs.readA >= 2 && runs.readB >= 2, "a local commit must invalidate every observation");
   ua(); ub(); a.close(); b.close(); await client.close();
   assert.equal((await write).state, "pending");
 });

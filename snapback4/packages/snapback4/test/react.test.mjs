@@ -517,7 +517,7 @@ const cases = {
     } finally { await unmount(); }
   },
 
-  async "real observations bridge page fetches and clear on unavailable settlement, refusal and close"() {
+  async "online observations clear pages during fetches and on unavailable settlement, refusal and close"() {
     let phase = "ready", seq = 0, latest;
     const held = [];
     const client = createClient({ url: "http://observation.test", persona: "alice", fetch: async (input, init) => {
@@ -528,9 +528,9 @@ const cases = {
       });
       if (path === "/m/write") return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: ++seq, result: null });
       if (path === "/q/read") {
-        if (phase === "held") { await new Promise(resolve => held.push(resolve)); return Response.json({ loading: true }); }
-        if (phase === "loading") return Response.json({ loading: true });
-        if (phase === "missing") return Response.json({});
+        if (phase === "held") { await new Promise(resolve => held.push(resolve)); return Response.json({ loading: true, seq }); }
+        if (phase === "loading") return Response.json({ loading: true, seq });
+        if (phase === "missing") return Response.json({ seq });
         if (phase === "denied") return Response.json({ denied: { code: "E_RULE", family: "rule", message: "access withdrawn" } });
         const { c } = JSON.parse(init.body).args;
         return Response.json({ data: c ? ["b"] : ["a"], next: c ? null : "a", complete: true, seq });
@@ -557,13 +557,8 @@ const cases = {
       await settle(() => latest.page.items.length === 2);
       equal(latest.page.items, ["a", "b"], "two published pages");
       await rerun("held");
-      equal(latest.page.items, ["a", "b"], "both pages bridge their replacing fetches");
-      equal(latest.query.data, ["a"], "useQuery bridges its fetch too");
-      check(!latest.query.fresh && !latest.page.read.fresh, "kept answers are stale");
-      const since = [latest.query.since, latest.page.read.since];
-      check(since.every(Number.isFinite), "kept answers have their publication time");
-      await settle(() => true);
-      equal([latest.query.since, latest.page.read.since], since, "timestamps stay fixed during the fetch");
+      equal(latest.page.items, [], "online pages retain nothing during fetches");
+      check(latest.query.loading && latest.page.read.loading, "both online hooks are loading");
       phase = "loading";
       await act(async () => held.splice(0).forEach(resolve => resolve()));
       await settle(() => latest.query.loading && latest.page.read.loading);

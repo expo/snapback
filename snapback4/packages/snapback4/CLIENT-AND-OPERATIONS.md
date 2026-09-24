@@ -400,8 +400,8 @@ await client.close();
 `Read.meter` contains the engine's counters for that server answer, including
 examined rows, index entries, rule probes (`probes`), steps, charged heap work
 (`heapBytes`), output bytes and rows written. These are work counts, not latency
-or process memory. Successful `query` and `observe` answers carry them; an
-observation keeps its previous answer's counters during its replacing fetch. Local device
+or process memory. Successful `query` and `observe` answers carry them; a
+local fallback keeps its previous answer's counters only until the fetch settles. Local device
 reads have no meter. Loopback `dev` includes the field by default; `meter: true`
 and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms. `serve` ignores the header and never
 returns meters. They can reflect hidden work, so they are development-only.
@@ -455,10 +455,10 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
-An observation keeps its previous answer with `fresh: false` and its `since`
-only while a replacing fetch is in flight, never after it settles. Unavailable,
-failed or impossible fetches become `loading`; explained refusals become
-`denied`, and authority changes clear kept answers immediately.
+Online observations retain nothing and discard responses older than observed commits.
+A local observation may keep its previous answer with `fresh: false` and `since`
+only during an unavailable device read's server fallback, ending at fetch
+settlement or any local commit, reset, adoption, generation, account change or close.
 An unavailable device read asks the server while online even with pending writes.
 
 `complete` says this is everything the query can answer: false when the

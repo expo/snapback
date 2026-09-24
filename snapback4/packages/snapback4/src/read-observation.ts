@@ -1,7 +1,7 @@
 import type { Read, Refusal } from "./contract.ts";
 
-/** A previous answer bridges one replacing fetch, never an unavailable result.
- * Authority resets also retire the in-flight publication's revision. */
+/** Retention is opt-in for a local device fallback. Resets retire in-flight
+ * publications; online responses must also pass their commit-sequence fence. */
 export class ReadObservation<T> {
   snapshot: Read<T> = { loading: true };
   kept = false;
@@ -13,21 +13,28 @@ export class ReadObservation<T> {
     return this.snapshot;
   }
 
-  async fetch<R extends { read: Read<T>; transportOffline?: boolean }>(run: () => Promise<R>, notify: () => void, publishResult = true): Promise<R> {
-    const revision = this.revision;
-    if ("data" in this.snapshot) {
+  async fetch<R extends { read: Read<T>; transportOffline?: boolean }>(run: () => Promise<R>, notify: () => void,
+    { retain = false, publishResult = true, accept = (_: R) => true }: { retain?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R> {
+    if (retain && "data" in this.snapshot) {
       this.snapshot = { ...this.snapshot, fresh: false, ...(this.since === undefined ? {} : { since: this.since }) };
       this.kept = true;
-      notify();
+    } else {
+      this.publish({ loading: true });
     }
+    const revision = this.revision;
+    notify();
     try {
-      const result = await run();
-      if (revision !== this.revision) return { ...result, read: this.snapshot };
-      if (publishResult) {
-        this.publish(result.transportOffline ? { loading: true } : result.read);
-        notify();
+      for (;;) {
+        const result = await run();
+        if (revision !== this.revision) return { ...result, read: this.snapshot };
+        // Check at publication, after the caller's asynchronous continuation.
+        if (!accept(result)) { await new Promise(resolve => setTimeout(resolve, 0)); continue; }
+        if (publishResult) {
+          this.publish(result.transportOffline ? { loading: true } : result.read);
+          notify();
+        }
+        return result;
       }
-      return result;
     } finally {
       // Composition may still need a device read, or the fetch may throw.
       // Neither permits the old answer to outlive this fetch.

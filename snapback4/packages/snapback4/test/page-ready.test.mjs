@@ -187,7 +187,7 @@ test("unavailable server list responses end retention in both clients", { timeou
   await setCost(false);
   await until(() => clients.every(client => client.link() === "offline"), "transport loss");
   for (const watch of watches) assert.deepEqual(watch.getSnapshot(), { loading: true });
-  assert.equal((await local.query(query("costly"), {})).fresh, false);
+  assert.equal((await local.query(query("costly"), {})).denied.code, "E_OFFLINE", "local commits also retire remembered answers");
   for (const watch of watches) watch.close();
 });
 
