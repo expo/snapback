@@ -127,7 +127,7 @@ fn cursor_tokens_keep_the_old_bytes_in_both_directions() {
     use snapback4_core::{cursor::*, ir::Order, schema::ColumnType};
     let schema = Schema::default();
     let position = CursorPosition { table: "t".into(), index: "byId".into(), order: Order::Asc, suffix: vec![CursorColumn { name:"id".into(), kind:ColumnType::Id }], values:vec![Value::Id("id".into())], inclusive:false, scope:None };
-    for scope in [None, Some(CursorScope { generation: 3, prefix: vec![Value::Bytes(vec![0,255])] })] {
+    for scope in [None, Some(CursorScope { variant: None, generation: 3, prefix: vec![Value::Bytes(vec![0,255])] })] {
         let p = CursorPosition { scope, ..position.clone() };
         let bytes = match &p.scope {
             None => serde_json::to_vec(&(1u8, &p.table, &p.index, p.order, &p.suffix, &p.values)).unwrap(),

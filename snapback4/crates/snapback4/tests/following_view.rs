@@ -11,7 +11,7 @@ fn full_target_check_cost_reports_one_inbox_and_meter_bounded_residuals() {
     assert!(text.status.success(),"{}",String::from_utf8_lossy(&text.stderr));
     let text=String::from_utf8(text.stdout).unwrap();
     assert!(text.contains("query home:"),"{text}");
-    assert!(text.contains("followingFeed.byReaderTime last 20"),"{text}");
+    assert!(text.contains("followingFeed.byReaderPage last 20"),"{text}");
     let json=run(&["check","--cost","--json"]);assert!(json.status.success());
     let json:serde_json::Value=serde_json::from_slice(&json.stdout).unwrap();
     let home=json["scale"].as_array().unwrap().iter().find(|c|c["operation"]=="home").unwrap();

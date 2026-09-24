@@ -87,7 +87,7 @@ impl Binder<'_> {
             self.push_value_lane(&mut lanes, lane, MergeLane { guard, distinct, branch: lane.branch.clone(), setup: setup.code, scan, source, binding, project: Some(project) }, position)?;
         }
         if result.is_none() && !lanes.is_empty() {
-            return Ok((Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site, lanes }), Ty::Page(merge.table.clone(), merge.take)));
+            return Ok((Expr::Merge(Merge { variant: self.variant(), position: None, view: None, order_keys: Vec::new(), site, lanes }), Ty::Page(merge.table.clone(), merge.take)));
         }
         let fields = match self.catalog.view_types.get(&merge.table) {
             Some(Ty::RowShape(fields)) => fields.clone(), _ => result.unwrap_or_default(),
@@ -104,7 +104,7 @@ impl Binder<'_> {
         suffix.push(snapback4_core::cursor::CursorColumn { name: "$branch".into(), kind: snapback4_core::schema::ColumnType::Text { max: 1024 } });
         let position = ir::ViewPosition { take: merge.take, order: if merge.order == ast::Order::Asc { Order::Asc } else { Order::Desc }, after: cursor.map(|(value, _)| Box::new(value)), suffix };
         self.view_types.insert(merge.table.clone(), Ty::RowShape(fields.clone()));
-        Ok((Expr::Merge(Merge { position: Some(position), view: Some(merge.table.clone()), order_keys: merge.view_order.clone(), site, lanes }), Ty::Collection(Box::new(Ty::RowShape(fields)), merge.take)))
+        Ok((Expr::Merge(Merge { variant: self.variant(), position: Some(position), view: Some(merge.table.clone()), order_keys: merge.view_order.clone(), site, lanes }), Ty::Collection(Box::new(Ty::RowShape(fields)), merge.take)))
     }
 
     // @ref LLP 3000.013#2.1 — nullable membership is an ordinary filtered lane,

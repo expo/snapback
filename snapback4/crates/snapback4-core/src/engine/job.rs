@@ -266,6 +266,24 @@ impl Engine {
             }
         }
         let sweep = head.run.sweep as usize;
+        // @ref LLP 3000.013#5.2 — only recorded table sweeps commit resumable work.
+        // Non-page loops may compute a prefix (for example a bounded sum).
+        // They must be write/emit-free, including their domain expressions,
+        // and precede a sweep whose metered setup will actually execute them.
+        // Unsupported work anywhere parks before the first chunk commits.
+        let unsupported = program.body.iter().enumerate().find_map(|(position, statement)| match statement {
+            Stmt::For { binding, domain, .. } if !matches!(domain, LoopDomain::Page(_))
+                && (position >= setup_start || !super::read_only::statements::<false>(std::slice::from_ref(statement))) => Some((position + 1, binding)),
+            _ => None,
+        });
+        if sweeps.is_empty() || unsupported.is_some() {
+            let reason = unsupported.map_or_else(|| "has no recorded table sweep".to_owned(),
+                |(position, binding)| format!("has an unsupported top-level loop at statement {position} (`for {binding}`)"));
+            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id,
+                format!("E_JOB_SWEEP: job {} {reason}; bind its work as `for row in table:` and put optional filters inside the loop", program.name), now])?;
+            tx.commit()?;
+            return self.job(&head.run.id);
+        }
         if sweep >= sweeps.len() {
             tx.conn().execute("UPDATE _jobs SET state = 'done', sweep = ?2, cursor = NULL, upper = NULL, updated_at = ?3 WHERE id = ?1", params![head.run.id, sweeps.len() as i64, now])?;
             tx.commit()?;

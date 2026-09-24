@@ -12,6 +12,11 @@ fn write(e: &mut snapback4_core::Engine, op: &str, who: &str, args: &[(&str, Val
 fn id(s:&str)->Value {Value::Id(s.into())}
 fn view<H: Host>(mut host: H) {
     let (mut server,backend)=common::compile(SOURCE);
+    let indexes = &backend.schema.tables["feedFeed"].indexes;
+    assert!(indexes["byReaderTime"].unique);
+    assert_eq!(indexes["byReaderTime"].columns(), ["readerId", "at", "eventId", "epoch"]);
+    assert_eq!(indexes["byReaderPage"].columns(), ["readerId", "at", "eventId", "epoch", "id"]);
+    assert!(backend.schema.operations["home"].sites.iter().any(|site| site.table == "feedFeed" && site.index == "byReaderPage"));
     for n in 0..70 {write(&mut server,"post","alice",&[("postId",id(&format!("p{n:03}"))),("parentId",Value::Null)],n+1);}
     write(&mut server,"follow","bob",&[("actor",id("alice"))],100);
     let sites=&backend.schema.operations["home"].sites;

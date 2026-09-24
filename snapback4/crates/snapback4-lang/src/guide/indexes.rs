@@ -47,6 +47,8 @@ may omit the final `id` tiebreaker.
 
 Equality pins lead the index, then any time bucket, then the requested order.
 `id` breaks ties in the same direction. Identical index definitions are reused.
+A nullable unique key permits tied null rows, so its columns alone cannot
+carry a page cursor: the planner uses a separate ordering with `id`.
 Generated names are stable across declaration order. Adding a query can build
 an index on adoption, but cannot change another positional key's meaning.
 
@@ -98,8 +100,10 @@ Both server stores and devices enforce new keys; search tokens have their own ca
 
 E_CURSOR_INDEX concerns an older explicit index that lacks a total order.
 For new reads, use `tasks where .ownerId = viewer first 20 by .at after c`:
-the planner adds the id tiebreak. To retain an explicit index, append `id`
+the planner adds the id tiebreak. For a non-unique explicit index, append `id`
 to its definition or apply the diagnostic's mechanical `check --fix`.
+Keep nullable unique constraints unchanged; use the column-ordered read
+above to obtain a separate page index without weakening uniqueness.
 
 E_QUARRY_AMBIGUOUS means an older positional read matches several keys.
 Name the key columns for a point, or write `tasks where .ownerId = viewer

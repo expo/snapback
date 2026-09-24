@@ -4,6 +4,28 @@
 
 use super::*;
 
+fn optional_filter_equalities(value: &Expr) -> Option<Vec<crate::diag::Site>> {
+    let Expr::Binary { op, left, right, .. } = value else { return None; };
+    if op != "or" { return None; }
+    for (guard, predicate) in [(left, right), (right, left)] {
+        let Expr::Binary { op, left, right, site } = guard.as_ref() else { continue; };
+        if op != "=" { continue; }
+        let name = match (left.as_ref(), right.as_ref()) {
+            (Expr::Name { name, .. }, Expr::Literal { value: Literal::Null, .. }) |
+            (Expr::Literal { value: Literal::Null, .. }, Expr::Name { name, .. }) => name,
+            _ => continue,
+        };
+        let Expr::Binary { op, left, right, site: predicate_site } = predicate.as_ref() else { continue; };
+        if !matches!(op.as_str(), "=" | "in" | "<" | "<=" | ">" | ">=") { continue; }
+        let column = |e: &Expr| matches!(e, Expr::Member { base, .. } if matches!(base.as_ref(), Expr::Focal { .. }));
+        if (column(left) && matches!(right.as_ref(), Expr::Name { name: value, .. } if value == name))
+            || (column(right) && matches!(left.as_ref(), Expr::Name { name: value, .. } if value == name)) {
+            return Some(vec![site.clone(), predicate_site.clone()]);
+        }
+    }
+    None
+}
+
 impl Parser {
     pub(super) fn expression(&mut self, minimum: u8, stops: &[&str]) -> Fallible<Expr> {
         let start = self.position;
@@ -27,6 +49,11 @@ impl Parser {
             }
             let right = self.expression(precedence + u8::from(token.value != "??"), stops)?;
             left = Expr::Binary { op: token.value, left: Box::new(left), right: Box::new(right), site: token.site };
+            // Optional-filter guards admit the SQL/host-language equality
+            // spellings locally; unrelated guessed == retains its repair.
+            if let Some(sites) = optional_filter_equalities(&left) {
+                self.diagnostics.retain(|d| !(d.message == "equality is = in Quarry" && sites.contains(&d.site)));
+            }
         }
         if minimum == 0 && self.at("?") {
             let site = self.take("?")?.site;

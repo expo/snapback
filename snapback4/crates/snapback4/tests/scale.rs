@@ -31,11 +31,18 @@ fn language_operation_classes() {
     assert_eq!(scans[0].index, "byId");
     assert!(scans[0].filter.is_none());
     assert_eq!(analyze(&b.schema, ids).bounds.rows_examined, 21);
+    // Calendar calls and arithmetic without an overflow proof stay residual:
+    // the scan's work can grow with the room even though its page is bounded.
+    for name in ["roomHour", "roomWindow"] {
+        let program = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
+        let scan = snapback4_core::ir::scans(program)[0];
+        assert!(scan.range.is_none() && scan.filter.is_some());
+    }
     // Expiring messages require live filtering and maintained recounts;
     // search expands words; meter domains discover uncapped membership lanes;
     // Following/Trending have residuals. Native bodies have no static proof.
-    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "roomHour", "roomWindow", "sendBrief", "split", "intentCount", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
-        &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "rescoreNative", "search", "thread", "intentDaily", "intentSearch"]);
+    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "sendBrief", "split", "intentBoard", "intentCount", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
+        &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "rescoreNative", "roomHour", "roomWindow", "search", "thread", "intentDaily", "intentSearch"]);
 }
 
 #[test]

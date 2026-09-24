@@ -188,6 +188,14 @@ impl Binder<'_> {
                 Ok(())
             }
             S::For { name, domain, body, site } => {
+                if self.caller_kind == ProgramKind::Job && self.loops == 0
+                    && matches!(domain, A::If { condition, .. } if super::super::intent_variants::condition(condition).is_some()) {
+                    let mut leaf = domain;
+                    while let A::If { then, .. } = leaf { leaf = then; }
+                    let table = match leaf { A::Read(read) => read.table.as_str(), A::Merge(merge) => merge.table.as_str(), _ => "table" };
+                    return Err(placement(site, "argument-presence alternatives cannot be a job sweep domain",
+                        format!("for {name} in {table}:  -- put the optional filter and work inside this stable sweep")).guide("jobs"));
+                }
                 let (loop_domain, item_ty) = self.loop_domain(domain, out)?;
                 if self.binding(name).is_some_and(|binding| binding.parameter) {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), "give the loop item a fresh name"));
@@ -334,6 +342,9 @@ impl Binder<'_> {
     /// After `require x != null` or inside `if x != null:`, `x` is present.
     pub(super) fn narrow(&mut self, condition: &A, then_branch: bool) {
         match condition {
+            A::Call { name, args, site } if name == super::super::intent_variants::PRESENT => self.narrow(&A::Binary {
+                op: "!=".into(), left: Box::new(args[0].clone()), right: Box::new(A::Literal { value: Literal::Null, site: site.clone() }), site: site.clone(),
+            }, then_branch),
             A::Unary { op, value, .. } if op == "not" => self.narrow(value, !then_branch),
             A::Binary { op, left, right, .. } if (op == "and" && then_branch) || (op == "or" && !then_branch) => {
                 self.narrow(left, then_branch);

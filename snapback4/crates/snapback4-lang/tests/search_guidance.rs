@@ -4,10 +4,11 @@ const SCHEMA: &str = include_str!("../../snapback4-sim/tests/search_merge/schema
 #[test]
 fn w10c_empty_search_card_paves_the_directory_branch() {
     let card = snapback4_lang::guide::card("search").unwrap();
-    assert!(card.contains("`matching ''` matches nothing, including when the needle contains only whitespace or punctuation."));
-    assert!(card.contains("Use `allPeople` while the search box is empty and `people` once the user types."));
-    assert!(card.contains("Reset the cursor when switching queries or changing the search text."));
-    assert!(card.contains("return profiles after c first 20 by .id"));
+    assert!(card.contains("An empty needle, including whitespace or punctuation that folds to no terms,"));
+    assert!(card.contains("reset the cursor when changing the search text."));
+    assert!(card.contains("return profiles matching q after c first 20 by .handle"));
+    assert!(card.contains("if q = '': return []"));
+    assert!(!card.contains("query allPeople"));
 }
 
 #[test]

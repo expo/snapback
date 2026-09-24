@@ -403,6 +403,14 @@ query intentSubject(subjectId: subjects):
   return subjects[subjectId]
 query intentDurations():
   return [500ms, 30s, 15m, 24h, 7d, bucket(now, 2m)]
+table intentIssues:
+  owner: principal
+  status: enum('todo', 'doing', 'done')
+  assignee: principal ?
+  at: time
+  read <- .owner = viewer
+query intentBoard(status: enum('todo', 'doing', 'done') ?, assignee: principal ?, c: cursor ?):
+  return intentIssues where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .at after c
 ```
 
 One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
@@ -436,6 +444,8 @@ make that scope explicit, or use `{ ...card }` explicitly for the page.
 Reads: `t[id]` reads one row; `t[a, b]` needs one declared unique pair.
 Named keys select columns explicitly. `t where predicate first 20 by .at
 after c` pages matching rows. `last` reverses the order; id breaks ties.
+Optional filters use `(status = null or .status = status)` to select a plan
+for absent or present inputs; an empty `matching q` needle browses in order.
 `count(t where predicate)` and `sum(t where predicate, .amount)` stream a
 domain. A cut total is unavailable, never a partial number. `exists` stops
 at a visible match; an unknown domain cannot establish absence.

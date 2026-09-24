@@ -176,7 +176,7 @@ fn clique_acceptance_subset_compiles_without_authored_indexes() {
 }
 
 #[test]
-fn membership_sources_authorize_before_enumerating_and_cuts_have_no_cursor() {
+fn nonuniform_membership_discovery_falls_back_to_authorized_probes() {
     let source = "table members:\n  room: id\n  principal: principal\n  visible: bool\n  unique room, principal\n  cap 2 by principal\n  read <- .visible = true\ntable messages:\n  room: id\n  at: time\n  public 'messages'\nquery page(c: cursor ?):\n  return messages where exists members[.room, viewer] first 1 by .at after c\n";
     let bound = compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -185,11 +185,17 @@ fn membership_sources_authorize_before_enumerating_and_cuts_have_no_cursor() {
     engine.seed([member("visible", true), member("hidden", false), ("messages".into(), row("allowed", 2, "room", "visible")), ("messages".into(), row("denied", 1, "room", "hidden"))]).unwrap();
     let page = engine.query("page", Context::new("alice", args(None))).unwrap();
     assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("allowed".into()));
-    assert!(!page.complete);
-    assert!(page.next.is_none());
+    assert!(page.complete, "per-row probes exhaust the ordinary page: {page:?}");
+    let end = engine.query("page", Context::new("alice", args(page.next))).unwrap();
+    assert!(end.complete && end.data.as_array().unwrap().is_empty() && end.next.is_none());
     engine.set_ceilings(snapback4_core::Ceilings { examined: 1, ..Default::default() });
     let cut = engine.query("page", Context::new("alice", args(None))).unwrap();
-    assert!(!cut.complete && cut.next.is_none(), "{cut:?}");
+    assert!(!cut.complete && cut.data.as_array().unwrap().is_empty(), "{cut:?}");
+    assert!(cut.next.is_some(), "ordinary scans can resume after a rejected candidate");
+    engine.set_ceilings(Default::default());
+    let resumed = engine.query("page", Context::new("alice", args(cut.next))).unwrap();
+    assert!(resumed.complete);
+    assert_eq!(resumed.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("allowed".into()));
 }
 
 #[test]
@@ -218,11 +224,11 @@ fn union_cursor_uses_projected_keys_and_handles_inserts_and_order_pins() {
 #[test]
 fn domains_views_and_aggregates_keep_scan_admission() {
     let base = "table posts:\n  owner: principal\n  public 'posts'\nview activity:\n  posts { actor: .owner }\n";
-    for body in ["return count(posts where .owner in [viewer])", "return count(activity)", "return count(activity where .actor = 'alice')"] {
+    for body in ["return count(activity)", "return count(activity where .actor = 'alice')"] {
         let b = compile(&[("schema.q".into(), format!("{base}query q():\n  {body}\n"))]);
         assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_BOUND"), "{body}: {:?}", b.diagnostics);
     }
-    for body in ["return exists activity where .actor = 'alice'", "for row in activity:\n    return row.id\n  return null", "for row in activity where .actor = 'alice':\n    return row.id\n  return null"] {
+    for body in ["return count(posts where .owner in [viewer])", "return exists activity where .actor = 'alice'", "for row in activity:\n    return row.id\n  return null", "for row in activity where .actor = 'alice':\n    return row.id\n  return null"] {
         let b = compile(&[("schema.q".into(), format!("{base}query q():\n  {body}\n"))]);
         assert!(b.diagnostics.is_empty(), "{body}: {:?}", b.diagnostics);
     }

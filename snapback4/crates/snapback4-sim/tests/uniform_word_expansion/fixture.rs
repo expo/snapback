@@ -152,13 +152,13 @@ pub fn round3_seed(population: usize) -> Vec<(String, Value)> {
 
 pub fn nested_cursor(programs: &mut [snapback4_core::ir::Program], bytes: usize) {
     use snapback4_core::ir::{Expr, Stmt};
-    let search = programs.iter_mut().find(|p| p.name == "search").unwrap();
-    let Stmt::Return(Expr::Scan(scan)) = &mut search.body[0] else { panic!("search scan") };
+    alter_search_scan(programs, |scan| {
     // The dead branch is never evaluated. Word lanes borrow this compiled IR;
     // changing its payload cannot change their allocation charge.
     scan.after = Some(Box::new(Expr::Block { body: vec![Stmt::If { condition: Expr::Literal(Value::Bool(false)),
         then_body: vec![Stmt::Const { name: "unused".into(), value: Expr::Literal(Value::String("x".repeat(bytes))) }], else_body: vec![] }],
         value: Box::new(Expr::Variable("c".into())) }));
+    });
 }
 
 // Sub-pair (ii): no extra expired word takes N=46 seeks; an extra word needs
@@ -182,12 +182,36 @@ pub fn assert_expired_boundary(a: &QueryOutcome, b: &QueryOutcome) {
 
 pub fn nested_predicate(programs: &mut [snapback4_core::ir::Program]) {
     use snapback4_core::ir::{Expr, Stmt};
-    let search = programs.iter_mut().find(|p| p.name == "search").unwrap();
-    let Stmt::Return(Expr::Scan(scan)) = &mut search.body[0] else { panic!("search scan") };
+    alter_search_scan(programs, |scan| {
     let mut predicate = Expr::Literal(Value::Bool(true));
     for _ in 0..8 {
         predicate = Expr::Block { body: vec![Stmt::If { condition: Expr::Literal(Value::Bool(false)),
             then_body: vec![Stmt::Const { name: "unused".into(), value: Expr::Literal(Value::String("x".repeat(4096))) }], else_body: vec![] }], value: Box::new(predicate) };
     }
     scan.filter = Some(Box::new(predicate));
+    });
+}
+
+// Locate the words alternative without assuming a top-level Return(Scan).
+fn alter_search_scan(programs: &mut [snapback4_core::ir::Program], mut change: impl FnMut(&mut snapback4_core::ir::Scan)) {
+    fn visit(value: &mut serde_json::Value, change: &mut impl FnMut(&mut snapback4_core::ir::Scan), count: &mut usize) {
+        match value {
+            serde_json::Value::Object(fields) => {
+                if let Some(value) = fields.get_mut("Scan") {
+                    let mut scan: snapback4_core::ir::Scan = serde_json::from_value(value.clone()).unwrap();
+                    if scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))) {
+                        change(&mut scan); *count += 1; *value = serde_json::to_value(scan).unwrap(); return;
+                    }
+                }
+                for child in fields.values_mut() { visit(child, change, count); }
+            }
+            serde_json::Value::Array(items) => for child in items { visit(child, change, count); },
+            _ => {},
+        }
+    }
+    let program = programs.iter_mut().find(|p| p.name == "search").unwrap();
+    let mut value = serde_json::to_value(&*program).unwrap();
+    let mut count = 0; visit(&mut value, &mut change, &mut count);
+    assert_eq!(count, 1, "exactly one words alternative is modified");
+    *program = serde_json::from_value(value).unwrap();
 }

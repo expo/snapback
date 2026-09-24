@@ -28,6 +28,15 @@ pub(crate) struct Certificate {
     pub growth_sites: Vec<Growth>,
     pub per_write: Vec<String>,
     pub whole_job: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<Variant>,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct Variant {
+    pub when: String,
+    pub class: Class,
+    pub indexes: BTreeSet<String>,
 }
 
 /// Bounds are conservative allowances, not predictions or a promise that a
@@ -44,6 +53,8 @@ pub(crate) struct Bounds {
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct Growth {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub when: Option<String>,
     pub site: String,
     pub reason: String,
     pub rewrite: String,
@@ -65,9 +76,9 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             operation: program.name.clone(), class: Class::Constant,
             per_chunk: program.kind == ProgramKind::Job,
             bounds: Bounds { lanes: Some(0), meters: ceilings, ..Bounds::default() },
-            growth_sites: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(),
+            growth_sites: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
         },
-        data: BTreeMap::new(), in_filter: false,
+        labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
     };
     for (name, kind) in &program.args {
         a.data.insert(name.clone(), false);
@@ -115,7 +126,10 @@ struct Analysis<'a> {
     // A local's value may come from data even if obtaining it costs one read.
     // That distinction matters when it subsequently supplies a range bound.
     data: BTreeMap<String, bool>,
+    labels: BTreeMap<String, String>,
     in_filter: bool,
+    conditions: Vec<(String, bool)>,
+    has_variants: bool,
 }
 
 impl Analysis<'_> {
@@ -124,8 +138,20 @@ impl Analysis<'_> {
     }
 
     fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
-        let growth = Growth { site: site.into(), reason, rewrite: rewrite.into() };
+        self.variant(Class::Grows, None);
+        let growth = Growth { when: display::conditions(&self.conditions), site: site.into(), reason, rewrite: rewrite.into() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
+    }
+
+    fn variant(&mut self, class: Class, index: Option<String>) {
+        let Some(when) = display::conditions(&self.conditions) else { return; };
+        let at = self.result.variants.iter().position(|v| v.when == when).unwrap_or_else(|| {
+            self.result.variants.push(Variant { when, class: Class::Constant, indexes: BTreeSet::new() });
+            self.result.variants.len() - 1
+        });
+        let variant = &mut self.result.variants[at];
+        if class == Class::Grows { variant.class = class; }
+        if let Some(index) = index { variant.indexes.insert(index); }
     }
 
     fn rows(&mut self, n: u64) { self.result.bounds.rows_examined = self.result.bounds.rows_examined.saturating_add(n); }
@@ -154,6 +180,9 @@ impl Analysis<'_> {
         for stmt in body {
             match stmt {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
+                    if name.starts_with("$intentNeedle") {
+                        self.labels.insert(name.clone(), display::expr(value));
+                    }
                     let data = self.expr(value, times);
                     // Union assignments across branches and loop iterations;
                     // never clear a possible dependency on another path.
@@ -173,8 +202,12 @@ impl Analysis<'_> {
                 }
                 Stmt::If { condition, then_body, else_body } => {
                     self.expr(condition, times);
+                    let presence = display::presence(condition, &self.labels).filter(|_| self.has_variants);
+                    if let Some((name, present)) = &presence { self.conditions.push((name.clone(), *present)); }
                     self.body(then_body, times);
+                    if presence.is_some() { self.conditions.last_mut().unwrap().1 ^= true; }
                     self.body(else_body, times);
+                    if presence.is_some() { self.conditions.pop(); }
                 }
                 Stmt::Require { condition, .. } => { self.expr(condition, times); }
                 Stmt::Check { condition, current } => { self.expr(condition, times); self.point(current, times, true); }
@@ -358,6 +391,7 @@ impl Analysis<'_> {
     }
 
     fn scan_with_window(&mut self, scan: &Scan, times: u64, merged: bool, window: Option<String>) {
+        if scan.variant.is_some() { self.variant(Class::Constant, Some(format!("{}.{}", scan.table, scan.index))); }
         for key in &scan.prefix { match key { IndexKeyExpr::Scalar(e) | IndexKeyExpr::WordPrefix(e) => { self.expr(e, times); } } }
         for e in [&scan.after, &scan.before].into_iter().flatten() { self.expr(e, times); }
         if let Some(r) = &scan.range { for e in [&r.gt, &r.gte, &r.lt, &r.lte].into_iter().flatten() { self.expr(e, times); } }

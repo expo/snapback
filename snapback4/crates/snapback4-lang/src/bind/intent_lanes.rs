@@ -16,6 +16,10 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
                 let column = intent::column(left)?.to_owned();
                 (column, *right.clone(), Expr::Name { name: name.into(), site: predicate.site().clone() })
             }
+            Expr::Binary { op, .. } if op == "!=" => {
+                let Some((column, source)) = enum_complement(predicate, tables.get(&read.table)?) else { continue; };
+                (column, source, Expr::Name { name: name.into(), site: predicate.site().clone() })
+            }
             Expr::Exists { read: probe, .. } => {
                 let target = tables.get(&probe.table)?;
                 if probe.filter.is_some() || probe.matching.is_some() || !probe.seeks.is_empty() || probe.range.is_some() { continue; }
@@ -70,3 +74,78 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
 }
 
 fn focal(name: &str, site: &crate::diag::Site) -> Expr { Expr::Member { base: Box::new(Expr::Focal { site: site.clone() }), name: name.into(), site: site.clone() } }
+
+// @ref LLP 3000.013#2.1 — small required enums have a finite complement;
+// nullable enums keep total inequality as a residual, including null rows.
+fn enum_complement(predicate: &Expr, table: &TableInfo) -> Option<(String, Expr)> {
+    let Expr::Binary { left, right, site, .. } = predicate else { return None; };
+    let (column, value) = if let Some(column) = intent::column(left) { (column, right.as_ref()) }
+        else { (intent::column(right)?, left.as_ref()) };
+    let ty = table.columns.get(column)?;
+    let TypeKind::Enum { variants } = &ty.kind else { return None; };
+    if ty.optional || variants.len() > 8 { return None; }
+    let values = |exclude: Option<&str>| Expr::Array { site: site.clone(), items: variants.iter()
+        .filter(|variant| Some(variant.as_str()) != exclude)
+        .map(|variant| Expr::Literal { value: Literal::Str(variant.clone()), site: site.clone() }).collect() };
+    let source = match value {
+        Expr::Literal { value: Literal::Str(exclude), .. } => values(Some(exclude)),
+        // Stable bindings are safe to test while opening lanes. Fallible
+        // expressions stay under their original row predicate's guards.
+        Expr::Name { name, .. } if !matches!(name.as_str(), "new" | "now" | "viewer") => {
+            variants.iter().rev().fold(values(None), |otherwise, variant| Expr::If {
+                condition: Box::new(Expr::Binary { op: "=".into(), left: Box::new(value.clone()),
+                    right: Box::new(Expr::Literal { value: Literal::Str(variant.clone()), site: site.clone() }), site: site.clone() }),
+                then: Box::new(values(Some(variant))), otherwise: Box::new(otherwise), site: site.clone() })
+        }
+        _ => return None,
+    };
+    Some((column.into(), source))
+}
+
+// Conservative authorization proof before schema binding: every source-row
+// field read by the rule must be pinned, including any nullable fallback.
+// Declining an optimization preserves the ordinary scan's continuation; it
+// does not change the source rule or the merge runtime's disclosure contract.
+pub(super) fn prefixes_decide_rules(tables: &BTreeMap<String, TableInfo>, merge: &MergeExpr) -> bool {
+    merge.lanes.iter().all(|lane| lane.planned.iter().map(Box::as_ref)
+        .chain(lane.nulls.iter().map(|(_, read)| read.as_ref()))
+        .chain(lane.loop_.iter().filter_map(|(_, source)| if let Expr::Read(read) = source { Some(read) } else { None }))
+        .all(|read| prefix_decides_rule(tables, read)))
+}
+
+fn prefix_decides_rule(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> bool {
+    let Some(table) = tables.get(&read.table) else { return false; };
+    if table.maintained.is_some() { return false; }
+    let pinned = read.keys.iter().filter_map(|key| key.column.as_ref().map(|name| (name.as_str(), &key.value))).collect::<BTreeMap<_, _>>();
+    table.decl.rules.iter().filter(|rule| rule.effect == Effect::Read).all(|rule| {
+        let mut predicate = rule.value.clone();
+        // An exact probe of this very row is true, even when some of its
+        // fields vary. This is the existing membership self-witness proof.
+        super::intent_walk::expression(&mut predicate, &mut |value| {
+            if let Expr::Exists { read: probe, site } = value && self_witness(table, probe, &pinned) {
+                *value = Expr::Literal { value: Literal::Bool(true), site: site.clone() };
+            }
+        });
+        let mut decided = true;
+        super::intent_walk::expression(&mut predicate, &mut |value| {
+            if let Some(column) = intent::column(value) && !pinned.contains_key(column) { decided = false; }
+        });
+        decided
+    })
+}
+
+fn self_witness(table: &TableInfo, probe: &ReadExpr, pins: &BTreeMap<&str, &Expr>) -> bool {
+    if probe.table != table.decl.name || probe.filter.is_some() || probe.matching.is_some() || !probe.seeks.is_empty() { return false; }
+    let columns = if probe.keys.iter().all(|key| key.column.is_some()) {
+        let columns: Vec<_> = probe.keys.iter().filter_map(|key| key.column.clone()).collect();
+        if !table.indexes.iter().any(|index| table.total_unique(index) && index.columns.iter().all(|name| columns.contains(name))) { return false; }
+        columns
+    } else {
+        let indexes: Vec<_> = table.indexes.iter().filter(|index| table.total_unique(index) && index.columns.len() == probe.keys.len()
+            && probe.index.as_ref().is_none_or(|name| name == &index.name)).collect();
+        let [index] = indexes.as_slice() else { return false; };
+        index.columns.clone()
+    };
+    probe.keys.iter().zip(columns).all(|(key, column)| intent::column(&key.value) == Some(column.as_str())
+        || pins.get(column.as_str()).is_some_and(|value| crate::print::expression(value) == crate::print::expression(&key.value)))
+}

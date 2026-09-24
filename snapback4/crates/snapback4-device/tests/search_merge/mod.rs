@@ -194,7 +194,7 @@ fn r1a_repeated_site_still_rechecks_an_expired_audience_on_both_stores() {
             }
         }
         let program = backend.programs.iter_mut().find(|p| p.name == "filtered").unwrap();
-        assert!(matches!(program.body.last(), Some(Stmt::Return(Expr::Scan(_)))));
+        assert!(snapback4_core::ir::scans(program).iter().any(|scan| scan.filter.is_some() && scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_)))));
         let mut ir = serde_json::to_value(&*program).unwrap();
         repeat_sites(&mut ir);
         *program = serde_json::from_value(ir).unwrap();

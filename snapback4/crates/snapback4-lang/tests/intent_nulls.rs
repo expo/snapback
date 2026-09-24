@@ -37,8 +37,8 @@ fn ids(data: &Value) -> Vec<String> { data.as_array().unwrap().iter().map(|row| 
 #[test]
 fn nullable_value_lanes_page_in_both_directions_with_words_and_projection() {
     for program in bound(SOURCE).programs {
-        assert_eq!(snapback4_core::ir::scans(&program.program).len(), 2,
-            "{} must exercise value and null lanes", program.program.name);
+        assert_eq!(snapback4_core::ir::scans(&program.program).len(), match program.program.name.as_str() { "nonuniform" => 1, "words" => 4, _ => 2 },
+            "{} must exercise value and null lanes in each search/browse variant", program.program.name);
     }
     for (order, expected) in [("at", vec!["a", "b", "e", "c", "d", "f"]), ("owner", vec!["a", "c", "b", "d", "e", "f"])] {
         for direction in ["first", "last"] {
@@ -91,7 +91,9 @@ fn nullable_lists_preserve_membership_deduplication_authorization_and_cuts() {
     assert_eq!(repeated.metered.examined, distinct.metered.examined, "duplicates cannot open extra scans");
     let private = engine.query("nonuniform", context(owners(), None)).unwrap();
     assert_eq!(ids(&private.data), ["a", "b", "e", "c", "d", "f"]);
-    assert!(!private.complete && private.next.is_none(), "{private:?}");
+    assert!(!private.complete && private.next.is_some(), "a non-uniform residual keeps continuation: {private:?}");
+    let terminal = engine.query("nonuniform", context(owners(), private.next)).unwrap();
+    assert!(ids(&terminal.data).is_empty() && terminal.next.is_none() && !terminal.complete);
     engine.set_ceilings(snapback4_core::Ceilings { examined: 1, ..Default::default() });
     let cut = engine.query("all", context(owners(), None)).unwrap();
     assert!(!cut.complete && cut.next.is_none(), "{cut:?}");

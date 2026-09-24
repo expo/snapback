@@ -115,28 +115,37 @@ impl Binder<'_> {
             }
             A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
             A::If { then, condition, otherwise, .. } => {
-                let (cond, cond_ty) = self.expr(condition, out)?;
+                let variant = super::super::intent_variants::condition(condition)
+                    .map(|(kind, input)| format!("{kind}:{}", print::expression(input)));
+                let mut variant_body = setup::Body::default();
+                let output = if variant.is_some() { &mut variant_body } else { &mut *out };
+                let (cond, cond_ty) = self.expr(condition, output)?;
                 if !cond_ty.is_bool() {
                     return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), super::control::bool_condition_rewrite(&cond_ty, "x if ttl {} else y")));
                 }
                 // Each arm binds under its narrowing and runs only when taken.
                 let temp = self.temp("if");
+                if let Some(name) = &variant { self.variants.push((name.clone(), true)); }
+                let variant_start = self.sites;
                 let mut then_out = setup::Body::default();
                 self.push_scope();
                 self.narrow(condition, true);
                 let then_bound = self.expr(then, &mut then_out);
                 self.pop_scope();
                 let (then_expr, then_ty) = then_bound?;
+                let then_sites = self.sites;
+                if variant.is_some() { self.variants.last_mut().unwrap().1 = false; self.sites = variant_start; }
                 let mut else_out = setup::Body::default();
                 self.push_scope();
                 self.narrow(condition, false);
                 let else_bound = self.expr(otherwise, &mut else_out);
                 self.pop_scope();
                 let (else_expr, else_ty) = else_bound?;
+                if variant.is_some() { self.variants.pop(); self.sites = self.sites.max(then_sites); }
                 then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
                 else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
-                out.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
-                out.push_if(cond, then_out, else_out);
+                output.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
+                output.push_if(cond, then_out, else_out);
                 let ty = if then_ty == Ty::Null {
                     else_ty.optional()
                 } else if else_ty == Ty::Null {
@@ -144,7 +153,8 @@ impl Binder<'_> {
                 } else {
                     then_ty.join(&else_ty)
                 };
-                Ok((ir::var(&temp), ty))
+                let value = if variant.is_some() { Expr::Block { body: variant_body.code, value: Box::new(ir::var(&temp)) } } else { ir::var(&temp) };
+                Ok((value, ty))
             }
             A::Member { base, name, .. } => {
                 // Generated maintain keys are literal path-named columns. Resolve
@@ -402,6 +412,11 @@ impl Binder<'_> {
             out.extend(right_setup);
             ir::var(&left_value)
         };
+        let focal_nullable = |value: &A, ty: &Ty| self.in_predicate && ty.is_optional()
+            && self.focal.as_ref().is_some_and(|(name, ty)| name == "$filter" && matches!(ty, Ty::Row(_)))
+            && super::super::intent::column(value).is_some();
+        let nullable_left = focal_nullable(left, &lt);
+        let nullable_right = focal_nullable(right, &rt);
         let ir_op = match op {
             "/" | "%" => {
                 if !matches!(lt, Ty::Int | Ty::Time) || !matches!(rt, Ty::Int | Ty::Time) {
@@ -423,7 +438,7 @@ impl Binder<'_> {
                 if op == "=" { BinaryOp::Eq } else { BinaryOp::Ne }
             }
             "<" | "<=" | ">" | ">=" => {
-                if lt.is_optional() || rt.is_optional() {
+                if (lt.is_optional() && !nullable_left) || (rt.is_optional() && !nullable_right) {
                     return Err(type_error(
                         site,
                         format!("{op} needs present operands; got {} and {}", lt.name(), rt.name()),
@@ -478,7 +493,20 @@ impl Binder<'_> {
             }
             other => return Err(unknown(site, format!("unknown operator {other}"), "use =, !=, <, <=, >, >=, +, -, *, and, or, ??")),
         };
-        Ok((Expr::Binary { op: ir_op, left: Box::new(l), right: Box::new(r) }, Ty::Bool))
+        let mut present = Vec::new();
+        if matches!(ir_op, BinaryOp::Lt | BinaryOp::Lte | BinaryOp::Gt | BinaryOp::Gte) {
+            if nullable_left { present.push(l.clone()); }
+            if nullable_right { present.push(r.clone()); }
+        }
+        let mut comparison = Expr::Binary { op: ir_op, left: Box::new(l), right: Box::new(r) };
+        // @ref LLP 3000.013#2.1 — predicate nulls do not enter ordering;
+        // the ordinary interpreter's total value ordering remains unchanged.
+        for value in present.into_iter().rev() {
+            comparison = Expr::Binary { op: BinaryOp::And,
+                left: Box::new(Expr::Binary { op: BinaryOp::Ne, left: Box::new(value), right: Box::new(ir::lit(Value::Null)) }),
+                right: Box::new(comparison) };
+        }
+        Ok((comparison, Ty::Bool))
     }
 
     /// An expression in an identity position: a text literal becomes an id.
@@ -503,6 +531,20 @@ impl Binder<'_> {
             Ok(())
         };
         match name {
+            super::super::intent_variants::PRESENT => {
+                let (value, _) = self.expr(&args[0], out)?;
+                Ok((Expr::Binary { op: BinaryOp::Ne, left: Box::new(value), right: Box::new(Expr::Literal(Value::Null)) }, Ty::Bool))
+            }
+            super::super::intent_variants::SEARCH => {
+                let (value, ty) = self.expr(&args[0], out)?;
+                if !matches!(ty, Ty::Text(_)) { return Err(type_error(site, "matching needs present text", "matching (q ?? '')")); }
+                let A::Name { name, .. } = &args[1] else { unreachable!("planned needle binding") };
+                let runtime = self.temp("intentNeedle");
+                self.declare(name, ty);
+                self.scopes.last_mut().unwrap().get_mut(name).unwrap().runtime = runtime.clone();
+                out.push(Stmt::Let { name: runtime.clone(), value });
+                Ok((Expr::Builtin { builtin: Builtin::SearchPresent, args: vec![ir::var(&runtime)] }, Ty::Bool))
+            }
             "day" | "hour" | "bucket" => {
                 let (millis, offset) = super::super::maintains::calendar(name, args, site)?;
                 let (value, ty) = self.expr(&args[0], out)?;
@@ -582,7 +624,9 @@ impl Binder<'_> {
                     if scan.take == Bound::Meter {
                         let saved = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
                         let mut setup = setup::Body::default();
+                        let predicate_context = std::mem::replace(&mut self.in_predicate, false);
                         let projected = self.expr(&args[1], &mut setup);
+                        self.in_predicate = predicate_context;
                         self.focal = saved;
                         let (projection, ty) = projected?;
                         if !ty.is_numeric() || !setup.is_empty() {

@@ -70,7 +70,7 @@ fn prove(program: &Program) -> Option<Vec<Component>> {
     Some(plans)
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Facts { names: BTreeSet<String>, locals: BTreeSet<String>, reads: usize }
 fn inspect(value: &Expr, top: &BTreeSet<String>) -> Option<Facts> {
     let mut facts = Facts::default();
@@ -91,7 +91,7 @@ impl Facts {
                 match builtin {
                     Builtin::Divmod { remainder_sink } if top.contains(remainder_sink) => return None,
                     Builtin::Connected => self.reads += 1,
-                    Builtin::Count | Builtin::CountCapped | Builtin::Sum | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Sha256 | Builtin::Join | Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Divmod { .. } | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::DeterministicShare => {}
+                    Builtin::SearchPresent | Builtin::Count | Builtin::CountCapped | Builtin::Sum | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Sha256 | Builtin::Join | Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Divmod { .. } | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::DeterministicShare => {}
                 }
                 for arg in args { self.expr(arg, top)?; }
             }
@@ -138,7 +138,17 @@ impl Facts {
                     self.expr(value, top)?;
                 }
                 Stmt::Return(value) | Stmt::Require { condition: value, .. } => self.expr(value, top)?,
-                Stmt::If { condition, then_body, else_body } => { self.expr(condition, top)?; self.stmts(then_body, top)?; self.stmts(else_body, top)?; }
+                Stmt::If { condition, then_body, else_body } => {
+                    self.expr(condition, top)?;
+                    let (mut yes, mut no) = (self.clone(), self.clone());
+                    yes.stmts(then_body, top)?; no.stmts(else_body, top)?;
+                    // Mutually exclusive alternatives acquire at most one of
+                    // their reads. Both still contribute dependencies; branch
+                    // locals are available afterward only in their intersection.
+                    self.reads = yes.reads.max(no.reads);
+                    self.names = yes.names.union(&no.names).cloned().collect();
+                    self.locals = yes.locals.intersection(&no.locals).cloned().collect();
+                }
                 Stmt::For { binding, domain, body } => {
                     if top.contains(binding) { return None; }
                     match domain {

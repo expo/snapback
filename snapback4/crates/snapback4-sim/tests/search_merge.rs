@@ -50,7 +50,9 @@ fn matching_lanes_authorize_order_deduplicate_and_continue() {
         assert!(second.complete);
         assert_eq!(second.next, None);
         assert_eq!(ids(&read(&mut engine, op, "cof car", None)), ["d", "c"]);
-        assert!(ids(&read(&mut engine, op, "", None)).is_empty());
+        let browse = read(&mut engine, op, "", None);
+        assert_eq!(ids(&browse), ["d", "c"]);
+        assert_eq!(ids(&read(&mut engine, op, "", browse.next)), ["b", "a"]);
     }
     let mut ascending = fixture(&SCHEMA.replace("last 2 by byRoomWords", "first 2 by byRoomWords"));
     let first = read(&mut ascending, "everywhere", "cof", None);

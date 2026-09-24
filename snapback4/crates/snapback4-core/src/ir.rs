@@ -225,6 +225,7 @@ pub enum Builtin {
     Divmod { remainder_sink: String },
     Sort { keys: Vec<SortKey> },
     MentionTokens,
+    SearchPresent,
     DeterministicShare,
     Count,
     Sum,
@@ -237,7 +238,7 @@ pub enum Builtin {
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
-            Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
             Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
@@ -277,6 +278,9 @@ impl IndexKeyExpr {
     }
 }
 
+/// Stable presence identity: fixed storage and lossless JSON on every host.
+pub type VariantId = [u32; 4];
+
 /// A bounded range over an index prefix.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Scan {
@@ -302,6 +306,8 @@ pub struct Scan {
     #[serde(default)]
     pub merge_site: Option<String>,
     pub provenance: KeyProvenance,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<crate::ir::VariantId>,
 }
 
 /// A union owns its projected cursor descriptor, including when no branch survives.
@@ -324,6 +330,8 @@ pub struct Merge {
     pub order_keys: Vec<String>,
     pub site: String,
     pub lanes: Vec<MergeLane>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<crate::ir::VariantId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -578,6 +586,12 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
 /// sources: what the compiler's completeness note looks at.
 pub fn scans(program: &Program) -> Vec<&Scan> {
     read_structure(program).0
+}
+
+pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
+    let mut out = Vec::new();
+    expr_scans(expr, &mut out, &mut false);
+    out
 }
 
 pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {

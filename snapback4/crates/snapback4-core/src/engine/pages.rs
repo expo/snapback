@@ -131,6 +131,11 @@ fn returned_origins(program: &Program, include_cursorless: bool, collectors: &mu
     returns
 }
 
+/// A value owns a page only if every reachable alternative has the same site.
+pub fn expression_page_site(value: &Expr) -> Option<String> {
+    match expression_origin(value, &Bindings::new(), true) { Some(Origin::Page(site, _)) => Some(site), _ => None }
+}
+
 fn scan_cursor(scan: &Scan, bindings: &Bindings) -> Option<String> {
     match scan
         .after
@@ -173,6 +178,11 @@ fn expression_origin(value: &Expr, bindings: &Bindings, include_cursorless: bool
             Some(Origin::Page(merge.site.clone(), cursor))
         }
         Expr::Variable(name) => bindings.get(name).cloned(),
+        Expr::Block { body, value } => {
+            let mut local = bindings.clone();
+            if !origins(body, "", &mut local, &mut BTreeMap::new(), &mut BTreeMap::new(), include_cursorless) { return None; }
+            expression_origin(value, &local, include_cursorless)
+        }
         // @ref LLP 3000.007#14 — ruling 34: a row-preserving helper carries the page's continuation.
         // The cursorless diagnostic walk keeps its existing note triggers.
         Expr::Builtin { builtin: Builtin::Group { .. } | Builtin::Sort { .. }, args } if !include_cursorless => {

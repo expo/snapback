@@ -81,8 +81,8 @@ pub fn row_tokens<'a>(texts: impl IntoIterator<Item = &'a str>) -> Vec<String> {
 }
 
 /// A query's terms: the same folding as the rows, at most `MAX_TERMS`.
-/// An empty query has no terms, and no terms match nothing (never
-/// everything).
+/// An empty query has no terms. Quarry chooses an ordinary browse plan for
+/// that case; a raw words-index scan still has no word lane to open.
 pub fn terms(query: &str) -> Vec<String> {
     tokens_limited(query, MAX_TERMS)
 }

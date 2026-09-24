@@ -50608,3 +50608,294 @@ historical qualification. The complete suite, WASM rebuild and remaining
 round-5 merges stay deferred as instructed. No push or publication. Full file
 map, commands, corrections and coverage limits:
 reports/20260924-intent-integration-r5d.md.
+## 2026-09-24 — Lane A: Workroom nullable predicates, enum complements and certificates
+
+Merged published 0.4.0 from origin/main by fast-forward to e8196704a, then
+implemented false-on-null ordering for direct nullable scanned-row columns
+inside `where`. Optional arguments, locals and non-predicate expressions keep
+their presence requirements. Nullable seeks accept present endpoints and
+upper-only ranges start exclusively above null. Diagnostics give a guarded
+read rewrite instead of `<time ?>`.
+
+Required enums with at most eight variants plan inequality against a literal
+or stable bound value as ordinary complement-value lanes. Nullable and larger
+enums remain residual; computed exclusions remain under their original guards
+so a hidden division failure is not hoisted into lane discovery. Cost display
+recovers membership from its lowered loop instead of showing the initial
+`false`. Read rules, interpreter operations, admission and meter ceilings were
+not changed. Updated the reads card with compiled examples and the governing
+LLP; the authorization census changed only 23 reads-card block ordinals,
+retaining 271 mutation occurrences and 49 distinct private write sites.
+
+Measured 104 affected language tests, 16 device tests (memory and SQLite,
+including reopen), 24 certificate tests and the targeted census passing.
+Seven new language regressions cover seeks/residuals, every ordering operator,
+null equality, narrowing boundaries, both paging directions, enum plan
+identity, nullable enum retention and guarded exclusions. Two new device tests
+exercise offline nullable seeks, residuals and view pages. The certificate
+regression covers the Workroom membership-plus-status predicate and omission
+when no residual remains. With 90 null rows added, the seek and streaming count
+examine at most two rows; with 90 finished tasks added, the complement lanes
+return five open tasks within eight examined rows.
+
+First full run: `== 2 failure(s) in 174 s`. One introduced failure was the
+census ordinal update above, fixed and verified. The unchanged client test
+`shared logout fences a held online rotation across Bob's login` had a
+transient `UND_ERR_SOCKET` fetch failure; isolated retry, all 34 app tests,
+and the final full suite passed. Final `scripts/test.sh`:
+`== 0 failure(s) in 96 s` (exit 0); clients 1,054 passed, 10 skipped. Web wasm:
+1,744,842 bytes raw / 484,967 gzip, within the inherited 486,000 budget.
+The separate reference audit reports the inherited store.rs:809 broken
+`#5.3-effects-keyed-once` reference at e8196704a, already corrected upstream;
+that untouched core line is not in this diff. No push, package publication,
+version bump, index namespace change or budget increase. Full file-level report,
+engineering choices and reproductions: reports/20260924-intent-lane-a-041.md.
+
+## 2026-09-24 — Lane A round 10: streaming enum totals, safe seeks and continuation
+
+Closed the nullable/enum delta review. Unpaged count/sum keep ordinary streamed
+scans with residual enum and membership predicates, preserving uncapped query
+admission and null-on-interruption totals. Chose this permitted fallback rather
+than introducing a streaming union engine. Proposed value/window lanes now need
+a conservative prefix proof for every source read rule, including null fallback
+lanes. Both the enum complement and pre-existing `in` path otherwise keep one
+ordinary scan, allowing authorized rows to continue while retaining the
+non-uniform `complete: false` result. Declined plans leave no unused indexes.
+
+Shared seek endpoint proofs across aggregate inference, ordinary planning and
+typed binding: only present, infallible endpoints leave the predicate. Safe
+integer interval arithmetic still seeks; guarded optional values, division and
+unproved overflow stay residual so short-circuiting and narrowing hold. The
+named-shape speculative check now uses predicate context. Reads card examples
+and LLP §§2.1/5.1 explain these choices. The language card's two calendar-bound
+examples now correctly receive growing-work certificates because their
+unproved arithmetic stays residual. No engine authorization, admission,
+disclosure, cursor eligibility, meter or ceiling changed.
+
+Measured 118 affected language integration tests, four aggregate planner unit
+tests, 16 memory/SQLite device tests and 24 certificate tests passing. Six new
+tests exercise uncapped count/sum, null totals at examined=1, parenthesized
+nullable predicates with named shapes, complete cursor traversal through three
+authorized rows and hidden interleavings in both directions, guarded endpoints,
+and safe seeks examining at most one row. Strengthened the eight/nine enum
+boundary, middle-variant exclusion and nullable retained `todo`. The first five
+new tests fail against the pre-fix compiler; removing the eight-variant gate
+makes the strengthened nine-variant assertion fail. Four old targeted-test
+expectations changed intentionally (non-uniform lanes/cursors, unpaged
+membership count and calendar cost classes); all are green after migration.
+
+`bun install --frozen-lockfile` passed. Full `scripts/test.sh`:
+`== 0 failure(s) in 153 s` (exit 0); clients 1,054 passed, 10 skipped. No full-suite
+failures. Web wasm remains 1,744,842 bytes raw / 484,967 gzip under the unchanged
+486,000-byte budget. The separate reference audit still reports the inherited
+store.rs:809 `#5.3-effects-keyed-once` anchor, unchanged from 49131c3eb and already
+fixed in newer upstream. No push, publication, version bump, streamed-union
+implementation or budget increase. File-level report, exact tests, deliberate
+behavior changes and audit reproduction: reports/20260924-intent-lane-a-round10.md.
+
+
+## 2026-09-24 — Lane A round 11: optional filters, exact probes and empty-search browsing
+
+Implemented argument-presence alternatives for up to three optional inputs in
+`a = null or C` filters (also `==`, either order), with input-only local tracking,
+ordinary index synthesis and streaming count/sum/exists consumers. Each server
+and device execution chooses the admitted branch; cursors carry a fixed-size
+presence identity and refuse changed presence, even when indexes are shared.
+A fourth input stays residual with N_OPTIONAL_FILTER_LIMIT naming it. Scale
+certificates classify and label every alternative, claiming constant only when
+all are constant.
+
+Exact unique keyed exists predicates retain authorized per-row probes when
+reverse discovery cannot prove its source rule uniform. Hidden label rows do
+not satisfy the probe; the certificate names issues skipped by the predicate.
+Empty, whitespace-only and punctuation-only matching needles now browse with
+normal ordering, rules and continuation. Needles evaluate once; folded-term
+presence uses the existing metered tokenizer. The search guide uses one query.
+
+Conditional reads remain ordinary IR expressions. Page provenance, returned
+shape retries, interrupted-existence retries, retained-field ownership and
+merge diagnostics follow their alternatives. Legacy positional decoding and
+absent-field serialization remain compatible. Tests cover all four board
+variants and their cursor indexes on server, memory device and reopened SQLite,
+nullable data, foreign-presence cursors, k=4, local/helper/range/list inputs,
+streamed totals interrupted to null, hidden exact probes, folded-empty browse,
+wrapped page ownership and certificates. Existing retained-history fixtures
+consolidate duplicate covering indexes into unique byTime without weakening
+uniqueness, coverage or authorization assertions. The generated Quarry word
+fixture now includes its browse branch; the raw IR corpus is unchanged.
+
+Validation: `scripts/test.sh` finished `== 0 failure(s) in 196 s` (exit 0), invoked as `taskset -c 64-79 env SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`. The affected compiler/certificate/guide/search
+checks and the 99-test client rerun passed. The first full run reported
+`== 2 failure(s) in 199 s`: 37 Rust and 48 retained-history client failures were
+ours and are corrected; three unrelated client timing failures passed unchanged
+in the isolated rerun. The serial-client rerun (`== 1 failure(s) in 740 s`) also hit a pending-write race that passed unchanged
+in isolation. The first reduced-concurrency run (`== 1 failure(s) in 193 s`) reported one failing category
+(two WASM tests whose fixture preludes assumed a direct scan); finding the
+words alternative fixed both, and all 17 word-expansion tests passed. Final
+qualification uses 16 CPUs and eight Rust test processes, with the full inventory. Every initial failure is listed and classified in the report.
+
+Measured device artifact: 1,751,318 B raw / 487,805 B gzip, versus the preceding
+lane artifact 1,744,842 / 484,967 (+6,476 raw / +2,838 gzip). Under the repository's
+explicit byte-budget policy, raise the ratchet from 486,000 to 488,000 B (195 B
+headroom) for presence evaluation, cursor metadata, conditional page provenance
+and interrupted-existence handling. This is whole-artifact attribution; compiler
+planning and certificates are outside the web artifact. Runtime examined,
+steps, heap and write ceilings are unchanged.
+
+No push, publication, version bump, residency relaxation or streaming-union
+redesign. Recognition conservatively leaves unproved endpoint/provenance forms
+residual. The local llp-orient links are unavailable; orientation used the LLP
+and guide directly. The separate ref-check audit still has the inherited
+store.rs:809 `LLP 3000.013#5.3-effects-keyed-once` anchor error, reproduced on the
+starting commit; no new reference error. Full file inventory, compatibility
+migrations, test evidence, decisions and reproductions:
+[round report](reports/20260924-intent-lane-a-r11.md).
+
+
+## 2026-09-24 — Lane A round 12: isolate browse planning and close conditional-loop admission
+
+Fixed every round-12 finding. Empty-search normalization now runs only on the
+generated outer browse leaf while constructing it; it never retargets nested
+point reads in predicates, needles or keys. An explicit words ordering chooses
+the lexicographically first plain index with the same effective ordering and
+computed-key identity for browsing, or synthesizes its ordinary index. Authored
+predicate ambiguity checks remain. Restored unique byRoomAt plus byTime in both
+the native device and JavaScript retained-history compatibility fixtures.
+
+Chose the supervisor's permitted refusal path for presence-selected population
+loops, rather than adding resumable conditional sweeps. Top-level job loops
+refuse with a body-filter rewrite. Mutation admission preserves the conditional
+scan provenance through blocks and aliases and refuses the bounded-list emit
+exemption. An ordinary capped loop or stable job sweep, with the optional filter
+inside its body, remains supported. The engine parks stored non-native jobs
+with no recorded sweep as E_JOB_SWEEP instead of reporting skipped work done;
+this includes malformed empty jobs and does not alter native-job execution.
+The code is registered, routed and explained in the guide.
+
+Four new regressions cover nested id probes and inline needles, explicit-index
+compatibility independent of declaration order, direct/aliased emit-population
+refusals plus an ordinary sweep that runs, and the engine guard over raw IR.
+Strengthened existing tests prove all four board variants hide actual rows from
+a non-member, keyed existence uses unique point probes with no discovery merge,
+and optional exists is false on missing/empty domains but null/incomplete when
+cut before a witness. A count >= 0 substitution now fails the absence checks.
+
+Validation: **`== 0 failure(s) in 690 s`**, using the supported serialized-client-files setting with eight Rust test processes (16 assigned CPUs); all groups ran. Rust passed in 171 s; clients passed in 670 s (1,088 passed, 0 failed, 10 inventory skips). Affected checks: 9 intent variants, 4 review
+regressions, 57 guide, 15 simulator admission, 12 work-intent and 12 device
+search-merge tests passed. Frozen Bun installation and git diff --check passed.
+The new tests initially had two Result-versus-Option assertion compile errors
+and an incorrect false-versus-null cut expectation; corrected and rerun.
+The first full run reported `== 1 failure(s) in 286 s` (client tests), with
+all Rust/build checks green. Its logout socket-closure and restore done/parked
+race passed unchanged in a two-test isolated rerun; classified environmental,
+not baseline, and documented with reproductions in the report. No client code
+or test expectation was changed for these failures.
+
+The second full run reported `== 1 failure(s) in 305 s` (client tests),
+again with all Rust/build checks passing. The signed-out session request lacked
+E_AUTH and the store-replacement test observed the old identity. Both passed
+unchanged in isolation, 2 passed / 0 failed; classified environmental/timing-sensitive,
+not baseline, with reproductions in the report.
+
+Device artifact: 1,751,318 B raw / 487,805 B gzip, the same sizes as round 11,
+under the unchanged 488,000-byte ratchet. No runtime meter ceiling, residency,
+authorization or disclosure relaxation; no IR serialization change, version
+bump, publication or push. The separate ref-check audit still reports only the
+inherited store.rs:809 anchor `LLP 3000.013#5.3-effects-keyed-once`; reproduce
+with ./ref-check --verbose. No new reference errors. File-by-file details,
+examples, decisions and test evidence are in
+[the round report](reports/20260924-intent-lane-a-r12.md).
+
+
+## 2026-09-24 — Lane A round 13: null ties and mixed stored jobs
+
+Fixed all three review findings. Empty-search browse selection and ordinary
+cursor-bearing index planning now require a declared id or a unique key whose
+components are all required (including validated calendar keys). A nullable
+unique key cannot omit the id tiebreak; byTime wins or a separate index is
+synthesized. Explicit unsafe cursors refuse E_CURSOR_INDEX with a compiling
+column-order rewrite or a separate index preserving computed parameters; the
+original unique constraint remains. Reads without
+cursors keep their existing prefix reuse. Merge cursors and internal job/aggregate
+positions already carry the physical id; their format did not change.
+
+The selection audit also found nullable epoch in the generated Following
+inbox's unique byReaderTime. Added separate byReaderPage with declared id,
+retaining all old unique constraints and both pending-work hooks (runtime
+completeness and live-query/residency dependency). The CLI's chosen-index
+expectation was deliberately updated; its cost assertions remain.
+
+The job runner validates every direct top-level For domain before any chunk.
+Unsupported domains mixed before, between or after valid sweeps park with
+E_JOB_SWEEP and an offending statement/binding. The existing no-sweep guard
+remains. Supported preludes and inner loops still run; native jobs retain
+their own runner. No resumable conditional sweep was introduced.
+
+Regressions cover nullable and required indexes in both declaration orders,
+one-row pagination in both directions on server and reopened memory/SQLite
+devices, hidden rows, ordinary/named/value-lane/view selection with reuse and
+synthesis, a rewrite that preserves uniqueness, mixed raw-IR jobs with zero
+chunks/writes/effects, and valid prelude/body loops. Competing calendar indexes
+spell identical columns but differ in duration or offset; deleting the descriptor
+comparison made the new test fail (aWrongPeriod versus zBrowse), then the source
+was restored. The strengthened tests reproduced three failures on round-12 code.
+
+**`scripts/test.sh`: `== 0 failure(s) in 706 s`**, exit 0, with eight Rust processes and serialized client files on 16 assigned CPUs. Every suite group ran; Rust passed in 195 s and clients in 691 s (1,088 passed, 0 failed, 10 inventory skips). Affected checks passed: 57 guide, 21 intent-target,
+9 intent-variant, 7 review, 4 time-index, 4 device variants, 4 device Following,
+15 admission, 12 work-intent and 1 CLI Following tests. Frozen Bun install,
+docs budget and git diff --check passed. Initial affected failures from an
+overly broad restriction on non-cursor reuse and the generated Following
+cursor were ours, corrected and rerun. An initial full run was stopped (exit
+143, no summary) to repair a computed-key diagnostic: by .hour was not a valid
+row-column rewrite. It now proposes a separate page index preserving hour/bucket
+parameters and the original unique constraint; both hour and offset-bucket
+rewrites compile in the new regression. The full suite restarted afterward.
+The completed full run had no failures; no baseline or environmental test failure remains.
+
+Device artifact: **1,751,333 B raw / 487,832 B gzip**, +15 B raw / +27 B gzip versus round 12, below the unchanged 488,000-byte ratchet. No engine ceiling, authorization, disclosure or residency
+relaxation; no version bump, publication or push. The separate ref audit still
+reports only the inherited store.rs:809 anchor error (LLP 3000.013#5.3-effects-keyed-once);
+reproduce with ./ref-check --verbose. No new reference error. File-by-file
+changes, audit decisions, examples and evidence are in
+[the round report](reports/20260924-intent-lane-a-r13.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane A, round 14: pure sweep-prefix setup
+
+The job guard now permits bounded, write-free and emit-free setup loops
+before a recorded sweep. It checks the entire loop, including domain
+expressions and inlined blocks, through the existing recursive effect
+analysis extracted into a shared module. Mutation population admission uses
+that same analysis with its existing emit allowance. Unsupported work loops
+still park with E_JOB_SWEEP before any chunk commits, whether alone or mixed
+before, between or after valid sweeps. Pure trailing loops also park because
+no following chunk would execute them. No new sweep domain was introduced.
+
+The compiled `t[sum([{ n: 1 }], .n)] by byScope` regression verifies a bounded
+DerivedArray setup before the Page sweep: 65 matching rows updated across at
+least two chunks, 130 inner-loop effects, the authored prelude replayed, and
+a row in another scope untouched. The negative fixture covers conditional
+arrays, lists, literal/expression ranges and argument lists, direct writes
+and emits, plus work hidden in domain/body expressions: 64 mixed-job cases
+with zero chunks, writes and effects. Two further cases reject pure setup
+with no following sweep. Restoring the old blanket guard fails the compiled
+prefix regression; restricting it to DerivedArray fails on a range emit loop.
+Both deliberate mutations were restored before qualification.
+
+**`scripts/test.sh`: `== 0 failure(s) in 753 s`**, exit 0. All groups ran with
+eight Rust processes and serialized client files on 16 CPUs. Rust passed in
+291 s; clients in 712 s (1,088 passed, 0 failed, 10 inventory skips). Affected
+checks: 9 review, 57 guide, 15 page-admission and 12 work-intent tests, all
+93 passed. Frozen Bun install and git diff --check passed. Device bytes are
+unchanged: **1,751,333 B raw / 487,832 B gzip**, below the same 488,000-byte
+budget. No source file exceeds the 1,500-line limit.
+
+The completed full run had no failures. One temporary fixture syntax error
+and one Cargo invocation from the wrong workspace were corrected during
+construction; neither remains. The separate reference audit retains only
+the inherited store.rs:809 reference to the nonexistent
+LLP 3000.013#5.3-effects-keyed-once anchor (reproduce: ./ref-check --verbose).
+No new reference error. No authorization, disclosure, residency or meter
+relaxation, IR change, version bump, publication or push. File-by-file changes,
+example, decisions and failure accounting are in
+[the round report](reports/20260924-intent-lane-a-r14.md).

@@ -249,7 +249,7 @@ impl Runner<'_> {
 
     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let after = cursor.map(|key| Box::new(Expr::Literal(Value::Array(crate::key::decode(key).unwrap_or_default().into_iter().skip(prefix.len()).collect()))));
-        let (rows, keys) = self.scan_with_keys(&Scan { site: format!("timeline/{table}/{index}"), table: table.into(), index: index.into(),
+        let (rows, keys) = self.scan_with_keys(&Scan { variant: None, site: format!("timeline/{table}/{index}"), table: table.into(), index: index.into(),
             prefix: prefix.iter().cloned().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value))).collect(),
             order: if reverse { ir::Order::Desc } else { ir::Order::Asc }, take: ir::Bound::Literal(take),
             existence: false, after, before: None, range: None, filter: None, opaque_cursor: false,
@@ -269,7 +269,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn timeline_read_pending(&mut self, table: &str, index: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
-        if self.meter.cut != crate::meter::Cut::Cap || index != "byReaderTime" || prefix.len() != 1 { return Ok(()); }
+        if self.meter.cut != crate::meter::Cut::Cap || !matches!(index, "byReaderTime" | "byReaderPage") || prefix.len() != 1 { return Ok(()); }
         let Some(t) = self.schema.timelines.iter().find(|t| table == t.table("Feed")).cloned() else { return Ok(()); };
         let pending = self.timeline_get(&t.table("Work"), "byReader", prefix.to_vec())?.is_some();
         if pending { self.timeline_pending = true; self.components.note(|frame| frame.pending = true); }

@@ -46,7 +46,7 @@ fn w2_serialized_conditions_refuse_writes_under_blocks_shapes_and_scan_filters()
                 "shape-base" => Expr::Shape { base: Box::new(block), fields: Default::default() },
                 "shape-field" => Expr::Shape { base: Box::new(Expr::Object(Default::default())), fields: [("leak".into(), block)].into() },
                 "scan-filter" => Expr::Scan(Scan { filter: Some(Box::new(block)), ..scan }),
-                "merge-setup" => Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: "condition".into(), lanes: vec![MergeLane { guard: None, distinct: None, branch: None, project: None, setup: vec![leak], scan, source: None, binding: "lane".into() }] }),
+                "merge-setup" => Expr::Merge(Merge { variant: None, position: None, view: None, order_keys: Vec::new(), site: "condition".into(), lanes: vec![MergeLane { guard: None, distinct: None, branch: None, project: None, setup: vec![leak], scan, source: None, binding: "lane".into() }] }),
                 "range" => Expr::Block { body: vec![Stmt::For { binding: "n".into(), domain: LoopDomain::ExpressionRange { start: block, end_exclusive: Expr::Literal(Value::Int(1)) }, body: vec![] }], value: Box::new(Expr::Literal(Value::Bool(true))) },
                 "new" => Expr::Input(Input::NewId),
                 "divmod" => Expr::Builtin { builtin: Builtin::Divmod { remainder_sink: "stolen".into() }, args: vec![Expr::Literal(Value::Int(7)), Expr::Literal(Value::Int(2))] },

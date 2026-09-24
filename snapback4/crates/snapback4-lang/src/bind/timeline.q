@@ -30,6 +30,7 @@ table @T@Feed:
   at: time
   unique byReaderEvent: readerId, eventId, epoch
   unique byReaderTime: readerId, at, eventId, epoch
+  by byReaderPage: readerId, at, eventId, epoch, id
   by byReaderActor: readerId, actorId, epoch, id
   by byEvent: eventId, id
   immutable readerId, eventId, epoch, actorId, authorId, postId, repost, at

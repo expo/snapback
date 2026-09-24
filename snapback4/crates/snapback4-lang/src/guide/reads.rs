@@ -42,6 +42,9 @@ changes can move rows across a saved position. Restart to see the new order.
 Value lanes deduplicate values; each lane keeps its source rule. Null never
 becomes an index pin. When a membership list includes null, one ordinary
 filtered lane reads the null-valued rows under the same rule.
+A keyed `exists` inside `where` probes one authorized row per candidate;
+when its discovery prefix cannot decide the other table's read rule, the
+planner retains those probes and the certificate names the skipped rows.
 A cut during discovery or while any lane head is unknown is incomplete and
 has no cursor. A full page never certifies a prefix of an unfinished lane list.
 
@@ -174,6 +177,68 @@ after the source rule. Parenthesize a nested read with its own modifiers:
 `exists (messages[roomId = .roomId] matching q)`. The named inner key binds
 the outer row's room; inside a predicate, `.` denotes that predicate's row.
 
+## Nullable predicates and enum lanes
+
+Inside `where`, an ordering comparison (`<`, `<=`, `>`, `>=`) with a nullable
+column of that row is false when the column is null. `.due < now` therefore
+selects overdue tasks without a guard or a default. On the first order key it
+is a seek when its endpoint is already present and cannot fail; a nullable
+upper-only seek starts exclusively above null. `= null`
+and `!= null` keep their ordinary meaning. Optional arguments and locals,
+and comparisons outside `where`, still need a presence guard.
+An endpoint behind a guard, such as `d != 0 and .due > 10 / d` or
+`x != null and .due < x` for optional `x`, stays in the residual predicate,
+even with `by .due`. The guard runs before that comparison. Present literals,
+`now`, required parameters and arithmetic proven not to overflow can seek.
+Parenthesized predicates also work before a named shape.
+
+For a required enum with at most eight variants, `.status != 'done'` opens
+the same pinned value lanes as `.status in ['todo', 'doing']`. A bound value
+can also select the excluded variant. Fallible expressions remain residual
+predicates so their guards still run first. Nullable enums retain a residual
+inequality, including null rows; larger enums also stay residual.
+Value lanes are chosen only when every lane's prefix decides the source read
+rule. Otherwise both `!=` and `in` remain residual filters on one scan, which
+can continue through visible rows with `next`; the non-uniform read still
+reports `complete: false`.
+
+```quarry
+table workTasks:
+  owner: principal
+  cap 100 by owner
+  due: time ?
+  status: enum('todo', 'doing', 'done')
+  assignee: principal ?
+  createdAt: time
+  read <- .owner = viewer
+  sync to .owner
+shape workTaskCard = { id, due }
+query overdueTasks(c: cursor ?):
+  return workTasks where .owner = viewer and .due < now first 50 by .due after c
+query overdueCards(c: cursor ?):
+  return workTasks[owner = viewer] first 50 by .due after c where (.due < now) workTaskCard
+query openTasks(c: cursor ?):
+  return workTasks where .owner = viewer and .status != 'done' first 50 by .createdAt after c
+query openTaskValues(c: cursor ?):
+  return workTasks where .owner = viewer and .status in ['todo', 'doing'] first 50 by .createdAt after c
+query board(status: enum('todo', 'doing', 'done') ?, assignee: principal ?, c: cursor ?):
+  return workTasks where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .createdAt after c
+```
+
+Optional filters `(status = null or .status = status)` (also `==`, either order)
+choose an indexed plan for each presence combination; reset the cursor when
+filters change, and inspect each variant with `check --cost`.
+At most three optional inputs expand; N_OPTIONAL_FILTER_LIMIT names any extra
+residual filters, which can stay metered or move into separate queries.
+For mutation population loops and top-level job sweeps, put the optional
+condition inside an ordinary capped loop or stable sweep; a presence-selected
+read cannot supply that loop domain.
+
+`check --cost` displays the residual that still tests each visible candidate,
+including `in` when another predicate supplies the lanes. A predicate fully
+extracted into pins or lanes has no residual-skip clause. These explanations
+do not change read rules, meter bounds or completeness.
+
 ## Pages without a cursor
 
 A page a query returns without
@@ -208,6 +273,11 @@ then release it. They do not retain a page of bodies. A meter cut or unknown
 device coverage returns `data: null, complete: false`, never a partial total.
 Use a maintained view for a total that should be updated with each write.
 `count(page)` still counts only that page.
+An unpaged aggregate keeps enum inequalities and membership predicates as
+residual filters on its streaming scan. It does not turn them into a bounded
+merge page: `count(tasks where .status != 'done')` and
+`sum(tasks where .status in ['todo', 'doing'], .n)` return either the whole
+authorized total or null on interruption. Scan admission remains unchanged.
 
 `exists messages where .roomId = roomId` stops at a visible match. It accepts
 predicates and seeks, but no page clause or cursor. A positive held witness
@@ -217,7 +287,8 @@ admission; rule probes keep exact-key semantics.
 
 Finite ranked windows use inclusive UTC buckets from the lower through the
 upper bound. Exact endpoints still filter rows. An `in` predicate over a list
-or a read's column opens one ruled scan per distinct non-null value. Unknown
+or a read's column opens one ruled scan per distinct non-null value; a null
+value adds one authorized null-filtered scan for a nullable column. Unknown
 or cut discovery cannot certify the page. Use `check --cost` to inspect these
 plans. Unknown widths print `lanes ≤ meter`; the author writes no lane list.
 
