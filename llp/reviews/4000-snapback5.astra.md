@@ -353,3 +353,232 @@ A competent implementer could still reasonably build incompatible versions of th
 **Low — §§11–12: the review-consensus claim is inaccurate.** Revision 1’s Astra review accepted “what was shown plus first screens” for the experiment; Grok and Opus required automatic depth. The reviews also did not give identical sequencing answers for the additions. The smallest fix is to record these as the revision author’s choices among differing recommendations, rather than unanimous reviewer decisions.
 
 **Overall verdict: NOT READY.**
+
+---
+
+## Round 3 — revision 3 (`4619cf3fc2`), 2026-09-24
+
+**Mode:** blind delta review, read-only, over a detached worktree at that commit; `codex exec -m gpt-6-astra -c model_reasoning_effort=max`. **Brief:** `~/projects/snapback-sb5-reviews/round3.brief.md`.
+
+### Verbatim review
+
+Revision 3 makes substantial repairs, but it is **NOT READY**. The remaining problems include concrete counterexamples to acquisition coverage and retained-history revocation, an incomplete receipt design, and contradictions between the prediction rules, their expected results, and the experiment’s verdict rules.
+
+This is the Astra blind delta review of `4619cf3fc2`, against `dbb10169b6`. Resolution sentences below refer to **revision 3**; revision 2 is the reviewed baseline. I changed nothing. The working tree remains clean.
+
+For §12’s round-2 disposition table, in its existing order:
+
+| # | Round-2 finding | Disposition | Resolving text or remaining gap |
+|---|---|---|---|
+| 1 | Page entries versus images; resurrection; two channels; old-row refill | **Partial** | §4.2 specifies an in-stream current-image `put`; §4.3 makes membership device-computed. Those are substantive repairs. But a log-sequence interval does not describe the rows or index coverage acquired by an arbitrary page. The acquisition/refill certificate remains missing. Finding 1. |
+| 2 | Soft delete on a released page | **Real, while membership remains valid** | “A device stays subscribed to a span while it holds any row of it” expressly includes updates. Thus releasing a page no longer stops updates to its retained rows. The former-member case remains broken separately. |
+| 3 | Later deletions after membership loss | **Partial** | The new tombstone-only subscription addresses physical deletes, expiry and consumption. It does **not** establish the accompanying promise that Alice’s later `delete-for-everyone` reaches Bob: that operation is an ordinary update. Finding 2. |
+| 4 | Sharing viewer-dependent shapes | **Real** | §4.3 permits sharing shape values only when no filter, shape, helper or rule check reads the viewer/auth context. Public raw images and viewer-dependent results are now distinguished correctly. |
+| 5 | Unreadable rows in the closure | **Partial** | “The device never holds a raw row its viewer may not read” resolves the raw-row disclosure problem. The server-only/unknown fallback is sound. The alternative—carrying a boolean/count result—has no versioning and invalidation protocol. Finding 13. |
+| 6 | Redefinition of `complete` | **Real** | §5 explicitly withdraws “no pending write” and “local equals server,” restores the existing predicate, and preserves retained-row behavior. The additional closure-coverage condition is appropriate, provided coverage is actually certified. |
+| 7 | Missing prediction conditions and contradictory rate | **Partial** | §4.5 adds audience conditions, body reads, versioned coverage, optimistic plain inserts and the view-input restriction, and removes occupancy witnesses. Its coverage/exemption rules remain insufficient, and the rate table still contradicts both the rules and the program. Findings 6–7. |
+| 8 | `per viewer`, receipts, unread, recipient set and delivery marks | **Partial** | Removing the matrix and replacing the unread scan are real improvements. Sender exclusion and join-incarnation intent are right. Exact delivery, receipt persistence, column authority/privacy and the stated cost are not established. Findings 3–5. |
+| 9 | Depth, priority, budgets, eviction and retained denial | **Partial** | Numeric budgets, table-reference-only expansion, declaration order, last-read eviction and the denied-with-retained result are now stated. The expansion cap’s unit and protected-data overflow behavior remain ambiguous. Finding 8. |
+| 10 | `through` lifetime/cascade mechanics | **Partial** | Read-time liveness, incarnation stamps, restricted positions, write-only exceptions and activation barriers are substantive. Acknowledging that revision 2 does not exist, and gating its use, is honest and correct. The background meter and device-side liveness dependencies remain unspecified. Finding 13. |
+| 11 | Change feed, shared-crate hooks, dormant control and wasm | **Partial** | Removing the matcher/feed and naming feature boundaries is useful. But the common receipt addition depends on an index assigned exclusively to the treatment feature. The inherited wasm number is also wrong. Finding 9. |
+| 12 | Missing experiment decision rule | **Partial** | The primary clock, 25-minute threshold, combination rule, relative floors and non-distinguished outcome are real registrations. Conflicting verdict statements and operational measurement gaps remain. Findings 10–12. |
+| 13 | Reading A judged absolutely/on one arm | **Partial** | Both arms, an independent classifier, named disappearing/staying concepts and a committed rubric are improvements. A can still hold with no learning-cost improvement, and B can coexist with an overall pass despite §10. Finding 10. |
+| 14 | Unmeasurable delivery falsifiers | **Partial** | CPU, latency and byte ratios now have numbers. Queueing expectations are not numerical rates; aggregation and accounting boundaries remain open; span-index memory has no bound. Findings 4, 7 and 12. |
+| 15 | Historical rather than control-relative floors | **Real** | “≥ control’s mean − 3” resolves this. §9.5 also makes the historical category values sanity checks. Clarify separately whether the relative floor includes `data_modeling`. |
+| 16 | Factual corrections, missing forms, first-member admission and references | **Real for the named corrections** | §1 qualifies the milestone evidence; §3.1 restores the named forms and permits first-member insertion through `created conversations`; the cited reference errors are corrected. This does not validate the new ordinal/receipt recipe. |
+| 17 | Undisclosed default flip | **Real** | §3.2 explicitly says queried invertible tables become held unless marked `online only`; `check` reports that choice. |
+| 18 | Misstated review consensus | **Real** | §11 now distinguishes the reviewers’ recommendations and identifies the selected policies as this revision’s choices. |
+| 19 | Reference README’s offline claim | **Real** | The local packet now records Supabase’s 13/13 M6 result and Convex’s 6/13, rather than declaring offline capability absent. I verified the [packet README](/Users/ccheever/clique-ref-20260924/README.md:63). |
+
+The restored `complete` contract is sound. The explicit Following witness list and pending-backfill/cleanup condition are also meaningful repairs. Generation rejection and activation-barrier rebuilding are appropriate. A single ordered stream carrying acquisitions, images and revocations, with device-computed page membership, is a viable architecture. What remains is to specify enough state and ordering to make that architecture uphold its claims.
+
+The remaining defects are:
+
+**1. Blocker — §§4.2–4.3, with consequences in §3.3: a log span is not an acquisition-coverage certificate.**
+
+The sentence “a span is a contiguous range of one partition’s log” conflates two different coordinates:
+
+- Log sequence determines when changes occurred.
+- Index keys, predicates and cursors determine which current rows a page contains.
+
+Existing Snapback 4 acquisition explicitly records an index/group/key boundary. Its device code begins, “Acquisition facts belong to the partition, never to an ordinary row put.” Group-join images are current images assigned the join’s sequence; that sequence is not their original creation sequence. See [partition acquisition](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/snapback4/crates/snapback4-core/src/partition.rs:886) and [device boundary handling](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/snapback4/crates/snapback4-device/src/device/boundary.rs:1).
+
+**Counterexample:** one commit inserts 51 messages. A later `last 50` acquisition delivers only 50. All 51 original message events have the same commit sequence. A start sequence plus acknowledged watermark cannot identify which message was omitted. Using the acquisition’s synthetic sequence instead requires recording which message incarnations that acquisition actually contained—the missing certificate.
+
+Filtered search and point lookups make the mismatch worse: selected rows need not form any contiguous interval of original log events.
+
+The refill sentence has the right ordering intent, but does not specify the acquisition identity, snapshot/image fence, retry behavior, or atomic publication of newly established coverage. A refill can be necessary when the device is already at the log head; existing `stream` can return immediately in that situation. An ordinary `put` also cannot certify that an index range is exhausted.
+
+**Smallest fix:** distinguish the stream cursor from an acquisition certificate. Define the latter’s table/index/key bounds, generation, image fence, coverage state and exact delivered incarnations where needed. Specify an idempotent in-stream acquisition/refill exchange, including acquisition at an unchanged watermark and subscriptions for empty maintained ranges.
+
+One channel is sufficient **with that protocol**. The current start-sequence description is insufficient.
+
+**2. Blocker — §4.2, “Revocation after membership loss”: tombstone-only delivery misses the stated soft delete.**
+
+**Counterexample:** Bob receives message M, leaves the group under `keep history`, and retains M. Alice subsequently invokes #19’s `deleteMessage`.
+
+That mutation executes:
+
+```quarry
+update messages[message] {
+  body: '', photo: null, video: null, oncePhoto: null, tombstone: true
+}
+```
+
+It does not delete the row. See [#19’s mutation](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/benchmarks/runs/2026-09-24-snapback4-clique-astra-0.4.0/astra/source/snapback/chat.q:238).
+
+The proposed tombstone-only subscription excludes that `put`. Merely reopening the membership interval does not repair it: the existing serve-time normalization skips a present row whose read rule denies Bob. It does not turn an application boolean into a revocation event.
+
+Forwarding all updates instead would deliver post-removal content changes without membership authority.
+
+**Smallest fix:** specify a logical revocation/redaction event for this operation, including its payload and ordering, and deliver it to previously delivered message incarnations after departure. Do not expose tombstones for newly created messages the former member never possessed. Add the exact receive → leave → soft-delete → reconnect sequence to the committed holdouts.
+
+**3. High — §3.3: the receipt state machine remains incomplete.**
+
+The recipient rule is substantially improved. Excluding the sender, excluding later joiners, and treating rejoining as a new membership incarnation are correct for the brief’s aggregate ticks. Removing a departed recipient who already reached a state also preserves the boolean “everyone required has reached it,” although it does not preserve a historical participant count.
+
+Three gaps remain:
+
+- **Delivery is historical, residency is current.** If the index means current acquired/subscribed spans, eviction or device reset can erase the evidence and regress a delivered tick. If it means every acquisition ever acknowledged, its lifetime and storage cost are different from the page index. The text does not choose.
+- **Read versus delivered is unspecified for sparse history.** A member can advance a mark while older messages were never fetched. Define whether/how `read` implies `delivered`; two independently named counts do not define the promised `sent → delivered → read` state machine.
+- **Unread includes soft-deleted messages as written.** A message with `tombstone: true` still satisfies the stated ordinal predicate. #19 explicitly hides the corresponding receipt from unread accounting during deletion.
+
+**Smallest fix:** define durable, idempotent per-principal receipt facts over message incarnations; distinguish them from subscription state; specify device deduplication/reset behavior, the read/delivery relationship, and the eligible-message predicate for unread. Give the actual aggregate expressions.
+
+**4. High — §§3.3, 4.3, 8 and 9.3: the receipt and span-index costs are materially understated.**
+
+“One aggregate update per recipient device acknowledgement and per mark write” is not the cost of maintained **per-message** counts.
+
+**Counterexample:** one member advances `readUpTo` across 10,000 messages. Up to 10,000 per-message read aggregates change. One acknowledgement can likewise cover many messages. Removing a member can change the recipient denominator for many historical messages. One SQL statement would not make these one metered row mutation or one delivered row image.
+
+A compressed range/index representation might avoid materializing all those changes. That is a different implementation with query, invalidation and delivery costs that must be specified.
+
+The per-device span registry is also new persistent work. With D devices and S disjoint acquisitions per device, the straightforward index is O(D·S). Sparse historical searches, released pages and pinned history make S grow independently of the warm-page count. Exact historical receipt facts may need to survive subscription eviction.
+
+**Smallest fix:** choose materialized per-message counts or an indexed/lazy representation, state the accounting unit and bounds, and define idempotent acknowledgement processing. Measure amplification and peak server registry/storage usage under acquisition churn, device reset, membership departure and large mark advances. Withdraw “the only new server work per commit is none” as a description of the complete proposal.
+
+**5. High — §§3.1 and 3.3: `written by` does not yet define an implementable field contract.**
+
+The example permits Alice to create Bob’s membership, including `readUpTo`’s default. The prose says nobody except Bob may write that value. An implementer must invent an initialization exception.
+
+Other choices are unresolved:
+
+- Whether the field rule grants an owner an update right when the row has no update rule—the example relies on that.
+- How a mixed patch containing `readUpTo` and `role` is authorized.
+- How the engine identifies the conversation and its latest ordinal for clamping.
+- How join ordinals and message ordinals share a server-assigned order. The example merely declares `ordinal: int`.
+- How a column is made readable by the row’s audience.
+
+The default privacy claim is particularly consequential. Existing group delivery sends row images. Implementing only field-level **write** authority would still send Bob’s mark in membership rows readable by the group, contrary to the stated owner-only visibility.
+
+**Smallest fix:** specify initialization, patch authorization, ordinal assignment and clamping, and column projection/read semantics; then show a complete membership/message/mark recipe. Alternatively, retain the existing row-audience disclosure policy explicitly. Generic write authority should not silently imply a conversation-specific ordinal type and private-column transport.
+
+**6. High — §4.5 rules 2–3: the proof is still unsound as stated.**
+
+There are now six rules. Several additions are correct, especially versioned coverage, optimistic plain-insert constraints and conservative queueing on unknown inputs. But these counterexamples remain:
+
+- **A complete cursor page is not a complete population.** A `last 20 … after c` page can be complete and uncut while having `next`. Its filter can match the mutation’s range, while its acquired rows cannot establish that range’s count or absence.
+- **Uniform readability is not positive readability.** A key can pin the audience to Bob. Alice’s uniformly denied query returns no readable rows; that does not prove no Bob-owned row exists. Existing [`upsert_absence_proven`](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/snapback4/crates/snapback4-core/src/engine/write_target.rs:69) expressly evaluates the pinned rule positively after establishing uniformity.
+- **“Created earlier” does not establish an empty child range.** Ordinary typed references do not enforce target existence. A child may already reference an absent or deleted parent ID; inserting that parent ID does not make the child range empty. The engine explicitly documents this in [reference validation](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/snapback4/crates/snapback4-core/src/engine/validate.rs:103).
+- **Creation does not grant read authority.** A provisional row still needs its read rule evaluated. The current [provisional-read path](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/snapback4/crates/snapback4-core/src/engine/read_auth.rs:13) preserves that separation.
+
+**Smallest fix:** require a coverage certificate for the exact population being tested, including bounds/exhaustiveness and positively established viewer authority. Restrict the new-parent exemption to a genuinely fresh identity with the necessary provenance guarantees, and explicitly retain provisional read authorization.
+
+**7. High — §4.5’s rate table and §9.3’s queueing gate: this is neither an accurate program classification nor a numerical rate registration.**
+
+The clearest contradiction is internal: rule 6 says materialized-inbox follow writes queue; the `setFollow` row says engine inbox work does not block the edge write. The existing [predictor](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/snapback4/crates/snapback4-core/src/engine/local.rs:75) queues the whole timeline-edge mutation, including an edge no-op.
+
+The #19 program also contradicts several unconditional entries:
+
+| Entry | Relevant program behavior |
+|---|---|
+| `createPost` predicts in every state | A reply first checks its parent. An unheld parent requires queueing. |
+| `addMember` predicts from a roster | It also reads the chat kind and the proposed member’s profile; a roster of existing members need not hold that profile. |
+| `createDm` needs all viewer pairs | #19’s `startDM` performs a lookup of the specific `(viewer, other)` pair. It needs that row or a valid absence proof, not intrinsically every pair. |
+| `react` queues because of rule 5 | It has no explicit `now` predicate. If rule 5 includes implicit expiry checks, that extension must be stated. |
+| `markRead` is an own-row point write | This is a replacement for #19’s `fetched`, and its newly specified clamping can require a latest-ordinal fact beyond the membership row. |
+
+The presence discussion also needs correction. #19’s `connected` test controls an effect; the existing effects-only exception does not require replicating presence. Deliberately withdrawing that exception can be conservative, but it is a named behavior change, not a need to acquire server presence as ordinary closure data.
+
+Finally, “queues unless…” is not a percentage. A ±10-point tolerance needs denominators and a fixed mixture of cold/warm/released/offline calls and argument cases.
+
+**Smallest fix:** freeze operation-specific scenarios and expected outcomes against the actual comparison program, including root posts versus replies and held versus absent targets. Derive numerical rates from that workload. Separate a prediction-model mismatch from a product regression: unexpectedly *more* correct predictions should not automatically fail the bet.
+
+**8. High — §§4.1–4.1.1: depth admission and protected-data overflow still admit incompatible implementations.**
+
+“Capped per warm page at the page’s own size” does not identify what is counted.
+
+**Counterexample:** an inbox contains 50 conversations, each eligible for `chat`, `roster`, `history` and `typingNow`. Does the cap admit 50 parent references and all four child queries, or 50 child pages total? Under the latter interpretation, declaration order can consume the allowance before any history page is admitted. The printed “history last 50 each” example is not entailed.
+
+The numeric budget also leaves an essential transition unspecified:
+
+**Counterexample:** warm/depth pages and `keep history` already protect all 50,000 rows. A maintained page grows, or the user requests another page. Nothing is evictable. Offline eviction is suspended, and retained history is explicitly unbounded.
+
+This can be a soft acquisition budget, but it is not simultaneously a hard device-store bound.
+
+**Smallest fix:** define the expansion unit and ordering over `(query, arguments)`, account for shared rows once, and specify admission/overflow behavior. State whether protected history lies outside the numeric budget. Define what an on-demand read returns when its closure cannot be admitted, and when a maintained page must lose coverage.
+
+**9. High — §8: the shared receipt addition depends on a treatment-only feature.**
+
+The per-device span index is behind `spans` and is the source of `delivered`. The maintained delivery aggregate must land in Snapback 4 and be present in the control. The control is also said to run with every feature off.
+
+Those statements do not yet describe a buildable control.
+
+The existing sync request has a stream cursor and pending-write information; it does not provide the proposed persistent per-device acquisition ledger. See [`SyncRequest`](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/snapback4/crates/snapback4/src/serve_sync.rs:118).
+
+**Smallest fix:** place the necessary receipt/acquisition acknowledgement substrate in the explicitly shared baseline, supporting both authored horizons and derived pages. Then gate only the treatment’s acquisition policy and page machinery. Pin the shared baseline artifact hashes and compare feature-off builds against **that** baseline.
+
+Byte identity is a useful control check after this split. It does not resolve the dependency split by itself.
+
+**Medium — §8, wasm subfinding:** the “inherited 410,000-byte” limit is stale. The checked-in [budget](/Users/ccheever/projects/snapback-sb5-reviews/r3-astra/snapback4/metrics/wasm-budget.json) is **486,000 gzip bytes**. An unchanged control can already exceed 410,000. Pin the actual inherited value, or explicitly register 410,000 as a new reduction requirement.
+
+**10. High — §§9.1, 9.3 and 10: the bet can pass while its stated mechanism is false.**
+
+§9.3 makes mechanism interpretation “not a gate.” §10 says that if reading B holds, “the bet is over.”
+
+**Counterexample:** residency removes no learning burden, but the named outbox/check changes save 30 minutes. Correctness, delivery and floors pass; the classifier returns B. The combination rule says **pass**, while §10 says the bet is over.
+
+Reading A also permits both arms to have zero disappearing-item mentions and identical total learning-cost counts. That is a registered outcome, but it is not evidence that the treatment removed the cost attributed to residency.
+
+**Smallest fix:** choose one interpretation. Either require a specified mechanism result for the named bet to pass, or distinguish “the treatment bundle improved authoring time” from “the residency hypothesis was supported.” Make the no-charge-in-either-arm case non-evidence for removal, and reconcile §10 accordingly.
+
+**11. Medium — §§9.3–9.4: the transfer rule is now explicit, but its inferential claim and loss boundary need repair.**
+
+The registered clocks have sample SD about **15.6 minutes**, so the stated approximation is reasonable. Naming N, the statistic, threshold and stopping rule resolves the earlier absence of a transfer rule.
+
+However, 25 minutes being about 1.7 single-run SD does not establish that it is “the smallest difference three runs per arm can distinguish.” No error rate, distributional model or power criterion defines “distinguish.”
+
+There is also a boundary conflict: §9.4 says a smaller difference is not distinguished; §9.3 labels equal medians a loss and any treatment median above control a loss, however small.
+
+**Smallest fix:** either call 25 minutes an operational decision threshold or provide the statistical assumptions supporting the inference. Write an exhaustive, non-overlapping decision function for win, loss and not distinguished. An operational rejection is permissible; it should not be presented as proof that a beneficial mechanism is absent.
+
+On **whether §9 is concrete enough to hold an evaluator to it**: substantially more of it is. The chosen primary clock, 25-minute win threshold, six-run sample, publication requirement, assertion denominator, zero-blocker requirement, all-run holdout requirement, relative category floors, cold-start threshold and secondary-family role are explicit. They should not be reopened after results.
+
+The remaining measurement choices constitute **finding 12**:
+
+| Severity / section | Concrete ambiguity or failure scenario | Smallest fix |
+|---|---|---|
+| **High — §9.3 primary clock/correctness** | Treatment stops before two expensive non-blocker checks; its earlier last passing evidence wins by 25 minutes, and two missing assertions fit the correctness allowance. The clock rewards omitted work. | Define completion eligibility and failed/aborted-run timing. Require the complete scheduled evidence campaign to finish before a run can earn a clock win; distinguish allowed failures from unattempted work. |
+| **High — §9.3 delivery** | Ratios of 1.0, 1.0 and 2.0 pass a mean-based 1.5 gate but fail an every-run gate. The text does not select aggregation across runs. | Specify per-run measurements, cross-run aggregation and whether any individual violation fails. |
+| **High — §9.3 delivery accounting** | Receipt maintenance generates extra commits. Counting those in “CPU-ms per commit” can improve the ratio merely by increasing the denominator. Background work can also be left outside the sampled segment. | Use a fixed logical workload denominator; include acknowledgement, maintenance and completion-tail costs. Define delivery latency’s start/end events. |
+| **High — §§9.4–9.5 load gate** | A treatment-induced queue of runnable work exceeds load 36. The slow result is discarded as “load” and rerun. Discarding before reading its score does not remove that selection bias. | Separate external host contamination from candidate-induced load; retain the latter as a result. Freeze sampler cadence and external-load retry limits. |
+| **High — §§4.5, 9.3** | Changing the mix of root posts/replies or held/unheld targets changes queueing percentages without changing the implementation. | Freeze numeric expectations, invocation populations and weighting, as in finding 7. |
+| **Medium — §§9.2, 9.5 native/M7 scope** | The frozen [packet prompt](/Users/ccheever/clique-ref-20260924/prompts/template.md:12) excludes M7 and says simulator proofs are not required. “Native artifacts required” can mean a Hermes export or behavioral native evidence. Both interpretations can produce different grades. | Commit an explicit comparison amendment identifying required native evidence and M7’s treatment, including its clock treatment if run separately. |
+| **Medium — §9.3 floors** | “Every category” implies a relative `data_modeling` floor; the separate `data_modeling` row says “none.” | State that the relative floor applies and only the hoped-for absolute 94 is non-gating, or explicitly exclude the category. |
+| **High — §§8–9.3 resource coverage** | An implementation can satisfy CPU/latency ratios while accumulating unbounded server acquisition/receipt metadata. Device store size is measured, but the server index has no threshold. | Add the state-size/churn measurement and bound described in finding 4. |
+
+The promised holdout and classifier-rubric hashes are legitimate **future freezes**, not permission for post-result changes. They must include the exact classifier identity and counting procedure. Their content is not yet inspectable; the RFC should claim a registration procedure until those artifacts exist.
+
+Finally, **what remains underspecified enough for competent implementers to diverge** includes all the contracts above, plus one further dependency:
+
+**13. Medium — §§3.3 and 4.3: hidden-result witnesses and parent liveness lack a maintenance protocol.**
+
+**Counterexample:** Bob’s page receives an authorized boolean derived from Alice’s private `blocks` row. Alice changes that row. Bob cannot subscribe to its raw image, and the proposal removes server page matching. What updates or invalidates Bob’s boolean, at what sequence, and what prevents it from continuing to certify completeness?
+
+Likewise, read-time `through` liveness requires a device to learn parent-incarnation death even when the parent is not otherwise resident. Background physical deletion must not leave stale aggregate contributions or device answers apparently complete in the interim.
+
+**Smallest fix:** for the first slice, select the already-safe fallback—such pages are server-evaluated and incomplete offline—unless a versioned, authorized result-witness protocol is specified. In LLP 3000.014 revision 2, explicitly cover device liveness witnesses, logical-death effects on aggregates/constraints, and the cascade’s meter and progress semantics.
+
+The implementer needs a concrete acquisition/refill trace, coverage-certificate schema, post-removal revocation event, budget-overflow state transition, complete receipt recipe and executable prediction conditions. Repeating the simulator invariant or saying the existing channel is unchanged does not supply those contracts.
+
+**Overall verdict: NOT READY.**
