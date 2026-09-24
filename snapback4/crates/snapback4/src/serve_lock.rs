@@ -5,13 +5,18 @@ use std::time::{Duration, Instant};
 const REQUEST_QUIET: Duration = Duration::from_millis(1);
 const MAX_DEFER: Duration = Duration::from_millis(5);
 
+pub trait Clock { fn now(&self) -> Instant; }
+pub struct SystemClock;
+impl Clock for SystemClock { fn now(&self) -> Instant { Instant::now() } }
+
 #[derive(Default)]
 struct Queue { next: u64, serving: u64, last_request: Option<Instant> }
 
 // @ref LLP 3000.013#4-following-without-caps — background delivery yields the engine between commits.
 /// Both requests and maintenance take tickets. Later requests cannot starve
 /// maintenance either; every holder does one bounded operation before release.
-pub struct FairMutex<T> {
+pub struct FairMutex<T, C: Clock = SystemClock> {
+    clock: C,
     queue: Mutex<Queue>,
     available: Condvar,
     value: Mutex<T>,
@@ -19,35 +24,41 @@ pub struct FairMutex<T> {
 
 impl<T> FairMutex<T> {
     pub fn new(value: T) -> Self {
-        Self { queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value) }
+        Self::with_clock(value, SystemClock)
     }
-    pub fn lock(&self) -> LockResult<FairGuard<'_, T>> {
+}
+impl<T, C: Clock> FairMutex<T, C> {
+    fn with_clock(value: T, clock: C) -> Self {
+        Self { clock, queue: Mutex::new(Queue::default()), available: Condvar::new(), value: Mutex::new(value) }
+    }
+    fn background_wait(&self, queue: &Queue, started: Instant) -> Option<Duration> {
+        // An existing queue is sustained contention: join its tail now.
+        if queue.next.wrapping_sub(queue.serving) > 1 { return None; }
+        let now = self.clock.now();
+        let quiet = queue.last_request.map_or(Duration::ZERO, |at| REQUEST_QUIET.saturating_sub(now.saturating_duration_since(at)));
+        if queue.next == queue.serving && quiet.is_zero() { return None; }
+        let remaining = MAX_DEFER.saturating_sub(now.saturating_duration_since(started));
+        if remaining.is_zero() { None }
+        else { Some(if quiet.is_zero() { remaining } else { quiet.min(remaining) }) }
+    }
+    pub fn lock(&self) -> LockResult<FairGuard<'_, T, C>> {
         self.admit(false)
     }
     /// Coalesce a short request burst before entering the FIFO. At the deadline
     /// maintenance takes a ticket even under continuous traffic; later arrivals
     /// cannot starve it. No engine lock is held during the deferral.
-    pub fn background(&self) -> FairGuard<'_, T> {
+    pub fn background(&self) -> FairGuard<'_, T, C> {
         recover(self.admit(true), || self.clear_poison())
     }
-    fn admit(&self, background: bool) -> LockResult<FairGuard<'_, T>> {
-        let started = Instant::now();
+    fn admit(&self, background: bool) -> LockResult<FairGuard<'_, T, C>> {
+        let started = self.clock.now();
         let mut queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
         if background {
-            loop {
-                // A queue behind the active request is sustained contention,
-                // not an inter-request gap. Join its tail immediately rather
-                // than spending the whole deferral waiting for an idle writer.
-                if queue.next.wrapping_sub(queue.serving) > 1 { break; }
-                let quiet = queue.last_request.map_or(Duration::ZERO, |at| REQUEST_QUIET.saturating_sub(at.elapsed()));
-                if queue.next == queue.serving && quiet.is_zero() { break; }
-                let remaining = MAX_DEFER.saturating_sub(started.elapsed());
-                if remaining.is_zero() { break; }
-                let wait = if quiet.is_zero() { remaining } else { quiet.min(remaining) };
+            while let Some(wait) = self.background_wait(&queue, started) {
                 queue = self.available.wait_timeout(queue, wait).unwrap_or_else(PoisonError::into_inner).0;
             }
         }
-        let contended = background && (queue.next != queue.serving || queue.last_request.is_some_and(|at| at.elapsed() < REQUEST_QUIET));
+        let contended = background && (queue.next != queue.serving || queue.last_request.is_some_and(|at| self.clock.now().saturating_duration_since(at) < REQUEST_QUIET));
         let ticket = queue.next;
         queue.next = queue.next.wrapping_add(1);
         while queue.serving != ticket {
@@ -64,22 +75,22 @@ impl<T> FairMutex<T> {
     pub fn is_poisoned(&self) -> bool { self.value.is_poisoned() }
 }
 
-pub struct FairGuard<'a, T> { owner: &'a FairMutex<T>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool }
-impl<T> FairGuard<'_, T> {
+pub struct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: bool }
+impl<T, C: Clock> FairGuard<'_, T, C> {
     pub fn contended(&self) -> bool { self.contended }
 }
-impl<T> Deref for FairGuard<'_, T> {
+impl<T, C: Clock> Deref for FairGuard<'_, T, C> {
     type Target = T;
     fn deref(&self) -> &T { self.value.as_deref().expect("live guard") }
 }
-impl<T> DerefMut for FairGuard<'_, T> {
+impl<T, C: Clock> DerefMut for FairGuard<'_, T, C> {
     fn deref_mut(&mut self) -> &mut T { self.value.as_deref_mut().expect("live guard") }
 }
-impl<T> Drop for FairGuard<'_, T> {
+impl<T, C: Clock> Drop for FairGuard<'_, T, C> {
     fn drop(&mut self) {
         drop(self.value.take());
         let mut queue = self.owner.queue.lock().unwrap_or_else(PoisonError::into_inner);
-        if !self.background { queue.last_request = Some(Instant::now()); }
+        if !self.background { queue.last_request = Some(self.owner.clock.now()); }
         queue.serving = queue.serving.wrapping_add(1);
         self.owner.available.notify_all();
     }
@@ -104,8 +115,8 @@ impl<T> Lockable for Mutex<T> {
     type Guard<'a> = MutexGuard<'a, T> where T: 'a;
     fn recover_lock(&self) -> Self::Guard<'_> { recover(self.lock(), || self.clear_poison()) }
 }
-impl<T> Lockable for FairMutex<T> {
-    type Guard<'a> = FairGuard<'a, T> where T: 'a;
+impl<T, C: Clock> Lockable for FairMutex<T, C> {
+    type Guard<'a> = FairGuard<'a, T, C> where T: 'a, C: 'a;
     fn recover_lock(&self) -> Self::Guard<'_> { recover(self.lock(), || self.clear_poison()) }
 }
 impl<T: Lockable> Lockable for std::sync::Arc<T> {
@@ -194,16 +205,40 @@ mod tests {
         assert!(!lock.background().contended());
     }
 
+    struct ManualClock(std::cell::Cell<Instant>);
+    impl Clock for ManualClock { fn now(&self) -> Instant { self.0.get() } }
+
     #[test]
-    fn a_single_continuous_holder_cannot_defer_background_forever() {
-        let lock = Arc::new(FairMutex::new(()));
-        let request = lock.lock().unwrap();
-        let worker = lock.clone();
-        let background = std::thread::spawn(move || assert!(worker.background().contended()));
-        // No queued second request takes the sustained-contention shortcut.
-        // The deadline must still allocate the next ticket before release.
-        queued(&lock, 2);
-        drop(request);
-        background.join().unwrap();
+    fn background_takes_its_ticket_at_five_ms_despite_new_request_activity() {
+        let start = Instant::now();
+        let lock = FairMutex::with_clock((), ManualClock(std::cell::Cell::new(start)));
+        let mut queue = Queue { next: 1, serving: 0, last_request: None };
+        assert_eq!(lock.background_wait(&queue, start), Some(Duration::from_millis(5)));
+        lock.clock.0.set(start + Duration::from_micros(4999));
+        queue.last_request = Some(lock.clock.now());
+        assert_eq!(lock.background_wait(&queue, start), Some(Duration::from_micros(1)));
+        lock.clock.0.set(start + Duration::from_millis(5));
+        queue.last_request = Some(lock.clock.now());
+        assert_eq!(lock.background_wait(&queue, start), None, "the deadline is 5 ms, not the test harness timeout");
+    }
+
+    #[test]
+    fn a_waiting_request_behind_a_holder_admits_background_immediately() {
+        let start = Instant::now();
+        let lock = FairMutex::with_clock((), ManualClock(std::cell::Cell::new(start)));
+        let queue = Queue { next: 2, serving: 0, last_request: Some(start) };
+        assert_eq!(lock.background_wait(&queue, start), None, "do not wait for a quiet interval or the deadline");
+    }
+
+    #[test]
+    fn quiet_interval_ends_at_one_ms_on_the_injected_clock() {
+        let start = Instant::now();
+        let lock = FairMutex::with_clock((), ManualClock(std::cell::Cell::new(start)));
+        let queue = Queue { next: 1, serving: 1, last_request: Some(start) };
+        assert_eq!(lock.background_wait(&queue, start), Some(Duration::from_millis(1)));
+        lock.clock.0.set(start + Duration::from_micros(999));
+        assert_eq!(lock.background_wait(&queue, start), Some(Duration::from_micros(1)));
+        lock.clock.0.set(start + Duration::from_millis(1));
+        assert_eq!(lock.background_wait(&queue, start), None);
     }
 }
