@@ -16,6 +16,7 @@ mod aggregate_copies;
 mod time_indexes;
 mod timeline;
 mod intent;
+mod intent_aggregates;
 mod intent_walk;
 mod intent_views;
 mod view_predicate;

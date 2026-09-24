@@ -90,7 +90,9 @@ impl Binder<'_> {
             Some(Ty::RowShape(fields)) => fields.clone(), _ => result.unwrap_or_default(),
         };
         let mut names = merge.view_order.clone();
-        names.retain(|name| name != "id"); names.push("id".into());
+        // Keep the projected order aligned with each branch's source scan,
+        // including an explicitly ordered id before another field.
+        if !names.iter().any(|name| name == "id") { names.push("id".into()); }
         let mut suffix = names.into_iter().map(|name| {
             let kind = fields.get(&name).and_then(cursor_kind).ok_or_else(|| type_error(&merge.site,
                 format!("view order .{name} has no scalar column type"), "order by a field projecting a scalar source column in every branch"))?;

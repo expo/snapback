@@ -45,7 +45,6 @@ table members:
   role: enum('member', 'admin')
   joinedAt: time
   unique byRoomPrincipal: roomId, principal else MEMBER_EXISTS -- `unique` orders and constrains
-  by byRoomPrincipalRole: roomId, principal, role
   by byPrincipalRoom: principal, roomId, id
   cap 100 by roomId                                    -- at most N rows per group; needs an index leading with the group
   immutable roomId, principal                          -- columns no update may change
@@ -324,7 +323,7 @@ mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) p
   return null                                                        -- a bare `return` is the same
 
 mutation join(roomId: rooms, principal: principal):
-  require exists members[roomId = roomId, principal = viewer, role = 'admin'] by byRoomPrincipalRole else NOT_ADMIN
+  require exists members[roomId = roomId, principal = viewer, role = 'admin'] else NOT_ADMIN
   return insert members { roomId, principal, role: 'member', joinedAt: now } if absent   -- the row, or null on a unique clash
 
 mutation leave(roomId: rooms):
