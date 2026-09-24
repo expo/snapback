@@ -151,7 +151,7 @@ maintain receivedLikes: count likes by postId.authorId -- one immutable hop to a
   online only
 
 maintain messageCounts: count messages by roomId       -- an aggregate the engine keeps: read it by group and get the number, 0 when the group has no row
-  read <- exists members[.roomId, viewer]
+                                                     -- read derives the source's membership rule because roomId is a bare group key
 maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an int, decimal or money column
   read <- allow
   online only                         -- mutations reading this maintain never predict
@@ -539,7 +539,8 @@ and evaluating it once, including when it is a call or read.
 - Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
 
 Maintained columns put an aggregate on the row it describes. Their source
-is ordinary and non-expiring, and `by` is one reference to the parent. The
+is ordinary and non-expiring. Omit `by` when exactly one source column references
+the parent; otherwise name that reference explicitly. The
 engine owns the column; a write result omits it. Read the row for its value.
 Adding or redefining it recounts existing sources in atomic activation.
 The event-free generation barrier makes devices reacquire; a missing stored
@@ -549,7 +550,7 @@ for disclosure and stream cost, and `guide feeds` for hour-lane Trending.
 ```quarry
 table subjects:
   at: time
-  voteCount: count votes by subjectId
+  voteCount: count votes
   by byVotes: voteCount, at, id
   public
   online only

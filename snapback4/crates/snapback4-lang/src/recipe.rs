@@ -138,7 +138,7 @@ fn rename_module(source: &str, prefix: &str, module: &str) -> Result<(String, BT
         edit.name(&maintain.site, &maintain.source, 3);
         if let Some(filter) = &maintain.filter { edit.expr(filter); }
         for key in &maintain.keys { edit.expr(key); }
-        edit.expr(&maintain.read.value);
+        if let Some(read) = &maintain.read { edit.expr(&read.value); }
     }
     for shape in &doc.shapes { edit.name(&shape.site, &shape.name, 1); edit.shape(&shape.fields); }
     for function in &doc.functions {

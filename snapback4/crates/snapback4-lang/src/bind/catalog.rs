@@ -104,7 +104,9 @@ impl Catalog {
                     diagnostics.push(unknown(&maintain.site, format!("maintain {} collides with a table of the same name", maintain.name), "rename the maintain"));
                     continue;
                 }
-                maintains.insert(maintain.name.clone(), maintain.clone());
+                let mut maintain = maintain.clone();
+                super::maintains::normalize_keys(&mut maintain);
+                maintains.insert(maintain.name.clone(), maintain);
             }
             for shape in &doc.shapes {
                 if let Some(first) = shapes.get(&shape.name) {
@@ -157,7 +159,15 @@ impl Catalog {
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }
         }
-        Self { documents, tables, maintains, shapes, functions, effects }
+        let mut catalog = Self { documents, tables, maintains, shapes, functions, effects };
+        for maintain in catalog.maintains.values().filter(|m| m.read.is_none()) {
+            if !catalog.tables.contains_key(&maintain.name) { continue; }
+            match super::maintains::derived_read(&catalog, maintain) {
+                Ok(read) => catalog.tables.get_mut(&maintain.name).unwrap().decl.rules.push(read),
+                Err(diagnostic) => diagnostics.push(diagnostic),
+            }
+        }
+        catalog
     }
 
     /// The declaration site behind a schema validation path.

@@ -372,15 +372,16 @@ impl Parser {
     fn parse_column(&mut self) -> Fallible<ColumnDecl> {
         let name = self.word()?;
         self.take(":")?;
-        let aggregate = (self.at("count") && matches!(self.peek_at(2).value.as_str(), "by" | "where"))
-            || (self.at("sum") && self.peek_at(2).value == "of");
-        if aggregate && self.peek_at(1).kind == Kind::Word && self.peek_at(2).kind == Kind::Word {
+        let aggregate = (self.peek_at(2).kind == Kind::Word
+            && ((self.at("count") && matches!(self.peek_at(2).value.as_str(), "by" | "where"))
+                || (self.at("sum") && self.peek_at(2).value == "of")))
+            || (self.at("count") && self.peek_at(2).kind == Kind::Newline);
+        if aggregate && self.peek_at(1).kind == Kind::Word {
             let sum = self.word()?.value == "sum";
             let source = self.word()?.value;
-            let of = if sum { self.take("of")?; Some(self.word()?.value) } else { None };
+            let of = if sum { self.take("of")?; self.maybe("."); Some(self.word()?.value) } else { None };
             let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
-            self.take("by")?;
-            let by = self.word()?.value;
+            let by = if self.maybe("by") { self.maybe("."); self.word()?.value } else { String::new() };
             self.newline()?;
             return Ok(ColumnDecl { maintained: Some(ColumnAggregate { source, of, filter, by }),
                 name: name.value, type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
@@ -486,11 +487,12 @@ impl Parser {
             _ => print::expression(key),
         }).collect();
         self.newline()?;
-        self.take_kind(Kind::Indent)?;
+        let block = self.at_kind(Kind::Indent);
+        if block { self.take_kind(Kind::Indent)?; }
         let mut indexes = Vec::new();
         let mut read = None;
         let mut online_only = false;
-        while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
+        while block && !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
                 break;
@@ -535,10 +537,7 @@ impl Parser {
                 self.recover_line();
             }
         }
-        self.take_kind(Kind::Dedent)?;
-        let Some(read) = read else {
-            return Err(syntax_with(&site, format!("maintain {name} requires read <- rule"), "read <- exists memberships[.conversationId, viewer]"));
-        };
+        if block { self.take_kind(Kind::Dedent)?; }
         Ok(MaintainDecl { filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, online_only, site })
     }
 

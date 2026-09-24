@@ -281,6 +281,7 @@ pub struct ColumnAggregate {
     pub source: String,
     pub of: Option<String>,
     pub filter: Option<Expr>,
+    /// Empty until reference inference in the catalog when `by` is omitted.
     pub by: String,
 }
 
@@ -335,7 +336,7 @@ pub struct MaintainDecl {
     pub source: String,
     pub column: Option<String>,
     pub by: Vec<String>,
-    pub read: RuleDecl,
+    pub read: Option<RuleDecl>,
     pub online_only: bool,
     pub site: Site,
 }
