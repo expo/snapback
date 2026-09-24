@@ -49278,3 +49278,49 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+
+## 2026-09-24 — LLP 3000.013 Lane P: expiring cap checks and stopped requirements
+
+Committed the expiring-table cap fix on `sb4-intent/p-expiry` (`b51dc16fa`).
+The 0.4.0 unique check already pinned the full `(conversationId, ordinal)` key;
+the cap branch scanned the live population. The reproduction stopped at insert
+8,193 with examined 8,193 against 8,192, despite all expiry values being null.
+Cap enforcement now reads transactional physical occupancy, per table/group,
+in SQLite, memory devices and the Postgres evaluation adapter. Unswept expired
+rows conservatively occupy capacity. Upgrade/backfill, literal-default row
+interpretation, rollback, group moves, reset and persisted memory reconstruction
+are covered. Full-key write-target expiry skips are metered separately from the
+unchanged disclosure accounting of rule probes. The cost certificate describes
+constant live-population work plus only same-key expired siblings and states
+the one-second, 2,000-row background sweep policy.
+
+Fifteen new regressions pass. Two 9,000-send runs, with unrelated expired
+backlogs 0 and 3,000, stay at exactly 1 examined row per write. Same-key 3,000-row
+backlogs fit; 9,000-row backlogs refuse at the examined ceiling and roll back.
+The full unmodified harness, using `CARGO_INCREMENTAL=0` and its existing serial
+client-file option, reports exactly `== 0 failure(s) in 762 s`: full Rust
+inventory passed; client totals 1,088 passed, 0 failed, 10 skipped. Earlier
+trial/environment failures are individually attributed in the report. The
+Postgres feature compiles; no Postgres server was available for runtime proof.
+Reference audit: 505 LLP documents, 9,236 references, zero errors/unchecked.
+All changed source files stay under 1,500 lines; whitespace checks pass.
+
+The final web artifact is 1,748,501 B raw / 485,838 B gzip, +3,659 raw / +871 gzip
+against integration round 4. Keep the existing 486,000 B budget (162 B headroom)
+and all runtime meter ceilings. Disk exhaustion required moving only this
+lane's ignored target directory to the dedicated build-cache volume; no other
+lane's artifacts were changed.
+
+Stopped two requirements for supervisor design review. The trial's inline
+secondary-unique collision deletion emitted a row id and group scope for a
+membership inserted already expired, violating the existing never-live-grant
+disclosure regression; that helper is not committed. Key reuse retains the
+expired predecessor until background sweep. Separately, a fresh snapshot omits
+expired rows, so both devices can predict an insert the server's conservative
+physical cap refuses (cap 1, one expired unswept server row). Agreement is
+qualified only for matching held populations and delivered sweep deletions;
+no general agreement or full Lane P completion claim is made. No new sync
+protocol, lifetime-provenance design, syntax, refusal code, package release,
+push or publication. File map, examples, test proofs, exact failure attribution
+and both reproductions: `reports/20260924-intent-lane-p.md`.
