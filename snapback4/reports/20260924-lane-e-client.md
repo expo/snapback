@@ -3,6 +3,10 @@
 Date: 2026-09-24. Branch: `sb4-intent/e-client`; base: `6d9f3e001`.
 This is implementation and local qualification, not integration or publication.
 
+Review round 1 is recorded in [the follow-up report](./20260924-lane-e-review1.md).
+It fixes five findings and qualifies the previously open starter-update witness;
+the initial results below are retained as the original lane handoff record.
+
 ## Files
 
 Paths below are relative to `snapback4/`.

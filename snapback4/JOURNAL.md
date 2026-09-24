@@ -47563,3 +47563,42 @@ SessionStores shared concurrently by separate non-browser processes remain
 unsupported because the existing store card has no compare-and-swap; browser
 tabs use Web Locks. Detailed files, examples, decisions and open reproductions
 are in the same lane report.
+
+
+## 2026-09-24 — LLP 3000.013 lane E review round 1
+
+Addressed all five Astra Medium findings in `cfadff4d9`. Logout invalidates
+per-opener session persistence and deletes credentials outside the network
+queue; late restoration cannot restore them. Ordinary close retains rotation
+ownership until the replacement is persisted. Shared online journal owners
+notify their own hooks independently and finish their argument reservations
+after durable settlement. Shell navigations now use the active build's cached
+HTML online too, so waiting-deployment HTML cannot escape its asset set.
+
+Measured: 37 focused app/custody/React/shell tests passed, plus all 11 online
+session tests. Real-server races hold schema/logout/rotation responses and
+prove credential deletion or successor preservation as appropriate. The shared
+300-write test measures at most 256 retained argument identities and zero
+pending reservations for each owner; the React test proves both pending hooks
+settle after only one durable retirement. Both Chromium witnesses pass. The
+expanded starter witness now qualifies its previously timed-out failed-update
+phase, old-tab asset retention, activation, and an unused lazy chunk loaded
+offline after online navigation while the next deployment waits. No assertion
+was skipped. The earlier timeout's exact cause remains unisolated; it is not
+claimed to be a pre-existing witness defect. Cold-offline shell/account/replica
+reopen passed with both servers stopped (1,431 ms, not a performance claim).
+
+Final complete suite: **`== 2 failure(s) in 123 s`**, cargo and client aggregates.
+The four Rust failures match the untouched host baseline (legacy schema
+capabilities, search wasm fixture, authoring census, why cost output). Client
+results were 1,016 passed, 10 skipped and one intermittent `ECONNRESET` in the
+unchanged retained-history test's raw HTTP request to its restarted fixture
+server; that exact test passed an isolated rerun. An earlier 149-second full
+run also caught the old assertion that ordinary close discards a rotation;
+it was deliberately updated and now passes, including proof that closed
+clients still refuse new work. Exact test names, logs and reproductions are in
+[the review report](./reports/20260924-lane-e-review1.md).
+
+Did not alter authorization, disclosure, meters, Client vocabulary or ceilings;
+did not run a native Expo simulator, push or publish. The second review family
+is still pending. The original handoff report links forward to this result.
