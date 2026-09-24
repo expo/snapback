@@ -86,6 +86,9 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
 pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fact: &mut Execution) {
     let mut located = Vec::new();
     for mut site in std::mem::take(&mut fact.sites) {
+        if matches!(site.kind.as_str(), "point" | "scan") && let Some(selection) = program.selections.get(&site.site) {
+            site.reason.push_str(&format!("; {selection}"));
+        }
         let mut locations = BTreeSet::new();
         if let Some((location, name)) = program.sources.get(&site.site) {
             locations.insert(format!("{location} ({name})"));

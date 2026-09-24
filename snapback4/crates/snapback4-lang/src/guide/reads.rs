@@ -64,6 +64,18 @@ key, a single exact-type match wins first; if that remains ambiguous, exactly on
 unique index covering the whole key wins; otherwise name `by index`
 (the ambiguity diagnostic carries a mechanical `check --fix` rewrite).
 
+Positional keys carry their reference types: if `replies.postId: posts`,
+`replies[p]` with `p: posts` selects the parent prefix, not the reply's id.
+For a point lookup write `replies[id = r]` with `r: replies` (or
+`replies[r] by byId`). Changing `r` to a different table's reference then
+refuses instead of becoming a page. A generic `id` loses this table-identity
+check; do not add an ID helper merely to silence a wrong-table reference.
+An absent, hidden or null point target returns null; a parent prefix returns
+a page, empty when no row matches. A reference type does not prove existence.
+`snapback4 why <operation>` shows each read's source site, selected index,
+column/key bindings, result form and selection reason; the same facts appear
+in `check --json` execution sites. These are binder facts, not measured work.
+
 ```quarry
 query readForms(roomId: rooms, messageId: messages, c: cursor ?):
   one = messages[messageId]                                  -- one row by a unique key: null if absent or hidden

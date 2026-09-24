@@ -2,7 +2,9 @@
 
 For a new public social app, declare `maintain feed: timeline` before adding
 posts, reposts or follows. The engine keeps Following, delivery and cleanup;
-the application writes four source tables and reads shaped event cards.
+the application writes the mapped source tables and reads shaped event cards.
+The complete program also keeps a public Global projection and ranks the same
+post cards by their maintained like count.
 
 ## What Following contains
 
@@ -152,12 +154,16 @@ Every insert into the mapped posts table publishes a timeline event; there is
 no event predicate. Keep replies, comments and any rows that must not appear
 in Following in their own table, outside the timeline mapping.
 
-## Complete public Following program
+## Complete public Following, Global and Trending program
 
 Save this as `snapback/schema.q`, then run `snapback4 check`. The example's
 profile and card fields can grow while the mapped identities and rules keep
 this shape. Omitted write rules deny: profiles cannot update or delete,
 originals cannot delete, and reposts and follows cannot update.
+`check` also prints `N_MAINTAINED_COLUMN_STREAM` for `posts`: every like change
+streams the whole post image to each holder, once per changed post per commit.
+The same `score` serves ranking and card display; do not add a second
+`maintain scores` solely to display it. Page size does not reduce this cost.
 
 ```quarry
 table profiles:
@@ -175,6 +181,8 @@ table posts:
   body: text <=500
   at: time
   removed: bool default false
+  score: count likes by postId
+  by byHourScore: hour(at), score, at, id
   cap 60000
   immutable authorId, at
   public 'public cards retained for reposts'
@@ -221,6 +229,31 @@ table follows:
   delete <- .followerId = viewer
   sync public
 
+
+table likes:
+  postId: posts
+  principal: principal
+  unique byPair: postId, principal
+  immutable postId, principal
+  public 'public likes'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  sync public
+
+table events:
+  postId: posts
+  actorId: principal
+  repost: bool
+  at: time
+  unique byActorPostType: actorId, postId, repost
+  by byTime: at, id
+  cap 60000
+  immutable postId, actorId, repost, at
+  public 'Global public events'
+  insert <- .actorId = viewer
+  delete <- .actorId = viewer
+  sync public
+
 maintain feed: timeline
   authors profiles by principal
   events posts by authorId, at removed by removed
@@ -231,23 +264,45 @@ maintain feed: timeline
 query following(c: cursor ?):
   return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[.actorId], author: profiles[.authorId] }
 
+query global(c: cursor ?):
+  return events after c last 20 by byTime { *, post: posts[id = .postId], actor: profiles[principal = .actorId] }
+
+query trending(c: cursor ?):
+  return merge posts after c last 10 by byHourScore where .at > now - 86400000 and .at <= now and not .removed:
+    [h] for h in range(hour(now) - 24, hour(now) + 1)
+
 query thread(postId: posts, c: cursor ?):
   return replies[postId] after c first 20 by byPost
 
 mutation register(name: text <=80):
   return insert profiles { principal: viewer, name } if absent
 mutation post(body: text <=500):
-  return insert posts { authorId: viewer, body, at: now }
+  p = insert posts { authorId: viewer, body, at: now }
+  insert events { postId: p.id, actorId: viewer, repost: false, at: now }
+  return p
 mutation reply(postId: posts, body: text <=500):
   require exists posts[postId] else FEED_APP_NOT_FOUND
   return insert replies { postId, authorId: viewer, body, at: now }
 mutation repost(postId: posts):
-  return insert reposts { actorId: viewer, postId, at: now } if absent
+  r = insert reposts { actorId: viewer, postId, at: now } if absent
+  if r != null:
+    insert events { postId, actorId: viewer, repost: true, at: now }
+  return r
 mutation remove(postId: posts):
-  update posts[postId] { removed: true }
+  update posts[id = postId] { removed: true }
+  if exists events[viewer, postId, false]:
+    delete events[viewer, postId, false]
 mutation unrepost(postId: posts):
   if exists reposts[viewer, postId]:
+    delete events[viewer, postId, true]
     delete reposts[viewer, postId]
+mutation setLike(postId: posts, liked: bool):
+  p = posts[id = postId] ! else FEED_APP_NOT_FOUND
+  if liked:
+    require not p.removed else FEED_POST_NOT_FOUND
+    insert likes { postId, principal: viewer } if absent
+  else if exists likes[postId, viewer]:
+    delete likes[postId, viewer]
 mutation follow(authorId: principal):
   insert follows { followerId: viewer, followedId: authorId, at: now } if absent
 mutation unfollow(authorId: principal):
@@ -260,6 +315,30 @@ with card and profile joins. Key the rendered list by event `id`, so an
 original and a repost remain separate. `post.removed` describes the original;
 do not filter an independent repost out merely because its original was removed.
 Render `complete: false` as incomplete and pass `next` back as `c` when present.
+
+Global reads one application-owned `events` table; it cannot read the
+viewer's timeline as a public cross-table union. Only the mutations above
+write that projection. Each post/repost and its Global event commit atomically
+with the engine's Following changes; an event cap or later refusal rolls back
+all three. Retry a submitted mutation with the same write id. A repeated repost
+with a new write id also adds nothing while its source exists. Unrepost deletes
+both source and Global event; reposting afterward mints fresh identities.
+Removing an original deletes its own Global event, while independent reposts
+keep their cards with `removed: true`. Replies are outside both feeds.
+Global has separate event ids from Following; key each list by its own event id.
+The tables and graph are already public here. Do not make private audiences
+public to use this example. Extra projection writes count toward the same
+mutation ceiling; inspect the failed write before retrying.
+
+Trending uses 25 hourly lanes of `posts.byHourScore`, ordered by descending
+`score`, then `at`, then `id`; it includes zero likes and excludes removed
+posts and both exact window edges outside `(now - 86400000, now]`. Pass `next`
+as `c` with the same lane set. Counts can move between requests, so pages are
+not a snapshot and can repeat or omit rows after concurrent likes or deletions.
+Restart pagination when the clock changes the lanes. `why trending` describes
+its index and static lane bound; `run trending '{"c":null}' --json` reports
+actual examined/index/step/heap counters and the cut, not a latency guarantee.
+See the standalone Trending example below for an online-only card.
 
 For replies received by a post's author,
 see `guide maintains` for `count replies by postId.authorId`; the complete
@@ -466,11 +545,13 @@ table posts:
   authorId: principal
   body: text <=500
   at: time
+  removed: bool default false
   likeCount: count likes by postId
   by byHourLikes: hour(at), likeCount, at, id
   immutable authorId, at
   public 'posts are public'
   insert <- .authorId = viewer
+  update <- .authorId = viewer
 
 table likes:
   postId: posts
@@ -485,14 +566,18 @@ mutation create(body: text <=500):
   return insert posts { authorId: viewer, body, at: now }
 
 mutation setLike(postId: posts, liked: bool):
-  require exists posts[postId] else POST_NOT_FOUND
+  p = posts[id = postId] ! else POST_NOT_FOUND
   if liked:
+    require not p.removed else POST_REMOVED
     insert likes { postId, principal: viewer } if absent
   else if exists likes[postId, viewer]:
     delete likes[postId, viewer]
 
+mutation remove(postId: posts):
+  update posts[id = postId] { removed: true }
+
 query trending(c: cursor ?):
-  return merge posts after c last 10 by byHourLikes where .at > now - 86400000 and .at <= now:
+  return merge posts after c last 10 by byHourLikes where .at > now - 86400000 and .at <= now and not .removed:
     [h] for h in range(hour(now) - 24, hour(now) + 1)
 ```
 

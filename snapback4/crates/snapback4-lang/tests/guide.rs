@@ -458,6 +458,10 @@ fn every_card_compiles_clean() {
         let text = card(keyword).unwrap_or_else(|| panic!("no card for {keyword}"));
         let blocks = quarry(text);
         for (n, block) in blocks.iter().enumerate() {
+            if *keyword == "feeds" && n == 0 {
+                feeds::assert_stream_note(&compile(block));
+                continue;
+            }
             if *keyword == "search" && n == 1 {
                 // The lane brief explicitly permits notes documented by this section.
                 // Keep the exception on this block and this exact site; every
@@ -1143,8 +1147,9 @@ fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates(
     let docs = std::iter::once(("language", LANGUAGE)).chain(std::iter::once(("README",README)))
         .chain(KEYWORDS.iter().filter_map(|name|card(name).map(|text|(*name,text))));
     for (name,text) in docs {
-        for source in quarry(text) {
+        for (index, source) in quarry(text).into_iter().enumerate() {
             let bound=compile(&in_context(&source));
+            if name == "feeds" && index == 0 { feeds::assert_stream_note(&bound); continue; }
             assert!(bound.notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")),"{name}: {:?}",bound.notes);
         }
     }

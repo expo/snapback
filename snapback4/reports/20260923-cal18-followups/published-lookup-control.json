@@ -1,0 +1,55 @@
+{
+  "root": "/Users/ccheever/cal18-published-lookup-mq4opv1r",
+  "binarySha256": "2f4d9487faf33e89450f67811ac650093b9633c94a7083738a0004b6a2e79046",
+  "sourceSha256": "7eb9d2823ca4cc42e2076dd159a0eef9ed809a7d0204e61b0c700a1e38121355",
+  "runs": [
+    {
+      "args": [
+        "--version"
+      ],
+      "exit": 0,
+      "seconds": 0.253232584,
+      "stdout": "snapback4 0.3.0\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "check"
+      ],
+      "exit": 0,
+      "seconds": 0.009448791000000012,
+      "stdout": "check: ok \u2014 2 tables (0 synced), 7 operations, no problems, 2.5 ms\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "why",
+        "generic"
+      ],
+      "exit": 0,
+      "seconds": 0.007011792000000017,
+      "stdout": "query generic(k: id)\n  returns a replies row ?\n  generic: runs: server\n    Server: point replies by byId: online only (site schema.q:11:10 (replies[k]))\n      rewrite: sync replies to its read-rule audience, or read a compact synced projection\n  query generic:\n    point replies.byId \u2014 one row, one rule check\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "why",
+        "parent"
+      ],
+      "exit": 0,
+      "seconds": 0.007131249999999978,
+      "stdout": "query parent(k: a posts reference)\n  returns a page of at most 10 replies rows\n  parent: runs: server\n    Server: scan replies by byPost: online only (site schema.q:15:10 (replies[k]))\n      rewrite: sync replies to its read-rule audience, or read a compact synced projection\n  query parent:\n    scan replies.byPost first 10 \u2014 rule decided by the prefix: no probes\n      sort/group/sum/count consume this page, not the whole population\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "why",
+        "explicit"
+      ],
+      "exit": 0,
+      "seconds": 0.0037413749999999912,
+      "stdout": "query explicit(k: a replies reference)\n  returns a replies row ?\n  explicit: runs: server\n    Server: point replies by byId: online only (site schema.q:17:10 (replies[id = k]))\n      rewrite: sync replies to its read-rule audience, or read a compact synced projection\n  query explicit:\n    point replies.byId \u2014 one row, one rule check\n",
+      "stderr": ""
+    }
+  ]
+}

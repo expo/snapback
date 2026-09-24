@@ -47480,3 +47480,18 @@ consumer.
 
 Calibration #18 ran on 0.3.0. Its builder's workload (small mutation
 commits) did not hit the regression, so its reading stands.
+
+## 2026-09-23 — cal18 modeling follow-up
+
+Astra max implemented the accepted modeling follow-up: existing `why`/check
+sites now explain selected key bindings, result shape and selection reason;
+the maintains card teaches recorded original/nested engagement and authored
+backfill; the feeds card composes Following with atomic Global events and
+uses the same maintained score for ranking and display. Existing explicit ID
+lookups already suffice and preserve table identity, so no syntax was added.
+
+Independent-oracle tests cover attribution, removal, retry/rollback and rolling
+ranking pages. The small fresh-builder lookup comparison had zero corrections
+in both arms (119 s published control, 136 s development candidate); it does
+not demonstrate a time or correction improvement. Evidence and limitations:
+[`reports/20260923-cal18-followups/modeling.md`](./reports/20260923-cal18-followups/modeling.md).

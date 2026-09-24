@@ -94,7 +94,9 @@ fn declaration_expansion_binds_cleanly_and_emits_no_recipe_or_bridge_helpers() {
     let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
+    assert_eq!(bound.notes[0].code, "N_MAINTAINED_COLUMN_STREAM");
+    assert!(bound.notes[0].message.starts_with("posts: each contributing commit logs and streams the whole parent image"));
     assert_eq!(bound.schema.timelines.len(), 1);
     assert!(bound.schema.tables.contains_key("feedPosts"), "the declaration expanded");
     assert!(bound.schema.operations.contains_key("following"), "the application bound");

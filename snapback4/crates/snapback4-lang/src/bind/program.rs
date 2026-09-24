@@ -25,6 +25,7 @@ pub(crate) mod setup;
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
     pub(crate) sources: BTreeMap<String, (Site, String)>,
+    pub(crate) selections: BTreeMap<String, String>,
     pub program: Program,
     pub(crate) presence: Option<snapback4_core::schema::Execution>,
     pub module: String,
@@ -37,6 +38,7 @@ pub struct BoundProgram {
 #[derive(Clone)]
 pub struct Binder<'a> {
     sources: BTreeMap<String, (Site, String)>,
+    selections: BTreeMap<String, String>,
     presence_sources: Vec<(Expr, Site, String)>,
     catalog: &'a Catalog,
     schema: &'a snapback4_core::schema::Schema,
@@ -83,7 +85,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { sources: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -110,7 +112,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -184,7 +186,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -240,9 +242,7 @@ impl<'a> Binder<'a> {
                 return Err(super::maintains::refusal(&read.site, format!("{} scalar lookup needs the complete group key: {}", read.table, maintain.by.join(", ")), format!("supply every group key, or use {}[prefix] first 50 by byGroup", read.table)));
             }
         }
-        let mut point = read.clone();
-        if info.maintained.is_some() && point.index.is_none() { point.index = Some("byGroup".into()); }
-        let value = self.read_value(&point, ReadMode::FilteredPoint, out)?;
+        let value = self.read_value(read, ReadMode::FilteredPoint, out)?;
         if let Some(maintain) = &info.maintained {
             // A maintained point read is the typed value: zero when absent.
             let tmp = self.temp("total");
@@ -266,7 +266,7 @@ impl<'a> Binder<'a> {
 
     fn scan_at(&mut self, read: &ReadExpr, out: &mut setup::Body, position: prefix::Position) -> Fallible<(Scan, u32)> {
         let info = self.table(&read.table, &read.site)?;
-        let (keys, index) = self.select_index(info, read, ReadMode::Range, out)?;
+        let (keys, index, selection) = self.select_index(info, read, ReadMode::Range, out)?;
         let prefix = self.order_keys(info, &index, keys)?;
         let (range, bound) = self.prefix_bound(read, &index, position)?;
         if info.maintained.is_some() && let Some(position) = index.columns.iter().position(|field| field == "value") {
@@ -307,6 +307,7 @@ impl<'a> Binder<'a> {
             prefix.push(IndexKeyExpr::WordPrefix(e));
         }
         let scan_site = self.site();
+        self.record_selection(&scan_site, read, &index, if position == prefix::Position::Exists { "exists" } else { "page" }, &selection);
         self.sources.insert(scan_site.clone(), (read.site.clone(), print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() })));
         let scan = Scan {
             site: scan_site,
@@ -331,7 +332,7 @@ impl<'a> Binder<'a> {
     /// Evaluate the keys, then choose the index: explicit `by`, else by
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
-    fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl)> {
+    fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl, String)> {
         super::validate_key_names(read)?;
         let point = mode != ReadMode::Range;
         let mut keys = Vec::<(Option<String>, Expr, Ty)>::new();
@@ -351,6 +352,7 @@ impl<'a> Binder<'a> {
             keys.push((expected_column, e, t));
         }
         let named = keys.iter().all(|(c, _, _)| c.is_some()) && !keys.is_empty();
+        let mut selection = if read.index.is_some() { "explicit by" } else if named { "named equality columns" } else { "compatible positional key types" };
         // A `words(..)` index serves one read: `matching` with exactly its
         // leading columns as keys. Every other read sees plain indexes only.
         let searching = mode == ReadMode::Range && read.matching.is_some();
@@ -391,11 +393,17 @@ impl<'a> Binder<'a> {
             });
             // @ref LLP 3000.007#18.5 — resolve remaining ambiguity without replacing an existing exact-type winner.
             let exact: Vec<_> = candidates.iter().copied().filter(|index| keys.iter().enumerate().all(|(position, (_, _, t))| index.columns.get(position).is_some_and(|column| self.key_ty(info, index, column) == t.required()))).collect();
-            if exact.len() == 1 { candidates = exact; }
+            if exact.len() == 1 {
+                candidates = exact;
+                if read.index.is_none() { selection = "single exact positional type match"; }
+            }
             else {
                 // Filter before the one-candidate arm so identity literals receive their index's type.
                 let unique: Vec<_> = candidates.iter().copied().filter(|index| index.unique && index.columns.len() == keys.len()).collect();
-                if unique.len() == 1 { candidates = unique; }
+                if unique.len() == 1 {
+                    candidates = unique;
+                    if read.index.is_none() { selection = "only compatible full unique key"; }
+                }
             }
         }
         if let Some(explicit) = &read.index
@@ -423,7 +431,7 @@ impl<'a> Binder<'a> {
                         }
                     }
                 }
-                Ok((keys, index))
+                Ok((keys, index, selection.into()))
             }
             0 => {
                 let declared: Vec<String> = info.indexes.iter().map(|i| format!("{} ({})", i.name, i.columns.join(", "))).collect();
@@ -819,7 +827,7 @@ impl<'a> Binder<'a> {
             }
         }
         let read = ReadExpr { table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
-        let (bound, index) = self.select_index(info, &read, ReadMode::Point, out)?;
+        let (bound, index, _) = self.select_index(info, &read, ReadMode::Point, out)?;
         let key = self.order_keys(info, &index, bound)?;
         if index.name == "byId" {
             let id = self.temp("key");

@@ -2,12 +2,26 @@
 use super::*;
 
 impl<'a> Binder<'a> {
+    // @ref LLP 3000.011.000.001#4 — retain the binder's actual choice for why, never infer a new lookup or rewrite.
+    pub(super) fn record_selection(&mut self, site: &str, read: &ReadExpr, index: &ast::IndexDecl, result: &str, reason: &str) {
+        let named = read.keys.iter().all(|key| key.column.is_some());
+        let bindings = index.columns.iter().enumerate().filter_map(|(position, column)| {
+            let key = if named { read.keys.iter().find(|key| key.column.as_ref() == Some(column)) } else { read.keys.get(position) }?;
+            Some(format!("{column} = {}", print::expression(&key.value)))
+        }).collect::<Vec<_>>().join(", ");
+        self.selections.insert(site.into(), format!("selected {} ({bindings}); result: {result}; {reason}", index.name));
+    }
+
     // @ref LLP 3000.007#10 — a covered total unique key reads one row; additional named equalities check that row.
     pub(super) fn read_value(&mut self, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<Expr> {
         let info = self.table(&read.table, &read.site)?;
         if !read.seeks.is_empty() { return Err(type_error(&read.site, "a seek needs a bounded page", "t[prefix, col >= start] first 50 by index")); }
         if read.keys.is_empty() { return Err(unknown(&read.site, format!("{}[] reads nothing; a point read needs a key", read.table), format!("{}[id]", read.table))); }
-        let (mut keys, index) = self.select_index(info, read, mode, out)?;
+        let mut point = read.clone();
+        let implicit_group = mode == ReadMode::FilteredPoint && info.maintained.is_some() && point.index.is_none();
+        if implicit_group { point.index = Some("byGroup".into()); }
+        let (mut keys, index, mut selection) = self.select_index(info, &point, mode, out)?;
+        if implicit_group { selection = "complete maintained group key".into(); }
         let extra = keys.len() > index.columns.len();
         let mut equalities = Vec::new();
         if extra {
@@ -25,6 +39,7 @@ impl<'a> Binder<'a> {
         }
         let key = self.order_keys(info, &index, keys)?;
         let location = self.site();
+        self.record_selection(&location, read, &index, if mode == ReadMode::Exists { "exists" } else if info.maintained.is_some() { "scalar" } else { "row or null" }, &selection);
         self.sources.insert(location.clone(), (read.site.clone(), print::read_expr(read)));
         let point = Read { site: location, table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape };
         if equalities.is_empty() { return Ok(if mode == ReadMode::Exists { Expr::Exists(point) } else { Expr::Get(point) }); }

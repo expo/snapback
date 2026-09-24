@@ -147,7 +147,11 @@ Capturing or dropping paths emits no row events for those sources and their
 aggregate rebuilds: a new generation discards old device images and reacquires
 snapshots. Later unrelated rebuilds still record their commits and events.
 doctor reports null captures per source path and
-live selected contributions with null attribution per maintain.
+live selected contributions with null attribution per maintain. A null capture
+on an optional, unselected branch is normal; inspect the selected-contribution
+count before treating it as missing credit. `sql` can inspect the recorded
+fields on the affected source rows. Creating a missing target later does not
+repair a recorded null.
 
 Recorded fields belong to the engine. Any payload naming one refuses with
 E_RECORDED_FIELD, including no-op updates, jobs, native jobs, seeds and fixture
@@ -209,6 +213,110 @@ is a derived rebuild at its declaration. Today's atomic activation rebuilds
 populated stores before publishing the new generation; it is not resumable.
 Attribution capture runs inside the same atomic activation, before that rebuild, preserving existing paths.
 
+
+## Originals, replies and engagement credit
+
+This example credits the author of the immediate target. A direct reply credits
+the original author; a reply to a reply credits that reply's author. `postId`
+always names the root original for thread membership. `replyTarget` names only
+the immediate reply, never an id stored as the wrong table's reference.
+The two like tables make target identity explicit. Their maintained totals
+add at read time; no sum-type reference or recursive attribution is needed.
+
+```quarry
+table posts:
+  authorId: principal
+  body: text <=500
+  immutable authorId
+  public 'original posts'
+  insert <- .authorId = viewer
+  delete <- .authorId = viewer
+table replies:
+  postId: posts
+  replyTarget: replies ?
+  authorId: principal
+  body: text <=500
+  immutable postId, replyTarget, authorId
+  public 'thread replies'
+  insert <- .authorId = viewer
+  delete <- .authorId = viewer
+table postLikes:
+  postId: posts
+  principal: principal
+  unique byPair: postId, principal
+  immutable postId, principal
+  public 'likes of originals'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+table replyLikes:
+  replyId: replies
+  principal: principal
+  unique byPair: replyId, principal
+  immutable replyId, principal
+  public 'likes of replies'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+
+maintain originalLikesReceived: count postLikes by postId.authorId
+  read <- allow
+maintain replyLikesReceived: count replyLikes by replyId.authorId
+  read <- allow
+maintain directRepliesReceived: count replies where .replyTarget = null by postId.authorId
+  read <- allow
+maintain nestedRepliesReceived: count replies where .replyTarget != null by replyTarget.authorId
+  read <- allow
+
+mutation original(body: text <=500):
+  return insert posts { authorId: viewer, body }
+mutation reply(postId: posts, replyTarget: replies ?, body: text <=500):
+  require exists posts[id = postId] else POST_NOT_FOUND
+  if replyTarget != null:
+    target = replies[id = replyTarget] ! else REPLY_NOT_FOUND
+    require target.postId = postId else WRONG_THREAD
+  return insert replies { postId, replyTarget, authorId: viewer, body }
+mutation likePost(postId: posts):
+  require exists posts[id = postId] else POST_NOT_FOUND
+  return insert postLikes { postId, principal: viewer } if absent
+mutation likeReply(replyId: replies):
+  require exists replies[id = replyId] else REPLY_NOT_FOUND
+  return insert replyLikes { replyId, principal: viewer } if absent
+mutation unlikePost(postId: posts):
+  if exists postLikes[postId, viewer]:
+    delete postLikes[postId, viewer]
+mutation unlikeReply(replyId: replies):
+  if exists replyLikes[replyId, viewer]:
+    delete replyLikes[replyId, viewer]
+mutation deleteReply(replyId: replies):
+  delete replies[id = replyId]
+mutation deletePost(postId: posts):
+  delete posts[id = postId]
+query received(authorId: principal):
+  return { likes: originalLikesReceived[authorId] + replyLikesReceived[authorId], replies: directRepliesReceived[authorId] + nestedRepliesReceived[authorId] }
+```
+
+Suppose Alice writes an original, Bob replies, Carol replies to Bob, and Dana
+replies to Carol. The reply totals are Alice 1, Bob 1, Carol 1, Dana 0.
+A like of each of those four rows credits its own author once. These are
+counts of still-present contributions with recorded target authors, not counts
+of all events ever created and not live joins against current targets.
+
+Deleting Bob's reply removes its contribution to Alice. Carol's reply and a
+like of Bob's deleted reply still credit Bob. Deleting either contributing row
+removes that credit. Deleting and recreating the target with the same id never
+reattributes old contributions; fresh contributions capture the new author.
+The mutations above require live targets, while imported or pre-existing rows
+may have absent targets and record null. Such a contribution belongs to the
+null group and gives no named author credit. A live-target-only total would
+require a different authored policy; these recorded totals do not promise it.
+
+For existing data, first inspect `doctor` and `sql`, identify each intended
+target from application evidence, and backfill the reference itself. When
+adding `replyTarget`, keep the new column mutable during that explicit repair;
+then make it immutable and add the maintained path. Activation captures all
+existing sources against the targets live at that moment. Existing recorded
+paths, including nulls, stay unchanged. Do not backfill recorded engine fields
+or drop/re-add paths as an accidental history repair. An immutable incorrect
+reference needs an explicit data migration with an author-chosen identity policy.
 
 ## Refused maintain expressions
 

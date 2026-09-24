@@ -2,9 +2,19 @@
 use snapback4_core::{Context, Engine, Value, WriteState};
 use snapback4_lang::guide::{self, card, quarry};
 use std::{collections::BTreeSet, path::Path};
+#[path = "feeds_followups.rs"]
+mod followups;
 
 fn id(s: &str) -> Value { Value::Id(s.into()) }
 fn text(s: &str) -> Value { Value::String(s.into()) }
+pub(super) fn assert_stream_note(b: &snapback4_lang::Bound) {
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
+    let note = &b.notes[0];
+    assert_eq!((note.code.as_str(), note.guide.as_str()), ("N_MAINTAINED_COLUMN_STREAM", "maintains"));
+    assert_eq!(note.message, "posts: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change");
+    assert!(card("feeds").unwrap().contains("`check` also prints `N_MAINTAINED_COLUMN_STREAM` for `posts`"));
+}
 fn write(e: &mut Engine, serial: &mut i64, op: &str, viewer: &str, args: &[(&str, Value)]) -> Value {
     *serial += 1;
     let out = e.mutate(op, None, Context::new(viewer, args.iter().map(|(k,v)| (k.to_string(),v.clone())).collect())
@@ -47,10 +57,10 @@ fn complete_feeds_program_runs_at_clique_size() {
     let source = quarry(card("feeds").unwrap()).remove(0);
     let (doc, errors) = snapback4_lang::parse_document("schema.q", &source);
     assert!(errors.is_empty());
-    assert_eq!(doc.tables.len(), 5);
+    assert_eq!(doc.tables.len(), 7);
     assert!(doc.functions.is_empty() && doc.schedules.is_empty());
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
-    assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?} {:?}", b.diagnostics, b.notes);
+    assert_stream_note(&b);
     assert_eq!(b.schema.timelines.len(), 1);
     assert_eq!(b.schema.timelines[0].name, "feed");
     assert_eq!(b.schema.timelines[0].author_cap, 1008);
