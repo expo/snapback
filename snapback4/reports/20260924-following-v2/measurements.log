@@ -1,0 +1,18 @@
+/tmp/lane-c-final-coverage.log
+MEASURE read follows=5:61 follows=500:61
+MEASURE write followers=5:4 followers=900:4; recovery chunks=4 copies=901 elapsed_ms=140
+MEASURE history window=1000 preview=50 unfollow_writes=258 stale_after_unfollow=744; refollow leaves 1000 copies in new epoch
+/tmp/lane-c-runner.log
+MEASURE dev --replay delivery followers=900 wall_ms=73
+/tmp/lane-c-targets2.log
+DERIVED_BOUND event insert: bytes=19429 ceiling=16777216 margin=16757787
+DERIVED_BOUND follow preview: bytes=74401 ceiling=16777216 margin=16702815
+DERIVED_BOUND delivery chunk: bytes=309035 ceiling=16777216 margin=16468181
+DERIVED_BOUND removal: bytes=18187 ceiling=16777216 margin=16759029
+DERIVED_BOUND purge chunk: bytes=37564 ceiling=16777216 margin=16739652
+PROMOTION partition=triggering reader actual_reply=52229 derived=51632 ceiling=16777216 margin=16724987
+PROMOTION partition=author actual_reply=597 derived=0 ceiling=16777216 margin=16776619
+PROMOTION partition=existing follower actual_reply=597 derived=0 ceiling=16777216 margin=16776619
+PROMOTION partition=public only actual_reply=597 derived=0 ceiling=16777216 margin=16776619
+
+Final full suite: == 1 failure(s) in 173 s (cargo test; three baseline failures)

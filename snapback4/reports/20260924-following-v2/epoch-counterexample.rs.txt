@@ -1,0 +1,11 @@
+include!("timeline_background.rs");
+#[test]
+fn late_follow_can_receive_pre_follow_pending_deliveries_outside_window() {
+    let mut e=engine();
+    for n in 0..1100 {post(&mut e,"a",&format!("p{n:04}"),n+1);}
+    run(&mut e,"follow","reader",&[("actor",id("a"))],1200);
+    drain(&mut e);
+    let count=e.store().rows("feedFeed").unwrap().into_iter().filter(|r|r.field("readerId").unwrap()==&id("reader")).count();
+    println!("COUNTEREXAMPLE pending_events_before_follow=1100 backfill_window=1000 reader_copies_after_drain={count}");
+    assert_eq!(count,1100);
+}

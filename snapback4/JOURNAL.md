@@ -47513,3 +47513,37 @@ membership boundaries. Rolling-rank oracle coverage and separate follow-graph
 growth/hub/boundary evidence are recorded without native/acquisition or release
 speedup claims. Details and the completed/unmet ledger:
 [`reports/20260923-cal18-followups/scale.md`](./reports/20260923-cal18-followups/scale.md).
+
+## 2026-09-24 — LLP 3000.013 lane C: durable Following, epoch question stopped
+
+Implemented the no-cap timeline declaration path on `sb4-intent/c-following`:
+engine-owned delivery/backfill/cleanup/purge records, bounded transactional
+chunks and cursors, own-copy prediction, public-source admission, immutable
+originals filters, a 50-event follow preview and 1,000-event backfill window,
+256 synchronous unfollow deletes, epoch-bound reader work/copies, truthful
+pending completeness and stale-scan continuations. Dev/serve wake delivery on
+commit; replay still delivers. Doctor exposes pending/parked work. `timeline-v2`
+fences native/Wasm 0.3 devices and opening a v1 store; no migration was written.
+
+Measured post writes: five followers = four, 900 followers = four. First pages:
+five follows = 61 examinations, 500 follows = 61. Delivery to 900 followers took
+four chunks/901 copies; crash/reopen and compatible index adoption resumed with
+no duplicates (latest isolated run 140 ms). Actual HTTP delivery in dev replay
+measured 73 ms. Both device stores pass 26 timeline tests; the counted/uncounted
+oracle and reduced Clique fixture agree after explicit delivery drain. The
+final full suite reported `== 1 failure(s) in 173 s` (`cargo test`): only the
+three remaining host-baseline failures (search Wasm fixture snapshot, read-auth
+census, why-operation output). Client tests: 994 passed, zero failed, ten existing
+skips. Wasm gzip: 473,253 bytes within the unchanged 474,000-byte budget.
+
+Stopped the unresolved fan-out epoch requirement: one post task spans many
+edge epochs and currently discovers recipients during its chunks. Verified
+counterexample: 1,100 pending posts, then a new follow, then drain yields 1,100
+copies despite backfill's 1,000-event window. No eligibility redesign was made;
+this needs supervisor resolution before merge. Reader-specific tasks and copies
+are epoch-bound and refollow cleanup is tested. Lane A's landing was not signaled,
+so FeedView binding/rebase remains deferred. The guide lane still owns the rest
+of the old card prose. No push, publication, migration or meter increase.
+
+File-by-file work, exact test replacements, failures and the copyable stopped
+counterexample: [lane report](reports/20260924-following-v2/report.md).

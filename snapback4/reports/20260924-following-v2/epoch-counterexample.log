@@ -1,0 +1,10 @@
+   Compiling snapback4-lang v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.06s
+     Running tests/timeline_epoch_counterexample.rs (target/debug/deps/timeline_epoch_counterexample-637a1d39912f0e75)
+
+running 1 test
+COUNTEREXAMPLE pending_events_before_follow=1100 backfill_window=1000 reader_copies_after_drain=1100
+test late_follow_can_receive_pre_follow_pending_deliveries_outside_window ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.53s
+
