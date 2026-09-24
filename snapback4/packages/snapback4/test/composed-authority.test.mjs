@@ -15,6 +15,24 @@ const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const until = async (check, message) => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail(message); };
 const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
+// runLocal registers its cleanup before client.query awaits its result. Tap
+// that cleanup to deliver a concurrent commit after runLocal's own fence but
+// before client.query's continuation. No sleeps or production test hook: only
+// the finally registrations made synchronously by this query are intercepted.
+function queryAtReturn(client, op, args, committed) {
+  const original = Promise.prototype.finally;
+  let evaluation;
+  Promise.prototype.finally = function (cleanup) {
+    evaluation = this;
+    return original.call(this, () => {
+      const result = cleanup();
+      if (this === evaluation) committed();
+      return result;
+    });
+  };
+  try { return client.query(op, args); }
+  finally { Promise.prototype.finally = original; }
+}
 const source = `use personas alice, bob
 table members:
   room: text <=40
@@ -46,16 +64,17 @@ mutation revoke(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
 
-for (const tier of ['wasm', 'process']) for (const observation of [true, false])
-  test(`composed ${observation ? 'watch' : 'query'} ${tier}: revocation during the second local read fences pre-revocation server fields`, { timeout: 30_000 }, async t => {
+for (const tier of ['wasm', 'process']) for (const boundary of ['watch', 'query', 'query return'])
+  test(`composed ${boundary} ${tier}: revocation fences pre-revocation server fields`, { timeout: 30_000 }, async t => {
+    const observation = boundary === 'watch', finalFence = boundary === 'query return';
     const directory = mkdtempSync(join(tmpdir(), 'sb4-composed-authority-'));
     mkdirSync(join(directory, 'snapback'));
     writeFileSync(join(directory, 'snapback/schema.q'), source);
     const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: directory, stdio: ['ignore', 'pipe', 'pipe'] });
-    const exit = once(host, 'exit'), second = deferred(), release = deferred();
-    let log = '', client, core, locals = 0, remotes = 0, remoteData;
+    const exit = once(host, 'exit'), second = deferred(), release = deferred(), applied = deferred(), deliverApply = deferred();
+    let log = '', client, core, locals = 0, remotes = 0, remoteData, deferApply = false, applyCommit, commitsAtReturn = 0;
     host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
-    t.after(async () => { release.resolve(); await client?.close(); host.kill('SIGTERM'); await exit; rmSync(directory, { recursive: true, force: true }); });
+    t.after(async () => { release.resolve(); deliverApply.resolve(); await client?.close(); host.kill('SIGTERM'); await exit; rmSync(directory, { recursive: true, force: true }); });
     await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, 'server did not listen');
     const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
     const post = async (path, body, persona = 'alice') => (await fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': persona }, body: JSON.stringify(body) })).json();
@@ -66,7 +85,16 @@ for (const tier of ['wasm', 'process']) for (const observation of [true, false])
     client = await createLocalClient({ url, persona: 'bob', device: { async open(...args) {
       core = await device.open(...args);
       return { close: () => core.close(), async call(request, committed) {
-        const reply = await core.call(request, committed);
+        const holdApply = deferApply && request.op === 'apply';
+        const reply = await core.call(request, holdApply ? undefined : committed);
+        if (holdApply) {
+          deferApply = false;
+          applyCommit = () => { committed(reply); deliverApply.resolve(); };
+          applied.resolve();
+          // The engine has withdrawn the rows; deliver this commit to the
+          // local client at the final query-return boundary, below.
+          await deliverApply.promise;
+        }
         if (request.op === 'query' && request.name === 'mixed' && ++locals === 2) {
           // HTTP has already settled and server() has checked its authority.
           // Hold the old second device result while a real sync withdraws rows.
@@ -88,7 +116,11 @@ for (const tier of ['wasm', 'process']) for (const observation of [true, false])
     const op = { kind: 'query', name: 'mixed' }, publications = [];
     const watch = observation ? client.observe(op, {}) : null;
     watch?.subscribe(() => publications.push(watch.getSnapshot()));
-    const pending = observation ? null : client.query(op, {});
+    const pending = observation ? null : finalFence ? queryAtReturn(client, op, {}, () => {
+      assert.ok(applyCommit, 'the revocation must be applied before query return');
+      commitsAtReturn++;
+      applyCommit();
+    }) : client.query(op, {});
     const old = (await second.promise).ok;
     assert.equal(remotes, 1, 'the hold is after the single server fallback');
     assert.equal(old.components.history.retained, true);
@@ -96,7 +128,10 @@ for (const tier of ['wasm', 'process']) for (const observation of [true, false])
     assert.deepEqual(old.data.private.map(row => row.id), ['secrets-2']);
     assert.deepEqual(remoteData.private.map(row => row.id), ['secrets-2', 'secrets-1'], 'server fields include an undelivered private row');
     assert.equal((await post('/m/revoke', { id: 'revoke-private', args: { room: 'private' } })).state, 'sent');
-    await client.sync();
+    deferApply = finalFence;
+    const syncing = client.sync();
+    if (finalFence) await applied.promise;
+    else await syncing;
     const after = (await core.call({ op: 'sync_state', capture: false })).ok;
     assert.equal(after.store_id, state.store_id); assert.equal(after.generation, state.generation);
     const authorized = (await core.call({ op: 'query', name: 'mixed', args: {}, viewer: 'dev:bob', now: Date.now() })).ok;
@@ -105,6 +140,8 @@ for (const tier of ['wasm', 'process']) for (const observation of [true, false])
     release.resolve();
     if (watch) await until(() => watch.getSnapshot().data?.private.length === 0, 'watch did not rerun under the new authority');
     else publications.push(await pending);
+    await syncing;
+    if (finalFence) assert.equal(commitsAtReturn, 1, 'one commit lands after runLocal returns and before client.query resumes');
     const answers = publications.filter(read => 'data' in read);
     assert.ok(answers.length > 0);
     for (const read of answers) {

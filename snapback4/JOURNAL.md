@@ -50016,3 +50016,57 @@ No unresolved round-7 reproduction remains. No engine semantics, ceilings,
 local/native/web device read path, package versions, or Read type were changed.
 No new retention policy was introduced. All changed source files are below
 1,500 lines. No push, package publication, or native simulator run was performed.
+
+## 2026-09-24 — Lane J round 8: first discovery and the direct-query return fence
+
+Audited round 7 against Grok's round-6 report. No production change was needed:
+observeStore compares each head with minimumReadSeq captured at dispatch, refuses
+head < captured floor even on first identity discovery, and advances the floor
+with Math.max. A poll dispatched before an acknowledged write can discover the
+identity without declaring a restore, but cannot lower the receipt's floor. A
+subsequent same-store head below that receipt is terminal E_STORE_RESTORE.
+Round 7 already removed headNeeded and cross-store floor rebasing.
+
+Files and regressions:
+
+- packages/snapback4/test/online-store-order.test.mjs adds three cases. Two
+  acknowledge a write at sequence 2 before starting the first /changes request,
+  then deliver identity A at head 1 while old sequence-1 query replies are
+  buffered. Both identity-less legacy receipts and identity-bearing receipts
+  must refuse, fence the private replies, stop polling, and refuse later reads
+  and writes without requests. The third discovers A through a pre-write poll,
+  then delivers another head 1 after the sequence-2 receipt; that second head
+  must refuse rather than forget the receipt.
+- packages/snapback4/test/composed-authority.test.mjs adds two return-boundary
+  cases over the real server and wasm/SQLite process devices. The server answer
+  contains two private rows and the second device read contains one; a real
+  membership revocation removes both from the authorized view. Its commit is
+  delivered after runLocal's check but before client.query returns. Only the
+  outer authority fence prevents the composed pre-revocation server fields
+  from escaping, and the retry keeps authorized delivered history. The test
+  briefly intercepts synchronous Promise.finally registration to reach this
+  exact continuation boundary; it restores the prototype before yielding and
+  adds no production scheduling hook.
+- JOURNAL.md records this audit and validation. No Quarry form, client API,
+  documentation contract, refusal code, engine semantics, or meter changed.
+
+Validation:
+
+- bun install --frozen-lockfile and package build passed. The first targeted
+  run passed all 19 cases; the broader affected run passed all 52 cases.
+- Three deliberate mutations were caught: restoring the old first-discovery
+  floor assignment; replacing Math.max at discovery with head; and deleting
+  only client.query's result.authority comparison. For the last mutation,
+  server(), runLocal and rerun authority checks remained intact; both real
+  device tests failed because revoked private rows escaped. Generated files
+  were restored before the full suite's build. Logs: /tmp/lane-j-r8-mutant-*.log.
+- `scripts/test.sh`: `== 0 failure(s) in 167 s`. Main client shard: 1,140
+  tests, 1,130 passed, 10 existing skips, no failures or cancellations. No
+  baseline or environmental suite failure occurred. The baseline log tail was
+  read; its unrelated cargo-test failure was not changed. Full log:
+  /tmp/lane-j-r8-full-suite.log; affected log: /tmp/lane-j-r8-affected.log.
+
+No unresolved reproduction or deviation from round 8. This is test coverage
+for existing round-7 behavior. No new language forms, source fixes, native
+simulator run, push, or package publication were needed/performed. Both changed
+test files remain below 1,500 lines.

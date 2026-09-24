@@ -171,3 +171,63 @@ test('a buffered first identity reply cannot lower a newer write floor', async t
   assert.deepEqual((await client.query(q, { direct: true })).data, []);
   assert.equal(direct, 2);
 });
+
+for (const receiptIdentity of [false, true]) test(`first poll after a completed write refuses a lower head (${receiptIdentity ? 'known' : 'new'} identity)`, async t => {
+  const old = deferred(), changed = deferred(); let polls = 0, reads = 0, requests = 0;
+  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
+    requests++;
+    if (url.includes('/changes')) {
+      if (++polls === 1) return Response.json(await changed.promise);
+      return blocked(init.signal);
+    }
+    if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 2, ...(receiptIdentity ? { store_id: 'A' } : {}) });
+    reads++; return Response.json(await old.promise);
+  } });
+  t.after(async () => { changed.resolve(head('A', 1)); old.resolve(ready(['revoked'], 1)); await client.close(); });
+  // This evaluated response predates the revocation. No observation has
+  // started polling, and the legacy receipt variant has not learned an id.
+  const direct = client.query(q, {});
+  await until(() => reads === 1);
+  assert.equal((await client.mutate(m, {})).seq, 2);
+  assert.equal(polls, 0, 'the first poll must start after the write has settled');
+  const watch = client.observe(q, {}), values = [];
+  watch.subscribe(() => values.push(watch.getSnapshot()));
+  await until(() => polls === 1 && reads === 2);
+  changed.resolve(head('A', 1));
+  await until(() => watch.getSnapshot().denied || polls > 1);
+  old.resolve({ ...ready(['revoked'], 1), store_id: 'A' });
+  assert.equal((await direct).denied?.code, 'E_STORE_RESTORE');
+  assert.ok(values.every(read => !('data' in read)), 'the buffered private row must never publish');
+  const before = requests;
+  assert.equal((await client.query(q, {})).denied?.code, 'E_STORE_RESTORE');
+  assert.equal((await client.mutate(m, {})).why?.code, 'E_STORE_RESTORE');
+  await delay(50);
+  assert.equal(requests, before, 'regression is terminal, with no retry or re-verification');
+  assert.equal(polls, 1);
+});
+
+test('first identity discovery remembers the acknowledged receipt for later heads', async t => {
+  const first = deferred(), next = deferred(); let polls = 0;
+  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
+    if (url.includes('/changes')) {
+      if (++polls === 1) return Response.json(await first.promise);
+      if (polls === 2) return Response.json(await next.promise);
+      return blocked(init.signal);
+    }
+    if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 2 });
+    return Response.json({ loading: true, seq: 2 });
+  } });
+  t.after(async () => { first.resolve(head('A', 1)); next.resolve(head('A', 1)); await client.close(); });
+  const watch = client.observe(q, {});
+  await until(() => polls === 1);
+  await client.mutate(m, {});
+  // The first request predates the receipt, so it can discover A without
+  // declaring a restore. The subsequent request has to remember that receipt.
+  first.resolve(head('A', 1));
+  await until(() => polls === 2);
+  assert.equal(watch.getSnapshot().denied, undefined);
+  next.resolve(head('A', 1));
+  await until(() => watch.getSnapshot().denied || polls > 2);
+  assert.equal(watch.getSnapshot().denied?.code, 'E_STORE_RESTORE');
+  assert.equal(polls, 2);
+});
