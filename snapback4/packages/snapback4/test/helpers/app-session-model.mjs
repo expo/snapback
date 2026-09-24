@@ -1,6 +1,7 @@
 // Black-box state machine: real createApp/Client, a deterministic wire server,
 // and a single-key-atomic store. No app implementation helpers are imported.
 import assert from "node:assert/strict";
+import { isDeepStrictEqual } from "node:util";
 import { setImmediate as tick } from "node:timers/promises";
 import { promiseHooks } from "node:v8";
 import { createApp } from "../../dist/app.js";
@@ -26,7 +27,7 @@ export function generate(seed, length = 24) {
     ? [command, { op: "handleWrite", app: command.app, account: command.account }] : [command])];
 }
 let sequenceSerial = 0;
-export async function execute(commands, coverage = {}, tier = "online") {
+export async function execute(commands, coverage = {}, tier = "online", audit = {}) {
   if (tier === "local") await modelReady();
   const devices = tier === "local" ? Array.from({ length: 3 }, () => {
     const device = modelDevice();
@@ -50,10 +51,12 @@ export async function execute(commands, coverage = {}, tier = "online") {
   const errors = [], observed = new Map(), identities = [], publishedTokens = new Map(), privateRetries = new Map(), refusedAtOpen = new Map(), refused = new Set(), offline = new Set();
   const handles = [], observations = [], rotationFaults = new Set();
   const writeReceipts = new Map(), deliveredWrites = new Set(); let writeSerial = 0;
-  const results = new WeakMap();
+  const results = new WeakMap(), closings = new WeakMap(), closedDeliveries = new Map();
   // A result fulfilled before hiding is already returned, even when its user's
   // .then callback runs after hiding. Audit the actual settlement boundary.
   const stopSettlements = promiseHooks.onSettled(promise => {
+    const runtime = closings.get(promise);
+    if (runtime !== undefined) closedDeliveries.set(runtime, new Set(deliveredWrites));
     const result = results.get(promise);
     if (result) { result.hidden = result.handle.hidden || result.handle.client.viewer() === null; result.delivered = new Set(deliveredWrites); count("handle.resultSettled"); }
   });
@@ -365,6 +368,8 @@ export async function execute(commands, coverage = {}, tier = "online") {
     if (disconnected) offline.add(id);
     count(`open.${tier}`);
     const app = createApp({ url, sessionStore: store(id), fetch: fetcher(id, slot), ...(devices[slot] ? { device: devices[slot] } : {}) });
+    const close = app.close;
+    app.close = () => { const promise = close(); closings.set(promise, id); return promise; };
     const watched = new WeakSet();
     app.auth.onChange(() => {
       checkPublished(app, id, true);
@@ -469,13 +474,14 @@ export async function execute(commands, coverage = {}, tier = "online") {
               if (writeReceipts.has(id)) {
                 count("write.outcome"); count(`write.outcome.${writeReceipts.get(id).state}`);
                 if (ended) { count("write.outcomeAfterFence"); count(`write.outcomeAfterFence.${writeReceipts.get(id).state}`); }
-                const known = delivered.has(`${h.runtime}/${id}`);
+                audit.mutateOutcome?.(result);
+                const known = (closedDeliveries.get(h.runtime) ?? delivered).has(`${h.runtime}/${id}`);
                 if (result.state === "pending") {
                   invariant("I12", ended && !known, `known/live ${id} outcome replaced by pending (ended=${ended}, known=${known})`);
                   invariant("I12", result.id === id, `unknown ${id} lost its retry id`);
                   count("write.unknownAtClose");
                 } else {
-                  invariant("I12", known && outcomeKey(result) === outcomeKey(writeReceipts.get(id)), `known ${id} outcome replaced by ${JSON.stringify(result)}`);
+                  invariant("I12", known && isDeepStrictEqual(JSON.parse(JSON.stringify(result)), writeReceipts.get(id)), `known ${id} outcome replaced by ${JSON.stringify(result)}`);
                   count("write.knownAtDelivery");
                   if (!ended) checkOutcome(h, id, result, "mutate");
                 }
@@ -497,7 +503,7 @@ export async function execute(commands, coverage = {}, tier = "online") {
       else if (op === "retireOnline") retirementOffline.delete(identities[id]);
       else if (op === "holdStore") holdStore = true;
       else if (op === "closeClient") {
-        if (app.auth.state === "signed-in") promise = app.client.close();
+        if (app.auth.state === "signed-in") { promise = app.client.close(); closings.set(promise, identities[id]); }
       }
       else if (op === "revoke" || op === "revokeCurrent") {
         const token = op === "revokeCurrent" ? app.client.session()?.token : record()?.token; if (token) { live.delete(token); count("server.revoke"); }

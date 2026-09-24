@@ -62,11 +62,10 @@ export class MutationIds {
     if (this.seen.has(id)) {
       if (!entry) { entry = {}; this.submissions.set(id, entry); }
       const held = entry;
+      // Overlapping callers own this submission's result. A later invocation
+      // uses receipt recovery; close cannot erase an already-shared outcome.
+      if (held.running) return held.running as Promise<Write<R>>;
       return (async () => {
-        const submitted = await held.running;
-        // Every overlapping caller shares the admission refusal too. Looking
-        // up this id after losing admission would collect the winner's input.
-        if (submitted?.state === "failed" && submitted.why.code === "E_WRITE_ID_REUSE" && submitted.why.family === "input") return submitted;
         const write = await recover();
         if (write?.state === "pending") return held.pending ??= write;
         if (write) { this.finish(id); return write; }

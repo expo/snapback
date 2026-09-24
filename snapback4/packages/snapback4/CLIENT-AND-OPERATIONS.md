@@ -92,8 +92,9 @@ component state. `useAuth()` returns the current state, viewer, failure and acti
 Call `app.close()` to stop a runtime while preserving its session for restart;
 close finishes local work without waiting for a held network response. A known
 rotation successor is saved; a later unkept successor is retired.
-Its previously exposed client is revoked immediately: a pending public refresh
-returns E_AUTH after hiding, while the app privately persists its successor.
+Its previously exposed client is revoked immediately. Already-started session
+persistence finishes during cleanup; an unread rotation cannot delay close.
+Close also ends queued auth network waits; background revocation still owns late acknowledgements.
 `AppOptions` inherits the local client's application configuration. `assets` and
 `waitSeconds` pass through on every local open, including restore and account
 switch; both are ignored when `device` is omitted. `waitSeconds` sets the change
@@ -172,9 +173,10 @@ session lock:
   distinguish another principal's logout from this account's replacement.
 - **I12 — known dispatched outcomes.** Fencing refuses new calls. Close waits
   only for local cleanup, never for a held network response. A mutation or
-  action whose response arrives before close completes keeps that known outcome,
-  including during receipt application; otherwise its caller receives `pending`
+  action whose response arrives before public `app.close()` completes keeps its own full outcome,
+  including during receipt application or session cleanup; otherwise its caller receives `pending`
   with the original id. Close never invents a failure for an unknown outcome.
+  Overlapping identical mutations share that outcome; different input still refuses id reuse.
   The request is not aborted: a later body is consumed and discarded. Durable
   mutation intent recovers on reopen with the same id; the server returns
   `replayed: true` for a prior execution. Raw online callers retain their id for
@@ -270,7 +272,7 @@ The intent's store identity is saved before dispatch; the server checks that
 identity before execution or idempotency lookup. If storage cannot write the
 durable intent together with its store identity, the intent is not admitted at all.
 On reopen, a different store retires the intent with an unknown-outcome refusal.
-An older intent without an identity replays only to the first store this journal
+An intent without an identity, even if not yet dispatched, replays only to the first store this journal
 has seen; once it has seen a replacement, unbound old intents are retired.
 A persisted terminal receipt never reposts. If its save failed, same-store replay
 is allowed and the server's idempotency record prevents double execution. Terminal receipts keep

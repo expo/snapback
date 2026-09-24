@@ -1,4 +1,4 @@
-import { ClosingResponses } from "./closing-responses.ts";
+import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import { deferStart, trackRotation } from "./client-start.ts";
 // The online tier (LLP 2000.000 §7.4): no store, no interpreter. Reads go
 // to the server and are `fresh` when it answered; an observed read re-runs
@@ -132,7 +132,7 @@ export function createClient(options: ClientOptions): Client {
     return write;
   };
   const watches = new Map<string, Watch>();
-  const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; resolve: (write: Write) => void }[] = [];
+  const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
   let sending: (typeof pending)[number] | null = null;
 
   const failUnsentWrites = (why: Refusal) => {
@@ -280,11 +280,11 @@ export function createClient(options: ClientOptions): Client {
     };
     // Never abort rotation: the server may already have consumed the old
     // token. Keep reading so a cancelled caller's successor can be revoked.
-    void rotation.then(result => { if (storeRefusal || !credentials) retire(result); });
+    void rotation.then(result => { if (closed || storeRefusal || !credentials) retire(result); });
     const work = (async (): Promise<SignIn> => {
       const refreshed = await Promise.race([rotation, refreshStopped]);
       if (storeRefusal) { retire(refreshed); return { ok: false, why: storeRefusal }; }
-      // An ordinary close still owns an in-flight rotation's replacement.
+      if (closed) { retire(refreshed); return { ok: false, why: ended() }; }
       // Sign-out separately ends credentials and cancels adoption.
       if (!credentials) { retire(refreshed); return { ok: false, why: auth() }; }
       credentialRevision += 1;
@@ -325,9 +325,9 @@ export function createClient(options: ClientOptions): Client {
     return false;
   }
 
-  function post(path: string, body: unknown) {
+  function post(path: string, body: unknown, captured?: ClosingResponse) {
     let arrived = false;
-    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }), aborter.signal, () => arrived).then(result => {
+    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }, captured), aborter.signal, () => arrived).then(result => {
       // A terminal store change owns outstanding effect outcomes: preserve its
       // explicit unknown-outcome refusal instead of an ordinary offline retry.
       if (storeRefusal && path.startsWith("/a/")) return { ok: true as const, json: { denied: storeRefusal } };
@@ -338,7 +338,7 @@ export function createClient(options: ClientOptions): Client {
     return request;
   }
 
-  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
     if (refreshing) await refreshing;
     if (closed || !credentials || storeRefusal) return { ok: false };
     const revision = credentialRevision;
@@ -363,7 +363,7 @@ export function createClient(options: ClientOptions): Client {
       const json = (await response.json()) as Record<string, unknown>;
       // Late bodies are consumed without adoption. A parsed effect response
       // already known at close still finishes its local settlement.
-      closingResponses.capture(path, body, json, response.status);
+      captured?.capture(json, response.status);
       if (closed) return { ok: false };
       arrived(true);
       if (storeRefusal) return { ok: false };
@@ -374,7 +374,7 @@ export function createClient(options: ClientOptions): Client {
         arrived(false);
         if (attempt === 3) return { ok: false };
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
-        return sendPost(path, body, attempt + 1, arrived);
+        return sendPost(path, body, attempt + 1, arrived, captured);
       }
       if (storeRefusal || (closed && !path.startsWith("/m/") && !path.startsWith("/a/"))) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
@@ -532,7 +532,7 @@ export function createClient(options: ClientOptions): Client {
   }
 
   async function send(entry: (typeof pending)[number]): Promise<boolean> {
-    const result = await post(`/m/${entry.op.name}`, { id: entry.id, args: entry.args });
+    const result = await post(`/m/${entry.op.name}`, { id: entry.id, args: entry.args }, entry.response);
     if (storeRefusal) return true;
     if (!result.ok) return false;
     const json = result.json;
@@ -590,7 +590,8 @@ export function createClient(options: ClientOptions): Client {
 
   const client: Client = {
     act(op, args, options) {
-      return act(op, args, options, options?.id ?? mintId(), post, () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async id => { if (closed) { await closing; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : closingResponses.take(id); } });
+      const response = closingResponses.request();
+      return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : response.take(); } });
     },
     async query(op, args) {
       const read = new ReadObservation<unknown>();
@@ -650,13 +651,13 @@ export function createClient(options: ClientOptions): Client {
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;
         const settled = new Promise<Write>((resolve) => { settle = resolve; });
-        const entry = { id, op: op as Mutation<unknown, unknown>, args, resolve: settle };
+        const entry = { id, op: op as Mutation<unknown, unknown>, args, response: closingResponses.request(), resolve: settle };
         pending.push(entry);
         history.remember(write);
         const attempt = flush();
         if (link !== "online") return write;
         const outcome = await Promise.race([settled, attempt.then((): Write => write)]) as Write<R>;
-        if (outcome.state === "pending" && closed) { await closing; return closingResponses.write(outcome); }
+        if (outcome.state === "pending" && closed) { await closingResponses.done; return entry.response.write(outcome); }
         return outcome;
       });
     },
@@ -757,6 +758,7 @@ export function createClient(options: ClientOptions): Client {
       if (closing) return closing;
       closed = true;
       closingResponses.begin();
+      stopRefresh(ended());
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -775,7 +777,7 @@ export function createClient(options: ClientOptions): Client {
         history.remember(outcome);
       }
       writeListeners.clear();
-      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); closingResponses.finish(); });
+      closing = Promise.allSettled([flushing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); closingResponses.finish(); });
       return closing;
     },
   };
@@ -786,6 +788,7 @@ export function createClient(options: ClientOptions): Client {
     else scheduleRefresh();
   };
   trackRotation(client, () => refreshing);
+  trackClose(client, closingResponses);
   if (!deferStart(options, start)) start();
   return client;
 }
