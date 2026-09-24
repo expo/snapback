@@ -48265,3 +48265,46 @@ No admission, authorization, expiry, effect transaction, replay/prediction,
 syntax or IR changes; no runtime ceiling increase, push or publication.
 File-by-file details, executable forms, measurements, fault-injection results
 and baseline reproductions: `reports/20260924-intent-work-r2.md`.
+
+## 2026-09-24 — intent lane G: delta review write-ceiling witness
+
+Addressed Astra's remaining Low finding in
+`crates/snapback4/tests/scale/witnesses.rs`. The shared `covers` helper now
+compares `metered.rows_written <= bounds.writes` as well as examined rows
+and rule probes, so every engine witness checks the write allowance.
+
+Added `write_certificate_includes_the_refused_1025th_insert`: a mutation
+loops over `range(0, 1025)` and inserts one public, online-only row each
+iteration. The engine records **1,025 writes**, refuses with **E_BOUND**
+against its unchanged **1,024-write** ceiling, and the certificate covers
+the refused charge with **1,025 writes**. A subsequent query finds no rows,
+confirming transaction rollback.
+
+`cargo test -p snapback4 --test scale`: **17 passed, 0 failed**. Verified the
+specific regression by temporarily removing `.saturating_add(rows)` from
+the write allowance: the new test fails in `covers` with **1,025 charged
+writes > 1,024 certified writes** (**0 passed, 1 expected failure**). The
+recorded engine trace also has 0 examined rows, 1,025 index entries,
+0 probes, 9,226 steps and 559,650 heap bytes: the write ceiling is the limit
+being exercised. Restored the production analyzer afterward. Logs:
+`/home/ccheever/sb4-intent/lane-g-delta-scale.log` and
+`/home/ccheever/sb4-intent/lane-g-delta-write-mutant.log`.
+
+No production code, authoring form, authorization, disclosure, durability
+or runtime meter changed. No scope deviation, deferred finding, push or
+package publication. Full-suite verification follows below.
+
+Required full run: `scripts/test.sh` exited 1 with exact summary
+**`== 1 failure(s) in 144 s`**. Only `cargo test` failed; client tests and all
+other stages passed. The restored analyzer passed **17 scale tests** again
+in the full run. Log: `/home/ccheever/sb4-intent/lane-g-delta-test.log`.
+
+Every failure is a known host baseline failure; reproduction commands:
+
+1. **Baseline** — `cargo test -p snapback4-core --test schema_capabilities_legacy genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+2. **Baseline** — `cargo test -p snapback4-device --test device uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+3. **Baseline** — `cargo test -p snapback4-device --test readauth census::authoring_census`.
+4. **Baseline** — `cargo test -p snapback4 --test check w9b_why_operation_keeps_residency_and_cost_output`.
+
+No introduced or environmental failure occurred in this full run. The delta
+review finding is closed; no additional open problem was found.

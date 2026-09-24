@@ -17,6 +17,7 @@ fn row(id: &str, fields: &[(&str, Value)]) -> Value {
 fn covers(c: &Certificate, used: Metered) {
     assert!(used.examined <= c.bounds.rows_examined, "{}: {used:?} exceeds {:?}", c.operation, c.bounds);
     assert!(used.rule_probes <= c.bounds.probes, "{}: {used:?} exceeds {:?}", c.operation, c.bounds);
+    assert!(used.rows_written <= c.bounds.writes, "{}: {used:?} exceeds {:?}", c.operation, c.bounds);
 }
 
 const AUTHORIZED: &str = r#"
@@ -307,4 +308,33 @@ query population():
     let read = e.query("population", Context::new("alice", BTreeMap::new())).unwrap();
     assert_eq!(read.metered.examined, 8193);
     covers(&population, read.metered);
+}
+
+#[test]
+fn write_certificate_includes_the_refused_1025th_insert() {
+    let b = bound(r#"
+table posts:
+  number: int
+  public
+  insert <- allow
+  online only
+mutation many():
+  for i in range(0, 1025):
+    insert posts { number: i }
+  return 1
+query remaining():
+  return posts first 1 by byId
+"#);
+    let c = certificate(&b, "many");
+    assert_eq!(c.class, Class::Constant);
+    assert_eq!(c.bounds.meters.rows_written, 1024);
+    let mut e = engine(b);
+    let write = e.mutate("many", None, Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(matches!(&write.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"), "{write:?}");
+    // Refusal records the charge before aborting. The certificate must
+    // cover that 1,025th write, not only the admitted 1,024-write ceiling.
+    assert_eq!(write.metered.rows_written, 1025);
+    covers(&c, write.metered);
+    let read = e.query("remaining", Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(read.data.as_array().unwrap().is_empty(), "the refused mutation must roll back");
 }
