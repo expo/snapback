@@ -1578,3 +1578,14 @@ history both inherit, LLP 0329 and its family.
   edits neither rules file.
 - It decides no promotion; the comparison and its ruling are the author's.
 - It claims no result; every number above is a threshold or a plan.
+
+## 2026-09-23 — Clique 0.3 follow-up implementation commission
+
+Charlie commissioned Astra max or xhigh to implement the accepted
+[modeling plan](./3000.011.000.001-modeling-after-clique-030.plan.md) and
+[scale plan](./3000.011.001.001-scale-after-clique-030.plan.md). Their earlier
+sanity review found no material concerns. Implementation preserves each plan’s
+measurement-first sequence and stopping conditions. Historical research links
+3000.000 and 3000.001 leave the current overlay to make room; the documents
+remain. Package publication and mutation of the frozen benchmark are outside
+this commission.
