@@ -49522,3 +49522,147 @@ The three explicit round-0 performance benches remain ignored by the normal
 suite; their committed measurements above were not rerun or replaced in round 1.
 No source authorization, disclosure rule, meter ceiling, SQLite durability
 setting, publication, 0.3-format migration or new Quarry syntax was changed.
+
+## 2026-09-24 — LLP 3000.013 Lane L round 2: request margin and durable background commits
+
+Merged `origin/main` in `501b4b3f2`; implementation is `971d421ee`. No push or
+publication. The existing feeds-card `view following: activity where .actor =
+viewer or exists follows[viewer, .actor]` is the HTTP witness; no new syntax,
+diagnostic or guide-card change was needed in this round.
+
+The audit found `Store::open` already configured **NORMAL for every disk
+transaction**, including requests. Changing only background work to NORMAL
+therefore could not remove the measured cost. More importantly, copies and
+their cursor are not the entire durability contract. `run_timeline_chunk_for`
+commits the copies, cursor, sequence and partition-log events together;
+delivery/backfill still select one producer using admission order and edge
+epochs. Losing a complete NORMAL transaction rewinds all of those together,
+but a device may already have observed its sequence. Reproduction: follow,
+post, retain the last FULL image, deliver one chunk under NORMAL, sync that
+chunk to a device, recover the retained image, then sync from the device's
+new watermark. The device correctly refuses `E_STORE_RESTORE`; replay restores
+the server's copies exactly once but cannot undo that device halt.
+
+The proposed weaker background durability policy stops at that counterexample.
+`Store::open` now uses WAL **FULL for all disk writes**, including delivery,
+rebuild, backfill, cleanup, purge, expiry, jobs, leases and asset bookkeeping.
+No background kind received a durability exception. SQLite's
+[WAL documentation](https://www.sqlite.org/wal.html#performance_considerations)
+confirms NORMAL can lose committed transactions on power failure and FULL
+syncs the WAL at each commit. On this one writer/one WAL, a subsequent FULL
+commit would sync earlier WAL frames too, but that later barrier cannot
+protect a watermark published before it occurs. The new tests model retained
+WAL bytes, not SIGKILL or a claimed physical power-cut experiment.
+
+Chose scheduling instead of weaker commits or a checkpoint worker.
+`serve_lock.rs` defers maintenance until a 1 ms quiet interval, for at most
+5 ms, then takes its normal FIFO ticket. If requests already queue behind an
+active holder it joins immediately. Already waiting requests remain ahead;
+later arrivals cannot starve maintenance. `serve_maintenance.rs` uses 250 µs
+cooperative slices under contention and 2 ms otherwise, preserving count and
+meter bounds for delivery, jobs and sweeps. It publishes the sequence from
+the same guard; `serve.rs` loses the redundant second engine admission.
+Native logs and asset-file deletion happen outside the engine. Atomic rows
+and commit I/O can still extend a time slice. LLP 3000.013 §4 records these
+implementation choices. The core's standalone default delivery slice remains
+1 ms; the server and explicit throughput witness select the 2 ms idle budget.
+
+Final production binary SHA-256:
+`e081c001eb3d6137064e652a48c0ec436554fedd0941f0908c57587587d82ba2`.
+Built with `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, Rust 1.97.0,
+the production profile and bundled SQLite 3.53.2 on expo-build-1000.
+Three consecutive final witness runs after the concurrent build burst:
+
+| Run | Ordinary post p50 / p95 ms | Celebrity post p50 / p95 ms | p95 ratio | All 20 celebrity posts delivered ms | Ordinary / celebrity reader p95 ms |
+|---|---|---|---|---|---|
+| 1 | 1.324 / 1.981 | 1.612 / 2.277 | 1.150× | 5605.881 | 1.357 / 0.848 |
+| 2 | 1.222 / 1.980 | 1.194 / 2.365 | 1.195× | 4820.488 | 0.959 / 0.707 |
+| 3 | 1.495 / 2.101 | 1.600 / 3.031 | 1.442× | 4890.673 | 0.965 / 0.891 |
+
+Every run asserted both the original 3× / 50 ms rule and the new 1.5× margin.
+Every one of the 20 events had all 900 follower copies plus its author's copy.
+Delivery took 4.82–5.61 s versus round 0's 6.28 s. Eight continuous HTTP read
+streams completed 4,079 requests while a post delivered all 901 copies in
+501.922 ms; post acknowledgement was 4.537 ms, reader p50/p95 0.871/1.698 ms.
+This remains slower delivery under continuous traffic than round 0's
+232.659 ms; the trade buys shorter request waits and FULL durability, while
+the required 20-post throughput improves. The final repeat had roughly
+19–24% CPU use near its end, with other lanes still active.
+
+Do not discard the earlier loaded results. The same final binary's first
+three runs overlapped other lanes' compilation: about 100 runnable processes,
+over 90% CPU use and up to 1.5 GB/s writes. They also passed the margin:
+
+| Loaded run | Ordinary post p50 / p95 ms | Celebrity post p50 / p95 ms | p95 ratio | All 20 celebrity posts delivered ms | Ordinary / celebrity reader p95 ms |
+|---|---|---|---|---|---|
+| 1 | 1.379 / 2.623 | 1.401 / 3.335 | 1.271× | 13670.559 | 2.860 / 5.942 |
+| 2 | 3.310 / 12.943 | 3.393 / 8.961 | 0.692× | 15354.136 | 5.201 / 4.897 |
+| 3 | 12.659 / 17.183 | 9.389 / 18.957 | 1.103× | 14953.188 | 0.945 / 0.814 |
+
+Loaded sustained delivery completed in 1137.105 ms with 2,941 intervening
+requests. Before the sustained-queue shortcut, the candidate's three ratios
+were 1.165×, 1.124× and 1.006×, with 4.35–4.64 s total delivery, but sustained
+delivery took 2231.064 ms. The shortcut reduced that to 467.182 ms in its
+first probe and 501.922 ms in final qualification. No failed performance run
+is omitted: all explicit HTTP runs passed their enabled assertions.
+
+The isolated, untraced 900-copy witness costs **113.307 µs/copy** on the empty
+fixture (101.976 ms total), versus round 0's 182.210 µs/copy with 1 ms chunks.
+After 20 preloaded celebrity posts it costs **286.998 µs/copy** (258.299 ms).
+`maintenance_latency/profile.rs` adds a reproducible STMT/PROFILE wall-clock
+timer around COMMIT, enabled only through the CLI's dev-dependency trace
+feature. After 20 preloaded posts, its first 256-copy chunk measured:
+
+| Synchronous | Auto-checkpoint pages | Whole chunk ms | COMMIT ms |
+|---|---|---|---|
+| NORMAL | 1000 | 68.425 | 9.581 |
+| NORMAL | disabled | 55.075 | 10.689 |
+| FULL | 1000 | 68.976 | 16.868 |
+| FULL | disabled | 62.530 | 18.029 |
+
+The old 29.577 ms commit did not reproduce in this probe. Disabling automatic
+checkpoints did not make COMMIT cheaper and moves checkpoint work outside the
+timed region; the production checkpoint policy stays unchanged. At 1 ms,
+NORMAL/1000 had commit p50/p95 0.451/0.620 ms and 306.729 µs/copy with tracing;
+FULL/1000 at 2 ms had commit p50/p95 1.369/1.821 ms and 300.895 µs/copy.
+FULL commits themselves are more expensive, not a claimed optimization.
+Wider idle chunks amortize bookkeeping and commit work; admission removes
+most of that work from a sequential request burst. A diagnostic strace of
+the preload plus count-only witness counted 1,081,210 pwrite64 calls,
+308,133 pread64 calls and 876 fsync calls: WAL/data-page writes also matter,
+so attributing the entire commit duration to an avoidable fsync is incorrect.
+
+Tests added: three FIFO-admission unit tests prove queued requests precede
+maintenance, a single continuous holder cannot defer its ticket forever, and
+maintenance does not reset the request-activity clock. Existing FIFO/poison
+tests remain. `background_durability.rs` proves a missing or torn WAL commit
+rolls back copies, cursor and log together; a completed FULL chunk survives
+without another request and preserves an observing device; recovery drains
+to one correct-epoch copy for every reader without a gap or duplicate. Its
+second test proves the NORMAL/observed-watermark counterexample above.
+The HTTP witness now accepts `SNAPBACK4_BENCH_MAX_RATIO=1.5`; the default hard
+3× assertion remains. The new commit-cost comparison joins the three existing
+explicit performance tests as ignored tests in the normal suite.
+
+Reproduce: build `cargo build --profile production -p snapback4` with the
+SQLite build flag above; run `cargo test --release -p snapback4 --test
+maintenance_latency following_http_latency -- --ignored --nocapture` three
+times with `SNAPBACK4_BENCH_BIN=$PWD/target/production/snapback4`,
+`SNAPBACK4_BENCH_ASSERT=1`, and `SNAPBACK4_BENCH_MAX_RATIO=1.5`. Select
+`following_commit_cost`, `following_chunk_cost` (optionally
+`SNAPBACK4_BENCH_PRELOAD=20`), or `following_delivery_under_sustained_requests`
+for the other witnesses. The power-loss counterexample is the ordinary
+`cargo test -p snapback4-device --test background_durability` target.
+
+`scripts/test.sh`: **`== 0 failure(s) in 384 s`**, exit 0, with
+`CARGO_BUILD_JOBS=12 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+SNAPBACK4_RUST_TEST_PROCESSES=8 RUST_TEST_THREADS=4`. The CLI's 86 unit tests,
+both new durability tests, existing timeline/adoption/device tests and client
+suite all passed (client: 1054 passed, 10 skipped, 0 failed). Failures: none
+introduced, baseline or environmental; the supplied baseline's cargo failure
+did not recur. `ref-check --verbose`: 0 errors, 0 unchecked. All changed source
+files remain below 1,500 lines and `git diff --check` passes. No open blocker;
+absolute I/O/scheduling stalls remain outside the cooperative row budget, and
+the shared-host measurements above state that practical limit. No permission,
+disclosure rule, meter ceiling, history window, edge-epoch behavior or
+application form was changed. No NORMAL exception or checkpoint worker landed.
