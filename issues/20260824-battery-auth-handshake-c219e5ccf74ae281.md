@@ -13,12 +13,12 @@
 **Battery gate:** `auth-handshake`
 **Failure signature:** `sha256:c219e5ccf74ae281b3e8f5bae467262848289054dded1f0a59b8c50b9e31a8a5`
 **First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260924T025209Z.0388900b82ae`
-**Last processed run:** `local.20260924T025209Z.0388900b82ae`
+**Last observed run:** `local.20260924T130725Z.942753a689cd`
+**Last processed run:** `local.20260924T130725Z.942753a689cd`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `0388900b82ae616f55e2ffdab30554df3b64b2fd`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `942753a689cd474aeff0cc571b2b4336ca4fe9f4`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
