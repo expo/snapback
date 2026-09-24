@@ -25,6 +25,7 @@ export async function execute(commands, coverage = {}) {
   const live = new Map(), minted = new Map(), parents = new Map(), accounts = new Set(), holds = [], tasks = [], apps = [];
   const errors = [], observed = new Map(), identities = [], publishedTokens = new Map(), privateRetries = new Map(), refusedAtOpen = new Map(), refused = new Set(), offline = new Set();
   const handles = [], observations = [], rotationFaults = new Set();
+  const writeReceipts = new Map(); let writeSerial = 0;
   const results = new WeakMap();
   // A result fulfilled before hiding is already returned, even when its user's
   // .then callback runs after hiding. Audit the actual settlement boundary.
@@ -146,6 +147,15 @@ export async function execute(commands, coverage = {}) {
         `attempt ${attempt.id} selected ${token} from epoch ${tokenEpochs.get(token)} for operation ${operation.id} in epoch ${operation.epoch}`);
       if (!live.has(token)) { count("global.attemptRefused"); return denied(token); }
       const covered = new Set([...live].filter(([, owner]) => owner === principal).map(([value]) => value));
+      const completedFence = [...(journal?.fences ?? []), ...(record()?.snapback4GlobalFences ?? [])]
+        .some(value => value.complete && value.principal === principal && operation?.epoch !== undefined && BigInt(value.epoch) > BigInt(operation.epoch));
+      if (completedFence) {
+        // I9 is not satisfied by killing a later login that the caller no
+        // longer owns after its global logout was acknowledged. A still-pending
+        // global attempt covers all sessions at its server linearization point.
+        for (const value of covered) if (tokenEpochs.has(value)) invariant("I9", BigInt(tokenEpochs.get(value)) <= BigInt(operation.epoch),
+          `stale global operation ${operation.id} killed later login ${value}`);
+      }
       for (const [value, owner] of live) if (owner === principal) { live.delete(value); revoked++; }
       // The server linearization point covers every existing session, including
       // externally owned siblings and rotations whose response is still held.
@@ -180,10 +190,13 @@ export async function execute(commands, coverage = {}) {
       if (!live.has(token)) return denied(token);
       invariant("I8", !JSON.parse(init.body).args?.hiddenHandle, "hidden handle dispatched a write");
       count("wire.handleWrite");
+      const id = JSON.parse(init.body).id;
+      const receipt = writeReceipts.get(id) ?? { state: "sent", id, seq: writeReceipts.size + 1 };
+      writeReceipts.set(id, receipt); count("write.committed");
       if (active?.hold && active.app === slot) {
         count(`held.${path}`); await new Promise(resolve => holds.push({ id: slot, token, resolve }));
       }
-      return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: 1 });
+      return Response.json(receipt);
     } else if (path.startsWith("/q/")) {
       invariant("I8", !JSON.parse(init.body).args?.hiddenHandle, "hidden handle dispatched a read");
       if (!live.has(token)) return denied(token);
@@ -360,11 +373,18 @@ export async function execute(commands, coverage = {}) {
           if (op === "handleQuery") promise = completed(h, h.client.query({ kind: "query", name: "viewer" }, { hiddenHandle: hidden }), (result, hidden) => {
             invariant("I8", !hidden || !("data" in result), "hidden handle returned query data");
           });
-          if (op === "handleMutate") promise = completed(h, h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden }), (result, hidden) => {
-            invariant("I8", !hidden || result.state === "failed", "hidden handle admitted a write");
-          });
-          if (op === "handleRefresh") promise = completed(h, h.client.refreshSession(), (result, hidden) => {
-            invariant("I8", !hidden || !result.ok, "hidden handle returned a refresh credential");
+          if (op === "handleMutate") {
+            const id = String(++writeSerial).padStart(26, "0");
+            promise = completed(h, h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden }, { id }), (result, ended) => {
+              invariant("I8", !hidden || !writeReceipts.has(id), "already-hidden handle dispatched a write");
+              if (writeReceipts.has(id)) {
+                count("write.outcome"); if (ended) count("write.outcomeAfterFence");
+                invariant("I12", JSON.stringify(result) === JSON.stringify(writeReceipts.get(id)), `dispatched ${id} outcome replaced by ${JSON.stringify(result)}`);
+              }
+            });
+          }
+          if (op === "handleRefresh") promise = completed(h, h.client.refreshSession(), result => {
+            invariant("I8", !hidden || !result.ok, "already-hidden handle admitted a refresh");
           });
         }
       }
@@ -433,7 +453,7 @@ export async function execute(commands, coverage = {}) {
 // Deletion-minimal counterexample, replayed with the same deterministic wire
 // and fault indices. Keep the invariant identity while removing commands.
 export async function minimize(commands, failure) {
-  const identity = failure.message.match(/(?:I(?:1[01]|[1-9])|retirement):/)?.[0] ?? failure.message;
+  const identity = failure.message.match(/(?:I(?:1[012]|[1-9])|retirement):/)?.[0] ?? failure.message;
   let minimal = commands;
   for (let i = 0; i < minimal.length;) {
     const candidate = minimal.filter((_, index) => index !== i);

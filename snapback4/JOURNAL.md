@@ -49751,3 +49751,42 @@ web-shell implementation changed. Existing complete-storage-failure/process-loss
 and lost-server-receipt limits remain. No push or publication. File map, exact
 reproductions, qualification and decisions:
 [round 14 report](./reports/20260924-lane-e-round14.md).
+
+### 2026-09-24 — Lane E round 15: principal fences and dispatched outcomes
+
+Global logout now reads backend-validated retirement watermarks directly under
+its existing session lock, including completed fences moved into the journal.
+It refuses stale same-principal selection before choosing a bearer. Same-scope
+peer rotation remains usable; an unrelated principal's watermark or legacy
+counter does not block it. Selection also compares the committed session scope:
+the model caught an intervening replacement while global logout awaited rotation
+when that protection was removed along with the raw-counter comparison.
+
+A hidden facade refuses new calls but preserves dispatched mutation, action,
+upload, refresh and receipt outcomes. The real held-write regression exposed
+lower-level online close settling a sending write prematurely and discarding its
+response; both paths now preserve a known commit. Cancellation without a receipt
+keeps its id pending. Receipt-persistence failure reports the storage problem and
+keeps the original durable intent for replay while returning the confirmed
+outcome. Actions also retain their done/failed outcome across close. Read and
+observation disclosure guards remain in place.
+
+The model now checks I1–I12 with 5,000 seeds / 130,000 commands, 28 fixed cases
+and 120 additional failure-point sequences: 583 server write commitments, 556
+checked returned outcomes (95 after fencing), 4,773 global attempts, 22,793
+retirement removals, 2,779 get / 313 set / 64 delete failures, 541 rotation-save
+failures and 2,612 held storage writes. It found the premature close/response
+loss and receipt-save outcome replacement; it also prevented weakening committed
+scope selection. One oracle correction distinguishes still-pending global retry
+from an already-acknowledged stale caller. All eleven negative controls failed
+as intended. The broader affected run's sole old assertion pinned `failed` after
+cancelling a dispatched write; it was updated to `pending` and passed targeted
+and full verification. Chromium's separate-page shared-storage witness passed
+in 777 ms. Ref-check passed (504 LLPs, 9,237 refs, zero errors/unchecked).
+
+`scripts/test.sh`: **`== 0 failure(s) in 153 s`**, exit 0; 1,198 client passes,
+10 skips, all Rust and nine fixture checks passed. No baseline/environmental
+exception. Full log: `~/sb4-intent/lane-e-r15-test.log`; detailed file-by-file
+report: `reports/20260924-lane-e-round15.md`. No new API, Quarry form, refusal
+code, authorization rule, asset retention policy or engine meter. No push or
+publication; no known round-15 issue remains.

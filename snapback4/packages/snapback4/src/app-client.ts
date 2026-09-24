@@ -3,7 +3,8 @@ import type { Client, Observed, Query, Read, Refusal } from "./contract.ts";
 import { mintId } from "./client.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
- * The raw client may retain private rotation/logout custody after this fence. */
+ * The raw client may retain private rotation/logout custody after this fence.
+ * I12 preserves dispatched outcomes: a fence cannot turn a commit into failure. */
 export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal) {
   let active = true;
   const valid = () => active && validScope();
@@ -37,8 +38,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     async refreshSession() {
       const denied = await refusal();
       if (denied) return { ok: false, why: denied };
-      const result = await raw.refreshSession();
-      return valid() ? result : { ok: false, why: why() };
+      return raw.refreshSession();
     },
     assetSource: id => valid() ? raw.assetSource(id) : { uri: "", headers: {} },
     async query(op, args) {
@@ -84,25 +84,21 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       catch { return { state: "failed", id, why: { code: "E_INPUT", family: "input", message: "mutation arguments must be JSON-serializable", guide: "writes" } }; }
       const denied = await refusal();
       if (denied) return { state: "failed", id, why: denied };
-      const result = await raw.mutate(op, snapshot, { ...options, id });
-      return valid() ? result : { state: "failed", id, why: why() };
+      return raw.mutate(op, snapshot, { ...options, id });
     },
     async write(id) {
       if (await refusal()) return undefined;
-      const result = await raw.write(id);
-      return valid() ? result : undefined;
+      return raw.write(id);
     },
     async act(op, args, options) {
       const denied = await refusal();
       if (denied) return { denied, id: options?.id ?? mintId() };
-      const result = await raw.act(op, args, options);
-      return valid() ? result : { denied: why(), id: result.id };
+      return raw.act(op, args, options);
     },
     async upload(bytes) {
       const denied = await refusal();
       if (denied) return { ok: false, why: denied };
-      const result = await raw.upload(bytes);
-      return valid() ? result : { ok: false, why: why() };
+      return raw.upload(bytes);
     },
     async asset(id) {
       const denied = await refusal();

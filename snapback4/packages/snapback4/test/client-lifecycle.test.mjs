@@ -1193,7 +1193,7 @@ test("close aborts online posts and stops admission", { timeout: 10_000 }, async
   await entered.promise;
   await online.close();
   assert.equal(aborts, 1);
-  assert.equal((await write).state, "failed");
+  assert.equal((await write).state, "pending", "cancelling a dispatched request cannot prove that the server refused it");
   assert.equal((await online.mutate(send, { conversationId: "c1", body: "closed" })).why.code, "E_CLOSED");
   assert.equal((await f.server.query(thread, args)).data.length, 2);
 });

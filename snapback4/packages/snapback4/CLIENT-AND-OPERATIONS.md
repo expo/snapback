@@ -142,19 +142,22 @@ session lock:
   once under the session lock; any remaining storage error is reported.
 - **I8 — revoked public handles.** Hiding an account permanently fences every
   exposed client facade and its observations before notifying subscribers.
-  Captured clients can no longer read, write, refresh, expose credentials or
+  Captured clients can no longer start reads, writes or refreshes, expose credentials or
   control the app lifecycle. The local client's existing `sync()` helper is
   also inert after its facade is hidden. Held observations return a refusal and notify
   their subscribers. Raw credentials needed for retry remain private. A failed
   replacement may restore the prior account through a new facade; it cannot
   reactivate any handle that was already hidden. This governs future access
   through handles, not copies of data or credentials already returned to code.
+  Calls dispatched before the fence retain their raw outcomes (I12); query data
+  and observation snapshots still require the live view when delivered.
 - **I9 — global revocation.** A successful `logoutEverywhere()` acknowledges
   removal of every session of its principal at the server's revocation point,
   including other tabs, external sibling sessions and committed rotations whose
   responses have not arrived. It never selects another principal's credential.
   A deliberate new sign-in after that server operation creates a new session;
-  global logout is not a ban on future sign-ins.
+  global logout is not a ban on future sign-ins. A stale tab cannot count
+  revoking that later login as successful global logout.
 - **I10 — attempt-scoped acknowledgement.** Global retirement freezes the
   credentials covered by each dispatch. Its acknowledgement removes only that
   snapshot, including on cleanup retry. Tokens attached later retain individual
@@ -162,7 +165,17 @@ session lock:
 - **I11 — epoch-scoped authority.** An operation cannot select an account epoch
   newer than its calling scope. Global logout may adopt another tab's rotated
   bearer within the same epoch; a later login, even of the same principal, is
-  fenced from the stale caller's authority.
+  fenced from the stale caller's authority. Selection reads the principal's
+  inline and journaled global watermarks under the session lock, and checks the
+  selected session's committed scope. The shared legacy counter alone cannot
+  distinguish another principal's logout from this account's replacement.
+- **I12 — dispatched outcomes.** Fencing refuses new calls; it never turns a
+  dispatched mutation's terminal outcome into an authorization failure or a
+  pending write. Actions, uploads and refreshes likewise retain their raw
+  outcomes. A failed receipt save reports the storage error and retains the
+  original intent for replay with the same id, while returning the confirmed
+  outcome. If cancellation prevents receiving a write's outcome, its id remains
+  pending for recovery; cancellation is not evidence that the server refused it.
 
 A single atomic `sessionStore.set` commits the session and its epoch together.
 Client opening is provisional: failed device initialization or persistence

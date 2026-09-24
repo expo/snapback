@@ -93,6 +93,7 @@ export function createApp(options: AppOptions): App {
   // that obligation. Only a successful logout-all acknowledges global removal.
   // I10: retirement receipts cover their dispatch snapshot, never later tokens.
   // I11: global selection may adopt a peer rotation only in the caller's epoch.
+  // I12: fencing stops new dispatches, never rewrites a dispatched outcome.
   // See CLIENT-AND-OPERATIONS.md, session state-machine invariants.
   const epochKey = sessionKey(url) + ".epoch";
   const readEpoch = async () => {
@@ -116,14 +117,24 @@ export function createApp(options: AppOptions): App {
       // Choose under the same lock as the fence. A peer may have saved a
       // successor; our raw client may instead own a newer, unpersisted one.
       if (global && token && kept?.principal !== global.session.principal) throw new SessionEpochChanged();
-      if (global && !token && revocations.fences(text).some(value => value.principal === global.session.principal && BigInt(value.epoch) > BigInt(global.epoch))) return;
+      if (global) {
+        // Already inside the session lock: read directly, without reentering
+        // retirement's lock. Completed fences survive in the journal after a
+        // new login removes the tombstone. Only this principal's fences count.
+        const fences = mergeFences(revocations.fences(text),
+          revocations.journalFences(await storage.get(sessionKey(url) + ".revocations")));
+        if (fences.some(value => value.principal === global.session.principal && BigInt(value.epoch) > BigInt(global.epoch))) throw new SessionEpochChanged();
+        // A replacement can also commit while this operation waits for its
+        // rotation. Compare that session's committed scope, not readEpoch's
+        // shared/legacy counter, which can advance for another principal.
+        if (token && BigInt(sessionEpoch(text) ?? "0") > BigInt(global.epoch)) throw new SessionEpochChanged();
+      }
       const globalToken = global ? (token && token !== global.consumed ? token : global.session.token) : undefined;
       if (expectedToken !== undefined && !(typeof expectedToken === "string" ? [expectedToken] : expectedToken).includes(token ?? "")) {
         if (restoring) throw new RestorationChanged();
         return;
       }
       const currentEpoch = await readEpoch();
-      if (global && token && currentEpoch !== global.epoch) throw new SessionEpochChanged();
       const epoch = (BigInt(currentEpoch) + 1n).toString();
       // The tombstone is the single durable logout commit. It carries retirement
       // custody too, so a quota failure cannot split the fence from the bearer.

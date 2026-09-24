@@ -79,7 +79,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         const result = await raw.mutate(op, snapshot as A, { id });
         if (active && terminal(result)) {
           try { await settle(result); }
-          catch (error) { report(error); return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
+          // Keep the durable intent for replay if receipt storage fails, but
+          // never replace the server-confirmed outcome of this dispatched call.
+          catch (error) { report(error); }
         }
         return terminal(result) ? result : { state: "pending", id };
       });

@@ -31,8 +31,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
     if (saved.snapback4Backend !== url || !strings(tokens) || !strings(all) || !globalFences(fences)) throw damaged();
     return { tokens, all, fences };
   }
-  async function read(): Promise<Journal> {
-    const bytes = await store.get(key);
+  function decodeJournal(bytes: string | null): Journal {
     if (bytes === null) return { tokens: [], all: [], fences: [] };
     try {
       const value = JSON.parse(bytes) as { backend?: unknown; tokens?: unknown; all?: unknown; fences?: unknown } | null;
@@ -40,6 +39,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
     } catch {}
     throw damaged();
   }
+  const read = async () => decodeJournal(await store.get(key));
   const write = (journal: Journal) => store.set(key, JSON.stringify({ backend: url, ...journal }));
   function promote(next: Journal): Journal {
     for (const [token, origin] of origins) {
@@ -165,6 +165,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
     embedded: (bytes: string | null) => inline(decode(bytes)).tokens,
     global: (bytes: string | null) => inline(decode(bytes)).all,
     fences: (bytes: string | null) => inline(decode(bytes)).fences,
+    journalFences: (bytes: string | null) => decodeJournal(bytes).fences,
     hasGlobal: () => locked(async () => [...acknowledged.values()].some(value => value.global) || (await obligations()).all.length > 0),
   };
 }

@@ -147,7 +147,7 @@ test("online custody refuses unstored admission and retains committed writes whe
   assert.equal(sends, 0);
   failIntent = false; failReceipt = true;
   const write = await app.mutate(add, { body: "committed" });
-  assert.equal(write.state, "pending", "failed receipt persistence cannot turn an executed write into failure");
+  assert.equal(write.state, "sent", "failed receipt persistence cannot replace the confirmed outcome; the intent remains for replay");
   failReceipt = false;
   assert.equal((await app.client.write(write.id)).state, "sent");
   assert.equal(sends, 1);
@@ -270,7 +270,7 @@ for (const tier of ["online", "local"]) test(`ordinary ${tier} app close keeps a
   await until(() => rotated);
   const closing = app.close();
   await delay(0); release();
-  assert.equal((await refresh).why.code, "E_AUTH", "the hidden facade cannot disclose the successor"); await closing;
+  assert.equal((await refresh).ok, true, "closing cannot replace the dispatched rotation's outcome"); await closing;
   assert.deepEqual(published, [null], "the old session subscription cannot disclose the privately saved successor");
   assert.equal((await restoreSession(url, store)).token, rotated.token);
   assert.notEqual(rotated.token, original);

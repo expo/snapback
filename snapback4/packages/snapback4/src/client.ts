@@ -282,7 +282,9 @@ export function createClient(options: ClientOptions): Client {
     try {
       const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, signal: aborter.signal });
       const json = (await response.json()) as Record<string, unknown>;
-      if (closed) return { ok: false };
+      // I12: a response to an already-dispatched write remains its outcome
+      // after close/sign-out. Query data still belongs to the live view.
+      if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) return sendPost(path, body);
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
@@ -628,6 +630,9 @@ export function createClient(options: ClientOptions): Client {
       linkListeners.clear();
       viewerListeners.clear();
       for (const entry of pending) {
+        // The request already dispatched may have committed. Its send owns
+        // settlement; cancellation without a receipt leaves the id pending.
+        if (entry === sending) continue;
         const outcome = { state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } } as const;
         entry.resolve(outcome);
         emitWrite(outcome);

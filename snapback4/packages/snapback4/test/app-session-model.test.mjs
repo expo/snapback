@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
-test("session state machine preserves I1–I11 across 5,000 seeded three-runtime sequences", { timeout: 240_000 }, async t => {
+test("session state machine preserves I1–I12 across 5,000 seeded three-runtime sequences", { timeout: 240_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
   for (let seed = 1; seed <= count; seed++) {
     const sequence = generate(seed);
@@ -12,7 +12,7 @@ test("session state machine preserves I1–I11 across 5,000 seeded three-runtime
       assert.fail(`seed=${seed}: ${error.message}\nminimal sequence=${JSON.stringify(minimal)}`);
     }
   }
-  if (count >= 5000) for (const event of ["global.attempt", "global.attemptRefused", "global.ackWithLaterToken", "global.newerAccountEpoch", "retirement.removed", "wire.retirementOffline", "handle.resultSettled", "held.dispatch/auth/signup", "held.dispatch/auth/login", "held.dispatch/auth/guest"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
+  if (count >= 5000) for (const event of ["write.outcome", "write.outcomeAfterFence", "global.attempt", "global.attemptRefused", "global.ackWithLaterToken", "global.newerAccountEpoch", "retirement.removed", "wire.retirementOffline", "handle.resultSettled", "held.dispatch/auth/signup", "held.dispatch/auth/login", "held.dispatch/auth/guest"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
   if (count >= 5000) {
     for (const op of operations) assert.ok(coverage[`op.${op}`] > 0, `generated ${op}`);
     for (const kind of ["get", "set", "delete"]) assert.ok(coverage[`fault.${kind}`] > 0, `injected ${kind}`);
@@ -23,7 +23,18 @@ test("session state machine preserves I1–I11 across 5,000 seeded three-runtime
 });
 
 for (const [name, sequence] of [
-  ["a facade hidden before refresh settlement refuses its held credential", [
+  ["a global caller waiting for rotation cannot select an intervening replacement", [
+    { op: "signup", app: 2 }, { op: "refreshFault", app: 2, hold: true },
+    { op: "logoutEverywhere", app: 2 }, { op: "login", app: 1 },
+  ]],
+  ["receipt storage failure retains custody without replacing a dispatched outcome", [
+    { op: "guest", app: 0 }, { op: "reopen", app: 1 },
+    { op: "handleMutate", app: 1, hold: true }, { op: "release", app: 1, fault: { kind: "get", at: 2 } },
+  ]],
+  ["a dispatched write keeps its committed outcome across logout", [
+    { op: "guest", app: 0 }, { op: "handleMutate", app: 0, hold: true }, { op: "logout", app: 0 }, { op: "release", app: 0 },
+  ]],
+  ["a facade hidden after dispatch preserves the raw rotation outcome", [
     { op: "guest", app: 0 }, { op: "handleRefresh", app: 0, hold: true }, { op: "close", app: 0 }, { op: "release", app: 0 },
   ]],
   ["a refresh result fulfilled before hiding is not a new disclosure by its later handler", [
