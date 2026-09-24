@@ -49318,3 +49318,57 @@ deviation or new open problem. The existing normally-within-a-second idle-host
 cadence is not a new wall-clock measurement or a backlog latency guarantee.
 Implementation commit: f920176cb. File map, examples, tests and evidence logs:
 reports/20260924-feeds-guide-041.md.
+
+## 2026-09-24 — Lane F round 2: feeds review closed and every card leads with its feature
+
+Fetched origin and merged origin/main; already up to date on a034a3670,
+which contains integrated 0.4.0 and Lane H's compact notes. Closed the feeds
+review findings: scoped the 40-event / 82-examination / 41-probe measurement
+to the older recipe in the final compatibility section; moved the two legacy
+operation refusals there; documented and executed non-owner remove as E_RULE;
+said older posts remain in posts, without inventing a profile table. Repaired
+the three requested why entries and adjacent Following source-shape, unique-pair
+and owned-row explanations to use the current view forms.
+
+The published Global block now runs with live/removed originals and an
+independent repost, including equal branch ids and post/actor/card checks.
+Following now runs with 1,005 originals, tied timestamps and a reply, checking
+own visibility, newest 50 immediately, exactly the newest 1,000 after backfill,
+retained older source rows, mapped fields, reply exclusion on both readers,
+asynchronous delivery, removal and unfollow. Three deliberate mutations each
+failed the intended assertion: reversed Global removal selection, removed reply
+filter, and a 10,000-event history window. Every altered file was restored
+byte-for-byte; no engine change remains.
+
+Audited all 29 canonical cards and their shared alias destinations. Each now
+starts with a title, two sentences explaining the feature, then its example.
+Feeds retains its named Global section before that example; the witness keeps
+its existing TSX harness. Moved operational and refusal material behind the
+builder path. Added compiled examples for personas, schema adoption and
+application refusals. All prior Quarry blocks are byte-for-byte unchanged.
+Removed repeated job module-naming and shape-completeness prose. Preserved all
+172 diagnostic-bearing paragraphs outside the requested feeds corrections
+byte-for-byte. A new opening-order guard and the existing why/inline-diagnostic
+censuses protect the organization and excerpt lookup. Updated the exact read
+authorization census for the two new language-context compilation sites.
+
+Focused results: guide 61 passed, CLI check/why 68 passed, readauth 81 passed.
+Frozen Bun install and whitespace checks pass; the largest changed Rust source
+is 1,187 lines. The feeds card is 302 lines. README stays 292/300 lines; WASM
+stays 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B budget.
+One full scripts/test.sh run: `== 0 failure(s) in 433 s`. Client tests:
+1,088 passed, 10 skipped. No introduced, baseline or environmental suite failure.
+The new title guard caught formatting defects, and the first mutation-check
+wrapper expected a different assertion message; these introduced development
+failures were corrected before qualification. The paragraph audit also caught
+and corrected a misplaced heading inside the sync explanation.
+
+The inherited full-history search example still deliberately emits its asserted
+N_NO_HORIZON note. Its example, warning and exact exception are unchanged;
+adding a horizon would change its contract, and suppressing the note would hide
+acquisition cost. All feeds and newly added examples are silent. No new note
+exception, engine, compiler admission, authority, disclosure, durability, meter,
+package version, push, publication or deployment change. Commits f3588f913 and
+971939d34 hold the implementation. Exact old/new first paragraphs for every
+card, the file map, review dispositions, inherited-note reproduction and logs
+are in reports/20260924-feeds-and-card-leads-r2.md.
