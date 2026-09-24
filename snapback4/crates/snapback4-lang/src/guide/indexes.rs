@@ -88,6 +88,9 @@ allow up to four UTF-8 bytes per character. Table and index names together
 must fit 512 UTF-8 bytes. Deletes remain available; updates may retain or
 shorten existing oversized keys without growing their lengths or count.
 Both server stores and devices enforce new keys; search tokens have their own cap.
+For a generated index, the diagnostic names the read or declaration's source
+site and the column to bound. Change that column's type; no generated index
+declaration needs editing.
 
 E_CURSOR_INDEX concerns an older explicit index that lacks a total order.
 For new reads, use `tasks where .ownerId = viewer first 20 by .at after c`:

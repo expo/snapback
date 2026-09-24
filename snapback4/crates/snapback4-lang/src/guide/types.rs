@@ -9,6 +9,10 @@ before selecting fields. Narrow an optional value with `if x != null:`,
 required. Use the declared enum type when its variants cannot all widen
 to the helper's text bound; changing a type never converts stored values.
 
+`text` defaults to `text <=10000` characters in columns, arguments and helper
+parameters. Write `text <=N` or `text M..N` when the bound is a product rule;
+an indexed column must also fit the key budget (`guide indexes`).
+
 ```quarry
 table everything:
   who: principal                      -- the authenticated subject; `viewer` is one
@@ -20,6 +24,7 @@ table everything:
   price: money USD                    -- money CUR [scale]: integer minor units, scale 2 unless given
   ratio: decimal 4                    -- decimal S: an integer scaled by 10^S
   name: text 1..80                    -- text <=N, or text M..N
+  description: text
   handle: text 3..20 format handle    -- format handle | url is checked on every write
   site: text <=200 format url ?
   kind: enum('a', 'b')                -- a text literal in this position is a variant
@@ -34,7 +39,7 @@ table everything:
   update <- deny
   delete <- deny
 
-fn label(kind: text <=1): kind
+fn label(kind: text): kind
 query enumLabel(kind: enum('a', 'b')):
   return label(kind)
 
@@ -113,7 +118,7 @@ For complete index, rule and expiry recipes, open `guide indexes`,
 - **Types:** `principal`, `id`, `<table>` (a reference to that table's
   id), `int` (within ±(2^53 − 1); there are no floats), `time`
   (milliseconds), `bool`, `decimal <scale>`, `money <CUR> [scale]` (both
-  hold integer minor units), `text <=N`, `text M..N`, either with
+  hold integer minor units), `text`, `text <=N`, `text M..N`, each with optional
   `format handle|url`, `enum('a', 'b')`, `json <=N`, `bytes <=N`,
   `[type] <=N` (a bounded list), `image <=N [once]` and `video <=N` (an
   upload the row holds — `guide assets`); `?` after a type makes the column

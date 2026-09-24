@@ -503,13 +503,16 @@ impl Parser {
         let mut fields = Vec::new();
         while !self.at("}") {
             if self.at(".") && self.peek_at(1).value == "." && self.peek_at(2).value == "." {
-                let site = self.peek().site.clone();
-                let name = &self.peek_at(3).value;
-                return Err(syntax_with(&site, format!("expected an object field name, got spread ...{name}; objects list fields explicitly"), format!("replace ...{name} with field: {name}.field for each payload field")));
+                let site = self.take(".")?.site;
+                self.take(".")?;
+                self.take(".")?;
+                let value = Some(self.expression(0, &[",", "}"])?);
+                fields.push(ObjectField { spread: true, name: String::new(), value, site });
+            } else {
+                let name = self.word()?;
+                let value = if self.maybe(":") { Some(self.expression(0, &[",", "}"])?) } else { None };
+                fields.push(ObjectField { spread: false, name: name.value, value, site: name.site });
             }
-            let name = self.word()?;
-            let value = if self.maybe(":") { Some(self.expression(0, &[",", "}"])?) } else { None };
-            fields.push(ObjectField { name: name.value, value, site: name.site });
             if !self.maybe(",") {
                 break;
             }

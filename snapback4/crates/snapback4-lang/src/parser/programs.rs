@@ -79,6 +79,21 @@ impl Parser {
             _ => ProgramKind::Job,
         };
         let name = self.binding_name()?;
+        if kind == ProgramKind::Job && self.at("every") {
+            let mut period = String::new();
+            let mut end = 0;
+            while !matches!(self.peek().kind, Kind::Newline | Kind::Eof) {
+                let token = self.peek().clone();
+                if !period.is_empty() && token.site.col > end { period.push(' '); }
+                period.push_str(&token.value);
+                end = token.site.col + token.value.len() as u32;
+                self.position += 1;
+            }
+            let period = period.trim_end_matches(':').trim_end();
+            return Err(Diagnostic::new(&kind_token.site, "E_QUARRY_JOB_SCHEDULE",
+                format!("job {name} declares work; a separate schedule declares when it runs"),
+                format!("job {name}():  -- keep the existing indented body\nschedule {name}Every {period}: {name}")).guide("jobs"));
+        }
         if self.at(":") {
             return Err(syntax_with(&kind_token.site, "an operation with no arguments still needs parentheses", format!("{} {name}():", kind_token.value)).mechanical());
         }

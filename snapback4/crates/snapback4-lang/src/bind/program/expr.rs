@@ -310,33 +310,6 @@ impl Binder<'_> {
         Ok((ir::field(base, name), result_ty))
     }
 
-    pub(super) fn object(&mut self, fields: &[ObjectField], out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        let mut exprs = Vec::<(String, Expr)>::new();
-        let mut types = BTreeMap::new();
-        let mut failed = None;
-        for field in fields {
-            let mut setup = setup::Body::default();
-            let value = match &field.value {
-                Some(value) => self.expr(value, &mut setup),
-                None => self.name(&field.name, &field.site),
-            };
-            let (e, t) = match value {
-                Ok(value) => value,
-                Err(error) => { self.record_error(error.clone()); failed.get_or_insert(error); continue; }
-            };
-            self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
-            // Object IR stores fields by name. Minted ids still follow source
-            // field order when no child needs a statement-producing expansion.
-            let e = if allocates(&e) { self.snapshot(e, out) } else { e };
-            if types.contains_key(&field.name) {
-                return Err(unknown(&field.site, format!("duplicate field {}", field.name), "keep one"));
-            }
-            exprs.push((field.name.clone(), e));
-            types.insert(field.name.clone(), t);
-        }
-        match failed { Some(error) => Err(error), None => Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types))) }
-    }
-
     pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if op == "in" {
             let (value, ty) = self.expr(left, out)?;

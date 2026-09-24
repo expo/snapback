@@ -193,6 +193,14 @@ fn tally(n: int):
     total = total + n
   return total
 
+fn profileLabel(label: text): label
+query spreadProfile(h: text 3..20 format handle, extra: text):
+  p = profiles[handle = h] ! else NOT_FOUND
+  return { spread: { ...p, extra }, shaped: p { *, extra: extra }, label: profileLabel(extra) }
+query spreadObjects():
+  a = { label: 'first', value: 1 }
+  return { ...a, ...{ value: 2 }, label: 'last' }
+
 query heldRoom(roomId: rooms) held:   -- device only: dev and serve refuse E_QUERY_HELD; no server fallback
   return rooms[roomId] card
 
@@ -481,6 +489,10 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 ```
 
 ## Fixing a refused line
+
+For a present row, `{ ...p, extra }` and `p { *, extra: extra }` contribute
+the same columns and extra value. Shapes keep `*`; object fields and spreads
+combine left to right, with later fields replacing earlier ones.
 
 E_QUARRY_SYNTAX means the parser could not read the form at the reported
 file, line and column. For example, `query answer:` is missing its argument

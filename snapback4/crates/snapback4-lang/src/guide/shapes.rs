@@ -11,10 +11,17 @@ query shapeForms(roomId: rooms, messageId: messages, c: cursor ?):
   return { page, row, named, nested }
 ```
 
+`{ ...p, extra: true }` copies a present row or object's known fields. Fields
+combine left to right; a later value replaces an earlier field of the same
+name. A row contributes the same columns as `p { *, extra: true }`.
+E_QUARRY_SPREAD refuses nullable operands and values without statically known
+fields. Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`,
+then `return { ...p, extra: true }`.
+
 The table and shape names are the language card's. A shape over a page is
 a bounded loop; its fields are the row's columns by bare name, `*` for all
 of them, `...shape` for a named shape's fields, and `name: expr` with `.`
-as the row. A shape is the only projection: there is no `select`.
+as the row. There is no `select` spelling.
 A table-typed helper accepts that table's row or reference. A reference has no
 fields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's
 implicit row parameter, `messages[m] { body: .body }`. Shapes are projections,

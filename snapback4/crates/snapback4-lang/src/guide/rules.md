@@ -3,7 +3,7 @@
 ```quarry
 table docs:
   ownerId: principal
-  title: text <=120
+  title: text
   state: enum('draft', 'final')
   read <- .ownerId = viewer or exists editors[.id, viewer]                  -- allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | and | or | not
   insert <- .ownerId = viewer and .state = 'draft'
@@ -31,6 +31,11 @@ audience a partition can hold (use `expire`). A read rule that is exactly
 sync). The system principal consults no rules, so `system` is never a rule word.
 An audience read rule may add `or viewer = 'service:pusher'` (or several
 service grants); sync infers its audience without them, and ordinary extra disjuncts still refuse.
+
+E_QUARRY_RULE_SPELLING locates a guessed table rule: `select <-` and `view <-`
+become `read <-`, `create <-` becomes `insert <-`, `modify <-` and `edit <-`
+become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`,
+declare separate insert, update and delete rules for the operations intended.
 
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves

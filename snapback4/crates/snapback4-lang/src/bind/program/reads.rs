@@ -66,7 +66,7 @@ impl<'a> Binder<'a> {
                 return Err(type_error(&bound.site, "a seek compares the first unpinned column of a plain index", "t[prefix, col >= start, col < end] first 50 by index"));
             }
             let expected = self.key_ty(info, index, &bound.column);
-            let (value, ty) = self.field_value(&ObjectField { name: bound.column.clone(), value: Some(bound.value.clone()), site: bound.site.clone() }, &expected, out)?;
+            let (value, ty) = self.field_value(&ObjectField { spread: false, name: bound.column.clone(), value: Some(bound.value.clone()), site: bound.site.clone() }, &expected, out)?;
             if !ty.comparable(&expected) || ty.is_optional() || expected.is_optional() {
                 return Err(type_error(&bound.site, format!("seek on {}.{} expects {}, got {}", read.table, bound.column, expected.name(), ty.name()), format!("{} {} <{}>", bound.column, bound.op, expected.name())));
             }

@@ -16,6 +16,7 @@ mod control;
 mod returned_shapes;
 mod diagnostics;
 mod expr;
+mod objects;
 mod reads;
 mod prefix;
 mod lanes;
@@ -790,11 +791,6 @@ impl<'a> Binder<'a> {
         if info.maintained.is_some() {
             return Err(unknown(site, format!("{table} is a maintained aggregate; write its source rows instead"), format!("{} {}", op.word(), info.maintained.as_ref().map(|m| m.source.clone()).unwrap_or_default())));
         }
-        for field in fields {
-            if super::columns::fields(info).any(|name|name == field.name) {
-                return Err(super::columns::refusal(&field.site,format!("{table}.{} is engine-maintained; write its source rows instead",field.name)));
-            }
-        }
         // Writes share table-level residency facts, but every source occurrence
         // (including an expanded helper) belongs in a changed-prediction note.
         let write_name = format!("{} {table}", op.word());
@@ -889,6 +885,16 @@ impl<'a> Binder<'a> {
     }
 
     fn write_row(&mut self, info: &'a TableInfo, fields: &[ObjectField], current: Option<&str>, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        let expanded;
+        let fields = if fields.iter().any(|field| field.spread) {
+            expanded = self.expand_object_fields(fields, Some(info), out)?;
+            &expanded
+        } else { fields };
+        for field in fields {
+            if super::columns::fields(info).any(|name|name == field.name) {
+                return Err(super::columns::refusal(&field.site,format!("{}.{} is engine-maintained; write its source rows instead",info.decl.name,field.name)));
+            }
+        }
         match current {
             None => {
                 if fields.iter().any(|f| f.name == "id") {

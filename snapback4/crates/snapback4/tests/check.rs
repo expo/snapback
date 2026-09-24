@@ -10,6 +10,34 @@ const SOURCE: &str = "table messages:\n  body: text <=100\n  read <- allow\nquer
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 
 #[test]
+fn natural_forms_diagnostics_are_authored_in_plain_verbose_and_json() {
+    let project = Project::new();
+    for (source, code, rewrite) in [
+        ("table notes:\n  title: text\n  public\nquery page(c: cursor ?):\n  return notes first 20 by .title after c\n", "E_INDEX_KEY_BYTES", "title: text <="),
+        ("table notes:\n  owner: principal\n  select <- .owner = viewer\n", "E_QUARRY_RULE_SPELLING", "read <-"),
+        ("job sweep every 1h:\n  return\n", "E_QUARRY_JOB_SCHEDULE", "schedule sweepEvery every 1h: sweep"),
+        ("table notes:\n  public\nquery one(key: notes):\n  p = notes[key]\n  return { ...p }\n", "E_QUARRY_SPREAD", "! else NOT_FOUND"),
+    ] {
+        project.source(source);
+        for flags in [vec!["check"], vec!["check", "--verbose"], vec!["check", "--json"]] {
+            let output = project.run(&flags);
+            assert_eq!(output.status.code(), Some(1));
+            let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            assert!(text.contains(code) && text.contains(rewrite), "{flags:?}: {text}");
+            assert!(!text.contains("$intent:"), "{flags:?}: {text}");
+            if flags.contains(&"--json") {
+                let json = parsed(&output);
+                let diagnostic = json["problems"].as_array().unwrap().iter().find(|d| d["code"] == code).unwrap();
+                assert!(diagnostic["site"]["line"].as_u64().unwrap() > 0);
+            } else { assert!(text.contains("schema.q:"), "{text}"); }
+        }
+        let why = project.run(&["why", code]);
+        assert!(why.status.success());
+        assert!(String::from_utf8_lossy(&why.stdout).contains("Full card:"));
+    }
+}
+
+#[test]
 fn w10c_check_hides_only_the_redundant_operation_cascade() {
     let p = Project::new();
     p.source("query apiHistory():\n  return messages after null\n");

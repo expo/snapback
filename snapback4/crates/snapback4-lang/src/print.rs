@@ -94,6 +94,7 @@ fn object_fields(fields: &[ObjectField]) -> String {
     fields
         .iter()
         .map(|field| match &field.value {
+            Some(value) if field.spread => format!("...{}", expression(value)),
             Some(value) => format!("{}: {}", field.name, expression(value)),
             None => field.name.clone(),
         })

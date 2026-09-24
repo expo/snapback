@@ -12,6 +12,7 @@ mod actions;
 mod routes;
 mod server;
 mod key_bound;
+mod index_diagnostics;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
@@ -168,6 +169,9 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     notes.extend(residency::guard_notes(&schema, &programs));
     notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
+    index_diagnostics::authored(&catalog, &mut diagnostics);
+    index_diagnostics::authored(&catalog, &mut notes);
+    for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     Bound { view_types, server, schema, programs, personas, diagnostics, notes }
 }
 

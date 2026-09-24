@@ -249,6 +249,10 @@ The runtime meter still refuses work that cannot finish.
 
 ## Refused jobs and schedules
 
+E_QUARRY_JOB_SCHEDULE separates work from its clock. Replace
+`job sweep every 1h:` with `job sweep():`, keep the indented body, and add
+`schedule sweepEvery every 1h: sweep` as a separate declaration.
+
 E_JOB_CURSOR_INDEX means a chunk's scan key can move while the job writes.
 For example, a sweep `for t in tasks by .score:` is unsafe
 when `score` is mutable: moving a row could skip or revisit it. Use `for t in tasks:` to sweep by id, or declare its order columns `immutable` when they truly
