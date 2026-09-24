@@ -1,0 +1,13 @@
+{
+  "name": "phase4-expo-registry-wait",
+  "command": [
+    "node",
+    "reports/20260924-publication-0.4.0/wait-expo-registry.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:53:42.192473+00:00",
+  "finished_at": "2026-09-24T11:57:49.442909+00:00",
+  "seconds": 247.249,
+  "exit_code": 0,
+  "log": "phase4-expo-registry-wait.log"
+}

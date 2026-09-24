@@ -1,0 +1,16 @@
+[
+  {
+    "name": "branch-push",
+    "command": [
+      "git",
+      "push",
+      "-u",
+      "origin",
+      "sb4-intent/publish-040"
+    ],
+    "started_at": "2026-09-24T10:48:18.970842+00:00",
+    "seconds": 2.808,
+    "exit_code": 1,
+    "output": "[snapback-freshness] ADVISORY: guide/reference/diagnostics-registry.json looks stale.\n[snapback-freshness]   regenerate: node scripts/generate-guide-manifest.mjs\n[snapback-freshness]   evaluated against the WORKING TREE, not the pushed tip;\n[snapback-freshness]   a dirty tree can therefore report drift the push does not carry.\n[snapback-freshness]   This is advisory and does NOT block the push.\nnode:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'acorn' imported from /Users/ccheever/projects/snapback-pub-040/packages/snapback-codegen/visibility-governance.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)\n    at #resolve (node:internal/modules/esm/loader:683:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.18.0\nerror: failed to push some refs to 'https://github.com/expo/snapback.git'\n"
+  }
+]

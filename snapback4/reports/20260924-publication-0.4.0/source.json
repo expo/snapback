@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-24T10:59:00.430863+00:00",
+  "mergedHead": "b92becdd42ee52c0ddfef6038bf366435db358e9",
+  "originMain": "a1ca70c58d129d1674966f26e5cfc14183022415",
+  "sourceTrees": {
+    "snapback4-device": "708272bad68589c64517f4a15063bfa1eee16bf1",
+    "snapback4-core": "f1149e8831365b5102d53b3c49227c2798941214"
+  },
+  "phase1PackageFileHashesMatch": true,
+  "phase1ExpoIntegrity": "sha512-yH1Ho6zhujUsi7uyF5iawUk2DaunFE9ewCrVenR8lHDGmWLTFs2plKhaDEuzKz59+WMIK7GXL3dHZToeoUau+Q==",
+  "mergeConflict": "append-only JOURNAL.md; retained both additions unchanged",
+  "signingRelay": "/Users/ccheever/sb4-03-lanes/codesign-relay/codesign",
+  "signingRelaySha256": "06fa7db565ac920a7ee7d5d413410c3113757682c9549e3c7c9ddd1da1c46acf"
+}

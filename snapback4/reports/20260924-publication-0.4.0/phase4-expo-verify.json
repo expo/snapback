@@ -1,0 +1,13 @@
+{
+  "name": "phase4-expo-verify",
+  "command": [
+    "python3",
+    "-"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:35:01.228622+00:00",
+  "finished_at": "2026-09-24T11:35:01.484066+00:00",
+  "seconds": 0.255,
+  "exit_code": 0,
+  "log": "phase4-expo-verify.log"
+}

@@ -1,0 +1,34 @@
+✖ published 0.2.33 control: capability-free bytes and stores stay compatible (985.196ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1021.184625
+
+✖ failing tests:
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:250:1
+✖ published 0.2.33 control: capability-free bytes and stores stay compatible (985.196ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=serve generation=0 status=1 reason="E_GENERATION: release source differs from its activated backend; deploy the source as a new release"
+  
+  
+  1 !== null
+  
+      at assertAlive (file:///Users/ccheever/projects/snapback-pub-040/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:95:37)
+      at start (file:///Users/ccheever/projects/snapback-pub-040/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:96:7)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-pub-040/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:280:16)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,32 @@
+{
+  "name": "phase4-work-intent",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-sim",
+    "--test",
+    "work_intent",
+    "--test",
+    "work_intent_review",
+    "--test",
+    "work_intent_review2",
+    "--test",
+    "work_intent_review3",
+    "--test",
+    "work_intent_review4",
+    "--no-fail-fast"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T11:30:18.646719+00:00",
+  "finished_at": "2026-09-24T11:30:40.138178+00:00",
+  "seconds": 21.491,
+  "exit_code": 0,
+  "log": "phase4-work-intent.log",
+  "summary": {
+    "targets": 5,
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  }
+}

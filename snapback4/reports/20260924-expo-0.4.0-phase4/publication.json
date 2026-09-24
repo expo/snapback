@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-24T11:59:09.986233+00:00",
+  "source": "20cb39bf0ffd49f619e3d904bbb7355bc19993bd",
+  "qualifiedManifest": "qualified.json",
+  "name": "snapback4-expo",
+  "version": "0.4.0",
+  "published": true,
+  "registry": {
+    "version": "0.4.0",
+    "integrity": "sha512-PtZPvTcF7FtLy+RMMyWgsekPuW9igYqwzAS8QC0SFnCi1k5Rwm2i/Sx6A9JrdrsoF/JL0IeOQRU6+SU4yxKZTA==",
+    "bytes": 4809625,
+    "tarballUrl": "https://registry.npmjs.org/snapback4-expo/-/snapback4-expo-0.4.0.tgz",
+    "metadataMatches": true,
+    "downloadMatches": true,
+    "qualifiedLocalTarball": "/Users/ccheever/projects/snapback-pub-040/snapback4/target/expo-0.4.0-phase4/snapback4-expo-0.4.0.tgz",
+    "verifiedAt": "2026-09-24T11:58:17.473Z"
+  },
+  "publishSeconds": 9.247,
+  "registryAvailabilityWaitSeconds": 247.249,
+  "integrityChangeReason": "Core Store::prepare no longer creates _effect_keys; first Tx::effect_once does, inside its transaction. Both native slices rebuilt from core tree fe93c1877be096ed7011da92327deb2b8006f08a. Xcode also reversed AvailableLibraries order in Info.plist; sorted parsed plist values are identical. All other 14 packed files are byte-identical to phase 1."
+}

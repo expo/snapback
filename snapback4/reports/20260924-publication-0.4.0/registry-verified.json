@@ -1,0 +1,35 @@
+{
+  "source": "20cb39bf0ffd49f619e3d904bbb7355bc19993bd",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.0",
+      "integrity": "sha512-mOso3FXTTsKgKeatmOe3mBX8wm9nEoCmEXf4fFMicxveUFo4IiM9IZ7xevcQ6uziThgvr8b+5w95ZRb9jbl+8A==",
+      "bytes": 656765,
+      "tarballUrl": "https://registry.npmjs.org/snapback4/-/snapback4-0.4.0.tgz",
+      "metadataMatches": true,
+      "downloadMatches": true,
+      "qualifiedLocalTarball": "/Users/ccheever/projects/snapback-pub-040/snapback4/target/publication/snapback4-darwin-arm64-0.4.0/snapback4-0.4.0.tgz",
+      "verifiedAt": "2026-09-24T11:53:11.623Z"
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.0",
+      "integrity": "sha512-uhPlRv2+piSZw0x1eKMC2o/dlskwE+OnxW4FakNmT3ao7cmzA6IDeStv11kdZsj1t9DfoisCch68NVbMDqKQ6A==",
+      "bytes": 5379828,
+      "tarballUrl": "https://registry.npmjs.org/snapback4-darwin-arm64/-/snapback4-darwin-arm64-0.4.0.tgz",
+      "metadataMatches": true,
+      "downloadMatches": true,
+      "qualifiedLocalTarball": "/Users/ccheever/projects/snapback-pub-040/snapback4/target/publication/snapback4-darwin-arm64-0.4.0/snapback4-darwin-arm64-0.4.0.tgz",
+      "verifiedAt": "2026-09-24T11:53:12.702Z"
+    },
+    "snapback4-expo": {
+      "version": "0.4.0",
+      "integrity": "sha512-PtZPvTcF7FtLy+RMMyWgsekPuW9igYqwzAS8QC0SFnCi1k5Rwm2i/Sx6A9JrdrsoF/JL0IeOQRU6+SU4yxKZTA==",
+      "bytes": 4809625,
+      "tarballUrl": "https://registry.npmjs.org/snapback4-expo/-/snapback4-expo-0.4.0.tgz",
+      "metadataMatches": true,
+      "downloadMatches": true,
+      "qualifiedLocalTarball": "/Users/ccheever/projects/snapback-pub-040/snapback4/target/expo-0.4.0-phase4/snapback4-expo-0.4.0.tgz",
+      "verifiedAt": "2026-09-24T11:58:17.473Z"
+    }
+  }
+}

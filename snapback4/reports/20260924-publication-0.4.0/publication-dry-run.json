@@ -1,0 +1,14 @@
+{
+  "name": "publication-dry-run",
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-040/snapback4",
+  "started_at": "2026-09-24T10:59:15.396988+00:00",
+  "finished_at": "2026-09-24T11:11:06.093717+00:00",
+  "seconds": 710.694,
+  "exit_code": 1,
+  "log": "publication-dry-run.log"
+}
