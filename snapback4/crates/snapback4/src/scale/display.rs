@@ -54,7 +54,7 @@ pub(super) fn conditions(conditions: &[(String, bool)]) -> Option<String> {
 pub(crate) fn summary(certificates: &[Certificate]) -> String {
     let grows: Vec<_> = certificates.iter().filter(|c| c.class == Class::Grows).map(|c| c.operation.as_str()).collect();
     let chunks = certificates.iter().filter(|c| c.per_chunk).count();
-    format!("scale: {} of {} operations are constant; {} grow with data{}{} — check --cost explains",
+    format!("scale: {} of {} operations are constant; {} grow with data{}{} — `check --cost` gives the certificate",
         certificates.len() - grows.len(), certificates.len(), grows.len(),
         if grows.is_empty() { String::new() } else { format!(" ({})", grows.join(", ")) },
         if chunks == 0 { String::new() } else { format!("; {chunks} job(s) assessed per chunk") })

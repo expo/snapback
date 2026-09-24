@@ -666,6 +666,33 @@ client refetches at that deadline and needs a connection to evaluate it.
 supplies the query's cursor argument itself, which must be named `c`
 (`c: cursor ?`).
 
+A complete list renders continuation, refusal and incomplete answers explicitly:
+
+```tsx
+import { useRef } from "react";
+import { Button, Text, View } from "react-native";
+import { usePage } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+
+export function InboxList() {
+  const { items, hasMore, loadMore, read } = usePage(api.inbox, {});
+  const answered = useRef(false);
+  if ("data" in read) answered.current = true;
+  return <View>
+    {!answered.current && "loading" in read && <Text>Loading…</Text>}
+    {"denied" in read && <Text>{read.denied.message}</Text>}
+    {items.map(item => <Text key={item.conversationId}>{item.conversationId}</Text>)}
+    {"data" in read && !read.complete && <Text>Results may be incomplete</Text>}
+    {"data" in read && !read.fresh && <Text>As of {read.since === undefined ? "the last available answer" : new Date(read.since).toISOString()}</Text>}
+    {hasMore && <Button title="Load more" onPress={loadMore} />}
+  </View>;
+}
+```
+
+Unmounting a screen closes its observations; remounting starts from the client's
+current answer. `fresh: false` marks an answer that has not caught up; an empty
+or incomplete answer does not prove that no matching rows exist.
+
 ### Assets
 
 `client.upload` retries only an `E_RATE_LIMIT` refusal with `retryable: true`:

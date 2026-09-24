@@ -187,8 +187,10 @@ whether the replica is ready. Defer feeds, search, schedules and server handlers
 
 Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`; never commit it. A table holds data. Rules
 authorize each row. Sync chooses what devices hold. A query states a predicate and order. A view derives data. A
-mutation commits atomically. A job sweeps; an effect records external work. An asset belongs to its row and follows that
-row's read rule.
+mutation commits atomically. A job sweeps; an effect records external work. An asset follows its row's read rule.
+`snapback4 check` ends with a scale line; `check --cost` gives each operation's certificate: **constant**
+(bounded work at any data size) or **grows with** a named site. A constant verdict is the structural proof
+for a degradation rule; timing a constant operation measures noise. Cite the verdicts in scale reports.
 
 ```quarry
 table notes:
@@ -276,9 +278,8 @@ query trending(c: cursor ?):
 ## Reference map: open only what the feature needs
 
 `snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` prints a two-line index of
-cards and aliases; `guide language` prints the language card. Every refusal names a code, site and rewrite. Every Quarry
-example here and on the cards compiles in the suite; the language card's single program also runs. The chat example is
-optional.
+cards and aliases; `guide language` prints the language card. Every refusal names a code, site and rewrite.
+Every Quarry example compiles in the suite; the language card also runs. The chat example is optional.
 
 | Need | One reference lookup |
 |---|---|
@@ -291,7 +292,7 @@ optional.
 | Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |
 | Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
 | Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |
-| Full client, React and auth | [CLIENT-AND-OPERATIONS.md §4](./CLIENT-AND-OPERATIONS.md#4-the-client) |
+| Full client, auth / complete React list | [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
 | Development and wire | [§5](./CLIENT-AND-OPERATIONS.md#5-development) |
 | Release | [§6](./CLIENT-AND-OPERATIONS.md#6-release) |
 | Expo | [§7](./CLIENT-AND-OPERATIONS.md#7-expo) |

@@ -142,7 +142,7 @@ fn clique_acceptance_subset_compiles_without_authored_indexes() {
     let source = include_str!("fixtures/intent-clique.q");
     let bound = compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
-    assert!(bound.notes.iter().all(|n| matches!(n.code.as_str(), "N_NO_HORIZON" | "N_NO_CURSOR" | "N_MAINTAINED_COLUMN_STREAM")), "{:?}", bound.notes);
+    assert!(bound.notes.iter().all(|n| matches!(n.code.as_str(), "N_NO_HORIZON" | "N_NO_CURSOR" | "N_MAINTAINED_COLUMN_STREAM" | "N_MAINTAIN_SYNCED")), "{:?}", bound.notes);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let seeds = [
         ("profiles", serde_json::json!({"id":"profile", "principal":"alice", "displayName":"Hello Alice", "handle":"hello", "bio":"", "location":"", "link":null, "avatar":null, "createdAt":1})),
@@ -173,6 +173,11 @@ fn clique_acceptance_subset_compiles_without_authored_indexes() {
         assert_eq!(rows.len(), 1, "{query}: {rows:?}");
         assert_eq!(rows[0].field("id").unwrap().as_str().unwrap(), expected);
     }
+    let profile = engine.query("socialProfile", Context::new("alice",
+        BTreeMap::from([("handle".into(), Value::String("hello".into()))])).at(10)).unwrap();
+    assert_eq!(profile.data.field("id").unwrap(), &Value::Id("profile".into()));
+    assert_eq!(profile.data.field("followers").unwrap(), &Value::Int(0));
+    assert_eq!(profile.data.field("following").unwrap(), &Value::Bool(false));
 }
 
 #[test]
