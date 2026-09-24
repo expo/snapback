@@ -70,7 +70,6 @@ impl Binder<'_> {
     fn object_fields(&mut self, fields: &[ObjectField], table: Option<&TableInfo>, out: &mut setup::Body) -> Fallible<(Vec<Field>, Option<Expr>)> {
         let mut result = Vec::new();
         let mut bases = Vec::new();
-        let mut origins = BTreeMap::new();
         let mut failed = None;
         for field in fields {
             let mut setup = setup::Body::default();
@@ -108,28 +107,22 @@ impl Binder<'_> {
                         format!("p = {} ! else NOT_FOUND\nreturn {{ ...p }}", print::expression(operand))).guide("shapes"));
                 }
                 let value = self.snapshot(value, out);
-                let origin = if matches!(ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
+                if matches!(ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
                     bases.push(value.clone());
-                    Some(bases.len() - 1)
-                } else { None };
+                }
                 for (name, ty) in self.row_fields(&ty, &field.site)? {
-                    origins.insert(name.clone(), origin);
                     result.push((name.clone(), ir::field(value.clone(), &name), ty, field.site.clone()));
                 }
             } else {
                 // Snapshot anything that can read, fail or allocate before
                 // evaluating the next operand. Lexical field selections stay
                 // in the object so existing device provenance is preserved.
-                origins.insert(field.name.clone(), None);
                 result.push((field.name.clone(), self.snapshot(value, out), ty, field.site.clone()));
             }
         }
-        // Keep the final row base just as a single-row `p { *, ... }` does.
-        // Earlier rows contribute metadata only while one of their fields
-        // survives. Replacing every earlier column must also replace its flag.
-        let last = bases.len().checked_sub(1);
-        let bases = bases.into_iter().enumerate().filter_map(|(at, base)|
-            (Some(at) == last || origins.values().any(|origin| *origin == Some(at))).then_some(base)).collect();
+        // Pending conservatively includes every spread row, even if all its
+        // fields were replaced. A spread local carries the same union, so
+        // nested spreads and their flattened spelling always agree.
         match failed { Some(error) => Err(error), None => Ok((result, pending_base(bases))) }
     }
 

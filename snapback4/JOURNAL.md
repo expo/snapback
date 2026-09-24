@@ -49736,3 +49736,59 @@ errors and zero unchecked. Every changed Rust file is below 1,500 lines and
 git diff --check passes. Implementation commits before this journal/schedule
 commit: 5df0443ec (shared expression grouping), 130f030db (spread precedence
 and surviving-row metadata), d3efb5687 (read-clause grouping and regressions).
+
+## 2026-09-24 — LLP 3000.013 Lane K round 6: compositional spread pending
+
+Replaced the round-5 surviving-field rule with the requested conservative
+rule: a spread result is pending if any row spread into it, directly or
+through a spread local, is pending, even when all its fields are replaced.
+In bind/program/objects.rs, removed the field-origin map and final-source
+filter; every row base now reaches the existing pending union. The Shape IR,
+RowObject compiler type, device interpreter and wire representation are
+unchanged. Each source is still bound once and all metadata operations use
+the existing step/heap meters. The shapes card states the rule in one sentence.
+Generated result types still carry pending?: boolean; one-row spreads still
+match p { *, extra: true }, with object wildcard precedence preserved.
+
+Extended tests/fixtures/spread-metadata.q with reversed spread order and
+left/right nested versus flat three-row queries, plus a tag insertion for
+offline prediction. natural_forms checks that nested and flat types agree
+and each generated result has exactly one optional pending field. Updated
+spread_metadata's two device lifecycle tests deliberately: replacing a
+pending row's last field, or all its fields, no longer clears pending.
+
+Added spread_pending_union's memory and SQLite tests. Both exercise all eight
+pending/confirmed combinations of a note, tag and second note, comparing
+{ ...p, ...q, ...r } with s = { ...p, ...q }; { ...s, ...r } and with
+s = { ...q, ...r }; { ...p, ...s }. The last note replaces every field from
+the first. Reversed two-row spreads cover confirmed first/pending second as
+well as pending first/confirmed second, and unrelated pending rows do not
+mark results. The matrix runs before confirmation, after reopen, after each
+of three settlements, and after reopening each partially settled state.
+After all settlement, server and device answers agree and pending is absent.
+Queries examine exactly two or three rows as appropriate; the existing
+single-row spread/shape checks still examine one.
+
+Regression sensitivity: restoring the old field-origin implementation fails
+both store tests on the reported composed/flattened disagreement. Restricting
+metadata to the first source fails both on taggedReverse with a confirmed
+first row and pending second row. All temporary mutations were restored.
+Evidence: /tmp/lane-k-r6-mutation-{origins,first-only}.log. The initial new
+matrix also failed against the old implementation before the fix; these are
+intentional negative checks, not unresolved failures. Restored targeted tests:
+57 guide, 16 natural-form and four device tests passed, zero failures.
+
+Ran bun install --frozen-lockfile once (506 installs checked, no changes).
+Ran scripts/test.sh once with eight Rust build/test workers and at most one
+full lane suite. Exact result: `== 0 failure(s) in 233 s`. No full-suite
+failures: none ours, baseline or environmental. Client tests: 1,054 passed,
+10 skipped, zero failed. Evidence: /tmp/lane-k-r6-full-suite.log. Wasm remains
+1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B budget.
+Reference validation: 505 LLP documents, 9,237 references, zero errors and
+zero unchecked. Changed Rust files remain below 1,500 lines; diff whitespace
+checks pass.
+
+No deviation or unresolved round-6 problem. No new syntax, refusal code,
+IR or wire form; no authorization, disclosure, durability or meter change.
+The earlier deliberately refused extra-tested write targets remain outside
+this round. No push or publication.

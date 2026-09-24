@@ -27,6 +27,7 @@ table tags:
   owner: principal
   label: text
   read <- .owner = viewer
+  insert <- .owner = viewer
   sync to .owner
 query tagged(key: notes, tag: tags):
   p = notes[key] ! else NOT_FOUND
@@ -53,3 +54,26 @@ query shapeThenShape(key: notes):
   p = notes[key] ! else NOT_FOUND
   s = p { * }
   return s { title: 'override', * }
+mutation addTag(label: text):
+  return insert tags { owner: viewer, label }
+query taggedReverse(key: notes, tag: tags):
+  p = notes[key] ! else NOT_FOUND
+  q = tags[tag] ! else NOT_FOUND
+  return { ...q, ...p }
+query flattened(first: notes, tag: tags, third: notes):
+  p = notes[first] ! else NOT_FOUND
+  q = tags[tag] ! else NOT_FOUND
+  r = notes[third] ! else NOT_FOUND
+  return { ...p, ...q, ...r }
+query composed(first: notes, tag: tags, third: notes):
+  p = notes[first] ! else NOT_FOUND
+  q = tags[tag] ! else NOT_FOUND
+  r = notes[third] ! else NOT_FOUND
+  s = { ...p, ...q }
+  return { ...s, ...r }
+query composedRight(first: notes, tag: tags, third: notes):
+  p = notes[first] ! else NOT_FOUND
+  q = tags[tag] ! else NOT_FOUND
+  r = notes[third] ! else NOT_FOUND
+  s = { ...q, ...r }
+  return { ...p, ...s }

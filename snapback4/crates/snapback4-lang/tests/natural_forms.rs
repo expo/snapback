@@ -49,8 +49,11 @@ fn row_spread_types_preserve_pending_without_marking_containing_records() {
         assert!(matches!(result(name), Ty::RowObject(fields) if fields == shaped), "{name}");
     }
     assert!(matches!(result("nested"), Ty::Object(fields) if matches!(fields.get("row"), Some(Ty::RowObject(_)))));
+    assert_eq!(result("flattened"), result("composed"));
+    assert_eq!(result("flattened"), result("composedRight"));
+    assert!(matches!(result("flattened"), Ty::RowObject(_)));
     let ts = snapback4_lang::emit::typescript(&bound);
-    for name in ["spread", "shaped", "reshaped", "merged", "nested"] {
+    for name in ["spread", "shaped", "reshaped", "merged", "nested", "taggedReverse", "flattened", "composed", "composedRight"] {
         let line = ts.lines().find(|line| line.contains(&format!("{name}: Query<"))).unwrap();
         assert_eq!(line.matches("pending?: boolean").count(), 1, "{line}");
     }

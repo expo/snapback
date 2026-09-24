@@ -31,15 +31,15 @@ fn inspect<S: BoundaryMetadata>(device: &mut Device<S>, key: &str, pending: bool
         assert_eq!(result.data.field("label").unwrap(), &Value::String("confirmed tag".into()));
         let replaced = query == "taggedReplaced";
         assert_eq!(result.data.field("title").unwrap(), &Value::String(if replaced { "override" } else { "offline" }.into()));
-        assert_eq!(result.data.as_object().unwrap().get("pending"), (pending && !replaced).then_some(&Value::Bool(true)), "{query}: a surviving note title carries its pending flag");
+        assert_eq!(result.data.as_object().unwrap().get("pending"), pending.then_some(&Value::Bool(true)), "{query}: replacing fields does not clear pending");
     }
     let nested = device.query("nested", "alice", &json!({"key":key}), 100).unwrap();
     assert_eq!(nested.data.field("row").unwrap(), &shaped.data);
     assert!(!nested.data.as_object().unwrap().contains_key("pending"), "a containing record is not a row");
-    for (first, second, marked) in [("confirmed", key, pending), (key, "confirmed", false)] {
+    for (first, second, marked) in [("confirmed", key, pending), (key, "confirmed", pending)] {
         let merged = device.query("merged", "alice", &json!({"first":first,"second":second}), 100).unwrap();
         assert_eq!(merged.data.field("id").unwrap(), &id(second));
-        assert_eq!(merged.data.as_object().unwrap().get("pending"), marked.then_some(&Value::Bool(true)), "an entirely replaced row supplies no surviving fields");
+        assert_eq!(merged.data.as_object().unwrap().get("pending"), marked.then_some(&Value::Bool(true)), "either pending row marks the result, including an entirely replaced row");
     }
 }
 
