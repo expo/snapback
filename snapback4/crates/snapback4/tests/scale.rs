@@ -26,7 +26,7 @@ fn language_operation_classes() {
     // Expiring messages require live filtering and maintained recounts;
     // search expands words; meter domains discover uncapped membership lanes;
     // Following/Trending have residuals. Native bodies have no static proof.
-    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "roomHour", "roomWindow", "sendBrief", "split", "timelineFollow", "timelinePublish", "timelinePurgeRemoved", "timelineRegister", "timelineRemove", "today", "tokenDigest", "wholeRoster"],
+    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "roomHour", "roomWindow", "sendBrief", "split", "timelineFollow", "timelinePublish", "timelineRegister", "timelineRemove", "today", "tokenDigest", "wholeRoster"],
         &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "rescoreNative", "search", "thread", "timelineHome"]);
 }
 
@@ -43,7 +43,7 @@ fn clique_operation_classes() {
     let b = bound(include_str!("../../../examples/clique-03/snapback/schema.q"));
     // Following rejects removed events; Trending filters exact timestamps
     // and removal inside hour lanes. A page limit does not bound those skips.
-    pin(&b, &["feedPurgeRemoved", "follow", "insights", "like", "post", "register", "remove", "reply", "repost", "thread", "unfollow", "unlike", "unrepost"], &["following", "trending"]);
+    pin(&b, &["follow", "insights", "like", "post", "register", "remove", "reply", "repost", "thread", "unfollow", "unlike", "unrepost"], &["following", "trending"]);
     let certificate = |name: &str| analyze(&b.schema, &b.programs.iter().find(|p| p.program.name == name).unwrap().program);
     let trending = certificate("trending").line();
     assert!(trending.contains("not .removed") && trending.contains(".at") && !trending.contains("$bool"), "{trending}");

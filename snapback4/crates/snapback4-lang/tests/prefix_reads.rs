@@ -141,6 +141,7 @@ fn whole_table_domains_filters_and_bound_pages_share_prefix_recognition() {
 #[test]
 fn matching_exists_modifier_rewrite_compiles_verbatim() {
     let body = "query bad(roomId: rooms, q: text <=100):\n  return exists (messages[roomId = roomId] matching q first 1 by byRoomWords)\n";
-    let bound = checked(&format!("{}\n{body}", schema()));
+    let error = rejected(schema(), body, "E_QUARRY_SYNTAX");
+    let bound = checked(&format!("{}\nquery good(roomId: rooms, q: text <=100):\n  return {}\n", schema(), error.rewrite));
     assert!(ir::scans(&bound.programs[0].program)[0].existence);
 }

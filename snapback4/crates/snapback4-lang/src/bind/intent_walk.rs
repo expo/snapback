@@ -65,7 +65,10 @@ pub(super) fn statements(body: &mut [Stmt], visit: &mut impl FnMut(&mut Expr)) {
         match stmt {
             Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } => expression(value, visit),
             Stmt::Require { condition, .. } => expression(condition, visit),
-            Stmt::Emit { payload, .. } => expression(payload, visit),
+            Stmt::Emit { payload, once, .. } => {
+                expression(payload, visit);
+                if let Some(key) = once { expression(key, visit); }
+            }
             Stmt::If { condition, then_body, else_body, .. } => { expression(condition, visit); statements(then_body, visit); statements(else_body, visit); }
             Stmt::For { domain, body, .. } => { expression(domain, visit); statements(body, visit); }
             Stmt::Break { .. } | Stmt::Continue { .. } => {}

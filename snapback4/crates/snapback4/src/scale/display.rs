@@ -102,5 +102,22 @@ pub(super) fn range_size(start: &Expr, end: &Expr) -> Option<u64> {
     if let (Expr::Literal(Value::Int(a)), Expr::Literal(Value::Int(b))) = (start, end) { return Some(b.saturating_sub(*a).max(0) as u64); }
     let (a, lo) = offset(start);
     let (b, hi) = offset(end);
-    (a == b).then(|| hi.saturating_sub(lo).max(0) as u64)
+    if a == b { return Some(hi.saturating_sub(lo).max(0) as u64); }
+    // @ref LLP 3000.013#2.1 — inclusive bucket windows have a bounded
+    // lane count even though both endpoints move with the clock. For the
+    // same base, floor((x+b)/m)-floor((x+a)/m) <= ceil((b-a)/m).
+    if let (Expr::Builtin { builtin: Builtin::Calendar { millis: am }, args: aa },
+        Expr::Builtin { builtin: Builtin::Calendar { millis: bm }, args: ba }) = (a, b)
+        && am == bm && *am > 0
+        && let ([a], [b]) = (aa.as_slice(), ba.as_slice()) {
+        let (a, delta_a) = offset(a);
+        let (b, delta_b) = offset(b);
+        if a == b {
+            let span = i128::from(delta_b) - i128::from(delta_a);
+            let period = i128::from(*am);
+            let buckets = span.div_euclid(period) + i128::from(span.rem_euclid(period) != 0);
+            return u64::try_from((buckets + i128::from(hi) - i128::from(lo)).max(0)).ok();
+        }
+    }
+    None
 }

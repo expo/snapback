@@ -68,7 +68,19 @@ pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
         a.meter_allowance();
         a.result.bounds.lanes = None;
     } else {
-        a.body(&program.body, 1);
+        // @ref LLP 3000.013#5.2 — automatic sweeps commit at most 64 items;
+        // retries only shrink that size. Inner domains still use the meter.
+        for stmt in &program.body {
+            if program.kind == ProgramKind::Job
+                && let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt
+                && scan.take == Bound::Meter {
+                let mut chunk = stmt.clone();
+                if let Stmt::For { domain: LoopDomain::Page(scan), .. } = &mut chunk {
+                    scan.take = Bound::Literal(64);
+                }
+                a.body(std::slice::from_ref(&chunk), 1);
+            } else { a.body(std::slice::from_ref(stmt), 1); }
+        }
         if program.kind == ProgramKind::Job {
             for stmt in &program.body {
                 if let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt {
@@ -134,7 +146,14 @@ impl Analysis<'_> {
                     let data = self.expr(value, times);
                     *self.data.entry(target.clone()).or_default() |= data;
                 }
-                Stmt::Return(value) | Stmt::Emit { payload: value, .. } => { self.expr(value, times); }
+                Stmt::Return(value) => { self.expr(value, times); }
+                Stmt::Emit { payload, once, .. } => {
+                    self.expr(payload, times);
+                    if let Some(key) = once {
+                        self.expr(key, times);
+                        self.result.bounds.writes = self.result.bounds.writes.saturating_add(times);
+                    }
+                }
                 Stmt::If { condition, then_body, else_body } => {
                     self.expr(condition, times);
                     self.body(then_body, times);
@@ -224,14 +243,18 @@ impl Analysis<'_> {
             Expr::Block { body, value } => { self.body(body, times); self.expr(value, times) }
             Expr::Scan(scan) => { self.scan(scan, times, false); true }
             Expr::Merge(merge) => {
+                if let Some(after) = merge.position.as_ref().and_then(|p| p.after.as_ref()) {
+                    self.expr(after, times);
+                }
                 for lane in &merge.lanes {
+                    if let Some(guard) = &lane.guard { self.expr(guard, times); }
                     let count = match &lane.source {
                         None => 1,
                         Some(LaneSource::Scan(scan)) => { self.scan(scan, times, false); self.bound(&scan.take) }
                         Some(LaneSource::List { value, max }) => { self.expr(value, times); u64::from(*max) }
                         Some(LaneSource::Range { start, end_exclusive, max }) => {
                             self.domain(&LoopDomain::ExpressionRange { start: start.clone(), end_exclusive: end_exclusive.clone() }, times);
-                            max.unwrap_or(self.result.bounds.meters.steps)
+                            max.or_else(|| display::range_size(start, end_exclusive)).unwrap_or(self.result.bounds.meters.steps)
                         }
                     };
                     let static_max = match &lane.source {
@@ -244,8 +267,20 @@ impl Analysis<'_> {
                     };
                     self.result.bounds.lanes = self.result.bounds.lanes.zip(static_max).map(|(a, b)| a.saturating_add(b.saturating_mul(times)));
                     self.data.insert(lane.binding.clone(), lane.source.is_some());
+                    if let Some(distinct) = &lane.distinct { self.expr(distinct, times.saturating_mul(count)); }
                     self.body(&lane.setup, times.saturating_mul(count));
-                    self.scan(&lane.scan, times.saturating_mul(count), true);
+                    if let Some(position) = &merge.position {
+                        // Projected views eagerly read take+1 per source lane,
+                        // then project every authorized candidate before sorting.
+                        let mut scan = lane.scan.clone();
+                        scan.take = Bound::Literal(position.take.saturating_add(1));
+                        self.scan(&scan, times.saturating_mul(count), false);
+                        if let Some(project) = &lane.project {
+                            self.expr(project, times.saturating_mul(count).saturating_mul(u64::from(position.take) + 1));
+                        }
+                    } else {
+                        self.scan(&lane.scan, times.saturating_mul(count), true);
+                    }
                 }
                 true
             }

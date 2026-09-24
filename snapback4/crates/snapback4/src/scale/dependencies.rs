@@ -37,8 +37,11 @@ fn body(data: &mut Locals, statements: &[Stmt]) {
                 body(data, then_body);
                 body(data, else_body);
             }
-            Stmt::Return(value) | Stmt::Emit { payload: value, .. }
-            | Stmt::Require { condition: value, .. } => { expr(data, value); }
+            Stmt::Return(value) | Stmt::Require { condition: value, .. } => { expr(data, value); }
+            Stmt::Emit { payload, once, .. } => {
+                expr(data, payload);
+                if let Some(key) = once { expr(data, key); }
+            }
             Stmt::Check { condition, current } => { expr(data, condition); read(data, current); }
             Stmt::Insert { row, .. } | Stmt::InsertIfAbsent { row, .. } => {
                 expr(data, row);
@@ -99,7 +102,9 @@ fn expr(data: &mut Locals, value: &Expr) -> bool {
         Expr::Block { body: statements, value } => { body(data, statements); expr(data, value) }
         Expr::Scan(s) => { scan(data, s); true }
         Expr::Merge(m) => {
+            if let Some(after) = m.position.as_ref().and_then(|p| p.after.as_ref()) { expr(data, after); }
             for lane in &m.lanes {
+                if let Some(guard) = &lane.guard { expr(data, guard); }
                 match &lane.source {
                     None => {}
                     Some(LaneSource::Scan(s)) => scan(data, s),
@@ -107,8 +112,10 @@ fn expr(data: &mut Locals, value: &Expr) -> bool {
                     Some(LaneSource::Range { start, end_exclusive, .. }) => { expr(data, start); expr(data, end_exclusive); }
                 }
                 bind(data, &lane.binding, lane.source.is_some());
+                if let Some(distinct) = &lane.distinct { expr(data, distinct); }
                 body(data, &lane.setup);
                 scan(data, &lane.scan);
+                if let Some(project) = &lane.project { expr(data, project); }
             }
             true
         }

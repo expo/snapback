@@ -28,7 +28,7 @@ table grants:
 table posts:
   author: principal
   by byAuthor: author, id
-  read <- exists grants[.author]
+  read <- exists grants[principal = .author]
   online only
 query feed(people: [principal] <=9):
   return merge posts first 20 by byAuthor:
@@ -76,13 +76,13 @@ table grants:
 table nodes:
   owner: principal
   parent: nodes ?
-  read <- exists grants[.owner]
+  read <- exists grants[principal = .owner]
   online only
 query ancestors(id: nodes):
   return walk nodes[id] up .parent depth 1
 query nested(id: nodes):
   chain = walk nodes[id] up .parent depth 1
-  return chain { *, grant: grants[.owner] }
+  return chain { *, grant: grants[principal = .owner] }
 "#);
     let certs = [certificate(&b, "ancestors"), certificate(&b, "nested")];
     let mut e = engine(b);
@@ -277,7 +277,7 @@ table grants:
   public
   online only
 table posts:
-  read <- exists grants['grant']
+  read <- exists grants[key = 'grant']
   online only
 query probes():
   for i in range(0, 8193):
