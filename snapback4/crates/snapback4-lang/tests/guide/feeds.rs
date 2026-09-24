@@ -28,8 +28,8 @@ fn following_pages(e: &mut Engine, viewer: &str) -> (Vec<Value>, bool) {
     let mut cursor = Value::Null;
     let mut rows = Vec::new();
     let mut complete = true;
-    for _ in 0..10 {
-        let page = e.query("home", Context::new(viewer, [("c".into(), cursor)].into()).at(1000)).unwrap();
+    for _ in 0..100 {
+        let page = e.query("home", Context::new(viewer, [("c".into(), cursor)].into()).at(100_000)).unwrap();
         assert!(page.cut.is_none(), "{page:?}");
         complete &= page.complete;
         rows.extend(page.data.as_array().unwrap().iter().cloned());
@@ -46,25 +46,41 @@ fn published_following_matches_the_builder_contract() {
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?} {:?}", b.diagnostics, b.notes);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     let mut clock = 0;
-    for n in 0..65 {
-        write(&mut e, &mut clock, "post", "alice", &[("postId", id(&format!("p{n:03}"))), ("parentId", Value::Null)]);
+    for n in 0..1005 {
+        // The last two originals tie on event time; event id must break the tie.
+        if n == 1004 { clock -= 1; }
+        write(&mut e, &mut clock, "post", "alice", &[("postId", id(&format!("p{n:04}"))), ("parentId", Value::Null)]);
     }
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("reply")), ("parentId", id("p1004"))]);
     let own = following_pages(&mut e, "alice").0;
-    assert_eq!(own.len(), 65, "own events appear before background delivery");
-    assert_eq!(own[0].field("id").unwrap(), &id("p064"));
+    assert_eq!(own.len(), 1005, "own originals appear immediately; replies do not");
+    for (row, n) in own.iter().zip((0..1005).rev()) {
+        assert_eq!(row.field("id").unwrap(), &id(&format!("p{n:04}")));
+        assert_eq!(row.field("post").unwrap(), row.field("id").unwrap());
+        assert_eq!(row.field("actor").unwrap(), &id("alice"));
+        assert_eq!(row.field("repost").unwrap(), &Value::Bool(false));
+    }
+    assert_eq!(own[0].field("at").unwrap(), own[1].field("at").unwrap());
     write(&mut e, &mut clock, "follow", "bob", &[("actor", id("alice"))]);
     let (immediate, complete) = following_pages(&mut e, "bob");
-    assert_eq!(immediate.len(), 50, "follow installs the newest 50 immediately");
+    assert_eq!(immediate, own[..50], "follow installs the newest 50 immediately");
     assert!(!complete, "the remaining backfill is pending");
-    while e.run_timeline_chunk(1000).unwrap().is_some() {}
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
     let (delivered, complete) = following_pages(&mut e, "bob");
     assert!(complete);
-    assert_eq!(delivered, own, "backfill preserves newest-first event order");
+    assert_eq!(delivered.len(), 1000, "the history window stops at 1,000, not all older posts");
+    assert_eq!(delivered, own[..1000], "backfill preserves newest-first event order including ties");
+    for viewer in ["alice", "bob"] {
+        assert!(!following_pages(&mut e, viewer).0.iter().any(|row| row.field("post") == Ok(&id("reply"))), "{viewer}: replies stay out after delivery");
+    }
+    assert_eq!(e.store().rows("posts").unwrap().len(), 1006, "the window does not delete older posts or replies");
     write(&mut e, &mut clock, "post", "alice", &[("postId", id("new")), ("parentId", Value::Null)]);
     assert_eq!(following_pages(&mut e, "alice").0[0].field("id").unwrap(), &id("new"));
     assert_eq!(following_pages(&mut e, "bob"), (delivered, true), "complete describes delivered contents, not pending event delivery");
-    while e.run_timeline_chunk(1000).unwrap().is_some() {}
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
     assert_eq!(following_pages(&mut e, "bob").0[0].field("id").unwrap(), &id("new"));
+    let refused = e.mutate("remove", None, Context::new("bob", [("postId".into(), id("new"))].into()).at(clock + 1)).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { ref why, .. } if why.code == "E_RULE"), "{refused:?}");
     write(&mut e, &mut clock, "remove", "alice", &[("postId", id("new"))]);
     assert!(!following_pages(&mut e, "bob").0.iter().any(|r| r.field("id") == Ok(&id("new"))), "removal hides before cleanup");
     write(&mut e, &mut clock, "unfollow", "bob", &[("actor", id("alice"))]);

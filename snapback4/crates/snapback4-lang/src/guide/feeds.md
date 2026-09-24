@@ -141,7 +141,7 @@ refresh the ranking as time passes. The upper bound excludes future events.
 - Your own events appear immediately. Followers receive new events shortly
   after, normally within a second on an idle host.
 - Following someone copies their newest 50 live events immediately and
-  backfills up to 1,000. Older events remain on the author's profile.
+  backfills up to 1,000. Older posts remain in `posts` and are not copied.
 - Unfollow hides that actor on the next read.
 - `complete` is false while your backfill or cleanup is pending. It describes
   delivered inbox contents; pending delivery of a new event does not change it.
@@ -192,8 +192,7 @@ In development, use a fresh store when changing the declaration.
 | FEED_POST_NOT_FOUND | Refresh the source; a new repost needs a live original |
 | FEED_EVENT_REMOVED | Use a fresh event id; do not resurrect a removed event |
 | FEED_CANNOT_FOLLOW_SELF | Own events already appear without following yourself |
-| FEED_ORIGINAL_REQUIRED | Pass the original event to the original-event operation |
-| FEED_NOT_AUTHOR | Remove only the caller's own event |
+| E_RULE | A non-owner `remove` is refused; remove only your own post |
 | N_SPARSE_FILTER | Use the Following view, or pin the deciding columns for another read |
 
 N_PUBLIC_AGGREGATE_COPY names a public derived column whose ordinary write rules
@@ -218,12 +217,20 @@ or revive an old follow. Reads check the current edge epoch and removal tombston
 for every examined row. Removal purges copies before tombstone retirement.
 `snapback4 doctor` lists pending and parked work.
 
-The 40-event removal example returns 20 live rows after 82 examinations,
-including 41 tombstone probes. At a 25-examination ceiling it returns an
-incomplete empty page without `next`. A merge cursor from generation N can
+A merge cursor from generation N can
 continue after compatible adoption; a direct page cursor binds its generation.
 
 ## Older spellings that still compile (do not use in new apps)
+
+The older recipe measurement used 40 events with the newest 20 removed.
+Returning the remaining 20 took 82 examinations, including 41 tombstone probes;
+a 25-examination ceiling returned an incomplete empty page without `next`.
+These are measurements of the older recipe, not the Following view above.
+
+FEED_ORIGINAL_REQUIRED and FEED_NOT_AUTHOR belong to older recipe operations:
+pass an original event to their original-event operation and remove only its
+author's event. The current `remove(postId: posts)` instead refuses a non-owner
+with E_RULE; a repost reference does not have the `posts` parameter type.
 
 The older declaration and viewer-keyed read remain accepted:
 

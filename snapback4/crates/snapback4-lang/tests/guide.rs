@@ -52,7 +52,9 @@ fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
         assert!(codes().contains(&code));
     }
     for (code, facts) in [
-        ("E_RECIPE_RETIRED", vec!["maintain feed: timeline", "no author count or delivery size"]),
+        ("E_RECIPE_RETIRED", vec!["view following: activity", "the engine chooses delivery bounds"]),
+        ("E_TIMELINE_FILTER", vec!["view activity", "posts where .parentId = null and not .removed"]),
+        ("E_TIMELINE_READ", vec!["following last 20 by .at after c"]),
         ("FEED_PULL_CAP", vec!["32 shared authors", "rolled back", "new write ID"]),
         ("FEED_PROMOTION_PULL_CAP", vec!["32 shared-author slots", "rolled back", "public", "pullCounts", "server-run query", "used = 32"]),
     ] {
@@ -968,10 +970,14 @@ fn calibration_effects_jobs_and_seed_cards_explain_replay_flags() {
 }
 
 #[test]
-fn following_cards_pin_examinations() {
+fn following_cards_scope_older_recipe_measurements() {
     for (name, doc) in [("feeds", card("feeds").unwrap()), ("orientation destination", readme_reference("feeds"))] {
-        assert!(doc.contains("82 examinations"), "{name} must count examinations, including lookups");
-        assert!(doc.contains("41 tombstone probes"), "{name} must pin the tombstone work");
+        let (current, older) = doc.split_once("## Older spellings").unwrap();
+        assert!(!current.contains("82 examinations") && !current.contains("41 tombstone probes"), "{name}: old measurements are not current Following");
+        assert!(older.contains("older recipe measurement used 40 events with the newest 20 removed"));
+        assert!(older.contains("82 examinations") && older.contains("41 tombstone probes"));
+        assert!(!current.contains("FEED_ORIGINAL_REQUIRED") && !current.contains("FEED_NOT_AUTHOR"));
+        assert!(current.contains("A non-owner `remove` is refused"));
     }
 }
 
