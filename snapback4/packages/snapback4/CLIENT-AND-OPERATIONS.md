@@ -68,7 +68,9 @@ import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
 import { AppProvider, useAuth } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-const app = createApp({ url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore() });
+const app = createApp({ url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore(),
+  assets: { keep: "viewed", maxBytes: 67108864 },
+});
 function Account() {
   const auth = useAuth();
   return <button onClick={() => void (auth.state === "signed-in" ? auth.logout() : auth.guest())}>{auth.state}</button>;
@@ -88,6 +90,13 @@ explicit. `app.client` changes on restore, sign-in, logout and account switch;
 component state. `useAuth()` returns the current state, viewer, failure and actions.
 Call `app.close()` to stop a runtime while preserving its session for restart;
 an in-flight rotation finishes and saves its replacement before close completes.
+`AppOptions` inherits the local client's application configuration. `assets` and
+`waitSeconds` pass through on every local open, including restore and account
+switch; both are ignored when `device` is omitted. `waitSeconds` sets the change
+feed's long-poll duration (default 25 seconds). `assets` controls ordinary viewed
+media retention as described below. Identity and sessions remain owned by
+`app.auth` and its `sessionStore`; `persona`, `session` and `guest` are lower-level
+client options, not app configuration.
 `app.auth.logout()` fences restoration and session writes immediately, deletes
 local credentials without waiting for network requests, and revokes remotely
 in the background.
@@ -651,16 +660,18 @@ async function sendPhoto(client: Client, conversationId: string, file: Blob) {
 }
 ```
 
-The local-first client can retain ordinary viewed images and videos:
+An app with a device can retain ordinary viewed images and videos:
 
 ```ts
-import { createLocalClient } from "snapback4/local";
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
-const client = await createLocalClient({
-  url: "http://127.0.0.1:4400", guest: true, device: webDevice(),
+const app = createApp({
+  url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore(),
   assets: { keep: "viewed", maxBytes: 64 * 1024 * 1024 },
 });
-if (client.link() === "online") await client.sync();
+await app.ready;
+if (app.auth.state === "signed-out") await app.auth.guest();
 ```
 
 `keep: "none"` is the default and purges previously retained media on open.
@@ -1370,6 +1381,7 @@ export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native"
 export const app = createApp({ url,
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: tier === "web" ? webDevice() : tier === "native" ? nativeDevice : undefined,
+  assets: { keep: "viewed", maxBytes: 67108864 },
 });
 ```
 

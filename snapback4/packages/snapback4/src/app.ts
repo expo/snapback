@@ -1,6 +1,6 @@
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
 import { createClient } from "./client.ts";
-import { createLocalClient, type DeviceOpener } from "./local.ts";
+import { createLocalClient, type DeviceOpener, type LocalOptions } from "./local.ts";
 import { storeLock, StorageWarning } from "./app-storage.ts";
 import { onlineCustody } from "./app-online.ts";
 import { signup, login, guest, keepSession, restoreSession, forgetSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
@@ -31,11 +31,10 @@ export interface App {
   /** Stop this runtime, preserving session and pending writes for reopening. */
   close(): Promise<void>;
 }
-export interface AppOptions {
-  readonly url: string;
+/** Local configuration (including assets and waitSeconds) applies only with a
+ * device; the online tier ignores it. Identity is owned by app.auth. */
+export interface AppOptions extends Omit<LocalOptions, "device" | "persona" | "session" | "guest"> {
   readonly device?: DeviceOpener | undefined;
-  readonly sessionStore?: SessionStore;
-  readonly fetch?: typeof fetch;
 }
 
 function problem(error: unknown): Refusal {
@@ -236,9 +235,12 @@ export function createApp(options: AppOptions): App {
     try {
       await keepSession(url, session, scopedStore);
       if (!scope.valid || revision !== expected) return inactive();
-      raw = options.device
-        ? await createLocalClient({ url, session, sessionStore: scopedStore, device: options.device, fetch: scopedFetch })
-        : createClient({ url, session, fetch: scopedFetch });
+      if (options.device) {
+        // Preserve all local tuning while retaining app-owned identity, even
+        // when an untyped caller supplies lower-level sign-in options.
+        const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: options.device };
+        raw = await createLocalClient({ ...localOptions, url, session, sessionStore: scopedStore, fetch: scopedFetch });
+      } else raw = createClient({ url, session, fetch: scopedFetch });
       scope.client = raw;
       if (!scope.valid || closed || revision !== expected) {
         if (scope.valid && closed) await raw.close();

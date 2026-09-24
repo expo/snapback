@@ -49278,3 +49278,40 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+## 2026-09-24 — lane E 0.4.1: local configuration through createApp
+
+Fetched origin and merged `origin/main` by fast-forward to `ca6d975da`, without
+conflicts. `AppOptions` now derives application configuration from `LocalOptions`,
+and every local open forwards those settings, including `assets` and
+`waitSeconds`. Identity remains owned by `app.auth`; the guarded session store,
+current session and scoped transport still take precedence. Untyped excess
+identity selectors cannot switch the local client's account. Local settings
+are accepted and ignored when no device is supplied.
+
+The README app enables a 64 MiB viewed-media budget and actually renders the
+avatar with `useAsset` and `Image`, so viewing precedes the offline-reopen
+journey. It remains within budget at 296/300 physical lines. The client reference
+shows the same configuration in its app, media and Expo examples and documents
+the option boundary.
+
+Measured: five new real-server cases cover retained PNG bytes after a fresh
+process-device offline reopen, a budget one byte too small, keep:none, forwarded
+polling with preserved identity, and ignored online settings. Compile assertions
+preserve the exact option types. The retained-byte and polling tests failed
+before the fix, as did the new positive type fixture. One intermediate example
+used device-only sync through the common Client type; removing it restored the
+documented contract. All 162 affected tests passed, with one macOS-only media
+test skipped. Package build/typecheck, README examples and the budget check pass.
+
+Exact full suite: **`== 0 failure(s) in 171 s`**. Client tests: 1,093 passed,
+10 skipped, zero failed; no baseline or environmental failure. Rebuilt wasm
+measures 1,744,842 B raw / 484,967 B gzip against the inherited 486,000 B budget,
+without attributing whole-artifact bytes to this TypeScript change. The full
+file map, examples and proof logs are in
+[the round report](./reports/20260924-lane-e-041-options.md).
+
+No scope deviation or new open problem. Did not change the Client contract,
+Quarry, authorization/disclosure, retention rules, native APIs or meters; did not
+modify the calibration app or starter templates, run an Expo/browser witness,
+bump package versions, push or publish. This is candidate code for 0.4.1.
