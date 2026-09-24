@@ -54709,3 +54709,73 @@ file-by-file changes, form examples and retained limits are recorded in
 reports/20260924-intent-lane-p-round5.md. No round 5 design change or unmet
 requirement; the additional clock fixture correction is documented. No push,
 merge or publication. Final log: ~/sb4-intent/lane-p-round5-suite-complete.log.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 5: merged qualification, release blocked
+
+Integrated the whole calibration-19 round, preserving every lane's journal
+entry and both sides of semantic conflicts where compatible. Parts a–f imported
+main, E/F/H/L/N/A/O/K/P; part g merged J 409b3ca50, E 45253977b, K 320e89bda,
+P 4014149ca and its completed round-5 head 38f3e21b1. Every merge used
+`--no-ff` and passed the workspace build before the next merge. The complete
+head/merge ledger, file map, conflict resolutions and lane/review quotations
+are in [the final report](reports/20260924-intent-integration-r5-final.md).
+
+Added the requested session/token refresh, restore, E_CONFLICT retirement and
+continuing-arm row-kind regressions. Joined J store retirement/read denial with
+E atomic session publication, asynchronous epoch authorization and N's guarded
+published-client hook; retained O upload custody and P authorization-before-charge.
+Named model seeds 774 and 2592 now pin the store fence after the epoch await.
+The authored-source join rewrite keeps H's precedence-correct printer and K's
+nullable/lazy examples. Updated the complete-list and Read contracts to J's
+bounded local fallback. Earlier round-5 fixtures, Bob unrepost, discarded-login
+revocation, sole-holder maintenance, end-expression purity and upload tests remain.
+
+The complete Clique target (Following, predicate views, spread, empty search,
+and the streaming 5,000-input automatic digest sweep) passes all three simulator
+tests. All four issue-tracker server/device tests pass, with the original
+constant-card request deliberately stopped: independent hidden-label authority
+can require an unbounded scan. Its 9,000-label counterexample and scoped constant
+control remain in the test, without weakening disclosure or the certificate.
+Guide 80/80, joined shapes 17/17, expiry 30/30, native/witness/README JS 21/21 and
+the docs budget (README 300/300) pass. Ref-check has zero errors and unchecked
+references. L's four final ignored witnesses pass with maximum ratio 1.5:
+post p95 ratio 1.060 (2.549 ms / 2.702 ms); all twenty celebrity posts delivered
+in 7,466.965 ms, and sustained home p95 was 3.417 ms. Earlier part-c ratios were
+1.256, 1.234 and 1.406. No Linux simulator execution is claimed.
+
+Rust 1.97.0 / wasm-bindgen 0.2.127 without wasm-opt measures 1,765,796 B raw /
+491,641 B gzip, +5,345 raw / +998 gzip from part f. The whole artifact combines
+J read availability with P reservations, expired-predecessor prediction deferral
+and proven alternate-delete absence; compiler/JS changes add no device runtime.
+P round 5 adds a separately measured 224 raw / 195 gzip. Raise the inherited
+491,000-byte limit to 492,000, leaving 359 bytes, with no runtime meter change.
+These are whole-artifact deltas, not independent per-component attribution.
+
+Last full suite: **`== 1 failure(s) in 444 s`**, exit 1, `client tests`.
+All Rust targets and every other suite stage pass. The client process reported
+27 failing tests: 26 expose the E/J close/outcome and durable-retirement
+contract conflicts; one sampled a later loading render in the expiry witness.
+That intermittent failed in both full runs and passed each isolated rerun;
+a subsequent test-only atomic snapshot repair passes both expiry ages without
+relaxing their timing or no-polling assertions. No subsequent all-suite green
+result is claimed. The first full run's K rewrite and client integration
+failures were fixed; no original-main baseline failure recurred. A preliminary
+ENOSPC build failure was environmental and passed after cleaning only this
+worktree's generated package artifacts.
+
+Full-count model audit attempted E's 5,000 online and 5,000 real-wasm sequences,
+plus J's 3,000 sequences: 84 online E and 73 local E failures (I12), and 11 J
+failures (R3). It continues after each sequence's assertion solely to count all
+requested seeds, not to turn failures into passes. E requires returning a held
+dispatched outcome and preserving a terminal answer even when receipt storage
+fails; J requires promptly cancelling that wait and durable retirement before
+publishing terminal. The same failed storage operation cannot both remain
+pending durably and already be retired. These requirements need a supervisor
+ruling; no model invariant is weakened. E's latest two reviews also remain
+NOT READY, with their separate reproductions quoted in the report.
+
+This branch is **not a qualified 0.4.1 release candidate**. Did not redesign the
+conflicting contracts, publish, push, bump versions, run an iOS simulator on
+Linux, or claim the stopped constant-card certificate. The final report lists
+every failing test and all inherited open limitations for the next round.
