@@ -33,17 +33,21 @@ pub(super) fn domain(schema: &Schema, scan: &Scan) -> String {
     if pins.is_empty() { scan.table.clone() } else { format!("{} where {}", scan.table, pins.join(" and ")) }
 }
 
-pub(super) fn expr(e: &Expr) -> String { render(e, &BTreeMap::new()) }
+pub(crate) fn expr(e: &Expr) -> String { render(e, &BTreeMap::new()) }
 
 fn render(e: &Expr, env: &BTreeMap<String, String>) -> String {
     let sub = |e: &Expr| render(e, env);
     match e {
-        Expr::Literal(Value::String(s) | Value::Id(s)) => format!("'{s}'"),
+        Expr::Literal(Value::String(s) | Value::Id(s)) => snapback4_lang::print::quote(s),
         Expr::Literal(v) => snapback4_core::wire::to_json(v).to_string(),
         Expr::Variable(s) => if s == "$filter" { String::new() } else { env.get(s).cloned().unwrap_or_else(|| s.clone()) },
         Expr::Input(input) => match input { Input::Viewer => "viewer", Input::Now => "now", Input::NewId => "new", Input::ReadTime => "read time" }.into(),
         Expr::Field { base, name } => format!("{}.{name}", sub(base)),
-        Expr::Unary { op, value } => format!("{}{}", if *op == UnaryOp::Not { "not " } else { "-" }, sub(value)),
+        Expr::Unary { op, value } => {
+            let value = sub(value);
+            if *op == UnaryOp::Not { format!("not {value}") }
+            else if value.starts_with('-') { format!("-({value})") } else { format!("-{value}") }
+        }
         Expr::Binary { op, left, right } => format!("({} {} {})", sub(left), match op {
             BinaryOp::Eq | BinaryOp::SameValueZero => "=", BinaryOp::Ne => "!=", BinaryOp::Lt => "<", BinaryOp::Lte => "<=", BinaryOp::Gt => ">", BinaryOp::Gte => ">=", BinaryOp::Add => "+", BinaryOp::Sub => "-", BinaryOp::Mul => "*", BinaryOp::And => "and", BinaryOp::Or => "or",
         }, sub(right)),
@@ -75,6 +79,7 @@ fn render_body(body: &[Stmt], env: &mut BTreeMap<String, String>) {
                     let b = no.get(&key).cloned().unwrap_or_else(|| key.clone());
                     let value = if a == b { a }
                         else if b == condition { format!("({b} and {a})") }
+                        else if a == condition { format!("({a} or {b})") }
                         else if condition == format!("not {b}") { format!("({b} or {a})") }
                         else { format!("({a} if {condition} else {b})") };
                     env.insert(key, value);
