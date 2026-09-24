@@ -198,7 +198,7 @@ fn w3_serialized_nonlooping_merge_without_merge_site_is_refused() {
     let mut program = bound.programs.iter().find(|p| p.program.name == "page").unwrap().program.clone();
     let mut scan = scans(&program)[0].clone(); scan.merge_site = None;
     program.kind = ProgramKind::Mutation;
-    program.body = vec![Stmt::Let { name: "rows".into(), value: Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: "structural".into(), lanes: vec![MergeLane { distinct: None, branch: None, project: None, setup: vec![], scan: scan.clone(), source: None, binding: "r".into() }] }) }, Stmt::Return(Expr::Literal(Value::Null))];
+    program.body = vec![Stmt::Let { name: "rows".into(), value: Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: "structural".into(), lanes: vec![MergeLane { guard: None, distinct: None, branch: None, project: None, setup: vec![], scan: scan.clone(), source: None, binding: "r".into() }] }) }, Stmt::Return(Expr::Literal(Value::Null))];
     let serialized: Program = serde_json::from_str(&serde_json::to_string(&program).unwrap()).unwrap();
     let why = snapback4_core::engine::admission::check(&bound.schema, &serialized).unwrap_err().refusal();
     assert_eq!(why.code, "E_STRUCTURAL_FANOUT");

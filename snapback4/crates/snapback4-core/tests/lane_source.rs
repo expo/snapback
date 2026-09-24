@@ -207,6 +207,7 @@ fn typed_errors_keep_text_positions_and_nested_sources_use_the_same_decoder() {
     assert_eq!((replay.line(), replay.column()), (direct.line(), direct.column()));
     assert_eq!(replay.line(), 2);
     let nested = LaneSource::List { value: Expr::Merge(snapback4_core::ir::Merge { position: None, view: None, order_keys: Vec::new(), site: "nested".into(), lanes: vec![snapback4_core::ir::MergeLane {
+        guard: None,
         distinct: None, branch: None, project: None,
         setup: vec![], scan, source: Some(LaneSource::Range { start: Expr::Literal(snapback4_core::Value::Int(0)), end_exclusive: Expr::Literal(snapback4_core::Value::Int(8)), max: Some(8) }), binding: "i".into(),
     }] }), max: 8 };

@@ -329,6 +329,8 @@ pub struct Merge {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MergeLane {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guard: Option<Expr>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub distinct: Option<Expr>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub branch: Option<String>,
@@ -557,6 +559,7 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
         Expr::Merge(merge) => {
             if let Some(after) = merge.position.as_ref().and_then(|position| position.after.as_ref()) { expr_read_sites(after, out); }
             for lane in &merge.lanes {
+                if let Some(guard) = &lane.guard { expr_read_sites(guard, out); }
                 if let Some(project) = &lane.project { expr_read_sites(project, out); }
                 if let Some(value) = &lane.distinct { expr_read_sites(value, out); }
                 stmts_read_sites(&lane.setup, out);
@@ -661,6 +664,7 @@ fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>, has_merge: &mut bool)
             *has_merge = true;
             if let Some(after) = merge.position.as_ref().and_then(|position| position.after.as_ref()) { expr_scans(after, out, has_merge); }
             for lane in &merge.lanes {
+                if let Some(guard) = &lane.guard { expr_scans(guard, out, has_merge); }
                 if let Some(project) = &lane.project { expr_scans(project, out, has_merge); }
                 if let Some(value) = &lane.distinct { expr_scans(value, out, has_merge); }
                 stmts_scans(&lane.setup, out, has_merge);

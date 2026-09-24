@@ -15,8 +15,7 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
         if table.columns.get(column)?.kind != TypeKind::Time || table.columns.get(column)?.optional || read.order_keys.first().map(String::as_str).unwrap_or("id") == column { continue; }
         let Expr::Binary { op, left, right: duration, .. } = right.as_ref() else { continue; };
         if op != "-" || !matches!(left.as_ref(), Expr::Name { name, .. } if name == "now") { continue; }
-        let Expr::Literal { value: Literal::Number(duration), .. } = duration.as_ref() else { continue; };
-        let duration: i64 = duration.parse().ok()?;
+        let Some(duration) = constant(duration) else { continue; };
         let function = if (0..=48 * 3_600_000).contains(&duration) { "hour" } else if duration <= 92 * 86_400_000 && duration >= 0 { "day" } else { continue; };
         if table.columns.contains_key(function) { continue; }
         let upper = predicates.iter().find_map(|predicate| match predicate {
@@ -39,7 +38,7 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
 fn finite(value: &Expr) -> bool {
     matches!(value, Expr::Name { name, .. } if name == "now")
         || matches!(value, Expr::Literal { value: Literal::Number(_), .. })
-        || matches!(value, Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "+" | "-") && matches!(left.as_ref(), Expr::Name { name, .. } if name == "now") && matches!(right.as_ref(), Expr::Literal { value: Literal::Number(_), .. }))
+        || matches!(value, Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "+" | "-") && matches!(left.as_ref(), Expr::Name { name, .. } if name == "now") && constant(right).is_some())
 }
 
 
@@ -52,10 +51,23 @@ pub(super) fn missing_upper(tables: &BTreeMap<String, TableInfo>, read: &ReadExp
             && matches!(op.as_str(), ">" | ">=") && let Some(column) = intent::column(left)
             && table.columns.get(column).is_some_and(|ty| ty.kind == TypeKind::Time)
             && read.order_keys.first().map(String::as_str).unwrap_or("id") != column
-            && matches!(right.as_ref(), Expr::Binary { op, left, right, .. } if op == "-" && matches!(left.as_ref(), Expr::Name { name, .. } if name == "now") && matches!(right.as_ref(), Expr::Literal { value: Literal::Number(_), .. }))
+            && matches!(right.as_ref(), Expr::Binary { op, left, right, .. } if op == "-" && matches!(left.as_ref(), Expr::Name { name, .. } if name == "now") && constant(right).is_some())
             && !predicates.iter().any(|value| matches!(value, Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "<" | "<=") && intent::column(left) == Some(column) && finite(right))) {
             return Some(crate::diag::Diagnostic::new(&read.site, "N_SPARSE_FILTER", format!("{} has no finite upper bound on .{column}; future rows remain in this metered residual scan", read.table), format!("add `and .{column} <= now` if the intended window ends now; otherwise keep the residual scan")).guide("reads"));
         }
     }
     None
+}
+
+fn constant(value: &Expr) -> Option<i64> {
+    let value = match value {
+        Expr::Literal { value: Literal::Number(value), .. } => value.parse().ok()?,
+        Expr::Unary { op, value, .. } if op == "-" => constant(value)?.checked_neg()?,
+        Expr::Binary { op, left, right, .. } => {
+            let (a, b) = (constant(left)?, constant(right)?);
+            match op.as_str() { "+" => a.checked_add(b)?, "-" => a.checked_sub(b)?, "*" => a.checked_mul(b)?, _ => return None }
+        }
+        _ => return None,
+    };
+    (value >= -snapback4_core::value::I53_MAX && value <= snapback4_core::value::I53_MAX).then_some(value)
 }

@@ -3,7 +3,7 @@ use common::*;
 use snapback4_core::{Value, value::object};
 use serde_json::json;
 
-const SOURCE: &str = "table posts:\n  at: time\n  public 'posts'\n  sync public\n  insert <- allow\ntable reposts:\n  at: time\n  public 'reposts'\n  sync public\n  insert <- allow\nview activity:\n  posts { at, kind: 'post' }\n  reposts { at, kind: 'repost' }\nquery global(c: cursor ?):\n  return activity first 1 by .at after c\nmutation post(at: time):\n  return insert posts { at }\nmutation repost(at: time):\n  return insert reposts { at }\n";
+const SOURCE: &str = "table posts:\n  at: time\n  public 'posts'\n  sync public\n  insert <- allow\ntable reposts:\n  at: time\n  public 'reposts'\n  sync public\n  insert <- allow\nview activity:\n  posts { at, kind: 'post' }\n  reposts { at, kind: 'repost' }\nquery global(c: cursor ?):\n  return activity first 1 by .at after c\nquery selected(kind: text <=20, c: cursor ?):\n  return activity where .kind = kind first 1 by .at after c\nmutation post(at: time):\n  return insert posts { at }\nmutation repost(at: time):\n  return insert reposts { at }\n";
 
 fn offline<H: Host>(host: &mut H) {
     let (mut server, backend) = compile(SOURCE);
@@ -31,6 +31,8 @@ fn unknown_branch<H: Host>(host: &mut H) {
     let page = device.query("global", "alice", &json!({"c": null}), 10).unwrap();
     assert!(!page.complete, "unknown branch must not certify the held prefix: {page:?}");
     assert!(page.next.is_none(), "unknown head cannot yield a shared continuation: {page:?}");
+    let selected = device.query("selected", "alice", &json!({"kind": "post", "c": null}), 10).unwrap();
+    assert!(selected.complete && selected.next.is_some(), "a constant-incompatible branch needs no coverage: {selected:?}");
 }
 #[test] fn union_unknown_branch_memory() { unknown_branch(&mut Memory::new()); }
 #[test] fn union_unknown_branch_sqlite() { unknown_branch(&mut Sqlite::new("intent-unknown")); }

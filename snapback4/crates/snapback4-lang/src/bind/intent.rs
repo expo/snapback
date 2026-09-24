@@ -105,7 +105,16 @@ impl Requests {
                 && order.first() == Some(&column)
                 && !read.seeks.iter().any(|bound| (bound.op.starts_with('<')) == op.starts_with('<')) {
                 read.seeks.push(SeekBound { column, op, value, site: predicate.site().clone() });
-            } else { kept.push(predicate); }
+            } else {
+                // Null values never open an intent lane. Residual evaluation
+                // keeps the same membership meaning when lane expansion is
+                // unavailable or another conjunct supplies the lanes.
+                let nullable = matches!(&predicate, Expr::Binary { op, left, .. } if op == "in" && column(left).is_some_and(|name| table.columns.get(name).is_some_and(|ty| ty.optional)));
+                if nullable && let Expr::Binary { left, site, .. } = &predicate {
+                    let guard = Expr::Binary { op: "!=".into(), left: left.clone(), right: Box::new(Expr::Literal { value: Literal::Null, site: site.clone() }), site: site.clone() };
+                    kept.push(Expr::Binary { op: "and".into(), left: Box::new(guard), right: Box::new(predicate.clone()), site: site.clone() });
+                } else { kept.push(predicate); }
+            }
         }
         read.keys = columns.iter().filter_map(|column| pins.remove(column)).collect();
         read.filter = conjunction(kept);
@@ -173,9 +182,9 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         }
     }
     for doc in &mut catalog.documents {
-        walk::document(doc, &mut |value| {
+        let mut visit = |value: &mut Expr, lanes: bool| {
             if let Expr::Read(read) = value && let Some(note) = super::intent_windows::missing_upper(&tables, read) { catalog.planner_notes.push(note); }
-            if let Expr::Read(read) = value && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
+            if lanes && let Expr::Read(read) = value && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
                 for lane in &mut merge.lanes {
                     if let Some(read) = &mut lane.planned { requests.read(&tables, read, false); }
                     if let Some((_, source)) = &mut lane.loop_ { walk::expression(source, &mut |value| {
@@ -184,7 +193,17 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                 }
                 *value = Expr::Merge(merge);
             } else if let Expr::Read(read) | Expr::Exists { read, .. } = value { requests.read(&tables, read, false); }
-        });
+        };
+        // Shared helpers/shapes and non-query programs keep ordinary scans:
+        // their caller's existing mutation/job admission cannot accept a merge.
+        let mut programs = std::mem::take(&mut doc.programs);
+        walk::document(doc, &mut |value| visit(value, false));
+        for program in &mut programs {
+            let lanes = program.kind == ProgramKind::Query;
+            walk::statements(&mut program.prelude, &mut |value| visit(value, lanes));
+            walk::statements(&mut program.body, &mut |value| visit(value, lanes));
+        }
+        doc.programs = programs;
     }
     diagnostics.append(&mut requests.errors);
     let mut names = BTreeMap::new();

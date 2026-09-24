@@ -589,7 +589,7 @@ impl Runner<'_> {
         let lanes = words.into_iter().map(|token| {
             let mut generated = scan.clone();
             generated.prefix = scope.iter().cloned().chain([Value::String(token)]).map(|v| IndexKeyExpr::Scalar(Expr::Literal(v))).collect();
-            MergeLane { distinct: None, branch: None, project: None, setup: Vec::new(), scan: generated, source: None, binding: String::new() }
+            MergeLane { guard: None, distinct: None, branch: None, project: None, setup: Vec::new(), scan: generated, source: None, binding: String::new() }
         }).collect();
         Ok(Some((Merge { position: None, view: None, order_keys: Vec::new(), site: scan.site.clone(), lanes }, word)))
     }

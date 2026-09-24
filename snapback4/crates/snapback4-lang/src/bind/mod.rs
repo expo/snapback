@@ -480,7 +480,9 @@ fn whole_group_rewrite(catalog: &Catalog, source: &str, scan: &snapback4_core::i
         read.range = None;
         read.seeks.clear();
         read.filter = None;
-        if scan.index.starts_with("$intent:") { read.index = None; read.order_keys = vec!["id".into()]; }
+        read.index = None;
+        if scan.index.starts_with("$intent:") { read.order_keys = vec!["id".into()]; }
+        else { read.order_keys.clear(); }
         return crate::print::read_expr(&read);
     }
     source.into()

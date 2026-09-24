@@ -27,11 +27,18 @@ impl Runner<'_> {
         let outer_depth = self.page_depth;
         let mut candidates = Vec::new();
         let mut seen = BTreeSet::new();
+        self.meter.heap(merge.lanes.len() as u64)?;
+        let mut active = Vec::with_capacity(merge.lanes.len());
         for lane in &merge.lanes {
+            active.push(match &lane.guard { Some(guard) => self.expr(guard)?.as_bool()?, None => true });
+        }
+        for (lane, active) in merge.lanes.iter().zip(&active) {
+            if !active { continue; }
             self.word_note_table(&lane.scan.table)?;
             self.word_dependencies(&self.schema.tables[&lane.scan.table].rules.read)?;
         }
-        for lane in &merge.lanes {
+        for (lane, active) in merge.lanes.iter().zip(active) {
+            if !active { continue; }
             self.page_depth = outer_depth + 1;
             let sources = self.lane_values(lane)?;
             for source in sources {

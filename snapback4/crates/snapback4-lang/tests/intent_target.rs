@@ -315,7 +315,7 @@ fn declared_indexes_are_preferred_and_ambiguous_definitions_refuse() {
 
 #[test]
 fn value_lanes_skip_null_before_opening_and_deduplicate() {
-    let source = "table posts:\n  owner: principal ?\n  public 'posts'\nquery q(c: cursor ?):\n  return posts where .owner in [null, viewer, viewer] first 10 after c\n";
+    let source = "table posts:\n  owner: principal ?\n  public 'posts'\nquery q(c: cursor ?):\n  return posts where .owner in [null, viewer, viewer] first 10 after c\nmutation m():\n  return posts where .owner in [null, viewer, viewer] first 10\n";
     let b = compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
@@ -325,6 +325,9 @@ fn value_lanes_skip_null_before_opening_and_deduplicate() {
     assert!(page.complete);
     assert_eq!(page.data.as_array().unwrap().len(), 1);
     assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("a".into()));
+    let outcome = engine.mutate("m", Some("m"), Context::new("alice", BTreeMap::new())).unwrap();
+    let snapback4_core::WriteState::Sent { result, .. } = outcome.state else { panic!("{outcome:?}"); };
+    assert_eq!(result.as_array().unwrap().len(), 1);
 }
 
 #[test]
@@ -348,4 +351,29 @@ fn capped_membership_discovery_never_certifies_a_prefix_of_values() {
     }
     let page = engine.query("q", Context::new("alice", args(None))).unwrap();
     assert!(!page.complete && page.next.is_none(), "{page:?}");
+}
+
+#[test]
+fn argument_pins_prune_constant_branches_before_source_scans() {
+    let source = "table a:\n  at: time\n  public 'a'\ntable b:\n  at: time\n  public 'b'\nview events:\n  a { at, kind: 'a' }\n  b { at, kind: 'b' }\nquery q(kind: text <=10, c: cursor ?):\n  return events where .kind = kind first 2 by .at after c\n";
+    let b = compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed((0..100).map(|n| ("b".into(), snapback4_core::value::object([("id", Value::Id(format!("b{n}"))), ("at", Value::Int(n))])))).unwrap();
+    engine.set_ceilings(snapback4_core::Ceilings { examined: 1, ..Default::default() });
+    let mut input = args(None); input.insert("kind".into(), Value::String("a".into()));
+    let page = engine.query("q", Context::new("alice", input)).unwrap();
+    assert!(page.complete && page.data.as_array().unwrap().is_empty() && page.next.is_none(), "{page:?}");
+}
+
+#[test]
+fn bounded_value_predicates_work_in_mutations_and_constant_windows_fold() {
+    let source = "table posts:\n  owner: principal\n  at: time\n  rank: int\n  public 'posts'\nmutation q(owners: [principal] <=2):\n  return posts where .owner in owners first 5\nquery window(c: cursor ?):\n  return posts where .at > now - (12h + 12h) and .at <= now last 5 by .rank after c\n";
+    let b = compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(b.schema.tables["posts"].indexes.keys().any(|key| key.starts_with("$intent:byHourAtRank:")));
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([("posts".into(), snapback4_core::value::object([("id", Value::Id("a".into())), ("owner", Value::Id("alice".into())), ("at", Value::Int(1)), ("rank", Value::Int(1))]))]).unwrap();
+    let result = engine.mutate("q", Some("q"), Context::new("alice", BTreeMap::from([("owners".into(), Value::Array(vec![Value::Id("alice".into())]))]))).unwrap();
+    assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }), "{result:?}");
 }

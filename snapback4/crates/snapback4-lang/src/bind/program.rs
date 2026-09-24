@@ -618,7 +618,7 @@ impl<'a> Binder<'a> {
             scan.after = cursor_expr.clone().map(Box::new);
             scan.opaque_cursor = cursor_expr.is_some();
             scan.merge_site = Some(merge_site.clone());
-            lanes.push(MergeLane { distinct: None, branch: None, project: None, setup: setup.code, scan, source, binding });
+            lanes.push(MergeLane { guard: None, distinct: None, branch: None, project: None, setup: setup.code, scan, source, binding });
         }
         Ok((Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: merge_site, lanes }), Ty::Page(merge.table.clone(), merge.take)))
     }

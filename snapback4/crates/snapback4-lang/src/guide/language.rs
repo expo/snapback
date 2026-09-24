@@ -612,6 +612,8 @@ table intentReposts:
   actor: principal
   at: time default now
   public 'discoverable reposts'
+view intentCounts: count intentPosts by .author
+  read <- allow
 view intentActivity:
   intentPosts where not .removed { actor: .author, at, repost: false }
   intentReposts { actor, at, repost: true }

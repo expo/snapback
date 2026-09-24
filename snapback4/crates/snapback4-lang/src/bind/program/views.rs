@@ -29,10 +29,14 @@ impl Binder<'_> {
                 // Admission was checked against the original domain cap above.
                 scan.take = Bound::Literal(merge.take);
                 self.pop_scope();
-                lanes.push(MergeLane { distinct, branch: lane.branch.clone(), setup: setup.code, scan, source, binding, project: None });
+                lanes.push(MergeLane { guard: None, distinct, branch: lane.branch.clone(), setup: setup.code, scan, source, binding, project: None });
                 continue;
             }
             scan.after = None;
+            let mut conjuncts = Vec::new();
+            if let Some(filter) = &read.filter { super::super::intent::split(*filter.clone(), &mut conjuncts); }
+            let guard = super::super::intent::conjunction(conjuncts.into_iter().filter(super::super::intent::independent).collect());
+            let guard = guard.map(|guard| self.expr(&guard, out).map(|(value, _)| value)).transpose()?;
             let mut projection_setup = setup::Body::default();
             let (project, ty) = self.shape_object("$project", Ty::Row(read.table.clone()), lane.project.as_ref().expect("view projection"), &lane.site, &mut projection_setup)?;
             let fields = match ty { Ty::RowShape(fields) | Ty::Object(fields) => fields, _ => unreachable!("shape object") };
@@ -50,7 +54,7 @@ impl Binder<'_> {
             } else { first_site = Some(lane.site.clone()); result = Some(fields); }
             let project = if projection_setup.is_empty() { project } else { Expr::Block { body: projection_setup.code, value: Box::new(project) } };
             self.pop_scope();
-            lanes.push(MergeLane { distinct, branch: lane.branch.clone(), setup: setup.code, scan, source, binding, project: Some(project) });
+            lanes.push(MergeLane { guard, distinct, branch: lane.branch.clone(), setup: setup.code, scan, source, binding, project: Some(project) });
         }
         if result.is_none() && !lanes.is_empty() {
             return Ok((Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site, lanes }), Ty::Page(merge.table.clone(), merge.take)));
