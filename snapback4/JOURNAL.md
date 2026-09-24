@@ -49504,3 +49504,32 @@ and recorded its resolution in the existing issue; the separate six-byte heap
 issue remains open. These three full-suite failures were introduced expectation
 drift, not baseline or environmental defects. Runtime code did not change in
 this follow-up; no meter ceiling was raised.
+
+The first complete round 3 harness returned `== 1 failure(s) in 755 s`, exit 1:
+only cargo test, with the three corrected expectation failures above. Client
+inventory passed (1,098 tests, 1,088 passes, 10 skips, zero failures; 716 s).
+It used CARGO_INCREMENTAL=0 and SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1. After it
+completed, started the final full run with CARGO_INCREMENTAL=0 and default
+harness scheduling; the host load is below the serial-client threshold.
+Expectation updates are committed as 27a478595; runtime fix is 82ba4b277.
+
+The second complete harness returned `== 1 failure(s) in 227 s`, exit 1.
+Rust passed (158 s). Default parallel client scheduling timed out waiting
+30 seconds for the native 232-pending-ID transport acknowledgements. This is
+classified environmental/scheduling: that case passed in the first serial
+full run with identical runtime code, then independently in 3.46 s; all six
+maximum-pending-ID cases passed independently in 23.10 s. No timeout or client
+code was changed. Started another complete harness with serial client files,
+after the independent test and second harness had both finished.
+
+Final round 3 qualification: `== 0 failure(s) in 750 s`, exit 0, using
+CARGO_INCREMENTAL=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh.
+Rust passed in 133 s, including all 26 expiry regressions; clients passed in
+711 s (1,098 tests, 1,088 passes, 10 skips, zero failures). The native 232-ID
+transport case passed in 3.20 s and both neighboring boundary cases passed.
+All other harness steps passed, with no remaining introduced, baseline or
+environmental failures in this run. The exact logs and all earlier failure
+classifications are recorded in reports/20260924-intent-lane-p-round3.md.
+No round 3 requirement was deferred. The earlier expiring-cap prediction
+deferral, deferred secondary expiry cleanup and separate six-byte presence
+heap issue remain documented limits. No push, merge or publication.
