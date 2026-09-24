@@ -652,9 +652,12 @@ limited to 10 s; a longer requested wait returns the refusal immediately
 without retrying early. Other refusals and transport failures are returned
 without retrying: a lost reply may follow a stored upload.
 Buffer inputs are snapshotted before the first attempt. Closing or signing
-out refuses an in-flight result; rotating the session returns `E_AUTH` with
-a request to start the upload again. An upload never returns an old session's
-success or replays its bytes under the replacement bearer.
+out refuses an in-flight result. A changed bearer or a refresh still in
+progress returns `E_AUTH` with a request to start the upload again. A completed
+failed refresh that kept the same bearer preserves the upload result and
+admission retries. An upload never returns an old session's success or replays
+its bytes under the replacement bearer. Refused local upload receipts are
+removed before returning the refusal.
 
 ```ts
 import type { Client } from "snapback4/contract";

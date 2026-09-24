@@ -83,6 +83,13 @@ impl<S: DeviceStore> Device<S> {
         self.store.set_meta(&upload_key(viewer, id), &encoded(asset)?)
     }
 
+    /// Retire a transport receipt whose session changed while the host persisted it.
+    pub fn forget_upload_facts(&mut self, viewer: &str, id: &str) -> Result<(), RuntimeError> {
+        let tx = self.store.transaction()?;
+        tx.delete_meta(&[&upload_key(viewer, id)])?;
+        tx.commit()
+    }
+
     // @ref LLP 3000.007#8 — retained media follows its current home, including offline expiry
     pub fn asset_home(&mut self, id: &str, viewer: &str, now: i64) -> Result<Json, RuntimeError> {
         let tx = self.store.read_transaction()?;

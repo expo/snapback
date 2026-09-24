@@ -15,7 +15,9 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
 
 async function fixture(t, tier, respond, refresh = async () => {}, store = async () => {}) {
   const requests = [], facts = [];
-  const device = webDevice({ wasm, persist: memoryPersistence() });
+  const persist = memoryPersistence();
+  const device = webDevice({ wasm, persist });
+  let storeName;
   const options = {
     url: "http://upload-lifetime.invalid", session: session("old"), sessionStore: memorySessionStore(),
     fetch: async (input, init) => {
@@ -26,23 +28,26 @@ async function fixture(t, tier, respond, refresh = async () => {}, store = async
         if (init.signal.aborted) reject(init.signal.reason);
         else init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
       });
-      if (path === "/auth/refresh") { await refresh(); return Response.json({ session: session("new") }); }
+      if (path === "/auth/refresh") return await refresh() ?? Response.json({ session: session("new") });
       if (path === "/auth/logout" || path === "/probe") return Response.json({ ok: true });
       assert.equal(path, "/assets");
       requests.push(new Headers(init.headers).get("authorization"));
       return respond(requests.length);
     },
     device: { open: async (...args) => {
+      storeName = args[0];
       const core = await device.open(...args);
       return { ...core, call: async request => {
+        const result = await core.call(request);
         if (request.op === "upload_facts") { facts.push(request.asset); await store(); }
-        return core.call(request);
+        return result;
       } };
     } },
   };
   const client = tier === "online" ? createClient(options) : await createLocalClient(options);
   t.after(() => client.close());
-  return { client, requests, facts };
+  const receipt = () => persist.read(storeName, "m", `device:upload:${JSON.stringify(["user:alice", asset.id])}`);
+  return { client, requests, facts, receipt };
 }
 
 for (const tier of ["online", "web"]) {
@@ -118,16 +123,73 @@ for (const tier of ["online", "web"]) {
   }
 }
 
-test("web upload refuses a result when rotation overlaps device receipt persistence", { timeout: 10_000 }, async t => {
-  const entered = deferred(), stored = deferred();
-  const { client, requests } = await fixture(t, "web", async () => Response.json({ asset }), undefined,
-    async () => { entered.resolve(); await stored.promise; });
-  const uploading = client.upload(bytes);
-  await entered.promise;
-  assert.equal((await client.refreshSession()).ok, true);
-  stored.resolve();
-  const result = await uploading;
-  assert.equal(result.ok, false);
-  assert.equal(result.why.code, "E_AUTH");
-  assert.deepEqual(requests, ["Bearer old"]);
-});
+for (const ending of ["rotation", "failed refresh", "sign-out", "close"]) {
+  test(`web upload receipt cleanup after ${ending} overlaps persistence`, { timeout: 10_000 }, async t => {
+    const entered = deferred(), stored = deferred();
+    const { client, requests, receipt } = await fixture(t, "web", async () => Response.json({ asset }),
+      ending === "failed refresh" ? async () => { throw new TypeError("refresh unavailable"); } : undefined,
+      async () => { entered.resolve(); await stored.promise; });
+    const uploading = client.upload(bytes);
+    await entered.promise;
+    assert.deepEqual(JSON.parse(await receipt()), asset, "the delayed device call already persisted the receipt");
+    let closing;
+    if (ending === "close") closing = client.close();
+    else if (ending === "sign-out") closing = client.signOut();
+    else assert.equal((await client.refreshSession()).ok, ending === "rotation");
+    stored.resolve();
+    const result = await uploading;
+    await closing;
+    assert.deepEqual(requests, ["Bearer old"]);
+    if (ending === "failed refresh") {
+      assert.deepEqual(result, { ok: true, asset });
+      assert.deepEqual(JSON.parse(await receipt()), asset, "a valid receipt survives an unchanged bearer");
+    } else {
+      assert.equal(result.ok, false);
+      if (ending === "sign-out") assert.ok(["E_AUTH", "E_CLOSED"].includes(result.why.code));
+      else assert.equal(result.why.code, ending === "rotation" ? "E_AUTH" : "E_CLOSED");
+      assert.equal(await receipt(), null, "a refused upload must leave no prediction receipt");
+    }
+  });
+}
+
+
+const failedRefreshes = {
+  transport: async () => { throw new TypeError("refresh unavailable"); },
+  admission: async () => Response.json({ denied: rateLimit }, { status: 429 }),
+};
+for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.entries(failedRefreshes)) {
+  for (const reply of ["success", "admission refusal"]) {
+    test(`${tier} upload preserves ${reply} after a completed ${failure} refresh failure`, { timeout: 10_000 }, async t => {
+      const entered = deferred(), response = deferred();
+      const { client, requests, receipt } = await fixture(t, tier, async () => {
+        entered.resolve(); await response.promise;
+        return reply === "success" ? Response.json({ asset }) : Response.json({ denied: rateLimit }, { status: 429 });
+      }, refresh);
+      const uploading = client.upload(bytes);
+      await entered.promise;
+      assert.equal((await client.refreshSession()).ok, false);
+      assert.equal(client.session().token, "old");
+      response.resolve();
+      assert.deepEqual(await uploading, reply === "success" ? { ok: true, asset } : { ok: false, why: rateLimit });
+      assert.deepEqual(requests, Array(reply === "success" ? 1 : 4).fill("Bearer old"));
+      if (tier === "web" && reply === "success") assert.deepEqual(JSON.parse(await receipt()), asset);
+    });
+  }
+  test(`${tier} upload continues backoff after a completed ${failure} refresh failure`, { timeout: 10_000 }, async t => {
+    const backoff = deferred();
+    let resume;
+    const { client, requests } = await fixture(t, tier, async attempt => attempt === 1
+      ? Response.json({ denied: rateLimit }, { status: 429 }) : Response.json({ asset }), refresh);
+    const originalTimer = globalThis.setTimeout;
+    t.mock.method(globalThis, "setTimeout", (callback, delay, ...args) => {
+      if (delay !== 250) return originalTimer(callback, delay, ...args);
+      resume = () => callback(...args); backoff.resolve(); return 0;
+    });
+    const uploading = client.upload(bytes);
+    await backoff.promise;
+    assert.equal((await client.refreshSession()).ok, false);
+    resume();
+    assert.deepEqual(await uploading, { ok: true, asset });
+    assert.deepEqual(requests, ["Bearer old", "Bearer old"]);
+  });
+}

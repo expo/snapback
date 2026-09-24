@@ -12,7 +12,7 @@ import { changeFeed } from "./changes.ts";
 import { syncTransport } from "./local-sync.ts";
 import { exitTransport, type PendingSend } from "./local-exit.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
-import { MediaCache, type MediaStorage, type AssetRetention } from "./local-assets.ts";
+import { MediaCache, keepUpload, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
@@ -1336,18 +1336,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const request = requestCredentials();
+      const sameSession = () => !refreshing && request.headers.authorization === headers.authorization;
       const uploaded = await uploadAsset(base, request.headers, doFetch, bytes,
-        () => !unavailable() && link === "online" && request.revision === credentialRevision);
-      const interrupted = (): Refusal | null => unavailable() ?? (request.revision !== credentialRevision
+        () => !unavailable() && link === "online" && sameSession());
+      const interrupted = (): Refusal | null => unavailable() ?? (!sameSession()
         ? { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } : null);
       let why = interrupted();
       if (why) return { ok: false, why };
       if (uploaded.ok) {
-        // The device keeps only facts received from this uploader's server reply.
-        await call({ op: "upload_facts", viewer: principal, asset: uploaded.asset });
+        const keeping = keepUpload(core, principal, uploaded.asset, interrupted);
+        active.add(keeping); // Close must wait for receipt cleanup as well as its write.
+        try { return await keeping; } finally { active.delete(keeping); }
       }
-      if (!uploaded.ok) await refusedSession(uploaded.why, request.revision);
-      // Device persistence and session refusal can yield to a rotation too.
+      await refusedSession(uploaded.why, credentialRevision);
       why = interrupted();
       if (why) return { ok: false, why };
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
