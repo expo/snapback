@@ -100,7 +100,7 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
                     return Err(refusal(decl, "E_TIMELINE_SHAPE", "edges and reposts need immutable attribution and a total unique pair", format!("unique byPair: {}\n  update <- deny", pair.join(", "))));
                 }
             }
-            let followed_index = edges.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().first() == Some(&decl.edges[2])).map(|(n,_)| n.clone());
+            let followed_index = edges.indexes.iter().find(|(_, i)| i.is_plain() && i.columns() == [decl.edges[2].clone(), decl.edges[1].clone()]).map(|(n,_)| n.clone());
             let followed_index = followed_index.unwrap_or_else(|| format!("byTimeline{}Followers", decl.name));
             schema.tables.get_mut(&decl.edges[0]).unwrap().indexes.entry(followed_index.clone()).or_insert_with(|| snapback4_core::schema::Index {
                 components: vec![snapback4_core::schema::IndexComponent::Column(decl.edges[2].clone()), snapback4_core::schema::IndexComponent::Column(decl.edges[1].clone())], unique: false,

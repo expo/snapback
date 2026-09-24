@@ -354,3 +354,33 @@ fn w7c_service_token_output_names_its_owning_store() {
         assert!(stderr.contains("this token belongs only to this store"), "{stderr}");
     }
 }
+
+#[test]
+fn replay_delivers_900_followers_promptly_after_commit_without_schedules() {
+    use snapback4_core::{Context,Value as Q,WriteState};
+    let f=Fixture::new("timeline");
+    let source=format!("use personas alice, zzzz\n{}",include_str!("../../snapback4-lang/tests/fixtures/timeline-v2.q"));
+    fs::write(f.0.join("snapback/schema.q"),&source).unwrap();
+    fs::create_dir_all(f.0.join(".snapback4")).unwrap();
+    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let mut engine=Engine::new(Store::open(&f.0.join(".snapback4/store.sqlite")).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    for n in 0..900 {
+        let who=if n==899 {"dev:zzzz".into()} else {format!("dev:r{n:04}")};
+        let out=engine.mutate("follow",None,Context::new(who,[("actor".into(),Q::Id("dev:alice".into()))].into()).at(1)).unwrap();
+        assert!(matches!(out.state,WriteState::Sent{..}));
+    }
+    drop(engine);
+    let host=f.start(&["--replay"]);
+    let start=std::time::Instant::now();
+    let sent=host.post("/m/post",json!({"id":"delivery","args":{"postId":"live","parentId":null}}),"x-snapback-persona: alice");
+    assert_eq!(sent["state"],"sent","{sent}");
+    loop {
+        let page=host.post("/q/home",json!({"args":{}}),"x-snapback-persona: zzzz");
+        if page["data"].as_array().is_some_and(|rows|rows.len()==1) {break;}
+        assert!(start.elapsed()<Duration::from_secs(5),"delivery did not wake: {page}");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let e=f.engine();assert_eq!(e.store().rows("feedFeed").unwrap().len(),901);
+    assert!(e.jobs(10).unwrap().is_empty());
+    println!("MEASURE dev --replay delivery followers=900 wall_ms={}",start.elapsed().as_millis());
+}

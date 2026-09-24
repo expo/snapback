@@ -126,7 +126,7 @@ impl Engine {
         Ok(None)
     }
 
-    /// Operator inspection only. Application reads of work records are denied.
+    /// Operator counts. Work images are private to their actor or affected reader.
     pub fn timeline_work_counts(&self) -> Result<Vec<(String, u64, u64)>, RuntimeError> {
         self.schema.timelines.iter().map(|t| {
             let count = |state: &str| self.store.conn().query_row(

@@ -22,13 +22,13 @@ fn capabilities_are_derived_independently_and_together() {
         assert_eq!(schema.required_capabilities(), ["maintained-column".into()].into());
     }
     assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into()].into());
-    assert_eq!(timeline.required_capabilities(), ["timeline".into()].into());
+    assert_eq!(timeline.required_capabilities(), ["timeline-v2".into()].into());
     let mut both = timeline.clone();
     both.tables.get_mut("posts").unwrap().recorded = recorded.tables["likes"].recorded.clone();
-    assert_eq!(both.required_capabilities(), ["recorded-attribution".into(), "timeline".into()].into());
+    assert_eq!(both.required_capabilities(), ["recorded-attribution".into(), "timeline-v2".into()].into());
     let mut all = both.clone();
     all.tables.get_mut("posts").unwrap().maintained = columns.tables["posts"].maintained.clone();
-    assert_eq!(all.required_capabilities(), ["maintained-column".into(), "recorded-attribution".into(), "timeline".into()].into());
+    assert_eq!(all.required_capabilities(), ["maintained-column".into(), "recorded-attribution".into(), "timeline-v2".into()].into());
     for schema in [recorded, timeline, both, columns, projection, private_only, all] {
         let bytes = serde_json::to_string(&schema).unwrap();
         assert_eq!(bytes.matches("Capabilities").count(), 1);

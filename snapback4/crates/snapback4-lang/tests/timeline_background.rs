@@ -36,6 +36,11 @@ fn constant_writer_cost_and_crash_resumption_to_900_followers() {
     assert_eq!(e.store().rows("feedFeed").unwrap().len(),257);
     drop(e); // Reopen only committed store state, including the delivery cursor.
     let mut e=Engine::open(Store::open(&path).unwrap()).unwrap();
+    // Adopting an unrelated followed-leading index must not reinterpret the
+    // committed follower cursor (the delivery ordering stays followerId).
+    let changed=SOURCE.replace("  unique byPair: followerId, followedId", "  unique byPair: followerId, followedId\n  by aOtherOrder: followedId, id");
+    let b=snapback4_lang::compile(&[("schema.q".into(),changed)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     let rest=drain(&mut e); assert_eq!(rest,3);
     assert_eq!(e.store().rows("feedFeed").unwrap().len(),901);
     assert_eq!(ids(&mut e,"r0899"),["large"]);
@@ -173,4 +178,23 @@ fn overlapping_delivery_backfill_and_removal_never_duplicate_or_resurrect() {
     assert!(copies.iter().all(|r|r.field("eventId").unwrap()!=&id("p099")));
     assert!(e.store().rows("feedRemovedEvents").unwrap().is_empty());
     assert!(e.run_timeline_chunk(999).unwrap().is_none());
+}
+
+#[test]
+fn last_purge_chunk_cancels_an_older_delivery_before_retiring_tombstone() {
+    let mut e=engine();
+    for n in 0..900 {run(&mut e,"follow",&format!("r{n:04}"),&[("actor",id("a"))],1);}
+    post(&mut e,"a","gone",100);e.run_timeline_chunk(100).unwrap();
+    assert_eq!(e.store().rows("feedFeed").unwrap().len(),257);
+    // Rewind only this supplied test clock to make purge win the queue order.
+    // Correctness cannot depend on the worker observing delivery first.
+    run(&mut e,"remove","a",&[("postId",id("gone"))],2);
+    e.run_timeline_chunk(101).unwrap();
+    assert_eq!(e.store().rows("feedFeed").unwrap().len(),1);
+    assert_eq!(e.store().rows("feedRemovedEvents").unwrap().len(),1);
+    e.run_timeline_chunk(102).unwrap();
+    assert!(e.store().rows("feedFeed").unwrap().is_empty());
+    assert!(e.store().rows("feedRemovedEvents").unwrap().is_empty());
+    assert!(e.store().rows("feedWork").unwrap().is_empty());
+    assert!(e.run_timeline_chunk(103).unwrap().is_none());
 }

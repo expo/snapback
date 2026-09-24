@@ -79,7 +79,7 @@ fn delivery(shared: &Shared, drain: bool) -> Result<usize, RuntimeError> {
 
 pub(super) fn maintain(shared: Arc<Shared>) {
     let mut tick: u64 = 0;
-    let mut last_tick = std::time::Instant::now() - Duration::from_secs(1);
+    let mut last_tick = std::time::Instant::now();
     loop {
         if crate::lifecycle::stopping() { return; }
         let observed = *lock(&shared.seq);
