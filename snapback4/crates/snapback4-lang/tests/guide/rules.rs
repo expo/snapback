@@ -11,7 +11,7 @@ table records:
   writable: bool
   deletable: bool
   unique key
-  unique amount
+  unique amount else AMOUNT_TAKEN
   read <- .owner = viewer
   insert <- .owner = viewer
   update (old, next) <- old.writable = true
@@ -35,7 +35,10 @@ query one(id: records):
 "#;
 
 fn engine() -> Engine {
-    let b = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    engine_from(SOURCE)
+}
+fn engine_from(source: &str) -> Engine {
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?} {:?}", b.diagnostics, b.notes);
     Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
 }
@@ -138,7 +141,8 @@ fn update_collision_visibility() {
     for op in ["edit", "put"] {
         for owner in ["alice", "bob"] {
             for other in ["alice", "bob"] {
-                let mut e = engine();
+                // The definition also promises E_CONSTRAINT without a declared refusal.
+                let mut e = engine_from(&SOURCE.replace(" else AMOUNT_TAKEN", ""));
                 seed(&mut e, "target", owner, 7, true, false);
                 seed(&mut e, "PRIVATE", other, 42, true, false);
                 let before = e.store().rows("records").unwrap();
@@ -151,6 +155,37 @@ fn update_collision_visibility() {
                 }
                 assert_eq!(e.store().rows("records").unwrap(), before);
             }
+        }
+    }
+}
+
+#[test]
+fn declared_unique_refusal_does_not_disclose_hidden_collision() {
+    for op in ["edit", "put"] {
+        for other in ["alice", "bob"] {
+            let mut e = engine();
+            seed(&mut e, "target", "bob", 7, true, false);
+            seed(&mut e, "PRIVATE", other, 42, true, false);
+            let before = e.store().rows("records").unwrap();
+            let out = call(&mut e, op, json!({"id":"target", "amount":42}));
+            if other == "alice" {
+                let body = denied(&out, "E_RULE");
+                assert!(body["why"].get("detail").is_none(), "{body}");
+                for detail in ["AMOUNT_TAKEN", "PRIVATE", "amount", "42", &index(&e, "amount")] {
+                    assert!(!body["why"].to_string().contains(detail), "disclosed {detail}: {body}");
+                }
+                // A hidden collision is indistinguishable from an ordinary rule denial.
+                let mut refused = engine();
+                seed(&mut refused, "target", "bob", 7, false, false);
+                let rule = denied(&call(&mut refused, op, json!({"id":"target", "amount":42})), "E_RULE");
+                assert_eq!(body["why"], rule["why"]);
+            } else {
+                let body = denied(&out, "AMOUNT_TAKEN");
+                let detail = body["why"]["detail"].as_str().unwrap();
+                assert!(detail.contains(&format!("records.{}", index(&e, "amount"))), "{body}");
+                assert!(detail.contains("amount = {\"Int\":42}"), "{body}");
+            }
+            assert_eq!(e.store().rows("records").unwrap(), before);
         }
     }
 }

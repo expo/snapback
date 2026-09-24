@@ -293,6 +293,8 @@ is appropriate; changing source does not change the admitted policy.
 E_EFFECT_CANCELLED means the effect was cancelled; later claims or
 settlements are refused. For example, a worker finishing a push after
 `POST /effects/<id>/cancel` cannot mark that old effect sent. Inspect the
-provider using the effect's idempotency key before creating another effect.
+recorded steps and reconcile each with its stored provider key before creating
+replacement intent. Use `meta.id` only for legacy handlers without steps
+that used it as their provider key.
 Cancellation stops further admitted work, but cannot undo a provider call
 already in flight."##;

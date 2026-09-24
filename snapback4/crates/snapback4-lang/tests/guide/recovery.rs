@@ -15,6 +15,19 @@ fn recorded_steps(e: &Engine, id: &str) -> Vec<(String, String, String)> {
 }
 
 #[test]
+fn cancellation_definition_reconciles_recorded_step_keys() {
+    // Pin the later definition itself: `why` selects an earlier paragraph.
+    // cancelled_effect_keeps_distinct_stored_step_keys executes this recovery.
+    let card = snapback4_lang::guide::card("effects").unwrap();
+    let paragraph = card.split("\n\n").find(|p| p.starts_with("E_EFFECT_CANCELLED means")).unwrap();
+    let paragraph = paragraph.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(paragraph.contains("Inspect the recorded steps and reconcile each with its stored provider key before creating replacement intent."), "{paragraph}");
+    assert!(paragraph.contains("Use `meta.id` only for legacy handlers without steps that used it as their provider key."), "{paragraph}");
+    assert!(paragraph.contains("Cancellation stops further admitted work, but cannot undo a provider call already in flight."), "{paragraph}");
+    assert!(!paragraph.contains("using the effect's idempotency key"), "{paragraph}");
+}
+
+#[test]
 fn cancelled_effect_keeps_distinct_stored_step_keys() {
     let card = snapback4_lang::guide::card("effects").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(card.contains("Legacy handlers without steps use `meta.id` as the provider idempotency key; generated `ctx.step` handlers use the key passed to each step callback."));
