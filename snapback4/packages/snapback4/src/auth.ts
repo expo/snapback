@@ -41,10 +41,10 @@ export function login(url: string, email: string, password: string, doFetch: typ
 }
 
 /** Replace one live bearer token. The server invalidates `token` before it
- * returns the replacement, so callers must adopt the returned session. */
-export async function refreshSession(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SignIn> {
+ * returns the replacement, so callers must adopt or revoke the returned session. */
+export async function refreshSession(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis), signal?: AbortSignal): Promise<SignIn> {
   try {
-    const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+    const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` }, ...(signal ? { signal } : {}) });
     const json = (await response.json()) as { session?: Session; denied?: Refusal };
     if (response.ok && isSession(json.session)) return { ok: true, session: json.session };
     return { ok: false, why: json.denied ?? refused("session refresh was refused") };

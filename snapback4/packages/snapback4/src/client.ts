@@ -106,6 +106,9 @@ export function createClient(options: ClientOptions): Client {
   let link: Link = credentials ? "online" : "signed-out";
   let closed = false;
   const aborter = new AbortController();
+  // Ordinary close still owes custody of a committed refresh successor. Its
+  // request stops on credential loss or store refusal, not an ordinary close.
+  const refreshAborter = new AbortController();
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
   let seq = 0;
@@ -142,7 +145,6 @@ export function createClient(options: ClientOptions): Client {
 
   let credentialRevision = 0;
   let refreshing: Promise<SignIn> | null = null;
-  let rotatingSession: Promise<SignIn> | null = null;
   let stopRefresh!: () => void;
   const refreshStopped = new Promise<SignIn>(resolve => {
     stopRefresh = () => resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
@@ -154,6 +156,7 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials) return;
     session = null;
     stopRefresh();
+    refreshAborter.abort();
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
@@ -202,9 +205,13 @@ export function createClient(options: ClientOptions): Client {
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
       rewrite: "close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent" };
     queryEpoch++;
+    // Terminal connectivity is observable without discarding the session that
+    // createApp may validate on its replacement client.
+    link = "signed-out";
     if (retry) { clearTimeout(retry); retry = undefined; }
     if (refreshTimer) clearTimeout(refreshTimer);
     aborter.abort();
+    refreshAborter.abort();
     for (const watch of watches.values()) { watch.reset({ denied: storeRefusal }); scheduleExpiry(watch, null); }
     // Retire every owner, including the request currently awaiting its body.
     // A late receipt must not settle it a second time or schedule another send.
@@ -214,6 +221,7 @@ export function createClient(options: ClientOptions): Client {
       emitWrite(outcome);
     }
     for (const watch of watches.values()) notify(watch);
+    for (const listener of linkListeners) listener(link);
     options.onStoreChange?.(storeRefusal);
   }
 
@@ -257,13 +265,22 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
-    const rotation = rotateSession(base, token, doFetch);
-    rotatingSession = rotation;
+    const rotation = rotateSession(base, token, doFetch, refreshAborter.signal);
+    let retired = false;
+    const retire = (result: SignIn) => {
+      if (!result.ok || retired) return;
+      retired = true;
+      void logout(base, result.session.token, doFetch);
+    };
+    // A host may deliver a committed successor despite cancellation, even
+    // after refreshStopped released the public refresh promise.
+    void rotation.then(result => { if (storeRefusal || !credentials) retire(result); });
     const work = (async (): Promise<SignIn> => {
       const refreshed = await Promise.race([rotation, refreshStopped]);
+      if (storeRefusal) { retire(refreshed); return { ok: false, why: storeRefusal }; }
       // An ordinary close still owns an in-flight rotation's replacement.
       // Sign-out separately ends credentials and cancels adoption.
-      if (!credentials) return { ok: false, why: auth() };
+      if (!credentials) { retire(refreshed); return { ok: false, why: auth() }; }
       credentialRevision += 1;
       if (!refreshed.ok) {
         if (refreshed.why.code === "E_AUTH") endCredentials();
@@ -271,6 +288,7 @@ export function createClient(options: ClientOptions): Client {
         return refreshed;
       }
       if (expectedPrincipal !== null && refreshed.session.principal !== expectedPrincipal) {
+        retire(refreshed);
         endCredentials();
         return { ok: false, why: { code: "E_AUTH", family: "auth", message: "a refreshed session changed principal" } };
       }
@@ -286,7 +304,7 @@ export function createClient(options: ClientOptions): Client {
       return refreshed;
     })();
     refreshing = work;
-    void work.finally(() => { if (refreshing === work) refreshing = null; if (rotatingSession === rotation) rotatingSession = null; }).catch(() => {});
+    void work.finally(() => { if (refreshing === work) refreshing = null; }).catch(() => {});
     return work;
   }
 
@@ -295,6 +313,7 @@ export function createClient(options: ClientOptions): Client {
   async function obsoleteRefusal(why: Refusal | undefined, revision: number): Promise<boolean> {
     if (why?.code !== "E_AUTH") return false;
     if (refreshing) await refreshing;
+    if (storeRefusal || closed) return false;
     if (revision !== credentialRevision && credentials && !closed && !storeRefusal) return true;
     if (!closed) endCredentials();
     return false;
@@ -327,6 +346,7 @@ export function createClient(options: ClientOptions): Client {
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
         return sendPost(path, body, attempt + 1);
       }
+      if (closed || storeRefusal) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json };
@@ -448,7 +468,7 @@ export function createClient(options: ClientOptions): Client {
       }
       try {
         if (refreshing) await refreshing;
-        if (closed || !credentials) break;
+        if (closed || storeRefusal || !credentials) break;
         const revision = credentialRevision;
         const floor = minimumReadSeq;
         const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity);
@@ -456,7 +476,7 @@ export function createClient(options: ClientOptions): Client {
         observeStore(json as unknown as Record<string, unknown>, floor);
         if (storeRefusal) break;
         if (await obsoleteRefusal(json.denied, revision)) continue;
-        if (!credentials) break;
+        if (closed || storeRefusal || !credentials) break;
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         generation = json.generation;
@@ -539,7 +559,7 @@ export function createClient(options: ClientOptions): Client {
 
   const client: Client = {
     act(op, args, options) {
-      return act(op, args, options, options?.id ?? mintId(), post, () => closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined);
+      return act(op, args, options, options?.id ?? mintId(), post, () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined));
     },
     async query(op, args) {
       const read = new ReadObservation<unknown>();
@@ -611,24 +631,28 @@ export function createClient(options: ClientOptions): Client {
     acquired: false,
     onAcquired: () => () => {},
     async upload(bytes) {
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
-      if (closed) return { ok: false, why: ended() };
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
       const revision = credentialRevision;
-      const uploaded = await uploadAsset(base, { ...headers }, doFetch, bytes);
+      const uploaded = await uploadAsset(base, { ...headers }, doFetch, bytes, aborter.signal);
+      if (storeRefusal || closed || !credentials) return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) };
       if (!uploaded.ok && await obsoleteRefusal(uploaded.why, revision)) return client.upload(bytes);
+      if (storeRefusal || closed || !credentials) return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) };
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
     async asset(id) {
+      if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
-      if (closed) return { denied: ended() };
+      if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
       const revision = credentialRevision;
-      const read = await fetchAsset(base, { ...headers }, doFetch, id);
-      if (closed || !credentials) {
+      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal);
+      if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
-        return { denied: closed ? ended() : auth() };
+        return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
       // A successful reply is just as credential-bound as a refusal. Do not
       // publish bytes fetched under a bearer that rotated while it was away.
@@ -637,9 +661,13 @@ export function createClient(options: ClientOptions): Client {
         return client.asset(id);
       }
       if ("denied" in read && await obsoleteRefusal(read.denied, revision)) return client.asset(id);
+      if (storeRefusal || closed || !credentials) {
+        if ("url" in read) read.revoke();
+        return { denied: storeRefusal ?? (closed ? ended() : auth()) };
+      }
       return read;
     },
-    assetSource: (id) => assetSource(base, headers, id),
+    assetSource: (id) => storeRefusal || closed ? { uri: "", headers: {} } : assetSource(base, headers, id),
     link: () => link,
     onLink(listener) {
       linkListeners.add(listener);
@@ -661,30 +689,28 @@ export function createClient(options: ClientOptions): Client {
     },
     refreshSession: refreshCurrent,
     async logoutAll() {
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
-      if (closed) return { ok: false, why: ended() };
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       const bearer = headers.authorization?.slice("Bearer ".length);
       if (!credentials || !bearer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
       const revision = credentialRevision;
       const revoked = await revokeAllSessions(base, bearer, doFetch);
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (revoked.ok) {
         endCredentials();
         await client.close();
       } else {
         if (await obsoleteRefusal(revoked.why, revision)) return client.logoutAll();
+        if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
         if (!credentials) await client.close();
       }
       return revoked;
     },
     async signOut() {
       const bearer = headers.authorization?.slice("Bearer ".length);
-      const rotation = rotatingSession;
       endCredentials();
-      // A committed rotation may still deliver its successor. Revoke it without
-      // adopting it or letting a stalled response delay local sign-out.
-      if (rotation) void rotation.then(result => {
-        if (result.ok && result.session.token !== bearer) return logout(base, result.session.token, doFetch);
-      }).catch(() => {});
+      // refreshCurrent owns revocation of any late, unkept successor.
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
       if (bearer) await logout(base, bearer, doFetch);
@@ -708,7 +734,7 @@ export function createClient(options: ClientOptions): Client {
         emitWrite(outcome);
       }
       writeListeners.clear();
-      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); });
+      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { refreshAborter.abort(); pending.length = 0; sessionListeners.clear(); });
       return closing;
     },
   };

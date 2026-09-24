@@ -464,6 +464,11 @@ publishes its online client on `E_STORE_REPLACED`, retaining the session if the
 replacement store accepts it and retiring outstanding intents before reopening.
 An admitted `createApp` write reports a terminal outcome only after its durable
 retirement is saved; a failed save leaves the outcome `pending`, even during replacement.
+Terminal online clients expose `link() === "signed-out"` and refuse actions,
+uploads, asset reads and refreshes too; late asset handles are revoked, unkept
+refresh successors are revoked, and `assetSource` returns an empty source.
+Retirement evicts unknown store-failure receipts before known sent receipts
+within the same receipt limit, so a retained sent id cannot execute on the replacement.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;

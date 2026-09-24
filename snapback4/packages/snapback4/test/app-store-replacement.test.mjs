@@ -5,6 +5,7 @@ import { createApp } from '../dist/app.js';
 import { keepSession, memorySessionStore, restoreSession } from '../dist/auth.js';
 import { mintId } from '../dist/client.js';
 import { storeKey } from '../dist/app-storage.js';
+import { WRITE_HISTORY_LIMIT } from '../dist/writes.js';
 const url = 'http://store.test', q = { kind: 'query', name: 'page' }, m = { kind: 'mutation', name: 'revoke' };
 const until = async check => { for (let n = 0; n < 600; n++) { if (await check()) return; await delay(5); } assert.fail('app recovery did not settle'); };
 const session = { principal: 'alice', token: 'alice-token', kind: 'guest', expiresAt: Date.now() + 30 * 86400_000 };
@@ -143,4 +144,32 @@ for (const fail of [false, true]) test(`replacement waits for durable retirement
     await app.close(); app = createApp({ url, sessionStore, fetch: fetcher }); await app.ready;
     assert.equal(posts, 1, 'a terminal durable intent never replays on the replacement');
   }
+});
+
+for (const unknown of [0, 8]) test(`replacement preserves sent receipt ids at the history limit (${unknown} older unknown failures)`, async t => {
+  const sessionStore = memorySessionStore(), key = storeKey('writes', url, 'alice');
+  await keepSession(url, session, sessionStore);
+  const id = n => String(n).padStart(26, '0');
+  const sent = Array.from({ length: WRITE_HISTORY_LIMIT - unknown }, (_, i) => ({ state: 'sent', id: id(i + 1), seq: i + 1, replayed: true }));
+  const failures = Array.from({ length: unknown }, (_, i) => ({ state: 'failed', id: id(500 + i), why: { code: 'E_STORE_RESTORE', family: 'store', message: 'unknown outcome' } }));
+  const pending = Array.from({ length: 4 }, (_, i) => ({ owner: 'alice', id: id(1000 + i), op: m.name, args: {} }));
+  await sessionStore.set(key, JSON.stringify({ owner: 'alice', backend: url, receipts: [...sent, ...failures], pending }));
+  let store = 'A', posts = 0;
+  const app = createApp({ url, sessionStore, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/probe') return Response.json({ ok: true });
+    if (path.startsWith('/m/')) { posts++; return blocked(init.signal); }
+    return Response.json({ data: [], store_id: store, seq: 1 });
+  } });
+  t.after(() => app.close()); await app.ready; const prior = app.client;
+  await until(() => posts === 1); await prior.query(q, {});
+  store = 'B'; assert.equal((await prior.query(q, {})).denied.code, 'E_STORE_REPLACED');
+  await until(() => app.auth.state === 'signed-in' && app.client !== prior);
+  const journal = JSON.parse(await sessionStore.get(key));
+  assert.deepEqual(journal.pending, []); assert.equal(journal.receipts.length, WRITE_HISTORY_LIMIT);
+  assert.deepEqual(journal.receipts.filter(write => write.state === 'sent'), sent);
+  if (unknown) assert.ok(failures.slice(0, 4).every(f => !journal.receipts.some(r => r.id === f.id)), 'oldest unknown outcomes leave first');
+  const result = await app.mutate(m, {}, { id: sent[0].id });
+  assert.equal(result.state, 'sent'); assert.equal(result.replayed, true); assert.equal(result.seq, 1);
+  assert.equal(posts, 1, 'retrying a known sent id never executes on the replacement store');
 });

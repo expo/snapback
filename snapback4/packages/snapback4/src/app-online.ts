@@ -7,6 +7,16 @@ import { MutationIds, WriteHistory, WRITE_HISTORY_LIMIT } from "./writes.ts";
 import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { journalReader, type Journal, type Terminal } from "./app-journal.ts";
 
+// Unknown store outcomes cannot evict known sent ids during bulk retirement.
+// Keep the same bounded window, discarding the oldest unknown failures first.
+function keepReceipts(receipts: Terminal[]): Terminal[] {
+  let excess = Math.max(0, receipts.length - WRITE_HISTORY_LIMIT);
+  return receipts.filter(write => {
+    if (excess && write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code)) { excess--; return false; }
+    return true;
+  }).slice(-WRITE_HISTORY_LIMIT);
+}
+
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void) {
   const viewer = raw.viewer()!;
@@ -44,7 +54,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
         : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
       journal.receipts.push(receipt);
-      journal.receipts = journal.receipts.slice(-WRITE_HISTORY_LIMIT);
+      journal.receipts = keepReceipts(journal.receipts);
       return true;
     });
     // Durable retirement belongs to the shared journal; notification and
@@ -133,7 +143,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
       journal.pending = [];
       journal.receipts.push(...failed);
-      journal.receipts = journal.receipts.slice(-WRITE_HISTORY_LIMIT);
+      journal.receipts = keepReceipts(journal.receipts);
       return failed;
     }).then(failed => { for (const write of failed) notify(write); });
     return retirement;

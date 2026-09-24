@@ -130,6 +130,20 @@ test('replayed receipts verify their current head without lowering the historica
   assert.deepEqual((await client.query(q, {})).data, []); assert.equal(reads, 1);
 });
 
+test('a replayed historical receipt cannot authorize a later sequence-1 read', async t => {
+  let writes = 0, reads = 0;
+  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async url => {
+    if (url.includes('/m/')) return Response.json({ state: 'sent', store_id: 'A', head: 10, seq: ++writes === 1 ? 10 : 1, ...(writes > 1 ? { replayed: true } : {}) });
+    reads++; return Response.json(ready('A', 1, ['revoked']));
+  } });
+  t.after(() => client.close());
+  assert.equal((await client.mutate(m, {})).seq, 10);
+  const replay = await client.mutate(m, {});
+  assert.equal(replay.replayed, true); assert.equal(replay.seq, 1);
+  assert.equal((await client.query(q, {})).denied?.code, 'E_STORE_RESTORE');
+  assert.equal(reads, 1, 'a head below the acknowledged floor is terminal');
+});
+
 
 test('a buffered refusal head below an observed write is refetched before publication', async t => {
   const refused = gate(); let reads = 0;
