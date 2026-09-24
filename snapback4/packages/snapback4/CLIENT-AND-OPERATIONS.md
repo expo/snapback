@@ -120,6 +120,22 @@ revoked when they differ from the token left in storage. This runtime retains
 revocations deferred by the failed fence and drains them after a successful
 logout retry, including late responses received after that retry. Repair storage
 and retry logout; remote revocation remains best effort when the network fails.
+Sign-in that replaces a saved bearer first records its retirement and advances
+the session epoch under the same lock. A failed journal or epoch write leaves the
+old session bytes intact and refuses sign-in. Restoration and refresh keep their
+epoch; sign-in over a logout tombstone copies the tombstone's epoch. Thus an old
+tab cannot overwrite a new account after storage recovers from a failed fence.
+
+Before replacing that bearer, the app saves it and other deferred tokens in a
+backend-bound `.revocations` journal in `sessionStore`. A new runtime recovers
+the obligations even if the previous one stopped before receiving revocation
+acknowledgements. Replay skips the currently stored bearer, and removes an entry
+only after the server confirms logout or reports `E_AUTH` with HTTP 401. Transport
+failures and other refusals retain the entry for the next restoration, sign-in or
+successful logout. These are revocation credentials, never sessions to restore, and use
+the same explicit persistence and security posture as the saved session. While
+storage is completely unwritable, the existing bearer remains its own durable
+record; a replacement cannot erase it before the retirement journal is saved.
 Sign-in and refresh work started in an earlier epoch cannot save a late bearer;
 the app revokes that bearer and retires its client. Invalid or expired stored
 sessions are cleaned up only if their exact bytes still match the read, without

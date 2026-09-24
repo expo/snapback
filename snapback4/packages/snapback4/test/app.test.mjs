@@ -853,3 +853,126 @@ test("local restoration captures the asset budget before the caller mutates it",
   assert.deepEqual(revocations, []);
   assert.deepEqual((await app.client.query(list, {})).data, []);
 });
+
+for (const restart of [false, true]) test(`sign-in after a failed fence advances the epoch${restart ? " after restart" : " in the same runtime"}`, { timeout: 20_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore();
+  let broken = false, refreshes = 0;
+  const store = { ...memory, async set(key, value) { if (broken) throw Error("all writes fail"); await memory.set(key, value); } };
+  let a = createApp({ url, sessionStore: store }); t.after(() => a.close());
+  await a.ready; await a.auth.signup("alice@example.com", "password-a");
+  const alice = a.client.session();
+  const b = createApp({ url, sessionStore: store, fetch: (input, init) => {
+    if (new URL(input).pathname === "/auth/refresh") refreshes++;
+    return fetch(input, init);
+  } }); t.after(() => b.close()); await b.ready;
+  broken = true; assert.equal((await a.auth.logout()).ok, false);
+  assert.equal((await restoreSession(url, memory)).token, alice.token);
+  if (restart) await a.close();
+  broken = false;
+  if (restart) { a = createApp({ url, sessionStore: store }); assert.equal((await a.ready).ok, true); }
+  const visitor = await a.auth.guest(); assert.equal(visitor.ok, true);
+  assert.notEqual(visitor.session.principal, alice.principal);
+  assert.equal(await memory.get(sessionKey(url) + ".epoch"), "1");
+  const refreshed = await b.client.refreshSession();
+  assert.equal(refreshed.ok, false); assert.equal(refreshed.why.code, "E_AUTH");
+  assert.equal(refreshes, 0, "old owner is fenced before a refresh is dispatched");
+  await until(() => b.auth.state === "signed-out");
+  assert.equal((await restoreSession(url, memory)).token, visitor.session.token);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${alice.token}` } })).json()).denied?.code === "E_AUTH", "displaced Alice bearer is revoked");
+  assert.deepEqual((await a.client.query(list, {})).data, []);
+  const reopened = createApp({ url, sessionStore: store }); t.after(() => reopened.close());
+  assert.equal((await reopened.ready).ok, true); assert.equal(reopened.auth.viewer, visitor.session.principal);
+  assert.deepEqual((await reopened.client.query(list, {})).data, []);
+});
+
+for (const failure of ["offline", "refusal"]) test(`displaced-bearer revocation survives restart after ${failure} instead of acknowledgement`, { timeout: 15_000 }, async t => {
+  const { url } = await server(t), store = memorySessionStore();
+  let attempts = 0;
+  const a = createApp({ url, sessionStore: store, fetch: (input, init) => {
+    if (new URL(input).pathname === "/auth/logout") {
+      attempts++;
+      if (failure === "offline") throw Error("logout transport offline");
+      return Response.json({ denied: { code: "E_CLIENT", message: "logout not accepted" } });
+    }
+    return fetch(input, init);
+  } }); t.after(() => a.close());
+  await a.ready; await a.auth.guest(); const displaced = a.client.session();
+  const visitor = await a.auth.guest(); assert.equal(visitor.ok, true);
+  await until(() => attempts > 0, "displacement attempts remote revocation");
+  await a.close();
+  assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${displaced.token}` } })).json()).denied, undefined);
+  const b = createApp({ url, sessionStore: store }); t.after(() => b.close());
+  assert.equal((await b.ready).ok, true); assert.equal(b.auth.viewer, visitor.session.principal);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${displaced.token}` } })).json()).denied?.code === "E_AUTH", "restart replays the durable retirement");
+  assert.deepEqual((await b.client.query(list, {})).data, [], "retirement never revokes the current bearer");
+});
+
+for (const failAt of ["journal", "epoch", "bearer"]) test(`failed ${failAt} write during sign-in preserves the displaced session bytes`, { timeout: 15_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
+  let armed = false;
+  const store = { ...memory, async set(k, value) {
+    if (armed && k === key + ({ journal: ".revocations", epoch: ".epoch", bearer: "" })[failAt]) throw Error("cutover storage failure");
+    await memory.set(k, value);
+  } };
+  const a = createApp({ url, sessionStore: store }); t.after(() => a.close());
+  await a.ready; await a.auth.guest();
+  const kept = a.client.session(), bytes = await memory.get(key);
+  armed = true;
+  const failed = await a.auth.guest(); assert.equal(failed.ok, false); assert.equal(failed.why.code, "E_CLIENT");
+  assert.equal(await memory.get(key), bytes);
+  assert.equal(await memory.get(key + ".epoch"), failAt === "bearer" ? "1" : null);
+  armed = false;
+  const b = createApp({ url, sessionStore: memory }); t.after(() => b.close());
+  assert.equal((await b.ready).ok, true); assert.equal(b.client.session().token, kept.token);
+  assert.deepEqual((await b.client.query(list, {})).data, [], "a staged revocation must skip the still-stored bearer");
+});
+
+for (const ending of ["logout", "sign-in"]) test(`a comparison read failure retains a discarded login for the next successful ${ending}`, { timeout: 20_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
+  let broken = false, failedFence = false, comparisons = 0, unreadable = false, readFailures = 0, issued, release;
+  const gate = new Promise(resolve => { release = resolve; }), revocations = [];
+  const store = { ...memory,
+    async set(k, value) { if (broken) { if (k === key) failedFence = true; throw Error("fence writes fail"); } await memory.set(k, value); },
+    async get(k) {
+      if (k === key && failedFence) {
+        comparisons++;
+        if (unreadable) { readFailures++; throw Error("comparison read fails"); }
+      }
+      return memory.get(k);
+    },
+  };
+  const app = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/auth/logout") revocations.push(new Headers(init.headers).get("authorization"));
+    const response = await fetch(input, init);
+    if (path === "/auth/login") { issued = (await response.clone().json()).session; await gate; }
+    return response;
+  } }); t.after(async () => { release(); await app.close(); });
+  await app.ready; await app.auth.signup("alice@example.com", "password-a");
+  const pending = app.auth.login("alice@example.com", "password-a"); await until(() => issued);
+  broken = true; assert.equal((await app.auth.logout()).ok, false);
+  await until(() => comparisons > 0, "stored bearer comparison completes before the held login is released");
+  unreadable = true; release(); assert.equal((await pending).ok, false);
+  await until(() => readFailures > 0);
+  assert.deepEqual(revocations, [], "an unreadable store does not authorize revoking a potentially stored token");
+  unreadable = false; broken = false;
+  if (ending === "logout") assert.equal((await app.auth.logout()).ok, true);
+  else assert.equal((await app.auth.guest()).ok, true);
+  await until(() => revocations.includes(`Bearer ${issued.token}`));
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied?.code === "E_AUTH");
+  if (ending === "sign-in") assert.deepEqual((await app.client.query(list, {})).data, []);
+});
+
+test("a foreign revocation journal never sends its bearer to this backend", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), store = memorySessionStore(), revocations = [];
+  const saved = JSON.stringify({ backend: "https://another-backend.invalid", tokens: ["foreign-secret"] });
+  await store.set(sessionKey(url) + ".revocations", saved);
+  const app = createApp({ url, sessionStore: store, fetch: (input, init) => {
+    if (new URL(input).pathname === "/auth/logout") revocations.push(new Headers(init.headers).get("authorization"));
+    return fetch(input, init);
+  } }); t.after(() => app.close());
+  assert.equal((await app.ready).ok, true);
+  await until(() => app.auth.why?.code === "E_CLIENT");
+  assert.deepEqual(revocations, []);
+  assert.equal(await store.get(sessionKey(url) + ".revocations"), saved, "preserve the damaged obligation for repair");
+});

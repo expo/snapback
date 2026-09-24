@@ -49398,3 +49398,55 @@ No deviation or unresolved round 8 finding. No new API, Quarry form, storage
 format, authorization/disclosure rule, meter, native API, starter or version
 change. README remains 296/300 lines; modified source/test files remain below
 1,500 lines. Did not push or publish.
+
+## 2026-09-24 — Lane E round 9: account switches advance epochs and retain revocation custody
+
+Sign-in that displaces a saved bearer now persists a higher epoch under the
+session lock before saving the new account. Another open app from the old epoch
+refuses refresh before dispatch and cannot replace the new account after a total
+logout-fence failure. Restoration and rotation retain their epoch; the existing
+logout-tombstone promotion order is unchanged.
+
+Chose a backend-bound revocation journal in sessionStore. Before account
+replacement, save the displaced bearer and deferred tokens, advance the epoch,
+then save the new bearer. Journal or epoch failure refuses sign-in and preserves
+the old bytes. A successful replacement leaves durable retirement obligations
+that survive restart; replay skips the currently saved bearer and removes an
+entry only after a logout acknowledgement or HTTP 401 E_AUTH. Network failures
+and other refusals retain entries. Restoration, sign-in and successful logout
+retry them. During a total storage outage the saved bearer remains the durable
+record, and replacement cannot erase it without first journaling it. An unknown
+token that never reached writable storage cannot survive abrupt process loss;
+the successful-replacement boundary is the guarantee. Recorded the design in
+LLP 3000.013 section 6 and the client reference.
+
+Measured: ten new real-server cases cover failed-fence replacement in the same
+runtime and after restart; restart after transport failure or a refused logout;
+failure of each journal/epoch/bearer write; failed comparison reads followed by
+successful logout or sign-in; and backend binding of the retirement journal.
+Five initial regression cases failed against the prior app implementation;
+comparison-read retention already worked and needed coverage. Mutation probes
+reject dropping a deferred token on a failed read and treating any HTTP 200 as
+revocation confirmation. All 177 affected tests and the focused ten cases pass;
+native/package builds and package typecheck pass. The initial pre-fix attempt
+encountered environmental ENOENT because the lane's native binary was absent;
+rebuilding it resolved that precondition before behavior was tested.
+
+Full scripts/test.sh, first run: **`== 0 failure(s) in 380 s`**, exit 0;
+1,117 client passes across the main runner and seven shards, 10 skips and nine
+fixture passes. No suite failure; the previous worker shutdown race did not
+recur. Wasm is 1,744,842 raw / 484,967 gzip bytes within the unchanged budget.
+README remains 296/300 lines; modified source/test files remain below 1,500.
+
+The Chromium offline-shell/replica witness passes. The cross-tab witness has a
+baseline intermittent successor-revocation timeout: three comparison runs with
+current code and three with the prior app.ts each passed twice and failed once
+at the same assertion. Reproduce with node witness/app-sessions.mjs. This
+establishes pre-existing intermittency, not its cause; left it unchanged under
+the lane baseline rule. Full evidence, file map and remaining limits are in
+[the round 9 report](./reports/20260924-lane-e-round9.md).
+
+No deviation from the round 9 scope or unresolved round 9 finding. Did not
+change the Client contract, Quarry forms, authorization/disclosure rules,
+meters, native APIs, assets, starters or package versions. Did not push or
+publish.
