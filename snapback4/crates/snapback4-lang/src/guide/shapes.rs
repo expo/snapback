@@ -28,6 +28,12 @@ E_QUARRY_SPREAD refuses nullable operands and values without statically known
 fields. Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`,
 then `return { ...p, extra: true }`.
 
+An object spread's wildcard follows field order; when shaping an existing row shape,
+explicit computed fields win over its wildcard. Shape each arm before joining
+these two kinds of value. An inline conditional shape does this for you;
+E_QUARRY_SHAPE_JOIN refuses shaping an already-joined local, including after
+conditional reassignment. Plain field reads such as `s.title` remain valid.
+
 ```quarry
 table listings:
   title: text
@@ -40,6 +46,9 @@ table bookings:
   read <- .guest = viewer
 query myBookings(c: cursor ?):
   return bookings where .guest = viewer last 20 by .start after c { *, listing: listings[.listing] { title, city } }
+query listingChoice(key: listings, flag: bool):
+  p = listings[key] ! else NOT_FOUND
+  return ({ ...p } { title: 'override', * }) if flag else (p { * } { title: 'override', * })
 ```
 
 Here `listing` is the expanded object, or null for a missing or hidden listing.

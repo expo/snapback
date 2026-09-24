@@ -23,6 +23,15 @@ fn inspect<S: BoundaryMetadata>(device: &mut Device<S>, key: &str, pending: bool
         assert_eq!(result.data.field("title").unwrap(), &title, "{query}");
         assert_eq!(result.data.as_object().unwrap().get("pending"), pending.then_some(&Value::Bool(true)), "{query}");
     }
+    for flag in [true, false] {
+        for query in ["shapedArms", "shapedConditional", "shapedReassignment", "spreadJoined"] {
+            let result = device.query(query, "alice", &json!({"key":key, "flag":flag}), 100).unwrap();
+            assert!(result.complete);
+            assert_eq!(result.metered.examined, 1);
+            assert_eq!(result.data.field("title").unwrap(), &Value::String(if flag || query == "spreadJoined" { "offline" } else { "override" }.into()), "{query}, flag={flag}");
+            assert_eq!(result.data.as_object().unwrap().get("pending"), pending.then_some(&Value::Bool(true)), "{query}, flag={flag}");
+        }
+    }
     for query in ["tagged", "taggedAgain", "taggedReplaced"] {
         let result = device.query(query, "alice", &json!({"key":key,"tag":"tag"}), 100).unwrap();
         assert!(result.complete);

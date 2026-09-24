@@ -49792,3 +49792,85 @@ No deviation or unresolved round-6 problem. No new syntax, refusal code,
 IR or wire form; no authorization, disclosure, durability or meter change.
 The earlier deliberately refused extra-tested write targets remain outside
 this round. No push or publication.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 7: preserve wildcard rules across joins
+
+Round 6 did not change Ty::join: a RowObject/RowShape join still became
+RowShape and changed a later wildcard's precedence. types.rs now retains
+that distinction as compiler-only RowMixed, including through further joins,
+optional values, nested fields, collections and rebound types. Ordinary field
+reads remain valid. bind/program.rs refuses shaping an already-joined mix
+with E_QUARRY_SHAPE_JOIN, its shape site, and a two-arm projection rewrite.
+The rewrite labels the original operands spreadArm and shapeArm and tells the
+author to use the original condition; reassignment shapes each assigned value
+before its control-flow paths meet. The rewrite is not inserted as a pre-read.
+
+Extracted conditional binding from bind/program/expr.rs to
+bind/program/conditional.rs. An inline conditional shape binds each mixed
+arm's projection before their result types join; only the chosen arm executes.
+Existing joins without that mix retain their original lowering. Field reads
+in expr.rs, spread expansion in objects.rs, predicate-shape recognition in
+reads.rs and TypeScript generation in emit.rs accept the mixed compiler type.
+A fresh object spread copies a mixed value with ordinary object wildcard
+order and preserves its pending metadata. No new runtime or wire type.
+Added the refusal's default shapes-card route in diag.rs and its why entry
+in guide/codes.rs. guide/shapes.rs explains both wildcard rules and the
+per-arm rewrite; guide/language.rs includes the inline conditional form.
+tests/guide.rs pins and executes that new language-card query for both flags;
+crates/snapback4/tests/scale.rs adds it to the constant-work operation census.
+
+Extended tests/fixtures/spread-metadata.q with explicit per-arm, inline
+conditional, reassignment, joined field-read and fresh-spread programs.
+Added six tests in tests/joined_shapes.rs: server answers for each arm and
+reassignment; both original joined-local refusals in both arm orders; text
+bounds and generated optional pending types; execution of the printed rewrite
+(including parenthesized arithmetic); preservation of the refusal through
+aliases, further joins, nullable values and containers; and lazy evaluation
+with a missing unselected row and a nullable selected row. With flag true,
+shapedConditional returns original and its title bound is Text(10000), not
+Text(8). The false arm returns override. Device tests/spread_metadata.rs runs
+both flags on memory and SQLite before confirmation, after reopen, after
+settlement and after a further reopen, checking the values, pending and one
+examined source row.
+
+Round 6 already covered a confirmed note followed by a pending tag, retaining
+the note's title and the tag's label, in spread_pending_union's eight-case
+matrix on both stores across reopen and partial/full settlement. No duplicate
+case or pending-union implementation change was necessary. Temporarily seeding
+pending_base's fold with false instead of marked(first) fails both existing
+store tests. Restoring the old mixed-type collapse fails all six new join
+tests, including original becoming override for flag true. Both fault
+injections were restored. Evidence: /tmp/lane-k-r7-pending-mutant.log and
+/tmp/lane-k-r7-join-mutant.log.
+
+Preliminary failures were ours and corrected: the new test helper wrongly
+required no horizon notes from an existing horizon-free device fixture, then
+used joined.q while expecting unqualified operation names; the guide census
+needed the new query and the new code needed its default shapes-card mapping.
+The initial refusal regression also correctly failed against the old join.
+Restored targeted checks passed 57 guide, 16 natural-form, six join, 11 lowering
+and four device tests; the scale target passed all 18 cases after its census
+was updated. Historical lowering digests, admissions and execution
+comparisons all remained unchanged; the targeted lowering run took 180.18 s.
+
+No deviation or unresolved round-7 issue. Engineering choice: retain a small
+compiler type marker and use the existing conditional/Shape IR rather than
+adding a runtime tag. The earlier deliberately stopped extra-tested write
+targets remain outside this round. No authorization, disclosure, durability
+or meter relaxation; no push or publication.
+
+Ran bun install --frozen-lockfile once (506 installs checked, no changes).
+The first full scripts/test.sh result was `== 1 failure(s) in 499 s`: the
+only failed test was snapback4::scale::language_operation_classes because
+its pinned census omitted the new constant-work spreadChoice query. This
+was ours and is fixed; no baseline or environmental full-suite failure.
+The final full result is `== 0 failure(s) in 174 s`. Both runs used eight
+Rust build workers and eight Rust test processes, with only one full lane
+suite at a time. Client tests passed 1,054 cases, skipped 10 and failed zero
+in both runs. Evidence: /tmp/lane-k-r7-full-suite.log and
+/tmp/lane-k-r7-full-suite-final.log.
+
+Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
+budget. Reference validation: 505 LLP documents, 9,238 references, zero
+errors and zero unchecked. Every changed Rust source is below 1,500 lines;
+git diff --check passes. No packages or generated publication files changed.

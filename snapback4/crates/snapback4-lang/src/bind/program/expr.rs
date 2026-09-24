@@ -114,38 +114,7 @@ impl Binder<'_> {
                 }
             }
             A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
-            A::If { then, condition, otherwise, .. } => {
-                let (cond, cond_ty) = self.expr(condition, out)?;
-                if !cond_ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), super::control::bool_condition_rewrite(&cond_ty, "x if ttl {} else y")));
-                }
-                // Each arm binds under its narrowing and runs only when taken.
-                let temp = self.temp("if");
-                let mut then_out = setup::Body::default();
-                self.push_scope();
-                self.narrow(condition, true);
-                let then_bound = self.expr(then, &mut then_out);
-                self.pop_scope();
-                let (then_expr, then_ty) = then_bound?;
-                let mut else_out = setup::Body::default();
-                self.push_scope();
-                self.narrow(condition, false);
-                let else_bound = self.expr(otherwise, &mut else_out);
-                self.pop_scope();
-                let (else_expr, else_ty) = else_bound?;
-                then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
-                else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
-                out.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
-                out.push_if(cond, then_out, else_out);
-                let ty = if then_ty == Ty::Null {
-                    else_ty.optional()
-                } else if else_ty == Ty::Null {
-                    then_ty.optional()
-                } else {
-                    then_ty.join(&else_ty)
-                };
-                Ok((ir::var(&temp), ty))
-            }
+            A::If { then, condition, otherwise, .. } => self.conditional(then, condition, otherwise, None, out),
             A::Member { base, name, .. } => {
                 // Generated maintain keys are literal path-named columns. Resolve
                 // the full chain before ordinary member/reference traversal.
@@ -274,7 +243,7 @@ impl Binder<'_> {
                     }
                 }
             }
-            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => match fields.get(name) {
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => match fields.get(name) {
                 Some(field) => field.clone(),
                 None => return Err(unknown(site, format!("this object has no field {name}"), name_rewrite(name, fields.keys().map(String::as_str), None))),
             },

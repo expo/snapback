@@ -77,3 +77,29 @@ query composedRight(first: notes, tag: tags, third: notes):
   r = notes[third] ! else NOT_FOUND
   s = { ...q, ...r }
   return { ...p, ...s }
+query shapedArms(key: notes, flag: bool):
+  p = notes[key] ! else NOT_FOUND
+  return ({ ...p } { title: 'override', * }) if flag else (p { * } { title: 'override', * })
+query shapedConditional(key: notes, flag: bool):
+  p = notes[key] ! else NOT_FOUND
+  return ({ ...p } if flag else p { * }) { title: 'override', * }
+query shapedReassignment(key: notes, flag: bool):
+  p = notes[key] ! else NOT_FOUND
+  s = p { * } { title: 'override', * }
+  if flag:
+    s = { ...p } { title: 'override', * }
+  return s
+query joinedField(key: notes, flag: bool):
+  p = notes[key] ! else NOT_FOUND
+  s = { ...p } if flag else p { * }
+  return s.title
+query reassignedField(key: notes, flag: bool):
+  p = notes[key] ! else NOT_FOUND
+  s = p { * }
+  if flag:
+    s = { ...p }
+  return s.title
+query spreadJoined(key: notes, flag: bool):
+  p = notes[key] ! else NOT_FOUND
+  s = { ...p } if flag else p { * }
+  return { ...s } { title: 'override', * }
