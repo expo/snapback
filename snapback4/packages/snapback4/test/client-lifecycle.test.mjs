@@ -1305,7 +1305,7 @@ for (const tier of ["wasm", "native"]) {
     release.resolve();
     await closing;
     assert.equal(storeClosed, true);
-    assert.equal((await write).state, "pending", "the admitted id remains durable when close ends the wait");
+    assert.equal((await write).state, "sent", "close waits for the applying acknowledgement and preserves its outcome");
     const syncEntered = deferred();
     let holdSync = false, aborted = false;
     const reopened = await f.open(tier, { fetch: async (input, init) => {

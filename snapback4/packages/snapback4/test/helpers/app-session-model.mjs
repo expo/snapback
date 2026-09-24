@@ -5,6 +5,7 @@ import { setImmediate as tick } from "node:timers/promises";
 import { promiseHooks } from "node:v8";
 import { createApp } from "../../dist/app.js";
 import { sessionKey } from "../../dist/auth.js";
+import { modelBackend, modelDevice, modelPage, modelClock, modelReady } from "./app-model-device.mjs";
 
 export const operations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent", "sibling", "retireOffline", "retireOnline"];
 export function generate(seed, length = 24) {
@@ -16,8 +17,14 @@ export function generate(seed, length = 24) {
     holdDispatch: choose(7) === 0,
   }))];
 }
-export async function execute(commands, coverage = {}) {
-  const url = "https://session-model.invalid", key = sessionKey(url), values = new Map();
+let sequenceSerial = 0;
+export async function execute(commands, coverage = {}, tier = "online") {
+  if (tier === "local") await modelReady();
+  const devices = tier === "local" ? Array.from({ length: 3 }, modelDevice) : [];
+  const clock = tier === "local" ? modelClock() : undefined;
+  // Separate simulated backends must not share the package's per-URL lock
+  // with background retirement from an earlier, already-checked sequence.
+  const url = `https://session-model-${++sequenceSerial}.invalid`, key = sessionKey(url), values = new Map();
   const acknowledgedGlobal = new Set();
   const external = new Set(), globalReceipts = [];
   const attempts = [], globalOperations = [], tokenEpochs = new Map(), runtimeEpochs = new Map(), publishedClients = new Map(), retirementOffline = new Set();
@@ -112,10 +119,22 @@ export async function execute(commands, coverage = {}) {
     const session = { principal, token: `token-${++serial}`, kind: "user", expiresAt: Date.now() + 7 * 86400000 };
     live.set(session.token, principal); minted.set(session.token, session); return session;
   }
-  const denied = token => { for (let value = token; value; value = parents.get(value)) refused.add(value); return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "refused" } }, { status: 401 }); };
+  const refusal = token => {
+    for (let value = token; value; value = parents.get(value)) refused.add(value);
+  };
   const fetcher = (id, slot) => async (input, init) => {
     const path = new URL(input).pathname, token = new Headers(init?.headers).get("authorization")?.slice(7);
     count(`wire.${path}`);
+    const denied = token => {
+      // A local read issued during its own rotation can see the consumed
+      // predecessor refused. The client defers that read until rotation and
+      // retries it; this is not yet a delivered session refusal. A refusal of
+      // the successor (including after a failed save) still excludes its chain.
+      const adopting = tier === "local" && holds.some(h => h.id === slot && h.path === "/auth/refresh" && parents.get(h.token) === token);
+      if (adopting && path !== "/auth/refresh") count("wire.obsoleteAuth");
+      else refusal(token);
+      return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "refused" } }, { status: 401 });
+    };
     const requestEpoch = epoch();
     if (active?.holdDispatch && active.app === slot && ["/auth/signup", "/auth/login", "/auth/guest"].includes(path)) {
       count(`held.dispatch${path}`);
@@ -185,14 +204,18 @@ export async function execute(commands, coverage = {}) {
         const stop = () => resolve(Response.json({ seq: 0, tables: [] }));
         if (init?.signal?.aborted) stop(); else init?.signal?.addEventListener("abort", stop, { once: true });
       });
-    } else if (path === "/probe") return live.has(token) ? Response.json({ ok: true }) : denied(token);
+    } else if (path === "/schema") return live.has(token) ? Response.json(modelBackend) : denied(token);
+    else if (path === "/sync") return live.has(token) ? Response.json(modelPage(writeReceipts.size, JSON.parse(init.body))) : denied(token);
+    else if (path === "/probe") return live.has(token) ? Response.json({ ok: true, seq: writeReceipts.size, store_id: "session-model-store" }) : denied(token);
     else if (path.startsWith("/m/")) {
       if (!live.has(token)) return denied(token);
       invariant("I8", !JSON.parse(init.body).args?.hiddenHandle, "hidden handle dispatched a write");
       count("wire.handleWrite");
       const id = JSON.parse(init.body).id;
-      const receipt = writeReceipts.get(id) ?? { state: "sent", id, seq: writeReceipts.size + 1 };
-      writeReceipts.set(id, receipt); count("write.committed");
+      const receipt = writeReceipts.get(id) ?? (JSON.parse(init.body).args?.refuse
+        ? { state: "failed", id, why: { code: "E_MODEL_REFUSED", family: "input", message: "authoritative mutation refusal", site: "write", rewrite: "submit an allowed write", retryable: false } }
+        : { state: "sent", id, seq: writeReceipts.size + 1 });
+      writeReceipts.set(id, receipt); count(`write.${receipt.state}`);
       if (active?.hold && active.app === slot) {
         count(`held.${path}`); await new Promise(resolve => holds.push({ id: slot, token, resolve }));
       }
@@ -240,7 +263,25 @@ export async function execute(commands, coverage = {}) {
     }, error => { task.result = { ok: false, error: String(error) }; }).finally(() => { task.pending = false; if (before.globalOperation) before.globalOperation.pending = false; });
     return task;
   };
-  async function settle() { for (let n = 0; n < 4; n++) await tick(); }
+  async function settle() {
+    for (let round = 0; round < (clock ? 4 : 1); round++) {
+      for (let n = 0; n < 4; n++) await tick();
+      if (!clock || holds.length) break;
+      clock.tick(); for (let n = 0; n < 4; n++) await tick();
+      // Local refusal cleanup can start a close after the first timer tick.
+      // Let that bounded private cleanup finish before declaring quiescence.
+      if (!apps.some(app => app.auth.state === "restoring") && !tasks.some(task => task.pending)) break;
+    }
+  }
+  async function finish(promise) {
+    if (!clock) return promise;
+    let done = false;
+    const completion = Promise.resolve(promise).finally(() => { done = true; });
+    void completion.catch(() => {});
+    for (let n = 0; n < 100 && !done; n++) await settle();
+    assert.ok(done, "model fair recovery did not finish within 100 clock steps");
+    return completion;
+  }
   function checkPublished(app, id, publication = false) {
     const { state, viewer } = app.auth, client = app.client;
     if (state === "signed-out") invariant("I6", viewer === null && client.viewer() === null && client.session() === null, `signed-out runtime ${id} exposes a live client`);
@@ -285,7 +326,8 @@ export async function execute(commands, coverage = {}) {
     const id = ++runtimeSerial; identities[slot] = id;
     refusedAtOpen.set(id, new Set(refused));
     if (disconnected) offline.add(id);
-    const app = createApp({ url, sessionStore: store(id), fetch: fetcher(id, slot) });
+    count(`open.${tier}`);
+    const app = createApp({ url, sessionStore: store(id), fetch: fetcher(id, slot), ...(devices[slot] ? { device: devices[slot] } : {}) });
     const watched = new WeakSet();
     app.auth.onChange(() => {
       checkPublished(app, id, true);
@@ -375,10 +417,11 @@ export async function execute(commands, coverage = {}) {
           });
           if (op === "handleMutate") {
             const id = String(++writeSerial).padStart(26, "0");
-            promise = completed(h, h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden }, { id }), (result, ended) => {
+            promise = completed(h, h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden, refuse: command.refuse ?? command.account === 1 }, { id }), (result, ended) => {
               invariant("I8", !hidden || !writeReceipts.has(id), "already-hidden handle dispatched a write");
               if (writeReceipts.has(id)) {
-                count("write.outcome"); if (ended) count("write.outcomeAfterFence");
+                count("write.outcome"); count(`write.outcome.${writeReceipts.get(id).state}`);
+                if (ended) { count("write.outcomeAfterFence"); count(`write.outcomeAfterFence.${writeReceipts.get(id).state}`); }
                 invariant("I12", JSON.stringify(result) === JSON.stringify(writeReceipts.get(id)), `dispatched ${id} outcome replaced by ${JSON.stringify(result)}`);
               }
             });
@@ -426,11 +469,11 @@ export async function execute(commands, coverage = {}) {
     }
     fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear(); retirementOffline.clear();
     while (holds.length) holds.shift().resolve();
-    await settle(); await Promise.all(tasks.map(t => t.promise));
+    await settle(); await finish(Promise.all(tasks.map(t => t.promise)));
     // Fair recovery: storage/network work again and all responses arrive. Each
     // runtime gets a successful logout retry, then restart drains durable work.
-    for (const app of apps) { await app.auth.logout(); await settle(); }
-    for (const app of apps) await app.close();
+    for (const app of apps) { await finish(app.auth.logout()); await settle(); }
+    for (const app of apps) await finish(app.close());
     await open(0); await apps[0].auth.logout(); await settle(); check();
     invariant("I3", [...live.keys()].every(token => external.has(token)), `unowned live after recovery: ${[...live.keys()].filter(token => !external.has(token))}`);
     const journal = values.get(key + ".revocations");
@@ -445,19 +488,19 @@ export async function execute(commands, coverage = {}) {
     await settle();
     for (const entry of observations) entry.observed.close();
     for (const handle of handles) for (const stop of handle.stops) stop();
-    for (const app of apps) await app?.close();
-    stopSettlements();
+    try { for (const app of apps) await finish(app?.close()); }
+    finally { stopSettlements(); clock?.close(); }
   }
 }
 
 // Deletion-minimal counterexample, replayed with the same deterministic wire
 // and fault indices. Keep the invariant identity while removing commands.
-export async function minimize(commands, failure) {
+export async function minimize(commands, failure, tier = "online") {
   const identity = failure.message.match(/(?:I(?:1[012]|[1-9])|retirement):/)?.[0] ?? failure.message;
   let minimal = commands;
   for (let i = 0; i < minimal.length;) {
     const candidate = minimal.filter((_, index) => index !== i);
-    try { await execute(candidate); i++; }
+    try { await execute(candidate, {}, tier); i++; }
     catch (error) { if (error.message.includes(identity)) { minimal = candidate; i = 0; } else i++; }
   }
   return minimal;

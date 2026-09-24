@@ -176,6 +176,17 @@ session lock:
   original intent for replay with the same id, while returning the confirmed
   outcome. If cancellation prevents receiving a write's outcome, its id remains
   pending for recovery; cancellation is not evidence that the server refused it.
+  Local close waits for dispatched mutation settlement and action transport
+  completion before closing the device. A delivered `sent` or nonretryable
+  `failed` mutation keeps its id and receipt; a delivered action keeps its
+  `done` or `failed` outcome. Reads retain their disclosure guards.
+
+The state-machine suite runs 5,000 seeded sequences on each of the online and
+local tiers. The local tier uses the production Rust/Wasm device, outbox and
+receipt storage; the server and session-store faults are modeled. It generates
+both accepted mutations and authoritative nonretryable refusals, including
+responses held across close or logout. Separate Wasm and native tests exercise
+the real server and local device with held mutation, action and read responses.
 
 A single atomic `sessionStore.set` commits the session and its epoch together.
 Client opening is provisional: failed device initialization or persistence

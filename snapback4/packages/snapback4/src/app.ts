@@ -373,7 +373,10 @@ export function createApp(options: AppOptions): App {
       const stopSession = raw.onSession(next => {
         if (next) {
           lastSession = next;
-          void keepSession(url, next, scopedStore).catch(error => { if (scope.valid) report(error); });
+          // The local client already saves through scopedStore before this
+          // notification. A second save could commit a rotation after its
+          // own save failed, while refreshSession still reports that failure.
+          if (!options.device) void keepSession(url, next, scopedStore).catch(error => { if (scope.valid) report(error); });
         } else if (scope.valid) {
           const rejected = lastSession.token;
           const rejectionRevision = revision;

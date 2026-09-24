@@ -337,6 +337,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const watches = new Map<string, Watch>();
   const serverAnswers = new Map<string, { read: Extract<Read<unknown>, { data: unknown }>; at: number; tables: Set<string> }>();
   const settled = new Map<string, (write: Write) => void>();
+  // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
+  const settling = new Set<string>();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
   let caughtUp = false;
   let identityChecked = false;
@@ -605,13 +607,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   };
 
-  async function post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
+  function post(path: string, body: unknown) {
+    const work = sendPost(path, body);
+    active.add(work);
+    void work.finally(() => active.delete(work)).catch(() => {});
+    return work;
+  }
+  async function sendPost(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
     if (closed || sessionDead) return { ok: false };
     try {
       const request = requestCredentials();
       const response = await doFetch(`${base}${path}`, { method: "POST", headers: request.headers, body: JSON.stringify(body), signal: aborter.signal });
       const json = (await response.json()) as Record<string, unknown>;
-      if (closed) return { ok: false };
+      // I12: delivered mutation/action outcomes still belong to their callers
+      // after close. Reads continue to require the live view at delivery.
+      if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       const denied = (json.denied ?? json.why) as Refusal | undefined;
       const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
@@ -1168,6 +1178,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (closed || sessionDead) return { ok: false as const };
           if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
           ordinarySending = entry.id;
+          settling.add(entry.id);
           try {
             const started = await call({ op: "begin_send" });
             if (started.denied) return { ok: false as const };
@@ -1185,7 +1196,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             return response;
           } finally { ordinarySending = undefined; }
         });
-        if (closed) return;
         if (!result.ok) { retryFlush(); return; }
         if ("retired" in result) continue;
         const json = result.json;
@@ -1199,11 +1209,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
             : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
-        if (outcome.state === "sent") { if (acquire) await syncOnce(); }
-        else rerunTables(predictedTables(entry.predicted));
+        if (!closed) {
+          if (outcome.state === "sent") { if (acquire) await syncOnce(); }
+          else rerunTables(predictedTables(entry.predicted));
+        }
         settle?.(outcome);
         emitWrite(outcome);
       } catch { retryFlush(); return; }
+      finally { settling.delete(entry.id); }
     }
   }
 
@@ -1426,9 +1439,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       sessionListeners.clear();
       viewerListeners.clear();
       writeListeners.clear();
-      for (const [id, resolve] of settled) resolve({ state: "pending", id });
+      // Dispatched writes own their waiters through response persistence and
+      // settlement. The device remains open until that work finishes.
+      for (const [id, resolve] of settled) if (!settling.has(id)) resolve({ state: "pending", id });
       closing = (async () => {
         await Promise.allSettled([following, syncing, flushing, refreshing, ...active]);
+        for (const [id, resolve] of settled) resolve({ state: "pending", id });
         await media?.close();
         await core.close();
         settled.clear();

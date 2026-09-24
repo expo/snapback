@@ -49790,3 +49790,50 @@ exception. Full log: `~/sb4-intent/lane-e-r15-test.log`; detailed file-by-file
 report: `reports/20260924-lane-e-round15.md`. No new API, Quarry form, refusal
 code, authorization rule, asset retention policy or engine meter. No push or
 publication; no known round-15 issue remains.
+
+
+### 2026-09-24 — Lane E round 16: delivered local outcomes and a two-tier model
+
+Local close now preserves delivered sent/failed mutations and done/failed
+actions. A dispatched mutation keeps its waiter through receipt persistence;
+close waits for that settlement and action transport before closing the device.
+Uncertain replies remain pending, new admission is fenced, and late read data
+keeps its disclosure guard. The existing Wasm/native applying-acknowledgement
+tests now expect sent instead of pending. Ten new Wasm/native app tests cover
+both terminal states, query fencing, closed admission and durable receipt reopen.
+
+The model runs I1–I12 on both online clients and actual Rust/Wasm local clients:
+5,000 seeds per tier, 10,000 sequences / 260,000 commands, 38 fixed cases, and
+120 fault-sweep sequences. It now generates authoritative nonretryable mutation
+refusals and checks their original ids and refusals after fencing. Final full-run
+returned outcomes: online 291 sent / 265 failed (50 / 45 after fencing); local
+267 sent / 225 failed (50 / 43 after fencing). The local tier made 18,272 schema
+and 39,964 sync calls. Seven negative controls all failed as intended, including
+ignoring terminal refusals in either transport and every local close repair.
+
+The wider local model found one additional product defect: after one rotation
+save failed, the app's session listener saved the same successor again while the
+refresh still reported failure. Local notifications now leave persistence with
+the local client; online notifications still save. A fixed model case and a
+real-server test cover failed-save custody and persistence on ordinary close.
+The model also needed separate backend locks across sequences, virtual time for
+local cleanup, and awaited cold Wasm compilation. Its refusal oracle now
+recognizes the local client's deferred obsolete-predecessor reply during an
+owned rotation; a real-server test proves the query waits and retries. A blanket
+transport refusal cleanup failed the existing close/rotation test and was removed.
+No authorization or read-disclosure guard was relaxed.
+
+Full scripts/test.sh: **`== 0 failure(s) in 180 s`**, exit 0. All Rust checks,
+nine fixture tests and 1,221 client passes (10 skips); no baseline/environmental
+exception. Full model times: 64.119 s online, 99.139 s local. The affected run
+passed 156 tests in 20.262 s. Ref-check: 504 LLPs, 9,238 references, zero
+errors/unchecked. README remains 296/300 lines; local.ts is 1,495 lines.
+Full log: `~/sb4-intent/lane-e-r16-test.log`. File map, invariant coverage,
+development failures, negative controls and limitations:
+[round 16 report](./reports/20260924-lane-e-round16.md).
+
+No new API, Quarry form, diagnostic code, rule, meter, starter, shell policy or
+package version. The random local server has empty replicated tables; explicit
+real-server/device tests cover private rows and native settlement, and action
+replies are wire fixtures. Existing total-storage-failure/process-loss limits
+remain. No push or publication.
