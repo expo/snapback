@@ -57,7 +57,7 @@ scalar or shape has no valid partial answer. Its cut site remains internal;
 the meter is available only through dev's default read inspection (CLIENT-AND-OPERATIONS.md §4).
 An unfinished maintained lookup or live aggregate uses the same unavailable
 query result, preserving zero only for a completed missing-group lookup.
-A mutation rolls back with `E_BOUND` as above.
+A mutation rolls back; Operations below describes the refusal.
 A page whose read rule the prefix does not decide (the deciding fields include a
 column the scan does not pin) is never `complete`: the server cannot tell
 "no more" from "more you may not see". Pin the deciding columns in the predicate, or read the page on the device (`guide sync`), where the

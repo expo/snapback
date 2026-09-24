@@ -108,7 +108,10 @@ Heap exhaustion clears the whole page even during the drain; step exhaustion abo
 A terminal full page need not carry `next`.
 Following that cursor does not clear the earlier page's incompleteness in `usePage`. Reads inside
 `where` use their own rules and search terms. Even an empty matching result
-past a device horizon is incomplete; a held group can fall back to the server."##, include_str!("search_all.md"), r##"## Membership search with an admin gate
+past a device horizon is incomplete; a held group can fall back to the server.
+
+"##, include_str!("search_all.md"), r##"
+## Membership search with an admin gate
 
 ```quarry
 table conversations:

@@ -39,6 +39,11 @@ For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
 
+E_RULE means a write rule denied the viewer, or a unique key collided with a
+hidden row. Reads hide rows instead of raising this refusal. Keep the rule and
+make the write satisfy it; use an admitted `upsert` to patch another
+principal's row. The table below describes refusals for hidden targets.
+
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |

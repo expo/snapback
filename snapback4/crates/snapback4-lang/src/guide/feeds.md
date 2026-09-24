@@ -143,8 +143,8 @@ refresh the ranking as time passes. The upper bound excludes future events.
 - Events appear newest first by event time, then event id.
 - Your own events appear immediately. Followers receive new events shortly
   after, normally within a second on an idle host.
-- Following someone copies their newest 50 live events immediately and
-  backfills up to 1,000. Older posts remain in `posts` and are not copied.
+- Following someone copies their newest 50 live events immediately, then the rest
+  of a 1,000-event window. Older posts remain in `posts` and are not copied.
 - Unfollow hides that actor on the next read.
 - `complete` is false while your backfill or cleanup is pending. It describes
   delivered inbox contents; pending delivery of a new event does not change it.
@@ -179,24 +179,24 @@ unchanged. Seed through application mutations or restore a complete trusted
 persistence image; importing source rows cannot reconstruct delivery history.
 In development, use a fresh store when changing the declaration.
 
-| Code | Next step |
+| Code | Meaning and next step |
 |---|---|
-| E_VIEW_FEED_SHAPE | Use the activity projections and viewer-or-followed predicate above |
-| E_TIMELINE_SHAPE | Keep three distinct public sources, full sync and owner rules |
-| E_TIMELINE_FOLLOWS | Declare the immutable unique follower/followed pair |
-| E_TIMELINE_FILTER | Make selection columns immutable; select originals with `.parentId = null and not .removed` |
-| E_TIMELINE_REMOVAL | Insert false, change only false → true and retain the original card |
-| E_TIMELINE_READ | Read `following last 20 by .at after c`, then shape the rows |
-| E_TIMELINE_OWNED | Write posts, reposts or follows; derived rows belong to the engine |
-| E_TIMELINE_SERVER | Queue the mutation without predicted rows |
-| E_TIMELINE_ACTIVATE | Declare before source events or follows exist |
-| E_TIMELINE_REDEFINE | Keep the populated declaration unchanged |
-| E_TIMELINE_IMPORT | Use application mutations or a trusted complete restore |
-| FEED_POST_NOT_FOUND | Refresh the source; a new repost needs a live original |
-| FEED_EVENT_REMOVED | Use a fresh event id; do not resurrect a removed event |
-| FEED_CANNOT_FOLLOW_SELF | Own events already appear without following yourself |
+| E_VIEW_FEED_SHAPE | The projection or viewer predicate is unsupported. Use the activity and Following views above |
+| E_TIMELINE_SHAPE | The sources do not fit Following. Keep three distinct public sources, full sync and owner rules |
+| E_TIMELINE_FOLLOWS | The edge key is invalid. Declare the immutable unique follower/followed pair |
+| E_TIMELINE_FILTER | Selection is not stable. Make selection columns immutable; use `.parentId = null and not .removed` |
+| E_TIMELINE_REMOVAL | Removal must be one-way. Insert false, change only false → true and retain the original card |
+| E_TIMELINE_READ | The read is not one viewer's newest-first page. Read `following last 20 by .at after c`, then shape the rows |
+| E_TIMELINE_OWNED | Derived rows belong to the engine. Write posts, reposts or follows |
+| E_TIMELINE_SERVER | The mutation needs server-only state. Queue it without predicted rows |
+| E_TIMELINE_ACTIVATE | Source events or follows already exist. Declare before adding them |
+| E_TIMELINE_REDEFINE | A populated declaration changed. Keep it unchanged |
+| E_TIMELINE_IMPORT | Import cannot reconstruct delivery history. Use application mutations or a trusted complete restore |
+| FEED_POST_NOT_FOUND | A new repost needs a live original. Refresh the source |
+| FEED_EVENT_REMOVED | A removed event cannot be resurrected. Use a fresh event id |
+| FEED_CANNOT_FOLLOW_SELF | Self-follow is refused. Own events already appear without it |
 | E_RULE | A non-owner `remove` is refused; remove only your own post |
-| N_SPARSE_FILTER | Use the Following view, or pin the deciding columns for another read |
+| N_SPARSE_FILTER | A residual predicate may reject many rows. Use the Following view, or pin the deciding columns for another read |
 
 N_PUBLIC_AGGREGATE_COPY names a public derived column whose ordinary write rules
 allow arbitrary values. Use `likeCount: count likes` for an engine-owned count;
@@ -276,7 +276,8 @@ query oldHome(c: cursor ?):
 
 `authors` and `size` lines are unused compatibility inputs. Remove them;
 N_TIMELINE_COMPAT reports their presence and E_TIMELINE_SIZE rejects invalid
-old sizing syntax. N_TIMELINE_PROFILE_CAP concerns an older coupled profile cap.
+old sizing syntax. N_TIMELINE_PROFILE_CAP means an older profile cap is below
+the declared author count; raise it or keep the intentional application limit.
 Do not add sizing or promotion logic to a new application.
 
 Installed recipes and bridges retain their existing behavior. E_RECIPE_RETIRED

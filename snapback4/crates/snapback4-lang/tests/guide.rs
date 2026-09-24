@@ -59,8 +59,10 @@ fn readme_reference(name: &str) -> &'static str {
 fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
     let feeds = card("feeds").unwrap();
     assert_eq!(feeds, readme_reference("feeds"));
-    for fact in ["newest first", "Your own events appear immediately", "normally within a second", "newest 50 live events immediately", "backfills up to 1,000", "Unfollow hides that actor on the next read", "your backfill or cleanup is pending", "Removal hides the event immediately", "without prediction"] {
-        assert!(feeds.contains(fact), "missing {fact}");
+    let contract = feeds.split_once("## Following contract").unwrap().1.split_once("## Boundaries").unwrap().0
+        .split_whitespace().collect::<Vec<_>>().join(" ");
+    for fact in ["newest first", "Your own events appear immediately", "normally within a second", "copies their newest 50 live events immediately, then the rest of a 1,000-event window", "Older posts remain in `posts` and are not copied.", "Unfollow hides that actor on the next read", "your backfill or cleanup is pending", "Removal hides the event immediately", "without prediction"] {
+        assert!(contract.contains(fact), "missing {fact}");
     }
     for bad in ["skips a follower", "skip saturated readers", "A skipped follower", "not skipped\nauthors"] {
         assert!(!feeds.contains(bad), "{bad}");
@@ -1185,3 +1187,6 @@ fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates(
 
 #[path = "guide/intent.rs"]
 mod intent;
+
+#[path = "guide/definitions.rs"]
+mod definitions;
