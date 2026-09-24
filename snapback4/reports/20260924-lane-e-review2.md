@@ -1,5 +1,9 @@
 # Lane E review round 2 — four Grok findings
 
+Follow-up: the [delta review](./20260924-lane-e-delta.md) completes finding 3's
+stale-restoration case and fixes the subsequent auth-state and subpage regressions.
+The verification below is this round's historical record.
+
 Date: 2026-09-24. Review base: `0445cced7`; branch `sb4-intent/e-client`.
 Implementation commit: `3bbb80328`. No push or publication.
 

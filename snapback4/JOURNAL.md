@@ -47644,3 +47644,36 @@ sign in again after upgrading and recover old records only with verified
 ownership. Local device outboxes and server data do not change. Did not change
 engine authorization, disclosure, meters, Client vocabulary or ceilings; did
 not run a native Expo simulator, push or publish.
+
+## 2026-09-24 — lane E delta review: conditional restoration and exported routes
+
+Landed the four delta findings. Restored session saves compare against their
+captured token under the shared session lock and retry opening when another app
+has replaced it; stale cleanup preserves the successor's session family.
+Auth rejection now captures the current revision so a preceding failed login
+cannot strand the app in restoring. The shell resolves exported directory
+indexes and extensionless HTML before the root entry, online and offline.
+A valid journal transplanted between backends for the same principal is now
+covered through the generated Expo SecureStore adapter.
+
+Measured: 87 affected tests passed, including nine new regression cases.
+The earlier bugs reproduced before the fixes; removing only the journal's
+backend check makes the new transplant test fail. Both Chromium witnesses
+passed, including the previously timed-out worker update and cold-offline
+account/replica reopening with both servers stopped (3,481 ms on this run,
+not a performance claim).
+
+Complete suite: **`== 2 failure(s) in 146 s`**, cargo and client aggregates.
+All four Rust failures match the untouched baseline. Across the eight client
+test processes, 1,073 passed, 10 skipped, and one acquisition assertion failed
+because a write was already sent when pending was expected. Its isolated
+rerun passed; a controlled pause before close in a temporary copy reproduced
+the same outcome. The fixture and local-client implementation are unchanged
+from the lane base, and the fixture permits mutation dispatch while blocking
+sync. Classified environmental/timing-sensitive; left outside this review.
+Exact failures, reproduction commands, proof logs and file-by-file changes
+are in [the delta report](./reports/20260924-lane-e-delta.md).
+
+Did not change the Client contract, engine authorization/disclosure, meters,
+ceilings or Quarry forms. Did not run a native Expo simulator or integrated
+Clique qualification, fix unrelated baseline/timing failures, push or publish.
