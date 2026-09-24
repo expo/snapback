@@ -81,7 +81,29 @@ export function createApp(options: AppOptions): App {
   };
   const captureEpoch = () => persist(() => storeLock(sessionKey(url), readEpoch));
   let logoutBarrier: Promise<void> = Promise.resolve();
-  const revokeRetired = (token: string) => { void logoutBarrier.then(() => revokeSession(url, token, fetcher)).catch(() => {}); };
+  const deferredRevocations = new Set<string>();
+  const mayRevoke = async (token: string, barrier?: Promise<void>): Promise<boolean> => {
+    try { await barrier; }
+    catch {
+      // A failed fence protects only the bearer still in storage. Late
+      // rotations and sign-ins that this app discards must still be revoked.
+      return persist(() => storeLock(sessionKey(url), async () => {
+        const saved = await storage.get(sessionKey(url));
+        let kept: unknown;
+        try { kept = saved ? JSON.parse(saved)?.token : undefined; } catch {}
+        if (kept === token) { deferredRevocations.add(token); return false; }
+        deferredRevocations.delete(token);
+        return true;
+      })).catch(() => { deferredRevocations.add(token); return false; });
+    }
+    deferredRevocations.delete(token);
+    return true;
+  };
+  const revokeRetired = (token: string) => {
+    void mayRevoke(token, logoutBarrier).then(allowed => {
+      if (allowed) return revokeSession(url, token, fetcher);
+    }).catch(() => {});
+  };
   // Replacement and deletion share one lock across tabs. A server refusal
   // only owns its rejected token, never a successor kept by another runtime.
   const removeSession = (expectedToken?: string, restoring = false) => persist(() => storeLock(sessionKey(url), async () => {
@@ -229,7 +251,11 @@ export function createApp(options: AppOptions): App {
       // Cancel backend acquisition before a local Client exists. Once open,
       // the client owns cancellation and late rotation revocation itself.
       const path = new URL(typeof input === "string" || input instanceof URL ? input : input.url).pathname;
-      if (path === new URL(url + "/auth/logout").pathname) await scope.logout;
+      if (path === new URL(url + "/auth/logout").pathname) {
+        const headers = new Headers(init?.headers ?? (typeof input === "string" || input instanceof URL ? undefined : input.headers));
+        const token = headers.get("authorization")?.match(/^Bearer (.+)$/i)?.[1];
+        if (token && !await mayRevoke(token, scope.logout)) throw new Error("revocation deferred until the stored bearer can be removed");
+      }
       if (path === new URL(url + "/auth/refresh").pathname) {
         const startedEpoch = await captureEpoch();
         if (!scope.valid || startedEpoch !== epoch) {
@@ -369,6 +395,7 @@ export function createApp(options: AppOptions): App {
       }
       owner = undefined;
       const ending = logoutBarrier.then<AppResult>(() => {
+        for (const token of deferredRevocations) revokeRetired(token);
         if (revision === expected) publish("signed-out", null);
         return { ok: true };
       }).catch((error): AppResult => {

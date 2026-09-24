@@ -115,7 +115,11 @@ tombstone remains through restoration and counts as successful local logout
 even if the separate marker still cannot be written. A later sign-in must save
 the marker before replacing the tombstone. If neither fence can be stored,
 logout returns a storage error and sets `auth.why`; it leaves the saved bearer
-untouched and does not revoke it. Repair storage and retry logout.
+untouched and does not revoke it. Discarded login and refresh bearers are still
+revoked when they differ from the token left in storage. This runtime retains
+revocations deferred by the failed fence and drains them after a successful
+logout retry, including late responses received after that retry. Repair storage
+and retry logout; remote revocation remains best effort when the network fails.
 Sign-in and refresh work started in an earlier epoch cannot save a late bearer;
 the app revokes that bearer and retires its client. Invalid or expired stored
 sessions are cleaned up only if their exact bytes still match the read, without

@@ -49362,3 +49362,39 @@ retention semantics, native APIs, starters or package versions; did not push or
 publish. A durable tombstone is successful logout even if its separate marker
 still fails; a subsequent sign-in waits for storage repair rather than erase
 that sole fence.
+
+## 2026-09-24 — Lane E round 8: failed fences preserve discarded-token revocation
+
+Fixed the shared review finding in both scoped logout requests and retired
+sign-in responses. When a logout fence rejects, the app compares each token
+against the bearer left in storage under the existing session lock. It still
+revokes discarded refresh successors and login sessions; it defers the exact
+stored bearer, preserving the failed-fence no-delete/no-revoke boundary. Deferred
+tokens survive repeated failures and are drained after a successful logout
+retry, even when another account replaced the saved session. Late responses
+after that retry also revoke. If storage cannot be read, the token stays deferred.
+The client reference documents that distinction and the existing best-effort
+network behavior. The pending set belongs to the runtime; a failed store cannot
+be used to persist it.
+
+Measured: seven new real-server regressions cover committed refresh/login
+responses released before and after logout retry, deferred custody across two
+failed fences and account replacement, the exact window before a tombstone's
+epoch promotion commits, and a caller changing its asset budget to -1 immediately
+after createApp. Three cases reproduced our prior-round revocation defect before
+the fix. All 48 app tests and all 167 affected tests pass. Mutation probes fail
+when the new session is stored before its epoch, the caller's mutated policy is
+forwarded, or deferred-token draining is removed. The promotion and policy
+snapshot implementations already behaved correctly and needed only test coverage.
+
+Package build/typecheck and real Chromium cross-tab session and offline
+shell/replica witnesses pass. Full scripts/test.sh, first run:
+**`== 0 failure(s) in 147 s`**, exit 0; 1,107 client passes, 10 skips, nine
+fixture passes, no introduced, baseline or environmental failure. The previously
+recorded worker shutdown race did not recur. The full file map, examples and
+proof logs are in [the round 8 report](./reports/20260924-lane-e-round8.md).
+
+No deviation or unresolved round 8 finding. No new API, Quarry form, storage
+format, authorization/disclosure rule, meter, native API, starter or version
+change. README remains 296/300 lines; modified source/test files remain below
+1,500 lines. Did not push or publish.
