@@ -135,6 +135,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_UNSUPPORTED" => "language",
         "E_QUARRY_TYPE" => "types",
         "E_QUARRY_SPREAD" | "E_QUARRY_DUPLICATE_FIELD" => "shapes",
+        "E_QUARRY_WRITE_TESTS" => "writes",
         "E_QUARRY_RULE_SPELLING" => "rules",
         "E_QUARRY_JOB_SCHEDULE" => "jobs",
         "E_QUARRY_AMBIGUOUS" | "E_CURSOR_INDEX" | "E_CONSTRAINT" => "indexes",

@@ -44,31 +44,32 @@ fn subminute_schedules_name_the_frequency_limit_and_working_rewrite() {
 }
 
 #[test]
-fn fractional_minute_boundaries_execute_once_and_survive_reopen() {
-    for (spelling, period) in [("90s", 90_000), ("120s", 120_000), ("90001ms", 90_001)] {
+fn exact_boundaries_and_daily_offset_execute_once_and_survive_reopen() {
+    for (spelling, period, offset) in [("90s", 90_000, 0), ("120s", 120_000, 0), ("90001ms", 90_001, 0), ("1d at 08:00", 86_400_000, 28_800_000)] {
         let dir = std::env::temp_dir().join(format!("sb4-lane-k-schedule-{}-{period}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("state.sqlite");
         let b = checked(spelling);
         let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
         e.seed([("ticks".into(), object([("id", Value::Id("tick".into())), ("start", Value::Int(0)), ("end", Value::Int(0))]))]).unwrap();
-        assert!(e.fire_schedules(1).unwrap().is_empty());
-        assert!(e.fire_schedules(period - 1).unwrap().is_empty());
-        assert_eq!(e.fire_schedules(period).unwrap(), vec!["s"]);
-        assert!(e.fire_schedules(period).unwrap().is_empty());
-        let job = e.run_job_chunk(period).unwrap().unwrap();
+        assert!(e.fire_schedules(offset + 1).unwrap().is_empty());
+        assert!(e.fire_schedules(offset + period - 1).unwrap().is_empty());
+        assert_eq!(e.fire_schedules(offset + period).unwrap(), vec!["s"]);
+        assert!(e.fire_schedules(offset + period).unwrap().is_empty());
+        let job = e.run_job_chunk(offset + period).unwrap().unwrap();
         assert_eq!(job.state, snapback4_core::JobState::Done);
         let row = e.store().rows("ticks").unwrap().remove(0);
-        assert_eq!(row.field("start").unwrap(), &Value::Int(0));
-        assert_eq!(row.field("end").unwrap(), &Value::Int(period));
+        assert_eq!(row.field("start").unwrap(), &Value::Int(offset));
+        assert_eq!(row.field("end").unwrap(), &Value::Int(offset + period));
         drop(e);
         let mut e = Engine::open(Store::open(&path).unwrap()).unwrap();
-        assert!(e.fire_schedules(period + 1).unwrap().is_empty());
-        assert_eq!(e.fire_schedules(2 * period).unwrap(), vec!["s"]);
-        e.run_job_chunk(2 * period).unwrap().unwrap();
+        assert!(e.fire_schedules(offset + period + 1).unwrap().is_empty());
+        assert!(e.fire_schedules(offset + 2 * period - 1).unwrap().is_empty());
+        assert_eq!(e.fire_schedules(offset + 2 * period).unwrap(), vec!["s"]);
+        e.run_job_chunk(offset + 2 * period).unwrap().unwrap();
         let row = e.store().rows("ticks").unwrap().remove(0);
-        assert_eq!(row.field("start").unwrap(), &Value::Int(period));
-        assert_eq!(row.field("end").unwrap(), &Value::Int(2 * period));
+        assert_eq!(row.field("start").unwrap(), &Value::Int(offset + period));
+        assert_eq!(row.field("end").unwrap(), &Value::Int(offset + 2 * period));
         assert_eq!(e.jobs(10).unwrap().len(), 2);
         drop(e);
         std::fs::remove_dir_all(dir).unwrap();

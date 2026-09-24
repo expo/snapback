@@ -124,6 +124,13 @@ For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
 
+E_QUARRY_WRITE_TESTS means a write target includes tests beyond its unique
+key. For a readable row, write `require exists members[org, viewer, role =
+'admin'] else NOT_ADMIN`, then `update members[org, viewer] { role: 'member' }`.
+Choose the refusal code for your application. This explicit check refuses a
+hidden or missing row and grants no write authority; the compiler does not
+insert it automatically.
+
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |

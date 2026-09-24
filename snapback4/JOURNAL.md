@@ -49556,3 +49556,77 @@ whitespace checks pass. No open round-3 implementation problem; the original
 bare-assertion spelling and round 1's residual write-target limitation remain
 as documented. No push, publication, cancellation implementation or runtime
 redesign was attempted.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 4: close the spread and diagnostic review
+
+Addressed the Astra NOT READY and Grok READY WITH CHANGES findings against
+reviewed commit 7b302883d. Row object spread now retains its source row through
+existing Expr::Shape / Ty::RowShape instead of dropping metadata through
+Object. Generated types include pending?: boolean. Spreading a shaped row
+retains that metadata too; containing records remain ordinary objects.
+Write payload expansion still selects only declared fields and does not copy
+device metadata into writes. No engine or wire representation was added.
+
+Decision where the brief was silent: with several row operands, the last row
+spread supplies the metadata base, consistent with its columns replacing
+earlier rows' columns; subsequent plain object spreads retain the base.
+The shapes card documents this. An explicit/inherited pending field in an
+object that spreads a row is refused, matching the existing row-shape rule
+that pending is device metadata. The existing natural-forms type expectation
+deliberately changed from Object to RowShape; pure object spreads stay Object.
+
+Extra-tested update/delete/upsert targets remain stopped. E_QUARRY_WRITE_TESTS
+explains that a write target names one row by its key, and suggests the
+author-written `require exists members[org, viewer, role = 'admin'] else
+NOT_ADMIN`, followed by the original write with just its key. The patch and
+write kind survive in the suggestion. It compiles, but is never inserted by
+the compiler. Hidden/missing rows are subject to the ordinary read rule in
+that explicit check, and the write still needs its own authority. Mistyped,
+ambiguous and incomplete keys retain their existing diagnostics; full unique
+keys keep their existing admission. Registered the new code and why, and
+documented the limitation in writes. No private pre-read or residual WriteTarget
+implementation was introduced. Reproduction remains the mixed_keys test
+mixed_write_targets_preserve_existing_named_target_admission.
+
+Removed both column-name branches from constraint diagnostics: every domain
+now names hidden rows and suggests `unique resource, unit else TAKEN`.
+The writes card retains its specific per-night example. Added regressions for
+a non-booking table with guest/listing columns, sum(bookings, .start) inside
+book, and a stranger inserting a free night referencing someone else's
+existing booking. The last must return E_RULE without inserting anything;
+a unique-clash-only test could not detect insert <- allow. Expanded schedule
+execution to every 1d at 08:00: no early firing, exact shifted periodStart and
+periodEnd, durable reopen, no duplicate firing and exactly two executed jobs.
+Sum's Aggregate binding, the nights insert rule and boundary arithmetic were
+already correct; this round adds the previously missing witnesses.
+
+Seven new tests plus strengthened existing cases cover the findings. The
+shared spread fixture compares spreads, ordinary shapes, shaped-row spreads
+and nested records before confirmation, after reopen, after server settlement
+and after another reopen, on memory and SQLite devices. It also checks the
+last-row metadata decision and exactly one source-row examination. Type tests
+assert the inferred RowShape and emitted optional pending field. The write
+diagnostic test checks all three write kinds, rejects an implicitly lowered
+program, compiles each explicit rewrite, and executes its missing-row refusal.
+
+Verified regression sensitivity with seven temporary fault injections:
+Object runtime lowering, Object result type, the old write diagnostic,
+column-name constraint wording, sum bound as Page, nights insert <- allow,
+and Schedule::boundary with offset zero. Every corresponding test failed as
+intended; the harness restored all sources after each injection. These were
+deliberate negative checks, not unaddressed implementation failures. Evidence:
+/tmp/lane-k-r4-mutants.log and /tmp/lane-k-r4-mutant-*.log. Restored targeted
+checks passed: 94 language tests including all 57 guide tests, plus eight
+device tests; the final key-normalization check also passed all nine cases.
+
+Ran frozen Bun install (no dependency changes) and scripts/test.sh once with
+eight Rust build/test workers and only one full lane suite running. Exact
+result: `== 0 failure(s) in 228 s`. No full-suite failures: none ours, baseline
+or environmental. Client tests: 1,054 passed, 10 skipped, zero failed. All
+historical lowering digests remain unchanged. Evidence:
+/tmp/lane-k-r4-full-suite.log. Wasm remains 1,744,842 B raw / 484,967 B gzip
+under the unchanged 486,000 B budget. Reference check: 505 LLP documents,
+9,237 references, zero errors and zero unchecked. Changed source files stay
+under 1,500 lines and whitespace checks pass. No publication or push; no
+authorization, disclosure, durability or meter relaxation. No unresolved
+round-4 issue beyond the explicitly retained residual write-target limitation.

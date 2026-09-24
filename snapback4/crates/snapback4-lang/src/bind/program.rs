@@ -18,6 +18,7 @@ mod diagnostics;
 mod constraints;
 mod expr;
 mod objects;
+mod write_keys;
 mod reads;
 mod prefix;
 mod lanes;
@@ -823,7 +824,7 @@ impl<'a> Binder<'a> {
                     return Err(unknown(site, "upsert cannot take a condition", "a condition belongs on update; an upsert inserts or patches"));
                 }
                 // @ref LLP 3000.007#8 — item 7: target resolution and conditional old images belong to the engine.
-                let key = self.write_key(info, keys, site, out)?;
+                let key = self.write_key(info, keys, site, out).map_err(|error| self.extra_write_test(info, expr, error))?;
                 let upsert = *op == WriteOp::Upsert;
                 if upsert && fields.iter().any(|f| f.name == "id") {
                     return Err(unknown(site, "upsert cannot spell id; the key names the row", "remove id from the patch; the key names the row"));
@@ -848,7 +849,7 @@ impl<'a> Binder<'a> {
                 Ok(result.map(|name| (ir::var(&name), self.write_result_type(info).optional())))
             }
             WriteOp::Delete => {
-                let key = self.write_key(info, keys, site, out)?;
+                let key = self.write_key(info, keys, site, out).map_err(|error| self.extra_write_test(info, expr, error))?;
                 let id_expr = if key.alternate {
                     let current = self.temp("current");
                     let location = self.site();

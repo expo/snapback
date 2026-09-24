@@ -14,16 +14,10 @@ impl BoundProgram {
         if rules::scan_visibility(schema, scan).uniform || capped_scope_decides(schema, scan) { return None; }
         let table = schema.table(&scan.table)?;
         let source = &self.sources.get(site)?.0;
-        let hidden = if table.columns.contains_key("guest") { format!("other guests' {}", scan.table) }
-            else { format!("hidden {} rows", scan.table) };
-        let example = if table.columns.contains_key("listing") && table.columns.contains_key("guest") {
-            format!("for this booking pattern, declare `table nights` with listing, day and booking columns and `unique listing, day else TAKEN`, then insert one row per night inside `{}`", self.program.name)
-        } else {
-            format!("declare one row per reserved unit with `unique resource, unit else TAKEN`, then insert those rows inside `{}`", self.program.name)
-        };
+        let example = format!("declare one row per reserved unit with `unique resource, unit else TAKEN`, then insert those rows inside `{}`", self.program.name);
         Some(Diagnostic::new(source, "E_STRUCTURAL_FANOUT",
-            format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss {hidden}, so it is refused",
-                self.program.name, scan.table, table.rules.read.quarry()),
+            format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss hidden {} rows, so it is refused",
+                self.program.name, scan.table, table.rules.read.quarry(), scan.table),
             format!("use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. See `snapback4 guide writes` for the per-night example"))
             .guide("writes"))
     }

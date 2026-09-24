@@ -45,10 +45,10 @@ fn hidden_booking_exists_and_count_name_the_constraint_and_both_rewrites() {
             assert_eq!(d.site.file, "schema.q");
             assert_eq!(d.site.line, if cap.is_empty() { 14 } else { 15 });
             assert!(d.site.col > 1);
-            for text in ["`book` can read only the bookings its viewer may read", ".guest = viewer or .host = viewer", "miss other guests' bookings"] {
+            for text in ["`book` can read only the bookings its viewer may read", ".guest = viewer or .host = viewer", "miss hidden bookings rows"] {
                 assert!(d.message.contains(text), "{d}");
             }
-            for text in ["constraint every write obeys", "unique listing, day else TAKEN", "one row per night inside `book`", "rolls back the whole mutation", "hidden clash stays E_RULE", "readable audience", "public availability table"] {
+            for text in ["constraint every write obeys", "unique resource, unit else TAKEN", "insert those rows inside `book`", "rolls back the whole mutation", "hidden clash stays E_RULE", "readable audience", "public availability table"] {
                 assert!(d.rewrite.contains(text), "{d}");
             }
             assert!(!d.to_string().contains("$intent:"), "{d}");
@@ -57,6 +57,34 @@ fn hidden_booking_exists_and_count_name_the_constraint_and_both_rewrites() {
             assert!(d.explanation_section().is_some());
         }
     }
+}
+
+#[test]
+fn constraint_wording_does_not_infer_booking_intent_from_column_names() {
+    for (guest, listing) in [("guest", "listing"), ("owner", "resource")] {
+        let source = format!("table reviews:\n  {guest}: principal\n  {listing}: id\n  read <- .{guest} = viewer\nmutation check():\n  return count(reviews)\n");
+        let bound = compile_source(&source);
+        let d = &bound.diagnostics[0];
+        assert_eq!(d.code, "E_STRUCTURAL_FANOUT", "{d}");
+        assert!(d.message.contains("miss hidden reviews rows"), "{d}");
+        assert!(d.rewrite.contains("unique resource, unit else TAKEN"), "{d}");
+        assert!(!d.rewrite.contains("table nights") && !d.message.contains("other guests"), "{d}");
+    }
+}
+
+#[test]
+fn sum_domain_in_book_gets_the_hidden_constraint_explanation() {
+    let source = BOOKINGS.lines().map(|line| if line.starts_with("  require ") {
+        "  require sum(bookings, .start) = 0 else TAKEN"
+    } else { line }).collect::<Vec<_>>().join("\n");
+    let bound = compile_source(&source);
+    assert_eq!(bound.diagnostics.len(), 1, "{:?}", bound.diagnostics);
+    let d = &bound.diagnostics[0];
+    assert_eq!(d.code, "E_STRUCTURAL_FANOUT", "{d}");
+    assert_eq!(d.site.line, 14);
+    assert!(d.message.contains("`book` can read only the bookings"), "{d}");
+    assert!(d.message.contains("miss hidden bookings rows"), "{d}");
+    assert!(d.rewrite.contains("unique resource, unit else TAKEN"), "{d}");
 }
 
 #[test]
@@ -136,6 +164,23 @@ fn a_hidden_night_collision_stays_e_rule_even_with_a_named_unique_code() {
     assert!(matches!(first.state, WriteState::Sent { .. }), "{:?}", first.state);
     let second = engine.mutate("book", None, booking("bob", 10, 11)).unwrap();
     assert!(matches!(&second.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{:?}", second.state);
+    assert_eq!(engine.store().count("bookings").unwrap(), 1);
+    assert_eq!(engine.store().count("nights").unwrap(), 1);
+}
+
+#[test]
+fn writes_card_refuses_a_stranger_inserting_a_night_without_creating_the_booking() {
+    let source = format!("{}\nmutation squat(listing: listings, booking: bookings, day: int):\n  insert nights {{ listing, day, booking }}\n", card_source());
+    let mut engine = engine(&source);
+    let first = engine.mutate("book", None, booking("alice", 10, 11)).unwrap();
+    assert!(matches!(first.state, WriteState::Sent { .. }), "{:?}", first.state);
+    let stranger = Context::new("bob", BTreeMap::from([
+        ("listing".into(), Value::Id("listing".into())),
+        ("booking".into(), Value::Id("alice-10-0".into())),
+        ("day".into(), Value::Int(9)),
+    ])).with_ids(["stranger-night".into()]);
+    let result = engine.mutate("squat", None, stranger).unwrap();
+    assert!(matches!(&result.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{:?}", result.state);
     assert_eq!(engine.store().count("bookings").unwrap(), 1);
     assert_eq!(engine.store().count("nights").unwrap(), 1);
 }

@@ -189,7 +189,7 @@ fn mixed_write_targets_preserve_existing_named_target_admission() {
         let b = compile_source(&named(&source));
         let errors = |b: Bound| b.diagnostics.into_iter().map(|d| (d.code, d.message, d.rewrite)).collect::<Vec<_>>();
         let errors_a = errors(a);
-        assert!(errors_a.iter().any(|d| d.1.contains("no unique index over 3 columns")));
+        assert!(errors_a.iter().any(|d| d.0 == "E_QUARRY_WRITE_TESTS"));
         assert_eq!(errors_a, errors(b));
         let supported = source.replace("  unique org, principal\n", "  unique org, principal\n  unique byOrgPrincipalRole: org, principal, role\n");
         let a = checked(&supported);
@@ -202,5 +202,29 @@ fn mixed_write_targets_preserve_existing_named_target_admission() {
             assert!(matches!(result.state, WriteState::Sent { .. }), "{op}: {:?}", result.state);
         }
         assert_eq!(engines[0].store().rows("members").unwrap(), engines[1].store().rows("members").unwrap());
+    }
+}
+
+#[test]
+fn extra_tested_write_targets_refuse_with_an_explicit_readable_check_rewrite() {
+    for op in ["update", "delete", "upsert"] {
+        let fields = if op == "delete" { "" } else { " { role: 'member' }" };
+        let declaration = "mutation change(org: id):\n";
+        let source = format!("{SOURCE}\n{declaration}  {op} members[org, viewer, role = 'admin']{fields}\n");
+        let bound = compile_source(&source);
+        assert!(!bound.programs.iter().any(|p| p.program.name == "change"), "no implicit pre-read program");
+        let d = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_WRITE_TESTS").unwrap();
+        assert_eq!(d.site.line as usize, source.lines().count());
+        assert!(d.message.contains("a write target names one row by its key"), "{d}");
+        assert_eq!(d.rewrite, format!("require exists members[org, viewer, role = 'admin'] else NOT_ADMIN\n{op} members[org, viewer]{fields}"));
+        assert!(!d.mechanical);
+        assert!(d.explanation_section().is_some());
+        let fixed = format!("{SOURCE}\n{declaration}  {}\n", d.rewrite.replace('\n', "\n  "));
+        checked(&fixed);
+        let mut e = engine(&fixed);
+        // The authored require refuses a missing row before the write; an
+        // upsert cannot silently take its insert arm through this rewrite.
+        let rejected = e.mutate("change", None, context("alice", "org", id("missing"))).unwrap();
+        assert!(matches!(rejected.state, WriteState::Failed { why, .. } if why.code == "NOT_ADMIN"));
     }
 }

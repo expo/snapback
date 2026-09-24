@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_QUARRY_WRITE_TESTS", "a write target names one row by its key; it cannot carry extra column tests. Make a readable-row check explicit: require exists members[org, viewer, role = 'admin'] else NOT_ADMIN, then update members[org, viewer] { role: 'member' }. The check applies ordinary read rules and refuses a hidden or missing row; it grants no write authority. Choose the refusal code for your application. Guide writes."),
     ("E_QUARRY_DUPLICATE_FIELD", "a field name is written explicitly twice. Rename or remove the second explicit field at the reported site; an explicit field may replace a field inherited from * or a spread. Guide shapes."),
     ("E_QUARRY_KEY_ORDER", "positional components identify a full declared unique key and come before named extra-column tests. Write members[org, viewer, role = 'admin']; guide reads."),
     ("E_QUARRY_SPREAD", "object spread needs a non-null row or object with statically known fields. Establish the row first: p = profiles[handle = h] ! else NOT_FOUND, then return { ...p, extra: true }. An explicit field may replace a spread field; guide shapes."),
