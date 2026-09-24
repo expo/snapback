@@ -122,10 +122,21 @@ session lock:
   is journaled before commit; revocations drain only after that commit. An
   acknowledgement retires the journal entry, including after restart.
 - **I4 — principal isolation.** Once a runtime observes a changed epoch, it
-  stops its old client's reads and writes. It never adopts a different account
+  fences every older scope, including a provisional opening's rollback
+  candidate, before notifying observers. It never adopts a different account
   without opening that account's client and outbox.
 - **I5 — committed epochs.** An epoch advances with a committed replacement
   or logout, never with a failed operation.
+- **I6 — coherent public identity.** Published auth state, viewer and client
+  agree, including inside client notifications. Signed out exposes no live
+  client; signed in exposes an open client for that viewer. Closing the current
+  `app.client` also closes the app's public view and preserves the kept session.
+- **I7 — refused session exclusion.** A server refusal conditionally replaces
+  the still-stored bearer with a logout tombstone. Later opens, online or
+  offline, stay signed out without opening that replica. An existing client
+  loses access as soon as it learns the refusal. Cleanup cannot delete a
+  different stored successor. A transient failed refusal commit is retried
+  once under the session lock; any remaining storage error is reported.
 
 A single atomic `sessionStore.set` commits the session and its epoch together.
 Client opening is provisional: failed device initialization or persistence
@@ -134,11 +145,22 @@ retain their epoch; replacement of a live bearer increments it. Logout writes
 an epoch-bearing tombstone, including when quota prevents creating another key.
 The old separate epoch key remains readable for existing stores.
 
+`logoutEverywhere()` blocks new rotations and awaits an already-running rotation
+before selecting its bearer. Its logout tombstone keeps that bearer as a private
+global-revocation credential across restart until `/auth/logout-all` succeeds.
+The signed-out client cannot use it for reads, writes or ordinary logout.
+If the tombstone write fails, the runtime keeps private retry custody and reports
+the failure. A successful retry or reopening drains the durable obligation.
+
 Retirement records are backend-bound revocation credentials, never sessions to
-restore. Replay checks the current session under the same lock and removes an
-entry only after a logout acknowledgement or HTTP 401 E_AUTH. Transport failures
-and other refusals leave it available for retry on restoration, sign-in or
-logout. A failed comparison read keeps
+restore. Replay checks the current session under the same lock. Ordinary
+retirement removes an entry after a logout acknowledgement or HTTP 401 E_AUTH;
+global retirement requires a successful logout-all acknowledgement because
+E_AUTH does not prove that the other sessions were revoked. A received global
+acknowledgement remains owned by its runtime until local cleanup succeeds;
+cleanup retries a transient failure, and close retries any retained cleanup.
+Transport failures and other refusals leave retirement available for retry on
+restoration, sign-in or logout. A failed comparison read keeps
 custody and cannot authorize revocation. Damaged records are preserved and
 reported through auth.why. Invalid-session garbage collection compares the exact
 bytes it read and never remotely revokes a token.
@@ -151,6 +173,15 @@ and the process is forcibly killed, a newly minted, never-persisted successor
 cannot be recovered by this client protocol. Lost server responses have the same
 limit. Durable recovery of that case requires a server protocol that can recover
 an issuance by request ID; createApp cannot manufacture that guarantee.
+I7 likewise requires a durable refusal fence before the last informed runtime
+is lost: if every tombstone write fails, then the process dies, a new offline
+runtime cannot distinguish the old bytes from a valid offline session. The
+informed runtime denies access and reports the storage failure; it cannot promise
+offline exclusion after that loss. A lost global-revocation acknowledgement
+followed by process loss can also leave an obligation whose consumed bearer
+cannot prove the result on retry. That obligation is retained and the refusal
+reported, rather than treating E_AUTH as a successful global logout. Stronger
+crash guarantees require server-side issuance and revocation receipts.
 
 Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments

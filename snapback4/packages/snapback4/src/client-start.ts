@@ -20,3 +20,11 @@ export async function prepareClient<T>(options: object, create: () => T | Promis
     return { client, start: async () => { await plan.start?.(); } };
   } finally { plans.delete(options); }
 }
+
+// Private lifecycle barrier: app logout-all must select the successor after
+// an already-running rotation, without starting a fresh rotation itself.
+const rotations = new WeakMap<object, () => Promise<unknown> | null>();
+export const trackRotation = (client: object, pending: () => Promise<unknown> | null): void => { rotations.set(client, pending); };
+export async function waitForRotation(client: object): Promise<void> {
+  try { await rotations.get(client)?.(); } catch { /* The client retains the outcome and any successor. */ }
+}

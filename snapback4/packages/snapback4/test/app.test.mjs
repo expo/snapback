@@ -1,51 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { spawn } from "node:child_process";
+import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { createApp } from "../dist/app.js";
 import { memorySessionStore, restoreSession, keepSession, sessionKey, logout as revokeSession } from "../dist/auth.js";
 import { processDevice } from "../dist/native.js";
 
-const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
+import { binary, until, server } from "./helpers/app-server.mjs";
 const add = { kind: "mutation", name: "add" }, list = { kind: "query", name: "list" };
-const until = async (read, label = "condition") => {
-  for (let n = 0; n < 500; n++) {
-    try { const value = await read(); if (value) return value; }
-    catch (error) {
-      // Cancellation can leave an aborted pooled socket for the next probe.
-      // Retry only this transport failure; assertions and refusals still fail.
-      if (error.cause?.code !== "UND_ERR_SOCKET") throw error;
-    }
-    await delay(10);
-  }
-  assert.fail(`timed out: ${label}`);
-};
-async function server(t) {
-  const dir = mkdtempSync(join(tmpdir(), "sb4-app-"));
-  mkdirSync(join(dir, "snapback"));
-  writeFileSync(join(dir, "snapback/schema.q"), `use identity
- tablePlaceholder` .replace(' tablePlaceholder', `table notes:
-  owner: principal
-  body: text <=200
-  by byOwner: owner, id
-  read <- .owner = viewer
-  insert <- .owner = viewer
-  sync to .owner
-mutation add(body: text <=200):
-  insert notes { owner: viewer, body }
-query list():
-  return notes[viewer] first 100 by byOwner
-`));
-  let output = "";
-  const host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
-  host.stdout.on("data", bytes => { output += bytes; }); host.stderr.on("data", bytes => { output += bytes; });
-  t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null) { host.kill("SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });
-  const url = await until(() => { assert.equal(host.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "server");
-  return { url, dir };
-}
 for (const tier of ["online", "local"]) test(`app ${tier}: signup, restart, rotation, account-bound pending writes and logout`, { timeout: 60_000 }, async t => {
   const { url, dir } = await server(t);
   const sessionStore = memorySessionStore();
@@ -403,13 +365,12 @@ for (const tier of ["online", "local"]) test(`${tier} auth rejection after a fai
   const original = app.client;
   assert.equal((await app.auth.login("reject@example.com", "wrong-password")).ok, false);
   assert.equal(app.client, original); assert.equal(app.auth.state, "signed-in");
-  const beforeRefusal = await store.get(sessionKey(url));
   await revokeSession(url, original.session().token);
   const refusal = await original.refreshSession();
   assert.equal(refusal.ok, false); assert.equal(refusal.why.code, "E_AUTH");
   await until(() => app.auth.state === "signed-out", "rejected original session publishes signed-out");
   assert.equal(app.auth.viewer, null); assert.equal(app.client.session(), null);
-  assert.equal(await store.get(sessionKey(url)), beforeRefusal, "a refused refresh is not a committed logout");
+  assert.equal(await restoreSession(url, store), null, "a refused stored bearer commits a logout tombstone");
   assert.equal((await app.auth.logout()).ok, true);
   assert.equal(await restoreSession(url, store), null);
 });

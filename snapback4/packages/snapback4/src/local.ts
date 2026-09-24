@@ -1,4 +1,4 @@
-import { deferStart, startDeferred } from "./client-start.ts";
+import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // The local-first tier (LLP 3000 §7, one implementation): the device is
 // the Rust module — the partition in its own store, the stream applied,
 // the outbox kept, queries and predictions answered — and this client is
@@ -1464,6 +1464,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void flush();
     scheduleRefresh();
   };
+  trackRotation(client, () => refreshing);
   if (!deferStart(options, start)) await start();
   return client;
   } catch (error) {

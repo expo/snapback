@@ -49517,3 +49517,63 @@ an owner survives, with lifecycle retries. Atomicity assumes each rejected set
 leaves its key unchanged and cooperating runtimes share the lock. No engine
 rules, meters, Quarry forms, asset policy, native ABI or package versions
 changed. Did not push or publish.
+
+### 2026-09-24 — LLP 3000.013 lane E round 11: refusal fencing and I1–I7
+
+Fixed all three round-10 review findings. A known server refusal conditionally
+commits a tombstone for its still-stored bearer, preserving a different stored
+successor; later offline restoration opens no replica. Epoch observation fences
+all older scopes, including rollback candidates, before notification. Global
+logout waits for the current rotation and privately retains the latest retry
+credential in a backend-bound tombstone/journal until logout-all is acknowledged.
+Ordinary retirement cannot consume it. Failed acknowledgement cleanup retries
+locally, including on close. Client notifications and public client close now
+keep auth state, viewer and client coherent. Updated the client reference and
+LLP section 6 with I1–I7 and their assumptions. No public export was added.
+
+The black-box three-runtime model now runs 5,000 seeds (130,000 commands), adding
+logoutEverywhere, external server revocation followed by query/refresh, held
+storage sets, offline reopen and public client close. It holds server-committed
+responses and injects indexed get/set/delete failures, checks I1–I7 at store,
+wire, auth/client callback and quiescent boundaries, and minimizes failures.
+The standalone and full-suite runs produced identical coverage: 3,487 get,
+356 set and 94 delete faults; 4,630 held writes with 24,723 peer commands while
+storage was held; 4,773 external revocations and 9,007 offline fetches. Thirteen
+reduced fixed cases and the 120-point failure sweep also pass. Fourteen focused
+cases cover real online/local refusal, rollback, global logout/restart,
+unpersisted successors, notification/close coherence and backend-bound custody.
+
+Beyond the incoming findings, the model found refusal-fence transient failure,
+refusal cleanup blocked by held sign-in, queued global revision supersession,
+closed auth revision changes, ownerless global retry stuck restoring, late
+refusal publishing restoring after close, failed acknowledgement deletion
+retrying a consumed token, epoch retirement callbacks preceding view hiding,
+and acknowledgement loss on close after failed cleanup read. Each is fixed
+and retained as a reduced case. I6 probes additionally found early credential-loss
+notifications and public-client close leaving signed-in auth. A model-inspired
+real-server probe found global logout comparing an unpersisted successor instead
+of its last kept bearer. Those also have regressions. The report records oracle
+refinements and concrete counterexamples.
+
+Measured: 219 affected tests and 15 model tests passed. Six negative controls
+fail when refusal fencing, all-scope fencing, rotation waiting, notification
+hiding, app-owned close or acknowledged cleanup is disabled. Both Chromium
+witnesses pass: separate-tab session locking (740 ms), and shell/replica/account
+offline reload with both servers stopped (1,617 ms). Reference check reports
+504 LLP docs, 9,235 refs, zero errors/unchecked; whitespace check passes. The
+single full scripts/test.sh run reports **`== 0 failure(s) in 148 s`**, exit 0:
+all Rust groups pass, nine fixture passes, 1,157 client passes and 10 skips.
+Development failures were ours and fixed, including a redundant schema refusal
+handler that suppressed stale-restoration retries; no baseline/environmental
+failure was waived. README stays 296/300 lines; local.ts is 1,479 lines.
+
+Stopped the impossible unconditional extension of I7: if all refusal-tombstone
+writes fail, every informed runtime dies, and reopening is offline, the old
+bytes cannot be distinguished from a valid offline session. The informed runtime
+denies access and reports the error; stronger crash exclusion needs durable
+server evidence. Round 10's unknown-successor I3 limit remains. Lost global
+revocation acknowledgements also need recoverable server receipts; E_AUTH alone
+cannot prove all other sessions were revoked, so retry custody is retained.
+Did not add a server recovery protocol, weaken authorization/disclosure/meters,
+change package versions, push or publish. Full file map, measurements, failure
+classification and reproductions: [round 11 report](./reports/20260924-lane-e-round11.md).

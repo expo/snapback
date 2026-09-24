@@ -1,4 +1,4 @@
-import { deferStart } from "./client-start.ts";
+import { deferStart, trackRotation } from "./client-start.ts";
 // The online tier (LLP 2000.000 §7.4): no store, no interpreter. Reads go
 // to the server and are `fresh` when it answered; an observed read re-runs
 // when a commit touches its tables; a write is sent with a client-minted id
@@ -642,6 +642,7 @@ export function createClient(options: ClientOptions): Client {
     if (session && session.kind !== "action" && session.expiresAt - Date.now() <= refreshBeforeExpiry) void refreshCurrent();
     else scheduleRefresh();
   };
+  trackRotation(client, () => refreshing);
   if (!deferStart(options, start)) start();
   return client;
 }
