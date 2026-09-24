@@ -96,6 +96,7 @@ impl Runner<'_> {
             if order == Order::Asc { order_key } else { order_key.reverse() }
         });
         let has_more = candidates.len() > take;
+        self.note_value_source_page(has_more);
         candidates.truncate(take);
         if outer_depth == 0 {
             if descriptor.after.is_some() {

@@ -193,6 +193,7 @@ impl Runner<'_> {
             }
         }
         self.page_depth = depth;
+        self.note_value_source_page(has_more);
         if depth == 0 {
             if first.opaque_cursor {
                 let continues = self.word_cut_at.is_none() && ((has_more && !self.read_capped()) || (opened_all && drain_cut && !page.is_empty()));

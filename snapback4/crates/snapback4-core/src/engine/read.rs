@@ -935,6 +935,7 @@ impl Runner<'_> {
                 if crate::rows::scan_range(&prefix, &bounds, dir).is_some_and(|(lo, _)| lo < *floor) { has_more = true; }
             }
         }
+        self.note_value_source_page(has_more);
         if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
             self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
         }
@@ -978,6 +979,7 @@ impl Runner<'_> {
 
     pub(super) fn outcome_next_cursor(&self) -> Result<Option<String>, RuntimeError> {
         // @ref LLP 3000.007.000#3 — publish merge candidates using the final answer's class, without deleting raw position-loss evidence.
+        if self.value_source_incomplete { return Ok(None); }
         if self.non_uniform && self.page.as_ref().is_some_and(|page| page.merge) { return Ok(None); }
         let next = self.next_cursor()?;
         // @ref LLP 3000.007#14 — ruling 35: a follow that cannot progress refuses
@@ -1114,6 +1116,7 @@ impl Runner<'_> {
             }
         });
         let has_more = candidates.len() > take;
+        self.note_value_source_page(has_more);
         candidates.truncate(take);
         if self.page_depth == 0 && !first.scan.opaque_cursor && has_more {
             self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
@@ -1127,11 +1130,20 @@ impl Runner<'_> {
     }
 
     fn lane_values(&mut self, lane: &MergeLane) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
-        let values: Box<dyn Iterator<Item = Value>> = match &lane.source {
-            Some(LaneSource::Scan(scan)) => Box::new(self.scan(scan)?.into_iter()),
-            Some(source) => self.domain(&source.domain())?,
-            None => Box::new(std::iter::once(Value::Null)),
-        };
+        let prior_discovery = self.discovering_values;
+        self.discovering_values |= lane.distinct.is_some();
+        let values = (|| -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
+            Ok(match &lane.source {
+                Some(LaneSource::Scan(scan)) => Box::new(self.scan(scan)?.into_iter()),
+                Some(source) => self.domain(&source.domain())?,
+                None => Box::new(std::iter::once(Value::Null)),
+            })
+        })();
+        self.discovering_values = prior_discovery;
+        if lane.distinct.is_some() && (self.read_capped() || self.page_overflow || self.beyond_horizon || self.presence_unknown) {
+            self.value_source_incomplete = true;
+        }
+        let values = values?;
         let Some(distinct) = &lane.distinct else { return Ok(values); };
         let prior = self.env.get(&lane.binding).cloned();
         let mut seen = BTreeSet::new();
@@ -1147,6 +1159,14 @@ impl Runner<'_> {
         }
         if let Some(prior) = prior { self.env.insert(lane.binding.clone(), prior); } else { self.env.remove(&lane.binding); }
         Ok(Box::new(unique.into_iter()))
+    }
+
+    pub(super) fn note_value_source_page(&mut self, has_more: bool) {
+        if self.discovering_values && has_more {
+            self.value_source_incomplete = true;
+            self.page_overflow = true;
+            self.components.note(|frame| frame.overflow = true);
+        }
     }
 
     fn charge_lane(&mut self, lane: &MergeLane, site: &str) -> Result<bool, RuntimeError> {
