@@ -309,7 +309,7 @@ fn projected_reads_retain_the_next_visible_expiry() {
 }
 
 #[test]
-fn expired_rows_are_absent_to_uniqueness_caps_final_exists_and_maintains() {
+fn expired_rows_are_absent_to_reads_but_conservatively_occupy_caps_until_swept() {
     let mut e=engine("table targets:\n  code: text <=10\n  until: time ?\n  unique byCode: code\n  by byExpiry: until\n  expire at .until\n  cap 1 by code\n  read <- allow\n  insert <- allow\n  sync public\nmaintain counts: count targets by code\n  read <- allow\ntable sources:\n  code: text <=10\n  insert <- allow\n  after insert <- exists targets[code = .code]\nmutation add():\n  insert targets {code: 'same',until: null}\nmutation source():\n  insert sources {code: 'same'}\nquery count():\n  return counts['same'] by byGroup\nquery one():\n  return targets['same'] by byCode\n");
     seed(&mut e,"targets",serde_json::json!([{"id":"old","code":"same","until":10}]));
     assert_eq!(e.query("count",ctx()).unwrap().data,Value::Int(0));
@@ -317,11 +317,14 @@ fn expired_rows_are_absent_to_uniqueness_caps_final_exists_and_maintains() {
     assert!(snapshot.is_empty(),"expired source cannot leave a maintained count in a snapshot: {snapshot:?}");
     let outcome=e.mutate("source",Some("refuse"),ctx().with_ids(["source".into()])).unwrap();
     assert!(matches!(outcome.state,WriteState::Failed{ref why,..} if why.code=="E_CONSTRAINT"));
+    let outcome=e.mutate("add",Some("at-cap"),ctx().with_ids(["new".into()])).unwrap();
+    assert!(matches!(outcome.state,WriteState::Failed{ref why,..} if why.code=="E_CONSTRAINT"));
+    assert_eq!(e.sweep_expired(1000,100).unwrap(),1);
     let outcome=e.mutate("add",Some("add"),ctx().with_ids(["new".into()])).unwrap();
     assert!(matches!(outcome.state,WriteState::Sent{..}),"{outcome:?}");
     assert_eq!(e.query("one",ctx()).unwrap().data.field("id").unwrap(),&Value::Id("new".into()));
     assert_eq!(e.query("count",ctx()).unwrap().data,Value::Int(1));
-    assert_eq!(e.sweep_expired(1000,100).unwrap(),1);
+    assert_eq!(e.sweep_expired(1000,100).unwrap(),0);
     assert_eq!(e.query("count",ctx()).unwrap().data,Value::Int(1));
 }
 

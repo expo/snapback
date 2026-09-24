@@ -231,8 +231,18 @@ impl Analysis<'_> {
                     self.expr(key, times); self.expr(row, times); self.write(table, "upsert", times);
                 }
                 Stmt::Delete { table, key } => { self.expr(key, times); self.write(table, "delete", times); }
+                Stmt::DeleteTarget { target } => {
+                    for key in &target.key { self.expr(key, times); }
+                    if self.schema.table(&target.table).is_some_and(|t| t.expire.is_some()) { self.expiry_write(&target.table, &target.index); }
+                    self.write(&target.table, "delete", times);
+                }
                 Stmt::WriteTarget { target, patch, upsert, condition, result } => {
-                    self.point(target, times, false);
+                    if self.schema.table(&target.table).is_some_and(|t| t.expire.is_some()) {
+                        // Write targets are complete unique keys. Their only
+                        // variable expiry work is the matching collision backlog.
+                        for key in &target.key { self.expr(key, times); }
+                        self.expiry_write(&target.table, &target.index);
+                    } else { self.point(target, times, false); }
                     self.expr(patch, times);
                     if let Some(c) = condition { self.body(&c.setup, times); self.expr(&c.value, times); }
                     self.write(&target.table, if *upsert { "upsert" } else { "update" }, times);

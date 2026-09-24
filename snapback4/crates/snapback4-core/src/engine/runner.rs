@@ -277,7 +277,7 @@ impl<'a> Runner<'a> {
             let result = (|| {
             self.effect_presence.reads.clear();
             let site = format!("{prefix}:{}", index + 1);
-            if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
+            if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
             self.statement_site = site.clone();
             self.meter.at(&site);
             self.meter.step(1)?;
@@ -413,6 +413,7 @@ impl<'a> Runner<'a> {
                     if let Some(name) = result { self.meter.heap(value.heap_bytes())?; self.bind(name, value); }
                     Flow::Next
                 }
+                Stmt::DeleteTarget { target } => { self.delete_target(target)?; Flow::Next }
                 Stmt::Delete { table, key } => {
                     let key = self.expr(key)?;
                     self.delete(table, key.as_str()?)?;

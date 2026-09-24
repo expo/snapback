@@ -333,7 +333,7 @@ impl Engine {
         tx.rollback()?;
         // Upgrade derived candidates from older binaries using the stored
         // backend, never a caller's source. The repair logs its row changes.
-        let generation = if store.meta("live_sum_candidates")?.as_deref() == Some("1") { generation }
+        let generation = if store.meta("live_sum_candidates")?.as_deref() == Some("1") && store.meta("cap_counts_schema")?.as_deref() == Some(&Schema::hash(&schema)) { generation }
             else { Self::activate(&mut store, &schema, &programs, None, now)? };
         Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }

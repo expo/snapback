@@ -7,6 +7,7 @@
 
 #[path = "engine/word_heap.rs"]
 pub mod word_heap;
+pub mod caps;
 
 use crate::assets::Asset;
 use crate::error::RuntimeError;
@@ -231,6 +232,10 @@ pub trait Rows {
     }
     /// How many entries sit under `prefix`, counting at most `limit`.
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError>;
+    /// Maintained physical occupancy for a cap on an expiring table. No scan.
+    fn cap_count(&self, _table: &str, _by: &[String], _group: &[Value]) -> Result<u64, RuntimeError> {
+        Err(RuntimeError::Store("adapter has no maintained cap counts".into()))
+    }
     /// Write a row image (a fresh insert when `old` is none); returns the
     /// number of index entries written.
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError>;
@@ -322,6 +327,9 @@ impl Rows for MemoryRows {
         let base = key::encode(prefix);
         Ok(self.range(table, index_name, &base, &key::upper_bound(&base), Dir::Asc, limit as usize).len() as u64)
     }
+    fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        Ok(self.entries.borrow().get(&(caps::slot(table), caps::key(by, group))).map_or(0, |n| n.parse().expect("cap count")))
+    }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         let id = row.field("id")?.as_str()?.to_owned();
         let keys = index_write(table_name, table, row, old, &id)?;
@@ -338,6 +346,14 @@ impl Rows for MemoryRows {
                 written += 1;
             }
         }
+        for (key, delta) in caps::deltas(table, old, Some(row)) {
+            let key = (caps::slot(table_name), key);
+            match caps::next(entries.get(&key).map(String::as_str), delta) {
+                Some(n) => { entries.insert(key, n); }
+                None => { entries.remove(&key); }
+            }
+            written += 1;
+        }
         self.rows.borrow_mut().insert((table_name.to_owned(), id), row.clone());
         Ok(written)
     }
@@ -350,6 +366,14 @@ impl Rows for MemoryRows {
                 entries.remove(&(format!("{table_name}.{index_name}"), key));
                 removed += 1;
             }
+        }
+        for (key, delta) in caps::deltas(table, Some(old), None) {
+            let key = (caps::slot(table_name), key);
+            match caps::next(entries.get(&key).map(String::as_str), delta) {
+                Some(n) => { entries.insert(key, n); }
+                None => { entries.remove(&key); }
+            }
+            removed += 1;
         }
         self.rows.borrow_mut().remove(&(table_name.to_owned(), id));
         Ok(removed)

@@ -91,7 +91,7 @@ impl Store {
                 return Err(step.refusal(schema));
             }
         }
-        if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i;")?; }
+        if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i; DELETE FROM _cap_counts;")?; }
         if schema_changed {
             // Removed names retain only their catalog number, never live row
             // images. Reintroducing a name starts empty, without resurrection.
@@ -127,6 +127,17 @@ impl Store {
                     Ok(())
                 })?;
             }
+        }
+        // Upgrade old stores and rebuild only when the schema changes. Counts
+        // participate in the same activation transaction as rows and indexes.
+        if tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash) {
+            tx.tx.execute_batch("DELETE FROM _cap_counts;")?;
+            for (name, table) in &schema.tables {
+                if table.expire.is_some() && table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })) {
+                    walk(&tx, catalog[name], |_, row| tx.update_cap_counts(name, table, None, Some(&row)).map(|_| ()))?;
+                }
+            }
+            tx.set_meta("cap_counts_schema", &schema_hash)?;
         }
         build(&tx, changed)?;
         if schema_changed {

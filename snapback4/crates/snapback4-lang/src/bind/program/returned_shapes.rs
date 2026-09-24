@@ -75,6 +75,7 @@ impl Census {
                     if let Some(result) = result { self.define(result); }
                 }
                 Stmt::Delete { key, .. } => self.expr(key),
+                Stmt::DeleteTarget { target } => self.read(target),
                 Stmt::Break | Stmt::Continue => {}
             }
         }

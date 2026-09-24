@@ -905,17 +905,13 @@ impl<'a> Binder<'a> {
             }
             WriteOp::Delete => {
                 let key = self.write_key(info, keys, site, out).map_err(|error| self.extra_write_test(info, expr, error))?;
-                let id_expr = if key.alternate {
-                    let current = self.temp("current");
+                if key.alternate {
                     let location = self.site();
                     self.sources.insert(location.clone(), (site.clone(), format!("delete {table}")));
-                    out.push(Stmt::Let { name: current.clone(), value: Expr::Get(Read { site: location, table: table.clone(), index: key.index.clone(), key: key.key.clone(), provenance: KeyProvenance::Shape }) });
-                    out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&current)), right: Box::new(Expr::Literal(Value::Null)) }, code: "NOT_FOUND".into(), site: Some(site.to_string()) });
-                    ir::field(ir::var(&current), "id")
+                    out.push(Stmt::DeleteTarget { target: Read { site: location, table: table.clone(), index: key.index, key: key.key, provenance: KeyProvenance::Shape } });
                 } else {
-                    key.key[0].clone()
-                };
-                out.push(Stmt::Delete { table: table.clone(), key: id_expr });
+                    out.push(Stmt::Delete { table: table.clone(), key: key.key[0].clone() });
+                }
                 Ok(valued.then(|| (Expr::Literal(Value::Null), Ty::Null)))
             }
         }

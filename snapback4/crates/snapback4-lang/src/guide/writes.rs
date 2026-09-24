@@ -106,6 +106,9 @@ prove readability, and the device holds every row that can collide on a
 secondary unique index or count toward an affected cap. Defaults are part of
 that image. Otherwise it queues without a predicted row, including in a left
 group. See `guide prediction` for the conditions and a set-membership recipe.
+An expiring cap counts unswept physical rows, which live snapshots omit.
+Occupancy-increasing writes queue without predicted rows and settle on the
+server even after full acquisition; updates within a cap group can still predict.
 
 For `after insert <- exists t[key]`, a local hit satisfies the postcondition.
 A local miss predicts `E_CONSTRAINT` only when the key proves readability

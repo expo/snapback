@@ -257,6 +257,9 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
         }
         Ok(rows)
     }
+    fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        self.tx.cap_count(table, by, group)
+    }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         self.tx.count_prefix(table, index_name, prefix, limit)
     }

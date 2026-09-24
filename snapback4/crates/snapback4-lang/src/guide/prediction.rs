@@ -113,6 +113,15 @@ including when synced rows are trusted; only additional device authorization
 work spends the separate allowance. A mutation-meter cut can refuse with `E_BOUND`.
 Queries continue to charge authorization to their query meter.
 
+An expiring table's cap counts physical rows, including expired rows awaiting
+the server sweep. A complete live snapshot cannot establish that occupancy.
+Writes that increase an expiring cap's occupancy queue without predicted rows
+and settle on the server. This includes inserts, missing upserts and moves
+into another capped group. Updates within the same group and deletes can still
+predict under the ordinary rules. Acquiring again cannot prove space in this
+cap; observe the queued write's settlement (`guide writes`).
+
+
 An unreadable output does not prevent prediction. For example, a moderation
 report predicts but stays invisible to its writer until settlement removes or
 replaces the overlay. A later pending grant can make a row visible; a later

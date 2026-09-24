@@ -12,7 +12,7 @@ pub(super) fn statements<const ALLOW_EMIT: bool>(body: &[Stmt]) -> bool {
         Stmt::If { condition, then_body, else_body } => expression::<ALLOW_EMIT>(condition) && statements::<ALLOW_EMIT>(then_body) && statements::<ALLOW_EMIT>(else_body),
         Stmt::For { domain: source, body, .. } => domain::<ALLOW_EMIT>(source) && statements::<ALLOW_EMIT>(body),
         Stmt::Break | Stmt::Continue => true,
-        Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } => false,
+        Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } => false,
     })
 }
 

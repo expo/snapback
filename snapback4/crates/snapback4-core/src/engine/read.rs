@@ -182,6 +182,11 @@ impl Runner<'_> {
     }
 
     pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
+        self.lookup_live_charged(table_name, name, index, key, charge, None)
+    }
+
+    // @ref LLP 3000.013#11.1 — target expiry work is charged only after authority; denied targets reveal no backlog.
+    pub(super) fn lookup_live_charged(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool, mut expired_work: Option<&mut u64>) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if table.expire.is_none() && !self.device_work_active {
             return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
@@ -194,6 +199,14 @@ impl Runner<'_> {
                 self.witness_materialize(&mut row, table)?;
                 if charge && !self.device_work_active && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
                 if !self.expired(table, &row) { return Ok(Some(row)); }
+                if let Some(work) = expired_work.as_deref_mut() {
+                    *work = work.saturating_add(1);
+                    // Stop private resolution at the existing ceiling too. A
+                    // cut is a refused target, not proof of absence: an upsert
+                    // must pay this debt after insert authority and before it
+                    // can insert, so that arm necessarily fails its meter.
+                    if *work > self.meter.ceilings.examined.saturating_sub(self.meter.used.examined) { return Ok(None); }
+                }
                 bounds.after = self.witness_position(&stored, index.components.len() + 1, key.len())?;
             }
             if count < limit { return Ok(None); }

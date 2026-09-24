@@ -187,6 +187,7 @@ fn expressions(stmt: &Stmt, f: &mut impl FnMut(&Expr)) {
         Stmt::Emit { payload, once, .. } => { f(payload); if let Some(key) = once { f(key); } },
         Stmt::Update { key, patch, .. } | Stmt::Upsert { key, row: patch, .. } => { f(key); f(patch); }
         Stmt::Check { condition, current } => { f(condition); f(&Expr::Get(current.clone())); }
+        Stmt::DeleteTarget { target } => f(&Expr::Get(target.clone())),
         Stmt::WriteTarget { target, patch, condition, .. } => {
             f(&Expr::Get(target.clone()));
             f(patch);

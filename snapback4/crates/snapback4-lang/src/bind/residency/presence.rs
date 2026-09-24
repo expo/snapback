@@ -154,6 +154,7 @@ impl Flow<'_> {
                     }
                     if let Some(result) = result { env.insert(result.clone(), origins); }
                 }
+                Stmt::DeleteTarget { target } => for key in &target.key { self.sink(key, env, control, "a write key", &format!("{site} delete {}", target.table)); },
                 Stmt::Delete { table, key } => { self.sink(key, env, control, "a write key", &format!("{site} delete {table}")); }
                 Stmt::Return(value) => {
                     let mut origins = self.expr(value, env, control, &site);
@@ -329,7 +330,7 @@ fn non_effect(body: &[Stmt], path: &str, ownership: &Ownership) -> Option<&'stat
         let usage = match stmt {
             Stmt::Emit { .. } => None,
             Stmt::If { then_body, else_body, .. } => non_effect(then_body, &format!("{site}.then"), ownership).or_else(|| non_effect(else_body, &format!("{site}.else"), ownership)),
-            Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } => Some("a write"),
+            Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } => Some("a write"),
             Stmt::Break => Some("break"),
             Stmt::Continue => Some("continue"),
             Stmt::Return(_) => Some("the returned value"),

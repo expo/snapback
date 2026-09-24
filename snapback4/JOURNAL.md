@@ -51895,3 +51895,113 @@ Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
 budget. Reference validation: 505 LLP documents, 9,238 references, zero
 errors and zero unchecked. Every changed Rust source is below 1,500 lines;
 git diff --check passes. No packages or generated publication files changed.
+
+## 2026-09-24 — LLP 3000.013 Lane P: expiring cap checks and stopped requirements
+
+Committed the expiring-table cap fix on `sb4-intent/p-expiry` (`b51dc16fa`).
+The 0.4.0 unique check already pinned the full `(conversationId, ordinal)` key;
+the cap branch scanned the live population. The reproduction stopped at insert
+8,193 with examined 8,193 against 8,192, despite all expiry values being null.
+Cap enforcement now reads transactional physical occupancy, per table/group,
+in SQLite, memory devices and the Postgres evaluation adapter. Unswept expired
+rows conservatively occupy capacity. Upgrade/backfill, literal-default row
+interpretation, rollback, group moves, reset and persisted memory reconstruction
+are covered. Full-key write-target expiry skips are metered separately from the
+unchanged disclosure accounting of rule probes. The cost certificate describes
+constant live-population work plus only same-key expired siblings and states
+the one-second, 2,000-row background sweep policy.
+
+Fifteen new regressions pass. Two 9,000-send runs, with unrelated expired
+backlogs 0 and 3,000, stay at exactly 1 examined row per write. Same-key 3,000-row
+backlogs fit; 9,000-row backlogs refuse at the examined ceiling and roll back.
+The full unmodified harness, using `CARGO_INCREMENTAL=0` and its existing serial
+client-file option, reports exactly `== 0 failure(s) in 762 s`: full Rust
+inventory passed; client totals 1,088 passed, 0 failed, 10 skipped. Earlier
+trial/environment failures are individually attributed in the report. The
+Postgres feature compiles; no Postgres server was available for runtime proof.
+Reference audit: 505 LLP documents, 9,236 references, zero errors/unchecked.
+All changed source files stay under 1,500 lines; whitespace checks pass.
+
+The final web artifact is 1,748,501 B raw / 485,838 B gzip, +3,659 raw / +871 gzip
+against integration round 4. Keep the existing 486,000 B budget (162 B headroom)
+and all runtime meter ceilings. Disk exhaustion required moving only this
+lane's ignored target directory to the dedicated build-cache volume; no other
+lane's artifacts were changed.
+
+Stopped two requirements for supervisor design review. The trial's inline
+secondary-unique collision deletion emitted a row id and group scope for a
+membership inserted already expired, violating the existing never-live-grant
+disclosure regression; that helper is not committed. Key reuse retains the
+expired predecessor until background sweep. Separately, a fresh snapshot omits
+expired rows, so both devices can predict an insert the server's conservative
+physical cap refuses (cap 1, one expired unswept server row). Agreement is
+qualified only for matching held populations and delivered sweep deletions;
+no general agreement or full Lane P completion claim is made. No new sync
+protocol, lifetime-provenance design, syntax, refusal code, package release,
+push or publication. File map, examples, test proofs, exact failure attribution
+and both reproductions: `reports/20260924-intent-lane-p.md`.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 1: authorize expiry work and defer unknown cap predictions
+
+Closed the review's premature-expiry-charge path: update/upsert targets
+accumulate matching expired siblings privately and charge only after write
+rule authority. Private resolution stops at the remaining examination
+allowance plus one; unresolved update/delete returns the ordinary NOT_FOUND,
+and an upsert cannot insert without paying that over-ceiling debt. This keeps
+both denied-world logical observations and physical resolution bounded.
+Alternate-key delete now uses an engine-private DeleteTarget with its existing
+read/delete gates, instead of a generated public Get before authorization.
+The original by-id Delete IR remains compatible. Denied update, upsert,
+insert-if-absent and both delete addresses have identical complete refusals and
+meters with zero versus 9,000 expired siblings.
+
+Devices now queue occupancy-increasing writes on expiring capped tables:
+even complete live snapshots omit unswept physical rows. Memory and SQLite
+adapters persist those queues without predicted rows across reopen, settle
+server cap refusals, and acquire successful replacements after sweeping. A
+queued send rolls back its earlier conversation update too. Same-group
+updates/upserts, deletes and same-id expired replacements with held
+predecessors retain prediction; cap-group moves defer.
+
+Secondary collision cleanup deliberately remains with the background sweep,
+as permitted by the review. The never-live-grant disclosure regression still
+passes. A replacement at a full cap refuses with a write site and a rewrite
+naming the one-second tick and maximum 2,000-row pass. No lifecycle/provenance
+redesign, new Quarry spelling or new refusal code was added.
+
+Measured: 21 expiry regressions and 25 existing disclosure reviews passed.
+9,000 sends still examine exactly one row apiece with either zero or 3,000
+unrelated expired rows. The 5,000-sibling upsert reaches E_BOUND at 8,193;
+removing target accumulation made that regression fail with an incorrect
+5,001-examination commit. The production charge was restored. The old binder
+reproduced all 3,219 golden hashes; exactly 16 programs differ solely by the
+intentional delete triple replacement. Those 16 hashes and their provenance
+were updated; all 11 lowering tests pass, with ownership, admission and
+runtime comparisons intact. PostgreSQL feature compilation passes; no live
+PostgreSQL service execution is claimed.
+
+The first full harness recorded `== 1 failure(s) in 1009 s`: my omitted
+DeleteTarget arm in the corpus test helper. That is fixed. Its client inventory
+had 1,098 tests, 1,088 passes, 10 skips and zero failures. A subsequent Rust
+inventory exposed seven stale golden shards (_0, _1, _2, _3, _4, _5, _7), fixed
+by the scoped hash update above; every other Rust target passed. These were
+introduced integration/expectation failures, not baseline or environmental
+failures. The final complete harness is running; its result will be appended
+below before the lane report is finalized.
+
+The full-harness wasm is 1,753,421 B raw / 487,644 B gzip, compared with this
+lane's prior 1,748,501 / 485,838 (+4,920 raw / +1,806 gzip). This is a whole
+artifact delta for private expiry resolution, delete addressing, prediction
+deferral and sweep-timed refusals. The size exceeds the inherited 486,000 B
+ratchet, so metrics/wasm-budget.json raises it to 488,000 B in this commit,
+leaving 356 B. No runtime meter ceiling changes. No push or publication.
+Details: reports/20260924-intent-lane-p-round1.md.
+
+Final qualification appended after completion: `scripts/test.sh` returned
+`== 0 failure(s) in 740 s`, exit 0, using CARGO_INCREMENTAL=0 and
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1. The complete Rust inventory passed in
+135 s. Client inventory: 1,098 tests, 1,088 passes, 10 skips, zero failures
+(707 s). Every build, guide, release guard, typecheck and fixture step passed;
+no baseline or environmental failure remains. Final wasm stayed at
+1,753,421 B raw / 487,644 B gzip. Log:
+~/sb4-intent/lane-p-round1-suite-final.log. Implementation commit: 39864279e.
