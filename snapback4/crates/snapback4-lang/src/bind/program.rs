@@ -252,7 +252,7 @@ impl<'a> Binder<'a> {
         let info = self.table(&read.table, &read.site)?;
         if let Some(maintain) = &info.maintained {
             if read.keys.len() != maintain.by.len() || read.keys.iter().filter_map(|key| key.column.as_ref()).any(|column| !maintain.by.contains(column)) {
-                return Err(super::maintains::refusal(&read.site, format!("{} scalar lookup needs the complete group key: {}", read.table, maintain.by.join(", ")), format!("supply every group key, or use {}[prefix] first 50 by byGroup", read.table)));
+                return Err(super::maintains::refusal(&read.site, format!("{} scalar lookup needs the complete group key: {}", read.table, maintain.by.join(", ")), format!("supply every group key, or page the view: {} first 20 by .id after c", read.table)));
             }
         }
         let value = self.read_value(read, ReadMode::FilteredPoint, out)?;
@@ -285,7 +285,7 @@ impl<'a> Binder<'a> {
         if info.maintained.is_some() && let Some(position) = index.columns.iter().position(|field| field == "value") {
             if prefix.len() != position {
                 return Err(super::maintains::refusal(&range.site, format!("{} by {} needs every ranking scope field pinned: {}", read.table, index.name, index.columns[..position].join(", ")),
-                    format!("{}[{}] last {} by {}, or declare by byCount: value, id for a global ranking", read.table, index.columns[..position].join(", "), range.take, index.name)));
+                    format!("pin {} with where equalities, then read {} last {} by .value after c; omit the scope predicate for a global ranking", index.columns[..position].join(", "), read.table, range.take)));
             }
         }
         if range.take == 0 {
@@ -778,7 +778,7 @@ impl<'a> Binder<'a> {
     fn write(&mut self, expr: &A, out: &mut setup::Body, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
         let A::Write { op, table, keys, fields, if_absent, condition, site } = expr else { unreachable!() };
         if self.in_prelude {
-            return Err(placement(site, "a write belongs to a chunk", format!("move {} {table} into the chunk body", op.word())));
+            return Err(placement(site, "a write belongs to a chunk", format!("move {} {table} inside a top-level `for row in table:` job sweep", op.word())));
         }
         if self.kind == ProgramKind::Query {
             return Err(Diagnostic::new(site, "E_QUARRY_PLACEMENT", format!("queries cannot {} {table}", op.word()), "move the write into a mutation").guide("programs"));
@@ -1046,7 +1046,7 @@ fn stable_chunk(catalog: &Catalog, site: &Site, scan: &Scan) -> Fallible<()> {
         columns
     });
     if !moving.is_empty() {
-        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or use `for row in {}:` for stable byId order", moving.join(", "), scan.table, scan.table)).guide("jobs"));
+        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or use `for row in {}:` for stable id order", moving.join(", "), scan.table, scan.table)).guide("jobs"));
     }
     Ok(())
 }

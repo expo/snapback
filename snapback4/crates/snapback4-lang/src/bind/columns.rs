@@ -6,7 +6,7 @@ use snapback4_core::schema::{self as core, columns::{ColumnOwner, GROUP}};
 use std::collections::BTreeMap;
 
 pub fn refusal(site: &Site, message: impl Into<String>) -> Diagnostic {
-    Diagnostic::new(site,"E_MAINTAINED_COLUMN",message,"write the source rows, or use a separate maintain for this aggregate").guide("maintains")
+    Diagnostic::new(site,"E_MAINTAINED_COLUMN",message,"write the source rows, or use a separate view for this aggregate").guide("maintains")
 }
 
 pub fn resolve(tables: &mut BTreeMap<String,TableInfo>, diagnostics: &mut Vec<Diagnostic>) {
@@ -107,7 +107,7 @@ pub fn notes(catalog: &Catalog, schema: &core::Schema) -> Vec<Diagnostic> {
         if parent.sync.is_some() {
             notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{name}.sync")),"N_MAINTAINED_COLUMN_STREAM",
                 format!("{name}: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change"),
-                "use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use maintain … online only").guide("maintains"));
+                "use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use a view with online only").guide("maintains"));
         }
     }
     for m in schema.maintains.iter().filter(|m|m.private.is_some()) {

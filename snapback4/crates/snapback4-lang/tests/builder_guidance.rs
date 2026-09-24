@@ -54,9 +54,8 @@ fn scope_guidance_uses_existing_index_and_preserves_the_message_equality() {
     let without_index = MEMBERSHIP.replace("  by byConversationMessage: conversationId, messageId, id\n", "");
     let b = clean(&without_index);
     let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
-    assert!(note.rewrite.contains("by byConversationId: conversationId, messageId, id"), "{note}");
-    let rewritten = without_index.replace("  by byMessage: messageId, id", "  by byMessage: messageId, id\n  by byConversationId: conversationId, messageId, id")
-        .replace("reactions[messageId] first 20 by byMessage", "reactions[conversationId, messageId] first 20 by byConversationId");
+    assert!(note.rewrite.contains("pin .conversationId with where equalities"), "{note}");
+    let rewritten = without_index.replace("reactions[messageId] first 20 by byMessage", "reactions where .conversationId = conversationId and .messageId = messageId first 20 by .id");
     assert!(!clean(&rewritten).notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"));
 
     let incompatible = MEMBERSHIP.replace("by byConversationMessage: conversationId, messageId, id", "by byConversationMessage: conversationId, id, messageId");

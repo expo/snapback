@@ -469,7 +469,7 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     if named.as_ref().is_some_and(|names| names.iter().any(|name| name == "value"))
         && catalog.maintains.get(&read.table).and_then(|maintain| catalog.tables.get(&maintain.source)).is_some_and(|source| source.decl.expire.is_some()) {
         return Err(Diagnostic::new(site, "E_QUARRY_LIVE_MAINTAIN_PROBE", format!("a rule cannot probe {}.value because its source expires", read.table),
-            "read the maintain in the program; its live value cannot be probed at one unit").guide("expire"));
+            "read the view in the program; its live value cannot be probed at one unit").guide("expire"));
     }
     if let Some(names) = &named {
         for ((_, term), (column, ty)) in terms.iter_mut().zip(names.iter().zip(&types)) {
@@ -575,13 +575,13 @@ fn title(value: &str) -> String {
 /// columns typed as the source declares them.
 pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<TableDecl> {
     let site = maintain.site.clone();
-    if source.maintained.is_some() { return Err(super::maintains::refusal(&site, "a maintain cannot use another maintain as its source", "maintain directly from application source rows, or use a bounded job")); }
+    if source.maintained.is_some() { return Err(super::maintains::refusal(&site, "a maintain cannot use another maintain as its source", "define the view over application source rows, or use a job sweep")); }
     let mut columns = Vec::new();
     let value_type = match &maintain.column {
         None => ScalarType { kind: TypeKind::Int, optional: false },
         Some(column) => match source.columns.get(column) {
             Some(ty) if matches!(ty.kind, TypeKind::Int | TypeKind::Decimal { .. } | TypeKind::Money { .. }) => ty.required(),
-            Some(ty) => return Err(type_error(&site, format!("sum over {}.{column} needs int, decimal or money, not {}", maintain.source, crate::print::scalar_type(ty)), format!("maintain {}: count {} by {}", maintain.name, maintain.source, maintain.by.join(", ")))),
+            Some(ty) => return Err(type_error(&site, format!("sum over {}.{column} needs int, decimal or money, not {}", maintain.source, crate::print::scalar_type(ty)), format!("view {}: count {} by {}", maintain.name, maintain.source, maintain.keys.iter().map(|key| super::maintains::bare_key(key).map_or_else(|| crate::print::expression(key), |name| format!(".{name}"))).collect::<Vec<_>>().join(", ")))),
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
         },
     };
@@ -599,7 +599,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         let index = index.clone();
         if index.columns.contains(&"value".into()) {
             // @ref LLP 3000.007#20.21 — stored order is stale; the sound server count upper-bound threshold read is not built.
-            if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built", maintain.name, maintain.source), "for a window over the entity's own immutable time, use guide feeds' hour-lanes Trending over a non-expiring source; for contributions arriving in the window, use its live bounded rollingLikes read: a candidate or contribution scan cut makes the ranking incomplete").guide("feeds")); }
+            if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built", maintain.name, maintain.source), "for an entity-time window over a non-expiring source, use the Trending predicate in guide feeds; for expiring contributions, stream each candidate's live count and rank only a complete candidate domain; a meter cut makes the ranking incomplete").guide("feeds")); }
             // @ref LLP 3000.007#14 — ruling 41's interim retires with maintained columns.
             let value_at = index.columns.iter().position(|field| field == "value").unwrap();
             let fields = index.columns.iter().collect::<BTreeSet<_>>();
@@ -608,7 +608,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
                 || index.columns[..value_at].iter().any(|field| !maintain.by.contains(field)) {
                 return Err(super::maintains::refusal(&index.site,
                     "a maintain value index is a prefix of group fields, then value, id; fields cannot repeat",
-                    "end this index with value, id; for post-time ties declare likeCount: count likes by postId on posts and by byLikes: likeCount, at, id (guide maintains)"));
+                    "end this index with value, id; for post-time ties declare likeCount: count likes on posts, then read posts last 20 by .likeCount, .at after c (guide maintains)"));
             }
         }
         indexes.push(index);

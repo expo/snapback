@@ -68,12 +68,12 @@ fn self_witness_notes_name_only_the_unpinned_deciding_columns() {
         .replace(rule, ".principal = viewer or exists memberships[.chatKey, viewer, 'admin']"));
     let note = blocked.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .principal, which the scan does not pin"), "{note:?}");
-    assert!(note.rewrite.contains("by byPrincipal: principal"), "{note:?}");
+    assert!(note.rewrite.contains("pin .principal with where equalities"), "{note:?}");
     assert!(!note.rewrite.contains("principal, principal"), "{note:?}");
     let residual = bound(&source.replace(rule, &format!("{rule} or .role = 'admin'")));
     let note = residual.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .role, which the scan does not pin"), "{note:?}");
-    assert!(note.rewrite.contains("by byRole: role, chatKey, principal"), "{note:?}");
+    assert!(note.rewrite.contains("pin .role with where equalities"), "{note:?}");
 }
 
 fn engine(source: &str) -> Engine {
