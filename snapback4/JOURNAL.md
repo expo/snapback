@@ -49586,3 +49586,22 @@ arranging pending writes; the offline reopen and online recovery assertions
 are unchanged. Both device tiers pass the corrected test. This additional
 fixture correction is outside the review findings and needed for reliable
 qualification; no product behavior, assertion or timeout changed.
+
+The first complete round 4 harness returned `== 1 failure(s) in 766 s`, exit 1.
+Only the acquisition race above failed: sent != pending after offline reopen.
+Clients finished in 709 s (1,098 tests, 1,087 passes, one failure, 10 skips);
+all other steps passed. The corrected test also passes on both tiers with the
+same controlled 200 ms delay (20.71 s). Fixture correction is 1d1e6ed65; the
+expiry fixes are 18a992521. After the first full run completed, started another
+complete run with CARGO_INCREMENTAL=0 and serial client files.
+
+Final round 4 qualification: `== 0 failure(s) in 753 s`, exit 0, using
+CARGO_INCREMENTAL=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh.
+Rust passed in 128 s; clients passed in 722 s (1,098 tests, 1,088 passes,
+10 skips, zero failures). The corrected acquisition case and all native
+maximum-pending-ID cases passed. Every other harness step passed. No introduced,
+baseline or environmental failure remains in this run. Final reference audit:
+505 documents, 9,238 refs, zero errors or unchecked refs. Full evidence, every
+earlier failure and the additional fixture correction are recorded in
+reports/20260924-intent-lane-p-round4.md. No requested round 4 item was deferred;
+earlier cap-prediction and secondary-cleanup limits remain. No push or publication.
