@@ -39,28 +39,36 @@ fn following_pages(e: &mut Engine, viewer: &str) -> (Vec<Value>, bool) {
     panic!("Following did not exhaust")
 }
 
-#[test]
-fn published_following_matches_the_builder_contract() {
+fn published_following() -> Engine {
     let source = quarry(card("feeds").unwrap()).into_iter().find(|s| s.contains("view following:")).unwrap();
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?} {:?}", b.diagnostics, b.notes);
-    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
+}
+
+#[test]
+fn published_following_matches_the_builder_contract() {
+    let mut e = published_following();
     let mut clock = 0;
-    for n in 0..1005 {
+    for n in 1..1005 {
         // The last two originals tie on event time; event id must break the tie.
         if n == 1004 { clock -= 1; }
         write(&mut e, &mut clock, "post", "alice", &[("postId", id(&format!("p{n:04}"))), ("parentId", Value::Null)]);
     }
+    // The smallest id is the newest event: id-only ordering must not pass.
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("p0000")), ("parentId", Value::Null)]);
     write(&mut e, &mut clock, "post", "alice", &[("postId", id("reply")), ("parentId", id("p1004"))]);
     let own = following_pages(&mut e, "alice").0;
     assert_eq!(own.len(), 1005, "own originals appear immediately; replies do not");
-    for (row, n) in own.iter().zip((0..1005).rev()) {
+    assert_eq!(own[0].field("id").unwrap(), &id("p0000"), "event time precedes the id tiebreak");
+    assert!(own[0].field("at").unwrap().as_int().unwrap() > own[1].field("at").unwrap().as_int().unwrap());
+    for (row, n) in own.iter().zip(std::iter::once(0).chain((1..1005).rev())) {
         assert_eq!(row.field("id").unwrap(), &id(&format!("p{n:04}")));
         assert_eq!(row.field("post").unwrap(), row.field("id").unwrap());
         assert_eq!(row.field("actor").unwrap(), &id("alice"));
         assert_eq!(row.field("repost").unwrap(), &Value::Bool(false));
     }
-    assert_eq!(own[0].field("at").unwrap(), own[1].field("at").unwrap());
+    assert_eq!(own[1].field("at").unwrap(), own[2].field("at").unwrap());
     write(&mut e, &mut clock, "follow", "bob", &[("actor", id("alice"))]);
     let (immediate, complete) = following_pages(&mut e, "bob");
     assert_eq!(immediate, own[..50], "follow installs the newest 50 immediately");
@@ -85,6 +93,41 @@ fn published_following_matches_the_builder_contract() {
     assert!(!following_pages(&mut e, "bob").0.iter().any(|r| r.field("id") == Ok(&id("new"))), "removal hides before cleanup");
     write(&mut e, &mut clock, "unfollow", "bob", &[("actor", id("alice"))]);
     assert!(following_pages(&mut e, "bob").0.is_empty(), "unfollow hides on the next read");
+}
+
+#[test]
+fn published_following_unrepost_hides_the_delivered_event() {
+    let mut e = published_following();
+    let mut clock = 0;
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("original")), ("parentId", Value::Null)]);
+    write(&mut e, &mut clock, "follow", "bob", &[("actor", id("alice"))]);
+    write(&mut e, &mut clock, "repost", "alice", &[("postId", id("original"))]);
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
+    let event_id = following_pages(&mut e, "alice").0[0].field("id").unwrap().clone();
+    assert_ne!(event_id, id("original"));
+    for viewer in ["alice", "bob"] {
+        let (rows, complete) = following_pages(&mut e, viewer);
+        assert!(complete);
+        assert_eq!(rows.len(), 2, "{viewer}: original and delivered repost");
+        assert_eq!(rows[0].field("id").unwrap(), &event_id);
+        assert_eq!(rows[0].field("post").unwrap(), &id("original"));
+        assert_eq!(rows[0].field("actor").unwrap(), &id("alice"));
+        assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(true));
+    }
+    write(&mut e, &mut clock, "unrepost", "alice", &[("postId", id("original"))]);
+    for viewer in ["alice", "bob"] {
+        let rows = following_pages(&mut e, viewer).0;
+        assert_eq!(rows.len(), 1, "{viewer}: unrepost hides before cleanup");
+        assert_eq!(rows[0].field("id").unwrap(), &id("original"));
+        assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(false));
+    }
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
+    for viewer in ["alice", "bob"] {
+        let (rows, complete) = following_pages(&mut e, viewer);
+        assert!(complete);
+        assert_eq!(rows.len(), 1, "{viewer}: cleanup does not restore the repost");
+        assert_eq!(rows[0].field("id").unwrap(), &id("original"));
+    }
 }
 
 pub(super) fn assert_stream_note(b: &snapback4_lang::Bound) {
