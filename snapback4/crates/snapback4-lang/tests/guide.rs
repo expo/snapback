@@ -37,15 +37,10 @@ fn readme_reference(name: &str) -> &'static str {
 }
 
 #[test]
-fn feeds_card_preserves_promotion_refusals_and_orientation() {
+fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
     let feeds = card("feeds").unwrap();
     assert_eq!(feeds, readme_reference("feeds"));
-    for fact in ["51st follower permanently promotes", "FEED_PULL_CAP", "FEED_PROMOTION_PULL_CAP",
-        "no follower is silently skipped", "50 followers indefinitely", "51 reads",
-        "1,023 total writes including the app edge", "865-event window", "1,001 private copies",
-        "tables empty and at most the declared number of existing profiles", "size authors 1008, edges 5921",
-        "follow and promotion roll back, including the app edge", "Every saturated follower must free a slot",
-        "retry the refused follow with a new write ID", "server-run query", "public `follows` and `feedPullCounts`", "`used = 32`"] {
+    for fact in ["durable delivery record", "1,000-event window", "for every examined row", "pending backfill or cleanup", "without prediction"] {
         assert!(feeds.contains(fact), "missing {fact}");
     }
     for bad in ["skips a follower", "skip saturated readers", "A skipped follower", "not skipped\nauthors"] {
@@ -274,7 +269,7 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
     assert!(bound.server);
-    assert_eq!(bound.schema.schedules.len(), 3);
+    assert_eq!(bound.schema.schedules.len(), 2);
     assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
     assert_eq!(bound.schema.routes["providerEvent"].service.as_deref(), Some("service:reporter"));
     assert_eq!(bound.schema.routes["roomExport"].service, None);
@@ -446,7 +441,7 @@ fn the_language_card_compiles_and_runs() {
     // everyNight: the schedule fires from its next boundary, once.
     let (day, three) = (86_400_000, 10_800_000);
     assert_eq!(engine.fire_schedules(day + three + 1_000).unwrap(), Vec::<String>::new());
-    assert_eq!(engine.fire_schedules(2 * day + three + 1_000).unwrap(), vec!["everyNight".to_owned(), "summariesEveryDay".to_owned(), "timelinePurgeRemovedEvery".to_owned()]);
+    assert_eq!(engine.fire_schedules(2 * day + three + 1_000).unwrap(), vec!["everyNight".to_owned(), "summariesEveryDay".to_owned()]);
     assert_eq!(engine.action_counts().unwrap().get("queued"), Some(&1));
     assert!(engine.fire_schedules(2 * day + three + 1_000).unwrap().is_empty());
 }
@@ -458,7 +453,7 @@ fn every_card_compiles_clean() {
         let text = card(keyword).unwrap_or_else(|| panic!("no card for {keyword}"));
         let blocks = quarry(text);
         for (n, block) in blocks.iter().enumerate() {
-            if *keyword == "feeds" && n == 0 {
+            if *keyword == "feeds" && n == 1 {
                 feeds::assert_stream_note(&compile(block));
                 continue;
             }
@@ -941,13 +936,11 @@ fn language_following_uses_the_declaration() {
     assert_eq!(bound.schema.timelines.len(), 1);
     assert_eq!(bound.schema.operations["timelineHome"].runs.as_deref(), Some("device"));
     let sites = &bound.schema.operations["timelineHome"].sites;
-    for table in ["timelineFeed", "timelinePulls", "timelineBroadcast", "timelineRemovedEvents"] {
+    for table in ["timelineFeed", "timelineEdges", "timelineRemovedEvents", "timelineWork"] {
         assert!(sites.iter().any(|site| site.table == table), "missing {table}: {sites:?}");
     }
-    assert!(!sites.iter().any(|site| site.table == "timelineFollows" || site.table == "follows"));
     assert_eq!(bound.schema.operations["timelineFollow"].predicts.as_deref(), Some("never"));
-    assert!(bound.schema.tables["timelinePulls"].constraints.iter().any(|constraint|
-        matches!(constraint, snapback4_core::schema::Constraint::Cap { by, max: 32 } if by == &["readerId"])));
+    assert!(!bound.schema.tables.contains_key("timelinePulls"));
     assert!(LANGUAGE.contains("guide feeds"));
     assert!(!language().contains("table feed:"));
 }
@@ -1149,7 +1142,7 @@ fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates(
     for (name,text) in docs {
         for (index, source) in quarry(text).into_iter().enumerate() {
             let bound=compile(&in_context(&source));
-            if name == "feeds" && index == 0 { feeds::assert_stream_note(&bound); continue; }
+            if name == "feeds" && index == 1 { feeds::assert_stream_note(&bound); continue; }
             assert!(bound.notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")),"{name}: {:?}",bound.notes);
         }
     }

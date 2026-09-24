@@ -48122,3 +48122,107 @@ after the needed id get a separate canonical index. The inherited expression
 printer's omitted grouping in some cost explanations remains a presentation
 issue; execution is covered. These limits and concrete reproductions are in
 the report. No package was published and no commit was pushed.
+
+## 2026-09-24 — LLP 3000.013 lane C: durable Following, epoch question stopped
+
+Implemented the no-cap timeline declaration path on `sb4-intent/c-following`:
+engine-owned delivery/backfill/cleanup/purge records, bounded transactional
+chunks and cursors, own-copy prediction, public-source admission, immutable
+originals filters, a 50-event follow preview and 1,000-event backfill window,
+256 synchronous unfollow deletes, epoch-bound reader work/copies, truthful
+pending completeness and stale-scan continuations. Dev/serve wake delivery on
+commit; replay still delivers. Doctor exposes pending/parked work. `timeline-v2`
+fences native/Wasm 0.3 devices and opening a v1 store; no migration was written.
+
+Measured post writes: five followers = four, 900 followers = four. First pages:
+five follows = 61 examinations, 500 follows = 61. Delivery to 900 followers took
+four chunks/901 copies; crash/reopen and compatible index adoption resumed with
+no duplicates (latest isolated run 140 ms). Actual HTTP delivery in dev replay
+measured 73 ms. Both device stores pass 26 timeline tests; the counted/uncounted
+oracle and reduced Clique fixture agree after explicit delivery drain. The
+final full suite reported `== 1 failure(s) in 173 s` (`cargo test`): only the
+three remaining host-baseline failures (search Wasm fixture snapshot, read-auth
+census, why-operation output). Client tests: 994 passed, zero failed, ten existing
+skips. Wasm gzip: 473,253 bytes within the unchanged 474,000-byte budget.
+
+Stopped the unresolved fan-out epoch requirement: one post task spans many
+edge epochs and currently discovers recipients during its chunks. Verified
+counterexample: 1,100 pending posts, then a new follow, then drain yields 1,100
+copies despite backfill's 1,000-event window. No eligibility redesign was made;
+this needs supervisor resolution before merge. Reader-specific tasks and copies
+are epoch-bound and refollow cleanup is tested. Lane A's landing was not signaled,
+so FeedView binding/rebase remains deferred. The guide lane still owns the rest
+of the old card prose. No push, publication, migration or meter increase.
+
+File-by-file work, exact test replacements, failures and the copyable stopped
+counterexample: [lane report](reports/20260924-following-v2/report.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane C review round 1: admission order and metered delivery
+
+Fixed all five Astra findings. Engine-owned private edge admissions now mint
+fresh epochs from commit sequence and intra-transaction write ordinal, so reused
+application edge ids cannot let retired cleanup delete new copies. Backfill owns
+pre-follow events within the 1,000-event window; delivery owns later events.
+Completed delivery records retain admission metadata until removal. Trusted
+restores advance the sequence floor. Reserved `$timeline:` follower indexes
+cannot collide with authored indexes. Timeline scans now precharge decoded
+payload, retained rows and keys under the unchanged heap ceiling. Ordinary jobs
+retain their existing meters; the first full run caught and the fix removed an
+over-broad check of their empty purge grants.
+
+Measured post writes remain 4 for both five and 900 followers; first-page
+examinations remain 61 for both five and 500 follows. Follow preview/unfollow now
+cost at most 53/259 writes, including the owned admission insert/delete. Reused
+`fixed-edge` refollow converges to all 600 unique events. Both drain orders retain
+exactly 1,000 of 1,100 older events; a newer backdated event is delivered separately.
+The 256 × 100,000-character edge-payload probe refuses before materializing the
+batch and parks without copies or cursor progress. Pre-cleanup pagination checks
+the whole sequence; removing the epoch predicate makes its regression fail.
+Fifteen background tests, both device stores, the counted/uncounted oracle,
+reduced Clique, all twelve digest tests and replay delivery pass.
+
+Final `scripts/test.sh`: `== 1 failure(s) in 197 s` (`cargo test`), only the three
+supplied-baseline failures: search Wasm fixture snapshot, read-auth census and
+why-operation output. Client tests: 994 passed, zero failed, ten existing skips.
+Wasm: 1,708,510 bytes raw / 473,320 gzip, below the unchanged 474,000-byte budget.
+The initial round-1 suite's three introduced digest failures were fixed; one
+unrelated HTTP admission timing failure passed isolated retry and the final suite.
+No ceiling, source disclosure rule or device prediction boundary was relaxed.
+FeedView binding still waits for Lane A; no rebase, migration, push or publication.
+The prior epoch/window blocker is resolved by the supervisor's one-producer rule.
+File-by-file changes, tests and reproductions: [round-1 report](reports/20260924-following-v2/review-round1.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane C review round 2: device fence and backlog proofs
+
+Shared the server's timeline version check with device open and adoption. Saved
+v1 timelines now refuse with `E_TIMELINE_REDEFINE` and fresh-store guidance before
+installation, even when a newer backend is supplied. Memory and SQLite tests
+preserve metadata, source rows and queued writes on every refused path; genuine
+legacy bytes remain decodable. Replaced two old tests that expected legacy
+execution with six compatibility/refusal tests.
+
+Confirmed round 1's engine admission order and one-producer rule cover both
+sides of a saved delivery cursor. Promoted the 1,100-pending-event counterexample
+to a committed regression expecting exactly the newest 1,000. Added proofs that
+late followers before and after a saved cursor converge identically and a full
+256-edge skipped chunk keeps scanning. The pre-cleanup refollow page now asserts
+20 distinct ids backed by new-epoch copies, alongside the existing complete
+50-event pagination proof. No delivery runtime redesign was needed.
+
+All 56 affected tests passed. Post writes remain 4/4 for five/900 followers;
+first-page examinations remain 61/61 for five/500 follows. The 900-follower
+crash/reopen run took 460 ms, four chunks and 901 copies. The wide-payload scan
+still refuses at the unchanged heap ceiling without committing copies or cursor
+progress. Wasm is 1,708,992 bytes raw / 473,405 gzip, below the unchanged 474,000
+budget. The reference check reports zero errors or unchecked refs.
+
+Required `scripts/test.sh`: `== 1 failure(s) in 192 s` (`cargo test`). Only the
+three supplied-baseline failures remain: search Wasm fixture snapshot, read-auth
+census and why-operation output. No introduced or environmental failures in this
+round. Client tests: 994 passed, zero failed, ten existing skips. FeedView binding
+still waits for Lane A's announced landing. No migration, disclosure change,
+meter increase, device prediction expansion, rebase, push or publication.
+Implementation: `e1ef352ea`. File-by-file changes, tests, failures and reproductions:
+[round-2 report](reports/20260924-following-v2/review-round2.md).

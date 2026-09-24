@@ -8,53 +8,101 @@ post cards by their maintained like count.
 
 ## What Following contains
 
-Your own events and those of authors you follow appear newest first, by event
-time and then event id. An event is an original or a repost. A repost carries
-the original post's id and author, with the reposter as actor; it has its own
-fresh event id. Repeating a repost while its attribution exists adds nothing.
-Unreposting and reposting again creates a new event, with a new id and time.
+Your own originals and reposts, and those of actors you currently follow,
+appear newest first by event time and then event id. Each event has its own
+identity. A repost keeps its original's post id and author, with the reposter
+as actor. Removing an original retains its card and independent reposts;
+a new repost requires a live original event.
 
-Following an author examines the newest `clamp(authors, 200, 865)` source
-events and copies the pushed events among them. At the size below the window
-is 865. It is a window of source events, not of pushed events: 100 newer
-shared events leave room for only 765 older pushed events. Shared events are
-read directly from the public broadcast lane. Following is not an unlimited
-historical archive.
+Posting commits the event, your own inbox copy, and a durable delivery record.
+Followers receive copies in background chunks of 256. A page can temporarily
+lack an event whose delivery is still pending. Following copies the newest 50
+live events immediately, then backfills the rest of an engine-chosen 1,000-event window in chunks.
+The engine assigns a fresh edge epoch on every follow, even if the application
+reuses a follows row id. Backfill alone copies events admitted before that epoch;
+delivery alone copies events admitted afterward. This order comes from the
+engine's transaction sequence and write ordinal, never event time, so delaying
+delivery cannot enlarge the history window. The completed delivery record keeps
+that admission order until the event is removed.
+Older events remain readable on the author’s profile.
+Unfollow hides the actor on the very next read, before background cleanup. Up to 256 stale copies are deleted synchronously.
+The read checks the current privately replicated edge epoch and public removal tombstone for every examined row. A meter cut on stale copies returns an incomplete
+page with a continuation.
+Removal writes the tombstone immediately; background work purges copies before
+retiring it. A crash resumes from the last committed cursor without duplicate
+copies. No author registration, size clause, promotion or shared lane is needed.
+Following pages cover delivered inbox contents: `complete` is false while
+that reader has pending backfill or cleanup. Per-event delivery does not change
+`complete`; followers normally receive copies within a second on an idle host.
+`snapback4 doctor` lists pending and parked work.
+The job meters bound each chunk. Devices predict their own event's own-inbox
+copy; follow and unfollow queue for the server without prediction.
 
-The 51st follower permanently promotes an author to shared delivery, atomically
-with that follow. Every follower, including the newcomer, gets a pull route.
-Falling below 51 never demotes the author. Old pushed events keep their mode;
-promotion does not recopy history. An author's own events remain visible even
-when their shared-author slots are full.
+This standalone example includes replies in the posts table while selecting
+only originals. Every selection column except the one-way removal flag is
+immutable. Full public source partitions and the reader's private inbox are
+replicated; measure cold acquisition separately from page reads.
 
-Unfollow removes that actor's private copies and pull route in the same
-transaction. Public cards remain readable elsewhere. Removal of an original
-sets its one-way `removed` flag from false to true and keeps its card for
-independent reposts. An initially true flag or a reversal refuses. Existing reposts survive; a new repost needs a live
-original event. Delete the app's repost row to remove a repost. Repeated
-original removal does no derived work. Never reuse event ids.
+```quarry
+table posts:
+  authorId: principal
+  parentId: posts ?
+  at: time
+  removed: bool default false
+  immutable authorId, parentId, at
+  public 'public posts and replies'
+  insert <- .authorId = viewer
+  update <- .authorId = viewer
+  sync public
 
-Removal hides the event through a public tombstone in the writing transaction,
-before deferred cleanup. Pages filter tombstones before emitting cards, with
-no null slots. The engine's minute job purges at most 1,001 private copies and
-their tombstone atomically per chunk; a refused chunk parks with its refusal.
-There is no application purge job.
+table reposts:
+  actorId: principal
+  postId: posts
+  at: time
+  unique byPair: actorId, postId
+  immutable actorId, postId, at
+  public 'public reposts'
+  insert <- .actorId = viewer
+  delete <- .actorId = viewer
+  sync public
 
-Caps refuse the entire write, including the app's source change:
+table follows:
+  followerId: principal
+  followedId: principal
+  unique byPair: followerId, followedId
+  immutable followerId, followedId
+  public 'public edges'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+  sync public
 
-| Limit | Value in the program below |
-|---|---:|
-| Registered authors | 1,008 |
-| Follow edges globally | 5,921 |
-| Follows per reader / followers per author | 1,000 / 1,000 |
-| Live source events per actor / globally | 1,000 / 60,000 |
-| Replies globally (outside Following) | 60,000 |
-| Private entries per reader / per reader and actor | 50,000 / 1,000 |
-| Private copies per event | 1,001 |
-| Pulled authors per reader | 32 |
-| Pull routes / online count rows globally | 32,256 / 32,256 |
-| Public broadcasts | 32,000 |
-| Pending tombstones globally / per actor | 32,000 / 1,000 |
+maintain feed: timeline
+  events posts where .parentId = null and not .removed by authorId, at removed by removed
+  reposts reposts by actorId, postId, at
+  edges follows by followerId, followedId
+
+mutation post(postId: id, parentId: posts ?):
+  return insert posts { id: postId, authorId: viewer, parentId, at: now }
+mutation repost(postId: posts):
+  return insert reposts { actorId: viewer, postId, at: now } if absent
+mutation unrepost(postId: posts):
+  delete reposts[viewer, postId]
+mutation follow(actor: principal):
+  return insert follows { followerId: viewer, followedId: actor } if absent
+mutation unfollow(actor: principal):
+  delete follows[viewer, actor]
+mutation remove(postId: posts):
+  update posts[postId] { removed: true }
+query home(c: cursor ?):
+  return feed[viewer] after c last 20
+```
+
+E_TIMELINE_FILTER means the originals predicate uses a mutable or non-local
+input. Declare each selection column immutable and use `where .parentId = null
+and not .removed` on the events mapping.
+
+N_TIMELINE_COMPAT means an old `authors` or `size` clause is accepted but
+unused. Remove those clauses and keep events, reposts and edges.
 
 ### Cost
 
@@ -255,11 +303,9 @@ table events:
   sync public
 
 maintain feed: timeline
-  authors profiles by principal
   events posts by authorId, at removed by removed
   reposts reposts by actorId, postId, at
   edges follows by followerId, followedId
-  size authors 1008, edges 5921
 
 query following(c: cursor ?):
   return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[principal = .actorId], author: profiles[principal = .authorId] }

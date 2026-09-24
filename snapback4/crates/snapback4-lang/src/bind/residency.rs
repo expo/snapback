@@ -30,6 +30,11 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             rule_sites(schema, &table.rules.read, &format!("{} temporary audience", read.site), &mut fact.sites, &mut BTreeSet::new());
         }
         aggregate_source_site(schema, &read.table, &read.site, &mut fact.sites);
+        if read.index == "byReaderTime" {
+            if let Some(t) = schema.timelines.iter().find(|t| read.table == t.table("Feed")) {
+                fact.sites.push(site(schema, &read.site, &t.table("Work"), "byReader", "timeline pending work"));
+            }
+        }
     }
     let mut requires = BTreeSet::new();
     let mut inspected_sites = Vec::new();

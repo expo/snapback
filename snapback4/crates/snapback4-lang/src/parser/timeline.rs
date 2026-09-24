@@ -8,13 +8,17 @@ impl Parser {
         self.take("timeline")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        self.take("authors")?;
-        let author_table = self.word()?.value;
-        self.take("by")?;
-        let principal = self.word()?.value;
-        self.newline()?;
+        let mut authors = [String::new(), String::new()];
+        if self.at("authors") {
+            self.take("authors")?;
+            authors[0] = self.word()?.value;
+            self.take("by")?;
+            authors[1] = self.word()?.value;
+            self.newline()?;
+        }
         self.take("events")?;
         let posts = self.word()?.value;
+        let filter = if self.at("where") { self.take("where")?; Some(self.maintain_predicate(0)?) } else { None };
         self.take("by")?;
         let author = self.word()?.value;
         self.take(",")?;
@@ -41,14 +45,15 @@ impl Parser {
         self.newline()?;
         let size = self.timeline_size()?;
         self.take_kind(Kind::Dedent)?;
-        Ok(TimelineDecl { name, authors: [author_table, principal], posts: [posts, author, at, removed],
-            reposts: [reposts, actor, original, repost_at], edges: [edges, follower, followed], size, site })
+        Ok(TimelineDecl { name, authors, posts: [posts, author, at, removed],
+            reposts: [reposts, actor, original, repost_at], edges: [edges, follower, followed], size, filter, site })
     }
 
-    fn timeline_size(&mut self) -> Fallible<crate::recipe::FollowingCaps> {
+    fn timeline_size(&mut self) -> Fallible<Option<crate::recipe::FollowingCaps>> {
         let site = self.peek().site.clone();
         let refusal = |message| Diagnostic::new(&site, "E_TIMELINE_SIZE", message,
             "use size authors 1008, edges 5921; either key may be omitted (defaults: authors 1000, edges 100000); keep the recipe's sizing bounds from guide feeds").guide("feeds");
+        if !self.at("size") { return Ok(None); }
         let mut authors = None;
         let mut edges = None;
         if self.at("size") {
@@ -67,7 +72,7 @@ impl Parser {
             }
             self.newline().map_err(|_| refusal("separate size keys with a comma and end the sizing line".into()))?;
         }
-        crate::recipe::FollowingCaps::parse(authors.as_deref(), edges.as_deref())
+        crate::recipe::FollowingCaps::parse(authors.as_deref(), edges.as_deref()).map(Some)
             .map_err(|message| refusal(message.replace("--authors", "size authors").replace("--edges", "size edges")))
     }
 }

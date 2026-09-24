@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 pub const APP: &str = include_str!("app.q");
 pub const DECLARATION: &str = include_str!("declaration.q");
-pub const OWNED: [&str; 8] = ["feedAuthors", "feedPulls", "feedPullCounts", "feedPullTotals", "feedPosts", "feedRemovedEvents", "feedFeed", "feedBroadcast"];
+pub const OWNED: [&str; 5] = ["feedPosts", "feedRemovedEvents", "feedFeed", "feedWork", "feedEdges"];
 pub fn id(s: &str) -> Value { Value::Id(s.into()) }
 pub fn context(viewer: &str, args: &[(&str, Value)], at: i64) -> Context {
     Context::new(viewer, args.iter().map(|(k,v)| (k.to_string(), v.clone())).collect()).at(at)
@@ -92,105 +92,8 @@ pub fn rows(e: &Engine, table: &str) -> Vec<Value> { e.store().rows(table).unwra
 pub fn snapshot(e: &Engine) -> BTreeMap<String, Vec<Value>> {
     e.schema().tables.keys().map(|table| (table.clone(), rows(e, table))).collect()
 }
-pub fn normalized(e: &Engine) -> BTreeMap<String, Vec<String>> {
-    e.schema().tables.keys().filter(|name| name.as_str() != "feedFollows").map(|name| {
-        let mut rows: Vec<_> = rows(e, name).into_iter().map(|mut row| {
-            // Recipe storage ids are minted; F3 storage ids are digest-derived.
-            // Public event ids stay exact (Posts.id and RemovedEvents.eventId).
-            // equal() separately checks every F3 storage id, including tombstones.
-            if !matches!(name.as_str(), "feedPosts" | "posts") {
-                if let Value::Row(fields) = &mut row { fields.remove("id"); }
-            }
-            snapback4_core::value::canonical_json(&row)
-        }).collect();
-        rows.sort(); (name.clone(), rows)
-    }).collect()
+pub fn sent(e: &mut Engine, op: &str, who: &str, args: &[(&str,Value)], at:i64) -> MutationOutcome {
+    let out=e.mutate(op,None,context(who,args,at)).unwrap();
+    assert!(matches!(out.state,WriteState::Sent{..}),"{op}: {out:?}");out
 }
-pub struct Pair { pub recipe: Engine, pub declared: Engine, pub at: i64 }
-impl Pair {
-    pub fn new() -> Self { Self { recipe: engine(false), declared: engine(true), at: 1 } }
-    pub fn sized(authors: u32, edges: u32) -> Self {
-        let engine = |declared| { let b = sized_bound(declared, Some((authors, edges))); Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap() };
-        Self { recipe: engine(false), declared: engine(true), at: 1 }
-    }
-    pub fn step(&mut self, op: &str, viewer: &str, args: &[(&str,Value)]) -> [MutationOutcome;2] {
-        self.step_inner(op, viewer, args, true)
-    }
-    fn step_inner(&mut self, op: &str, viewer: &str, args: &[(&str,Value)], expecting_refusal: bool) -> [MutationOutcome;2] {
-        let before = expecting_refusal.then(|| [snapshot(&self.recipe), snapshot(&self.declared)]);
-        let edge_set = |e: &Engine| rows(e, "feedFollows").iter().map(snapback4_core::value::canonical_json).collect::<std::collections::BTreeSet<_>>();
-        let before_edges = edge_set(&self.recipe);
-        let a = self.recipe.mutate(op, None, context(viewer,args,self.at)).unwrap();
-        let b = self.declared.mutate(op, None, context(viewer,args,self.at)).unwrap();
-        self.at += 1;
-        match (&a.state,&b.state) {
-            (WriteState::Sent{..},WriteState::Sent{..}) => {
-                let after_edges = edge_set(&self.recipe);
-                let edge_writes = before_edges.symmetric_difference(&after_edges).count() as u64;
-                assert_eq!(a.metered.rows_written, b.metered.rows_written + edge_writes, "{op} for {viewer}: writes");
-            }
-            (WriteState::Failed{why:left,..},WriteState::Failed{why:right,..}) => {
-                assert_eq!(left.code,right.code,"{op} for {viewer}");
-                let before=before.expect("an expected-success step refused");
-                assert_eq!(snapshot(&self.recipe), before[0], "recipe refusal {op}");
-                assert_eq!(snapshot(&self.declared), before[1], "F3 refusal {op}");
-                // Refusal meters describe attempted work, not committed writes.
-                // The recipe executes interpreted guards; F3 has engine transitions.
-                let written=match (op,left.code.as_str()) {
-                    // F3 attempts the mapped follows insert before its transition
-                    // checks the profile; that one application row rolls back.
-                    ("follow","FEED_APP_NOT_FOUND")=>[0,1],
-                    (_,"FEED_PULL_CAP")=>[2,1],
-                    (_,"FEED_PROMOTION_PULL_CAP")=>[9,8],
-                    (_,"FEED_PULL_COUNT_MISSING")=>[3,3],
-                    ("follow","E_CONSTRAINT")=>[0,0],
-                    (_,"FEED_CANNOT_FOLLOW_SELF"|"FEED_APP_NOT_FOUND"|"FEED_POST_NOT_FOUND"|"FEED_EVENT_REMOVED"|"E_CONSTRAINT")=>[1,1],
-                    other=>panic!("price the refused trace {other:?}"),
-                };
-                assert_eq!([a.metered.rows_written,b.metered.rows_written],written,"{op}: {}",left.code);
-                assert!(a.tables.is_empty() && b.tables.is_empty());assert_eq!((a.events,b.events),(0,0));
-            },
-            _ => panic!("{op} for {viewer}: recipe {:?}; F3 {:?}",a.state,b.state),
-        }
-        [a,b]
-    }
-    pub fn sent(&mut self, op: &str, viewer: &str, args: &[(&str,Value)]) -> [MutationOutcome;2] {
-        let out = self.step_inner(op,viewer,args,false);
-        assert!(matches!(out[0].state,WriteState::Sent{..}),"{op}: {:?}",out[0]); out
-    }
-    pub fn register(&mut self, viewer: &str) { self.sent("register",viewer,&[]); }
-    pub fn follow(&mut self, viewer: &str, author: &str) { self.sent("follow",viewer,&[("authorId",id(author))]); }
-    pub fn publish(&mut self, actor: &str, post: &str) { self.sent("publish",actor,&[("postId",id(post))]); }
-    pub fn equal(&self) {
-        super::identity::assert_placement(&self.declared, &[]);
-        assert!(!self.declared.schema().tables.contains_key("feedFollows"));
-        let a=normalized(&self.recipe); let b=normalized(&self.declared);
-        for (table,rows) in &a { assert_eq!(rows,&b[table],"table {table}"); }
-        assert_eq!(a.len(),b.len());
-    }
-    pub fn pages(&mut self, viewer: &str, query: &str) -> Vec<Value> {
-        let mut next = [None::<String>,None]; let mut all = Vec::new();
-        for _ in 0..200 {
-            let pages: Vec<_> = [&mut self.recipe,&mut self.declared].into_iter().enumerate().map(|(i,e)| {
-                e.query(query,context(viewer,&[("c",next[i].clone().map(Value::String).unwrap_or(Value::Null))],self.at)).unwrap()
-            }).collect();
-            assert_eq!(pages[0].data,pages[1].data,"{viewer} {query}");
-            assert_eq!(pages[0].complete,pages[1].complete);
-            assert_eq!(pages[0].cut,pages[1].cut);
-            assert_eq!(pages[0].next.is_some(),pages[1].next.is_some());
-            // Compare every cursor field, translating only the physical copy id.
-            let cursors: Vec<_> = pages.iter().zip([&self.recipe,&self.declared]).map(|(p,e)| p.next.as_ref().map(|token| {
-                let mut c = snapback4_core::cursor::decode_cursor(e.schema(),token).unwrap();
-                for (col,val) in c.suffix.iter().zip(&mut c.values) {
-                    if col.name == "id" { *val = Value::Id("physical-copy".into()); }
-                }
-                c
-            })).collect();
-            assert_eq!(cursors[0],cursors[1]);
-            all.extend(pages[0].data.as_array().unwrap().iter().cloned());
-            if pages[0].next.is_none() && pages[1].next.is_none() { return all; }
-            next = [pages[0].next.clone(),pages[1].next.clone()];
-        }
-        panic!("timeline did not terminate")
-    }
-}
+pub fn drain(e: &mut Engine) { while e.run_timeline_chunk(10000).unwrap().is_some() {} }

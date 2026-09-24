@@ -26,7 +26,7 @@ fn all(e: &mut Engine, op: &str, now: i64) -> Vec<Value> {
 
 #[test]
 fn global_projection_retries_removal_and_rollback_are_atomic() {
-    let source = quarry(card("feeds").unwrap()).remove(0);
+    let source = quarry(card("feeds").unwrap()).remove(1);
     let mut e = engine(&source,true);
     let mut clock = 0;
     for viewer in ["author","actor"] { write(&mut e,&mut clock,"register",viewer,&[("name",text(viewer))]); }

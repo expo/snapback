@@ -13,9 +13,11 @@ pub fn queued_only<S: Images>(d: &mut Device<S>, q: &Queued, before: &BTreeMap<S
 }
 pub fn assert_partition<S: Images>(d: &mut Device<S>, e: &Engine, viewer: &str) {
     let local=rows(d);
-    for table in ["profiles","posts","reposts","follows","feedAuthors","feedPosts","feedRemovedEvents","feedBroadcast","feedFeed","feedPulls"] {
+    for table in ["profiles","posts","reposts","follows","feedPosts","feedRemovedEvents","feedFeed","feedWork","feedEdges"] {
         let mut expected=fixture::rows(e,table);
-        if matches!(table,"feedFeed"|"feedPulls") { expected.retain(|r|r.field("readerId").unwrap()==&fixture::id(viewer)); }
+        if table=="feedFeed" { expected.retain(|r|r.field("readerId").unwrap()==&fixture::id(viewer)); }
+        if table=="feedEdges" { expected.retain(|r|r.field("readerId").unwrap()==&fixture::id(viewer)); }
+        if table=="feedWork" { expected.retain(|r|r.field("viewerId").unwrap()==&fixture::id(viewer)); }
         expected.sort_by_key(|r|r.field("id").unwrap().as_str().unwrap().to_owned());
         assert_eq!(local[table],expected,"settled partition {table}");
         assert!(d.store().images(table).iter().all(|r|!r.as_object().unwrap().contains_key("pending")),"pending survives in {table}");
@@ -24,34 +26,25 @@ pub fn assert_partition<S: Images>(d: &mut Device<S>, e: &Engine, viewer: &str) 
 pub fn add_probes(b: &mut Backend) {
     let queries = r#"
 query inboxPoint(eventId: id):
-  return feedFeed['bob', eventId] { readerId, eventId }
+  return feedFeed['bob', eventId, null] by byReaderEvent { readerId, eventId }
 query inboxScan():
   return feedFeed['bob'] first 100 by byReaderTime { readerId, eventId }
 query inboxMerge():
   return merge feedFeed last 100 by byReaderTime:
     ['bob']
 query inboxProbe(eventId: id):
-  return exists feedFeed['bob', eventId]
-query routePoint():
-  return feedPulls['bob', 'alice']
-query routeScan():
-  return feedPulls['bob'] first 100 by byReaderAuthor
-query routeMerge():
-  return merge feedPulls first 100 by byReaderAuthor:
-    ['bob']
-query routeProbe():
-  return exists feedPulls['bob', 'alice']
+  return exists feedFeed['bob', eventId, null] by byReaderEvent
 "#;
     let compiled=fixture::compile(&format!("{}{}{queries}",fixture::APP,fixture::DECLARATION));
     b.programs.extend(compiled.programs.into_iter().filter(|p|p.program.kind==snapback4_core::ir::ProgramKind::Query).map(|p|p.program));
 }
 pub fn assert_private<S: Images>(d: &mut Device<S>, post: &str) {
-        for query in ["inboxPoint","inboxScan","inboxMerge","inboxProbe","routePoint","routeScan","routeMerge","routeProbe"] {
+        for query in ["inboxPoint","inboxScan","inboxMerge","inboxProbe"] {
             let args=if query=="inboxPoint" || query=="inboxProbe" {json!({"eventId":post})} else {json!({})};
             let answer=d.query(query,"alice",&args,100).unwrap();
             assert!(answer.data==Value::Null || answer.data==Value::Bool(false) || answer.data==Value::Array(vec![]),"foreign disclosure via {query}: {answer:?}");
         }
-    for table in ["feedFeed","feedPulls"] {
+    for table in ["feedFeed"] {
         assert!(d.store().images(table).iter().all(|r| r.field("readerId").unwrap()==&fixture::id("alice")), "foreign row in raw {table}");
     }
 }
@@ -64,7 +57,7 @@ fn foreign_reads<H: Host>(mut h: H) where H::Store: Images {
         // fails on the actual read, not merely a bookkeeping count.
         assert_private(&mut d, &post);
         assert_eq!(q.predicted.len(),3);
-        let own=owned_id("feed","Feed",&[fixture::id("alice"),fixture::id(&post)]);
+        let own=owned_id("feed","Feed",&[fixture::id("alice"),fixture::id(&post),Value::Null]);
         assert_eq!(q.predicted.iter().cloned().collect::<std::collections::BTreeSet<_>>(),[format!("posts/{post}"),format!("feedPosts/{post}"),format!("feedFeed/{own}")].into());
         assert!(d.store().images("feedFeed").iter().all(|r|r.field("readerId").unwrap()==&fixture::id("alice")));
         let before=e.seq().unwrap();
@@ -88,10 +81,6 @@ fn foreign_reads<H: Host>(mut h: H) where H::Store: Images {
 
 fn retained<H: Host>(mut h: H) where H::Store: Images {
     for (table,op,args,empty) in [
-        ("feedAuthors","publish",json!({"postId":"retained-mode"}),false),
-        ("profiles","publish",json!({"postId":"retained-profile"}),false),
-        ("follows","publish",json!({"postId":"retained-edge"}),false),
-        ("follows","publish",json!({"postId":"retained-empty-range"}),true),
         ("feedRemovedEvents","publish",json!({"postId":"removed"}),false),
         ("feedPosts","repost",json!({"postId":"original"}),false),
     ] {

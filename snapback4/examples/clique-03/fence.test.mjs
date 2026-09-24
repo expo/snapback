@@ -13,7 +13,7 @@ test('published 0.2.33 refuses the integrated app before prediction',async t=>{
   assert.ok(file,'set SNAPBACK4_CLIQUE_BACKEND to the backend exported by the crate test');
   const backend=JSON.parse(readFileSync(file,'utf8'));
   const capabilities=Object.values(backend.schema.tables).flatMap(t=>t.constraints).filter(c=>c.Capabilities);
-  assert.deepEqual(capabilities,[{Capabilities:['maintained-column','recorded-attribution','timeline']}]);
+  assert.deepEqual(capabilities,[{Capabilities:['maintained-column','recorded-attribution','timeline-v2']}]);
   const dir=mkdtempSync(join(tmpdir(),'sb4-clique-fence-'));
   t.after(()=>rmSync(dir,{recursive:true,force:true}));
   const legacy=await published(process.env.SNAPBACK4_FENCE_PUBLISHED??join(homedir(),'sb4-03-lanes/fence/published'),dir,s=>t.diagnostic(s));

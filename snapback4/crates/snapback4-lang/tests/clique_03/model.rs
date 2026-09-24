@@ -1,6 +1,6 @@
 use super::*;
 
-// @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — independent oracle for permanent promotion and bounded follow-time copies.
+// @ref LLP 3000.013#4-following-without-caps — independent oracle for delivered copies and the engine history window.
 
 #[derive(Clone)]
 pub struct Post {
@@ -13,7 +13,6 @@ pub struct Event {
     pub post: String,
     pub actor: String,
     pub at: i64,
-    pub shared: bool,
     pub repost: bool,
 }
 #[derive(Default)]
@@ -25,7 +24,6 @@ pub struct Model {
     pub likes: BTreeMap<(String, String), i64>,
     pub removed: BTreeSet<String>,
     pub edges: BTreeSet<(String, String)>,
-    pub promoted: BTreeSet<String>,
     pub copies: BTreeMap<String, BTreeSet<String>>,
     pub now: i64,
 }
@@ -48,14 +46,12 @@ impl Model {
         if repost {
             self.contribution_target(post).unwrap();
         }
-        let shared = self.promoted.contains(actor);
         self.events.insert(
             key.into(),
             Event {
                 post: post.into(),
                 actor: actor.into(),
                 at,
-                shared,
                 repost,
             },
         );
@@ -63,7 +59,7 @@ impl Model {
             .entry(actor.into())
             .or_default()
             .insert(key.into());
-        if !shared {
+        {
             for (reader, a) in &self.edges {
                 if a == actor {
                     self.copies
@@ -78,17 +74,14 @@ impl Model {
         if !self.edges.insert((reader.into(), author.into())) {
             return;
         }
-        if self.edges.iter().filter(|(_, a)| a == author).count() >= 51 {
-            self.promoted.insert(author.into());
-        }
         let mut events: Vec<_> = self
             .events
             .iter()
             .filter(|(_, v)| v.actor == author)
             .collect();
         events.sort_by(|(ka, a), (kb, b)| (b.at, kb).cmp(&(a.at, ka)));
-        for (key, event) in events.into_iter().take(865) {
-            if !event.shared {
+        for (key, _) in events.into_iter().take(1000) {
+            {
                 self.copies
                     .entry(reader.into())
                     .or_default()
@@ -108,7 +101,7 @@ impl Model {
             .iter()
             .filter(|(key, e)| {
                 self.copies.get(reader).is_some_and(|c| c.contains(*key))
-                    || (e.shared && self.edges.contains(&(reader.into(), e.actor.clone())))
+                    && (e.actor == reader || self.edges.contains(&(reader.into(), e.actor.clone())))
             })
             .collect();
         rows.sort_by(|(ka, a), (kb, b)| (b.at, kb).cmp(&(a.at, ka)));
@@ -207,6 +200,7 @@ impl Model {
         counts
     }
     pub fn check(&self, e: &mut Engine) {
+        drain(e, self.now);
         self.check_following(e);
         self.check_store(e.store());
         self.check_received_store(e.store());

@@ -757,6 +757,7 @@ impl Runner<'_> {
             return self.scan_words(scan).map(|rows| (rows, Vec::new()));
         }
         let prefix = self.prefix_values(scan)?;
+        self.timeline_read_pending(&scan.table, &scan.index, &prefix)?;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         // @ref LLP 3000.007#18.1 — generated word lanes share the search's merge cursor, not a direct cursor scoped to one word.
@@ -869,8 +870,12 @@ impl Runner<'_> {
         let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
         let mut crossed = false;
-        let metered_word = word.is_some_and(|w| w.metered);
-        if metered_word { self.meter.heap(word_heap::bounds(&bounds))?; }
+        // Internal timeline scans retain complete source rows, including arbitrary
+        // application payload. Use the same pre-allocation ledger as word scans.
+        // Ordinary jobs may hold an empty Purge grant; that is not a transition.
+        let metered_payload = word.is_some_and(|w| w.metered)
+            || matches!(&self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_)));
+        if metered_payload { self.meter.heap(word_heap::bounds(&bounds))?; }
         let mut cursor = bounds.clone();
         let streaming = aggregate.is_some();
         let batch = if streaming { 1 } else if job_page { take } else if visibility.uniform { take + 1 } else { (take + 1).max(32) };
@@ -890,7 +895,7 @@ impl Runner<'_> {
             // can refuse K=1 when each iteration itself fits. A later chunk
             // establishes exhaustion. Rejected rows leave selected slots open.
             let batch = if job_page { take - visible.len() } else { batch };
-            let fetched = if metered_word || streaming || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
+            let fetched = if metered_payload || streaming || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
                 else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
             if streaming { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
             if fetched.is_empty() {
@@ -906,9 +911,9 @@ impl Runner<'_> {
                     break 'outer;
                 }
                 // Decode scratch and the retained seek position, before decoding the key.
-                if metered_word || streaming { self.meter.heap(word_heap::key_decode(index.components.len() + 1, key.len()))?; }
+                if metered_payload || streaming { self.meter.heap(word_heap::key_decode(index.components.len() + 1, key.len()))?; }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
-                let materialized = if metered_word || streaming || job_page { word_heap::materialize(&row, table) } else { 0 };
+                let materialized = if metered_payload || streaming || job_page { word_heap::materialize(&row, table) } else { 0 };
                 if materialized > 0 { self.meter.heap(materialized)?; }
                 materialize_optional_fields(&mut row, table);
                 if streaming { row_bytes += materialized; }
@@ -920,7 +925,7 @@ impl Runner<'_> {
                 // first word still has to carry the rest.
                 let unmatched = if let Some(word) = word.filter(|word| !word.terms.is_empty()) {
                     let texts = word.fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok()));
-                    let tokens = if metered_word { word_heap::tokenize(&mut self.meter, texts)? } else { crate::words::row_tokens(texts) };
+                    let tokens = if metered_payload { word_heap::tokenize(&mut self.meter, texts)? } else { crate::words::row_tokens(texts) };
                     !crate::words::row_matches(&tokens, &word.terms)
                 } else { false };
                 if unmatched {
@@ -951,10 +956,10 @@ impl Runner<'_> {
                     }
                     let Some(row) = live_row else { continue; };
                     let row = super::recorded::public_image(table, row);
-                    if metered_word || streaming { self.meter.heap(word_heap::allocation(key.len()))?; }
+                    if metered_payload || streaming { self.meter.heap(word_heap::allocation(key.len()))?; }
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
-                        if metered_word { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
+                        if metered_payload { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
                         let prior = self.env.insert("$filter".into(), row.clone());
                         // @ref LLP 3000.007#20.22 — predicate reads are below the page; restore depth even when evaluating one fails.
                         let page_depth = self.page_depth;
@@ -964,14 +969,14 @@ impl Runner<'_> {
                         self.filter_depth -= 1;
                         self.page_depth = page_depth;
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
-                        if metered_word { self.meter.heap(word_heap::text(&scan.site))?; }
+                        if metered_payload { self.meter.heap(word_heap::text(&scan.site))?; }
                         self.meter.at(&scan.site);
                         if self.read_capped() && (matched.is_ok() || matches!(&matched, Err(RuntimeError::Bound { kind, .. }) if *kind != MeterKind::HeapBytes)) {
                             capped = true;
                             // The paved existence predicate has no verdict when its
                             // one-row search starves. Retry that membership; general
                             // counting predicates keep their existing forward progress.
-                            filter_interrupted = matches!(&**filter, Expr::Binary { op: BinaryOp::Gt, left, right }
+                            filter_interrupted = self.schema.timelines.iter().any(|t| scan.table == t.table("Feed")) || matches!(&**filter, Expr::Binary { op: BinaryOp::Gt, left, right }
                                 if matches!(right.as_ref(), Expr::Literal(Value::Int(0)))
                                 && matches!(left.as_ref(), Expr::Builtin { builtin: Builtin::Count, args }
                                     if matches!(args.as_slice(), [Expr::Scan(inner)] if inner.existence)));
@@ -996,7 +1001,7 @@ impl Runner<'_> {
                         has_more = true;
                         break 'outer;
                     }
-                    if metered_word {
+                    if metered_payload {
                         // Charge retention of a store-provided row and the emitted raw key
                         // before either output vector grows; moves do not copy row bodies.
                         self.meter.heap(word_heap::allocation(key.len()))?;

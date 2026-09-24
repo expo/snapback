@@ -122,11 +122,9 @@ const tables = {
 };
 const maintains = {
   feed: `maintain feed: timeline
-    authors profiles by principal
     events posts by authorId, at removed by removed
     reposts reposts by actorId, postId, at
-    edges follows by followerId, followedId
-    size authors 1008, edges 5921`,
+    edges follows by followerId, followedId`,
   receivedLikes: `maintain receivedLikes: count likes by postId.authorId read <- allow`,
   receivedReplies: `maintain receivedReplies: count replies by postId.authorId read <- allow online only`,
   dailyReceivedLikes: `maintain dailyReceivedLikes: count likes by postId.authorId, day(.at) read <- allow online only`,

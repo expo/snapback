@@ -113,6 +113,7 @@ pub struct Runner<'a> {
     pub(crate) page_overflow: bool,
     pub(super) discovering_values: bool,
     pub(super) value_source_incomplete: bool,
+    pub(crate) timeline_pending: bool,
     /// First scope whose word expansion exceeded 32; incomplete, without
     /// stopping later lanes or setting the query's meter cut.
     pub(crate) word_cut_at: Option<String>,
@@ -207,6 +208,7 @@ impl<'a> Runner<'a> {
             page_overflow: false,
             discovering_values: false,
             value_source_incomplete: false,
+            timeline_pending: false,
             word_cut_at: None,
             device: false,
             event_free: false,

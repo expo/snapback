@@ -1,0 +1,95 @@
+Round 1 affected tests and measurements (all passing):
+   Compiling snapback4-core v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 9.91s
+     Running tests/timeline_background.rs (target/debug/deps/timeline_background-a5d6cecb67e5ed3e)
+
+running 15 tests
+test authored_follower_index_name_cannot_replace_the_engine_index ... ok
+test admission_order_distinguishes_event_and_edge_inside_one_transaction ... ok
+test originals_filter_reposts_and_source_authority ... ok
+test equal_times_order_by_event_id_and_removal_fills_the_page ... ok
+test follow_preview_unfollow_removal_and_refollow_are_immediate ... ok
+test overlapping_delivery_backfill_and_removal_never_duplicate_or_resurrect ... ok
+test trusted_restore_preserves_the_admission_order_floor ... ok
+MEASURE read follows=5:61 follows=500:61
+test read_cost_is_independent_of_follow_count ... ok
+test last_purge_chunk_cancels_an_older_delivery_before_retiring_tombstone ... ok
+MEASURE 256 x 100000-byte edges: chunk refused before allocation; E_BOUND: HeapBytes reached 16849849 against the ceiling 16777216 at timeline/follows/$timeline:feed:followers
+test delivery_charges_large_edge_payloads_before_materializing_them ... ok
+MEASURE write followers=5:4 followers=900:4; recovery chunks=4 copies=901 elapsed_ms=301
+test constant_writer_cost_and_crash_resumption_to_900_followers ... ok
+test stale_meter_cut_has_a_continuation_and_never_claims_complete ... ok
+test application_edge_id_reuse_cannot_reuse_an_engine_epoch ... ok
+MEASURE history window=1000 preview=50 unfollow_writes=259 stale_after_unfollow=744; refollow leaves 1000 copies in new epoch
+test history_window_epochs_and_pending_completeness ... ok
+test late_follow_history_is_independent_of_delivery_drain_order ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.23s
+
+     Running tests/timeline_guide.rs (target/debug/deps/timeline_guide-7fb089d1cdb6ef5a)
+
+running 4 tests
+test maintained_columns_refuse_timeline_owned_sources_in_the_binder ... ok
+test language_timeline_registers_delivers_and_removes_without_helpers ... ok
+test maintained_columns_compose_with_mapped_timeline_tables ... ok
+test maintained_columns_on_mapped_tables_leave_timeline_state_identical ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+Expected mutant failure; original predicate restored before final suite:
+assertion `left == right` failed
+test history_window_epochs_and_pending_completeness ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.62s
+
+Digest scope regression, fixed without changing tests:
+hub 1000x20 ordinal: examined=16385, ceiling=16384, elapsed_ms=92
+hub 1000x20 time: examined=7004, chunks=1, writes=1, effects=1, elapsed_ms=41
+time-seek boundary: 14380 period messages -> 16384 examined/done; 14381 -> 16385 attempted/parked; effects stay 1
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 245 filtered out; finished in 2.17s
+
+Final scripts/test.sh:
+wasm 1708510 B raw, 473320 B gzip (budget 474000: ok)
+-- FAIL rust target: snapback4-device::device::uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots (0.6 s)
+-- FAIL rust target: snapback4-device::readauth (3.8 s)
+-- FAIL rust target: snapback4::check (11.6 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 7
+ℹ pass 7
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 1004
+ℹ pass 994
+ℹ fail 0
+ℹ skipped 10
+== 1 failure(s) in 197 s
+   cargo test

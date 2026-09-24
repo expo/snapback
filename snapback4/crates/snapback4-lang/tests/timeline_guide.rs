@@ -71,13 +71,15 @@ fn voting_timeline(counted: bool) -> Engine {
 }
 
 // The narrowing's safety claim, as a differential oracle: counts on mapped tables change no
-// timeline-owned row and no home page, through delivery, reposts, removal and unfollow.
+// timeline-owned relationship or home page, through delivery, reposts, removal and unfollow.
+// Admission tokens differ because counts add writes/commits; compare their total
+// order and references after canonical renaming, including derived ids/cursors.
 #[test]
 fn maintained_columns_on_mapped_tables_leave_timeline_state_identical() {
     let (mut plain, mut counted) = (voting_timeline(false), voting_timeline(true));
     let owned: Vec<String> = plain.schema().timelines[0].owned.iter().cloned().collect();
     let state = |e: &mut Engine| {
-        let rows: Vec<_> = owned.iter().map(|t| (t.clone(), e.store().rows(t).unwrap())).collect();
+        let rows = canonical_owned(e, &owned);
         let homes: Vec<Vec<Value>> = ["a", "b", "c"].iter().map(|viewer| {
             let page = e.query("timelineHome", Context::new(*viewer, Default::default()).at(50)).unwrap();
             page.data.as_array().unwrap().iter().map(|entry| entry.field("id").unwrap().clone()).collect()
@@ -107,6 +109,9 @@ fn maintained_columns_on_mapped_tables_leave_timeline_state_identical() {
             let out = e.mutate(op, None, ctx).unwrap();
             assert!(matches!(out.state, WriteState::Sent { .. }), "{op}: {out:?}");
         }
+        // Delivery is asynchronous; compare both pending work and converged state.
+        assert_eq!(state(&mut plain), state(&mut counted), "pending state after {op}");
+        for e in [&mut plain, &mut counted] { while e.run_timeline_chunk(50).unwrap().is_some() {} }
         assert_eq!(state(&mut plain), state(&mut counted), "timeline state diverged after {op} by {viewer}");
         if (op, viewer) == ("timelineVote", "b") {
             let card = counted.query("timelineCard", Context::new("b", [("id".into(), id("post"))].into()).at(50)).unwrap().data;
@@ -126,7 +131,7 @@ fn language_timeline_registers_delivers_and_removes_without_helpers() {
     let b=snapback4_lang::compile(&[("schema.q".into(),snapback4_lang::guide::language())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.notes.is_empty(),"{:?}",b.notes);
     let names:Vec<_>=b.programs.iter().map(|p|p.program.name.as_str()).filter(|name|name.starts_with("timeline")).collect();
-    assert_eq!(names,["timelineRegister","timelinePublish","timelineFollow","timelineRemove","timelineHome","timelinePurgeRemoved"]);
+    assert_eq!(names,["timelineRegister","timelinePublish","timelineFollow","timelineRemove","timelineHome"]);
     let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     for (op,viewer,args,ids) in [
         ("timelineRegister","a",vec![],vec!["pa","ma"]),
@@ -143,4 +148,48 @@ fn language_timeline_registers_delivers_and_removes_without_helpers() {
     let out=e.mutate("timelineRemove",None,Context::new("a",[("postId".into(),Value::Id("post".into()))].into()).at(3)).unwrap();
     assert!(matches!(out.state,WriteState::Sent{..}));
     assert!(e.query("timelineHome",Context::new("b",Default::default()).at(4)).unwrap().data.as_array().unwrap().is_empty());
+}
+
+fn canonical_owned(e: &Engine, tables: &[String]) -> Vec<(String, Vec<Value>)> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let mut rows: Vec<_> = tables.iter().map(|t|(t.clone(), e.store().rows(t).unwrap())).collect();
+    let orders: BTreeSet<_> = rows.iter().flat_map(|(_, rs)|rs).flat_map(|r|["epoch", "admitted"].into_iter().filter_map(|f|r.field(f).ok().and_then(|v|v.as_str().ok()))).collect();
+    let mut rename: BTreeMap<String, String> = orders.into_iter().enumerate().map(|(n, order)|(order.into(), format!("{n:032x}"))).collect();
+    // Preserve the relationship between each copy/task identity and its epoch.
+    for (table, rs) in &rows {
+        let suffix = table.strip_prefix("timeline").unwrap();
+        let fields: &[&str] = match suffix {
+            "Feed" => &["readerId", "eventId", "epoch"],
+            "Work" => &["kind", "actorId", "readerId", "eventId", "epoch"],
+            _ => continue,
+        };
+        for row in rs {
+            let key: Vec<_> = fields.iter().map(|f| {
+                let value = row.field(f).unwrap();
+                if *f == "epoch" && let Ok(epoch) = value.as_str() { Value::Id(rename[epoch].clone()) }
+                else { value.clone() }
+            }).collect();
+            rename.insert(row.field("id").unwrap().as_str().unwrap().into(), snapback4_core::schema::timeline::owned_id("timeline", suffix, &key));
+        }
+    }
+    for (_, rs) in &mut rows {
+        for row in rs.iter_mut() {
+            let Value::Row(fields) = row else { panic!("owned row") };
+            for key in ["epoch", "admitted", "id"] {
+                if let Some(Value::Id(value)) = fields.get(key) {
+                    if let Some(next) = rename.get(value) { fields.insert(key.into(), Value::Id(next.clone())); }
+                }
+            }
+            if let Some(Value::String(cursor)) = fields.get("cursor") {
+                let bytes = snapback4_core::value::decode_bytes_hex(cursor).unwrap();
+                let mut key = snapback4_core::key::decode(&bytes).unwrap();
+                for value in &mut key {
+                    if let Value::Id(id) = value { if let Some(next) = rename.get(id) { *id = next.clone(); } }
+                }
+                fields.insert("cursor".into(), Value::String(snapback4_core::value::encode_bytes_hex(&snapback4_core::key::encode(&key))));
+            }
+        }
+        rs.sort_by_key(snapback4_core::value::canonical_json);
+    }
+    rows
 }

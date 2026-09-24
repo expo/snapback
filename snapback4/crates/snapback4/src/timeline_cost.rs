@@ -4,32 +4,21 @@ use snapback4_core::{ir, schema::{Schema, ColumnType, Table}, Value};
 pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<String>) {
     let writes = ir::write_tables(program);
     for t in &schema.timelines {
-        let affected: std::collections::BTreeSet<_> = writes.iter().filter(|(table,_)|t.maps(table)).map(|(table,_)|table.as_str()).collect();
-        if affected.is_empty() && program.name != t.purge { continue; }
-        lines.push(format!("    timeline {}: derived + all application writes share the 1024-row mutation ceiling; composition beyond it refuses atomically",t.name));
-        lines.push(format!("      sized caps: authors={}, edges={}, pulls={}, pullCounts={}; backfill/author={}; follows/reader=1000, followers/author=1000, events/actor=1000; promotion reserve=159 writes", t.author_cap, t.edge_cap, u64::from(t.author_cap) * 32, u64::from(t.author_cap) * 32, t.backfill()));
-        if affected.contains(t.authors[0].as_str()) { lines.push(format!("      profile insert: 1 app row + up to 1 mode = 2 writes; deletion keeps the mode; activation registers <={} existing profiles in one commit", t.author_cap)); }
+        let affected: std::collections::BTreeSet<_> = writes.iter().filter(|(table,_)| t.maps(table)).map(|(table,_)| table.as_str()).collect();
+        if affected.is_empty() { continue; }
+        lines.push(format!("    timeline {}: background delivery; derived + application writes share the 1024-row mutation ceiling", t.name));
         if affected.contains(t.posts[0].as_str()) || affected.contains(t.reposts[0].as_str()) {
-            lines.push("      event insert: 1 app + 1 source + up to 51 private copies = 53 writes; shared: 1 app + 1 source + 1 broadcast + at most 1 own copy = 4 writes".into());
-            lines.push("      removal: 1 app + tombstone + source delete + at most 1 broadcast delete = 4 writes; unchanged flag: no derived writes; identity/time updates and flag reversal refuse".into());
+            lines.push("      event insert: 1 app + 1 event + 1 own inbox + 1 durable delivery record = 4 writes, independent of follower count".into());
+            lines.push("      removal: 1 app + 1 tombstone + 1 event delete + 1 purge record = 4 writes; visibility changes immediately".into());
         }
         if affected.contains(t.edges[0].as_str()) {
-            lines.push(format!("      follow: read <=1000 source events, visit newest {}; promotion installs <=52 routes at 3 writes each plus mode; with one app edge and {} copies = {} writes", t.backfill(), t.backfill(), t.backfill() + 158));
-            lines.push("      unfollow: per-(reader, actor) cap bounds <=1000 private-copy deletes + route, private total, public count + one app edge = 1004 writes; a refollow is a second transition".into());
+            lines.push("      follow: 1 edge + 1 owned admission + at most 50 newest live event copies + 1 backfill record = at most 53 writes".into());
+            lines.push("      unfollow: 1 edge delete + 1 admission delete + up to 256 stale copies + 1 cleanup record = at most 259 writes; the next read excludes this actor".into());
         }
-        if program.name == t.purge { lines.push("      purge: <=1001 private-copy deletes + 1 tombstone = 1002 writes per chunk".into()); }
-        lines.push("      derived stream contribution bounds (all recipient rows combined, event framing included; application rows, acknowledgements and outer reply excluded):".into());
-        if let Some(bounds) = stream_bounds(schema, t) {
-            for (operation, bytes) in bounds { lines.push(format!("        {operation}: <= {bytes} B")); }
-        } else { lines.push("        unknown: inspect the owned schemas".into()); }
-        lines.push("      a historical composed commit can outgrow 16777216 B; at limit 1 the SDK restarts by snapshot with pending writes preserved (no write-time byte guard)".into());
-        lines.push("      owned row bounds: index entries / index-key bytes / tagged JSON bytes / wire JSON bytes (application rows and SQLite overhead excluded; updates price old and new keys)".into());
-        for suffix in ["Authors", "Pulls", "PullCounts", "PullTotals", "Posts", "RemovedEvents", "Feed", "Broadcast"] {
-            if let Some((entries, keys, tagged, wire)) = schema.table(&t.table(suffix)).and_then(|table| row_bounds(table, suffix == "Posts")) {
-                lines.push(format!("        {}: {entries} / {keys} / {tagged} / {wire}", t.table(suffix)));
-            } else {
-                lines.push(format!("        {}: unknown row bound; inspect the schema before composing writes", t.table(suffix)));
-            }
+        lines.push("      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities".into());
+        lines.push("      reads: one private inbox lane, current private edge epoch and public tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending".into());
+        if let Some(bounds) = stream_bounds(schema,t) {
+            for (op,bytes) in bounds { lines.push(format!("      {op}: derived stream <= {bytes} B (application rows excluded)")); }
         }
     }
 }
@@ -40,10 +29,12 @@ fn row_bounds(table: &Table, event: bool) -> Option<(usize, usize, usize, usize)
     for identity in ["x".repeat(135), format!("{}x", "\\".repeat(67))] {
         let mut fields = std::collections::BTreeMap::new();
         for (name, kind) in &table.columns {
-            let value = match kind {
+            let value = match kind.required() {
                 ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => Value::Id(identity.clone()),
                 ColumnType::Bool => Value::Bool(false),
                 ColumnType::Int | ColumnType::Time => Value::Int(I53_MIN),
+                ColumnType::Text { max } => Value::String("\\".repeat(*max as usize)),
+                ColumnType::Enum { variants: values } => Value::String(values.iter().max_by_key(|s| s.len())?.clone()),
                 _ => return None,
             };
             fields.insert(name.clone(), value);
@@ -77,23 +68,12 @@ pub(crate) fn stream_bounds(schema: &Schema, t: &snapback4_core::schema::timelin
     };
     let feed = event("Feed", false)?;
     let source = event("Posts", false)?;
-    let broadcast = event("Broadcast", false)?;
-    use snapback4_core::schema::timeline::{PUSH_FOLLOWERS, READER_ACTOR_COPIES, EVENT_COPIES};
-    let follow = t.backfill() * feed + event("Pulls", false)?;
-    let promotion = t.backfill() * feed + (PUSH_FOLLOWERS + 2) * event("Pulls", false)? + event("Authors", false)?;
-    // Refollow is two transitions. This composition bound deliberately sums
-    // both; the ordinary 1024-write meter may refuse a dense composition.
-    let unfollow = READER_ACTOR_COPIES * event("Feed", true)? + event("Pulls", true)?;
+    let work = event("Work", false)?;
     Some(vec![
-        ("profile insert", event("Authors", false)?),
-        ("pushed event insert", source + (PUSH_FOLLOWERS + 1) * feed),
-        ("shared event insert", source + broadcast + feed),
-        ("removal", event("RemovedEvents", false)? + event("Posts", true)? + event("Broadcast", true)?),
-        ("follow backfill", follow),
-        ("maximum-backfill promotion", promotion),
-        ("unfollow", unfollow),
-        ("refollow composition (may refuse at row ceiling)", unfollow + promotion),
-        ("purge chunk", EVENT_COPIES * event("Feed", true)? + event("RemovedEvents", true)?),
-        ("unchanged flag / profile delete / activation", 0),
+        ("event insert", source + feed + work),
+        ("follow preview", t.backfill() * feed + work + event("Edges", false)?),
+        ("delivery chunk", 256 * feed + work),
+        ("removal", event("RemovedEvents", false)? + event("Posts", true)? + work),
+        ("purge chunk", 256 * event("Feed", true)? + event("RemovedEvents", true)? + 2 * event("Work", true)?),
     ])
 }

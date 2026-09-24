@@ -672,6 +672,9 @@ pub fn doctor(options: &Options) -> i32 {
                         let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
                         lines.push(format!("schedule  {} every {}{} → {}; {}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02}", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target, match last { Some(at) => format!("last boundary {at}"), None => "not yet started (a running server starts it)".into() }));
                     }
+                    if let Ok(work) = engine.timeline_work_counts() {
+                        for (name, pending, parked) in work { lines.push(format!("timeline  {name}: {pending} pending delivery work, {parked} parked")); }
+                    }
                     if let Ok(runs) = engine.jobs(5) {
                         for run in runs {
                             lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{} (chunk size {}, retries {}, peak heap {}){}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.chunk_size, run.retries, run.heap_peak, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));

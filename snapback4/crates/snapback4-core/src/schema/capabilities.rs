@@ -38,7 +38,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
-    ("timeline", |s| !s.timelines.is_empty()),
+    ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
+    ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
 ];
 
 impl Schema {

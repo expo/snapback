@@ -23,6 +23,7 @@ fn server() -> (Engine, Backend) {
     for who in ["alice", "bob", "carol"] { sent(&mut e, "register", who, json!({}), 1, vec![]); }
     sent(&mut e, "follow", "bob", json!({"authorId":"alice"}), 2, vec![]);
     sent(&mut e, "publish", "alice", json!({"postId":"original"}), 3, vec![]);
+    fixture::drain(&mut e);
     (e, backend)
 }
 fn sent(e: &mut Engine, op: &str, viewer: &str, args: Json, now: i64, ids: Vec<String>) -> u64 {
@@ -70,21 +71,22 @@ fn sized_registration<H: Host>(mut h: H) where H::Store: Images {
     for n in 1..1008 { sent(&mut e, "register", &format!("a{n}"), json!({}), n, vec![]); }
     let mut d = open(&mut h, &mut e, backend, "last");
     let q = admit(&mut d, "register", "last", json!({}), 1);
-    assert!(q.predictable); assert_eq!(q.predicted.len(), 2);
-    assert_eq!(rows(&mut d)["feedAuthors"].len(), 1008);
+    assert!(q.predictable); assert_eq!(q.predicted.len(), 1);
+    assert_eq!(rows(&mut d)["profiles"].len(), 1008);
     h.close("last", d);
     let mut d = h.open("last", None).unwrap();
     let t = &d.schema().timelines[0];
-    assert_eq!((t.author_cap, t.edge_cap, t.backfill()), (1008, 5921, 865));
-    assert_eq!(rows(&mut d)["feedAuthors"].len(), 1008);
+    assert_eq!(t.backfill(), 50);
+    assert!(!d.schema().tables.contains_key("feedAuthors"));
+    assert_eq!(rows(&mut d)["profiles"].len(), 1008);
     let from = e.seq().unwrap();
     let seq = sent(&mut e, "register", "last", json!({}), 1010, q.new_ids.clone());
     d.settle(&q.id, Some(seq)).unwrap();
     d.apply(&stream_page(&mut e, "last", from), false).unwrap();
     round1::assert_partition(&mut d, &e, "last");
     let out = e.mutate("register", None, fixture::context("overflow", &[], 1011)).unwrap();
-    assert!(matches!(out.state, WriteState::Failed { why, .. } if why.code == "E_CONSTRAINT"));
-    assert_eq!(fixture::rows(&e, "feedAuthors").len(), 1008);
+    assert!(matches!(out.state, WriteState::Sent { .. }));
+    assert_eq!(fixture::rows(&e, "profiles").len(), 1009);
 }
 #[test] fn sized_timeline_registration_memory() { sized_registration(Memory::new()); }
 #[test] fn sized_timeline_registration_sqlite() { sized_registration(Sqlite::new("timeline-sized")); }
@@ -175,17 +177,15 @@ fn classification<H: Host>(mut h:H) where H::Store: Images {
     for op in ["register","publish","repost","remove","unrepost"] { assert_eq!(b.schema.operations[op].predicts.as_deref(),Some("eligible"),"{op}"); }
     for op in ["follow","unfollow","refollow"] {
         let f=&b.schema.operations[op]; assert_eq!(f.predicts.as_deref(),Some("never"));
-        assert!(f.sites.iter().any(|s| s.table=="feedPullCounts" && s.class==snapback4_core::schema::SiteClass::Server));
+        assert!(f.sites.iter().any(|s| s.table=="feedWork" && s.class==snapback4_core::schema::SiteClass::Server));
     }
     let mut d=open(&mut h,&mut e,b.clone(),"bob"); let before=rows(&mut d);
     for (n,op,author) in [(1,"follow","carol"),(2,"follow","alice"),(3,"unfollow","alice"),(4,"unfollow","carol"),(5,"refollow","alice")] {
         let q=admit(&mut d,op,"bob",json!({"authorId":author}),n); round1::queued_only(&mut d,&q,&before);
     }
     let mut registering=open(&mut h,&mut e,b.clone(),"new");
-    let q=admit(&mut registering,"register","new",json!({}),1);assert_eq!(q.predicted.len(),2); assert!(q.predictable);
-    assert_eq!(q.new_ids.len(),1,"the mode takes owned_id, not a caller id");
-    let mode=snapback4_core::schema::timeline::owned_id("feed","Authors",&[fixture::id("new")]);
-    assert!(q.predicted.contains(&format!("feedAuthors/{mode}"))); assert!(!q.new_ids.contains(&mode));
+    let q=admit(&mut registering,"register","new",json!({}),1);assert_eq!(q.predicted.len(),1); assert!(q.predictable);
+    assert_eq!(q.new_ids.len(),1,"only the application profile mints an id");
     let from=e.seq().unwrap(); let seq=sent(&mut e,"register","new",json!({}),11,q.new_ids.clone());
     registering.settle(&q.id,Some(seq)).unwrap();registering.apply(&stream_page(&mut e,"new",from),false).unwrap();
     round1::assert_partition(&mut registering,&e,"new");
@@ -207,11 +207,8 @@ fn classification<H: Host>(mut h:H) where H::Store: Images {
 
 fn unheld<H:Host>(mut h:H) where H::Store: Images {
     for (table,op,args) in [
-        ("feedAuthors","publish",json!({"postId":"unheld-mode"})),
-        ("follows","publish",json!({"postId":"unheld-edge"})),
         ("feedRemovedEvents","publish",json!({"postId":"unheld-tombstone"})),
         ("feedPosts","repost",json!({"postId":"original"})),
-        ("feedAuthors","register",json!({})),
     ] {
         let (mut e,mut b)=server();
         // Exercise each runtime dependency independently: a partially held input
@@ -242,9 +239,9 @@ fn unheld<H:Host>(mut h:H) where H::Store: Images {
 #[test] fn declared_timeline_unheld_memory() { unheld(Memory::new()); }
 #[test] fn declared_timeline_unheld_sqlite() { unheld(Sqlite::new("timeline-unheld")); }
 
-fn shared_and_pages<H: Host>(mut h:H) where H::Store: Images {
+fn many_followers_and_pages<H: Host>(mut h:H) where H::Store: Images {
     let (mut e,b)=server();
-    // Promote by actual public transitions, then acquire the installed route.
+    // Many followers do not change own-inbox prediction or pagination.
     for n in 0..50 {
         let who=format!("f{n}");sent(&mut e,"register",&who,json!({}),4,vec![]);
         sent(&mut e,"follow",&who,json!({"authorId":"alice"}),5,vec![]);
@@ -253,10 +250,10 @@ fn shared_and_pages<H: Host>(mut h:H) where H::Store: Images {
     let q=admit(&mut d,"publish","alice",json!({"postId":"shared-offline"}),1);
     assert!(q.predictable);assert_eq!(q.predicted.len(),3);
     let predicted=rows(&mut d);
-    let broadcast=snapback4_core::schema::timeline::owned_id("feed","Broadcast",&[fixture::id("shared-offline")]);
-    assert_eq!(q.predicted.iter().cloned().collect::<std::collections::BTreeSet<_>>(), ["posts/shared-offline".into(),"feedPosts/shared-offline".into(),format!("feedBroadcast/{broadcast}")].into());
+    let own=snapback4_core::schema::timeline::owned_id("feed","Feed",&[fixture::id("alice"),fixture::id("shared-offline"),Value::Null]);
+    assert_eq!(q.predicted.iter().cloned().collect::<std::collections::BTreeSet<_>>(), ["posts/shared-offline".into(),"feedPosts/shared-offline".into(),format!("feedFeed/{own}")].into());
     assert_eq!(page(&mut d,"alice").as_array().unwrap().iter().filter(|r|r.field("postId").unwrap()==&fixture::id("shared-offline")).count(),1);
-    assert_eq!(round1::present(&predicted,"feedBroadcast",&broadcast).field("eventId").unwrap(),&fixture::id("shared-offline"));
+    assert_eq!(round1::present(&predicted,"feedFeed",&own).field("eventId").unwrap(),&fixture::id("shared-offline"));
     let before=e.seq().unwrap();
     let seq=sent(&mut e,"publish","alice",json!({"postId":"shared-offline"}),11,q.new_ids);
     d.settle(&q.id,Some(seq)).unwrap();d.apply(&stream_page(&mut e,"alice",before),false).unwrap();
@@ -279,13 +276,13 @@ fn shared_and_pages<H: Host>(mut h:H) where H::Store: Images {
     assert!(pages>1 && ended,"must follow a cursor to exhaustion");
     assert_eq!(seen, ["original".to_owned(),"shared-offline".to_owned()].into_iter().chain((0..25).map(|n|format!("page{n}"))).collect());
     let q=admit(&mut d,"remove","alice",json!({"postId":"shared-offline"}),2);
-    assert!(q.predictable);assert_eq!(q.predicted.len(),4,"app update, tombstone, source and broadcast removal");
+    assert!(q.predictable);assert_eq!(q.predicted.len(),3,"app update, tombstone and source removal");
     let tombstone=snapback4_core::schema::timeline::owned_id("feed","RemovedEvents",&[fixture::id("shared-offline")]);
-    assert_eq!(q.predicted.iter().cloned().collect::<std::collections::BTreeSet<_>>(),["posts/shared-offline".into(),"feedPosts/shared-offline".into(),format!("feedBroadcast/{broadcast}"),format!("feedRemovedEvents/{tombstone}")].into());
+    assert_eq!(q.predicted.iter().cloned().collect::<std::collections::BTreeSet<_>>(),["posts/shared-offline".into(),"feedPosts/shared-offline".into(),format!("feedRemovedEvents/{tombstone}")].into());
     assert!(!page(&mut d,"alice").as_array().unwrap().iter().any(|r|r.field("postId").unwrap()==&fixture::id("shared-offline")));
 }
-#[test] fn declared_timeline_shared_pages_memory() {shared_and_pages(Memory::new());}
-#[test] fn declared_timeline_shared_pages_sqlite() {shared_and_pages(Sqlite::new("timeline-shared"));}
+#[test] fn declared_timeline_many_follower_pages_memory() {many_followers_and_pages(Memory::new());}
+#[test] fn declared_timeline_many_follower_pages_sqlite() {many_followers_and_pages(Sqlite::new("timeline-shared"));}
 
 fn repost_replay<H:Host>(mut h:H) where H::Store:Images {
     let (mut e,b)=server();let mut d=open(&mut h,&mut e,b,"alice");
@@ -312,3 +309,26 @@ fn repost_replay<H:Host>(mut h:H) where H::Store:Images {
 }
 #[test] fn declared_timeline_repost_replay_memory() {repost_replay(Memory::new());}
 #[test] fn declared_timeline_repost_replay_sqlite() {repost_replay(Sqlite::new("timeline-repost-replay"));}
+
+fn pending_history<H: Host>(mut h:H) where H::Store:Images {
+    let (mut e,b)=server();
+    for n in 0..300 { sent(&mut e,"publish","carol",json!({"postId":format!("history-{n:03}")}),20+n,vec![]); }
+    fixture::drain(&mut e);
+    sent(&mut e,"follow","alice",json!({"authorId":"carol"}),400,vec![]);
+    let mut d=open(&mut h,&mut e,b,"alice");
+    let first=d.query("following","alice",&json!({}),500).unwrap();
+    assert!(!first.complete);assert_eq!(first.data.as_array().unwrap().len(),20);
+    let from=e.seq().unwrap();fixture::drain(&mut e);
+    d.apply(&stream_page(&mut e,"alice",from),false).unwrap();
+    assert!(d.query("following","alice",&json!({}),500).unwrap().complete);
+    let from=e.seq().unwrap();sent(&mut e,"unfollow","alice",json!({"authorId":"carol"}),501,vec![]);
+    d.apply(&stream_page(&mut e,"alice",from),false).unwrap();
+    let next=d.query("following","alice",&json!({}),502).unwrap();
+    assert!(!next.complete,"pending cleanup replicates to the reader");
+    assert!(next.data.as_array().unwrap().iter().all(|r|r.field("actorId").unwrap()!=&fixture::id("carol")));
+    let from=e.seq().unwrap();fixture::drain(&mut e);
+    d.apply(&stream_page(&mut e,"alice",from),false).unwrap();
+    assert!(d.query("following","alice",&json!({}),503).unwrap().complete);
+}
+#[test] fn pending_history_memory() {pending_history(Memory::new());}
+#[test] fn pending_history_sqlite() {pending_history(Sqlite::new("pending-history"));}

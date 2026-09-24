@@ -3,13 +3,26 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use crate::Value;
 
-pub const OWNED_SUFFIXES: [&str; 8] = ["Authors", "Pulls", "PullCounts", "PullTotals", "Posts", "RemovedEvents", "Feed", "Broadcast"];
+pub const OWNED_SUFFIXES: [&str; 5] = ["Posts", "RemovedEvents", "Feed", "Work", "Edges"];
+pub const DELIVERY_CHUNK: u32 = 256;
 
 pub const PUSH_FOLLOWERS: usize = 50;
-pub const FOLLOW_BACKFILL: usize = 865; // 1024 writes minus the recipe's 159-write promotion reserve.
+pub const FOLLOW_BACKFILL: usize = 50;
+pub const HISTORY_WINDOW: usize = 1000;
 pub const READER_ACTOR_COPIES: usize = 1000;
 pub const EVENT_COPIES: usize = 1001;
 
+/// Server and device must fence the old owned shapes before opening or adoption.
+// @ref LLP 3000.013#4-following-without-caps — derived history is fenced, never silently migrated.
+pub fn check_version(schema: &super::Schema) -> Result<(), crate::RuntimeError> {
+    if schema.timelines.iter().any(|t| t.version != 2) {
+        return Err(crate::RuntimeError::Structural { code: "E_TIMELINE_REDEFINE", message:
+            "this store contains a 0.3 timeline; use a fresh store in dev or preserve it with the matching 0.3 engine; timeline history is not migrated".into() });
+    }
+    Ok(())
+}
+
+fn legacy_version() -> u32 { 1 }
 fn default_authors() -> u32 { 1000 }
 fn default_edges() -> u32 { 100000 }
 fn is_default_authors(value: &u32) -> bool { *value == default_authors() }
@@ -30,6 +43,10 @@ pub fn owned_id(timeline: &str, suffix: &str, key: &[Value]) -> String {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Timeline {
     pub name: String,
+    #[serde(default = "legacy_version")]
+    pub version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<crate::maintain::Predicate>,
     /// table, principal
     pub authors: [String; 2],
     /// table, author, time, removal flag
@@ -50,47 +67,26 @@ pub struct Timeline {
 }
 
 impl Timeline {
-    /// Same clamp as FollowingCaps: reserve 159 of the 1024 mutation writes.
-    pub fn backfill(&self) -> usize { (self.author_cap as usize).clamp(200, FOLLOW_BACKFILL) }
+    pub fn backfill(&self) -> usize { FOLLOW_BACKFILL }
     pub fn table(&self, suffix: &str) -> String { format!("{}{suffix}", self.name) }
-    pub fn owns(&self, table: &str) -> bool {
-        table.strip_prefix(&self.name).is_some_and(|suffix| OWNED_SUFFIXES.contains(&suffix))
-    }
-    pub fn maps(&self, table: &str) -> bool {
-        [&self.authors[0], &self.posts[0], &self.reposts[0], &self.edges[0]].iter().any(|source| source.as_str() == table)
-    }
-    /// Physical index choice is refreshed by adoption, without reactivation.
-    /// Resolved sizes are semantic: spelling a default does not redefine it.
+    pub fn owns(&self, table: &str) -> bool { table.strip_prefix(&self.name).is_some_and(|s| OWNED_SUFFIXES.contains(&s)) }
+    pub fn maps(&self, table: &str) -> bool { self.event_tables().contains(&table) }
     pub fn same_declaration(&self, other: &Self) -> bool {
-        self.name == other.name && self.authors == other.authors && self.posts == other.posts
-            && self.reposts == other.reposts && self.edges == other.edges && self.purge == other.purge
+        self.name == other.name && self.version == other.version && self.filter == other.filter
+            && self.posts == other.posts && self.reposts == other.reposts && self.edges == other.edges
             && self.owned == other.owned && self.mapped == other.mapped
-            && self.author_cap == other.author_cap && self.edge_cap == other.edge_cap
     }
     pub fn event_tables(&self) -> [&str; 3] { [&self.posts[0], &self.reposts[0], &self.edges[0]] }
-    /// Implicit transition reads. These are execution facts, not new wire IR.
-    /// Output inboxes are intentionally absent: fresh foreign copies need not
-    /// already be held. Slot reads keep any edge mutation server-run.
-    pub fn inputs(&self, table: &str, kind: &str) -> Vec<(String, String)> {
-        let mut inputs = Vec::new();
-        let mut owned = |suffix: &str, index: &str| inputs.push((self.table(suffix), index.into()));
-        if table == self.edges[0] {
-            owned("PullCounts", "byReader");
-        } else if table == self.authors[0] {
-            if matches!(kind, "insert" | "insert-if-absent" | "upsert") { owned("Authors", "byPrincipal"); }
-        } else if table == self.posts[0] || table == self.reposts[0] {
-            owned("Posts", "byActorPost");
-            owned("RemovedEvents", "byEvent");
-            owned("Broadcast", "byReaderEvent");
-            if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
-                owned("Authors", "byPrincipal");
-                owned("Pulls", "byReaderAuthor");
-                inputs.push((self.authors[0].clone(), "byId".into()));
-                inputs.push((self.edges[0].clone(), self.followed_index.clone()));
-                if table == self.reposts[0] { inputs.push((self.posts[0].clone(), "byId".into())); }
-            }
+    /// Edges queue on devices; event prediction needs only public event inputs.
+    pub fn inputs(&self, table: &str, _kind: &str) -> Vec<(String, String)> {
+        if table == self.edges[0] { return vec![(self.table("Work"), "byId".into())]; }
+        if table == self.posts[0] || table == self.reposts[0] {
+            let mut inputs = vec![(self.table("Posts"), "byActorPost".into()),
+                (self.table("RemovedEvents"), "byEvent".into())];
+            if table == self.reposts[0] { inputs.push((self.posts[0].clone(), "byId".into())); }
+            return inputs;
         }
-        inputs
+        vec![]
     }
 
 }
@@ -100,13 +96,13 @@ pub(super) fn validate(schema: &super::Schema, issues: &mut Vec<super::SchemaIss
     let mut names = BTreeSet::new();
     let mut owners = BTreeSet::new();
     let all_mapped: BTreeSet<_> = schema.timelines.iter().flat_map(|t|
-        [&t.authors[0], &t.posts[0], &t.reposts[0], &t.edges[0]]).cloned().collect();
+        [&t.posts[0], &t.reposts[0], &t.edges[0]]).cloned().collect();
     for t in &schema.timelines {
         let owned: BTreeSet<_> = OWNED_SUFFIXES.iter().map(|s| t.table(s)).collect();
-        let mapped: BTreeSet<_> = [&t.authors[0], &t.posts[0], &t.reposts[0], &t.edges[0]].into_iter().cloned().collect();
+        let mapped: BTreeSet<_> = [&t.posts[0], &t.reposts[0], &t.edges[0]].into_iter().cloned().collect();
         let unique = owned.iter().all(|name| owners.insert(name.clone()));
         if !names.insert(&t.name) || !unique || t.owned != owned || t.mapped != mapped
-            || mapped.len() != 4 || !owned.is_disjoint(&all_mapped)
+            || mapped.len() != 3 || !owned.is_disjoint(&all_mapped)
             || owned.iter().chain(&mapped).any(|name| !schema.tables.contains_key(name)) {
             issues.push(super::SchemaIssue { path: format!("timelines.{}", t.name),
                 message: "timeline owned and mapped sets must equal the disjoint canonical declaration sets, with every table present and one owner".into() });
