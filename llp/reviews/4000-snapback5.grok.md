@@ -157,3 +157,143 @@ Not actually removable:
 ## Verdict
 
 **NOT READY.** Do not commission an implementation from this text. The sibling, the engine reuse, the opt-in scale report, and a clock-then-correctness bar are sound. The diagnosis over-reads the ledger. The page registry, as specified, reintroduces a cross-viewer result cache and drops revocation. `complete`/`pending` delete server completeness, disclosure, and freshness. `through` restates a design both reviews rejected. `per viewer` does not replace receipts. The bar can pass while those are true. Fix the blockers in §§3.3, 4.1, 4.2, 4.4, and 5, and narrow §1, before a second review.
+
+
+---
+
+## Round 2 — revision 2 (`dbb10169b6`), 2026-09-24
+
+**Mode:** blind delta review, read-only, over a detached worktree at that commit; `grok -p … -m grok-4.7 --reasoning-effort xhigh --disable-web-search`. **Brief:** `~/projects/snapback-sb5-reviews/round2.brief.md` (reproduced in the Opus round-2 section).
+
+### Verbatim review
+
+I'll review revision 2 against the three round-1 findings and the engine it cites, without changing anything. First I'll read the prior reviews and the RFC delta.The three round-1 reviews are all NOT READY, and they overlap on revocation, completeness, receipts, and the bar. Next I’ll read revision 2 and the diff that claims to answer them.Revision 2 keeps the log and restates the bar. I’ll check those claims against the engine, the brief, and the documents the RFC cites.Revision 2 is **not ready**. The completeness class, the client result types, the cross-viewer page key, and judging the bet against Snapback 4 are real fixes. The log-and-page split, the receipt mark, and the prediction rate are not.
+
+## 1. Is each §12 disposition real?
+
+| §12 row | Verdict | Where it stands |
+| --- | --- | --- |
+| Diagnosis over-reads the ledger | **Real** | §1 now says the charge overlaps read models, bounds, and completeness, and §9.1 registers readings (A) and (B). One slip: Supabase's M7 is `not-run` in `~/clique-full-20260905/lanes/astra-supabase/milestone-clocks.json`, so "every milestone green" is false. M8 cumulative first green at 110.5 min is right. |
+| Registry is a cross-viewer cache and drops revocation | **Partial** | §4.3 keys pages by generation, plan, viewer, arguments, and cursor, and matching starts from the audience, off the commit path. The refill hole below is still open. |
+| `retain delivered-history` is product policy | **Partial** | §3.2 keeps `keep history`, and §4.2 says that event stops new delivery and leaves held rows. Eviction and page exits can still delete them. |
+| `N_NEVER_COMPLETE` is a server class | **Real** | §5: `complete` is false for a page whose class is never-complete. §6 prints that class in the default `check`. |
+| Two booleans drop the client contract | **Real** | §5 keeps `complete`, `cut`, `fresh`, `since`, `next`, `loading`, `denied`, `pending` / `sent` / `failed`, the outbox, `runs`, `predicts`, and `restoring`. That matches `contract.ts`. |
+| Possession is not proof; Lane P is not in the tree | **Partial** | §4.5 replaces possession with four rules and drops the Lane P citation. "Versioned" never appears in the rules, and the expected rate contradicts them. |
+| `through` adopts the rejected design | **Partial** | The lifetime bullets in §3.3 are real. "LLP 3000.014 revision 2" is not a document: `llp/3000.014-a-child-reads-through-its-parent.rfc.md` is still the NOT READY text, and its §10 says revision 2 is pending. Its §5 still says an orphan stays readable. |
+| `per viewer` cannot express receipts | **Partial** | The mark is no longer one row per message. The formula does not implement the brief's receipts. |
+| Disclosure notes are not scale advice | **Real** | §3.2 and §6 name the five residency notes and six cost notes that leave, and the five disclosure and completeness notes that stay. That is all 16 `N_*` codes. |
+| The bar can pass without being true | **Partial** | The control comparison, holdout categories, serial rule 5, and a non-author classifier are in §9. The pass conditions are still movable. |
+| Incumbents can do the offline milestones | **Real** | §1 corrects the false premise. Supabase M6 and M8 are green on that clock file. |
+| "Nothing in the engine is rewritten" | **Partial** | §8 names hooks and fences. The feed cannot be dormant as written, and the page registry is not one of the hooks. |
+| Warm set fetches too much and holds too little | **Partial** | §4.1 adds a budget, excludes `online only`, and adds one depth step. The budget has no number and no priority, and the step does not cover the probe user's 100 conversations. |
+| Six declaration kinds cannot compile Clique | **Partial** | §3.1 adds the forms #19 uses, except `merge`. #19's home feed is `merge feedEvents after c last 20 by byActorTime` in `schema.q`. |
+| Schema adoption unspecified | **Partial** | §4.3 has generation, plan hash, narrowing, and `E_GENERATION`. A parent-rule edit that does not narrow still leaves stamped `through` copies on the old interpretation. |
+| Following "unchanged" is impossible without `sync` | **Real** | §4.4 restates admission without `sync`, puts the viewer's edges in the home closure, holds `complete` false during backfill, and requires Lane L's lock. Lane L is named, not specified. |
+| Concept budget measures the wrong thing | **Partial** | §7 counts runtime states and refuses to count "codes an author can draw." `why` outcomes and "refusal codes a generated client can receive" are not a fixed list. |
+| 163 codes should be 161; cite the fixture | **Real** | §1 says 161 `E_*` and 16 `N_*` and cites `snapback4/crates/snapback4-sim/tests/fixtures/intent-clique.q`. The guide registry is 161 and 16. |
+
+## 2. New or remaining defects
+
+### Blocker — §4.2–§4.3. An entry is not an image, and the two streams can disagree.
+
+§4.3 says a page subscription adds "the twenty-first message after a delete" to the log, and that "tombstones and images still come from the log." The current log is a per-audience stream: `partition::append` writes `put`, `del`, `scope`, and `join`, and `stream` catches a device up from one watermark over membership intervals (`partition.rs`). The newest-20 snapshot is not an interval. The twenty-first message's `put` is before that watermark, so the entry names a row the device does not hold.
+
+Matching runs off the commit path. A matcher that appends "enter message 51" after a later commit has tombstoned message 51 resurrects it. That breaks LLP 3000 §6 invariant 2: a row revoked at sequence S renders on a client whose watermark has passed S.
+
+An exit is the other direction. Unfollow removes a post from `home` and does not tombstone it. Nothing says an exit drops a page tag only. Treating it as a tombstone deletes a row another page still holds.
+
+`trust_synced_read` does not mean "the log delivered it." It returns true only when `table.sync` is set, and then only for `DeliveredHistory` or an audience that cannot expire on the device clock (`read.rs`). Deleting `sync` makes the existing function return false for every table, so a keep-history row is rechecked against `exists members` and disappears. Logical expiry is also applied at catch-up before the sweep logs a scope (`partition.rs`, around the `expired` walk). A new page catch-up that only applies logged tombstones misses that.
+
+**Smallest change.** One merged log, the stream that already has one watermark. A refill is a new `put` of the current image, sequenced before the entry that tags it. The matcher emits only after reading the log through its own append, and it does not emit an entry for a dead id. An exit drops the page tag and nothing else. Restate trust as the leave policy plus "no audience expiry the log has not recorded," not `sync.is_some()`.
+
+### Blocker — §3.3. The mark does not implement the brief's receipts.
+
+The brief (`social-messenger.md`, M3): receipts are **per message**, monotonic, `sent` → `delivered` (fetched by that client) → `read` (viewed the conversation). The group tick advances only when every member of the **recipient set** has reached that state. The set is membership at send time, and members who leave or are removed before reaching a state drop out.
+
+§3.3's operational sentence is "every member whose `joinedAt` is at or before the message has `readUpTo` at or after it."
+
+- The sender is a member whose join time is before the message. Alice sends, her mark stays at the default 0, Bob reads. The tick never leaves `sent`. M3 acceptance step 4 fails. #19 never inserts a receipt for the sender (`chat.q`, `send`).
+- `deliveredUpTo >= message.at` cannot represent a tail fetch. §4.1's depth step fetches `last N by .at`, the newest page. Any timestamp that covers the newest fetched message also covers every older message the device never fetched. #19's `fetched(chat, ids, opened)` marks specific ids for that reason.
+- Nothing writes `deliveredUpTo`. A mutation "may set only the viewer's own value," so either the app sets it (and the engine's depth fetch is invisible) or delivered collapses into read.
+- The mark is not monotonic and not clamped. A member who sets `readUpTo` to a future time marks messages that do not exist yet, including for everyone else when the mark is visible.
+- Unread is `count messages where .at > readUpTo`. That counts the viewer's own sends, and it counts the full prior history for a new member (`readUpTo` default 0). #19's unread is receipts for this principal with `state < 2`, created at send, so neither happens. The brief also says new members see full history; it does not say that history is unread.
+- "Visible to the row's audience" puts the raw timestamp on the member row. That row's rule is `exists members[.chat, viewer]`, so every member's log image carries every other member's cursor, not the aggregate tick. Private marks are kept out of pages, cursors, and `*` shapes, and are not kept out of the partition image. `joinedAt` is not a column in the §3.1 example; #19's immutable `at` works only if leave deletes the row and rejoin inserts a new one.
+
+Leavers do drop out: deleting the member row deletes the mark, which matches the brief's drop-out clause. Multi-device read sync (M8) also works, because one mark per viewer rides the member row to both of that viewer's devices.
+
+**Smallest change.** Keep per-message delivery state, or define a structure that can name a non-prefix fetched set. Define the recipient set as members other than the sender who were members at send time and have not since left. Clamp each viewer's mark to the latest message time, monotonic. State who advances `delivered` when the engine fetches. Exclude the viewer's own sends and pre-join messages from unread. Strip private marks from the log image, and say that a visible mark discloses the raw cursor to every current member.
+
+### High — §4.1. The depth step, the budget, and `keep history` cannot all hold.
+
+The step maintains the first page of every query whose only non-cursor argument is a reference on a warm-page row, and eviction "never drops a row that a pending write or a maintained page depends on." The budget is "stated numbers in the program's generated facts," and no number or priority is given. If the budget is smaller than the step, one of the two sentences is false. Dropping `insights` before `inbox` is allowed.
+
+#19's inbox is `last 50`. The probe user has 100 conversations (`social-messenger.md`, cold-start rule). The other 50 are not in the warm page, so they are not in the step. The 12.6–15.0 s figure is not that workload: 12.6 s is the successful full-replica acquisition (`lane-final-report.md`, 12582 ms, 100 conversations); 14.98 s is the earlier attempt that then failed `E_SHAPE_EXCEEDS_METER` (`lane-run-log.md`).
+
+After removal, `keep history` leaves held rows in place. The history query's rule no longer admits the viewer, so a still-maintained page emits an exit for every message. Released keep-history rows are not protected from eviction, because they are neither a pending write nor a maintained page. M3.6 fails by either path.
+
+The step is not recursive. That part is sound.
+
+**Smallest change.** Give the budget a number and a priority with `inbox` and `home` above aggregates. State that the step covers every conversation the cold-start rule names, or change the rule. On `keep history`, detach subscriptions without emitting exits, and pin those rows against eviction.
+
+### High — §4.5. The four rules are a refusal procedure, not the rate that is written next to them.
+
+Read literally, a read is proven only if it is a point read of a live row on a maintained page, a complete uncut set or an occupancy witness for an absence or a constraint, or a row this body just created. `now` in a condition is never proven. Anything else queues. That direction does not invent a local success the covered state cannot support, provided an occupancy witness is only the population the viewer is allowed to count. A witness over hidden rows would make `at most N` unsound; the text does not say.
+
+The rate is not that procedure, applied to #19:
+
+- `send` reads `exists connected[principal]` for every other member and loops `for p in members`. A range read is neither rule 1 nor rule 2. `connected` is not on the history page. `send` queues. The rate says it predicts once the conversation page is held.
+- `setLike` needs absence of `likes[post, viewer]`. The card stores `liked: exists …` as a boolean, not a covered negative fact. Rule 1 has no point-absence. Twenty held posts do not prove this viewer has no like row. The rate says `setLike` predicts on a held post.
+- There is no `markRead`. #19's `fetched` updates `receipts[id, viewer]` for specific ids. `receiptState` returns a string, so the closure has to store the raw receipt rows or the point read is not held.
+- `follow` / `unfollow` do queue under these rules, except unfollow of an edge the home closure actually holds, which rule 1 allows. The rate says both always queue.
+- `edit` and `deleteMessage` queue because of `now`. That part of the rate is right. So is rule 4, which `send` needs for `created messages[.message]`.
+
+"Versioned coverage" is not defined. Currency is "on the revocation channel," with no sequence in the discharge.
+
+**Smallest change.** Add point absence as a delivered negative fact, and classify range reads with rule 2. Say an occupancy witness counts only rows the viewer may read. Replace the rate with the operations these rules actually predict on #19's `chat.q` and `schema.q`, after `connected` and `fetched`. Keep the closing sentence: this is speculation under concurrency, not future acceptance.
+
+### High — §8. The dormant feed is on the commit path, and it is not the registry.
+
+`mutate` collects `runner.read_tables` (table names), appends partition events, and commits (`engine/mod.rs`). Ranges and point-read keys are not recorded. Capturing them has to happen inside `runner.run`, before the runner is dropped, in the same transaction. That is not post-commit. If capture consumes the meter or can fail the commit, writes that succeed today fail. If it shares the transaction, the 167,243-action replay gets slower, so the control moves.
+
+The page index needs the inverse: which subscribed closures contain the key this commit wrote. The partition log already carries those row images. A feed of what the write read does not answer which pages to update. §8 does not list the registry.
+
+**Smallest change.** Say capture cannot affect the meter, cannot fail the commit, and is not written into the partition log. List the subscription index as Snapback 5-only. Drop the feed unless matching is specified against it.
+
+### High — §9. The bet can still pass without being true, and reading (A) can fail without being false.
+
+- §9.3 gates both protocol `firstGreenAt` and time to last green, and does not say which wins when they disagree. "Beats the control" has no delta. The variance-transfer rule "registered here" is "a standard deviation of about 3 and the spread of the last five runs." `benchmarks/protocol.md` requires N≥8 for an ordering claim unless the transfer rule itself states the decision. An evaluator can pick the delta after seeing the runs. N≥3 is the escape hatch.
+- The clock cell uses "the intersection every lane attempts." The correctness cell says a not-run on a shared check counts as not passed. Intersection-after-the-fact drops an assertion a lane skipped. Those are different sets.
+- Reading (A) fails if any note mentions pending writes or offline gaps. §10 states both as intended consequences. An honest note confirms (B) and fails the bet even when removing the spelling worked. The rubric that would prevent that is not written. The author's ruling in the same section still says a score near 89–90 is acceptable if the clock beats the incumbents.
+- `data_modeling` is reported, not gated. Queueing-without-image is measured, not gated. A builder who predicts nothing can finish faster and clear a median floor.
+- "Delivery p95 or matching work above Snapback 4" does not say the population, the noise rule, or whether this harness load is inside the builder's clock. Floors are medians of the last five historical runs, not scores of the control that carries the additions.
+- §11 question 5 still asks whether this comparison is the budget. Until that is answered, §9 is not registered.
+
+**Smallest change.** One primary clock: last green, including the delivery load, median of the preregistered N, with a numeric margin written now. One assertion list, frozen before the first lane, not-run counts as not passed. Rewrite (A) so intended pending and one-step depth are not automatic failure, and publish the classifier's rubric in this RFC. Gate the queueing rate. Define the delivery comparison against the control on the same devices, with a noise rule.
+
+## 3. What an evaluator can still move
+
+- Which of the two clocks decides, and what delta counts as a win at N=3.
+- The assertion set, by reading "intersection every lane attempts" instead of the frozen list.
+- The holdout pass conditions. The categories are named; the observation is not. "Completeness over a range full of hidden rows" does not say that `complete` stays false and `cut` stays withheld.
+- Whether a note about follow queueing falsifies reading (A).
+- Which delivery percentile, over which commits, with what noise margin.
+- The cold-start baseline, any number in 12.6–15.0 s, including the failed acquisition.
+- The concept count, by adding or dropping `why` outcomes and refusal codes.
+- Whether question 5 retires the comparison after the results are disappointing.
+
+The holdout categories, "not-run counts as not passed," native-for-every-lane, serial execution, and a non-author classifier are concrete enough to hold.
+
+## 4. What a competent implementer would still build wrong
+
+The findings above are the wrong builds. Four more are smaller:
+
+- **§3.1.** Implementing the card as the whole language omits `merge`, so #19's home feed does not compile. `group(...)` is used too, as a call rather than a declaration.
+- **§3.3 against the current LLP 3000.014.** Cascade-delete children, and also keep orphans readable, because that RFC's §5 still says so and §3.3 calls it the design of record. `not through` and `through` under `or` are still legal if the implementer follows 3000.014 §2. Aggregates still have no "inputs are a function of the group key" rule.
+- **§4.3.** A populated-view rebuild "in the background" publishes a generation while devices still read the old view. That is the failure mode both 3000.014 reviews refused for adoption.
+- **§4.2.** Page catch-up that does not append logical expiry leaves an expired audience readable until the sweep.
+
+## What is now sound
+
+The hypothesis is stated as a hypothesis. The partition log stays the authority: one audience per row, scope tombstones, one watermark, no compaction. Page keys include the viewer, and a public page is the only one that can be shared. `home` is per viewer. Completeness stays a class on the server, the device, and in `check`, so a finished scan cannot reveal hidden rows. The read and write types, the outbox, and `runs` / `predicts` stay. Audience-first matching, off the writer's meter and outside the engine lock, is the right shape. `keep history` and `online only` are acknowledged as product policy. The note split matches the sixteen codes. Prediction no longer treats "the row is on the device" as coverage, released rows are not witnesses, `now` in a condition is not proved, and same-body `created` rows are visible. Following is restated without `sync`. The bet is against Snapback 4 with the same additions, not against incumbents the control already beats to first green. The 161/16 counts and the Supabase 110.5 min clock check out.
+
+**Verdict: NOT READY.** Do not commission an implementation from this text. A further revision has to make a refill image one event in the existing log, make the receipt mark match M3 or keep the receipt table, and make the prediction rate and the §9 decision rule true of the text that is already written.

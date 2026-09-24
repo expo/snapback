@@ -155,3 +155,201 @@ For §11’s decisions:
 - **Item 4: report the concept count initially.** Gate commission on a complete, internally consistent surface and measurable product obligations. Introduce a ratchet after the counting method and its relationship to effort have evidence.
 
 **Overall verdict: NOT READY.**
+
+---
+
+## Round 2 — revision 2 (`dbb10169b6`), 2026-09-24
+
+**Mode:** blind delta review, read-only, over a detached worktree at that commit; `codex exec -m gpt-6-astra -c model_reasoning_effort=max`. **Brief:** `~/projects/snapback-sb5-reviews/round2.brief.md` (reproduced in the Opus round-2 section). **Verdict: NOT READY.**
+
+### Verbatim review
+
+**Revision 2 makes substantive corrections, but it is still NOT READY.** The main unresolved issues are the page/log protocol, disclosure through page dependencies, and the receipt contract. Several §9 “pre-registrations” also remain unspecified.
+
+Reviewed commit `dbb10169b60ecb828a79e446969893e0b731ebf2`, including the requested revision diff, prior reviews, engine/device code, benchmark protocol and calibration record. The September 5 Supabase clock file is present on this host. Nothing was changed; the checkout remains clean.
+
+“Real” below means the necessary rule is now stated in the proposal, not that it has been implemented.
+
+The §12 dispositions, in their original order:
+
+| # | Round-1 finding | Disposition | Resolving sentence or remaining gap |
+|---|---|---|---|
+| 1 | Diagnosis over-reads the ledger | **Real** | §1 now says “Learning cost is recurring and overlapping, not a demonstrated single cause”; the Summary explicitly calls the explanation a hypothesis. RM/CP/QC and the competing language explanation are restored. |
+| 2 | Cross-viewer cache; released-page revocation; ambiguous partition authority | **Partial** | §4.3 supplies the principal-aware key; §4.2 says the channel reaches “every row the device holds.” Those are correct requirements. Acquisition, ordering, refill and post-leave revocation are still unspecified or inconsistent with the unchanged stream. Findings 1–3 below. |
+| 3 | Retention is a product policy | **Real, at the policy level** | §3.2 keeps “one leave-policy word per table”; §4.2 distinguishes membership loss from deletion. Its interaction with eviction and subsequent deletion remains unresolved. |
+| 4 | `N_NEVER_COMPLETE` is a server fact | **Real** | §5 explicitly makes `complete` false for a never-complete class; §6 restores the class to default `check`. Receiving an answer no longer upgrades its semantic completeness. |
+| 5 | Two booleans lose necessary client states | **Real** | §5 keeps the typed read/write results, freshness, continuation, refusal, restoration and generated execution facts, and adds an outbox view. The necessary product distinctions are restored. |
+| 6 | Possession is not prediction proof | **Partial** | “Every read its rule **and its body** perform” and the exclusion of retained/expired witnesses are genuine repairs. The four rules do not yet define range proofs, witness contents or dependent predictions; the expected operation classifications are overbroad. Finding 7. |
+| 7 | `through` lifetime and prior review defects | **Partial** | Captured audience, incarnation stamps, stamp-before-check, write-only lookup and atomic adoption are now explicit. However, “the design of record … once it exists” refers to an absent revision. Logical expiry and bounded cascading remain unresolved. Finding 8. |
+| 8 | `per viewer` does not express receipts; excessive storage | **Partial** | Moving to parent marks and declaring visibility addresses real problems. Sparse page acquisition, membership ordering and the addressing of other viewers’ marks are not resolved. Findings 5–6. |
+| 9 | Disclosure notes are not scale advice | **Real** | §3.2 expressly retains all five named disclosure/completeness notes in default `check`; §6 separates cost reporting. |
+| 10 | Evaluation can pass without demonstrating the bet | **Partial; the claimed freeze is only asserted** | The control comparison, serial execution, expanded delivery workload and independent classification are real improvements. There is no complete decision rule, assertion manifest, probe hash, variance-transfer procedure or set of delivery thresholds. Finding 11. |
+| 11 | Incumbents can perform offline milestones | **Real** | §1 corrects the false premise and records Supabase’s M6 result. The available clock file confirms M1–M6/M8 green, although M7 is explicitly not run. |
+| 12 | Engine reuse claim contradicts required changes | **Partial** | §8 now names hooks and their placement. “Nothing reads it there” does not establish that producing the change feed leaves the control unchanged. Finding 10. |
+| 13 | Warm set fetches too much and holds too little | **Partial** | Excluding online-only queries and adding one-step acquisition are concrete choices. “Under a stated size budget” supplies neither the budget nor an admission policy when protected pages exceed it. Finding 4. |
+| 14 | Six declaration kinds cannot compile Clique | **Partial** | §3.1 restores effects, helpers, expiry, search and other important forms. Its exhaustive claim still exceeds its list: the retained target also uses `use identity password`, control flow and grouping/aggregation forms. The counting population needs an actual target program and rubric. |
+| 15 | Schema adoption unspecified | **Partial** | Generation keys, `E_GENERATION` and activation fills are genuine additions. Survival under widening/default changes and purging newly unauthorized retained images are not settled. Finding 9. |
+| 16 | Following cannot remain unchanged under pages | **Partial** | §4.4 restores public-source admission, pending backfill/cleanup and the lock prerequisite. Ordinary follow edges are not the entire device dependency set: edge epochs, removal evidence and pending-work coverage also matter. Findings 1 and 3 apply. |
+| 17 | Concept budget measures the wrong thing | **Partial** | §7 correctly separates distinct concepts from removed application machinery, counts runtime obligations and makes the initial number descriptive. The “frozen counting rule” is still future work, including how forms and refusal populations are grouped. |
+| 18 | Error-code count and fixture citation | **Real** | §1 changes 163 to 161 and cites the committed fixture. |
+
+Several restored positions are now sound: retaining the partition authority mechanism, keeping both leave policies and `online only`, preserving completeness as a class, keeping the client result types, separating disclosure diagnostics from cost advice, and putting both additions in the control before comparing residency. Matching work outside the writer’s meter is also the right direction. Those corrections should survive the next revision.
+
+The remaining findings follow. I distinguish newly introduced problems from unresolved round-1 issues.
+
+1. **Blocker — §§1.1, 4.2–4.3, 5: page membership and authoritative row delivery have no common acquisition protocol.**  
+   **Unresolved, with a new inconsistency introduced by the log/page split.**
+
+   At sequence 100, a device acquires messages 81–100. Message 80’s last image was logged before that acquisition and was never delivered. At sequence 101, message 100 is deleted. The page subscription emits an entry for message 80, but the ordinary forward log has no new image for it.
+
+   The RFC says both that pages supply entries/exits and that “images … still come from the log.” It does not say how this entry obtains an authorized image. The same problem occurs when a join, filter change or clock boundary admits an unchanged row.
+
+   Replaying the old image blindly is unsafe. The existing stream re-fetches current images and rechecks authorization at delivery; its `images_at` can differ from an event’s sequence. See [partition stream and normalization](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/snapback4/crates/snapback4-core/src/partition.rs:721). Consequently, an asynchronously computed page membership list can disagree with the image subsequently supplied by the stream.
+
+   Other unanswered cases include an entry arriving after its row’s deletion, acquisition racing registration, and an exit removing a page tag while another page still needs the row. A time-driven page change can occur without any new log sequence. One watermark alone does not identify all this evidence.
+
+   **Smallest fix:** specify one versioned page-acquisition transition: authorized snapshot images and negative coverage, registration/catch-up boundary, page revision, store/generation identity, and atomic publication with the relevant log changes. An entry whose image is missing must trigger authoritative acquisition and remain incomplete until it finishes. Preserve deletion precedence and define exits as page membership changes, separately from row revocation. This can reuse the existing snapshot/catch-up machinery; merely naming log spans does not define the extension.
+
+2. **High — §4.2: the unchanged log does not deliver later deletions to former members retaining history.**  
+   **New contradiction in the proposed repair.**
+
+   Bob receives message `m`, leaves under `keep history`, and retains it. Alice later deletes `m`. Section 4.2 promises that deletion “always” purges it, including from released pages.
+
+   The existing stream follows group log spans only during membership intervals. After Bob’s scope event, a later group deletion is outside his interval. The device’s leave handling deliberately retains the row. These behaviors are visible in [membership intervals](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/snapback4/crates/snapback4-core/src/partition.rs:651) and [device leave handling](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/snapback4/crates/snapback4-device/src/device.rs:1050).
+
+   A global watermark can advance past the deletion without Bob receiving it. Thus “this channel reaches every row the device holds” does not follow from keeping the channel unchanged.
+
+   **Smallest fix:** define a deletion/revocation subscription for previously delivered row incarnations that survives membership loss, carries no new content, and persists across restart. Alternatively, change the promised retention semantics explicitly—but that would need reconciliation with the brief’s delete/expiry guarantees. Test deletion after removal, not just removal itself.
+
+3. **Blocker — §§4.2–4.4: server invalidation dependencies cannot all become device-held rows.**  
+   **New defect in the literal “everything it read” repair.**
+
+   A content rule can use `exists grants[group, viewer]` while the grant table itself is private or online-only. The server may consult that grant without granting the viewer permission to read the grant row. The engine explicitly describes existence witnesses as “raw data, never recursively authorized rows.” [Read implementation](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/snapback4/crates/snapback4-core/src/engine/read.rs:120)
+
+   Section 4.3 nevertheless says that everything the rule consulted is what the device “must hold.” Delivering the grant row can disclose its other fields. A non-uniform scan likewise examines rows the viewer cannot read; retaining the completeness class does not make those rows deliverable.
+
+   Conversely, refusing to deliver those dependencies means some server answers cannot be reconstructed locally. The RFC needs an explicit result for that case.
+
+   Following illustrates the distinction even within the intended workload: its generated filter checks private edge **epochs** and removal tombstones, and its completeness checks pending work. A list of ordinary follow edges for displayed authors does not replace those facts.
+
+   **Smallest fix:** distinguish the server’s invalidation dependency set from the device’s authorized materialization and proof set. Deliver only readable images and explicitly disclosure-safe witnesses; preserve server answers or report local unavailability when reconstruction is impossible. Enumerate Following’s required internal witnesses. Sharing a page must additionally prove viewer independence of the whole plan and shape—public source rows alone do not make `liked: exists likes[id, viewer]` shareable.
+
+4. **High — §4.1: one-step depth has neither a bounded admission algorithm nor a compatible retention/eviction contract.**  
+   **Partially unresolved; the automatic expansion is new.**
+
+   One step limits graph depth, not work. Each warm row may invoke several declared queries, and each query’s dependency closure can be large. An unread scalar may require examining thousands of messages even though its displayed result is one integer.
+
+   Now let maintained warm/depth pages exceed the device budget. Eviction cannot remove any row they depend on. The text does not choose among refusing acquisition, dropping maintenance, omitting particular queries, exceeding the budget or returning partial results. “Heavy aggregates … included only while they fit” also needs an ordering rule; otherwise declaration order or timing determines offline capability.
+
+   There is a separate retention problem: Carol leaves a conversation under `keep history`; its released rows become old and unprotected. Age eviction removes the only copy she is still entitled to keep, and she cannot reacquire it. That conflicts with the claimed history and “all previously synced” guarantees.
+
+   Finally, #19’s inbox returns fifty memberships per first page. One step from that page does not cover an arbitrary hundred-conversation user.
+
+   **Smallest fix:** specify numerical storage/work budgets, deterministic query priority, admission and overflow behavior, release rules for automatic pages, and whether depth expands returned rows or the entire dependency closure. Define protected retained history and quota exhaustion explicitly. Freeze those choices before measuring cold start, and test overflow rather than only a comfortably fitting fixture.
+
+5. **High — §3.3, receipt derivation: a high-water mark is insufficient for delivery over sparse pages.**  
+   **New defect in the receipt redesign.**
+
+   Bob belonged to a conversation when messages 1–1,000 were sent. The depth step fetches only messages 951–1,000. Setting `deliveredUpTo` to message 1,000 makes the proposed predicate report message 500 delivered, although Bob’s client never fetched it.
+
+   Keeping the mark below the gap causes the opposite error: the fifty messages actually fetched cannot become delivered. Search results, quoted-message acquisition and multiple devices create further gaps.
+
+   This directly contradicts the brief’s definition of delivered as “fetched by the recipient’s client.” [Receipt requirements](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/benchmarks/briefs/social-messenger.md:500)
+
+   Membership needs a more precise contract too. A join timestamp is not a total membership order: Dave can join after a message in the same millisecond and satisfy `joinedAt <= message.at`. The predicate also needs to exclude the sender. Departures can be handled using current membership incarnations, but the text must say that departing recipients drop out and rejoining does not revive their old obligation.
+
+   **Smallest fix:** retain an engine-owned per-message acknowledgement relation, or use acknowledged intervals with explicitly represented gaps. A scalar frontier is valid only where contiguous acquisition is guaranteed. Bind membership and message ordering to a server sequence/ordinal, specify departure/rejoin behavior, and enforce monotonic receipt transitions. A parent read mark can still be useful for unread state without claiming it replaces the entire receipt relation.
+
+6. **High — §3.3, `per viewer`: ownership, cross-viewer addressing and disclosure remain ambiguous.**  
+   **Partially unresolved.**
+
+   On `members`, the proposed storage key is `(member row, viewer)`. That supplies a separate value for Alice on Bob’s member row, Bob on Alice’s row, and so on. It does not inherently select “the mark belonging to this membership’s principal.”
+
+   The sender evaluating `m.readUpTo` needs Bob’s value, while the first bullet says each viewer reads their own value. Making marks visible changes permission, but does not define the addressing operation that selects another viewer.
+
+   “Visible to the row’s audience” also means exposing individual marks to every row reader, including other members and potentially later joiners. That is a broader disclosure than a sender-visible aggregate tick. It can be an intentional product choice; the RFC should state it plainly. Separate field-write authority still needs a rule tying writes to a live, authorized parent.
+
+   **Smallest fix:** choose one precise representation—an ordinary owner-controlled mark on each membership incarnation, or viewer-indexed marks on a conversation—and give concrete read/write syntax and authorization rules. Define default absence coverage, monotonic updates, incarnation lifetime and exactly which values public visibility exposes. Supply the actual sender-receipt and unread queries; the displayed unread expression also needs the relevant sender/deletion exclusions.
+
+7. **High — §4.5: the four rules are conservative intentions, not yet a complete proof system; the expected classifications are not established.**  
+   **Partially unresolved.**
+
+   The improvement is real: rules and bodies both count, retained possession is excluded, and server acceptance is not promised. But several proof obligations remain:
+
+   - A loop can visit twenty covered rows while missing the thirtieth. Every visited point being known does not prove the loop’s domain.
+   - A complete `last 20` page with a continuation does not establish complete coverage of the filter’s whole key range.
+   - An occupancy count can prove a particular cardinality bound; it does not prove arbitrary uniqueness or supply rows used by a mutation body.
+   - New witnesses must reflect preceding speculative writes. Two pending inserts cannot both spend the same last free slot.
+   - Engine-maintained effects and provisional-row authorization still need their existing coverage checks. Rule 4 cannot make ordinary reads of newly created rows bypass authorization.
+
+   The expected-rate paragraph is also too broad. A held conversation’s first page does not supply an old quoted message required by `send`. `setLike` needs a maintained positive or negative witness for `(post, viewer)`, not just the post. `react` needs the complete relevant reaction/cap population.
+
+   Moreover, #19’s retained program has `fetched`, `startDM` and `setFollow`; its final Following implementation uses application-owned `feedEvents`, not the declared timeline whose slot accounting forces follows to queue. The “as … today” comparison mixes different programs. [Retained chat program](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/benchmarks/runs/2026-09-24-snapback4-clique-astra-0.4.0/astra/source/snapback/chat.q:168), [retained social program](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/benchmarks/runs/2026-09-24-snapback4-clique-astra-0.4.0/astra/source/snapback/schema.q:113)
+
+   **Smallest fix:** define proof obligations for point reads, complete scan domains, negative facts, implicit engine reads and speculative dependencies. Unknown obligations must queue the entire mutation. Replace the blanket expected classifications with an operation-by-operation table against a pinned program, distinguishing cold, warm, quoted, released and offline cases. Preserve the existing effects-only presence exception explicitly if `send` is meant to retain it.
+
+8. **High — §3.3, `through`: the deferred specification is absent, and “same sweep” does not establish lifetime safety.**  
+   **Partially unresolved, with a new cascade requirement.**
+
+   [LLP 3000.014](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/llp/3000.014-a-child-reads-through-its-parent.rfc.md:112) still ends with revision 2 pending. The dependency can legitimately be deferred, but it cannot be counted as an adopted, reviewed resolution.
+
+   More concretely, a parent becomes logically expired before the physical sweep. Its public child, carrying no corresponding lifetime check, remains readable during that interval. Deleting both during a later sweep does not make “no orphan outlives its parent” true.
+
+   A parent with thousands of descendants also makes an ordinary atomic cascade exceed the mutation write ceiling. Moving cleanup into chunks creates an intervening state requiring explicit logical revocation.
+
+   **Smallest fix:** require logical ancestor-incarnation revocation at deletion/expiry, with bounded physical cleanup afterward, or restrict the first version’s parent lifetimes and descendant counts. Keep this as an unresolved dependency until an actual 3000.014 revision settles it, together with Boolean admission, interpretation changes, aggregate proofs and update/upsert behavior.
+
+9. **High — §4.3, schema adoption: the survival test omits semantic changes and does not specify withdrawal.**  
+   **Partially unresolved.**
+
+   An unchanged query can gain readable rows when a dependency’s rule widens. Its old result is no longer complete, despite no rule having narrowed. Changing a default used by a helper can likewise change the result without changing the query text.
+
+   Conversely, when a rule narrows, marking an existing page incomplete is insufficient. A retained row can still render because delivered images are trusted. The existing device adoption path distinguishes preserving safe images from resetting them; that behavior must survive the page extension. [Device adoption](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/snapback4/crates/snapback4-device/src/device.rs:489)
+
+   **Smallest fix:** initially invalidate page proofs on every semantic generation change and atomically withdraw or reauthorize affected images before publishing the new generation. Any later survival optimization needs a transitive semantic identity covering rules, defaults, helpers, views, lifetimes and coverage. State cursor rejection, store replacement and queued-write handling explicitly.
+
+10. **High — §8: an unread change feed is not necessarily dormant, and post-commit notification needs recovery semantics.**  
+    **Partially unresolved.**
+
+    Recording point/range accesses can add allocations, serialization and storage work even when nobody consumes the feed. Adding that overhead to Snapback 4 could slow the control and make Snapback 5’s comparison easier.
+
+    A volatile notification emitted after commit has the opposite problem: a crash between commit and notification loses an invalidation. The current mutation path appends partition events transactionally; the ordinary change API exposes touched tables, not the proposed detailed feed. [Commit path](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/snapback4/crates/snapback4-core/src/engine/mod.rs:929)
+
+    Also, registry matching needs changed keys—including old and new positions—not merely reads performed by the writer.
+
+    **Smallest fix:** make collection and persistence explicitly disabled in the control, and define the enabled feed as replayable from a durable commit sequence. Specify changed-key coverage for inserts, deletes, key moves, derived writes and maintenance. Attribute enabled production costs to the candidate.
+
+11. **High — §§9.1–9.4, 10: the revised evaluation still permits a favorable decision without a demonstrated win.**  
+    **Partially unresolved; removal of explicit correctness thresholds is a new regression.**
+
+    The revised correctness row defines a pass-rate instrument but no required pass rate or comparison threshold. It names blocker severities but no longer requires **zero blockers**. A faster candidate with fewer correct checks therefore has no explicit numerical rejection rule in that row.
+
+    Likewise, a holdout set being listed does not make passing every trust-boundary probe mandatory. Aggregate pass rates still allow unrelated successes to compensate for different failures.
+
+    The claimed variance-transfer rule supplies two observations—score standard deviation and historical clock spread—but no transfer procedure, eligibility test, decision threshold or stopping rule. Cross-version builder clocks are not automatically a variance estimate for repeated runs of one configuration. The [protocol](/Users/ccheever/projects/snapback-sb5-reviews/r2-astra/benchmarks/protocol.md:174) requires an actual preregistered exception for an ordering claim below eight repetitions.
+
+    Finally, after the additions land, the control might also lose the learning-cost charge. Absence of that charge in Snapback 5 alone would not attribute its disappearance to derived residency.
+
+    **Smallest fix:** complete and freeze a decision manifest before the comparison. Require non-compensating correctness gates, define the primary qualified-completion clock, choose a fixed sampling/stopping rule, and classify both candidate and control notes.
+
+The pre-registrations are therefore **not concrete enough to be held to yet**. These choices remain movable:
+
+| Instrument | Still open to evaluator choice |
+|---|---|
+| Clock | Which assertions define the intersection; which clock decides; treatment of later repairs; M7’s separate session; timeouts and noncompletion; statistic and required improvement. “Last green” must refer to an independently qualifying retained artifact. |
+| Correctness | Assertion IDs; native included or excluded; acceptance threshold; zero-blocker requirement; mandatory holdout passes; probe hash; grader calibration requirement. |
+| Sampling | Three versus eight runs; exact variance-transfer formula; stopping rule; run order; load rejection threshold; model/package/scorer pins; treatment of the second-family pair. |
+| Delivery | Exact replay interval and arrival rate; devices per user; page/search churn; disconnect duration and reconnect schedule; dropped/backlogged delivery treatment; units and thresholds for each metric. |
+| Prediction | Operation mix and denominator; cache states; permissible queueing rate; whether reported rates must match the advance prediction. |
+| Floors | Fixed baseline run IDs and numerical values; aggregation across candidate runs; whether `data_modeling` is merely reported or also falls under “every other category.” |
+| Mechanism | The actual classification rubric, adjudication and across-run success rule; what happens when both arms lose the charge or results are mixed. |
+
+For example, if “last five” means **0.2.31, 0.2.32, 0.2.33, 0.3.0 and 0.4.0**, their retained scores give floors of **89 queries, 95 offline, 90 client integration, 95 writes and 93 setup**. Those numbers can be frozen now. `TREND.md` still covers twelve runs.
+
+The delivery workload is substantially better than revision 1’s replay-only proposal. Section 10 also supplies a useful direction—reject higher delivery p95 or matching work—but “matching work” must include comparable end-to-end work in both architectures. Comparing a new registry’s counter with a control that has no registry is not a defined measurement.
+
+A competent implementer could still reasonably build incompatible versions of the page acquisition protocol, coverage witnesses, retention subscription, quota policy, receipt relation and mark API. Those are the outstanding implementation contracts. The conservative first slice should specify them directly, retain server fallback for unsupported local proofs, and treat the two additions as gated dependencies.
+
+**Low — §§11–12: the review-consensus claim is inaccurate.** Revision 1’s Astra review accepted “what was shown plus first screens” for the experiment; Grok and Opus required automatic depth. The reviews also did not give identical sequencing answers for the additions. The smallest fix is to record these as the revision author’s choices among differing recommendations, rather than unanimous reviewer decisions.
+
+**Overall verdict: NOT READY.**
