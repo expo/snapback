@@ -132,6 +132,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 device.upload_facts(text(&request, "viewer")?, arg(&request, "asset")?)?;
                 Json::Null
             }
+            "forget_upload_facts" => {
+                device.forget_upload_facts(text(&request, "viewer")?, text(&request, "id")?)?;
+                Json::Null
+            }
             "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0))?,
             "admit" => {
                 let entry = take(&mut request, "entry")?;

@@ -244,7 +244,10 @@ do not change read rules, meter bounds or completeness.
 A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
-page with `after c`, or declare `cap 50 by conversationId` on the table
+page with `after c`, or use a narrower key, such as
+`chatDeliveries where .messageId = messageId` without a page clause when a
+declared cap bounds that message's acknowledgements. A matching set can
+declare `cap 50 by conversationId` on the table
 then read the whole group: `t where .conversationId = conversationId`, if 50 is the intended group limit
 and no existing cap already bounds that group. Unscoped pages and pages
 whose existing cap exceeds their bound or the meter still need continuation.

@@ -50899,3 +50899,353 @@ No new reference error. No authorization, disclosure, residency or meter
 relaxation, IR change, version bump, publication or push. File-by-file changes,
 example, decisions and failure accounting are in
 [the round report](reports/20260924-intent-lane-a-r14.md).
+## 2026-09-24 — LLP 3000.013 Lane O: first-hour DX evidence and repairs
+
+Implemented on `sb4-intent/o-dx` for the 0.4.1 integration. The symlink-only
+init report is not reproduced: init already checked destinations, not whether
+the directory was empty. The README collision was real. All starter variants
+now preserve an unrelated README and instrument symlink; a UI starter writes
+its instructions to README.snapback.md when README.md exists. Init collects
+all conflicting destinations and owned package entries before writing, with
+E_INIT_CONFLICT and a concrete rewrite. The Expo main entry is owned; existing
+name, module policy and unrelated metadata remain preserved. Owned file
+symlinks refuse; the schema-only starter does not claim package.json. No
+--force switch was added. The existing README-refusal expectation changed
+because preserving the README is now deliberate behavior.
+
+Uploads now retry only an explicit E_RATE_LIMIT with retryable true, and the
+server marks its full two-slot admission refusal retryable. Both clients use
+one implementation: four total attempts, 250/500/1000 ms exponential backoff,
+Retry-After seconds or HTTP dates as a minimum delay, at most 10 seconds of
+retry waits. A longer server wait returns the refusal without retrying early.
+Closing, signing out or rotating the original credentials stops further
+attempts. Other refusals and lost/malformed replies never retry, since a lost
+reply may follow acceptance. These bounds and the README fallback are the
+engineering choices where the brief was silent. Upload capacity, authority,
+asset placement, the interpreter and all engine meters are unchanged.
+
+Neither template typing nor declared expiry required a runtime fix. The two
+fresh starter tests now expose only declared dependency names, copy the built
+SDK's package boundary, run tsc --noEmit, and separately check the generated
+snapback/generated/server.ts with types: [] (no ambient Node globals). Init
+and check do not generate an application entry at snapback/server.ts. The
+reference toolchain supplies cached dependencies without a registry install;
+unused template-only web build packages need not be present to typecheck.
+
+A headless Chromium regression runs real useQuery over a synced typing table
+with expire at .expiresAt and a 4.5-second lifetime. Both the online client
+and the offline web client (Wasm + IndexedDB) remove the row without another
+write. Holding /changes excludes streamed sweep deletion as the cause. The
+final suite observed both DOM subtrees empty 23 ms after the deadline, three
+online queries and zero local server-query fallbacks. This is an observation,
+not a latency guarantee. A column named expiresAt alone does not declare
+expiry; the online tier still needs a connection to evaluate its next read.
+The client reference now states that distinction.
+
+chatDeliveries first 50 by .id already emitted N_NO_CURSOR and truthfully
+returned complete false without next after 50 rows. Its rewrite now names
+both a cursor and a narrower key, with the real schema cap required for a
+whole-group read. A 51-row engine/CLI regression proves the original omission
+and that both continuation and a per-message read retrieve acknowledgement
+51. Both remedies are compiled examples on the language card. The scale
+classification expectation adds those two constant-cost examples.
+
+Validation: 97 focused language/guide tests, 34 focused client tests, the
+server upload-admission test, the delivery-page regression and 21 final init
+tests pass. The 14 new upload tests cover real HTTP refusal/refusal/admission
+on both clients, unchanged bodies, exhaustion, non-retryable and ambiguous
+outcomes, Retry-After, the wait budget and client closure. The full suite also
+passes the existing intent-target tests. All changed source files stay below
+1,500 lines; whitespace checks pass. Wasm is unchanged at 1,744,842 B raw /
+484,967 B gzip under the 486,000 B budget.
+
+First full run: `== 2 failure(s) in 192 s` (cargo test; client tests).
+Mine: language_operation_classes omitted the two new guide examples from its
+expected map; corrected and individually verified. Environmental/inherited
+test race: acquisition.test.mjs's W5c process pending-write recovery test saw
+sent instead of pending at line 375. Its fixture fails sync while allowing
+other network work, so settlement can race the assertion. The upload-only
+client delta is not exercised by that test. It passed unchanged alone and in
+the second full run. Reproduction attempt: `node --test --test-name-pattern=
+'W5c process: pending writes recover' packages/snapback4/test/acquisition.test.mjs`
+from snapback4 (join the wrapped command onto one line). This intermittent
+test race remains for the supervisor; no unrelated acquisition code changed.
+The four Rust failures in the supplied baseline log did not recur.
+
+Final exact full-suite result: `== 0 failure(s) in 145 s`; 1,103 client tests
+passed, 10 skipped, zero failed. Logs: /tmp/lane-o-full-suite.log,
+/tmp/lane-o-full-suite-final.log, /tmp/lane-o-client-targeted.log and
+/tmp/lane-o-acquisition-rerun.log. No new open product defect, new language
+syntax, authorization or meter change, package-version bump, push, publication
+or deployment. The supervisor owns review and integration.
+
+## 2026-09-24 — LLP 3000.013 Lane O, review round 1
+
+Closed the Astra and Grok review findings. assets.ts snapshots ArrayBuffer
+inputs into an immutable Blob before the first HTTP attempt, as it already
+did for Uint8Array. The upload-retry regression mutates the caller's buffer
+between attempts and verifies both bodies remain [1, 2, 3]. Repeated
+Retry-After: 6 responses make exactly two attempts and one 6,000 ms wait,
+then return the refusal unchanged. Removing `waited += delay` makes this
+regression fail (four attempts instead of two).
+
+client.ts and local.ts bind the upload's result as well as its retries to
+the captured credential revision. Closed clients return E_CLOSED; a changed
+session returns E_AUTH with a request to start the upload again. A late
+admission refusal is superseded by that lifetime refusal. An old success is
+not reported to the replacement session, and stale local receipts are not
+adopted. The local client also rechecks after awaiting receipt persistence
+and waits for an already-running refresh before starting a new upload.
+Engineering choice: an upload interrupted by rotation refuses without an
+automatic replay under the replacement bearer; unlike mutations it has no
+stable mutation id. This follows the review's requested refusal behavior.
+CLIENT-AND-OPERATIONS.md records the snapshot and session lifetime rules.
+
+upload-lifetime.test.mjs adds 23 tests over the online client and the real
+Wasm web device. They cover an upload started during refresh, late successes
+and 429 replies after sign-out, close, completed rotation and pending refresh,
+rotation/sign-out during retry backoff, and rotation while the device persists
+an upload receipt. Removing the revision equality from either canRetry
+callback separately makes its backoff test fail: it observes a second POST
+with the old bearer even though the result guard would discard that reply.
+The existing close-during-backoff test now checks E_CLOSED, not only the
+attempt count. Before the production fixes, 22 upload assertions failed;
+afterward all 39 upload/retry/lifetime tests pass.
+
+bind/mod.rs no longer chooses the alphabetically first reference column for
+N_NO_CURSOR. Its existing uncapped pinned-group remedy is unchanged. The
+reviewed branch keeps the previous continuation sentence for already-pinned
+pages; for an unpinned page it names an existing cap's actual columns and
+limit. Engineering choice when multiple caps exist: use the first declared
+nonempty cap; without one, give the point-key alternative without inventing
+a cap from a reference. cursor_advice.rs adds five regressions: a room page
+pinned under cap 100 by roomId, an unpinned room page with authorId sorting
+before roomId, attachments with assetId sorting before the capped messageId,
+a compound cap, and no cap. All five fail before the fix and pass after it.
+The 40 existing residency-note tests also pass. No language form or refusal
+code was added; existing cursor and narrowed-message examples still compile
+and run under the full suite.
+
+typing-expiry.test.mjs now ages the 4.5-second typing row for 1.6 seconds
+before mounting React, records live and expired render times in the browser,
+and requires expiry by the absolute row deadline plus 1 second. That bound
+precedes mount plus 4.5 seconds. Replacing either client's scheduleExpiry
+delay with a fixed 4,500 ms separately fails this test. The production
+expiry implementation was already correct and is unchanged. A targeted run
+observed expiry renders 5 ms late online and 1 ms late on the offline device;
+these are observations, not latency guarantees.
+
+First full-suite attempt: `== 2 failure(s) in 191 s` (cargo test; client
+tests), recorded in /tmp/lane-o-review-suite.log. The shared volume filled.
+All four Rust failures explicitly reported SQLite DiskFull (environmental):
+
+- snapback4-device device: search_global::forms::sqlite::cases::w13e_newest_measures_complete_page_and_opening_envelope
+- snapback4-device helper_pages: page_loss::generated_row_coverage_sqlite
+- snapback4-device repair_b: undeclared_is_kept_and_predicts_when_declared
+- snapback4-sim clique: following::removal::following_removal_foreign_tombstone_preserves_private_worlds
+
+The runner also could not write its completion status due to ENOSPC. Cargo's
+`cargo clean -p snapback4-lang`, in this lane only, reclaimed 14.9 GiB of
+rebuildable artifacts. Client failures in that same run:
+
+- Environmental/inherited: column-stream-recovery.test.mjs's "the largest
+  row-bounded source batch recovers oversized parent mirrors by snapshot"
+  saw watermark 15 instead of 16. It passed unchanged after freeing space,
+  on both SQLite and Wasm (watermark 16). The concurrent disk exhaustion is
+  established; the precise cause of that watermark mismatch is not proved.
+  Reproduction: `node --test packages/snapback4/test/column-stream-recovery.test.mjs`.
+- Mine: the first strengthened typing-expiry fixture checked the runner's
+  wall clock after the browser IPC reply. That conflated render time with
+  runner delay. It now checks timestamps captured during each React render,
+  retaining the same row deadline and the failing fixed-timer mutations.
+  Reproduction: `node --test packages/snapback4/test/typing-expiry.test.mjs`.
+
+The supplied baseline tail was checked before attribution. No unrelated
+acquisition, sync, authorization, disclosure, meter, schema, engine expiry,
+package version or publication changes were made. local.ts stays at 1,498
+lines. The raw/gzip Wasm budget and the initial init/template fixes are
+unchanged. No design deviation or unresolved review finding remains. The
+previous entry's intermittent W5c acquisition-fixture race remains outside
+this round; this round does not claim to repair it.
+
+Second full-suite attempt: `== 2 failure(s) in 212 s`, recorded in
+/tmp/lane-o-review-suite-final.log. Other concurrent builds consumed the
+reclaimed space before this run ended. All four Rust failures again explicitly
+reported SQLite DiskFull (environmental):
+
+- snapback4-sim maintains: hidden_filter_work_has_one_wire_and_meter_observation
+- snapback4-sim maintains: hidden_filter_work_delete_has_one_observation_per_target_outcome
+- snapback4-sim work_intent: scheduled_digest_for_busy_chat_and_one_hundred_memberships_retries_and_restarts
+- snapback4-device device: following::removal::following_removal_reaches_every_reader_before_purge_sqlite
+
+Two client tests also failed in that run (environmental/inherited, no uploads
+in either path): app.test.mjs's "shared logout fences a held online rotation
+across Bob's login" lost its HTTP socket, and sync-overflow.test.mjs's "wasm
+interrupted inline recovery retries after reopen, preserves delivered history
+and enforces the horizon" observed watermark 2 instead of 15. Exact causes of
+these client symptoms are not independently proved beyond the concurrent
+DiskFull failures. Reproduction command for both:
+`node --test --test-name-pattern="shared logout fences a held online rotation across Bob's login|wasm interrupted inline recovery retries" packages/snapback4/test/app.test.mjs packages/snapback4/test/sync-overflow.test.mjs`.
+The revised expiry fixture passed this run: online +4 ms, local +0 ms. After
+Rust testing finished, removed this lane's rebuildable incremental cache
+without deleting its compiled binaries, recovering approximately 16 GiB.
+No test or product changes were made to address the environmental failures.
+
+Both second-run client failures passed unchanged in the focused reproduction
+above (/tmp/lane-o-review-environment-rerun.log). Final full-suite result:
+`== 0 failure(s) in 170 s`, /tmp/lane-o-review-suite-third.log. Every suite
+step passed; 1,128 client tests passed with the existing 10 skips, plus nine
+CLI fixture tests. Final React expiry renders were +4 ms online and +0 ms on
+the offline web device, two online queries and zero local query fallbacks.
+All eight DiskFull Rust cases and all three environmental client failures
+from the earlier attempts passed in this run. No failures are left in the
+required run. git diff --check passes; the work stays on sb4-intent/o-dx,
+committed for supervisor review without pushing or publishing.
+
+## 2026-09-24 — LLP 3000.013 Lane O, review round 2
+
+client.ts and local.ts now judge an upload against the authorization header
+it actually sent, plus the pending-refresh and closed/signed-out state.
+credentialRevision remains in use elsewhere; it is not a bearer identity,
+because even an unsuccessful refresh increments it. A completed transport
+failure or admission refusal that left the bearer unchanged preserves a
+stored upload's success and permits the remaining bounded admission retries.
+An in-progress refresh, a changed bearer, closure and sign-out still fence
+old upload results and retries. CLIENT-AND-OPERATIONS.md states the distinction.
+The local E_AUTH response handler uses the current revision after confirming
+the bearer is still current, so a prior failed refresh does not exempt a
+real authorization refusal from session cleanup.
+
+Receipt persistence and cleanup moved to keepUpload in local-assets.ts to
+keep local.ts below the source limit (1,499 lines). The local client tracks
+the entire operation as active, so closing waits for cleanup as well as the
+initial write. If the session check fails after upload_facts completes,
+keepUpload awaits deletion of that uploader/id receipt before returning the
+refusal. A cleanup refusal throws instead of claiming cleanup succeeded.
+
+Engineering decision: added the internal forget_upload_facts device operation
+in crates/snapback4-device/src/call.rs and device/media.rs. The existing host
+meta/set_meta API prefixes keys with client: and cannot delete the actual
+device:upload:[viewer,id] key. The new operation uses the same canonical key
+function as upload_facts and deletes exactly that key in one transaction.
+It neither exposes an arbitrary metadata deletion API nor changes server
+rules, client disclosure, the engine meters or their bounds.
+
+Regression evidence:
+
+- upload-lifetime.test.mjs now has 38 cases. Twelve new cases exercise failed
+  refreshes (transport and HTTP admission failure), for both clients, while
+  success/refusal responses are held and while a retry sleeps. Reading the
+  real web persistence key proves that a receipt is present during the held
+  device call and absent before an interrupted upload returns. Rotation,
+  sign-out and close delete it; an unchanged bearer after failed refresh
+  keeps it. Existing pending-refresh and changed-bearer cases still pass.
+  Thirteen assertions failed against round 1: the twelve failed-refresh cases
+  and the orphan-receipt assertion.
+- upload_receipts.rs verifies the device operation on both memory and SQLite:
+  raw metadata lookup returns None, another viewer's receipt and another
+  asset's receipt remain, id-only prediction stops, and deletion survives
+  reopen. Both tests pass.
+- upload-retry.test.mjs parameterizes mutable inputs over ArrayBuffer,
+  Uint8Array and a subarray with bytes outside its selected range. Mutation
+  between requests changes the caller's storage but both HTTP bodies remain
+  exactly [1, 2, 3]. Removing the Uint8Array snapshot branch fails both view
+  cases. All 18 retry tests pass, including the cumulative wait-budget test.
+- cursor_advice.rs adds cap 10 by messageId followed by cap 3 by assetId and
+  asserts the messageId cap/predicate is named. The existing first-declared
+  nonempty-cap policy required no production change. Reversing cap selection
+  makes that test fail; all six cursor-advice tests pass.
+- typing-expiry.test.mjs observes rows aged 0 ms and 3,000 ms before mount,
+  both with a 4.5-second lifetime, on online and offline web clients. It
+  records query/evaluation timestamps and refuses premature polling after
+  initial rendering as well as expiry later than the row deadline plus 1 s.
+  The disjoint remaining lifetimes defeat a fixed mount delay; the early
+  evaluation check defeats a short repeating delay. Replacing either client's
+  timer with 2,900 ms fails the aged-row deadline; replacing either with
+  1,500 ms fails the unaged-row early-evaluation assertion. Production expiry
+  logic is unchanged.
+
+The full targeted client run passes all 58 tests. Removing either pending
+refresh guard or skipping receipt deletion also fails its regression.
+Temporary mutation edits were restored before the full-suite run. The Wasm
+build is 1,745,360 B raw / 485,141 B gzip: +174 B gzip, under the unchanged
+486,000 B ceiling. There are no new Quarry forms or refusal codes, and the
+language card's existing forms remain applicable. No design deviation,
+package-version change, push or publication is part of this round. The
+baseline-test.log tail was checked before full-suite failure attribution.
+
+The first and only scripts/test.sh run this round passed every step:
+`== 0 failure(s) in 159 s` (/tmp/lane-o-r2-suite.log). There were no failures
+to classify as introduced, baseline or environmental. Across the client
+shards, 1,146 tests passed with the existing 10 skips; all nine CLI fixture
+tests passed. The two expiry fixtures rendered online/local at +3/+1 ms and
++70/+4 ms after their row deadlines. git diff --check passes. All review
+findings are closed; no new open problem remains from this round. Work is
+committed on sb4-intent/o-dx for supervisor review, without pushing or
+publishing.
+
+## 2026-09-24 — LLP 3000.013 Lane O, review round 3
+
+assets.ts snapshots mutable upload inputs into an owned Uint8Array and sends
+that view directly. The installed React Native BlobManager rejects buffer
+parts, while convertRequestBody accepts buffer views; wrapping the snapshot
+in a Blob was the regression. ArrayBuffer.isView recognizes foreign views,
+and the ArrayBuffer tag recognizes foreign buffers. Only the selected view
+range is copied, once before the first request. Existing Blob inputs still
+pass through without transferring their ownership. CLIENT-AND-OPERATIONS.md
+documents cross-window input and the direct web/native buffer path.
+
+local.ts now persists, checks the current upload session, deletes a rejected
+receipt, and settles the upload within the upload method. Success has no
+additional await after the final session check. A separately tracked stage
+keeps the core open until receipt persistence and any deletion finish; its
+finally releases that stage even if a device operation throws. The old
+keepUpload helper was removed from local-assets.ts because its promise
+introduced the settlement gap. To keep local.ts under the source ceiling
+(1,497 lines), requireSyncProtocol moved unchanged into local-sync.ts.
+This relocation is an engineering decision, not a protocol change.
+
+Regression evidence:
+
+- upload-retry.test.mjs now has 27 tests. The mutable-input test covers all
+  twelve combinations of ArrayBuffer / Uint8Array / subarray, current / vm
+  realm, and web / React Native Blob semantics. Both request bodies remain
+  [1, 2, 3] after mutating the original storage, including a subarray whose
+  excluded bytes differ. The native stub rejects buffer Blob parts and the
+  transport asserts that it receives a current-realm Uint8Array.
+- upload-lifetime.test.mjs now has 44 tests. Four new cases fail refresh by
+  transport or admission on both clients, preserve the old bearer, then
+  deliver E_AUTH and require a null session. Changing refusedSession back to
+  request.revision fails both web cases.
+- The lifetime regression closes at nine successive microtask positions
+  after receipt persistence. V8 promise settlement hooks distinguish close
+  before upload settlement from a consumer's later callback. The former
+  must refuse and delete the receipt; the latter may retain its success.
+  Round 2 returned success after close at offset 2. A separate held-deletion
+  case proves close waits for cleanup rather than relying on an unrelated
+  change-feed backoff to keep the device alive. Removing stage tracking
+  fails that assertion.
+
+Against round 2, the new tests reproduced ten failures: nine buffer cases
+and the settlement gap. After the fixes, 86 focused upload, Blob lifecycle
+and Expo witness-helper tests passed; the additional held-deletion test and
+the interleaving test then passed together. All temporary mutation changes
+were restored, and package build/typecheck passed before the full suite.
+The native Blob behavior is tested here with the installed implementation's
+semantics. An actual iOS simulator witness was not run on this Linux host;
+the existing Expo witness helpers are covered, with Expo typechecking in
+the full suite. No new Quarry form, refusal code, server change, meter
+change or budget increase is needed. There is no design deviation, package
+version change, push or publication in this round. The baseline-test.log
+tail was read before attributing any full-suite failure.
+
+The first and only scripts/test.sh run this round passed every step:
+`== 0 failure(s) in 146 s` (/tmp/lane-o-r3-suite.log). All 1,161 client tests
+passed across the shards, with the existing ten skips; all nine CLI fixture
+tests passed. Expo typechecking and witness-helper tests passed. The Wasm
+artifact is unchanged at 1,745,360 B raw / 485,141 B gzip, below the unchanged
+486,000 B ceiling. There were no full-suite failures to classify as ours,
+baseline or environmental. git diff --check passes; the moved protocol
+probe was also compared byte-for-byte with its previous body. No round-3
+finding remains open. The work is committed on sb4-intent/o-dx for review,
+without pushing or publishing.

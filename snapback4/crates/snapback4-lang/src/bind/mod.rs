@@ -312,8 +312,17 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     let limit = take.min(snapback4_core::Ceilings::default().examined);
                     let by = format!(" by {}", pinned.join(", "));
                     format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read `{table} where {}` without a page clause; other metered work can still cut the read", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and "))
-                } else {
+                } else if !pinned.is_empty() {
                     "read the whole group with its where predicate and no page clause when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
+                } else if let Some((columns, max)) = schema.tables[table].constraints.iter().find_map(|constraint| match constraint {
+                    snapback4_core::schema::Constraint::Cap { by, max } if !by.is_empty() => Some((by, max)),
+                    _ => None,
+                }) {
+                    let predicate = columns.iter().map(|column| format!(".{column} = {column}")).collect::<Vec<_>>().join(" and ");
+                    let by = columns.join(", ");
+                    format!("or use a narrower key: `{table} where {predicate}` uses the declared cap `cap {max} by {by}`; omit the page clause when that cap fits the examined ceiling, otherwise the narrowed page still needs continuation")
+                } else {
+                    format!("or use a narrower key: `{table}[id]` for one row; a group page still needs continuation unless its schema cap fits the page and examined ceiling")
                 };
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order; {cap}", bound.program.name)).guide("reads"));
             }

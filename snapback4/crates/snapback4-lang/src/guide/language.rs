@@ -399,6 +399,16 @@ query intentGlobal(c: cursor ?):
   return intentActivity last 20 by .at after c { id, actor, at, repost }
 query intentCount(owner: principal):
   return intentCounts[owner]
+table intentDeliveries:
+  messageId: intentPosts
+  principal: principal
+  cap 50 by messageId                 -- a product limit per message, not across all messages
+  public 'acknowledgements'
+  online only
+query intentDeliveriesPage(c: cursor ?):
+  return intentDeliveries first 50 by .id after c
+query intentDeliveriesFor(messageId: intentPosts):
+  return intentDeliveries where .messageId = messageId
 query intentSubject(subjectId: subjects):
   return subjects[subjectId]
 query intentDurations():
@@ -492,6 +502,14 @@ schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSumma
 route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry body or client operation
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```
+
+## Starting in an existing directory
+
+E_INIT_CONFLICT means `init` found files or package entries it would
+overwrite, and wrote nothing. Rename the listed files or reconcile the
+named package.json entries, then rerun `snapback4 init --expo` (or `--web`).
+Unrelated files and symlinks can stay. An existing README.md stays intact;
+the starter writes its setup instructions to README.snapback.md instead.
 
 ## Refusals
 

@@ -9,10 +9,11 @@
 
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
-import { syncTransport } from "./local-sync.ts";
+import { requireSyncProtocol, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport, type PendingSend } from "./local-exit.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
+export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
@@ -31,23 +32,6 @@ import {
   type SessionStore,
   type SignIn,
 } from "./auth.ts";
-
-/** Server acquisition markers, applied before events[at]. A missing floor
- * begins a group; completion carries "whole" or a delivered readable index key. */
-export interface AcquisitionMarker {
-  at: number;
-  table: string;
-  index: string;
-  group: unknown[];
-  floor?: string;
-}
-interface SyncPage extends Record<string, unknown> {
-  images_at?: number;
-  committed_above?: Record<string, number>;
-  /** Cursor echoed by the server; the device validates snapshot continuity. */
-  after?: string | null;
-  acquisitions?: AcquisitionMarker[];
-}
 
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
@@ -153,19 +137,6 @@ function responsePageTooLarge(denied: Refusal): boolean {
 class BackendAuthError extends Error {
   constructor(readonly denied: Refusal) {
     super(`${denied.code}: ${denied.message}`);
-  }
-}
-
-async function requireSyncProtocol(core: DeviceCore): Promise<void> {
-  // A JavaScript update can run inside an older Expo development build.
-  // Probe without sending or changing an outbox entry, even when offline.
-  const reply = await core.call({ op: "sync_state", capture: false });
-  const denied = reply?.denied as Refusal | undefined;
-  if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
-  const state = reply?.ok as Record<string, unknown> | undefined;
-  const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (denied || !state || typeof state.backend_required !== "boolean" || typeof state.acquired !== "boolean" || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !uint(state.restore_watermark) || !uint(state.restore_images_at) || !state.adoption_capture || typeof state.adoption_capture !== "object" || Array.isArray(state.adoption_capture) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
-    throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
   }
 }
 
@@ -1333,16 +1304,37 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
     async upload(bytes) {
+      if (refreshing) await refreshing;
       const unavailableWhy = unavailable();
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const request = requestCredentials();
-      const uploaded = await uploadAsset(base, request.headers, doFetch, bytes);
-      if (uploaded.ok && !unavailable() && request.revision === credentialRevision) {
-        // The device keeps only facts received from this uploader's server reply.
-        await call({ op: "upload_facts", viewer: principal, asset: uploaded.asset });
+      const sameSession = () => !refreshing && request.headers.authorization === headers.authorization;
+      const uploaded = await uploadAsset(base, request.headers, doFetch, bytes,
+        () => !unavailable() && link === "online" && sameSession());
+      const interrupted = (): Refusal | null => unavailable() ?? (!sameSession()
+        ? { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } : null);
+      let why = interrupted();
+      if (why) return { ok: false, why };
+      if (uploaded.ok) {
+        let finish!: () => void;
+        const keeping = new Promise<void>(resolve => { finish = resolve; });
+        active.add(keeping); // Close must wait for receipt cleanup as well as its write.
+        try {
+          const stored = await core.call({ op: "upload_facts", viewer: principal, asset: uploaded.asset }) as { denied?: Refusal };
+          // No helper-promise gap between this check and settling upload().
+          why = interrupted();
+          if (why) {
+            const removed = await core.call({ op: "forget_upload_facts", viewer: principal, id: uploaded.asset.id });
+            if (removed.denied) throw new Error(JSON.stringify(removed.denied));
+            return { ok: false, why };
+          }
+          return stored.denied ? { ok: false, why: stored.denied } : uploaded;
+        } finally { active.delete(keeping); finish(); }
       }
-      if (!uploaded.ok) await refusedSession(uploaded.why, request.revision);
+      await refusedSession(uploaded.why, credentialRevision);
+      why = interrupted();
+      if (why) return { ok: false, why };
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },

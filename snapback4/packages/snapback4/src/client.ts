@@ -540,9 +540,16 @@ export function createClient(options: ClientOptions): Client {
       if (refreshing) await refreshing;
       if (closed) return { ok: false, why: ended() };
       if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
-      const revision = credentialRevision;
-      const uploaded = await uploadAsset(base, { ...headers }, doFetch, bytes);
-      if (!uploaded.ok && await obsoleteRefusal(uploaded.why, revision)) return client.upload(bytes);
+      const requestHeaders = { ...headers };
+      const sameSession = () => !refreshing && requestHeaders.authorization === headers.authorization;
+      const uploaded = await uploadAsset(base, requestHeaders, doFetch, bytes,
+        () => !closed && credentials && sameSession());
+      // Uploads have no mutation id: an obsolete success cannot be replayed or
+      // handed to another session. A stopped retry also returns this refusal.
+      if (closed) return { ok: false, why: ended() };
+      if (!credentials) return { ok: false, why: auth() };
+      if (!sameSession()) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } };
+      if (!uploaded.ok && uploaded.why.code === "E_AUTH") endCredentials();
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },

@@ -1,0 +1,9 @@
+{
+  "start": 1790256166.009,
+  "pass": true,
+  "platform": "web local replica; iOS Hermes export is separate, no simulator claim",
+  "offlineReactionPredicted": true,
+  "offlineReloadRetained": true,
+  "reconnectExactlyOnce": true,
+  "end": 1790256169.467
+}

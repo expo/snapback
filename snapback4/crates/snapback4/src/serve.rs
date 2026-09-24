@@ -770,7 +770,11 @@ fn handle(mut request: Request, shared: &Shared) {
     let _upload_permit = if method == Method::Post && path == "/assets" {
         match crate::assets::admit(shared) {
             Some(permit) => Some(permit),
-            None => return respond(request, 429, json!({ "denied": refusal_json(&Refusal::new("E_RATE_LIMIT", "auth", "too many concurrent uploads; retry shortly")) })),
+            None => {
+                let mut refusal = Refusal::new("E_RATE_LIMIT", "auth", "too many concurrent uploads; retry shortly");
+                refusal.retryable = true;
+                return respond(request, 429, json!({ "denied": refusal_json(&refusal) }));
+            }
         }
     } else { None };
     let mut bytes = Vec::new();

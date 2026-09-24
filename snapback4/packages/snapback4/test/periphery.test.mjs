@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync, copyFileSync, realpathSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync, copyFileSync, cpSync, realpathSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -190,15 +190,39 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   assertCoreTree(dir);
 });
 
-for (const starter of ["expo", "web"]) test(`${starter} generated template typechecks against the reference toolchain`, (t) => {
+for (const starter of ["expo", "web"]) test(`${starter} fresh template and generated server typecheck with only declared dependencies`, (t) => {
   const { dir, run } = fixture(t);
   run("init", `--${starter}`); run("check");
-  symlinkSync(join(root, "node_modules"), join(dir, "node_modules"), "dir");
-  const config = ts.readConfigFile(join(dir, "tsconfig.json"), ts.sys.readFile);
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, dir);
-  const program = ts.createProgram(parsed.fileNames, parsed.options);
-  const errors = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)].map(d => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
-  assert.deepEqual(errors, []);
+  const reference = join(root, "apps", starter === "expo" ? "chat-expo" : "chat");
+  const packageJson = json(join(dir, "package.json"));
+  const require = createRequire(join(reference, "package.json"));
+  for (const name of Object.keys({ ...packageJson.dependencies, ...packageJson.devDependencies })) {
+    const target = join(dir, "node_modules", name);
+    mkdirSync(dirname(target), { recursive: true });
+    if (name === "snapback4") {
+      // Copy the package boundary, so undeclared workspace @types cannot leak
+      // into the generated server's resolution through the package symlink.
+      mkdirSync(target);
+      copyFileSync(join(root, "packages/snapback4/package.json"), join(target, "package.json"));
+      cpSync(join(root, "packages/snapback4/dist"), join(target, "dist"), { recursive: true });
+    } else {
+      const installed = require.resolve.paths(name).map(path => join(path, name)).find(existsSync);
+      // Template-only build packages (e.g. react-native-web) need not be
+      // installed in the reference app; TypeScript must pass without them.
+      if (installed) symlinkSync(realpathSync(installed), target, "dir");
+    }
+  }
+  const compiler = join(dir, "node_modules/typescript/bin/tsc");
+  const checked = spawnSync(process.execPath, [compiler, "--noEmit"], { cwd: dir, encoding: "utf8" });
+  assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+  // Expo's app config does not include this unused generated module. Check it
+  // explicitly too, in an environment that grants no ambient Node globals.
+  writeFileSync(join(dir, "tsconfig.server.json"), JSON.stringify({
+    compilerOptions: { strict: true, target: "ES2022", module: "ESNext", moduleResolution: "Bundler", allowImportingTsExtensions: true, skipLibCheck: true, types: [] },
+    files: ["snapback/generated/server.ts"],
+  }));
+  const server = spawnSync(process.execPath, [compiler, "--noEmit", "-p", "tsconfig.server.json"], { cwd: dir, encoding: "utf8" });
+  assert.equal(server.status, 0, server.stdout + server.stderr);
 });
 
 const ambiguous = `use personas alice

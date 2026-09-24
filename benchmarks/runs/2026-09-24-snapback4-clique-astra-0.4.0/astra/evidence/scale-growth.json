@@ -1,0 +1,38 @@
+{
+  "ratios": {
+    "deepPaging": 0.8948625745504545,
+    "following500vs5": 1.4992872680050304,
+    "celebrityWrite": 2.6076869741510844,
+    "celebrityRead": 0.9418268106478086
+  },
+  "growth": {
+    "search-u0500": {
+      "p95At10": 3.0137500000000728,
+      "p95At50": 2.528833000000077,
+      "p95At100": 3.568583000000217,
+      "fullTo10": 1.184100539195398,
+      "midpointCeiling": 3.260342444444581,
+      "midpointPass": true,
+      "endpointPass": true
+    },
+    "insights-u0500": {
+      "p95At10": 1.8760419999998703,
+      "p95At50": 1.6165419999999813,
+      "p95At100": 1.8180830000001151,
+      "fullTo10": 0.96910570232449,
+      "midpointCeiling": 1.8502824444444235,
+      "midpointPass": true,
+      "endpointPass": true
+    },
+    "trending": {
+      "p95At10": 1.7710000000001855,
+      "p95At50": 1.7703339999998207,
+      "p95At100": 1.7443339999999807,
+      "fullTo10": 0.9849429700732908,
+      "midpointCeiling": 1.7591484444445389,
+      "midpointPass": false,
+      "endpointPass": true
+    }
+  },
+  "scope": "Diagnostic probes; no absolute ceiling or independent holdout grading supplied"
+}

@@ -56,17 +56,44 @@ function ownBlob(blob: Blob): () => void {
   };
 }
 
-export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes): Promise<Uploaded> {
+export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes, canRetry: () => boolean = () => true): Promise<Uploaded> {
   const { "content-type": _json, ...auth } = headers;
-  const body = bytes instanceof Uint8Array ? new Blob([bytes as BlobPart]) : bytes;
+  // Caller-owned buffers may change during admission backoff. Every attempt
+  // sends the same selected byte range, including inputs from another realm.
+  // Native Blob rejects buffer parts; its fetch accepts an owned buffer view.
+  // Blob inputs are already immutable and stay owned by the caller.
+  const body = ArrayBuffer.isView(bytes)
+    ? new Uint8Array(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength))
+    : Object.prototype.toString.call(bytes) === "[object ArrayBuffer]"
+      ? new Uint8Array(new Uint8Array(bytes as ArrayBuffer)) : bytes as Blob;
   try {
-    const response = await doFetch(`${base}/assets`, { method: "POST", headers: { ...auth, "content-type": "application/octet-stream" }, body });
-    const json = (await response.json()) as { asset?: Asset; denied?: Refusal };
-    if (json.asset) return { ok: true, asset: json.asset };
-    return { ok: false, why: json.denied ?? { code: "E_STORE", family: "store", message: "the server answered without an asset", retryable: true } };
+    let waited = 0;
+    for (let attempt = 0; ; attempt++) {
+      const response = await doFetch(`${base}/assets`, { method: "POST", headers: { ...auth, "content-type": "application/octet-stream" }, body });
+      const json = (await response.json()) as { asset?: Asset; denied?: Refusal };
+      if (json.asset) return { ok: true, asset: json.asset };
+      const why = json.denied ?? { code: "E_STORE", family: "store", message: "the server answered without an asset", retryable: true };
+      // Only an explicit admission refusal proves these bytes were not stored.
+      // A transport failure or another retryable code may follow acceptance.
+      if (why.code !== "E_RATE_LIMIT" || why.retryable !== true || attempt === 3 || !canRetry()) return { ok: false, why };
+      const delay = Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after")));
+      // Never retry earlier than the server permits. A long Retry-After ends
+      // this bounded call instead of parking an upload indefinitely.
+      if (waited + delay > 10_000) return { ok: false, why };
+      await new Promise(resolve => setTimeout(resolve, delay));
+      waited += delay;
+      if (!canRetry()) return { ok: false, why };
+    }
   } catch {
     return { ok: false, why: offline() };
   }
+}
+
+function retryAfter(value: string | null): number {
+  if (!value) return 0;
+  const seconds = /^\d+(?:\.\d+)?$/.test(value.trim()) ? Number(value) : NaN;
+  const delay = Number.isNaN(seconds) ? Date.parse(value) - Date.now() : seconds * 1000;
+  return Number.isNaN(delay) ? 0 : Math.max(0, delay);
 }
 
 /** Where the bytes are and what to send to get them: for hosts whose image
