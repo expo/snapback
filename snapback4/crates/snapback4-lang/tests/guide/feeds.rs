@@ -130,6 +130,45 @@ fn published_following_unrepost_hides_the_delivered_event() {
     }
 }
 
+#[test]
+fn published_following_unrepost_uses_the_reposting_viewer() {
+    let mut e = published_following();
+    let mut clock = 0;
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("original")), ("parentId", Value::Null)]);
+    for viewer in ["bob", "carol"] {
+        write(&mut e, &mut clock, "follow", viewer, &[("actor", id("alice"))]);
+    }
+    write(&mut e, &mut clock, "follow", "carol", &[("actor", id("bob"))]);
+    write(&mut e, &mut clock, "repost", "bob", &[("postId", id("original"))]);
+    assert_eq!(following_pages(&mut e, "carol").0.len(), 1, "the repost is awaiting delivery");
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
+    let event_id = following_pages(&mut e, "bob").0[0].field("id").unwrap().clone();
+    assert_ne!(event_id, id("original"));
+    for viewer in ["bob", "carol"] {
+        let (rows, complete) = following_pages(&mut e, viewer);
+        assert!(complete);
+        assert_eq!(rows.len(), 2, "{viewer}: Alice's original and Bob's delivered repost");
+        assert_eq!(rows[0].field("id").unwrap(), &event_id);
+        assert_eq!(rows[0].field("post").unwrap(), &id("original"));
+        assert_eq!(rows[0].field("actor").unwrap(), &id("bob"));
+        assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(true));
+    }
+    write(&mut e, &mut clock, "unrepost", "bob", &[("postId", id("original"))]);
+    for after_cleanup in [false, true] {
+        if after_cleanup { while e.run_timeline_chunk(clock + 1).unwrap().is_some() {} }
+        for viewer in ["alice", "bob", "carol"] {
+            let (rows, complete) = following_pages(&mut e, viewer);
+            if after_cleanup { assert!(complete); }
+            assert_eq!(rows.len(), 1, "{viewer}: Bob's unrepost hides his event; cleanup={after_cleanup}");
+            assert_eq!(rows[0].field("id").unwrap(), &id("original"));
+            assert_eq!(rows[0].field("actor").unwrap(), &id("alice"));
+            assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(false));
+        }
+    }
+    assert!(e.store().rows("reposts").unwrap().is_empty());
+    assert_eq!(e.store().rows("posts").unwrap().len(), 1, "the original source row survives");
+}
+
 pub(super) fn assert_stream_note(b: &snapback4_lang::Bound) {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert_eq!(b.notes.len(), 1, "{:?}", b.notes);

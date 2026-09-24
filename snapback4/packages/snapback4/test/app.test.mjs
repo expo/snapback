@@ -770,6 +770,52 @@ for (const operation of ["refresh", "login"]) for (const releaseAfterRetry of [f
   assert.equal(await restoreSession(url, memory), null);
 });
 
+test("logout retry revokes a discarded login after its token-comparison read throws", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
+  let brokenWrites = false, brokenRead = false, comparedOriginal = false, failedReads = 0, issued, release;
+  const gate = new Promise(resolve => { release = resolve; }), failedWrites = [], revocations = [];
+  const store = { ...memory,
+    async set(k, value) {
+      if (brokenWrites) { failedWrites.push(k); throw Error("both logout fences are unavailable"); }
+      await memory.set(k, value);
+    },
+    async get(k) {
+      if (k === key && brokenRead) { failedReads++; throw Error("token comparison is unavailable"); }
+      if (k === key && failedWrites.length === 2) comparedOriginal = true;
+      return memory.get(k);
+    },
+  };
+  const app = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/auth/logout") revocations.push(new Headers(init.headers).get("authorization"));
+    const response = await fetch(input, init);
+    if (path === "/auth/login") { issued = (await response.clone().json()).session; await gate; }
+    return response;
+  } });
+  t.after(async () => { release(); await app.close(); });
+  await app.ready;
+  assert.equal((await app.auth.signup("alice@example.com", "password-a")).ok, true);
+  const original = app.client.session(), saved = await memory.get(key);
+  const pending = app.auth.login("alice@example.com", "password-a");
+  await until(() => issued, "server committed the held login bearer");
+  assert.notEqual(issued.token, original.token);
+  brokenWrites = true;
+  assert.equal((await app.auth.logout()).ok, false);
+  assert.deepEqual(failedWrites, [key + ".epoch", key], "both durable fences failed");
+  await until(() => comparedOriginal, "the stored bearer was compared before the read outage");
+  brokenRead = true;
+  release(); assert.equal((await pending).ok, false);
+  await until(() => failedReads > 0, "discarded login token comparison threw");
+  assert.equal(app.auth.state, "signed-out");
+  assert.equal(await memory.get(key), saved, "failed fences preserve the stored bearer");
+  assert.deepEqual(revocations, [], "an unreadable store cannot authorize revocation yet");
+  assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied, undefined);
+  brokenWrites = false; brokenRead = false;
+  assert.equal((await app.auth.logout()).ok, true);
+  assert.equal(await restoreSession(url, memory), null);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied?.code === "E_AUTH", "retry revoked the login token deferred by the failed comparison");
+});
+
 test("logout retry drains deferred revocation after another account replaced the stored bearer", { timeout: 15_000 }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let broken = false, failedFence = false, compared = false;

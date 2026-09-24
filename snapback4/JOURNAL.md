@@ -49538,3 +49538,32 @@ The inherited full-history search example's asserted N_NO_HORIZON note remains;
 all feed examples are silent and no note exception was added. The file map,
 regression evidence, reproduction for that inherited note and exact results
 are in reports/20260924-guide-review-r3.md. Logs: ~/sb4-intent/lane-f-r3-*.log.
+
+## 2026-09-24 — Intent integration round 5 part a: E and F reviewer follow-ups
+
+Read the full round-5 brief; fetched and merged origin/main at 0ee488999,
+then E at 199964910 and F at 27a2491fe, all with --no-ff. Workspace builds
+passed after every merge. Only F's journal append conflicted; kept every E
+and F entry unchanged and verified their preservation against both parents.
+
+Added two test-only regressions. A held committed login, two failed logout
+fences and a throwing token-comparison read still lead to server revocation
+after storage repair and logout retry. Bob's published unrepost removes his
+delivered repost of Alice's original from his and Carol's feeds while keeping
+the original before and after cleanup. The existing same-author test remains.
+Removing the catch's deferred-token registration fails the first test; using
+Alice's key in the published deletion fails the second with NOT_FOUND. Both
+mutations were restored byte-for-byte before qualification.
+
+Affected tests: 529 passed, zero failed; four existing aggregate cases ignored.
+Client 237, guide 67, aggregate copies 64, readauth 81, CLI check 68, feed
+bridge 12. No intermittent client failure. Frozen Bun install, package build
+and typecheck, whitespace and README budget (296/300) pass. Reference check:
+505 LLP docs, 9,235 refs, zero errors and zero unchecked. The full evidence,
+mutation-harness result correction and file map are in
+reports/20260924-intent-integration-r5a.md.
+
+Did not run scripts/test.sh, rebuild WASM or merge later lanes: the user
+explicitly deferred whole-round qualification until those lanes finish.
+The complete target fixture is unchanged and was not requalified in this part.
+No production follow-up change, new form, version bump, push or publication.
