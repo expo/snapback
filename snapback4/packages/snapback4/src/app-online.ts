@@ -8,7 +8,7 @@ import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { journalReader, keepReceipts, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
-export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void) {
+export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true) {
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
   let active = true;
@@ -16,6 +16,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   let retirement: Promise<void> | undefined;
   const ids = new MutationIds();
   const emissions = new WriteHistory();
+  // I13: failed receipt persistence cannot turn a known outcome back into
+  // pending, even after the raw client's bounded history evicts that id.
+  const unpersisted = new Map<string, Terminal>();
   const listeners = new Set<(write: Terminal) => void>();
   let writes: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
@@ -35,20 +38,27 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     ids.finish(write.id);
     if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(write);
   };
+  // @ref LLP 3000.007#17 — recovery confirms execution, never historical result values or details.
+  const receiptOf = (write: Terminal): Terminal => write.state === "sent"
+    ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
+    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+  const retain = (write: Terminal, error: unknown) => {
+    if (active) unpersisted.set(write.id, receiptOf(write));
+    notify(write);
+    report(error);
+  };
   const settle = async (write: Terminal) => {
     await change(journal => {
       if (!journal.pending.some(intent => intent.id === write.id)) return false;
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
-      const receipt: Terminal = write.state === "sent"
-        ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-        : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
-      journal.receipts.push(receipt);
+      journal.receipts.push(receiptOf(write));
       keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
     // Durable retirement belongs to the shared journal; notification and
     // reservation cleanup belong to every client that observed settlement.
+    unpersisted.delete(write.id);
     notify(write);
   };
   const stop = raw.onWrite(write => {
@@ -56,7 +66,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       // The raw client emits one refusal per queued write. Retire that store's
       // queue once, so all newly failed receipts share the same pinned save.
       const retiring = write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
-      void (retiring ? refuseStore(write.why) : settle(write)).catch(report);
+      if (retiring) void refuseStore(write.why).catch(report);
+      else void settle(write).catch(error => retain(write, error));
     }
   });
   const initial = await locked(key, read);
@@ -104,13 +115,21 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (terminal(result)) {
           try { await settle(result); }
-          catch (error) { report(error); return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
+          // Keep the durable intent for replay if receipt storage fails, but
+          // never replace the server-confirmed outcome of this dispatched call.
+          catch (error) { retain(result, error); }
         }
         return terminal(result) ? result : { state: "pending", id };
       });
     },
     async write(id) {
       if (!active || raw.viewer() !== viewer) return undefined;
+      const retained = unpersisted.get(id);
+      if (retained) {
+        try { await settle(retained); }
+        catch (error) { retain(retained, error); }
+        return retained;
+      }
       const journal = await locked(key, read);
       if (!active || raw.viewer() !== viewer) return undefined;
       const receipt = journal.receipts.find(write => write.id === id);
@@ -122,7 +141,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (journal.pending.some(intent => intent.id === id)) {
         if (known && terminal(known)) {
           try { await settle(known); return known; }
-          catch (error) { report(error); }
+          catch (error) { retain(known, error); return known; }
         }
         return { state: "pending", id };
       }
@@ -133,12 +152,18 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
-  function pause() { active = false; stop(); listeners.clear(); }
+  function pause() { active = false; stop(); listeners.clear(); unpersisted.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
-  const recovery = Promise.all(initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent =>
-    client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
-  void recovery.catch(report);
+  let started = false;
+  function start() {
+    if (started || !active) return;
+    started = true;
+    const recovery = Promise.all(initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent =>
+      client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
+    void recovery.catch(report);
+  }
+  if (autoStart) start();
   function refuseStore(why: Refusal): Promise<void> {
     if (retirement) return retirement;
     storeRefusal = why;
@@ -154,5 +179,5 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     }).then(failed => { for (const write of failed) notify(write); });
     return retirement;
   }
-  return { client, pause, refuseStore };
+  return { client, pause, start, refuseStore };
 }

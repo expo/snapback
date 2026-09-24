@@ -91,6 +91,8 @@ explicit. `app.client` changes on restore, sign-in, logout and account switch;
 component state. `useAuth()` returns the current state, viewer, failure and actions.
 Call `app.close()` to stop a runtime while preserving its session for restart;
 an in-flight rotation finishes and saves its replacement before close completes.
+Its previously exposed client is revoked immediately: a pending public refresh
+returns E_AUTH after hiding, while the app privately persists its successor.
 `AppOptions` inherits the local client's application configuration. `assets` and
 `waitSeconds` pass through on every local open, including restore and account
 switch; both are ignored when `device` is omitted. `waitSeconds` sets the change
@@ -108,22 +110,156 @@ in the background.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
-Logout advances a persisted session epoch under the same lock as credential removal.
-If the marker cannot be stored, logout overwrites the bearer with a smaller
-noncredential tombstone carrying that epoch, then retries the marker. The
-tombstone remains through restoration and counts as successful local logout
-even if the separate marker still cannot be written. A later sign-in must save
-the marker before replacing the tombstone. If neither fence can be stored,
-logout returns a storage error and sets `auth.why`; it leaves the saved bearer
-untouched and does not revoke it. Discarded login and refresh bearers are still
-revoked when they differ from the token left in storage. This runtime retains
-revocations deferred by the failed fence and drains them after a successful
-logout retry, including late responses received after that retry. Repair storage
-and retry logout; remote revocation remains best effort when the network fails.
-Sign-in and refresh work started in an earlier epoch cannot save a late bearer;
-the app revokes that bearer and retires its client. Invalid or expired stored
-sessions are cleaned up only if their exact bytes still match the read, without
-remote revocation. A concurrent replacement restarts restoration.
+The app's session state machine maintains these invariants under the shared
+session lock:
+
+- **I1 — stored bearer protection.** A runtime never sends revocation for the
+  currently stored bearer. Explicit logout first commits a logout tombstone,
+  then revokes the displaced session in the background.
+- **I2 — failure atomicity.** Failed sign-in, guest, replacement, refresh or
+  logout preserves the session bytes and epoch. The sole logout intermediate
+  state is a tombstone; every reader recognizes it as signed out.
+- **I3 — retirement custody.** A server-minted bearer stays with its live
+  runtime, the stored session, or a durable revocation obligation. Displacement
+  is journaled before commit; revocations drain only after that commit. An
+  acknowledgement retires the journal entry, including after restart.
+- **I4 — principal isolation.** Once a runtime observes a changed epoch, it
+  fences every older scope, including a provisional opening's rollback
+  candidate, before notifying observers. It never adopts a different account
+  without opening that account's client and outbox.
+- **I5 — committed epochs.** An epoch advances with a committed replacement
+  or logout, never with a failed operation.
+- **I6 — coherent public identity.** Published auth state, viewer and client
+  agree, including inside client notifications. Signed out exposes no live
+  client; signed in exposes an open client for that viewer. Closing the current
+  `app.client` also closes the app's public view and preserves the kept session.
+- **I7 — refused session exclusion.** A server refusal conditionally replaces
+  the still-stored bearer, or its known consumed predecessor after a failed
+  rotation save, with a logout tombstone. Later opens, online or
+  offline, stay signed out without opening that replica. An existing client
+  loses access as soon as it learns the refusal. Cleanup cannot delete a
+  different stored successor. A transient failed refusal commit is retried
+  once under the session lock; any remaining storage error is reported.
+- **I8 — revoked public handles.** Hiding an account permanently fences every
+  exposed client facade and its observations before notifying subscribers.
+  Captured clients can no longer start reads, writes or refreshes, expose credentials or
+  control the app lifecycle. The local client's existing `sync()` helper is
+  also inert after its facade is hidden. Held observations return a refusal and notify
+  their subscribers. Raw credentials needed for retry remain private. A failed
+  replacement may restore the prior account through a new facade; it cannot
+  reactivate any handle that was already hidden. This governs future access
+  through handles, not copies of data or credentials already returned to code.
+  Calls dispatched before the fence retain their raw outcomes (I12); query data
+  and observation snapshots still require the live view when delivered.
+- **I9 — global revocation.** A successful `logoutEverywhere()` acknowledges
+  removal of every session of its principal at the server's revocation point,
+  including other tabs, external sibling sessions and committed rotations whose
+  responses have not arrived. It never selects another principal's credential.
+  A deliberate new sign-in after that server operation creates a new session;
+  global logout is not a ban on future sign-ins. A stale tab cannot count
+  revoking that later login as successful global logout.
+- **I10 — attempt-scoped acknowledgement.** Global retirement freezes the
+  credentials covered by each dispatch. Its acknowledgement removes only that
+  snapshot, including on cleanup retry. Tokens attached later retain individual
+  retirement custody; they may have been minted after the server's revocation.
+- **I11 — epoch-scoped authority.** An operation cannot select an account epoch
+  newer than its calling scope. Global logout may adopt another tab's rotated
+  bearer within the same epoch; a later login, even of the same principal, is
+  fenced from the stale caller's authority. Selection reads the principal's
+  inline and journaled global watermarks under the session lock, and checks the
+  selected session's committed scope. The shared legacy counter alone cannot
+  distinguish another principal's logout from this account's replacement.
+- **I12 — dispatched outcomes.** Fencing refuses new calls; it never turns a
+  dispatched mutation's terminal outcome into an authorization failure or a
+  pending write. Actions, uploads and refreshes likewise retain their raw
+  outcomes. A failed receipt save reports the storage error and retains the
+  original intent for replay with the same id, while returning the confirmed
+  outcome. If cancellation prevents receiving a write's outcome, its id remains
+  pending for recovery; cancellation is not evidence that the server refused it.
+  Local close waits for dispatched mutation settlement and action transport
+  completion before closing the device. A delivered `sent` or nonretryable
+  `failed` mutation keeps its id and receipt; a delivered action keeps its
+  `done` or `failed` outcome. Reads retain their disclosure guards.
+- **I13 — one known outcome per id.** Within a live client, `mutate`, `write(id)`
+  and `onWrite` agree on a known terminal state, id and sequence or refusal code.
+  Failed receipt persistence reports the error and notifies subscribers; it
+  never changes a known terminal outcome back to pending. The online client
+  retains a receipt summary in memory until persistence succeeds or the client
+  is retired, independently of the lower client's bounded history. Lookup
+  retries persistence. Durable intent stays available for same-id replay after
+  restart. Receipt recovery still omits historical result values and refusal
+  details; a hidden account cannot look up retained receipts.
+
+The state-machine suite runs 5,000 seeded sequences on each of the online and
+local tiers. The local tier uses the production Rust/Wasm device, outbox and
+receipt storage; the server and session-store faults are modeled. It generates
+both accepted mutations and authoritative nonretryable refusals, including
+responses held across close or logout. Persistent online receipt-save outages,
+lookups before and after repair, and completion notifications check I13. Separate Wasm and native tests exercise
+the real server and local device with held mutation, action and read responses.
+
+A single atomic `sessionStore.set` commits the session and its epoch together.
+Client opening is provisional: failed device initialization or persistence
+cannot discard the previous guest's only bearer. Restoration and rotation
+retain their epoch; replacement of a live bearer increments it. Logout writes
+an epoch-bearing tombstone, including when quota prevents creating another key.
+The old separate epoch key remains readable for existing stores.
+
+`logoutEverywhere()` blocks new rotations in its runtime and awaits one already
+running there. Under the session lock it selects the stored bearer for its
+principal and calling epoch, including a successor saved by another tab, or its
+own known newer rotation whose save failed. A stored bearer in a newer epoch
+causes an E_AUTH refusal and stays untouched, including a login of the same
+principal. The atomic tombstone commits the bearer, principal
+and generation of the global revocation together. Only then does the app publish
+signed out and fence captured clients and observations. If that write fails,
+the signed-in view and its existing client remain usable and `auth.why` reports
+the failure (an independently superseded or refused account remains fenced).
+
+The tombstone privately owns retry credentials across restart until
+`/auth/logout-all` succeeds. A late successor from an older scope inherits the
+same principal's global obligation; ordinary retirement cannot consume it first.
+Replacement moves these obligations to the retirement journal. A global
+acknowledgement retires the credentials known to its dispatched attempt and
+leaves a completed generation watermark. Credentials attached while the response
+is pending remain journaled for individual retirement; successful global logout
+does not prove they were minted before that revocation. Another stale tab cannot
+recreate the acknowledged obligation or globally revoke
+a later login. Completed empty watermarks compact to the newest per principal;
+pending obligations retain their retry credentials. A successful retry or
+reopening drains durable work. Signed-out clients cannot use these credentials
+for reads, writes or ordinary logout.
+
+Retirement records are backend-bound revocation credentials, never sessions to
+restore. Replay checks the current session under the same lock. Ordinary
+retirement removes an entry after a logout acknowledgement or HTTP 401 E_AUTH;
+global retirement requires a successful logout-all acknowledgement because
+E_AUTH does not prove that the other sessions were revoked. A received global
+acknowledgement remains owned by its runtime until local cleanup succeeds;
+cleanup retries a transient failure, and close retries any retained cleanup.
+Transport failures and other refusals leave retirement available for retry on
+restoration, sign-in or logout. A failed comparison read keeps
+custody and cannot authorize revocation. Damaged records are preserved and
+reported through auth.why. Invalid-session garbage collection compares the exact
+bytes it read and never remotely revokes a token.
+
+These invariants assume an individual store write is atomic (a rejected write
+leaves that key unchanged), cooperating runtimes use the shared lock, and the
+store and network eventually recover. The server consumes a refresh token
+before returning its successor. If all persistence and revocation attempts fail
+and the process is forcibly killed, a newly minted, never-persisted successor
+cannot be recovered by this client protocol. Lost server responses have the same
+limit. Durable recovery of that case requires a server protocol that can recover
+an issuance by request ID; createApp cannot manufacture that guarantee.
+I7 likewise requires a durable refusal fence before the last informed runtime
+is lost: if every tombstone write fails, then the process dies, a new offline
+runtime cannot distinguish the old bytes from a valid offline session. The
+informed runtime denies access and reports the storage failure; it cannot promise
+offline exclusion after that loss. A lost global-revocation acknowledgement
+followed by process loss can also leave an obligation whose consumed bearer
+cannot prove the result on retry. That obligation is retained and the refusal
+reported, rather than treating E_AUTH as a successful global logout. Stronger
+crash guarantees require server-side issuance and revocation receipts.
 
 Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments
@@ -143,9 +279,9 @@ bytes remain untouched; sign in again after upgrading. Local device outboxes and
 server data are unchanged.
 
 Browser Web Locks serialize journal updates and session replacement/deletion
-across tabs. A refused bearer clears only the same token still in storage; it
-cannot delete a successor saved by another tab. Explicit logout revokes any
-stored successor it clears. Custom stores shared across independent non-browser
+across tabs. A refused bearer stops that runtime without deleting stored
+credentials; it cannot delete a successor saved by another tab. Explicit logout
+commits a tombstone before revoking the stored bearer it displaces. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
 primitive. Storage errors remain errors; they never authorize an unstored send. A failed
 startup keeps the client signed out. Logout retries failed credential deletion

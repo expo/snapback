@@ -1,3 +1,4 @@
+import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // The local-first tier (LLP 3000 §7, one implementation): the device is
 // the Rust module — the partition in its own store, the stream applied,
 // the outbox kept, queries and predictions answered — and this client is
@@ -10,6 +11,7 @@
 import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
 import { requireSyncProtocol, syncTransport, type SyncPage } from "./local-sync.ts";
@@ -124,11 +126,6 @@ function responsePageTooLarge(denied: Refusal): boolean {
     && denied.message.includes("smaller page");
 }
 
-class BackendAuthError extends Error {
-  constructor(readonly denied: Refusal) {
-    super(`${denied.code}: ${denied.message}`);
-  }
-}
 
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const retention = assetRetention(options.assets);
@@ -151,7 +148,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       session = signedIn.session;
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
-    if (session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) {
+    if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) {
       const refreshed = await rotateSession(base, session.token, doFetch);
       if (refreshed.ok) {
         if (refreshed.session.principal !== session.principal) {
@@ -304,6 +301,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const serverAnswers = new Map<string, { read: Extract<Read<unknown>, { data: unknown }>; at: number; tables: Set<string> }>();
   const settled = new Map<string, (write: Write) => void>();
   const answers = new LocalReads();
+  // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
+  const settling = new Set<string>();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
   let caughtUp = false;
   let identityChecked = false;
@@ -574,13 +573,22 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   };
 
-  async function post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
+  function post(path: string, body: unknown) {
+    const work = sendPost(path, body);
+    active.add(work);
+    void work.finally(() => active.delete(work)).catch(() => {});
+    return work;
+  }
+  async function sendPost(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
     if (closed || sessionDead) return { ok: false };
     try {
       const request = requestCredentials();
       const reply = await postForCaller(doFetch, base, path, request.headers, body, aborter.signal);
-      if (!reply || closed) return { ok: false };
+      if (!reply) return { ok: false };
       const { response, json } = reply;
+      // I12: delivered mutation/action outcomes still belong to their callers
+      // after close. Reads continue to require the live view at delivery.
+      if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       const denied = (json.denied ?? json.why) as Refusal | undefined;
       const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
@@ -1149,6 +1157,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (closed || sessionDead) return { ok: false as const };
           if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
           ordinarySending = entry.id;
+          settling.add(entry.id);
           try {
             const started = await call({ op: "begin_send" });
             if (started.denied) return { ok: false as const };
@@ -1166,7 +1175,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             return response;
           } finally { ordinarySending = undefined; }
         });
-        if (closed) return;
         if (!result.ok) { retryFlush(); return; }
         if ("retired" in result) continue;
         const json = result.json;
@@ -1180,11 +1188,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
             : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
-        if (outcome.state === "sent") { if (acquire) await syncOnce(); }
-        else rerunTables(predictedTables(entry.predicted));
+        if (!closed) {
+          if (outcome.state === "sent") { if (acquire) await syncOnce(); }
+          else rerunTables(predictedTables(entry.predicted));
+        }
         settle?.(outcome);
         emitWrite(outcome);
       } catch { retryFlush(); return; }
+      finally { settling.delete(entry.id); }
     }
   }
 
@@ -1432,9 +1443,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       sessionListeners.clear();
       viewerListeners.clear();
       writeListeners.clear();
-      for (const [id, resolve] of settled) resolve({ state: "pending", id });
+      // Dispatched writes own their waiters through response persistence and
+      // settlement. The device remains open until that work finishes.
+      for (const [id, resolve] of settled) if (!settling.has(id)) resolve({ state: "pending", id });
       closing = (async () => {
         await Promise.allSettled([following, syncing, flushing, refreshing, ...active]);
+        for (const [id, resolve] of settled) resolve({ state: "pending", id });
         await media?.close();
         await core.close();
         settled.clear();
@@ -1446,25 +1460,32 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   await queued();
   const keptWrites = (await call({ op: "meta", key: "write-history" })).ok as string | null;
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
-  if (link === "online") {
-    // Web stores have one owner. Native owners may share an outbox with an
-    // active sender, so their existing snapshot/receipt coordination runs first.
-    if (core.onSuspend) await replayOnOpen();
-    await syncOnce();
-  }
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
-  if (core.onSuspend) {
-    const sendOnExit = exitTransport(doFetch, base, aborter.signal);
-    stopSuspend = core.onSuspend((entries, beginSend) => {
-      const request = requestCredentials();
-      // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
-      exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
-    });
-  }
-  stopOutbox = core.onOutbox?.(() => { void flush(); });
-  follow();
-  void flush();
-  scheduleRefresh();
+  const prepared = startDeferred(options);
+  const start = async () => {
+    if (closed) return;
+    if (prepared && session && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
+    if (link === "online") {
+      // Web stores have one owner. Native owners may share an outbox with an
+      // active sender, so their existing snapshot/receipt coordination runs first.
+      if (core.onSuspend) await replayOnOpen();
+      await syncOnce();
+    }
+    if (core.onSuspend) {
+      const sendOnExit = exitTransport(doFetch, base, aborter.signal);
+      stopSuspend = core.onSuspend((entries, beginSend) => {
+        const request = requestCredentials();
+        // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
+        exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
+      });
+    }
+    stopOutbox = core.onOutbox?.(() => { void flush(); });
+    follow();
+    void flush();
+    scheduleRefresh();
+  };
+  trackRotation(client, () => refreshing);
+  if (!deferStart(options, start)) await start();
   stopHost = core.onClient?.(client, base);
   return client;
   } catch (error) {
@@ -1476,17 +1497,4 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     try { await media?.close(); await core.close(); } catch {}
     throw error;
   }
-}
-
-async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>, signal?: AbortSignal): Promise<BackendJson> {
-  const response = await doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) });
-  let json: BackendJson & { denied?: Refusal };
-  try { json = (await response.json()) as BackendJson & { denied?: Refusal }; }
-  catch (error) {
-    if (response.status === 401) throw new BackendAuthError({ code: "E_AUTH", family: "auth", message: "the server refused this session" });
-    throw error;
-  }
-  if (json.denied || response.status === 401) throw new BackendAuthError(json.denied ?? { code: "E_AUTH", family: "auth", message: "the server refused this session" });
-  if (!response.ok) throw new Error(`schema: HTTP ${response.status}`);
-  return json;
 }

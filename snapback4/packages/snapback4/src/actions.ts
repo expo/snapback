@@ -15,8 +15,8 @@ export async function act<A, R>(op: Action<A, R>, args: A, options: ActOptions |
   const wait = options?.waitSeconds;
   const query = wait == null ? "" : `?wait=${Math.max(0, Math.min(25, Math.floor(Number.isFinite(wait) ? wait : 25)))}`;
   const reply = await post(`/a/${encodeURIComponent(op.name)}${query}`, { id, args });
-  const ended = unavailable();
-  if (ended && ended.code !== "E_OFFLINE") return { denied: ended, id };
+  // Admission checked the live capability before dispatch. A later fence
+  // cannot replace the outcome (or erase uncertainty about an accepted id).
   if (!reply.ok) return { state: "pending", id };
   const json = reply.json;
   if (json.denied) return { denied: json.denied as Refusal, id };

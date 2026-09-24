@@ -1,3 +1,4 @@
+import { deferStart, trackRotation } from "./client-start.ts";
 // The online tier (LLP 2000.000 §7.4): no store, no interpreter. Reads go
 // to the server and are `fresh` when it answered; an observed read re-runs
 // when a commit touches its tables; a write is sent with a client-minted id
@@ -336,7 +337,10 @@ export function createClient(options: ClientOptions): Client {
     try {
       const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: aborter.signal } : {}) });
       const json = (await response.json()) as Record<string, unknown>;
-      if (closed || storeRefusal) return { ok: false };
+      // I12: a response to an already-dispatched write remains its outcome
+      // after close/sign-out. Query data still belongs to the live view.
+      if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
+      if (storeRefusal) return { ok: false };
       observeStore(json, floor, path.startsWith("/m/"));
       if (storeRefusal) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
@@ -345,7 +349,7 @@ export function createClient(options: ClientOptions): Client {
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
         return sendPost(path, body, attempt + 1);
       }
-      if (closed || storeRefusal) return { ok: false };
+      if (storeRefusal || (closed && !path.startsWith("/m/") && !path.startsWith("/a/"))) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json };
@@ -501,7 +505,7 @@ export function createClient(options: ClientOptions): Client {
 
   async function send(entry: (typeof pending)[number]): Promise<boolean> {
     const result = await post(`/m/${entry.op.name}`, { id: entry.id, args: entry.args });
-    if (storeRefusal || closed) return true;
+    if (storeRefusal) return true;
     if (!result.ok) return false;
     const json = result.json;
     if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
@@ -732,6 +736,9 @@ export function createClient(options: ClientOptions): Client {
       linkListeners.clear();
       viewerListeners.clear();
       for (const entry of pending) {
+        // The request already dispatched may have committed. Its send owns
+        // settlement; cancellation without a receipt leaves the id pending.
+        if (entry === sending) continue;
         const outcome = { state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } } as const;
         entry.resolve(outcome);
         emitWrite(outcome);
@@ -741,7 +748,12 @@ export function createClient(options: ClientOptions): Client {
       return closing;
     },
   };
-  if (session && session.kind !== "action" && session.expiresAt - Date.now() <= refreshBeforeExpiry) void refreshCurrent();
-  else scheduleRefresh();
+  const start = () => {
+    if (closed) return;
+    if (session && session.kind !== "action" && session.expiresAt - Date.now() <= refreshBeforeExpiry) void refreshCurrent();
+    else scheduleRefresh();
+  };
+  trackRotation(client, () => refreshing);
+  if (!deferStart(options, start)) start();
   return client;
 }

@@ -1196,7 +1196,7 @@ test("close cancels online write callers without aborting committed delivery", {
   await entered.promise;
   await online.close();
   assert.equal(consumed, false, "close stops waiting before delivery finishes");
-  assert.equal((await write).why.code, "E_CLOSED");
+  assert.equal((await write).state, "pending", "cancelling a dispatched request cannot prove that the server refused it");
   assert.equal((await online.mutate(send, { conversationId: "c1", body: "closed" })).why.code, "E_CLOSED");
   release.resolve(); await until(() => consumed, "the late committed reply was not consumed");
   assert.equal((await f.server.query(thread, args)).data.length, 3);
@@ -1309,7 +1309,7 @@ for (const tier of ["wasm", "native"]) {
     release.resolve();
     await closing;
     assert.equal(storeClosed, true);
-    assert.equal((await write).state, "pending", "the admitted id remains durable when close ends the wait");
+    assert.equal((await write).state, "sent", "close waits for the applying acknowledgement and preserves its outcome");
     const syncEntered = deferred();
     let holdSync = false, aborted = false;
     const reopened = await f.open(tier, { fetch: async (input, init) => {

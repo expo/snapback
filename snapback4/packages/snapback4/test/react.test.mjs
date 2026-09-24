@@ -232,13 +232,48 @@ const cases = {
       await act(async () => { await auth.signup("bob", "password"); });
       check(client !== alice && auth.viewer === "bob", "provider switched clients");
       check(host.textContent.endsWith(":empty"), "account-owned draft was reset");
-      equal(read.data, "Bearer bob", "query hook uses Bob");
+      for (let n = 0; n < 200 && read.data !== "Bearer bob"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+      equal(read.data, "Bearer bob", "query hook uses Bob: " + JSON.stringify(read));
       await act(async () => { await write.run({ body: "bob write" }); });
       equal(seen.map(entry => entry[0]), ["Bearer alice", "Bearer bob"], "existing mutation hook follows the current client");
       await act(async () => { await auth.logout(); });
       equal(auth.state, "signed-out", "logout updates useAuth");
       check(client !== alice && client.viewer() === null, "no stale account client remains");
     } finally { await unmount(); await app.close(); }
+  },
+
+  async "failed receipt saves settle pending-write hooks and stay settled after remount"() {
+    const memory = memorySessionStore(), held = deferred(), id = "00000000000000000000000002";
+    const url = "https://failed-receipt.invalid";
+    await keepSession(url, { principal: "alice", token: "alice", kind: "user", expiresAt: Date.now() + 7 * 86400000 }, memory);
+    let fail = true, failures = 0, sends = 0, latest;
+    const store = { ...memory, async set(key, text) {
+      if (fail && key.endsWith(".writes") && JSON.parse(text).receipts.length) { failures++; throw Error("disk full"); }
+      await memory.set(key, text);
+    } };
+    const app = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+      if (new URL(input).pathname !== "/m/write") throw Error("unexpected route");
+      sends++; await held.promise;
+      return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: 3 });
+    } });
+    function Pending() { latest = usePendingWrite(mutation, id); return h("p", null, latest.last?.state ?? "unknown"); }
+    try {
+      await app.ready;
+      let settled = false;
+      const writing = app.mutate(mutation, { body: "one row" }, { id }).then(value => { settled = true; return value; });
+      await mount(h(AppProvider, { app }, h(Pending)));
+      for (let n = 0; n < 100 && latest.last?.state !== "pending"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      equal(latest.last?.state, "pending", "hook observed the admitted intent");
+      await act(async () => { held.resolve(); await writing; });
+      check(settled && !latest.pending && latest.last?.state === "sent", "known outcome must notify without durable receipt");
+      await mount(h(AppProvider, { app }, h(Pending)));
+      for (let n = 0; n < 100 && !latest.last; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+      equal(latest.last?.state, "sent", "remount looks up the same confirmed id while disk still fails");
+      check(!latest.pending && failures >= 2, "persistent fault cannot turn sent back into pending");
+      equal(sends, 1, "remount did not submit a new id");
+      fail = false;
+      await act(async () => { equal((await app.client.write(id)).state, "sent", "receipt retirement succeeds after repair"); });
+    } finally { held.resolve(); await unmount(); await app.close(); }
   },
 
   async "two online owners notify both pending-write hooks when the shared journal settles once"() {

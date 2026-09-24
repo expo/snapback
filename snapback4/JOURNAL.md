@@ -53469,3 +53469,486 @@ strengthens the real-server refresh regression. No Quarry form, public
 contract type, engine semantics, meter, receipt/id cap or package version
 changed. All modified test files remain below 1,500 lines. No push or
 publication was performed.
+
+## 2026-09-24 — Lane E round 9: account switches advance epochs and retain revocation custody
+
+Sign-in that displaces a saved bearer now persists a higher epoch under the
+session lock before saving the new account. Another open app from the old epoch
+refuses refresh before dispatch and cannot replace the new account after a total
+logout-fence failure. Restoration and rotation retain their epoch; the existing
+logout-tombstone promotion order is unchanged.
+
+Chose a backend-bound revocation journal in sessionStore. Before account
+replacement, save the displaced bearer and deferred tokens, advance the epoch,
+then save the new bearer. Journal or epoch failure refuses sign-in and preserves
+the old bytes. A successful replacement leaves durable retirement obligations
+that survive restart; replay skips the currently saved bearer and removes an
+entry only after a logout acknowledgement or HTTP 401 E_AUTH. Network failures
+and other refusals retain entries. Restoration, sign-in and successful logout
+retry them. During a total storage outage the saved bearer remains the durable
+record, and replacement cannot erase it without first journaling it. An unknown
+token that never reached writable storage cannot survive abrupt process loss;
+the successful-replacement boundary is the guarantee. Recorded the design in
+LLP 3000.013 section 6 and the client reference.
+
+Measured: ten new real-server cases cover failed-fence replacement in the same
+runtime and after restart; restart after transport failure or a refused logout;
+failure of each journal/epoch/bearer write; failed comparison reads followed by
+successful logout or sign-in; and backend binding of the retirement journal.
+Five initial regression cases failed against the prior app implementation;
+comparison-read retention already worked and needed coverage. Mutation probes
+reject dropping a deferred token on a failed read and treating any HTTP 200 as
+revocation confirmation. All 177 affected tests and the focused ten cases pass;
+native/package builds and package typecheck pass. The initial pre-fix attempt
+encountered environmental ENOENT because the lane's native binary was absent;
+rebuilding it resolved that precondition before behavior was tested.
+
+Full scripts/test.sh, first run: **`== 0 failure(s) in 380 s`**, exit 0;
+1,117 client passes across the main runner and seven shards, 10 skips and nine
+fixture passes. No suite failure; the previous worker shutdown race did not
+recur. Wasm is 1,744,842 raw / 484,967 gzip bytes within the unchanged budget.
+README remains 296/300 lines; modified source/test files remain below 1,500.
+
+The Chromium offline-shell/replica witness passes. The cross-tab witness has a
+baseline intermittent successor-revocation timeout: three comparison runs with
+current code and three with the prior app.ts each passed twice and failed once
+at the same assertion. Reproduce with node witness/app-sessions.mjs. This
+establishes pre-existing intermittency, not its cause; left it unchanged under
+the lane baseline rule. Full evidence, file map and remaining limits are in
+[the round 9 report](./reports/20260924-lane-e-round9.md).
+
+No deviation from the round 9 scope or unresolved round 9 finding. Did not
+change the Client contract, Quarry forms, authorization/disclosure rules,
+meters, native APIs, assets, starters or package versions. Did not push or
+publish.
+
+## 2026-09-24 — LLP 3000.013 lane E round 10: atomic session ownership, checked against a model
+
+Replaced split epoch/bearer writes with one atomic session record containing
+both. Opening is provisional and retains the previous owner until commit;
+failed device initialization or persistence cannot revoke the previous guest.
+Automatic rotation, sync and outbox replay begin after commit. Local acquisition
+still completes before sign-in returns. Logout commits one backend-bound
+noncredential tombstone carrying the epoch and retirement obligations. Every
+revocation path compares the currently stored bearer. Retirement journals and
+tombstones discard entries only after remote acknowledgement. Observing a newer
+epoch fences the old principal's wire, device, cached-read and media access.
+The Client facade preserves typed refusals on storage errors, captured mutation
+arguments, and app-owned logout. Class store adapters preserve method receivers.
+Recorded I1–I5, commit boundaries and assumptions in the client reference and
+LLP 3000.013 section 6; extracted private startup coordination and backend
+loading without adding public exports or changing ordinary lower-level startup.
+
+Added a black-box model using three real createApp runtimes, one store and one
+mock server. Seeds 1–2,000 run 52,000 commands: signup, login, guest, refresh,
+logout, close, reopen, held-response release and query. It holds server-committed
+signup/login/guest/refresh/logout replies; injects numbered get/set/delete
+failures; checks I1–I5 at store/wire and quiescent boundaries; and prints a
+seed plus deletion-minimal counterexample on failure. The default run hit 2,386
+get, 289 set and 103 delete faults. A 120-sequence sweep covers positions 1–40
+for each failure kind after an unpersisted rotation. Four reduced discoveries
+run as fixed cases. Eleven focused cases cover rollback, peer fencing,
+retirement cleanup, deferred replay/startup, backend binding, Client lifecycle,
+class stores and typed refusals. Round 6–9 scenarios remain, with assertions
+updated for the atomic record and refusal cleanup preserving stored credentials.
+Negative controls fail when stored-bearer protection, atomic epoch commitment
+or journal cleanup is removed.
+
+Beyond the three review findings, the model found stored-token revocation after
+a failed read; a late guest token lost after close; an unpersisted successor
+lost on replacement; premature repair changing bytes during failed replacement;
+and a closed runtime returning to restoring. Fixed all five. One other failure
+was the oracle conflating a closed runtime with a reopened slot; fixed runtime
+identity tracking. Full counterexamples and file map are in the
+[round 10 report](./reports/20260924-lane-e-round10.md).
+
+Measured: 217 affected tests passed, then 92 auth/model/React tests passed after
+the final guard change. Both real Chromium witnesses pass (separate-tab session
+locking and shell/replica/account reload with both servers stopped). Build,
+typecheck, reference check and whitespace check pass. Final scripts/test.sh:
+**`== 0 failure(s) in 161 s`**, exit 0; 1,134 client passes, 10 skips and nine
+fixture passes. A preceding full run passed in 340 s. The first full run was
+`== 1 failure(s) in 146 s`: two failures in the client group, both ours and fixed
+(README acquisition timing and unintended public preparation exports). An
+intermediate affected run hit five environmental disk-full/I/O/ENOSPC/timeout
+failures in W8R1a dev/serve and online/native/web; removed only this lane's
+rebuildable incremental cache, then all passed. The React timing assertion was
+ours and received a bounded asynchronous wait. Revocation polling hit an
+aborted pooled socket; it now retries only UND_ERR_SOCKET within its original
+bound. No baseline failure was waived. README stays 296/300 lines; modified
+source files stay below 1,500. Wasm remains 1,744,842 raw / 484,967 gzip bytes.
+
+Stopped the impossible unconditional part of I3 rather than weakening it:
+server refresh consumes T and commits S, its response never arrives, persistence
+and revocation are unavailable, and the process is killed. The client never
+learned S and cannot reconstruct it or revoke it with consumed T. This needs a
+server issuance-recovery protocol, which this lane did not add. Modelled
+liveness assumes responses eventually arrive and storage/network recover while
+an owner survives, with lifecycle retries. Atomicity assumes each rejected set
+leaves its key unchanged and cooperating runtimes share the lock. No engine
+rules, meters, Quarry forms, asset policy, native ABI or package versions
+changed. Did not push or publish.
+
+### 2026-09-24 — LLP 3000.013 lane E round 11: refusal fencing and I1–I7
+
+Fixed all three round-10 review findings. A known server refusal conditionally
+commits a tombstone for its still-stored bearer, preserving a different stored
+successor; later offline restoration opens no replica. Epoch observation fences
+all older scopes, including rollback candidates, before notification. Global
+logout waits for the current rotation and privately retains the latest retry
+credential in a backend-bound tombstone/journal until logout-all is acknowledged.
+Ordinary retirement cannot consume it. Failed acknowledgement cleanup retries
+locally, including on close. Client notifications and public client close now
+keep auth state, viewer and client coherent. Updated the client reference and
+LLP section 6 with I1–I7 and their assumptions. No public export was added.
+
+The black-box three-runtime model now runs 5,000 seeds (130,000 commands), adding
+logoutEverywhere, external server revocation followed by query/refresh, held
+storage sets, offline reopen and public client close. It holds server-committed
+responses and injects indexed get/set/delete failures, checks I1–I7 at store,
+wire, auth/client callback and quiescent boundaries, and minimizes failures.
+The standalone and full-suite runs produced identical coverage: 3,487 get,
+356 set and 94 delete faults; 4,630 held writes with 24,723 peer commands while
+storage was held; 4,773 external revocations and 9,007 offline fetches. Thirteen
+reduced fixed cases and the 120-point failure sweep also pass. Fourteen focused
+cases cover real online/local refusal, rollback, global logout/restart,
+unpersisted successors, notification/close coherence and backend-bound custody.
+
+Beyond the incoming findings, the model found refusal-fence transient failure,
+refusal cleanup blocked by held sign-in, queued global revision supersession,
+closed auth revision changes, ownerless global retry stuck restoring, late
+refusal publishing restoring after close, failed acknowledgement deletion
+retrying a consumed token, epoch retirement callbacks preceding view hiding,
+and acknowledgement loss on close after failed cleanup read. Each is fixed
+and retained as a reduced case. I6 probes additionally found early credential-loss
+notifications and public-client close leaving signed-in auth. A model-inspired
+real-server probe found global logout comparing an unpersisted successor instead
+of its last kept bearer. Those also have regressions. The report records oracle
+refinements and concrete counterexamples.
+
+Measured: 219 affected tests and 15 model tests passed. Six negative controls
+fail when refusal fencing, all-scope fencing, rotation waiting, notification
+hiding, app-owned close or acknowledged cleanup is disabled. Both Chromium
+witnesses pass: separate-tab session locking (740 ms), and shell/replica/account
+offline reload with both servers stopped (1,617 ms). Reference check reports
+504 LLP docs, 9,235 refs, zero errors/unchecked; whitespace check passes. The
+single full scripts/test.sh run reports **`== 0 failure(s) in 148 s`**, exit 0:
+all Rust groups pass, nine fixture passes, 1,157 client passes and 10 skips.
+Development failures were ours and fixed, including a redundant schema refusal
+handler that suppressed stale-restoration retries; no baseline/environmental
+failure was waived. README stays 296/300 lines; local.ts is 1,479 lines.
+
+Stopped the impossible unconditional extension of I7: if all refusal-tombstone
+writes fail, every informed runtime dies, and reopening is offline, the old
+bytes cannot be distinguished from a valid offline session. The informed runtime
+denies access and reports the error; stronger crash exclusion needs durable
+server evidence. Round 10's unknown-successor I3 limit remains. Lost global
+revocation acknowledgements also need recoverable server receipts; E_AUTH alone
+cannot prove all other sessions were revoked, so retry custody is retained.
+Did not add a server recovery protocol, weaken authorization/disclosure/meters,
+change package versions, push or publish. Full file map, measurements, failure
+classification and reproductions: [round 11 report](./reports/20260924-lane-e-round11.md).
+
+### 2026-09-24 — LLP 3000.013 lane E round 12: I8 and consumed predecessors
+
+Refusal cleanup now compares the rejected bearer and its known consumed kept
+predecessor under the session lock. One failed rotation save cannot leave the
+old consumed token restorable after the successor is refused; an unrelated
+stored replacement is preserved. Public facade validity is now independent of
+private raw session custody. Hiding permanently fences captured clients,
+observations, getters, credentials, refresh, callbacks and lifecycle controls.
+Rollback exposes a new facade. Observations detach and notify refusal after the
+new app view is published. The existing local sync helper is fenced too: the
+real-server probe caught an otherwise hidden client still dispatching /sync.
+Private global-logout retries and ordinary-close rotation persistence remain.
+
+Extended the three-runtime model to I1–I8 and 22 operations, including captured
+handles used later, retained observations, one-shot rotation-save failures,
+revocation of the in-memory successor, and held query/mutation responses. Five
+thousand seeds execute 130,000 commands. Coverage: 16,675 handles, 6,077 hidden;
+1,032 hidden queries, 1,022 hidden mutations and 1,026 hidden refreshes; 5,298
+observations, including 501 that held data across hiding; 6,949 session and
+6,077 viewer notifications; 579 single rotation-save faults, 3,172 get,
+328 set and 98 delete faults; 3,060 held writes, 18,670 intervening peer commands;
+387 held reads and 130 held mutations. All 18 model tests pass, including 16
+reduced cases and the 120-point storage-failure sweep. Five real-server cases
+cover both findings, unrelated replacement, both client tiers, private global
+retry custody, observations and rollback without reactivating handles.
+
+Handle probes also found raw session/refresh/callback bypasses, stale lifecycle
+control of retained owners, reactivation of old facades on rollback, and the
+local sync bypass. All are fixed and covered. No further randomized product
+counterexample remains. Seed 2292 corrected one oracle: reopening comprises a
+successful close (which may persist an owned successor) followed by a separate
+open; a failed open is compared with bytes after the close. Two ordinary-close
+assertions now require E_AUTH from the hidden public refresh while preserving
+and restoring its privately saved successor; captured session subscriptions
+receive only null after hiding.
+
+Measured: 105 affected tests passed; five final focused tests and two callback
+probes passed; 5,000-sequence model passed. Six negative controls fail when the
+relevant predecessor, facade, observation or session-callback protection is
+removed. Chromium separate-tab session locking passed (749 ms); the final
+shell/replica/account offline witness passed with guarded sync (1,490 ms).
+Reference and whitespace checks pass; README stays 296/300 lines. Final full
+scripts/test.sh: **`== 0 failure(s) in 147 s`**, exit 0, with all Rust groups,
+nine fixtures and 1,165 client passes (10 skips), including all 5,000 I1–I8
+sequences and callback checks. An intermediate full run passed in
+152 s. The first full run was `== 1 failure(s) in 145 s`: our new unrelated-
+replacement test's final query had no data, although the saved token matched.
+The original denial was not logged. Forty sequential and 120 concurrent
+reproductions with diagnostics passed. The test now retries only E_OFFLINE
+within its bound and fails immediately on any auth/other refusal. The original
+cause remains unqualified, not waived as environmental or baseline. All other
+development failures were expected failing-before probes, changed I8 assertions,
+or the resolved oracle error.
+
+Recorded I8 and the behavior changes in the client reference and LLP section 6.
+No server protocol, engine authorization/disclosure rule, meter, Quarry form,
+public export, package version or starter changed. Previously documented total-
+storage-failure/process-loss and server-receipt limits remain; returned copies
+of data/credentials cannot be retroactively erased. No push or publication.
+File map, test claims, failures and limits: [round 12 report](./reports/20260924-lane-e-round12.md).
+
+## 2026-09-24 — LLP 3000.013 Lane E round 13: global logout across tabs
+
+Global logout now selects the intended principal's stored bearer under the
+session lock, including a peer's successor, or its own known unpersisted rotation
+over a consumed predecessor. Its atomic tombstone binds global retirement to a
+principal and generation; late responses from older scopes inherit logout-all
+custody, including across the requesting tab's close or another account's
+replacement. Completed generation watermarks prevent stale tabs from recreating
+acknowledged obligations or globally revoking later logins. They compact to one
+completed empty watermark per principal; pending obligations keep their retry
+credentials. Backend binding and stored-bearer comparison remain mandatory.
+
+Per round 13's explicit correction to round 12, a failed global tombstone write
+keeps the signed-in view and existing public client, with the failure on auth.why.
+A committed fence permanently hides captured clients and observations. Both
+online and local tests verify usable private data before that commit and denied
+queries, writes, refresh, assets, observations, sync and stale lifecycle methods
+after it. Ordinary logout behavior is unchanged.
+
+Added I9 and external sibling sessions to the three-runtime model. The final
+standalone affected run passed 117 tests in 53.350 seconds, including 5,000 seeded
+sequences (130,000 commands), 20 fixed regressions and 120 storage-fault sweeps.
+The 23 operations exercised 2,918 external sibling issuances, 176 acknowledgements
+that killed siblings, 103 persisted peer rotations and 20 held peer rotations at
+global logout, 208 global calls with rotated bearers and 877 server global
+acknowledgements. Fault coverage: 3,021 get, 347 set, 75 delete and 603 targeted
+single rotation-save failures; 2,938 held writes and 18,339 peer interleavings.
+Captured clients, observations, offline reopen and server-side refusal checks
+remain in I1–I9. I9 covers existing sessions at server revocation, not future
+deliberate password sign-ins.
+
+The model found two further defects, now fixed and retained as reduced cases:
+seed 104's stale second global logout recreated an acknowledged retirement;
+seed 1961's queued login suppressed signed-out publication after a held global
+commit. An existing failed-fence regression also caught an intermediate journal
+write blocking discarded-token revocation; that live-runtime custody path is
+preserved. These development failures were ours, not baseline/environmental
+exceptions. The old precommit signed-out assertion was intentionally updated.
+
+Six negative controls failed as expected, including the I9 model without late
+global promotion. Chromium's separate-page locking witness passed in 903 ms.
+Final full scripts/test.sh: **`== 0 failure(s) in 98 s`**, exit 0, all Rust groups,
+nine fixtures and 1,176 client passes (10 skips), including all 5,000 sequences.
+Full-suite failures: ours 0, baseline 0, environmental 0; none waived.
+Reference check: 504 LLPs, 9,237 refs, zero errors/unchecked; whitespace passes;
+README remains 296/300 lines. Source files stay below 1,500 lines.
+
+Updated the session reference and LLP section 6. No server protocol, engine
+authorization/disclosure rule, meter, public export, package version, starter,
+README or web-shell implementation changed. Previously documented complete
+storage failure plus process loss and lost server-receipt limitations remain.
+No push or publication. File map, reproductions, qualification and decisions:
+[round 13 report](./reports/20260924-lane-e-round13.md).
+
+## 2026-09-24 — LLP 3000.013 Lane E round 14: epochs and acknowledgement attempts
+
+Global logout now refuses a stored bearer from a newer account epoch than its
+calling scope, even when the principal matches. Peer rotation within the same
+epoch remains adoptable. Global retirement captures an immutable credential
+snapshot at dispatch. Acknowledgement and cleanup retry retire only that
+snapshot; tokens attached later remain journaled for individual retirement.
+This preserves custody of a login minted after remote global revocation while
+its acknowledgement was held. Updated the session reference and LLP section 6
+with I10 (attempt-scoped acknowledgement) and I11 (epoch-scoped authority).
+
+Four real-server regressions cover the late login under a held acknowledgement,
+a failed acknowledgement cleanup write/retry, and dormant-tab refusal on online
+and local clients. All three original reproduction variants failed before the
+fix. Both code fixes fail their real-server and model negative controls when
+removed. A fifth control confirms that removing the public refresh completion
+guard still fails I8 after the model's settlement-boundary correction.
+
+The model now records global operation IDs/calling epochs and dispatched attempt
+IDs/coverage, holds sign-in requests before issuance, and independently fails or
+recovers retirement transport. The affected suite passed 126 tests in 53.466 s,
+including 5,000 seeded sequences (130,000 commands), 25 fixed cases and 120
+indexed storage-fault sweeps. The 25 operations exercised 4,774 global attempts
+(3,966 refused, 808 acknowledged), 22,788 retirement removals, two acknowledgements
+with later live same-principal tokens, six stale-epoch global calls, 1,225 held
+pre-issuance requests and 2,682 retirement transport failures. Faults: 2,775 get,
+313 set, 64 delete and 541 single rotation-save failures; 2,612 held storage
+writes and 16,989 peer interleavings. All I1–I11 checks and prior cases remain.
+
+The wider schedules found two oracle timing errors, now fixed and retained as
+reduced sequences: seed 445 marked a backing-store read observed before its
+asynchronous delivery; seed 432 checked a previously fulfilled result at its
+later queued handler. The adapter now marks delivery after the awaiting consumer
+receives the bytes, and a Node promise hook samples public validity at settlement.
+The adapter returns a native Promise matching SessionStore's declared contract;
+all 25 fixed cases passed after that final wrapper adjustment. No production
+disclosure guard was removed or relaxed, and the final expanded run found no
+additional product defect.
+
+Chromium's separate-page locking witness passed in 1,351 ms. Final full
+scripts/test.sh: **`== 0 failure(s) in 99 s`**, exit 0; all Rust groups, nine
+fixtures, 1,185 client passes (10 skips), including all 5,000 sequences. The first
+full run was **`== 1 failure(s) in 168 s`**: the unchanged store-reset test at
+line 135 saw fresh replacement rows but an old last-recorded sync store ID.
+Classification: pre-existing code-path failure; its test and 18-file static
+dependency closure are unchanged, and the host baseline passed that case. Its
+separate rerun passed 4/4 in 7.049 s; the final full rerun passed it too. The exact
+cause remains unqualified, was not repaired or waived, and is retained in the
+report. All app/model tests passed in both full runs. Development oracle failures
+were ours, not baseline or environmental exceptions.
+
+Reference check: 504 LLPs, 9,237 refs, zero errors/unchecked. Whitespace passes;
+README stays 296/300 lines and source files remain below 1,500 lines. No public
+API, server protocol, engine rule, meter, package version, starter, README or
+web-shell implementation changed. Existing complete-storage-failure/process-loss
+and lost-server-receipt limits remain. No push or publication. File map, exact
+reproductions, qualification and decisions:
+[round 14 report](./reports/20260924-lane-e-round14.md).
+
+### 2026-09-24 — Lane E round 15: principal fences and dispatched outcomes
+
+Global logout now reads backend-validated retirement watermarks directly under
+its existing session lock, including completed fences moved into the journal.
+It refuses stale same-principal selection before choosing a bearer. Same-scope
+peer rotation remains usable; an unrelated principal's watermark or legacy
+counter does not block it. Selection also compares the committed session scope:
+the model caught an intervening replacement while global logout awaited rotation
+when that protection was removed along with the raw-counter comparison.
+
+A hidden facade refuses new calls but preserves dispatched mutation, action,
+upload, refresh and receipt outcomes. The real held-write regression exposed
+lower-level online close settling a sending write prematurely and discarding its
+response; both paths now preserve a known commit. Cancellation without a receipt
+keeps its id pending. Receipt-persistence failure reports the storage problem and
+keeps the original durable intent for replay while returning the confirmed
+outcome. Actions also retain their done/failed outcome across close. Read and
+observation disclosure guards remain in place.
+
+The model now checks I1–I12 with 5,000 seeds / 130,000 commands, 28 fixed cases
+and 120 additional failure-point sequences: 583 server write commitments, 556
+checked returned outcomes (95 after fencing), 4,773 global attempts, 22,793
+retirement removals, 2,779 get / 313 set / 64 delete failures, 541 rotation-save
+failures and 2,612 held storage writes. It found the premature close/response
+loss and receipt-save outcome replacement; it also prevented weakening committed
+scope selection. One oracle correction distinguishes still-pending global retry
+from an already-acknowledged stale caller. All eleven negative controls failed
+as intended. The broader affected run's sole old assertion pinned `failed` after
+cancelling a dispatched write; it was updated to `pending` and passed targeted
+and full verification. Chromium's separate-page shared-storage witness passed
+in 777 ms. Ref-check passed (504 LLPs, 9,237 refs, zero errors/unchecked).
+
+`scripts/test.sh`: **`== 0 failure(s) in 153 s`**, exit 0; 1,198 client passes,
+10 skips, all Rust and nine fixture checks passed. No baseline/environmental
+exception. Full log: `~/sb4-intent/lane-e-r15-test.log`; detailed file-by-file
+report: `reports/20260924-lane-e-round15.md`. No new API, Quarry form, refusal
+code, authorization rule, asset retention policy or engine meter. No push or
+publication; no known round-15 issue remains.
+
+
+### 2026-09-24 — Lane E round 16: delivered local outcomes and a two-tier model
+
+Local close now preserves delivered sent/failed mutations and done/failed
+actions. A dispatched mutation keeps its waiter through receipt persistence;
+close waits for that settlement and action transport before closing the device.
+Uncertain replies remain pending, new admission is fenced, and late read data
+keeps its disclosure guard. The existing Wasm/native applying-acknowledgement
+tests now expect sent instead of pending. Ten new Wasm/native app tests cover
+both terminal states, query fencing, closed admission and durable receipt reopen.
+
+The model runs I1–I12 on both online clients and actual Rust/Wasm local clients:
+5,000 seeds per tier, 10,000 sequences / 260,000 commands, 38 fixed cases, and
+120 fault-sweep sequences. It now generates authoritative nonretryable mutation
+refusals and checks their original ids and refusals after fencing. Final full-run
+returned outcomes: online 291 sent / 265 failed (50 / 45 after fencing); local
+267 sent / 225 failed (50 / 43 after fencing). The local tier made 18,272 schema
+and 39,964 sync calls. Seven negative controls all failed as intended, including
+ignoring terminal refusals in either transport and every local close repair.
+
+The wider local model found one additional product defect: after one rotation
+save failed, the app's session listener saved the same successor again while the
+refresh still reported failure. Local notifications now leave persistence with
+the local client; online notifications still save. A fixed model case and a
+real-server test cover failed-save custody and persistence on ordinary close.
+The model also needed separate backend locks across sequences, virtual time for
+local cleanup, and awaited cold Wasm compilation. Its refusal oracle now
+recognizes the local client's deferred obsolete-predecessor reply during an
+owned rotation; a real-server test proves the query waits and retries. A blanket
+transport refusal cleanup failed the existing close/rotation test and was removed.
+No authorization or read-disclosure guard was relaxed.
+
+Full scripts/test.sh: **`== 0 failure(s) in 180 s`**, exit 0. All Rust checks,
+nine fixture tests and 1,221 client passes (10 skips); no baseline/environmental
+exception. Full model times: 64.119 s online, 99.139 s local. The affected run
+passed 156 tests in 20.262 s. Ref-check: 504 LLPs, 9,238 references, zero
+errors/unchecked. README remains 296/300 lines; local.ts is 1,495 lines.
+Full log: `~/sb4-intent/lane-e-r16-test.log`. File map, invariant coverage,
+development failures, negative controls and limitations:
+[round 16 report](./reports/20260924-lane-e-round16.md).
+
+No new API, Quarry form, diagnostic code, rule, meter, starter, shell policy or
+package version. The random local server has empty replicated tables; explicit
+real-server/device tests cover private rows and native settlement, and action
+replies are wire fixtures. Existing total-storage-failure/process-loss limits
+remain. No push or publication.
+
+
+### 2026-09-24 — Lane E round 17: one known receipt across storage failure
+
+Online custody now notifies and returns known terminal outcomes when receipt
+persistence fails, including background settlement and write(id). Unpersisted
+receipt summaries remain in the live client independently of the lower client's
+bounded history. Lookup retries persistence without returning pending; successful
+persistence or retirement clears the memory entry. Durable intent remains for
+same-id restart replay. Summaries omit historical results and refusal details;
+account and read-disclosure fences are unchanged.
+
+I13 joins I1–I12: mutate, write(id) and onWrite agree on the known terminal state,
+id and sequence or refusal identity. The generator adds receipt-store outages,
+repair and retained-handle lookups. Both online and actual Wasm local tiers pass
+5,000 seeds each: 10,000 sequences / 284,454 commands, 43 fixed cases and the
+120-point failure sweep. Online coverage includes 3,750 failed receipt saves,
+1,250 lookups while the fault remains active, and 1,452 sent / 1,463 failed
+lookup audits. Device receipt persistence is not faulted by this new online
+journal fault. Six focused custody cases and two real-server restart cases cover
+both terminal states; Chromium proves a pending hook settles and remains settled
+on remount while saves still fail. All eight negative controls were detected.
+
+The wider local model found one additional defect at seed 3168: a peer could
+fence a provisional opener before it became owner, whose early cancellation
+then left auth restoring with no operation. Current provisional cancellation now
+uses existing cleanup/publication or restoration retry. The reduced regression
+passes with the original timing limits; extending simulated time did not fix it
+and that attempted harness change was removed.
+
+`scripts/test.sh`: **`== 0 failure(s) in 206 s`**, exit 0. All Rust checks,
+nine fixture tests and 1,235 client passes (10 skips), including both 5,000-seed
+runs (63.088 s online / 126.409 s local). No baseline/environmental exception.
+Focused receipt tests: 9/9. Chromium React rerun: 18/18. Development failures
+were the intentional pre-fix/negative-control failures, the new model regression,
+and an early browser assertion before asynchronous lookup; all resolved. One
+incorrect-working-directory suite launch failed before tests began, then was
+corrected. Ref-check: 504 LLPs, 9,239 references, zero errors/unchecked.
+
+README remains 296/300 lines; no source exceeds 1,500. No new API, language form,
+code, rule, meter, starter, shell policy or package version. Existing crash and
+complete-storage-failure limits remain. No push or publication. Full log:
+`~/sb4-intent/lane-e-r17-test.log`; file map, examples, coverage and qualifications:
+[round 17 report](./reports/20260924-lane-e-round17.md).
