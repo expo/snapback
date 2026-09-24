@@ -47440,3 +47440,43 @@ Before that fix, this backend would have been refused at admission.
 **Confound recorded:** 0.3.0 carries the quadratic born-row tracking
 (`issues/20260923-snapback4-born-row-tracking-is-quadratic.md`). The
 builder's workload was small mutation commits, which it does not affect.
+
+## 2026-09-23 — 0.3.1 published: born-row tracking is linear again
+
+`snapback4@0.3.1` and `snapback4-darwin-arm64@0.3.1` are published from
+`5ae8e6956`. The registry integrities match the staged tarballs:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-5cd36tlG0R4wtYFpAGWIVg5vLk/5FG1sezwZKOHjeDzoehiuCg994hWjTIO+GLbzRahqWHYPrYBtYCBgvnqg2w==` |
+| `snapback4-darwin-arm64` | `sha512-RMxtfjrtBc3nplKacnq1EouWWRerdkYsOyxB6OD4gKozbiC/Pja1JxrGZNoG9x5qT3eviYkw2lyBkQS0sLRnyg==` |
+
+`snapback4-expo` stays at 0.3.0: the device keeps no log, so it never runs
+the changed code.
+
+**What 0.3.1 fixes.** 0.3.0 contained a regression from `0388900b8`: born-row
+and born-grant tracking scanned the commit's whole event list per insert and
+per new grant, so a commit with n inserts cost O(n²). `PendingEvents`
+(BORN-PERF, `cda37bcfe`, with the timing-test follow-up `c055c92d2`) keeps
+per-key live-event indices with tombstones, and compacts once when the
+events are consumed.
+- 512 randomized commits match the old implementation in both events and
+  meters.
+- Astra rated it READY with no findings. Grok's valid point, that the timing
+  tests would flake under load, is fixed: they now guard growth.
+
+**Qualification.** The complete suite passed: 0 failures in 814 s, against
+1,340 s for 0.3.0. The three published-0.2.33 fence tests were enabled. The
+regressed targets are back:
+
+| Target | 0.3.0 | 0.3.1 |
+|---|---:|---:|
+| device `w8b` calibration acquisition | 994.5 s | 18.7 s |
+| `snapback4::init` | 627.7 s | 42.6 s |
+
+The slowest target is now 50.9 s. The binary is signed (not notarized)
+through the launchd codesign relay, and was proven from an installed
+consumer.
+
+Calibration #18 ran on 0.3.0. Its builder's workload (small mutation
+commits) did not hit the regression, so its reading stands.
