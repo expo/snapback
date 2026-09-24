@@ -156,7 +156,7 @@ fn aggregate_copy_card_section_is_verbatim_and_discoverable() {
     assert!(guide::card("maintains").unwrap().ends_with(section));
     assert_eq!(snapback4_lang::diag::guide_for(CODE), "feeds");
     let explanation = guide::explain_code(CODE).unwrap();
-    assert!(explanation.contains("ordinary public column computed from reads"));
+    assert!(explanation.contains("public derived column whose ordinary write rules"));
     assert!(explanation.ends_with("Full card: snapback4 guide feeds"));
 }
 

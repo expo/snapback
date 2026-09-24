@@ -1,4 +1,4 @@
-//! Global writes and ranking pages use the complete published programs.
+//! Historical Global writes and the current published Trending read.
 use super::{assert_stream_note, id, text, write};
 use snapback4_core::{Context, Engine, Value, WriteState, wire};
 use snapback4_lang::guide::{card, quarry};
@@ -25,8 +25,8 @@ fn all(e: &mut Engine, op: &str, now: i64) -> Vec<Value> {
 }
 
 #[test]
-fn global_projection_retries_removal_and_rollback_are_atomic() {
-    let source = quarry(card("feeds").unwrap()).remove(1);
+fn legacy_global_projection_retries_removal_and_rollback_are_atomic() {
+    let source = quarry(include_str!("../fixtures/legacy-feed-recipes.md")).remove(1);
     let mut e = engine(&source,true);
     let mut clock = 0;
     for viewer in ["author","actor"] { write(&mut e,&mut clock,"register",viewer,&[("name",text(viewer))]); }

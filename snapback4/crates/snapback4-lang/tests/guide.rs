@@ -40,7 +40,7 @@ fn readme_reference(name: &str) -> &'static str {
 fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
     let feeds = card("feeds").unwrap();
     assert_eq!(feeds, readme_reference("feeds"));
-    for fact in ["durable delivery record", "1,000-event window", "for every examined row", "pending backfill or cleanup", "without prediction"] {
+    for fact in ["newest first", "Your own events appear immediately", "normally within a second", "newest 50 live events immediately", "backfills up to 1,000", "Unfollow hides that actor on the next read", "your backfill or cleanup is pending", "Removal hides the event immediately", "without prediction"] {
         assert!(feeds.contains(fact), "missing {fact}");
     }
     for bad in ["skips a follower", "skip saturated readers", "A skipped follower", "not skipped\nauthors"] {
@@ -455,10 +455,6 @@ fn every_card_compiles_clean() {
         let text = card(keyword).unwrap_or_else(|| panic!("no card for {keyword}"));
         let blocks = quarry(text);
         for (n, block) in blocks.iter().enumerate() {
-            if *keyword == "feeds" && n == 1 {
-                feeds::assert_stream_note(&compile(block));
-                continue;
-            }
             if *keyword == "search" && n == 1 {
                 // This historical full-history example intentionally has no horizon.
                 // Keep the exception on this block and this exact site; every
@@ -1146,9 +1142,8 @@ fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates(
     let docs = std::iter::once(("language", LANGUAGE)).chain(std::iter::once(("README",README)))
         .chain(KEYWORDS.iter().filter_map(|name|card(name).map(|text|(*name,text))));
     for (name,text) in docs {
-        for (index, source) in quarry(text).into_iter().enumerate() {
+        for source in quarry(text) {
             let bound=compile(&in_context(&source));
-            if name == "feeds" && index == 1 { feeds::assert_stream_note(&bound); continue; }
             assert!(bound.notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")),"{name}: {:?}",bound.notes);
         }
     }
