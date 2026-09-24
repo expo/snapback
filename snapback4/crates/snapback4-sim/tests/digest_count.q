@@ -26,3 +26,9 @@ query countAll(principal: principal, periodStart: time, periodEnd: time, readAt:
   for c in conversations first 1000 by byId:
     total = total + count(messages[c.id, at >= periodStart, at < periodEnd] first 10000 by byConversation where .at > readAt and .senderId != principal and not .tombstone)
   return total
+
+effect measuredCount
+job streamPeriod(principal: principal, periodStart: time, periodEnd: time, readAt: time):
+  for c in conversations:
+    n = count(messages[c.id, at >= periodStart, at < periodEnd] by byConversation where .at > readAt and .senderId != principal and not .tombstone)
+    emit measuredCount { n } once [c.id, periodEnd]

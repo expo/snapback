@@ -47513,3 +47513,50 @@ membership boundaries. Rolling-rank oracle coverage and separate follow-graph
 growth/hub/boundary evidence are recorded without native/acquisition or release
 speedup claims. Details and the completed/unmet ledger:
 [`reports/20260923-cal18-followups/scale.md`](./reports/20260923-cal18-followups/scale.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane D: streamed totals, adaptive jobs, lifetime effect keys
+
+Landed direct table/prefix-domain count/sum/exists on the existing Scan IR,
+with prepaid per-row decoding and release of exactly its transient heap
+charge. Scan authorization, expiry, structural admission and coverage remain;
+expiring mutation scans still refuse. Unfinished or uncovered query scalars
+are unavailable, while job/mutation cuts abort. Paged existence predicates
+retain their existing inclusive retry behavior without inventing a verdict.
+Stable top-level job for sweeps commit from K=64, halve only meter-refused
+attempts after rollback, freeze evaluated bounds and the upper key with the
+cursor, and park at K=1. Fixed chunks, range/list preludes, break and return
+retain their meanings. Loop-carried prelude locals refuse. Run and doctor
+show chunk size, retries and peak heap. Emit once keys are canonical Value
+arrays with the effect name, durable independently of the outbox, and atomic
+with enqueue/replay suppression. Duplicate enqueue is a no-op; a replayed
+period consumes its key; device prediction claims none.
+
+The retained 5,000-candidate/4,900-hit fixture with 50 recipients per row now
+finishes in one job chunk at 4,102,784 B peak metered heap under the unchanged
+16,777,216 B ceiling. Its original decoded cumulative charge remains
+22,940,000 B; cumulative Rust allocation churn is still 48,089,110 B for the
+streaming run, not a live-heap/RSS claim. The combined scheduled fixture has
+10,000 busy-chat rows, 5,000 period candidates, 50 active users and a probe
+with 100 memberships: exactly 50 digests across restart/retry/rerun, 26 chunks,
+K=2 after five retries, peak 13,188,641 B including refused attempts. Twelve
+new simulator tests, the retained controls, compiled guide examples and CLI
+telemetry checks pass. PostgreSQL support is compile-checked only.
+
+Final scripts/test.sh: `== 1 failure(s) in 194 s` (`cargo test`). Its four
+failing tests are the recorded baseline schema-capability legacy comparison,
+word-expansion fixture, authoring census, and CLI why-text assertion. The new
+card census entries are recorded; remaining census differences match baseline.
+The first full pass had two lane failures (WASM ratchet and corpus walker
+compile error), both fixed; its serial client run passed. Final WASM is
+1,712,075 B raw / 475,001 B gzip versus the same-host 1,707,362 / 472,890
+baseline (+4,713 / +2,111). Per AGENTS.md's explicit byte-budget policy, raise
+474,000 to 476,000 B, leaving 999 B; no runtime ceiling changes. Ref-check:
+504 LLP docs, 9,211 refs, 0 errors, 0 unchecked.
+
+Did not add predicate-read parsing, new aggregate/sweep IR variants, marker
+tables, provider exactly-once delivery, runtime ceiling increases, a full
+cross-lane target-clique integration, publication, or pushes. Full-text matching
+keeps its existing merge consumer. The report records file-by-file changes,
+forms, tests, decisions, exact results and baseline reproductions:
+`reports/20260924-intent-work.md`.

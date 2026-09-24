@@ -51,7 +51,33 @@ card/effects/1:send | eligible
 card/effects/1:send | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/effects/2:send | eligible
 card/effects/2:send | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:checkin | never
+card/effects/3:createRoom | eligible
+card/effects/3:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:edit | eligible
+card/effects/3:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:join | eligible
+card/effects/3:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:leave | eligible
+card/effects/3:pagePass | never
+card/effects/3:post | eligible
+card/effects/3:react | eligible
+card/effects/3:react | postLikes/maintain | "Deny" | read rule
+card/effects/3:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/effects/3:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/effects/3:registerProfile | never
 card/effects/3:remind | eligible
+card/effects/3:sendBrief | eligible
+card/effects/3:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:split | never
+card/effects/3:timelineFollow | never
+card/effects/3:timelinePublish | eligible
+card/effects/3:timelineRegister | eligible
+card/effects/3:timelineRemove | eligible
 card/expire/1:postStory | eligible
 card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]} | read rule
 card/feeds/1:follow | never
