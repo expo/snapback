@@ -31,8 +31,9 @@ worker's cached HTML even online, so its HTML and lazy assets stay together
 until a waiting build activates after the old tabs close. This command also works on
 `expo export -p web` output: it precaches every file in a content-hashed cache,
 registers `snapback4-sw.js` in every HTML file idempotently, and resolves exported
-subpages (`/about/` to `about/index.html`, `/contact` to `contact.html`) online and
-offline before falling back to the root `index.html`. Pass `--base /chat/` when serving a subpath;
+subpages (`/contact` and `/contact/` to `contact.html`, then `/about/` to
+`about/index.html` when `about.html` is absent) online and offline before falling
+back to the root `index.html`. Pass `--base /chat/` when serving a subpath;
 use the same base in the bundler. For Vite run
 `npx vite build --base=/chat/ && npx snapback4 web-shell dist --base /chat/`.
 It waits for old tabs to close before switching builds. Development has no worker.
@@ -68,7 +69,9 @@ import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
 import { AppProvider, useAuth } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-const app = createApp({ url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore() });
+const app = createApp({ url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore(),
+  assets: { keep: "viewed", maxBytes: 67108864 },
+});
 function Account() {
   const auth = useAuth();
   return <button onClick={() => void (auth.state === "signed-in" ? auth.logout() : auth.guest())}>{auth.state}</button>;
@@ -88,15 +91,35 @@ explicit. `app.client` changes on restore, sign-in, logout and account switch;
 component state. `useAuth()` returns the current state, viewer, failure and actions.
 Call `app.close()` to stop a runtime while preserving its session for restart;
 an in-flight rotation finishes and saves its replacement before close completes.
+`AppOptions` inherits the local client's application configuration. `assets` and
+`waitSeconds` pass through on every local open, including restore and account
+switch; both are ignored when `device` is omitted. `waitSeconds` sets the change
+feed's long-poll duration (default 25 seconds). `assets` controls ordinary viewed
+media retention as described below. Its `maxBytes` must be a nonnegative safe
+integer. Invalid local asset configuration reports `E_CLIENT` at `app.assets`
+through `ready`, sign-in results and `auth.why` before any session or network
+work; correct the options and create the app again. Kept credentials remain intact.
+Identity and sessions remain owned by
+`app.auth` and its `sessionStore`; `persona`, `session` and `guest` are lower-level
+client options, not app configuration.
 `app.auth.logout()` fences restoration and session writes immediately, deletes
 local credentials without waiting for network requests, and revokes remotely
 in the background.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
-Logout also advances a persisted session epoch under the same lock as deletion.
-If the marker write fails, logout still deletes the bearer and retries the marker
-after freeing that space; a remaining storage error is returned and sets `auth.why`.
+Logout advances a persisted session epoch under the same lock as credential removal.
+If the marker cannot be stored, logout overwrites the bearer with a smaller
+noncredential tombstone carrying that epoch, then retries the marker. The
+tombstone remains through restoration and counts as successful local logout
+even if the separate marker still cannot be written. A later sign-in must save
+the marker before replacing the tombstone. If neither fence can be stored,
+logout returns a storage error and sets `auth.why`; it leaves the saved bearer
+untouched and does not revoke it. Discarded login and refresh bearers are still
+revoked when they differ from the token left in storage. This runtime retains
+revocations deferred by the failed fence and drains them after a successful
+logout retry, including late responses received after that retry. Repair storage
+and retry logout; remote revocation remains best effort when the network fails.
 Sign-in and refresh work started in an earlier epoch cannot save a late bearer;
 the app revokes that bearer and retires its client. Invalid or expired stored
 sessions are cleaned up only if their exact bytes still match the read, without
@@ -651,21 +674,24 @@ async function sendPhoto(client: Client, conversationId: string, file: Blob) {
 }
 ```
 
-The local-first client can retain ordinary viewed images and videos:
+An app with a device can retain ordinary viewed images and videos:
 
 ```ts
-import { createLocalClient } from "snapback4/local";
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
-const client = await createLocalClient({
-  url: "http://127.0.0.1:4400", guest: true, device: webDevice(),
+const app = createApp({
+  url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore(),
   assets: { keep: "viewed", maxBytes: 64 * 1024 * 1024 },
 });
-if (client.link() === "online") await client.sync();
+await app.ready;
+if (app.auth.state === "signed-out") await app.auth.guest();
 ```
 
 `keep: "none"` is the default and purges previously retained media on open.
 `keep: "viewed"` retains successfully fetched ordinary assets, evicting the
-least recently used to stay within `maxBytes` of payload bytes. Storage belongs
+least recently used to stay within `maxBytes` of payload bytes (a nonnegative
+safe integer; zero retains no bytes). Storage belongs
 to this server, principal and device: IndexedDB on the web, files in Documents
 with the Expo opener, and device metadata with the process opener. `client.asset`
 and `useAsset` use retained bytes offline and revalidate every online fetch.
@@ -1370,6 +1396,7 @@ export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native"
 export const app = createApp({ url,
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: tier === "web" ? webDevice() : tier === "native" ? nativeDevice : undefined,
+  assets: { keep: "viewed", maxBytes: 67108864 },
 });
 ```
 

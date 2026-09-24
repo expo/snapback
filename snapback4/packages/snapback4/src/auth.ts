@@ -3,7 +3,7 @@
 // device's to keep (in memory, or wherever the app keeps secrets). A
 // deployed server refuses development personas, so this is the only door.
 
-import { storeKey } from "./app-storage.ts";
+import { storeKey, logoutEpoch } from "./app-storage.ts";
 import type { Refusal, Session, SignIn, SessionRevocation } from "./contract.ts";
 
 export type { Session, SignIn, SessionRevocation } from "./contract.ts";
@@ -104,7 +104,7 @@ export const sessionKey = (url: string) => storeKey("session", url.replace(/\/$/
 export async function restoreSession(url: string, store: SessionStore = defaultSessionStore): Promise<Session | null> {
   const key = sessionKey(url);
   const raw = await store.get(key);
-  if (!raw) return null;
+  if (!raw || logoutEpoch(raw) !== null) return null;
   try {
     const session = JSON.parse(raw) as Session;
     if (isSession(session)) return session;

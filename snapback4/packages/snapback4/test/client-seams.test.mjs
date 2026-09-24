@@ -10,8 +10,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient, mintId } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
+import { createApp } from "../dist/app.js";
 import { processDevice } from "../dist/native.js";
-import { guest, signup, login } from "../dist/auth.js";
+import { guest, signup, login, memorySessionStore } from "../dist/auth.js";
 import { mintSession } from "../dist/worker.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
@@ -481,6 +482,79 @@ function hook() {
     const check = spawnSync(process.execPath, [require.resolve("typescript/bin/tsc"), "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--target", "ES2022", "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", fixture], { cwd: packageRoot, encoding: "utf8" });
     assert.equal(check.status, 0, check.stdout + check.stderr);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+for (const [keep, maxBytes] of [["viewed", png.length], ["viewed", png.length - 1], ["none", png.length]]) test(`createApp forwards asset retention (${keep}, ${maxBytes} bytes) through a real offline reopen`, { timeout: 20_000 }, async t => {
+  const f = await fixture(t), sessionStore = memorySessionStore();
+  let offline = false, assetRequests = 0;
+  const options = { url: f.url, device: f.device, sessionStore, assets: { keep, maxBytes }, fetch: (input, init) => {
+    if (new URL(input).pathname.startsWith("/assets/")) assetRequests++;
+    if (offline) throw Error("offline");
+    return fetch(input, init);
+  } };
+  let app = createApp(options); f.clients.push(app);
+  await app.ready; assert.equal((await app.auth.guest()).ok, true);
+  const viewer = app.auth.viewer;
+  const uploaded = await app.client.upload(png); assert.equal(uploaded.ok, true);
+  const placed = await app.mutate(mutation("attach"), { photo: { id: uploaded.asset.id }, until: null });
+  assert.equal(placed.state, "sent");
+  await app.client.sync(); assert.equal(app.client.acquired, true);
+  const viewed = await app.client.asset(uploaded.asset.id);
+  assert.ok("url" in viewed, JSON.stringify(viewed)); viewed.revoke();
+  await app.close(); offline = true;
+  app = createApp(options); f.clients.push(app);
+  assert.equal((await app.ready).ok, true);
+  assert.equal(app.auth.viewer, viewer); assert.equal(app.client.link(), "offline");
+  const requests = assetRequests;
+  const retained = await app.client.asset(uploaded.asset.id);
+  if (keep === "viewed" && maxBytes >= png.length) {
+    assert.ok("url" in retained, JSON.stringify(retained));
+    try { assert.deepEqual(Buffer.from(await (await fetch(retained.url)).arrayBuffer()), png); }
+    finally { retained.revoke(); }
+  } else assert.equal(retained.denied?.code, "E_OFFLINE", "the configured policy and byte limit still bound retention");
+  assert.equal(assetRequests, requests, "offline reads use retained bytes without an asset request");
+});
+
+test("createApp forwards local waitSeconds while retaining app-owned identity", { timeout: 15_000 }, async t => {
+  const f = await fixture(t), waits = [];
+  const options = { url: f.url, device: f.device, sessionStore: memorySessionStore(), waitSeconds: 30,
+    // Excess properties from an untyped caller must not bypass app.auth.
+    persona: "bob", guest: true, session: { principal: "dev:bob", token: "untrusted", kind: "user", expiresAt: Date.now() + 86400000 },
+    fetch: (input, init) => {
+      const url = new URL(input);
+      if (url.pathname === "/changes") waits.push(url.searchParams.get("wait"));
+      return fetch(input, init);
+    },
+  };
+  let app = createApp(options);
+  f.clients.push(app);
+  await app.ready; assert.equal(app.auth.state, "signed-out");
+  const signedIn = await app.auth.guest(); assert.equal(signedIn.ok, true);
+  assert.equal(app.client.viewer(), signedIn.session.principal);
+  const sent = await app.mutate(mutation("record"), { n: 1 }); assert.equal(sent.state, "sent");
+  await until(() => waits.length > 0);
+  assert.ok(waits.every(wait => wait === "30"), JSON.stringify(waits));
+  await app.close();
+  app = createApp(options); f.clients.push(app);
+  assert.equal((await app.ready).ok, true);
+  assert.equal(app.client.viewer(), signedIn.session.principal);
+  waits.length = 0;
+  assert.equal((await app.mutate(mutation("record"), { n: 2 })).state, "sent");
+  await until(() => waits.length > 0);
+  assert.ok(waits.every(wait => wait === "30"), JSON.stringify(waits));
+});
+
+test("online createApp ignores settings that apply only with a device", { timeout: 15_000 }, async t => {
+  const f = await fixture(t);
+  const app = createApp({ url: f.url, sessionStore: memorySessionStore(),
+    get assets() { throw Error("online must not read the local asset policy"); },
+    get waitSeconds() { throw Error("online must not read local polling configuration"); },
+  });
+  f.clients.push(app);
+  assert.equal((await app.ready).ok, true);
+  assert.equal((await app.auth.guest()).ok, true);
+  assert.equal((await app.mutate(mutation("record"), { n: 2 })).state, "sent");
+  assert.equal((await app.client.query({ kind: "query", name: "receipts" }, {})).data[0].n, 2);
 });
 
 test("ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes", async t => {

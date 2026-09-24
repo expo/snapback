@@ -12,7 +12,7 @@ import { changeFeed } from "./changes.ts";
 import { syncTransport } from "./local-sync.ts";
 import { exitTransport, type PendingSend } from "./local-exit.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
-import { MediaCache, type MediaStorage, type AssetRetention } from "./local-assets.ts";
+import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
@@ -168,8 +168,7 @@ async function requireSyncProtocol(core: DeviceCore): Promise<void> {
 }
 
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
-  const retention = options.assets ?? { keep: "none", maxBytes: 0 };
-  if (!["none", "viewed"].includes(retention.keep) || !Number.isSafeInteger(retention.maxBytes) || retention.maxBytes < 0) throw new Error("assets needs keep: viewed | none and a nonnegative maxBytes");
+  const retention = assetRetention(options.assets);
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const fetchSync = syncTransport(doFetch);
   const base = options.url.replace(/\/$/, "");

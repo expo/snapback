@@ -49278,3 +49278,123 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+## 2026-09-24 — lane E 0.4.1: local configuration through createApp
+
+Fetched origin and merged `origin/main` by fast-forward to `ca6d975da`, without
+conflicts. `AppOptions` now derives application configuration from `LocalOptions`,
+and every local open forwards those settings, including `assets` and
+`waitSeconds`. Identity remains owned by `app.auth`; the guarded session store,
+current session and scoped transport still take precedence. Untyped excess
+identity selectors cannot switch the local client's account. Local settings
+are accepted and ignored when no device is supplied.
+
+The README app enables a 64 MiB viewed-media budget and actually renders the
+avatar with `useAsset` and `Image`, so viewing precedes the offline-reopen
+journey. It remains within budget at 296/300 physical lines. The client reference
+shows the same configuration in its app, media and Expo examples and documents
+the option boundary.
+
+Measured: five new real-server cases cover retained PNG bytes after a fresh
+process-device offline reopen, a budget one byte too small, keep:none, forwarded
+polling with preserved identity, and ignored online settings. Compile assertions
+preserve the exact option types. The retained-byte and polling tests failed
+before the fix, as did the new positive type fixture. One intermediate example
+used device-only sync through the common Client type; removing it restored the
+documented contract. All 162 affected tests passed, with one macOS-only media
+test skipped. Package build/typecheck, README examples and the budget check pass.
+
+Exact full suite: **`== 0 failure(s) in 171 s`**. Client tests: 1,093 passed,
+10 skipped, zero failed; no baseline or environmental failure. Rebuilt wasm
+measures 1,744,842 B raw / 484,967 B gzip against the inherited 486,000 B budget,
+without attributing whole-artifact bytes to this TypeScript change. The full
+file map, examples and proof logs are in
+[the round report](./reports/20260924-lane-e-041-options.md).
+
+No scope deviation or new open problem. Did not change the Client contract,
+Quarry, authorization/disclosure, retention rules, native APIs or meters; did not
+modify the calibration app or starter templates, run an Expo/browser witness,
+bump package versions, push or publish. This is candidate code for 0.4.1.
+
+## 2026-09-24 — Lane E round 7: durable logout fallback and local option validation
+
+Closed the 0.4.1 delta findings. Logout now requires a durable fence before
+bearer deletion or revocation. When the separate epoch key is unwritable, it
+shrinks the session into a noncredential tombstone, retries the marker with the
+freed space, and keeps the tombstone. Epoch comparisons honor both locations;
+restoration never cleans away the tombstone. A later sign-in saves the epoch
+separately before replacing it. If neither fence can be written, logout reports
+the storage error and preserves the bearer for a retry. This deliberately
+replaces the earlier delete-first quota behavior and its test expectations.
+
+Local asset configuration is validated and snapshotted before restoration or
+sign-in touches storage or the network. Invalid negative/fractional budgets
+report E_CLIENT at app.assets with a concrete rewrite and leave the saved bearer
+live. Both app and lower-level clients share validation; maxBytes remains a
+number documented and enforced as a nonnegative safe integer. The online tier
+continues to ignore local settings. Trailing-slash navigation tries the exported
+slash-stripped HTML before a directory index, online and offline.
+
+Measured: seven new real-server regressions cover held refresh/login responses
+against both epoch-only failures and quota stores, failure of both fence writes,
+and invalid asset budgets with a live restored account. Strengthened polling
+assertions require wait=30 after sign-in and after online restoration; forced
+constant-1 forwarding fails both initial and restoration-only mutation probes.
+Ignoring the tombstone also fails the race tests. Both subpath/root navigation
+fixtures exercise contact/ and query strings with an overlapping directory
+index. All 160 affected tests pass; package build/typecheck and real Chromium
+cross-tab session and offline-shell/replica witnesses pass. README stays at
+296/300 lines; the largest modified source stays below 1,500 lines.
+
+Final scripts/test.sh: **`== 0 failure(s) in 154 s`**, exit 0, with 1,100 client
+passes, 10 skips and nine fixture passes. The first full run reported
+**`== 1 failure(s) in 185 s`**: the unchanged worker presence test saw an
+AbortError when stopped after settlement committed but before its response was
+consumed. This is a baseline shutdown race, independently reproduced with the
+byte-identical worker; both worker cases passed in isolation and the full rerun
+passed without changes or weakened assertions. Evidence, reproduction and the
+complete file map are in [the round 7 report](./reports/20260924-lane-e-round7.md).
+The unrelated worker behavior remains unchanged under the lane's baseline rule.
+
+No deviation from round 7 scope and no open problem in these fixes. Did not
+change Quarry, the Client contract, authorization/disclosure rules, meters,
+retention semantics, native APIs, starters or package versions; did not push or
+publish. A durable tombstone is successful logout even if its separate marker
+still fails; a subsequent sign-in waits for storage repair rather than erase
+that sole fence.
+
+## 2026-09-24 — Lane E round 8: failed fences preserve discarded-token revocation
+
+Fixed the shared review finding in both scoped logout requests and retired
+sign-in responses. When a logout fence rejects, the app compares each token
+against the bearer left in storage under the existing session lock. It still
+revokes discarded refresh successors and login sessions; it defers the exact
+stored bearer, preserving the failed-fence no-delete/no-revoke boundary. Deferred
+tokens survive repeated failures and are drained after a successful logout
+retry, even when another account replaced the saved session. Late responses
+after that retry also revoke. If storage cannot be read, the token stays deferred.
+The client reference documents that distinction and the existing best-effort
+network behavior. The pending set belongs to the runtime; a failed store cannot
+be used to persist it.
+
+Measured: seven new real-server regressions cover committed refresh/login
+responses released before and after logout retry, deferred custody across two
+failed fences and account replacement, the exact window before a tombstone's
+epoch promotion commits, and a caller changing its asset budget to -1 immediately
+after createApp. Three cases reproduced our prior-round revocation defect before
+the fix. All 48 app tests and all 167 affected tests pass. Mutation probes fail
+when the new session is stored before its epoch, the caller's mutated policy is
+forwarded, or deferred-token draining is removed. The promotion and policy
+snapshot implementations already behaved correctly and needed only test coverage.
+
+Package build/typecheck and real Chromium cross-tab session and offline
+shell/replica witnesses pass. Full scripts/test.sh, first run:
+**`== 0 failure(s) in 147 s`**, exit 0; 1,107 client passes, 10 skips, nine
+fixture passes, no introduced, baseline or environmental failure. The previously
+recorded worker shutdown race did not recur. The full file map, examples and
+proof logs are in [the round 8 report](./reports/20260924-lane-e-round8.md).
+
+No deviation or unresolved round 8 finding. No new API, Quarry form, storage
+format, authorization/disclosure rule, meter, native API, starter or version
+change. README remains 296/300 lines; modified source/test files remain below
+1,500 lines. Did not push or publish.

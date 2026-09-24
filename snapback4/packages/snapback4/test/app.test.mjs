@@ -540,7 +540,7 @@ test("refresh started after a shared logout refuses before dispatch even if remo
   assert.deepEqual((await b.client.query(list, {})).data, []);
 });
 
-for (const persistentFailure of [false, true]) test(`offline logout deletes credentials when its epoch write ${persistentFailure ? "keeps failing" : "exceeds quota"}`, { timeout: 15_000 }, async t => {
+for (const persistentFailure of [false, true]) test(`offline logout replaces credentials when its epoch write ${persistentFailure ? "keeps failing" : "exceeds quota"}`, { timeout: 15_000 }, async t => {
   const { url } = await server(t), values = new Map();
   const key = sessionKey(url), epochKey = key + ".epoch";
   const size = () => [...values].reduce((total, [key, value]) => total + key.length + value.length, 0);
@@ -565,16 +565,13 @@ for (const persistentFailure of [false, true]) test(`offline logout deletes cred
   quota = size(); offline = true;
   await store.set(key, await store.get(key));
   const result = await app.auth.logout();
-  assert.equal(deletions, 1, "deletion is attempted even when the first marker write fails");
-  assert.equal(markerAttempts, 2, "retry the marker after deletion frees space");
+  assert.equal(deletions, 0, "the fallback tombstone remains as a durable fence");
+  assert.equal(markerAttempts, 2, "retry the marker after the smaller tombstone frees space");
   assert.equal(await restoreSession(url, store), null);
   assert.equal(app.auth.state, "signed-out");
-  assert.equal(result.ok, !persistentFailure);
-  if (persistentFailure) {
-    assert.equal(result.why.code, "E_CLIENT");
-    assert.match(result.why.message, /quota exceeded/);
-    assert.deepEqual(app.auth.why, result.why);
-  } else {
+  assert.equal(result.ok, true);
+  assert.equal(app.auth.why, undefined);
+  if (!persistentFailure) {
     assert.equal(await store.get(epochKey), "1", "the retry advances the epoch only once");
     assert.equal(app.auth.why, undefined);
   }
@@ -621,4 +618,238 @@ test("near-expiry restoration retries a successor after automatic refresh is rej
   assert.equal((await restoreSession(url, store))?.token, rotated.token);
   assert.deepEqual((await a.client.query(list, {})).data, []);
   assert.deepEqual((await b.client.query(list, {})).data, [], "retry must not revoke the winning session family");
+});
+
+for (const quota of [false, true]) for (const operation of ["refresh", "login"]) test(`logout tombstone fences another app's held ${operation} when ${quota ? "quota blocks" : "storage rejects"} the epoch key`, { timeout: 20_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
+  let full = false, release, issued, deletes = 0;
+  const gate = new Promise(resolve => { release = resolve; });
+  const store = { ...memory,
+    async set(k, value) {
+      const old = await memory.get(k);
+      // Full storage permits reads, deletes, unchanged writes and shrinking
+      // an existing value, but cannot allocate the separate epoch key.
+      if (full && value !== old && (k.endsWith(".epoch") || (quota && (old === null || value.length > old.length)))) {
+        throw new DOMException("session storage quota exceeded", "QuotaExceededError");
+      }
+      await memory.set(k, value);
+    },
+    async delete(k) { if (k === key) deletes++; await memory.delete(k); },
+  };
+  const a = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === `/auth/${operation}`) { issued = (await response.clone().json()).session; await gate; }
+    return response;
+  } });
+  t.after(async () => { release(); await a.close(); });
+  await a.ready; assert.equal((await a.auth.signup("alice@example.com", "password-a")).ok, true);
+  const b = createApp({ url, sessionStore: store }); t.after(() => b.close());
+  await b.ready;
+  const pending = operation === "refresh" ? a.client.refreshSession() : a.auth.login("alice@example.com", "password-a");
+  await until(() => issued, "server issued the held bearer");
+  full = true;
+  assert.equal((await b.auth.logout()).ok, true, "a durable tombstone completes local logout");
+  assert.equal(await memory.get(key + ".epoch"), null);
+  const tombstone = await memory.get(key);
+  assert.ok(tombstone); assert.equal(JSON.parse(tombstone).token, undefined);
+  assert.equal(await restoreSession(url, store), null);
+  assert.equal(await memory.get(key), tombstone, "invalid-session cleanup must retain the fence");
+  assert.equal(deletes, 0, "never remove the fallback fence");
+  const reopened = createApp({ url, sessionStore: store }); t.after(() => reopened.close());
+  assert.equal((await reopened.ready).ok, true); assert.equal(reopened.auth.state, "signed-out");
+  assert.equal(await memory.get(key), tombstone);
+  // A later login cannot erase the only durable copy of the logout epoch.
+  const epochBlocked = { ...memory, async set(k, value) {
+    if (k.endsWith(".epoch")) throw new DOMException("epoch still full", "QuotaExceededError");
+    await memory.set(k, value);
+  } };
+  const c = createApp({ url, sessionStore: epochBlocked }); t.after(() => c.close()); await c.ready;
+  assert.equal((await c.auth.guest()).ok, false);
+  assert.equal(await memory.get(key), tombstone);
+  release(); await pending;
+  await until(() => a.auth.state === "signed-out");
+  assert.equal(await restoreSession(url, store), null, "late bearer cannot restore the account while the epoch key is unwritable");
+  assert.equal(await memory.get(key), tombstone);
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied?.code === "E_AUTH", "discarded bearer is revoked");
+  full = false;
+  const bob = await b.auth.signup("bob@example.com", "password-b"); assert.equal(bob.ok, true);
+  assert.equal(await memory.get(key + ".epoch"), "1", "new login preserves the tombstone epoch before replacing it");
+  assert.deepEqual((await b.client.query(list, {})).data, []);
+});
+
+test("logout does not delete or revoke before either durable fence can be stored", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore();
+  let broken = false, deletes = 0, revokes = 0;
+  const store = { ...memory,
+    async set(key, value) { if (broken) throw Error("storage unavailable"); await memory.set(key, value); },
+    async delete(key) { deletes++; await memory.delete(key); },
+  };
+  const app = createApp({ url, sessionStore: store, fetch: (input, init) => {
+    if (new URL(input).pathname === "/auth/logout") revokes++;
+    return fetch(input, init);
+  } });
+  t.after(() => app.close());
+  await app.ready; await app.auth.guest();
+  const original = await memory.get(sessionKey(url));
+  broken = true;
+  const result = await app.auth.logout(); assert.equal(result.ok, false);
+  assert.equal(result.why.code, "E_CLIENT"); assert.match(result.why.message, /storage unavailable/);
+  await delay(50);
+  assert.equal(deletes, 0); assert.equal(revokes, 0);
+  assert.equal(await memory.get(sessionKey(url)), original);
+  broken = false;
+  assert.equal((await app.auth.logout()).ok, true);
+  assert.equal(await restoreSession(url, store), null);
+  await until(() => revokes > 0);
+});
+
+for (const maxBytes of [-1, 1.5]) test(`invalid local asset budget ${maxBytes} leaves a restored bearer untouched`, { timeout: 15_000 }, async t => {
+  const { url, dir } = await server(t), memory = memorySessionStore();
+  const original = createApp({ url, sessionStore: memory });
+  await original.ready; await original.auth.guest();
+  const session = original.client.session(); await original.close();
+  const stored = await memory.get(sessionKey(url)), calls = [];
+  const store = Object.fromEntries(["get", "set", "delete"].map(method => [method, (...args) => { calls.push(method); return memory[method](...args); }]));
+  const app = createApp({ url, sessionStore: store, device: processDevice({ dir: join(dir, "bad-budget"), binary }),
+    assets: { keep: "viewed", maxBytes }, fetch: (...args) => { calls.push("fetch"); return fetch(...args); },
+  });
+  t.after(() => app.close());
+  const ready = await app.ready;
+  assert.equal(ready.ok, false); assert.equal(ready.why.code, "E_CLIENT");
+  assert.equal(ready.why.site, "app.assets"); assert.match(ready.why.rewrite, /maxBytes/);
+  assert.deepEqual(app.auth.why, ready.why);
+  assert.equal((await app.auth.guest()).ok, false);
+  assert.deepEqual(calls, [], "configuration is checked before storage, network or client opening");
+  assert.equal(await memory.get(sessionKey(url)), stored);
+  assert.equal((await restoreSession(url, memory)).token, session.token);
+  assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${session.token}` } })).json()).denied, undefined);
+  const repaired = createApp({ url, sessionStore: memory, device: processDevice({ dir: join(dir, "good-budget"), binary }), assets: { keep: "viewed", maxBytes: 67108864 } });
+  t.after(() => repaired.close());
+  assert.equal((await repaired.ready).ok, true); assert.equal(repaired.auth.viewer, session.principal);
+});
+
+for (const operation of ["refresh", "login"]) for (const releaseAfterRetry of [false, true]) test(`failed fence revokes a discarded ${operation} ${releaseAfterRetry ? "after" : "before"} logout retry`, { timeout: 20_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore();
+  let broken = false, issued, release;
+  const gate = new Promise(resolve => { release = resolve; }), revocations = [];
+  const store = { ...memory, async set(key, value) {
+    if (broken) throw Error("every session-store set is failing");
+    await memory.set(key, value);
+  } };
+  const app = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/auth/logout") revocations.push(new Headers(init.headers).get("authorization"));
+    const response = await fetch(input, init);
+    if (path === `/auth/${operation}`) { issued = (await response.clone().json()).session; await gate; }
+    return response;
+  } });
+  t.after(async () => { release(); await app.close(); });
+  await app.ready; await app.auth.signup("alice@example.com", "password-a");
+  const original = app.client.session();
+  const pending = operation === "refresh" ? app.client.refreshSession() : app.auth.login("alice@example.com", "password-a");
+  await until(() => issued, "server committed the held bearer");
+  broken = true;
+  assert.equal((await app.auth.logout()).ok, false);
+  assert.equal(app.auth.state, "signed-out");
+  assert.equal((await restoreSession(url, memory)).token, original.token);
+  assert.deepEqual(revocations, [], "failed fence must protect the stored bearer");
+  if (releaseAfterRetry) {
+    broken = false;
+    assert.equal((await app.auth.logout()).ok, true);
+  }
+  release(); assert.equal((await pending).ok, false);
+  await until(() => revocations.includes(`Bearer ${issued.token}`), "discarded bearer is dispatched for revocation");
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied?.code === "E_AUTH", "discarded bearer is no longer live");
+  if (!releaseAfterRetry) {
+    assert.ok(!revocations.includes(`Bearer ${original.token}`), "still-stored bearer remains exempt");
+    assert.equal((await restoreSession(url, memory)).token, original.token);
+    if (operation === "login") assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${original.token}` } })).json()).denied, undefined);
+    broken = false;
+    assert.equal((await app.auth.logout()).ok, true);
+  }
+  assert.equal(await restoreSession(url, memory), null);
+});
+
+test("logout retry drains deferred revocation after another account replaced the stored bearer", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
+  let broken = false, failedFence = false, compared = false;
+  const revocations = [];
+  const store = { ...memory,
+    async set(k, value) {
+      if (broken) { if (k === key) failedFence = true; throw Error("storage cannot write the fence"); }
+      await memory.set(k, value);
+    },
+    async get(k) { const value = await memory.get(k); if (failedFence && k === key) compared = true; return value; },
+  };
+  const a = createApp({ url, sessionStore: store, fetch: (input, init) => {
+    if (new URL(input).pathname === "/auth/logout") revocations.push(new Headers(init.headers).get("authorization"));
+    return fetch(input, init);
+  } });
+  t.after(() => a.close());
+  await a.ready; await a.auth.guest();
+  const original = a.client.session();
+  broken = true;
+  assert.equal((await a.auth.logout()).ok, false);
+  await until(() => compared, "revocation compares and defers the still-stored bearer");
+  assert.deepEqual(revocations, []);
+  assert.equal((await a.auth.logout()).ok, false, "another failed fence must not discard the deferred token");
+  broken = false;
+  const b = createApp({ url, sessionStore: memory }); t.after(() => b.close());
+  await b.ready; const replacement = await b.auth.guest(); assert.equal(replacement.ok, true);
+  assert.notEqual(replacement.session.token, original.token);
+  assert.equal((await a.auth.logout()).ok, true);
+  await until(() => revocations.includes(`Bearer ${original.token}`), "retry drains the retired owner's deferred token too");
+  for (const token of [original.token, replacement.session.token]) await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied?.code === "E_AUTH");
+});
+
+test("sign-in keeps the tombstone until its epoch promotion is durable", { timeout: 15_000 }, async t => {
+  const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
+  let blockEpoch = false, holdEpoch = false, held = false, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const store = { ...memory, async set(k, value) {
+    if (k === key + ".epoch") {
+      if (blockEpoch) throw Error("epoch key unavailable");
+      if (holdEpoch) { held = true; await gate; }
+    }
+    await memory.set(k, value);
+  } };
+  const app = createApp({ url, sessionStore: store });
+  t.after(async () => { release(); await app.close(); });
+  await app.ready; await app.auth.guest();
+  blockEpoch = true;
+  assert.equal((await app.auth.logout()).ok, true);
+  const tombstone = await memory.get(key); assert.ok(tombstone);
+  assert.equal(JSON.parse(tombstone).token, undefined);
+  assert.equal(await memory.get(key + ".epoch"), null);
+  blockEpoch = false; holdEpoch = true;
+  const signingIn = app.auth.guest();
+  await until(() => held, "promotion is held before the epoch write commits");
+  assert.equal(await memory.get(key), tombstone, "no window may expose a bearer without its durable epoch");
+  assert.equal(await memory.get(key + ".epoch"), null);
+  assert.equal(await restoreSession(url, memory), null);
+  release(); const result = await signingIn; assert.equal(result.ok, true);
+  assert.equal(await memory.get(key + ".epoch"), "1");
+  assert.equal((await restoreSession(url, memory)).token, result.session.token);
+});
+
+test("local restoration captures the asset budget before the caller mutates it", { timeout: 15_000 }, async t => {
+  const { url, dir } = await server(t), store = memorySessionStore();
+  const original = createApp({ url, sessionStore: store });
+  await original.ready; await original.auth.guest();
+  const kept = original.client.session(); await original.close();
+  const assets = { keep: "viewed", maxBytes: 67108864 }, revocations = [];
+  const app = createApp({ url, sessionStore: store, assets, device: processDevice({ dir: join(dir, "captured-assets"), binary }),
+    fetch: (input, init) => {
+      if (new URL(input).pathname === "/auth/logout") revocations.push(input);
+      return fetch(input, init);
+    },
+  });
+  assets.maxBytes = -1;
+  t.after(() => app.close());
+  assert.equal((await app.ready).ok, true, "opening must use the captured valid policy");
+  assert.equal(app.auth.state, "signed-in"); assert.equal(app.auth.why, undefined);
+  assert.equal(app.client.session().token, kept.token);
+  assert.equal((await restoreSession(url, store)).token, kept.token);
+  assert.deepEqual(revocations, []);
+  assert.deepEqual((await app.client.query(list, {})).data, []);
 });

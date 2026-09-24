@@ -81,6 +81,7 @@ Availability and handle saves use the server; your private profile is held local
 Replace `src/client.ts`. The app restores the session, opens the right client, and owns pending writes across restarts.
 Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Expo Go
 uses the online client. Keep the starter's Metro config and wasm transformer.
+`assets` retains viewed media within its byte budget when a device is available; Expo Go's online tier ignores it.
 
 ```ts
 // src/client.ts
@@ -99,6 +100,7 @@ export const app = createApp({
   url: process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400",
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: Platform.OS === "web" ? webDevice() : nativeAvailable() ? nativeDevice : undefined,
+  assets: { keep: "viewed", maxBytes: 67108864 },
 });
 ```
 
@@ -111,8 +113,8 @@ picker's Blob to `upload`. Uploads require a connection; placement is a mutation
 ```tsx
 // App.tsx
 import { useState } from "react";
-import { Button, Text, TextInput, View } from "react-native";
-import { AppProvider, useAuth, useClient, useQuery, useMutation } from "snapback4/react";
+import { Button, Image, Text, TextInput, View } from "react-native";
+import { AppProvider, useAuth, useClient, useQuery, useMutation, useAsset } from "snapback4/react";
 import { app } from "./src/client";
 import { api } from "./snapback/generated/api";
 export function App() { return <AppProvider app={app}><Account /></AppProvider>; }
@@ -137,6 +139,7 @@ function Account() {
 function Profile() {
   const auth = useAuth(), client = useClient();
   const profile = useQuery(api.myProfile, {}), save = useMutation(api.saveProfile), place = useMutation(api.placeAvatar);
+  const avatar = useAsset("data" in profile ? profile.data?.avatar?.id : null);
   const [handle, setHandle] = useState(""), [uri, setUri] = useState(""), [problem, setProblem] = useState("");
   const busy = save.inFlight || save.last?.state === "pending" || place.inFlight || place.last?.state === "pending";
   const upload = async () => {
@@ -148,6 +151,7 @@ function Profile() {
   };
   return <View style={{ padding: 32, gap: 12 }}>
     <Text>{"denied" in profile ? profile.denied.message : "loading" in profile ? "Loading…" : profile.data ? `@${profile.data.handle}; avatar ${profile.data.avatar?.id ?? "not placed"}` : "Choose your handle"}</Text>
+    {avatar.status === "ready" && <Image source={{ uri: avatar.url }} style={{ width: 96, height: 96 }} />}
     <Text>{problem || (save.last?.state === "failed" ? save.last.why.message : save.last?.state)}</Text>
     <Text>{place.last?.state === "failed" ? place.last.why.message : place.last?.state}</Text>
     <TextInput placeholder="Handle" value={handle} onChangeText={setHandle} autoCapitalize="none" />
@@ -172,7 +176,7 @@ starter's `npm run build` ends with the same command. For an existing export, ru
 nonpersonalized. The worker never caches API responses or assets from the backend. A replacement waits for old tabs to
 close.
 
-Sign up, save a profile and avatar, reload, then open the acquired profile with the network off for a cold-offline
+Sign up, save a profile and view its avatar, reload, then open the acquired profile with the network off for a cold-offline
 start. Reconnect to settle pending writes. Browser eviction can remove offline availability; `client.acquired` states
 whether the replica is ready. Defer feeds, search, schedules and server handlers until those features are needed.
 
