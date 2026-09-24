@@ -235,7 +235,8 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     let certificate = crate::scale::analyze(&bound.schema, program);
     let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {}", certificate.line())];
     for growth in &certificate.growth_sites {
-        lines.push(format!("      {}: {}; rewrite: {}", growth.site, growth.reason, growth.rewrite));
+        let rewrite = if growth.rewrite.is_empty() { String::new() } else { format!("; rewrite: {}", growth.rewrite) };
+        lines.push(format!("      {}: {}{rewrite}", growth.site, growth.reason));
     }
     if program.native {
         lines.push(match program.kind {

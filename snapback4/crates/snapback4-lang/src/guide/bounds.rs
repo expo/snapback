@@ -70,6 +70,7 @@ Every successful `check` summarizes how many operations are constant and
 which grow with data. `check --cost` starts each operation with its verdict;
 `check --json --cost` puts the same certificates in `scale`, including
 `class`, `bounds`, `growth_sites` (site, reason and rewrite), and `per_write`.
+A growth site's rewrite is empty when the shape needs no suggested change.
 The existing cost details follow each verdict.
 
 `scale: constant — at most 21 rows examined, 0 probes, 0 lanes` means the
@@ -102,6 +103,28 @@ residual filter, a per-row read rule or expiry. Search's word expansion
 and additional terms also depend on the data. Even a point lookup may
 grow when it passes expired siblings, or recomputes a maintained aggregate
 over expiring contributions. The certificate names these cases.
+
+A finite ranked window whose only residual predicates are its time endpoints
+says `grows with posts rows in the window's two edge hours`, with its lane
+count and page size. For `.at > now - 24h and .at <= now`, ordered by
+`.likeCount, .at`, that is at most 25 hour lanes and the requested page.
+Interior buckets are entirely inside the window. Work also includes opening
+and refilling lanes, their lookahead and repeated edge-row skips; it grows
+with edge-hour density, not total history. Day windows say edge days. This
+remains `class: grows`, with the conservative examined-meter allowance:
+there is no fixed bound on rows per hour or day. No filter-pinning rewrite
+is suggested for the exact endpoints. Additional residual predicates,
+per-row read rules, expiry and nested reads retain their own growth costs.
+
+Expiry skips say `expired messages rows not yet swept`. The server's expiry
+sweep runs on a one-second maintenance tick and removes at most 2,000 rows
+per pass across tables. This is a cadence, not a maximum age or size of the
+backlog: a burst of 2,001 expirations leaves at least one row after a pass,
+and downtime, slow maintenance or a failed sweep can leave older rows.
+Reads remain metered and expired rows remain invisible on every host.
+Expiry scans keep `class: grows`; a page size and the sweep interval alone
+cannot certify a fixed cost. Point lookups may still suggest reading by id
+to avoid skipped expired siblings.
 
 Jobs say `scale: per chunk`; the number of chunks and rows written by the
 whole sweep can still grow with its domain. Maintained aggregates, recorded
