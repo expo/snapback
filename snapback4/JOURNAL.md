@@ -47612,3 +47612,92 @@ meters, authorization, disclosure, storage, delivery or publication. The
 new-form target-clique program awaits the other implementation lanes; this
 lane tested its relevant residual/pinned reads, domains and lane shapes
 through the current compiler and IR. No push or package publication.
+
+## 2026-09-24 — intent lane G: review round 1 scale bounds
+
+Addressed all four Astra Medium findings against the interpreter's actual
+charging paths. `crates/snapback4/src/scale.rs` now allows one opening plus
+up to `take` refills per merge lane, including duplicate pops in overlapping
+lanes, lookahead and repeated rule evaluation. The allowance covers both
+small batched merges and the one-row lazy path. Every mutation/job scan
+also includes its Cut::Abort admission, including potential refills. Walks
+count the seed at depth zero and share ordinary point accounting for their
+rows, expiry and authorization; their nested work uses the inclusive total.
+
+Added `src/scale/dependencies.rs`: a monotone fixed-point pass over loop
+bodies, including nested IR expressions, propagates loop-carried stored-data
+dependencies before the cost pass visits the body once. Dependency propagation
+cannot add rows, probes or writes. A point-maintained population count passed
+through `x = y; y = p` now makes a later `range(0, x)` grow with population.
+
+One related correction beyond the four exact reproductions: do not clip
+structural bounds to meter ceilings, since the refused charge is recorded
+first. Meter-limited scans include that last examined charge; implicit-write
+allowances include a possible bulk maintain or rule reservation. Ceilings
+remain unchanged in the engine and are still reported separately in JSON.
+The bounds card explains refills, admission, seed depth, dependencies and
+refused-charge allowances; the language card's walk comment now correctly
+says the seed plus eight parent hops. No new syntax or refusal codes.
+
+`tests/scale.rs` includes five engine witnesses from
+`tests/scale/witnesses.rs`:
+
+- Authorized first-20 merges run at 1, 8 and 9 lanes, with distinct and
+  overlapping authors. Nine overlapping lanes charge **378 examined rows,
+  189 probes**, covered by the certificate's **378 rows, 378 probes**;
+  nine distinct lanes charge **58 rows, 29 probes**. The deliberately
+  conservative probe allowance includes reservation and evaluation.
+- A depth-one authorized walk examines **2 rows, 2 probes**; its nested
+  grant projection examines **4 rows, 2 probes**. Both fit their bounds.
+- A first-20 mutation scan examines **22 rows**; the per-chunk job certificate
+  also includes admission and reports 22.
+- A loop-carried maintained count makes the measured execution grow from
+  **84 to 534 steps** when population rises from 10 to 100, and is classified
+  `grows`. A bounded companion reads the count twice and certifies exactly
+  **2 examined rows**, showing fixed-point passes do not reprice reads.
+- Query probes, a mutation scan and a meter-bounded population scan record
+  their **8,193rd** charge at an 8,192 ceiling; certificates cover those cuts.
+
+All nine original scale tests also pass; language/chat/clique operation
+classes are unchanged. `cargo test -p snapback4 --test scale`: **14 passed,
+0 failed**. `cargo test -p snapback4-lang --test guide`: **55 passed, 0 failed**.
+Negative verification: temporarily replacing both rule-probe contributions
+with `self.probes(0)` makes the authorized merge, walk and probe-ceiling
+witnesses fail (**2 passed, 3 failed** among the five witnesses). Restored
+the analyzer and reran the passing scale suite. Logs:
+`/home/ccheever/sb4-intent/lane-g-round1-{scale,guide,probe-mutant}.log`.
+
+No runtime, authorization, disclosure, durability, meter ceilings, parser,
+planner or client behavior changed. No push or package publication. The
+implementation remains on the existing IR; future lane additions still need
+their exhaustive IR visitor integration. Full-suite results follow below.
+
+Required full run: `scripts/test.sh` exited 1 with exact summary
+**`== 2 failure(s) in 164 s`**. Failed stages: `cargo test`, `client tests`.
+All other stages passed. Log:
+`/home/ccheever/sb4-intent/lane-g-round1-test.log`.
+
+Every failure and reproduction:
+
+1. **Baseline** — `cargo test -p snapback4-core --test schema_capabilities_legacy genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`.
+2. **Baseline** — `cargo test -p snapback4-device --test device uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`.
+3. **Baseline** — `cargo test -p snapback4-device --test readauth census::authoring_census`.
+4. **Baseline** — `cargo test -p snapback4 --test check w9b_why_operation_keeps_residency_and_cost_output` (the other 67 CLI check tests passed).
+5. **Environmental/intermittent, inferred** — client `transport-http.test.mjs:75`,
+   `sync request-line boundaries and a deliberate body ceiling` failed on the
+   oversized-body request at line 101 with `fetch failed`, cause `ECONNRESET`.
+   This test passed in the host baseline and passed an immediate isolated
+   rerun (**1 passed, 0 failed, 0 skipped**):
+   `node --test --test-name-pattern='sync request-line boundaries and a deliberate body ceiling' packages/snapback4/test/transport-http.test.mjs`.
+   Log: `/home/ccheever/sb4-intent/lane-g-round1-http-recheck.log`.
+   The concurrent reproduction is `scripts/test.sh`; the precise cause of
+   the connection reset remains unproven and outside this lane. The previous
+   full run's web-navigation timing failure did not recur.
+
+No introduced failures remain in the affected tests, and no part of the four
+requested fixes is deferred. The extra refused-charge witness and allowance
+are the only scope extension in this review round, required to keep the
+certificate above the engine's recorded work even at a cut. Merge admission
+is accounted for in the IR cost model; the current authoring admission still
+refuses mutation merges, so measured mutation coverage uses an admitted plain
+page. No authoring admission was weakened to construct a test.

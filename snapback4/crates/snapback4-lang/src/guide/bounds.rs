@@ -58,7 +58,12 @@ The existing cost details follow each verdict.
 
 `scale: constant — at most 21 rows examined, 0 probes, 0 lanes` means the
 work is independent of corpus size for the declared input bounds. A page
-includes its lookahead; shapes and loops multiply their nested reads.
+includes its lookahead; a merge includes opening and refilling every lane,
+even when lanes overlap, and repeats their authorization allowance. Each
+mutation or job scan also includes admission. A walk includes its seed at
+depth zero. Shapes and loops multiply their nested reads. A value obtained
+by a point read can still make a later range grow with data, including when
+assignments carry that value across loop iterations.
 Argument bounds appear in JSON. `scale: grows with posts in the domain
 posts` means a larger domain can cost more, until a runtime meter cuts it.
 These two queries demonstrate the classes:
@@ -93,9 +98,9 @@ Native modules and external action handlers conservatively say `grows`:
 their bodies have no Quarry structure from which to prove independence.
 
 This is a structural certificate, not a latency or complete-result promise.
-Its row, probe and write bounds are admitted meter work; a refused charge
-can appear above the ceiling in a development trace. Steps, heap and output
-can still cut a constant operation. It does not price bytes or steps at
+Its row, probe and write allowances include charges that trigger a refusal;
+they can exceed the runtime ceilings shown separately in JSON. Steps, heap
+and output can still cut a constant operation. It does not price bytes or steps at
 check, change authorization, or replace measurements on your data.
 
 ## Refused loops and scans

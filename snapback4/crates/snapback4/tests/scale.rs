@@ -250,3 +250,6 @@ fn bounds_card_examples_compile_without_notes_and_pin_both_classes() {
         pin(&b, &["scalePage"], &["scalePopulation"]);
     }
 }
+
+#[path = "scale/witnesses.rs"]
+mod witnesses;

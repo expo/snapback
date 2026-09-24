@@ -8,6 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 mod display;
 #[path = "scale/writes.rs"]
 mod writes;
+#[path = "scale/dependencies.rs"]
+mod dependencies;
 pub(crate) use display::summary;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -76,11 +78,8 @@ pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
         }
     }
     a.result.class = if a.result.growth_sites.is_empty() { Class::Constant } else { Class::Grows };
-    // The runtime may record the charge which triggers a refusal above a
-    // ceiling. These allowances describe work admitted before that cut.
-    a.result.bounds.rows_examined = a.result.bounds.rows_examined.min(ceilings.examined);
-    a.result.bounds.probes = a.result.bounds.probes.min(ceilings.rule_probes);
-    a.result.bounds.writes = a.result.bounds.writes.min(ceilings.rows_written);
+    // Do not clip structural allowances to ceilings: the runtime records
+    // the charge that crosses a ceiling, and a query may try later sites.
     a.result
 }
 
@@ -103,9 +102,18 @@ impl Analysis<'_> {
     fn rows(&mut self, n: u64) { self.result.bounds.rows_examined = self.result.bounds.rows_examined.saturating_add(n); }
     fn probes(&mut self, n: u64) { self.result.bounds.probes = self.result.bounds.probes.saturating_add(n); }
     fn meter_allowance(&mut self) {
-        self.rows(self.result.bounds.meters.examined);
-        self.probes(self.result.bounds.meters.rule_probes);
-        if self.program.kind != ProgramKind::Query { self.result.bounds.writes = self.result.bounds.meters.rows_written; }
+        // Implicit write work aborts on exhaustion, but records the failing
+        // charge first. Maintained-column reservations can charge four rows
+        // per maintain at once; authorization can reserve an entire rule.
+        let rows = (self.schema.maintains.len() as u64).saturating_mul(4).max(1);
+        let probes = self.schema.tables.values().map(|t| {
+            let mut sites = Vec::new();
+            snapback4_core::engine::rules::probe_sites(&t.rules.read, &mut sites);
+            sites.len() as u64
+        }).max().unwrap_or(0).max(1);
+        self.rows(self.result.bounds.meters.examined.saturating_add(rows));
+        self.probes(self.result.bounds.meters.rule_probes.saturating_add(probes));
+        if self.program.kind != ProgramKind::Query { self.result.bounds.writes = self.result.bounds.meters.rows_written.saturating_add(rows); }
     }
 
     fn bound(&mut self, bound: &Bound) -> u64 {
@@ -137,6 +145,9 @@ impl Analysis<'_> {
                 Stmt::For { binding, domain, body } => {
                     let (max, data) = self.domain(domain, times);
                     self.data.insert(binding.clone(), data);
+                    // Later iterations can carry a dependency backwards
+                    // through assignments. Resolve it before pricing once.
+                    dependencies::fixed_point(&mut self.data, body);
                     self.body(body, times.saturating_mul(max));
                 }
                 Stmt::Insert { table, row } | Stmt::InsertIfAbsent { table, row, .. } => {
@@ -184,13 +195,12 @@ impl Analysis<'_> {
             LoopDomain::DerivedArray { value, max, .. } => (u64::from(*max), self.expr(value, times)),
             LoopDomain::Recurse(r) => {
                 self.expr(&r.seed, times);
-                // A bounded walk can branch at every depth, not just once.
+                // Execution visits depths 0..=depth: include the seed,
+                // then branch at every subsequent depth, not just once.
                 let mut width = 1_u64;
-                let mut total = 0_u64;
+                let mut total = 1_u64;
                 for _ in 0..r.depth { width = width.saturating_mul(u64::from(r.fanout.max(1))); total = total.saturating_add(width); }
-                self.rows(total.saturating_mul(times));
-                self.lookup_growth(&r.table, &r.index, &r.site);
-                if let Some(table) = self.schema.table(&r.table) { self.rule(&table.rules.read, &r.site, total.saturating_mul(times)); }
+                self.point_work(&r.table, &r.index, &r.site, total.saturating_mul(times), true);
                 (total, true)
             }
         }
@@ -244,10 +254,14 @@ impl Analysis<'_> {
 
     fn point(&mut self, read: &Read, times: u64, authorize: bool) {
         for key in &read.key { self.expr(key, times); }
-        self.rows(times.saturating_mul(if self.schema.table(&read.table).is_some_and(|t| t.expire.is_some()) { 2 } else { 1 }));
+        self.point_work(&read.table, &read.index, &read.site, times, authorize);
+    }
+
+    fn point_work(&mut self, table: &str, index: &str, site: &str, times: u64, authorize: bool) {
+        self.rows(times.saturating_mul(if self.schema.table(table).is_some_and(|t| t.expire.is_some()) { 2 } else { 1 }));
         if self.in_filter { self.probes(times); }
-        self.lookup_growth(&read.table, &read.index, &read.site);
-        if authorize && let Some(table) = self.schema.table(&read.table) { self.rule(&table.rules.read, &read.site, times); }
+        self.lookup_growth(table, index, site);
+        if authorize && let Some(table) = self.schema.table(table) { self.rule(&table.rules.read, site, times); }
     }
 
     fn lookup_growth(&mut self, name: &str, index: &str, site: &str) {
@@ -318,11 +332,22 @@ impl Analysis<'_> {
             self.result.bounds.lanes = None;
             grows = true;
         }
-        let candidates = if grows { self.result.bounds.meters.examined } else { take.saturating_add(if merged { 2 } else { u64::from(!scan.existence) }) };
-        self.rows(times.saturating_mul(candidates));
+        // A lazy lane can pop each of the `take` unique rows, including
+        // duplicates already emitted by another lane. Every pop can refill:
+        // one opening + `take` refills, each with its own lookahead and rule.
+        // This also covers the <=8-lane/eager path (one take+1 batch, plus
+        // lookahead). Existence stops at its first witness, without refills.
+        let scans = if merged && !scan.existence { take.saturating_add(1) } else { 1 };
+        let candidates = if grows { self.result.bounds.meters.examined.saturating_add(1) }
+            else if merged && !scan.existence { scans.saturating_mul(2) }
+            else { take.saturating_add(u64::from(!scan.existence)) };
+        // Cut::Abort charges an admission unit before traversing each scan,
+        // including empty openings and every merge refill, in mutations/jobs.
+        let admission = if self.program.kind == ProgramKind::Query { 0 } else { scans };
+        self.rows(times.saturating_mul(candidates.saturating_add(admission)));
         // Rules remain before all projections, filters, counts and ordering.
         if !visibility.decided_true && let Some(table) = table {
-            self.rule(&table.rules.read, &scan.site, times.saturating_mul(if visibility.uniform { 1 } else { candidates }));
+            self.rule(&table.rules.read, &scan.site, times.saturating_mul(if visibility.uniform { scans } else { candidates }));
         }
         // A scan already explains expiry; only the implicit live-aggregate
         // source work needs the point-lookup check here.
