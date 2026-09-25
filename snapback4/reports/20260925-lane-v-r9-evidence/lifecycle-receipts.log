@@ -1,0 +1,128 @@
+✔ wasm: known sent survives keep_write failure; close=false (4096.258922ms)
+✔ wasm: known sent survives keep_write failure; close=true (370.225832ms)
+✔ wasm: known failed survives keep_write failure; close=false (80.450296ms)
+✔ wasm: known failed survives keep_write failure; close=true (1078.985232ms)
+✔ native: known sent survives keep_write failure; close=false (1119.403604ms)
+✔ native: known sent survives keep_write failure; close=true (1124.04468ms)
+✔ native: known failed survives keep_write failure; close=false (1128.735349ms)
+✔ native: known failed survives keep_write failure; close=true (1133.557495ms)
+(node:1457329) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online reconnect requires the authenticated GET /probe contract (4043.179097ms)
+✔ online pending writes emit their terminal outcome exactly once (560.160389ms)
+✔ online auth refusal settles writes that were queued behind the refused request (2.419145ms)
+✔ local pending writes emit once with the kept device identity (68.870175ms)
+✔ local pending writes emit once with their original binding ahead of a newer device identity (62.337235ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ local reconnect requires the authenticated GET /probe contract (4025.39642ms)
+✔ local startup releases a device when initialization after the protocol probe fails (0.903284ms)
+✔ local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal (4.783307ms)
+✔ local observations skip idle polls and rerun after a committed page (20.951664ms)
+✔ local generation adoption reruns observations whose dependencies changed (22.732422ms)
+✔ closing a pending watch prevents its response from scheduling expiry or rerunning dirty work (32.7417ms)
+✔ local auth invalidation notifies viewer listeners before session deletion can fail (1.517884ms)
+✔ local observations rerun when the device-reported visible lifetime expires (202.941717ms)
+✔ a refused device adopt keeps the previous backend active in JavaScript (1.453929ms)
+✔ a failed native replacement falls back without a stale local answer and is retried (1.645446ms)
+✔ every local prediction invalidates observations, including unrelated tables (11.698789ms)
+✔ online watches retain their changes watermark; bare tokens clear on refusal (557.992372ms)
+✔ wasm: pending metadata survives repeated profile/vote updates and offline replay (2614.144879ms)
+✔ wasm: no-op and nosync writes retire when the partition stream is empty (90.194237ms)
+✔ wasm: a write already sending when a snapshot starts is correlated after catch-up (109.776128ms)
+✔ wasm: a sync started before admission finishes before that write can be sent (54.876467ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (86.675784ms)
+✖ wasm: sync before a lost write reply does not apply an increment twice (5096.00357ms)
+✔ wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (581.725576ms)
+✔ wasm: population growth cannot mint new IDs during prediction replay (97.24417ms)
+✔ wasm: retry without observers, online-only routing and denied-watch recovery (500.431535ms)
+✔ wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (88.20066ms)
+✔ wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (71.253887ms)
+✔ native: pending metadata survives repeated profile/vote updates and offline replay (2235.906268ms)
+✔ native: no-op and nosync writes retire when the partition stream is empty (126.93562ms)
+✔ native: a write already sending when a snapshot starts is correlated after catch-up (173.547653ms)
+✔ native: another client sending after sync capture cannot publish an uncorrelated page (1109.681886ms)
+✔ native: a sync started before admission finishes before that write can be sent (102.525174ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (137.095204ms)
+✖ native: sync before a lost write reply does not apply an increment twice (5145.533892ms)
+✔ native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (217.20483ms)
+✔ native: population growth cannot mint new IDs during prediction replay (104.783648ms)
+✔ native: retry without observers, online-only routing and denied-watch recovery (693.464909ms)
+✔ native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (116.608266ms)
+✔ native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (101.801569ms)
+✔ close cancels online write callers without aborting committed delivery (48.465221ms)
+✔ device process failures reject opening and pending calls instead of leaving close waiting (47.924219ms)
+✔ device compatibility rejects old and malformed protocols before online or offline startup (50.30703ms)
+✔ device compatibility closes the core and preserves operational startup errors (1.110794ms)
+✔ device compatibility accepts the current core online and on an offline reopen (106.531617ms)
+✔ online serialization failures retain the minted id without scheduling network retries (0.709664ms)
+✔ wasm: close waits for an applying acknowledgment and aborts sync (105.530518ms)
+✔ native: close waits for an applying acknowledgment and aborts sync (133.989831ms)
+✔ W13b fallback boundary: cursorless (1002.616203ms)
+✔ W13b fallback boundary: meter (1002.690646ms)
+✔ W13b fallback boundary: words (1002.462133ms)
+✔ W13b fallback boundary: missing fact (1004.385186ms)
+✔ W13b fallback boundary: presence (1003.208862ms)
+✔ W13b fallback boundary: offline missing fact (1002.228194ms)
+✔ W13b fallback boundary: held (1002.824907ms)
+✔ W13b fallback boundary: retained (1003.128384ms)
+✔ W13b fallback boundary: pending predictable write (1003.320132ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1029 ms
+✔ stalled exit body recovers in order (not applied) (1552.879197ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1006 ms
+✔ stalled exit body recovers in order (already applied replay) (1122.114554ms)
+stalled exit close: 968 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1090.261207ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (1.006298ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1124.568363ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1076.932647ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1086.897668ms)
+✔ IndexedDB save resolves on transaction completion, not request success (2.02243ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1087.898368ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1089.835261ms)
+keepalive: 64141 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (3.401487ms)
+✔ exit ordering survives reversed server processing (1.371154ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (2.830471ms)
+✔ exit overlaps only the same ordinary in-flight head (1089.1263ms)
+✔ ordinary flush waits for the exit request before replaying its head (1084.489733ms)
+ℹ tests 80
+ℹ suites 0
+ℹ pass 78
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 38908.986529
+
+✖ failing tests:
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:975:5
+✖ wasm: sync before a lost write reply does not apply an increment twice (5096.00357ms)
+  AssertionError [ERR_ASSERTION]: the original admitted write is retried to obtain its reply
+      at until (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:30:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:1022:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:975:5
+✖ native: sync before a lost write reply does not apply an increment twice (5145.533892ms)
+  AssertionError [ERR_ASSERTION]: the original admitted write is retried to obtain its reply
+      at until (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:30:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:1022:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

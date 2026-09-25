@@ -56503,3 +56503,64 @@ work-meter change, receipt-window expansion or acquisition retuning. No new
 cold-acquisition benchmark. Did not push or publish. Implementation: b9725ee26.
 File map, examples, test reproductions and evidence are in
 `reports/20260925-lane-v-r8.md` and `reports/20260925-lane-v-r8-evidence/`.
+
+
+## 2026-09-25 — LLP 3000.013 lane V, round 9: preserve every known terminal outcome
+
+Known sent and failed receipts now retain their first outcome through aborted
+persistence. A retry saves that receipt and settles it locally before any POST;
+sync, page application, store observation/adoption and exit refusal handling
+cross the same persistence barrier. Failed receipt saves cannot fall through
+to sync. Keepalive protects every known terminal state, including NOT_ADMIN.
+The serialized web send check also catches acknowledgements that arrive during
+preflight. Already reflected effects settle without a redundant sync that would
+withdraw completed acquisition freshness. Local E_STORE admission errors that
+explicitly describe an unknown outcome remain recoverable through their journal.
+The receipt helper is split out; local.ts remains 1,498 lines.
+
+Real Chromium, strict IndexedDB transactions and two real backends cover both
+NOT_ADMIN response orders after two aborted receipt saves, alongside the sent
+cases. The success regression waits for the actual retry timer while storage
+keeps failing and the endpoint remains B: no second POST or sync can discard the
+known result. Restoring storage persists the original outcome, which survives
+reopen; A commits once and B never executes it. Outbox-only sent_seq and
+observed_seq evidence independently refuse replacement settlement. Six mutants
+fail: deleting that custody check, falling through after a failed receipt save,
+reposting known custody, bypassing the sync barrier, replacing the first volatile
+terminal, and swallowing exit receipt-persistence failure.
+
+Affected lifecycle/navigation/overflow/replacement tests passed 164/164; all six
+HTTP pending-window controls passed. Across both device stores, 273 queued IDs
+settle exactly once: 272 through sync and one unknown tail through ordinary
+response. Tests that previously required pending or redundant replay after a
+correlated acknowledgement now require the known sent outcome, preserving
+ordering, original IDs, one-execution and row-completeness assertions. The
+keepalive persistence control distinguishes actual receipt attempts from
+callbacks declined by an ordinary owner, counts each completion, and controls
+page visibility. Its persistence mutant still fails.
+
+Full suite: **`== 0 failure(s) in 683 s`**, exit 0, using
+`SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`.
+All 1,598 client checks, all 47 browser admission checks and 78 model checks
+passed, including 13,000 seeded interleavings; 10 expected platform skips.
+Rust tests took 306 seconds, clients 135 seconds and models 231 seconds.
+Reference audit: 509 LLP documents, 9,287 references, zero errors and unchecked.
+No final failures — ours, baseline or environmental.
+
+Earlier runs exposed our recoverable-admission classification, acknowledgement
+preflight and redundant-sync freshness regressions, plus old acknowledgement
+expectations and an ambiguous keepalive test barrier; all are fixed and their
+failure accounting is preserved in the report. Environmental failures were a
+five-second server startup and an unchanged Rust reader timing-ratio check.
+Both isolated controls passed. The latter measured 1.043/1.025 against the
+unchanged 3.0 ratio limit; reducing Rust target concurrency yielded the green
+complete run. One fully serial attempt was intentionally stopped early before
+switching to CPU affinity. No timeouts, workloads, thresholds or meters changed.
+
+No functional design deviation or known open scoped implementation problem.
+No Rust/server, public client contract, wire format, authorization/disclosure,
+receipt-window or storage-bound change. No new Quarry forms, acquisition
+retuning or cold-acquisition measurement. No push or publication. Implementation
+and test commits: 6ea85f28b, 0efdc1638, 251336465, 2b47ba061, 44e21d0ef,
+0a8996caf. The file map, examples, failures and reproductions are in
+`reports/20260925-lane-v-r9.md` and its evidence folder.
