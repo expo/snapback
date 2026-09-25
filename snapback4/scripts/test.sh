@@ -143,11 +143,6 @@ run "release guard" bash scripts/check-release-guard.sh
 run "package typecheck" bun run --cwd packages/snapback4 typecheck
 run "package build" bun run --cwd packages/snapback4 build
 run "chat app check" bash -c 'cd apps/chat && ../../target/debug/snapback4 check'
-if [ "${SNAPBACK4_TEST_SERIAL_CLIENT_FILES:-0}" = 1 ]; then
-  client_test_serial=1
-elif node -e 'const os = require("node:os"); const load = os.loadavg()[0], cpus = os.cpus().length; console.log(`-- host load: ${load.toFixed(2)} across ${cpus} CPUs`); process.exit(load >= cpus ? 0 : 1)'; then
-  client_test_serial=1
-fi
 
 (run_logged "cargo-test" "cargo test" node scripts/run-rust-tests.mjs) &
 child_pids+=("$!")
@@ -156,9 +151,6 @@ child_pids+=("$!")
 (
   run_logged "chat-typecheck" "chat app typecheck" bun run --cwd apps/chat typecheck
   run_logged "expo-typecheck" "expo app typecheck" bun run --cwd apps/chat-expo typecheck
-  # Loaded hosts run files serially; each file retains its intended internal
-  # concurrency. Idle qualification hosts keep the blocking-suite budget.
-  run_logged "client-tests" "client tests" run_client_tests
 ) &
 child_pids+=("$!")
 
@@ -172,6 +164,17 @@ collect "cargo-test" "cargo test"
 collect "chat-typecheck" "chat app typecheck"
 collect "expo-typecheck" "expo app typecheck"
 collect "fixture-tests" "fixture wrapper tests"
+# Rust's compiler and test processes can starve short client/server startup
+# deadlines on shared hosts. Select client concurrency after that work settles.
+if [ "${SNAPBACK4_TEST_SERIAL_CLIENT_FILES:-0}" = 1 ]; then
+  client_test_serial=1
+elif node -e 'const os = require("node:os"); const load = os.loadavg()[0], cpus = os.cpus().length; console.log(`-- host load: ${load.toFixed(2)} across ${cpus} CPUs`); process.exit(load >= cpus ? 0 : 1)'; then
+  client_test_serial=1
+fi
+(run_logged "client-tests" "client tests" run_client_tests) &
+child_pids+=("$!")
+wait "${child_pids[0]}" || true
+child_pids=()
 collect "client-tests" "client tests"
 # The three seeded models keep their full counts and timeouts. Give them a
 # serial slot after Rust compilation/tests and every other client file finish.

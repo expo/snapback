@@ -55314,3 +55314,31 @@ scheduling speed; recovery still has exactly its original 100-step bound.
 
 The two complete publisher-equivalent qualification results are recorded below
 when finished. No publication is performed by this branch.
+
+## 2026-09-24 — publication fix lane 2: isolate client startup too
+
+The first complete qualification attempt, with the seeded models isolated but
+ordinary clients still alongside Rust, ended `== 1 failure(s) in 1372 s`
+(the `client tests` group). All three seeded models passed at full counts:
+online sessions 68.15 s, local sessions 160.32 s, online-client interleavings
+48.97 s; all 78 model-file tests passed. Rust and its 24 native witnesses,
+fixture wrappers and all four published-0.2.33 fences passed.
+
+The four failing ordinary-client cases were timing cuts, not changed expected
+values: `close-boundary.test.mjs` failed the five-second server-startup probe;
+`expo-media-storage.test.mjs` timed out launching/running its native helper
+with its existing 15-second limit; `navigation-model.test.mjs` failed a
+five-second dev-readiness probe and a two-second background-response delivery
+probe. Their failure stacks are retained in `~/sb4-intent/fix-041b/suite-1.log`.
+All four pass unchanged in focused reruns (including every one of the 32
+device-close sequences). Rust's own log shows multiple process wall times of
+40–65 seconds for test bodies finishing below one second during the overlap.
+
+The suite now waits for Rust and the light fixture/typecheck jobs before
+starting ordinary client files, then runs the seeded model slot. It chooses
+the existing loaded-host/idle-host client concurrency policy at that actual
+client start, not before Rust compilation. This separates process-startup
+load as well as the seeded-model CPU load. No subprocess timeout, readiness
+budget, response-delivery assertion, case count or test was changed. The
+next two full runs must each reach zero failures; the failed attempt is not
+waived or counted as one of them.
