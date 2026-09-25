@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import { devServer, binary } from '../../../witness/lib.mjs';
 import { guest, memorySessionStore } from '../dist/auth.js';
 import { createLocalClient } from '../dist/local.js';
@@ -78,7 +77,7 @@ for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares devi
   await member(f.api, signed.session.principal);
   const dir = mkdtempSync(join(tmpdir(), 'sb4-native-clock-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
   const sessions = memorySessionStore(), observed = [];
-  let offline = false, client;
+  let offline = false, client, failClock = false, closedCores = 0;
   const device = processDevice({ dir, binary: binary() });
   const options = { url: f.api, session: signed.session, sessionStore: sessions, waitSeconds: 1,
     fetch: async (input, init) => {
@@ -88,7 +87,11 @@ for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares devi
     },
     device: { async open(...args) {
       const core = await device.open(...args);
-      return { ...core, call: (request, ...rest) => { if (typeof request.now === 'number') observed.push(request); return core.call(request, ...rest); } };
+      return { ...core, call: (request, ...rest) => {
+        if (failClock && request.op === 'set_meta' && request.key === 'server-clock') return Promise.reject(Error('clock storage unavailable'));
+        if (typeof request.now === 'number') observed.push(request);
+        return core.call(request, ...rest);
+      }, close: async () => { closedCores++; await core.close(); } };
     } },
   };
   t.after(async () => { await client?.close(); });
@@ -108,5 +111,8 @@ for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares devi
   assert.ok(Math.abs(client.now() - Date.now() - expected) < 1000);
   const cold = await client.query(query, { conversationId: 'room' });
   assert.equal(cold.data[0].at, first.data[0].at); assert.equal(cold.data[0].pending, true);
-  await delay(1);
+  failClock = true;
+  await assert.rejects(client.close(), /clock storage unavailable/);
+  client = undefined;
+  assert.equal(closedCores, 2, 'a failed final clock save must still close the native device');
 });

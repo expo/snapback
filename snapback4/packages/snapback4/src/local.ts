@@ -1443,8 +1443,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         await Promise.allSettled([following, syncing, flushing, persistingSession, endingSession, ...active]);
         for (const [id, { resolve }] of settled) resolve({ state: "pending", id });
         await media?.close();
-        await clock.detach();
-        await core.close();
+        try { await clock.detach(); } finally { await core.close(); }
       })().finally(() => { settled.clear(); closingResponses.finish(); });
       return closing;
     },
