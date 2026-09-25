@@ -52,6 +52,9 @@ mod receipt;
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod retire_tests;
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
+mod aggregate_metadata_tests;
 pub(crate) mod presence;
 #[cfg(feature = "postgres")]
 pub mod postgres;

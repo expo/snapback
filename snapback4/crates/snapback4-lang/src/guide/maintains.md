@@ -219,6 +219,16 @@ maintained point lookup, the Quarry query returns `data: null, complete: false`
 without a continuation; an unfinished count is neither zero nor a partial total.
 A missing group still reads as zero when its lookup completes.
 
+A keyed read or rule probe of an expiring aggregate always includes its source
+in `tables`, even for an empty group or a denied read, so source writes invalidate
+the result consistently. Denial restores the prior `next_expiry`; a private rule
+probe's deadline does not reach the caller.
+An authorized reader can observe the metered cost of the group's unswept expired
+contributions, including an `unavailable` cut when the backlog exceeds the
+examined ceiling. These contributions belonged to that reader's count; sweeping
+bounds the backlog. Expired rows still cost examined work and steps.
+Unauthorized denials remain identical across empty, expired-only and live groups.
+
 An inherited aggregate has no horizon and remains until-revoked even when its
 source retains delivered-history. After leave, retained source rows are
 history, not a complete aggregate. A public inherited aggregate view sends every

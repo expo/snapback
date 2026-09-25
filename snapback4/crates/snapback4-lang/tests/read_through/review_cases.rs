@@ -4,10 +4,17 @@ use snapback4_core::{
     meter::{Ceilings, Metered},
 };
 
+#[path = "review_metadata.rs"]
+mod metadata;
+pub use metadata::*;
+
 pub type Outcome = (Result<Value, Refusal>, Metered);
 pub trait Backend {
     fn run(&mut self, op: &str, context: Context, ceilings: Ceilings) -> Outcome;
     fn adopt(&mut self, source: &str, now: i64);
+    fn refused_query(&mut self, op: &str, context: Context, ceilings: Ceilings) -> Option<Refusal> {
+        self.run(op, context, ceilings).0.err()
+    }
     fn query(
         &mut self,
         _op: &str,
@@ -547,8 +554,8 @@ fn aggregate_denial_cases(mut factory: impl FnMut(&str) -> Box<dyn Backend>, cut
                     assert_eq!(o.unavailable, !enough, "{world}: {o:?}");
                     assert_eq!(
                         o.tables,
-                        vec!["totals"],
-                        "{world}: denied source cannot escape"
+                        vec!["children", "totals"],
+                        "{world}: source dependency is declared even on denial"
                     );
                     assert_eq!(o.next_expiry, None);
                     assert_eq!(o.capped_at.is_none(), enough);

@@ -34,6 +34,7 @@ impl Runner<'_> {
         table_name: &str,
         row: Value,
     ) -> Result<Option<Value>, RuntimeError> {
+        self.aggregate_source_dependency(table_name);
         let Some(maintain) = self.schema.maintain_for(table_name).cloned() else {
             return Ok(Some(row));
         };
@@ -63,7 +64,6 @@ impl Runner<'_> {
             "authorize expiring aggregates from their keys before recounting"
         );
         let source = &self.schema.tables[&maintain.source];
-        self.read_tables.insert(maintain.source.clone());
         let group = crate::schema::maintained_key(&row, &maintain.by);
         let (index, prefix) = maintain.source_scan(source, &group);
         if self.device

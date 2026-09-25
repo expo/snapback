@@ -1,0 +1,161 @@
+//! Exercise server reply metadata directly over the native in-memory row adapter.
+use super::runner::Runner;
+use crate::{
+    Context, Program, Schema, Value,
+    meter::{Ceilings, Cut, Meter},
+    rows::MemoryRows,
+    value::object,
+};
+
+const MODEL: &str = include_str!("../../../snapback4-lang/tests/read_through/lifetime.q");
+fn compile(source: &str) -> (Schema, Program) {
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    // The compiler's dependency is a separate build of this crate.
+    let schema = serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap();
+    let program = b
+        .programs
+        .into_iter()
+        .find(|p| p.program.name == "total")
+        .unwrap()
+        .program;
+    (
+        schema,
+        serde_json::from_value(serde_json::to_value(program).unwrap()).unwrap(),
+    )
+}
+fn id(s: &str) -> Value {
+    Value::Id(s.into())
+}
+fn seed(rows: &MemoryRows, schema: &Schema, child: Option<i64>, gate: Option<i64>) {
+    let mut r = Runner::new(
+        rows,
+        schema,
+        Context::system().at(100),
+        Meter::new(Ceilings::default(), Cut::Abort),
+        0,
+    );
+    r.insert(
+        "parents",
+        object([
+            ("id", id("p")),
+            ("owner", id("alice")),
+            ("until", Value::Null),
+        ]),
+    )
+    .unwrap();
+    if let Some(until) = child {
+        r.insert(
+            "children",
+            object([
+                ("id", id("c")),
+                ("parent", id("p")),
+                ("body", Value::String("hello".into())),
+                ("until", Value::Int(until)),
+            ]),
+        )
+        .unwrap();
+    }
+    if let Some(until) = gate {
+        r.insert(
+            "gates",
+            object([
+                ("id", id("g")),
+                ("parent", id("p")),
+                ("until", Value::Int(until)),
+            ]),
+        )
+        .unwrap();
+    }
+}
+fn reader<'a>(rows: &'a MemoryRows, schema: &'a Schema) -> Runner<'a> {
+    Runner::new(
+        rows,
+        schema,
+        Context::new("bob", [("p".into(), id("p"))].into()).at(200),
+        Meter::new(Ceilings::default(), Cut::Cap),
+        0,
+    )
+}
+
+#[test]
+fn memory_aggregate_point_and_raw_probe_dependencies_are_constant() {
+    for denied in [false, true] {
+        let rule = if denied {
+            ".parent != .parent"
+        } else {
+            ".parent = .parent"
+        };
+        let (schema, program) = compile(&format!(
+            "{MODEL}\nview totals: count children by .parent\n  read <- {rule}\nquery total(p: parents):\n  return totals[p]\n"
+        ));
+        let index = schema.tables["totals"]
+            .indexes
+            .iter()
+            .find(|(_, i)| i.columns() == vec!["parent"])
+            .unwrap()
+            .0;
+        for child in [None, Some(150), Some(300)] {
+            let rows = MemoryRows::new();
+            seed(&rows, &schema, child, None);
+            let mut r = reader(&rows, &schema);
+            let data = r.run(&program).unwrap();
+            assert!(!r.query_unavailable && r.meter.capped_at.is_none());
+            assert_eq!(
+                data,
+                if denied {
+                    Value::Null
+                } else {
+                    Value::Int(i64::from(child == Some(300)))
+                }
+            );
+            assert_eq!(
+                r.read_tables.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["children", "totals"]
+            );
+            // No rule_dependencies call: probe_witness itself owns the source dependency.
+            let mut r = reader(&rows, &schema);
+            assert_eq!(
+                r.probe_witness("totals", index, &[id("p")], &[], false)
+                    .unwrap(),
+                (child == Some(300), true)
+            );
+            assert_eq!(
+                r.read_tables.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["children", "totals"]
+            );
+        }
+    }
+}
+
+#[test]
+fn memory_denied_aggregate_restores_probe_expiry() {
+    for synthetic in [false, true] {
+        let model = if synthetic {
+            MODEL.to_owned()
+        } else {
+            MODEL.replace("  expire at .until\n", "")
+        };
+        let value_rule = if synthetic { "" } else { " and .value != 2" };
+        let (schema, program) = compile(&format!(
+            "{model}\ntable gates:\n  parent: parents\n  until: time\n  unique parent\n  expire at .until\n  read <- deny\n  insert <- allow\nview totals: count children by .parent\n  read <- exists gates[parent = .parent] and viewer = 'service:allowed'{value_rule}\nquery total(p: parents):\n  return totals[p]\n"
+        ));
+        for prior in [None, Some(700)] {
+            let mut results = Vec::new();
+            for gate in [None, Some(300), Some(500)] {
+                let rows = MemoryRows::new();
+                seed(&rows, &schema, Some(900), gate);
+                let mut r = reader(&rows, &schema);
+                r.next_expiry = prior;
+                let data = r.run(&program).unwrap();
+                assert_eq!(data, Value::Null);
+                assert_eq!(r.next_expiry, prior);
+                assert!(!r.query_unavailable && r.meter.capped_at.is_none());
+                results.push((r.metered(), r.read_tables));
+            }
+            for pair in results.windows(2) {
+                assert_eq!(pair[0], pair[1]);
+            }
+        }
+    }
+}

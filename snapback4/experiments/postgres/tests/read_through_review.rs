@@ -36,6 +36,10 @@ impl Backend for Pg {
         self.0.set_ceilings(ceilings);
         Some(self.0.query(op, context).unwrap())
     }
+    fn refused_query(&mut self, op: &str, context: Context, ceilings: Ceilings) -> Option<snapback4_core::error::Refusal> {
+        self.0.set_ceilings(ceilings);
+        self.0.query(op, context).err()
+    }
     fn adopt(&mut self, source: &str, now: i64) {
         let b = cases::bound(source);
         self.0
@@ -74,3 +78,9 @@ scenario!(aggregate_denial_dependencies);
 
 scenario!(aggregate_sequential_reads);
 scenario!(aggregate_multi_batch);
+
+scenario!(aggregate_tables_constant);
+scenario!(aggregate_denied_gate_expiry);
+scenario!(ordinary_expiring_page_recounts);
+scenario!(authorized_expiring_sum_overflow);
+scenario!(authorized_expired_backlog_stays_metered);

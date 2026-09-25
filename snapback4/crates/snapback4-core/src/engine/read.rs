@@ -74,11 +74,16 @@ impl Runner<'_> {
         let mut sites = Vec::new();
         rules::probe_sites(rule, &mut sites);
         for (table, _) in sites {
-            if let Some(maintain) = self.schema.maintain_for(&table)
-                && self.schema.table(&maintain.source).is_some_and(|source| source.is_expiring()) {
-                self.read_tables.insert(maintain.source.clone());
-            }
+            self.aggregate_source_dependency(&table);
             self.read_tables.insert(table);
+        }
+    }
+
+    // @ref LLP 3000.014#5-what-derives-from-the-capture — source invalidation is schema-derived, including empty and denied groups.
+    pub(super) fn aggregate_source_dependency(&mut self, table: &str) {
+        if let Some(maintain) = self.schema.maintain_for(table)
+            && self.schema.tables[&maintain.source].is_expiring() {
+            self.read_tables.insert(maintain.source.clone());
         }
     }
 
@@ -101,6 +106,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
     fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
+        self.aggregate_source_dependency(table);
         if !self.device { return; }
         let Some(maintain) = self.schema.maintain_for(table) else { return };
         let source = &self.schema.tables[&maintain.source];
@@ -127,6 +133,7 @@ impl Runner<'_> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
+        self.aggregate_source_dependency(table);
         let found = self.lookup_live(table, index, index_def, key, false)?;
         let mut live = found.is_some();
         let mut known = !self.device || if current {
@@ -139,7 +146,6 @@ impl Runner<'_> {
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table)
                 && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.is_expiring()) {
-                self.read_tables.insert(maintain.source.clone());
                 if self.device_work_active {
                     let group_bytes = word_heap::slots::<Value>(maintain.by.len())
                         + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
@@ -337,6 +343,7 @@ impl Runner<'_> {
         }
         let scratch = self.aggregate_point_scratch(maintain, &key);
         self.meter.heap(scratch)?;
+        let expiry_mark = self.next_expiry;
         let result = (|| {
             self.read_charge(MeterKind::Examined, 1)?;
             self.meter.require_uncapped()?;
@@ -345,6 +352,7 @@ impl Runner<'_> {
         // Transfer only the returned image to retained ownership. Keep the
         // high-water mark, work counters and any cut when releasing scratch.
         self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(scratch);
+        if result.is_err() || self.read_capped() { self.next_expiry = expiry_mark; }
         let value = result?;
         self.meter.heap(value.clone_heap_bytes())?;
         Ok(value)
@@ -356,9 +364,10 @@ impl Runner<'_> {
         let maintained = self.schema.maintain_for(&read.table);
         let inherited = maintained.filter(|m| self.schema.tables[&m.source].through.is_some());
         let mut key_admitted = false;
+        let expiry_mark = self.next_expiry;
         // @ref LLP 3000.014#5-what-derives-from-the-capture — only key-determined inputs may authorize a synthetic aggregate row.
         if let Some(m) = inherited.filter(|m| m.parent_key.is_some() || rules::deciding_fields(&read.table, table, &table.rules.read).iter().all(|field| index.columns().iter().take(key.len()).any(|column| column == field) || (field == "id" && m.group_fields().iter().all(|f| index.columns().iter().take(key.len()).any(|column| column == f))))) {
-            let visible = if let Some(parent) = &m.parent_key {
+            let visible = (|| Ok(if let Some(parent) = &m.parent_key {
                 let Some(at) = index.columns().iter().position(|f| f == &parent.reference) else { return Err(RuntimeError::Structural {code:"E_READ_THROUGH_SCAN",message:format!("{} must be read by its full parent key; use {}[parent] (guide maintains)",read.table,read.table)}); };
                 let parent_id = key.get(at).ok_or_else(|| RuntimeError::Input("read through aggregate needs its full parent key".into()))?;
                 match self.parent_verdict(parent,parent_id)? {
@@ -377,8 +386,10 @@ impl Runner<'_> {
                 self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))?;
                 let viewer = self.context.viewer.clone();
                 self.context.is_system() || rules::evaluate(&table.rules.read,&viewer,None,&row,false,&mut PrefixProbe {runner:self})?
-            };
-            if !visible { return Ok(crate::value::object([("value",Value::Null)])); }
+            }))();
+            // A failed shortcut owns its work, but none of its private probe deadlines.
+            if !matches!(visible, Ok(true)) || self.read_capped() { self.next_expiry = expiry_mark; }
+            if !visible? || self.read_capped() { return Ok(crate::value::object([("value",Value::Null)])); }
             key_admitted = true;
         }
         if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
@@ -399,7 +410,6 @@ impl Runner<'_> {
         // allowance, including probes that a rule would short-circuit.
         let stored_authorization = inherited.is_some_and(|m| !self.schema.tables[&m.source].is_expiring()) && !key_admitted;
         let mark = self.meter.mark();
-        let expiry_mark = self.next_expiry;
         let tables_mark = self.read_tables.clone();
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
         // An expiring lookup already charged its live candidate while
@@ -441,7 +451,7 @@ impl Runner<'_> {
         } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })? };
         // A failed authorization owns its charges and its cut. Hidden-candidate
         // rollback must never erase exhaustion or convert it into coverage.
-        if self.read_capped() { return Ok(Value::Null); }
+        if self.read_capped() { self.next_expiry = expiry_mark; return Ok(Value::Null); }
         if allowed {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
