@@ -1,0 +1,16 @@
+(node:3302947) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1730.193831ms)
+  ✔ a legacy refused observation with no history remains pending until same-id replay (2852.554362ms)
+  ✔ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (806.966257ms)
+  ✔ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (7523.25615ms)
+✔ web admission review: recovery and transport respect the session boundary (13722.591663ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13822.007808

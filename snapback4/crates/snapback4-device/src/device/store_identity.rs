@@ -129,7 +129,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         predictions::bind_legacy_receipts(tx)?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
-            if let Some(seq) = entry.sent_seq.or(entry.observed_seq).filter(|seq| predictions::receipt_matches(&entry, receipt_identity.map(String::as_str)) && (identity_changed || !private || *seq <= watermark)) {
+            if let Some(seq) = predictions::success_seq(&entry).filter(|seq| predictions::receipt_matches(&entry, receipt_identity.map(String::as_str)) && (identity_changed || !private || *seq <= watermark)) {
                 // A receipt proves execution in the old store. It is not
                 // permission to execute that write in the replacement.
                 keep_write(tx, &serde_json::json!({ "state": "sent", "id": entry.id, "seq": seq, "replayed": true }).to_string())?;
@@ -188,7 +188,8 @@ impl<S: DeviceStore> Device<S> {
 // Receipt retirement and its durable history share the fenced transaction.
 pub(super) fn keep_write<T: DeviceTx>(tx: &T, value: &str) -> Result<(), RuntimeError> {
     let parse = |text: &str| snapback4_core::json_codec::from_text::<serde_json::Value>(text).map_err(|e| RuntimeError::Store(e.to_string()));
-    let write = parse(value)?;
+    let mut write = parse(value)?;
+    let revalidated = write.as_object_mut().and_then(|entry| entry.remove("revalidated_store")).and_then(|id| id.as_str().map(str::to_owned));
     // A list is an adopted older window; a single receipt is a new local completion.
     let adopting = write.is_array();
     let incoming = if adopting { write.as_array().unwrap().clone() } else { vec![write] };
@@ -202,13 +203,16 @@ pub(super) fn keep_write<T: DeviceTx>(tx: &T, value: &str) -> Result<(), Runtime
     for entry in incoming {
         let id = entry["id"].as_str().unwrap();
         if ids.insert(id.to_owned()) { added.push(entry); }
-        else if !adopting && entry["state"] == "sent" {
-            // @ref LLP 3000.013#6 — positive outbox custody resolves an
-            // unknown-outcome replacement refusal, without refreshing the window.
+        else if !adopting {
+            // @ref LLP 3000.013#6 — a qualified success or a replay from the
+            // original store resolves an unknown replacement outcome in place.
             if let Some(old) = entries.iter_mut().find(|old| old["id"] == id && old["state"] == "failed" && old["why"]["code"] == "E_STORE_REPLACED") {
                 if let Some(data) = tx.outbox_get(id)? {
                     let queued: Queued = decoded(&data)?;
-                    if queued.sent_seq.or(queued.observed_seq).is_some_and(|seq| entry["seq"].as_u64() == Some(seq)) { *old = entry; }
+                    let original = queued.receipt_store.as_ref().and_then(|receipt| receipt.id.clone()).or(tx.meta(STORE_ID)?);
+                    let replayed = revalidated.is_some() && revalidated == original && (queued.sent_seq.is_some() || queued.observed_seq.is_some());
+                    let sent = entry["state"] == "sent" && predictions::success_seq(&queued).is_some_and(|seq| entry["seq"].as_u64() == Some(seq));
+                    if sent || (replayed && (entry["state"] == "sent" || entry["state"] == "failed")) { *old = entry; }
                 }
             }
         }

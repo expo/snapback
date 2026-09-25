@@ -60,7 +60,7 @@ fn next<S: DeviceStore>(e: &mut Engine, d: &mut Device<S>, limit: usize) -> Stre
     let p = e.stream("dev:alice", capture.transfer_watermark, limit).unwrap();
     let (ack, above) = e.acknowledged_at("dev:alice", &capture.pending_ids, p.watermark, p.images_at.unwrap()).unwrap();
     serde_json::from_value(json!({"snapshot":false,"events":p.events.iter().map(|ev| json!({"table":ev.table,"kind":ev.kind,"id":ev.id,"data":ev.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),
-        "acquisitions":p.acquisitions,"joined":p.joined,"watermark":p.watermark,"more":p.more,"images_at":p.images_at,"acknowledged":ack,"committed_above":above,
+        "acquisitions":p.acquisitions,"joined":p.joined,"watermark":p.watermark,"more":p.more,"images_at":p.images_at,"acknowledged":ack,"sent":ack,"committed_above":above,
         "requested_watermark":capture.transfer_watermark,"captured_watermark":capture.watermark,"send_revision":capture.send_revision,
         "pending_through":capture.pending_through,"pending_complete":capture.pending_complete,"pending_bound":capture.pending_bound})).unwrap()
 }

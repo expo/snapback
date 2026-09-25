@@ -12,6 +12,8 @@ import type { Write } from "./contract.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { DeviceCore, DeviceOpener, DeviceOpening } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
+import type { Queued } from "./local-types.ts";
+import { successSequence } from "./local-receipts.ts";
 import { AdmissionError, AdmissionJournal, bindingRefusal, journalStoreBinding, journalStores, writeRefusal } from "./web-journal.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
 
@@ -138,7 +140,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       // Committed outbox entries, mirrored from persisted changes, so a page
       // being hidden can send what IndexedDB already holds.
-      const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null; observed_seq?: number | null }>();
+      const committed = new Map<string, Queued>();
       const committedListeners = new Set<() => void>();
       let working = false;
       let publishPending = false;
@@ -232,8 +234,8 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           };
           const dispatch = () => {
             if (!suspended || closing || !device) return;
-            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null && e.observed_seq == null).sort((a, b) => a.seq - b.seq)
-              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: journal.boundStore(e.id) }));
+            const entries: PendingSend[] = [...committed.values()].filter(e => successSequence(e) == null).sort((a, b) => a.seq - b.seq)
+              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: e.receipt_store?.id ?? journal.boundStore(e.id) ?? undefined }));
             if (entries.length) flush(entries, () => beginSend(entries[0]!.id));
           };
           const suspend = () => { suspended = true; publishCommitted(); };
@@ -301,7 +303,17 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                   const entry = committed.get(request.id), seq = entry?.sent_seq ?? entry?.observed_seq;
                   // An acknowledgement may commit while receipt preflight waits.
                   // Return that custody from the serialized final send check.
-                  if (seq != null) return { ok: { receipt: { state: "sent", id: request.id, seq, replayed: true } } };
+                  if (seq != null) {
+                    const qualified = successSequence(entry) === seq;
+                    if (!qualified) {
+                      // Legacy custody still needs a same-id POST. Invalidate
+                      // any in-flight sync before allowing that replay.
+                      const started = JSON.parse(device!.call(JSON.stringify({ op: "begin_send" })));
+                      if (started.denied) return started;
+                      await settle();
+                    }
+                    return { ok: { receipt: { state: "sent", id: request.id, seq, replayed: true }, qualified } };
+                  }
                   const binding = journal.binding(device!, request.id);
                   if (!committed.has(request.id) || binding !== "allow") {
                     journal.fence(device!);
@@ -311,7 +323,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 }
                 const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
                 if (request.op === "queued" && Array.isArray(reply.ok)) {
-                  reply.ok = reply.ok.map(entry => ({ ...entry, store_id: journal.boundStore(entry.id) }));
+                  reply.ok = reply.ok.map(entry => ({ ...entry, store_id: entry.receipt_store?.id ?? journal.boundStore(entry.id) }));
                 }
                 const observesStore = request.op === "observe_store" || request.op === "apply";
                 if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
@@ -617,9 +629,19 @@ async function shareReceipts(persist: Persistence, name: string, text: string): 
   if (!held) return false;
   try {
     const kept = await receiptHistory(persist, name);
-    const ids = new Set(kept.map(write => write.id));
-    for (const write of terminalReceipts(text)) if (!ids.has(write.id)) { ids.add(write.id); kept.push(write); }
-    // Existing ids are immutable and do not become newer on repeated adoption.
+    const positions = new Map(kept.map((write, index) => [write.id, index]));
+    for (const write of terminalReceipts(text)) {
+      const index = positions.get(write.id);
+      if (index === undefined) { positions.set(write.id, kept.length); kept.push(write); }
+      // @ref LLP 3000.013#6 — a verified outcome resolves replacement's unknown
+      // execution. The source device already validated the correction before
+      // persisting it; adoption must keep it before deleting that source.
+      else {
+        const prior = kept[index]!;
+        if (prior.state === "failed" && prior.why.code === "E_STORE_REPLACED") kept[index] = write;
+      }
+    }
+    // Corrections retain their position; authored outcomes remain immutable.
     await persist.save(`${name}:receipts`, [{ s: "m", k: "client:write-history", v: JSON.stringify(kept.slice(-WRITE_HISTORY_LIMIT)) }]);
     return true;
   } finally { await held.release(); }

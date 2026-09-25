@@ -208,7 +208,7 @@ pub(super) fn reset<T: DeviceTx>(tx: &T, keep_images: bool) -> Result<(), Runtim
         tx.delete_meta(&[PUBLISHED])?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
-            if let Some(seq) = entry.observed_seq.take() {
+            if success_seq(&entry).is_some() && let Some(seq) = entry.observed_seq.take() {
                 // Dropping publication evidence must not turn a known execution
                 // into an unsent write that a later replacement could retry.
                 entry.sent_seq.get_or_insert(seq);
@@ -246,7 +246,7 @@ pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<S
     let store = tx.meta(STORE_ID)?;
     for data in tx.outbox_entries()? {
         let mut entry: Queued = decoded(&data)?;
-        if receipt_matches(&entry, store.as_deref()) && entry.sent_seq.is_some_and(|seq| seq <= watermark) {
+        if receipt_matches(&entry, store.as_deref()) && entry.sent_seq.is_some_and(|seq| success_seq(&entry) == Some(seq) && seq <= watermark) {
             remove(tx, &entry.id)?;
             continue;
         }
@@ -290,13 +290,36 @@ pub(super) fn receipt_matches(entry: &Queued, store: Option<&str>) -> bool {
     entry.receipt_store.as_ref().and_then(|receipt| receipt.id.as_deref()).is_none_or(|id| Some(id) == store)
 }
 
-pub(super) fn record_receipt<T: DeviceTx>(tx: &T, entry: &mut Queued, seq: u64, observed: bool) -> Result<(), RuntimeError> {
+// @ref LLP 3000.013#6 — a sequence alone proves a decision, not its outcome.
+pub(super) fn success_seq(entry: &Queued) -> Option<u64> {
+    entry.receipt_store.as_ref()?.success_seq.filter(|seq| entry.sent_seq == Some(*seq) || entry.observed_seq == Some(*seq))
+}
+
+pub(super) fn qualify_receipts<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<(), RuntimeError> {
+    for (id, seq) in &page.acknowledged {
+        if page.sent.get(id) != Some(seq) { continue; }
+        if let Some(data) = tx.outbox_get(id)? {
+            let mut entry: Queued = decoded(&data)?;
+            // Keep the qualification through private snapshot/deferred pages,
+            // but expose it only after that same sequence is published.
+            stamp_receipt(tx, &mut entry, *seq, true)?;
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn record_receipt<T: DeviceTx>(tx: &T, entry: &mut Queued, seq: u64, observed: bool, success: bool) -> Result<(), RuntimeError> {
+    if observed { entry.observed_seq = Some(seq); } else { entry.sent_seq = Some(seq); }
+    stamp_receipt(tx, entry, seq, success)
+}
+
+fn stamp_receipt<T: DeviceTx>(tx: &T, entry: &mut Queued, seq: u64, success: bool) -> Result<(), RuntimeError> {
     let store = tx.meta(STORE_ID)?.or(tx.meta(deferred::IDENTITY)?);
-    if (entry.sent_seq.is_some() || entry.observed_seq.is_some()) && !receipt_matches(entry, store.as_deref()) {
+    if !receipt_matches(entry, store.as_deref()) {
         return Ok(()); // A replacement cannot rebind a preserved old receipt.
     }
-    entry.receipt_store = store.map(|id| ReceiptStore { id: Some(id) });
-    if observed { entry.observed_seq = Some(seq); } else { entry.sent_seq = Some(seq); }
+    let success_seq = if success { Some(seq) } else { entry.receipt_store.as_ref().and_then(|receipt| receipt.success_seq) };
+    entry.receipt_store = (store.is_some() || success_seq.is_some()).then_some(ReceiptStore { id: store, success_seq });
     enqueue(tx, entry)
 }
 
@@ -311,7 +334,7 @@ pub(super) fn bind_legacy_receipts<T: DeviceTx>(tx: &T) -> Result<(), RuntimeErr
         let mut entry: Queued = decoded(&data)?;
         if entry.receipt_store.as_ref().is_none_or(|receipt| receipt.id.is_none()) && let Some(seq) = entry.sent_seq.or(entry.observed_seq) {
             let observed = entry.sent_seq.is_none();
-            record_receipt(tx, &mut entry, seq, observed)?;
+            record_receipt(tx, &mut entry, seq, observed, false)?;
         }
     }
     Ok(())

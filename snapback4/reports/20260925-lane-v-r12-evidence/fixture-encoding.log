@@ -1,0 +1,18 @@
+   Compiling snapback4-device v0.4.1 (/home/ccheever/sb4-intent/lane-v/snapback4/crates/snapback4-device)
+warning: unused imports: `Expr` and `Stmt`
+   --> crates/snapback4-device/tests/search_merge/mod.rs:184:30
+    |
+184 |     use snapback4_core::ir::{Expr, Stmt};
+    |                              ^^^^  ^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "device") generated 1 warning (run `cargo fix --test "device" -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized + debuginfo] target(s) in 23.90s
+     Running tests/device.rs (target/debug/deps/device-d2f9b7f683c2e06e)
+
+running 1 test
+test uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 435 filtered out; finished in 0.58s
+

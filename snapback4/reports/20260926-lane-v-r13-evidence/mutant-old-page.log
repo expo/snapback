@@ -1,0 +1,24 @@
+   Compiling snapback4-device v0.4.1 (/home/ccheever/sb4-intent/lane-v/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 14.12s
+     Running tests/write_authority.rs (target/debug/deps/write_authority-6a3a72c81723a4c7)
+
+running 1 test
+test an_old_page_cannot_qualify_a_refused_ops_record_as_success ... FAILED
+
+failures:
+
+---- an_old_page_cannot_qualify_a_refused_ops_record_as_success stdout ----
+
+thread 'an_old_page_cannot_qualify_a_refused_ops_record_as_success' (3737402) panicked at crates/snapback4-device/tests/write_authority.rs:53:9:
+assertion `left == right` failed: a decision without its outcome is not success
+  left: Some(0)
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_old_page_cannot_qualify_a_refused_ops_record_as_success
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-device --test write_authority`
