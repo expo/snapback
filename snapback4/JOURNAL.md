@@ -55282,3 +55282,35 @@ The default-schedule suite measurement and the two final publisher-equivalent
 qualifications follow in this lane's next journal entry. Evidence is under
 `~/sb4-intent/fix-041b/`. No client production code, version, credential or
 keychain setting changed; nothing was published.
+
+## 2026-09-24 — publication fix lane 2: a serial slot for the three models
+
+The unchanged default-schedule suite reproduced the online model timeout at
+240,000.588 ms, followed by local model failure at 13,002.081 ms. This run
+selected the existing serial-client-file fallback (load 115.59, 18 CPUs),
+but Rust test compilation still ran alongside it. The diagnostic suite was
+stopped after reproducing both failures; it is not a qualification result.
+`baseline-model-results.log` records the observed live output; the supplied
+publication failure record remains the preserved original counterexample.
+
+`scripts/test.sh` now excludes `app-session-model.test.mjs` and
+`online-client-model.test.mjs` from both ordinary client-file schedules, then
+runs those two files with file concurrency one after collecting every Rust,
+fixture and other client job. That gives the online/local 5,000-sequence
+session models and the 3,000-sequence online-client model their own serial
+slot. Both ordinary scheduling branches retain every other file and the
+existing acquisition/server-e2e shards. Failures still accumulate; the model
+slot runs even if an earlier check fails. No count, timeout, assertion, fence
+or pin changed.
+
+With the clock-custody fix, the exact seed-11 sequence passed another 200
+replays without synthetic workers, then 1,000 with 36 CPU workers. Each phase
+also passed 20 overlapping batches of one online and two local sequences;
+the loaded phase took 125.60 s including those batches. The controlled
+preceding online timeout still reports its intended failure, but all 100 local
+replays pass with no cross-generation timer clear. The model clock cannot
+start until its predecessor's actual work completes, regardless of host
+scheduling speed; recovery still has exactly its original 100-step bound.
+
+The two complete publisher-equivalent qualification results are recorded below
+when finished. No publication is performed by this branch.

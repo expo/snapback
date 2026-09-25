@@ -85,17 +85,19 @@ run_client_tests() {
   local client_pids=()
   trap 'stop_client_commands INT 130' INT
   trap 'stop_client_commands TERM 143' TERM
+  for path in packages/snapback4/test/*.test.mjs; do
+    case "$(basename "$path")" in
+      app-session-model.test.mjs|online-client-model.test.mjs) ;;
+      acquisition.test.mjs|server-e2e.test.mjs)
+        if [ "$client_test_serial" = 1 ]; then client_files+=("$path"); fi ;;
+      *) client_files+=("$path") ;;
+    esac
+  done
   if [ "$client_test_serial" = 1 ]; then
     echo "-- loaded host: client test files run serially"
-    node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs' &
+    node --test --test-concurrency=1 "${client_files[@]}" &
     client_pids+=("$!")
   else
-    for path in packages/snapback4/test/*.test.mjs; do
-      case "$(basename "$path")" in
-        acquisition.test.mjs|server-e2e.test.mjs) ;;
-        *) client_files+=("$path") ;;
-      esac
-    done
     node --test "${client_files[@]}" &
     client_pids+=("$!")
     for target in acquisition:4 server-e2e:3; do
@@ -171,6 +173,11 @@ collect "chat-typecheck" "chat app typecheck"
 collect "expo-typecheck" "expo app typecheck"
 collect "fixture-tests" "fixture wrapper tests"
 collect "client-tests" "client tests"
+# The three seeded models keep their full counts and timeouts. Give them a
+# serial slot after Rust compilation/tests and every other client file finish.
+run "client models" node --test --test-concurrency=1 \
+  packages/snapback4/test/app-session-model.test.mjs \
+  packages/snapback4/test/online-client-model.test.mjs
 end=$(date +%s)
 echo "== ${#failures[@]} failure(s) in $((end - start)) s"
 for f in "${failures[@]:-}"; do [ -n "$f" ] && echo "   $f"; done
