@@ -184,7 +184,7 @@ fn lifecycle_sqlite() {
 }
 #[test]
 fn large_mark_commits_pending_then_settles() {
-    let b = bound(SOURCE);
+    let b = bound(&SOURCE.replace("  expire at .until\n", ""));
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     join(&mut e, "b", "bob", 0, 0);
     e.seed((1..=10000).map(|n| {
@@ -567,7 +567,7 @@ fn defaulted_member_fields_are_materialized_in_durable_recounts() {
 
 #[test]
 fn incomplete_counts_cannot_authorize_writes_or_numeric_probes() {
-    let source = SOURCE.to_owned()
+    let source = SOURCE.replace("  expire at .until\n", "")
         + "\nmutation depend(member: members):\n  n = unread[member]\n  update members[member] { readUpTo: n }\nquery valueExists(member: members):\n  return exists unread[member = member, value = 1200]\n";
     let b = bound(&source);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();

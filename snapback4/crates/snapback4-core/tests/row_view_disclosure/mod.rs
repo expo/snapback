@@ -36,6 +36,8 @@ pub struct Pair {
     pub file_store: bool,
     pub examined: Option<u64>,
     pub observed_at: i64,
+    pub adoptions: Vec<(String, i64)>,
+    pub sweep_at: Option<i64>,
     pub write_refusal: Option<&'static str>,
 }
 impl Pair {
@@ -56,6 +58,8 @@ impl Pair {
             file_store: false,
             examined: None,
             observed_at: NOW,
+            adoptions: Vec::new(),
+            sweep_at: None,
             write_refusal: None,
         }
     }
@@ -149,6 +153,29 @@ impl Pair {
             matches!(seed.state, snapback4_core::WriteState::Sent { .. }),
             "{seed:?}"
         );
+        for (source, at) in &self.adoptions {
+            let source = format!("{source}\ntable pairAnchor:\n  public\n  online only\n");
+            let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            e.adopt_at(bound.schema, bound.programs.into_iter().map(|p|p.program), *at).unwrap();
+            while e.run_view_chunk(*at).unwrap().is_some() {}
+            // Independent adoption oracle: resolve legacy defaults at this schema,
+            // then compare the persisted basis before any query can mask it.
+            for m in &e.schema().maintains {
+                let k = m.row_key.as_ref().unwrap();
+                let sources = e.store().rows(&m.source).unwrap();
+                for member in e.store().rows(&k.table).unwrap() {
+                    let member = snapback4_core::schema::row_image(&member, &e.schema().tables[&k.table]);
+                    let expected = sources.iter().filter(|source| {
+                        let source = snapback4_core::schema::row_image(source, &e.schema().tables[&m.source]);
+                        !e.schema().tables[&m.source].expired(&source, *at) && k.matches(&source, &member)
+                    }).count() as i64;
+                    let stored = e.store().rows(&m.target).unwrap().into_iter().find(|row|row.field("member") == member.field("id")).unwrap();
+                    assert_eq!(stored.field("value"), Ok(&Value::Int(expected)), "adoption at {at}: stale stored basis");
+                }
+            }
+        }
+        if let Some(at) = self.sweep_at { while e.sweep_expired(at,100).unwrap()>0 {} }
         let mut ceilings = snapback4_core::Ceilings::default();
         if let Some(examined) = self.examined { ceilings.examined = examined; }
         e.set_ceilings(ceilings);

@@ -54,7 +54,7 @@ fn generated_populations_transitions_and_expiry() {
         pair.assert_equal();
         if !pair.refused { pair.file_store = true; pair.assert_equal(); }
     });
-    assert_eq!(count, 546);
+    assert_eq!(count, 587);
 }
 #[test]
 fn astra_scratch_regressions_refuse_unsupported_audiences() {
@@ -114,4 +114,41 @@ fn formerly_live_populations_and_insertion_orders_have_identical_transcripts() {
         for file in [false,true] {pair.file_store=file;pair.assert_equal();}
         eprintln!("{name}: equal");
     }),6);
+}
+
+#[test]
+fn interleaved_expired_prefix_live_suffix_before_mark() {
+    assert_eq!(generated::visit_interleaved(|_,mut pair| {
+        for file in [false,true] {pair.file_store=file;pair.assert_equal();}
+    }),15);
+}
+#[test]
+fn legacy_adoption_expiry_and_member_interpretations() {
+    assert_eq!(generated::visit_evolution(|name,mut pair| {
+        eprintln!("{name}");
+        for file in [false,true] {pair.file_store=file;pair.assert_equal();}
+    }),8);
+}
+#[test]
+fn redundant_logical_witness_alternatives() {
+    assert_eq!(generated::visit_alternatives(|name,mut pair| {
+        eprintln!("{name}");
+        for file in [false,true] {
+            pair.file_store=file;
+            for world in 0..2 {
+                let mut engine=pair.engine(world);
+                let result=engine.query("gate",snapback4_core::Context::new("alice",Default::default()).at(NOW)).unwrap();
+                assert!(result.complete && result.data != snapback4_core::Value::Null,"{name}: {result:?}");
+                assert_eq!(result.next_expiry, if name.contains(".backup") {Some(NOW+200)} else {None},"{name}");
+            }
+            pair.assert_equal();
+        }
+    }),14);
+}
+
+#[test]
+fn value_witnesses_and_mixed_live_expiry_ranges() {
+    assert_eq!(generated::visit_value_witness(|_,mut pair| {
+        for file in [false,true] {pair.file_store=file;pair.assert_equal();}
+    }),4);
 }

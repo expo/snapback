@@ -627,13 +627,18 @@ its commit clock is retired in that transaction, before adding a contribution;
 it will not be subtracted later. Marks, background recounts, server reads,
 snapshots and catch-up certify the live basis using only the null and future
 ranges of the parent/expiry index. Unswept expired inputs are never visited.
-Old pending work is recertified from the live range: if it now fits the writer
-allowance, the read is complete immediately. Otherwise a pending expiring count
-publishes zero until its live recount settles.
+Server reads certify the whole current live range, including counts above the
+writer allowance, using the same policy for stored pending and settled values.
+Historical pending work never selects completeness or count-dependent refusal.
+An expiring stored count is a private cache: bounded durable chunks reconcile it
+without publishing redundant recount commits or changing watermarks. The server
+certification scan can traverse the whole live group on its internal ledger.
 Reads reserve one examined unit and one step for certification; its work runs
 on the internal authorization ledger, equally for queries and count-dependent
 writers. Completed and pending reads keep the same reservation.
-Stored counts carry an internal basis timestamp. Physical sweeps subtract only
+Schema adoption atomically rebuilds a count when its member table, predicate
+inputs or expiry interpretation changes, including a default on a legacy absent
+expiry field. Stored counts carry an internal basis timestamp. Physical sweeps subtract only
 contributions present in that basis, so a sweep after a mark cannot subtract
 an expired input twice. Devices compute from covered live rows. Without that
 coverage they report pending/incomplete.
@@ -657,15 +662,19 @@ alone would still expose hidden cardinality through that traffic.
 A defensive unreadable-group image remains zero/pending, not a certified count.
 Private-view scans must pin their audience or use a member key.
 
-For an admitted member reader, hidden rows outside the counted parent and
-born-expired source rows do not select its mark writer's meter or background
-recount sequence. This includes formerly-live expired rows, tombstones and
-own sends: only the live basis selects work. Global activity by other principals
-remains observable through the shared sequence/log protocol.
+For an admitted member reader, an equal current live basis produces the same
+certified count, completeness, count-dependent writer result, reserved meter,
+snapshots and recount traffic. This includes an expired prefix inserted before
+the member and a large live suffix inserted afterward, read before any mark.
+Historical pending state, formerly-live expired rows, tombstones and own sends
+cannot select a different certification policy. Global activity by other
+principals remains observable through the shared sequence/log protocol.
 
 A pure view-existence witness reads only the member's indexed existence and
 expiry metadata under a fixed reservation. It never loads unrelated member
-payloads. A count read reserves declared decoder scratch, authorizes the member,
+payloads. Its lifetime reaches `nextExpiry` only through the complete rule's
+verdict: a timeless successful alternative removes the deadline, and a later
+surviving witness extends it. A count read reserves declared decoder scratch, authorizes the member,
 then charges its materialized result; the member's heap is transient and its peak
 and any meter cut remain charged. Large declarations can exceed the reservation
 even when a stored value is empty, consistently with the shared accounting law.

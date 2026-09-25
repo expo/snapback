@@ -49927,3 +49927,90 @@ sb5/b3-row-keyed-view; no push, publication or deployment.
 
 Post-qualification cleanup trims one trailing blank line from the copied
 decoder helper. No executable logic or test changed after the passing run.
+
+## 2026-09-25 — Lane B3 round 7: current-basis certification, adoption rebuilds, one nextExpiry
+
+Addressed Astra's historical-pending certification, expiry-default adoption,
+redundant witness deadline and surviving member-rebuild mutation. Also read the
+completed Grok round-7 review after checking `b3-f7.grok.exit` (`EXIT=0`), and
+covered its named numeric-witness and mixed-expiry-range generator gaps.
+
+Server expiring counts now certify the whole current live basis identically
+for pending and settled stored images. The public reservation stays one examined
+unit and one step. A 1,200-row live suffix no longer becomes incomplete because
+an expired prefix preceded the member. Stored expiring counts are private
+caches: the runner drains bounded, durable 256-row chunks without redundant
+public commits, sequence increments or log puts. Their cursor, prefix edits,
+expiry restart and basis timestamp remain durable. Server certification can
+traverse the full live group, extending the existing settled-read policy to
+pending values. The 1,024-row writer bound, device coverage/resource limits,
+and non-expiring public recount/pending semantics remain.
+
+Adoption now treats an expiry field's type, default and recorded interpretation
+as count-basis dependencies. The existing atomic rebuild handles a legacy absent
+expiry field whose default changes from expired to future. The generator checks
+stored counts at every adoption, before read-time certification can hide a
+stale value, and sweeps afterward. A legacy absent member readUpTo default
+change independently kills removal of the member-table rebuild trigger.
+
+B2 HEAD was initially 30add33e7. Its complete round-8 evaluator was present in
+its working tree and was ported verbatim from Probe through term, including
+three-valued verdicts, correlated expiry boundaries and future-stable short
+circuit. During qualification B2 committed it as 77d1dadc2; the block was
+verified byte-identical to that committed HEAD (SHA-256
+`d9ef67f463e1dc02a414fc051b59fbeb0a552b404cbc0d28f16c94b84fc46124`).
+B2's existential lifetime traversal and expires_at helper were adapted to B3's
+metadata-only member witness and authorization API. The metadata helper returns
+a lifetime; only the shared complete-rule verdict exports nextExpiry. Provisional
+read authorization uses that same evaluator. Merge takes B2's evaluator if the
+two differ. No B2 sequence/cap/token/cache/guard changes were imported.
+
+Generation grows 546 → 587 pairs per host/store: runtime 276 → 317; admission
+refusals stay 270; the separate scalar oracle stays 24. The 41 additions are
+15 expired-prefix/member/live-suffix/read-before-mark histories, eight schema
+transitions, 14 logical alternatives and four numeric/mixed-range cases.
+Targeted B3 integration cases grow 88 → 92 (core disclosure 14 → 18; other
+B3 integration target counts unchanged), with three additional core unit
+regressions (core unit cases 87 → 90). Mixed cases use 600 null-expiry and 600
+future-expiry rows around an unequal expired gap. Private chunk tests include
+an actual SQLite reopen, edits and a later sweep. Six deliberate mutations
+fail at assertions and were restored, including the exact internal numeric
+probe mutation that query-level exists alone does not reach. Quarry already
+rejects expiring value comparisons in rules with E_QUARRY_LIVE_MAINTAIN_PROBE;
+the tests distinguish that boundary from valid query-level exists.
+
+The first full run reported `== 1 failure(s) in 783 s`: the cargo group caught
+an absent-witness dependency lost while adapting the port, and the two physical
+witness-budget expectations that assumed an existential could stop at its first
+finite witness. Member dependencies are now declared before presence or branch
+selection. The budget test prices the final exhaustion probe and still checks
+exact fetched-row bounds; the focused witness and both device tests pass.
+That diagnostic run's 1,089 client tests passed; it is not qualification.
+
+Final qualification: **`== 0 failure(s) in 775 s`**, using exactly:
+`env -u FORCE_COLOR CARGO_HOME=/home/ccheever/sb5/lane-b3/target/r6-cargo CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash snapback4/scripts/test.sh`.
+FORCE_COLOR was unset; the existing local Cargo-home workaround and the three
+rebuild settings were retained. The Rust workspace passed in 511 s. Client
+tests report **1,089 passed, zero failed, 10 existing skips**; build, fixtures,
+types, guide/docs and release guard passed. The 15 changed implementation,
+test and guide file hashes matched before and after the run. Evidence:
+`target/b3-r7-suite-final.log`. No executable source changed after qualification.
+
+Final wasm: **1,808,030 B raw / 507,131 B gzip**, Rust 1.97.0 /
+wasm-bindgen 0.2.127, no wasm-opt, with the qualification environment's disabled
+Cargo incremental builds and test/dev debug info. SHA-256:
+`f12f89b37617db504c6cdfb3ad1d5d463803d89db17ae87557b4e44c4ffcb331`.
+Relative to the recorded round-6 review artifact (1,802,540 / 504,678; not rebuilt
+in this round), the whole-artifact delta is +5,490 raw / +2,453 gzip. The complete
+rule timeline, last-surviving witness traversal and declared dependencies need
+the bytes; no independent per-component attribution is claimed. Certification
+and adoption rebuild execution are server-only. Raise the ratchet **505,000 →
+508,500 B (+3,500)**, leaving **1,369 B**, including at least 1 KB after the
+observed 90 B cross-build variation. Runtime meter ceilings are unchanged.
+
+LLP 3000.015 §3 and the maintains guide describe the current-basis policy,
+adoption and complete-rule deadline. The sole residual is global activity
+visible through the shared sequence/log protocol. The report names every
+finding, fix, failing mutant and case count:
+`/home/ccheever/sb5/lane-b3.r7.final.md`. Commit only on
+sb5/b3-row-keyed-view; no push, publication or deployment.

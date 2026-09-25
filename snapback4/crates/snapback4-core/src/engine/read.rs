@@ -55,6 +55,7 @@ impl PartialEq for MergeHead { fn eq(&self, other: &Self) -> bool { self.cmp(oth
 impl Eq for MergeHead {}
 
 impl Probe for Runner<'_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.read_charge(MeterKind::RuleProbes, 1)? {
             // Cut: no lookup and no verdict; the site stops on `capped_at`.
@@ -74,6 +75,9 @@ impl Runner<'_> {
         let mut sites = Vec::new();
         rules::probe_sites(rule, &mut sites);
         for (table, _) in sites {
+            if let Some(key) = self.schema.maintain_for(&table).and_then(|m|m.row_key.as_ref()) {
+                self.read_tables.insert(key.table.clone());
+            }
             if let Some(maintain) = self.schema.maintain_for(&table)
                 && self.schema.table(&maintain.source).is_some_and(|source| source.expire.is_some()) {
                 self.read_tables.insert(maintain.source.clone());
@@ -161,75 +165,112 @@ impl Runner<'_> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
-        let mut found = self.lookup_live(table, index, index_def, key, false)?;
-        if let Some(maintain) = self.schema.maintain_for(table).filter(|m|m.row_key.is_some()) {
-            self.read_tables.insert(maintain.row_key.as_ref().unwrap().table.clone());
-            if let Some(row) = &found {
-                if !self.row_view_member_exists(maintain, row)? { found = None; }
-            }
-            if equalities.iter().any(|(field,_)|field=="value") && let Some(row)=found.take() {
-                let prior = self.timeline_pending;
-                self.timeline_pending = false;
-                found = self.live_row_view(maintain,row)?;
-                let pending = self.timeline_pending;
-                self.timeline_pending |= prior;
-                if pending { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or retry after recount settlement (guide maintains)".into() }); }
-            }
-        }
-        let mut live = found.is_some();
-        let mut known = !self.device || if current {
-            match &found {
-                Some(row) => self.witness_covered(table, index, key, row)?,
-                None => self.authorization_absence_covered(table, index, key)?,
-            }
-        } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
-        if self.device && !live && self.schema.maintain_for(table).and_then(|m| m.row_key.as_ref())
-            .is_some_and(|k| self.schema.tables[&k.table].sync.as_ref().is_none_or(|s| s.horizon.is_some())) {
-            known = false;
-        }
-        if let Some(row) = &found {
-            self.note_expiry(definition, row);
-            if let Some(maintain) = self.schema.maintain_for(table).filter(|m|m.row_key.is_none())
-                && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
-                self.read_tables.insert(maintain.source.clone());
-                if self.device_work_active {
-                    let group_bytes = word_heap::slots::<Value>(maintain.by.len())
-                        + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
-                    self.meter.heap(2 * group_bytes + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
-                }
-                let group = crate::schema::maintained_key(row, &maintain.by);
-                let (name, prefix) = maintain.source_scan(source, &group);
-                if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { known = false; }
-                let mut bounds = Bounds::default();
-                live = false;
-                'sources: loop {
-                    let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, 32)?;
-                    let count = rows.len();
-                    for (mut candidate, stored) in rows {
-                        self.witness_materialize(&mut candidate, source)?;
-                        bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 1), prefix.len())?;
-                        if self.device_work_active {
-                            self.meter.step(maintain.evaluation_steps())?;
-                            self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
-                                + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::value)).sum::<u64>())?;
-                        }
-                        if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
-                            if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
-                            // Existence is existential: one covered witness
-                            // settles it even after an uncertain candidate.
-                            if current { known = true; }
-                            self.note_expiry(source, &candidate);
-                            live = true;
-                            break 'sources;
-                        }
-                    }
-                    if count < limit { break; }
-                }
-            }
+        let Some(maintain) = self.schema.maintain_for(table).filter(|m| m.row_key.is_some()) else {
+            return self.probe_witness_uncached(table, index, key, equalities, current);
+        };
+        self.read_tables.insert(maintain.row_key.as_ref().unwrap().table.clone());
+        let Some(mut row) = self.lookup_live(table, index, index_def, key, false)? else {
+            let known = !self.device || (definition.sync.as_ref().is_some_and(|s| s.horizon.is_none())
+                && self.schema.tables[&maintain.row_key.as_ref().unwrap().table].sync.as_ref().is_some_and(|s|s.horizon.is_none()));
+            return Ok((false, known));
+        };
+        let (present, expiry) = self.row_view_member_exists(maintain, &row)?;
+        if !present { return Ok((false, !self.device || definition.sync.as_ref().is_some_and(|s|s.horizon.is_none()))); }
+        let mut known = !self.device || if current { self.witness_covered(table, index, key, &row)? }
+            else { definition.sync.is_some() };
+        if equalities.iter().any(|(field,_)|field == "value") {
+            let prior = self.timeline_pending;
+            self.timeline_pending = false;
+            let found = self.live_row_view(maintain, row)?;
+            let pending = self.timeline_pending;
+            self.timeline_pending |= prior;
+            if pending { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or retry after recount settlement (guide maintains)".into() }); }
+            let Some(found) = found else { return Ok((false, known)); };
+            row = found;
         }
         if self.device && self.schema.maintain_subset_unknown(table) { known = false; }
-        // @ref LLP 3000.007#10 — the total unique probe reads once, then tests the remaining named equalities.
-        Ok((live && found.as_ref().is_some_and(|row| equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)), known))
+        let live = equalities.iter().all(|(column,value)| row.field(column).unwrap_or(&Value::Null) == value);
+        if live && known { self.next_expiry = rules::earliest(self.next_expiry, expiry); }
+        Ok((live, known))
+    }
+
+    fn probe_witness_uncached(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
+        self.read_tables.insert(table.to_owned());
+        let mut bounds = Bounds::default();
+        let mut live = false;
+        let mut until: Option<i64> = None;
+        let mut uncertain = false;
+        loop {
+            let (rows, limit) = if definition.expire.is_none() {
+                // Non-expiring indexed predicates need only one candidate;
+                // extra equalities bind a complete unique key.
+                (self.live_lookup(table, index, index_def, key)?.map(|row| (row, Vec::new())).into_iter().collect::<Vec<_>>(), usize::MAX)
+            } else { self.witness_scan(table, index, key, &bounds, 32)? };
+            let count = rows.len();
+            for (mut row, stored) in rows {
+                self.witness_materialize(&mut row, definition)?;
+                bounds.after = self.witness_position(&stored, index_def.components.len() + 1, key.len())?;
+                if self.expired(definition, &row) || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
+                if current && !self.witness_covered(table, index, key, &row)? { uncertain = true; continue; }
+                let (present, known, expiry) = self.witness_lifetime(table, &row, current)?;
+                uncertain |= !known;
+                if !present { continue; }
+                until = if live { until.zip(expiry).map(|(a, b)| a.max(b)) } else { expiry };
+                live = true;
+                // A non-expiring witness makes the existential stable.
+                if until.is_none() { break; }
+            }
+            if (live && until.is_none()) || count < limit { break; }
+        }
+        let known = !self.device || (!self.schema.maintain_subset_unknown(table) && if current {
+            if live { true } else { !uncertain && self.authorization_absence_covered(table, index, key)? }
+        } else { !uncertain && definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) });
+        if live { self.next_expiry = rules::earliest(self.next_expiry, until); }
+        Ok((live, known))
+    }
+
+    /// A maintained existence witness lives while any selected source lives;
+    /// an aggregate's own expiration can only shorten that lifetime.
+    fn witness_lifetime(&mut self, table: &str, row: &Value, current: bool) -> Result<(bool, bool, Option<i64>), RuntimeError> {
+        let expiry = self.schema.tables[table].expires_at(row);
+        let Some(maintain) = self.schema.maintain_for(table) else { return Ok((true, true, expiry)); };
+        let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) else { return Ok((true, true, expiry)); };
+        self.read_tables.insert(maintain.source.clone());
+        if self.device_work_active {
+            let group_bytes = word_heap::slots::<Value>(maintain.by.len())
+                + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
+            self.meter.heap(2 * group_bytes + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
+        }
+        let group = crate::schema::maintained_key(row, &maintain.by);
+        let (name, prefix) = maintain.source_scan(source, &group);
+        let mut known = !self.device || source.sync.as_ref().is_some_and(|sync| sync.horizon.is_none());
+        let mut bounds = Bounds::default();
+        let mut live = false;
+        let mut until: Option<i64> = None;
+        loop {
+            let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, 32)?;
+            let count = rows.len();
+            for (mut candidate, stored) in rows {
+                self.witness_materialize(&mut candidate, source)?;
+                bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 1), prefix.len())?;
+                if self.device_work_active {
+                    self.meter.step(maintain.evaluation_steps())?;
+                    self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
+                        + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::value)).sum::<u64>())?;
+                }
+                if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
+                if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
+                if current { known = true; }
+                let candidate_expiry = source.expires_at(&candidate);
+                until = if live { until.zip(candidate_expiry).map(|(a, b)| a.max(b)) } else { candidate_expiry };
+                live = true;
+                if until.is_none() { break; }
+            }
+            if (live && until.is_none()) || count < limit { break; }
+        }
+        Ok((live, known || (current && live), rules::earliest(expiry, until)))
     }
 
     /// Point lookups must pass expired siblings, even on an index whose
@@ -1415,6 +1456,7 @@ impl Runner<'_> {
 
 struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b> }
 impl Probe for PrefixProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         self.runner.rule_probe_exists(table, index, key, equalities)
     }

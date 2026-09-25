@@ -220,6 +220,8 @@ pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &cra
     maintain.row_key.as_ref().is_some_and(|k|from.table(&k.table)!=to.table(&k.table))
         || from.maintain_for(&maintain.target) != Some(maintain)
         || from.table(&maintain.source).and_then(|t| t.expire.as_ref()) != to.table(&maintain.source).and_then(|t| t.expire.as_ref())
+        || to.table(&maintain.source).and_then(|t|t.expire.as_ref()).is_some_and(|field|
+            interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))
         || maintain.dependencies().iter().any(|field| interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))
 }
 

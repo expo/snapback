@@ -116,7 +116,11 @@ pub fn visit(mut run: impl FnMut(String, Pair)) -> usize {
         }
     }
     count += visit_blind_parents(&mut run);
-    count + visit_formerly_live(run)
+    count += visit_formerly_live(&mut run);
+    count += visit_interleaved(&mut run);
+    count += visit_evolution(&mut run);
+    count += visit_alternatives(&mut run);
+    count + visit_value_witness(run)
 }
 
 /// Public source × blind non-owner writer × private parent × unequal groups.
@@ -239,4 +243,123 @@ pub fn visit_formerly_live(mut run: impl FnMut(String, Pair)) -> usize {
       }
     }
     6
+}
+
+/// Expired prefix -> member -> live suffix -> expiry -> read before any mark.
+pub fn visit_interleaved(mut run: impl FnMut(String, Pair)) -> usize {
+    let mut count = 0;
+    for excluded in ["counted", "tombstone", "own-send"] {
+        for live in [0, 1, 1023, 1024, 1200] {
+            let seeds = [0,1200].map(|population| {
+                let mut rows = Vec::new();
+                for n in 0..population {
+                    let mut row = cases::message(&format!("expired{n:05}"),5,excluded == "tombstone");
+                    row.1["until"] = json!(NOW+1);
+                    if excluded == "own-send" { row.1["senderId"] = json!("alice"); }
+                    rows.push(row);
+                }
+                rows.push(cases::member("a","alice",0));
+                rows.extend((0..live).map(|n|cases::message(&format!("live{n:05}"),100,false)));
+                rows
+            });
+            let mut pair = Pair::new(cases::SOURCE.to_owned()+"\nmutation useCount(member: members):\n  return unread[member]\n", seeds, "alice", Operation::new("useCount",json!({"member":"a"}),"alice"))
+                .query("unreadFor",json!({"member":"a"}));
+            pair.observed_at=NOW+2; pair.operations[0].now=NOW+2; pair.page_size=256;
+            run(format!("interleaved/{excluded}/expired-0-1200/live-{live}/read-before-mark"),pair);
+            count+=1;
+        }
+    }
+    count
+}
+
+/// Every schema transition operates on actual legacy rows, not rows rewritten
+/// with explicit defaults. The harness checks each adopted stored count too.
+pub fn visit_evolution(mut run: impl FnMut(String, Pair)) -> usize {
+    let mut count = 0;
+    for change in ["adopt", "expiry-default", "expiry-field", "member-default"] {
+        for sweep in [false,true] {
+            let final_source = cases::SOURCE.to_owned()+"\nmutation useCount(member: members):\n  return unread[member]\n";
+            let mut source = final_source.split("view unread:").next().unwrap().to_owned();
+            let mut member = cases::member("a","alice",0);
+            let mut message = cases::message("legacy",5,false);
+            message.1.as_object_mut().unwrap().remove("until");
+            source=source.replace("  until: time ?\n  expire at .until\n", "");
+            let first = final_source.replace("  until: time ?", "  until: time default 1001").replace("until: time ?)", "until: time)");
+            let second = match change {
+                "expiry-default" => first.replace("until: time default 1001", "until: time default 1020"),
+                "expiry-field" => first.replace("  expire at .until", "  later: time default 1020\n  expire at .later"),
+                "member-default" => first.replace("readUpTo: int default 0", "readUpTo: int default 10").replace("until: time default 1001", "until: time default 1020"),
+                _ => first.clone(),
+            };
+            let first = if change == "member-default" {
+                member.1.as_object_mut().unwrap().remove("readUpTo");
+                source=source.replace("  readUpTo: int default 0\n", "");
+                first.replace("until: time default 1001", "until: time default 1020")
+            } else { first };
+            let rows=vec![member,message];
+            let mut pair=Pair::new(source,[rows.clone(),rows],"alice",Operation::new("useCount",json!({"member":"a"}),"alice"))
+                .query("unreadFor",json!({"member":"a"}));
+            pair.adoptions.push((first,NOW+2));
+            if change != "adopt" {pair.adoptions.push((second,NOW+3));}
+            pair.observed_at=if sweep {NOW+21} else {NOW+3};
+            pair.operations[0].now=pair.observed_at;
+            if sweep {pair.sweep_at=Some(pair.observed_at);}
+            run(format!("evolution/{change}/sweep-{sweep}"),pair);count+=1;
+        }
+    }
+    count
+}
+
+/// Private witness deadlines vary while a logical alternative keeps the full
+/// authorization verdict unchanged. Include correlated/not and two witnesses.
+pub fn visit_alternatives(mut run: impl FnMut(String, Pair)) -> usize {
+    let mut count = 0;
+    for control in [false,true] {
+        let a=if control {"exists members[id = .member]"} else {"exists unread[member = .member]"};
+        let b=if control {"exists members[id = .backup]"} else {"exists unread[member = .backup]"};
+        for rule in [format!("{a} or viewer = 'alice'"), format!("viewer = 'alice' or {a}"), format!("{a} or {b}"),format!("{b} or {a}"),format!("{a} or not {a}"),format!("not ({a} and not {a})"),format!("({a} and viewer = 'nobody') or viewer = 'alice'")] {
+            let source=cases::private_members().replace("  joinedAt: int default 0", "  joinedAt: int default 0\n  deadline: time ?\n  expire at .deadline")
+                + &format!("\ntable gates:\n  member: members\n  backup: members\n  read <- {rule}\n  insert <- {rule}\n  online only\nquery gate():\n  return gates['gate']\nmutation attempt():\n  insert gates {{ id: 'attempt', member: 'b', backup: 'c' }}\n");
+            let seeds=[NOW+1,NOW+100].map(|until| {
+                let mut member=cases::member("b","bob",0);member.1["deadline"]=json!(until);
+                let mut backup=cases::member("c","carol",0);backup.1["deadline"]=json!(NOW+200);
+                vec![cases::member("a","alice",0),member,backup,("gates".into(),json!({"id":"gate","member":"b","backup":"c"}))]
+            });
+            let pair=Pair::new(source,seeds,"alice",Operation::new("attempt",json!({}),"alice")).query("unreadFor",json!({"member":"a"}));
+            run(format!("witness-alternative/control-{control}/{rule}"),pair);count+=1;
+        }
+    }
+    count
+}
+
+/// Grok G1: value-equality witnesses must certify, never compare the stored
+/// total. G2: the same observer spans both live expiry-index ranges and a gap.
+pub fn visit_value_witness(mut run: impl FnMut(String, Pair)) -> usize {
+    let mut count=0;
+    for expired in [1,1200] {
+        for mixed in [false,true] {
+            let live=if mixed {1200} else {1};
+            let seeds=[0,expired].map(|population| {
+                let mut rows=vec![cases::member("a","alice",0)];
+                for n in 0..population {
+                    let mut row=cases::message(&format!("expired{n:05}"),5,false);
+                    row.1["until"]=json!(NOW+1);rows.push(row);
+                }
+                for n in 0..live {
+                    let mut row=cases::message(&format!("live{n:05}"),100,false);
+                    if mixed && n>=600 {row.1["until"]=json!(NOW+100);}
+                    rows.push(row);
+                }
+                rows
+            });
+            let source=cases::SOURCE.to_owned()+&format!("\nquery valueWitness(member: members):\n  return exists unread[member = member, value = {live}]\nmutation useCount(member: members):\n  return unread[member]\n");
+            let mut pair=Pair::new(source,seeds,"alice",Operation::new("useCount",json!({"member":"a"}),"alice"))
+                .then(Operation::new("mark",json!({"member":"a","readUpTo":1}),"alice"))
+                .query("unreadFor",json!({"member":"a"})).query("valueWitness",json!({"member":"a"}));
+            pair.page_size=256;pair.observed_at=NOW+2;
+            for op in &mut pair.operations {op.now=NOW+2;}
+            run(format!("value-witness/expired-0-{expired}/mixed-ranges-{mixed}"),pair);count+=1;
+        }
+    }
+    count
 }

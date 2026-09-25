@@ -597,17 +597,17 @@ impl Runner<'_> {
     }
     // A pure witness has no row payload. Reserve the key's admitted width,
     // then expose only existence/lifetime from the internal ledger.
-    pub(super) fn row_view_member_exists(&mut self, m: &Maintain, row: &Value) -> Result<bool, RuntimeError> {
+    pub(super) fn row_view_member_exists(&mut self, m: &Maintain, row: &Value) -> Result<(bool, Option<i64>), RuntimeError> {
         let table = &m.row_key.as_ref().unwrap().table;
         self.authorized_scratch(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4, &[(MeterKind::Examined,1)], |runner,_| {
             runner.meter.heap(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4)?;
             runner.meter.charge(MeterKind::Examined,1)?;
-            let Some(key) = runner.tx.index_head(table,"$viewLifetime",std::slice::from_ref(row.field("member")?),&Bounds::default())? else { return Ok(false); };
+            let Some(key) = runner.tx.index_head(table,"$viewLifetime",std::slice::from_ref(row.field("member")?),&Bounds::default())? else { return Ok((false, None)); };
             if runner.schema.tables[table].expire.is_some() && let Some(Value::Int(until)) = key.get(1) {
-                if *until <= runner.context.now.unwrap_or(0) { return Ok(false); }
-                runner.next_expiry = Some(runner.next_expiry.map_or(*until, |old|old.min(*until)));
+                if *until <= runner.context.now.unwrap_or(0) { return Ok((false, None)); }
+                return Ok((true, Some(*until)));
             }
-            Ok(true)
+            Ok((true, None))
         })
     }
     // @ref LLP 3000.015#3 — a readable member does not authorize hidden source contributions.
@@ -693,10 +693,9 @@ impl Runner<'_> {
             if !self.device {
                 let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[&m.source]);
                 let result = self.authorized_scratch(bytes,&[(MeterKind::Examined,1),(MeterKind::Steps,1)], |runner,_| {
-                    // Old pending work is not evidence of a large live basis:
-                    // expiry may have removed every input since it was scheduled.
-                    let limit = if pending(&row) { WRITER_RECOUNT } else { usize::MAX };
-                    let (n, complete, _) = runner.live_basis_scan(m,&member,None,limit)?;
+                    // Certification depends only on the current live basis, never
+                    // on the historical work record or stored pending bit.
+                    let (n, complete, _) = runner.live_basis_scan(m,&member,None,usize::MAX)?;
                     Ok(complete.then_some(n))
                 })?;
                 if result.is_none() { self.pending_view_read()?; }
@@ -772,7 +771,7 @@ impl Runner<'_> {
         if complete {
             self.set_view_basis(m, id)?;
             let row = self.view_image(m, &member, total, false)?;
-            self.view_put(&m.target, &row, existing.as_ref(), false)?;
+            self.view_put(&m.target, &row, existing.as_ref(), self.schema.tables[&m.source].expire.is_some())?;
             self.view_delete(&m.work_table(), work, true)
         } else {
             let next = object([
@@ -793,7 +792,9 @@ impl Runner<'_> {
 
 #[cfg(feature = "sqlite")]
 impl super::Engine {
-    /// One durable, bounded recount chunk; restart resumes its stored cursor.
+    /// Publish one bounded non-expiring recount chunk. Expiring caches are
+    /// reconciled in bounded durable transactions without public progress;
+    /// restart resumes their stored cursor.
     pub fn run_view_chunk(
         &mut self,
         now: i64,
@@ -811,65 +812,72 @@ impl super::Engine {
             .cloned()
             .collect::<Vec<_>>()
         {
-            let tx = self.store.transaction()?;
-            let Some((work, _)) = tx
-                .scan(
-                    &m.work_table(),
-                    "byReady",
-                    &[Value::Bool(false)],
-                    &Bounds::default(),
-                    Dir::Asc,
-                    1,
-                )?
-                .pop()
-            else {
-                continue;
-            };
-            let seq = tx.next_seq()?;
-            let mut runner = Runner::new(
-                &tx,
-                &self.schema,
-                Context::system().at(now),
-                Meter::new(Ceilings::job(), Cut::Abort),
-                seq,
-            );
-            if let Err(error) = runner.recount_chunk(&m, &work) {
-                if !matches!(
-                    error,
-                    RuntimeError::Structural {
-                        code: "E_VIEW_KEY",
-                        ..
+            loop {
+                let tx = self.store.transaction()?;
+                let Some((work, _)) = tx
+                    .scan(
+                        &m.work_table(),
+                        "byReady",
+                        &[Value::Bool(false)],
+                        &Bounds::default(),
+                        Dir::Asc,
+                        1,
+                    )?
+                    .pop()
+                else {
+                    break;
+                };
+                let private = self.schema.tables[&m.source].expire.is_some();
+                let seq = if private { 0 } else { tx.next_seq()? };
+                let mut runner = Runner::new(
+                    &tx,
+                    &self.schema,
+                    Context::system().at(now),
+                    Meter::new(Ceilings::job(), Cut::Abort),
+                    seq,
+                );
+                if let Err(error) = runner.recount_chunk(&m, &work) {
+                    if !matches!(
+                        error,
+                        RuntimeError::Structural {
+                            code: "E_VIEW_KEY",
+                            ..
+                        }
+                    ) {
+                        return Err(error);
                     }
-                ) {
-                    return Err(error);
+                    // A no-progress chunk has made no writes. Park it durably so the
+                    // next tick can settle another member; a member edit retries it.
+                    let mut parked = work.as_object()?.clone();
+                    parked.insert("parked".into(), Value::Bool(true));
+                    runner.view_put(
+                        &m.work_table(),
+                        &Value::Row(parked.into()),
+                        Some(&work),
+                        true,
+                    )?;
                 }
-                // A no-progress chunk has made no writes. Park it durably so the
-                // next tick can settle another member; a member edit retries it.
-                let mut parked = work.as_object()?.clone();
-                parked.insert("parked".into(), Value::Bool(true));
-                runner.view_put(
-                    &m.work_table(),
-                    &Value::Row(parked.into()),
-                    Some(&work),
-                    true,
+                let events = runner.events.take();
+                let tables = runner.written_tables.iter().cloned().collect::<Vec<_>>();
+                let metered = runner.meter.used;
+                drop(runner);
+                // Expiring values are already certified from the live basis at
+                // every public read. Drain their private cache in bounded durable
+                // chunks without manufacturing redundant sequence/log activity.
+                if private { tx.commit()?; continue; }
+                tx.record_commit(
+                    seq,
+                    now,
+                    &format!("{}:recount", m.target),
+                    crate::SYSTEM_PRINCIPAL,
+                    "job",
+                    &tables,
+                    metered.rows_written,
                 )?;
+                partition::append(&tx, seq, &events)?;
+                tx.commit()?;
+                return Ok(Some(metered));
             }
-            let events = runner.events.take();
-            let tables = runner.written_tables.iter().cloned().collect::<Vec<_>>();
-            let metered = runner.meter.used;
-            drop(runner);
-            tx.record_commit(
-                seq,
-                now,
-                &format!("{}:recount", m.target),
-                crate::SYSTEM_PRINCIPAL,
-                "job",
-                &tables,
-                metered.rows_written,
-            )?;
-            partition::append(&tx, seq, &events)?;
-            tx.commit()?;
-            return Ok(Some(metered));
         }
         Ok(None)
     }

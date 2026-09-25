@@ -86,11 +86,80 @@ fn live_basis_reservation_is_identical_for_pending_and_zero_expired_reads() {
         image.insert("recountPending".into(),Value::Bool(pending));
         let mut r=Runner::new(&tx,&schema,Context::new("alice",Default::default()).at(10),Meter::new(Ceilings::default(),Cut::Cap),0);
         assert!(r.live_row_view(m,Value::Row(image.into())).unwrap().is_some());
-        assert_eq!(r.timeline_pending,pending);
+        assert!(!r.timeline_pending);
         // One authorized member reservation, one live-basis reservation.
         assert_eq!(r.meter.used.examined,2);
         assert_eq!(r.meter.used.steps,1);
         meters.push((r.meter.used,r.meter.heap_peak,r.meter.capped_at));
     }
     assert_eq!(meters[0],meters[1]);
+}
+
+#[test]
+fn private_expiry_chunks_keep_durable_cursor_edits_and_restart() {
+    use crate::wire;
+    use serde_json::json;
+    for file in [false,true] {
+        let source=include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").to_owned()
+            + "\nmutation extend(message: messages, until: time):\n  update messages[message] { until: until }\n";
+        let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let schema: Schema=crate::json_codec::from_text(&crate::json_codec::to_text(&b.schema).unwrap()).unwrap();
+        let programs: Vec<Program>=crate::json_codec::from_text(&crate::json_codec::to_text(&b.programs.into_iter().map(|p|p.program).collect::<Vec<_>>()).unwrap()).unwrap();
+        let path=std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target").join(format!("b3-r7-cursor-{}.sqlite",std::process::id()));
+        let store=if file {let _=std::fs::remove_file(&path); crate::Store::open(&path).unwrap()} else {crate::Store::memory().unwrap()};
+        let mut e=Engine::new(store,schema.clone(),programs.clone()).unwrap();
+        let mut rows=(0..1200).map(|n|("messages".into(),wire::row_from_json(&schema.tables["messages"],&json!({"id":format!("m{n:05}"),"conversationId":"c","ordinal":5,"senderId":"bob","tombstone":false,"until":if n<600 {10} else {20}})).unwrap())).collect::<Vec<_>>();
+        rows.push(("members".into(),wire::row_from_json(&schema.tables["members"],&json!({"id":"a","conversationId":"c","principal":"alice","readUpTo":0,"joinedAt":0})).unwrap()));
+        e.seed_at(rows,1).unwrap();
+        let base=e.seq().unwrap();
+        {
+            let tx=e.store_mut().transaction().unwrap();
+            let m=&schema.maintains[0];
+            let work=tx.get(&m.work_table(),"a").unwrap().unwrap();
+            let mut runner=Runner::new(&tx,&schema,Context::system().at(2),Meter::new(Ceilings::job(),Cut::Abort),0);
+            runner.recount_chunk(m,&work).unwrap();
+            assert!(runner.meter.used.examined<=RECOUNT_CHUNK as u64+4);
+            drop(runner);tx.commit().unwrap();
+        }
+        let work=e.store().rows("$recount:unread").unwrap();
+        let prefix=number(&work[0],"total");
+        assert!(prefix>0 && prefix<=RECOUNT_CHUNK as i64);
+        assert_eq!(number(&work[0],"deadline"),10);
+        if file {drop(e);e=Engine::new(crate::Store::open(&path).unwrap(),schema,programs).unwrap();}
+        let result=e.mutate("extend",None,Context::new("alice",std::collections::BTreeMap::from([("message".into(),Value::Id("m00000".into())),("until".into(),Value::Int(30))])).at(2)).unwrap();
+        assert!(matches!(result.state,crate::WriteState::Sent{..}),"{result:?}");
+        assert_eq!(number(&e.store().rows("$recount:unread").unwrap()[0],"total"),prefix-1);
+        assert!(e.run_view_chunk(10).unwrap().is_none());
+        assert_eq!(e.seq().unwrap(),base+1,"only the source edit publishes a commit");
+        assert_eq!(number(&e.store().rows("unread").unwrap()[0],"value"),601);
+        while e.sweep_expired(10,100).unwrap()>0 {}
+        assert_eq!(number(&e.store().rows("unread").unwrap()[0],"value"),601);
+        drop(e);if file {std::fs::remove_file(path).unwrap();}
+    }
+}
+
+#[test]
+fn numeric_view_witness_certifies_before_comparing_a_stored_value() {
+    let b=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").into())]);
+    assert!(b.diagnostics.is_empty());
+    let schema:Schema=crate::json_codec::from_text(&crate::json_codec::to_text(&b.schema).unwrap()).unwrap();
+    for file in [false,true] {
+        let path=std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target").join(format!("b3-r7-numeric-{}.sqlite",std::process::id()));
+        let store=if file {let _=std::fs::remove_file(&path);crate::Store::open(&path).unwrap()} else {crate::Store::memory().unwrap()};
+        let mut e=Engine::new(store,schema.clone(),vec![]).unwrap();
+        e.seed_at([
+            ("members".into(),object([("id",Value::Id("a".into())),("conversationId",Value::Id("c".into())),("principal",Value::Id("alice".into())),("readUpTo",Value::Int(0)),("joinedAt",Value::Int(0))])),
+            ("messages".into(),object([("id",Value::Id("m".into())),("conversationId",Value::Id("c".into())),("senderId",Value::Id("bob".into())),("ordinal",Value::Int(1)),("tombstone",Value::Bool(false)),("until",Value::Int(10))])),
+        ],1).unwrap();
+        assert_eq!(number(&e.store().rows("unread").unwrap()[0],"value"),1);
+        let tx=e.store_mut().transaction().unwrap();
+        for (now,expected) in [(9,1),(10,0)] {
+            for (value, present) in [(expected,true),(1-expected,false)] {
+                let mut runner=Runner::new(&tx,&schema,Context::new("alice",Default::default()).at(now),Meter::new(Ceilings::default(),Cut::Cap),0);
+                assert_eq!(runner.probe_witness("unread","byId",&[Value::Id("a".into())],&[("value".into(),Value::Int(value))],false).unwrap(),(present,true));
+            }
+        }
+        drop(tx);drop(e);if file {std::fs::remove_file(path).unwrap();}
+    }
 }

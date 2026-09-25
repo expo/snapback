@@ -1,9 +1,8 @@
 //! Read authorization of provisional images, over raw combined-state witnesses.
 use super::{rules::{self, Probe}, runner::Runner};
-use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, RuleExpr, materialize_optional_fields}, value::Value};
+use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, materialize_optional_fields}, value::Value};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Verdict { Readable, Denied, Unknown }
+use rules::Verdict;
 
 impl Runner<'_> {
     pub(super) fn is_provisional(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
@@ -39,7 +38,7 @@ impl Runner<'_> {
         materialize_optional_fields(&mut row, definition);
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
-        let verdict = evaluate(&rule, &viewer, &row, &mut ReadProbe { runner: self, prepaid, unknown: false })?;
+        let verdict = rules::evaluate_verdict(&rule, &viewer, None, &row, false, &mut ReadProbe { runner: self, prepaid, unknown: false })?;
         if self.read_capped() { return Ok(false); }
         if verdict == Verdict::Unknown {
             self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
@@ -78,6 +77,8 @@ impl Runner<'_> {
 
 struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, prepaid: bool, unknown: bool }
 impl Probe for ReadProbe<'_, '_> {
+    fn take_unknown(&mut self) -> bool { std::mem::take(&mut self.unknown) }
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.prepaid && !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
         let (present, known) = self.runner.probe_witness(table, index, key, equalities, true)?;
@@ -87,28 +88,35 @@ impl Probe for ReadProbe<'_, '_> {
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool { self.runner.created(table, index, key) }
 }
 
-/// Three-valued logic keeps an unused unknown branch out of read coverage.
-/// Only the final Unknown verdict publishes a missing fact; cuts stay meters.
-fn evaluate(rule: &RuleExpr, viewer: &str, row: &Value, probe: &mut ReadProbe<'_, '_>) -> Result<Verdict, RuntimeError> {
-    use Verdict::*;
-    match rule {
-        RuleExpr::And(terms) | RuleExpr::Or(terms) => {
-            let conjunction = matches!(rule, RuleExpr::And(_));
-            let decisive = if conjunction { Denied } else { Readable };
-            let mut unknown = false;
-            for term in terms {
-                let verdict = evaluate(term, viewer, row, probe)?;
-                if probe.runner.read_capped() { return Ok(Denied); }
-                if verdict == decisive { return Ok(decisive); }
-                unknown |= verdict == Unknown;
+#[cfg(all(test, feature="sqlite"))]
+mod tests {
+    use super::*;
+    use crate::{Context, Schema, meter::{Ceilings,Cut,Meter}, rows::{MemoryRows,Rows}, value::object};
+    #[test]
+    fn provisional_row_view_witness_uses_complete_rule_deadline() {
+        let witness="exists unread[member = .member]";
+        for rule in [format!("{witness} or viewer = 'alice'"),format!("{witness} or not {witness}"),format!("{witness} or exists unread[member = .backup]"),witness.into()] {
+            let source=include_str!("../../../snapback4-lang/tests/fixtures/row-keyed-view.q").replace("  joinedAt: int default 0","  joinedAt: int default 0\n  deadline: time ?\n  expire at .deadline")
+                + &format!("\ntable gates:\n  member: members\n  backup: members\n  read <- {rule}\n  online only\n");
+            let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
+            assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+            let schema:Schema=crate::json_codec::from_text(&crate::json_codec::to_text(&b.schema).unwrap()).unwrap();
+            for until in [1001,1100] {
+                let rows=MemoryRows::default();
+                for (id,expiry) in [("b",until),("c",1200)] {
+                    let member=object([("id",Value::Id(id.into())),("conversationId",Value::Id("chat".into())),("principal",Value::Id(id.into())),("readUpTo",Value::Int(0)),("joinedAt",Value::Int(0)),("deadline",Value::Int(expiry))]);
+                    rows.put("members",&schema.tables["members"],&member,None).unwrap();
+                    let view=object([("id",Value::Id(id.into())),("member",Value::Id(id.into())),("value",Value::Int(0)),("recountPending",Value::Bool(false))]);
+                    rows.put("unread",&schema.tables["unread"],&view,None).unwrap();
+                }
+                let gate=object([("id",Value::Id("gate".into())),("member",Value::Id("b".into())),("backup",Value::Id("c".into()))]);
+                let mut runner=Runner::new(&rows,&schema,Context::new("alice",Default::default()).at(1000),Meter::new(Ceilings::default(),Cut::Cap),0);
+                runner.device=true;
+                runner.provisional_rows.insert(("gates".into(),"gate".into()));
+                runner.next_expiry=Some(9000);
+                assert!(runner.authorize_read("gates",&gate,false).unwrap());
+                assert_eq!(runner.next_expiry,Some(if rule==witness {until} else if rule.contains(".backup") {1200} else {9000}),"{rule}");
             }
-            Ok(if unknown { Unknown } else if conjunction { Readable } else { Denied })
-        }
-        RuleExpr::Not(inner) => Ok(match evaluate(inner, viewer, row, probe)? { Readable => Denied, Denied => Readable, Unknown => Unknown }),
-        _ => {
-            probe.unknown = false;
-            let allowed = rules::evaluate(rule, viewer, None, row, false, probe)?;
-            Ok(if probe.unknown { Unknown } else if allowed { Readable } else { Denied })
         }
     }
 }

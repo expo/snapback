@@ -403,13 +403,16 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
         }
         let counted = Counted { rows: &tx, fetched: Cell::new(0) };
         let program = backend.programs.iter().find(|p| p.name == "mixed").unwrap();
-        for budget in [1, 33, 8192, 9002] {
+        // A finite witness lifetime requires proving there is no later live
+        // witness. The aggregate also fetches its header, then needs one
+        // empty source probe when the final page exactly fills its allowance.
+        for budget in [1, 33, 8192, 9002, 9003] {
             tx.savepoint("attempt").unwrap(); counted.fetched.set(0);
             let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(300),
                 Ceilings { examined: budget, ..Ceilings::unbounded() });
-            if budget == 9002 { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
+            if budget >= 9002 + u64::from(aggregate) { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
             else { assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}, budget={budget}: {result:?}"); }
-            assert_eq!(counted.fetched.get(), if budget == 9002 {9001 + usize::from(aggregate)} else {budget as usize});
+            assert_eq!(counted.fetched.get(), (budget as usize).min(9001 + usize::from(aggregate)));
             tx.rollback_to("attempt").unwrap();
         }
         // An early live witness with an oversized, unindexed payload must

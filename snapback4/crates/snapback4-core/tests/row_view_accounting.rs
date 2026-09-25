@@ -134,7 +134,7 @@ fn a_new_live_basis_and_later_sweep_cannot_subtract_the_same_input_twice() {
 }
 
 #[test]
-fn expiry_cursor_reconciles_edits_clock_advance_restart_and_sweep() {
+fn private_expiry_recount_reconciles_edits_clock_advance_and_sweep() {
     for file in [false,true] {
         let mut rows=vec![cases::member("a","alice",0)];
         for n in 0..1200 {
@@ -147,13 +147,14 @@ fn expiry_cursor_reconciles_edits_clock_advance_restart_and_sweep() {
         let mut e=pair.engine(0);
         let mark=e.mutate("mark",None,Context::new("alice",inputs(&e,"mark",&pair.operations[0].args)).at(NOW+2)).unwrap();
         assert!(matches!(mark.state,snapback4_core::WriteState::Sent{..}));
-        assert!(e.run_view_chunk(NOW+2).unwrap().is_some());
+        let seq=e.seq().unwrap();
+        assert!(e.run_view_chunk(NOW+2).unwrap().is_none());
+        assert_eq!(e.seq().unwrap(),seq);
         let edit=e.mutate("extend",None,Context::new("alice",inputs(&e,"extend",&json!({"message":"m00000","until":NOW+30}))).at(NOW+2)).unwrap();
         assert!(matches!(edit.state,snapback4_core::WriteState::Sent{..}),"{edit:?}");
-        // A process restart retains both composite cursor and contributing deadline.
-        // The work row itself is the durable continuation, as the file-store
-        // reopen test in row_keyed_views also exercises.
-        assert!(!e.store().rows("$recount:unread").unwrap().is_empty());
+        // A new mark creates a new bounded private cache job. Public reads
+        // remain certified while its durable cursor is unfinished.
+        e.mutate("mark",None,Context::new("alice",inputs(&e,"mark",&pair.operations[0].args)).at(NOW+10)).unwrap();
         let mut chunks=0;
         while e.run_view_chunk(NOW+10).unwrap().is_some() {chunks+=1;assert!(chunks<20);}
         assert_eq!(e.store().rows("unread").unwrap()[0].field("value"),Ok(&Value::Int(601)));

@@ -179,7 +179,7 @@ fn generated_pairs_admission_outbox_and_settlement_on_both_devices() {
         let sqlite = pair_devices(&mut Sqlite::new("row-view-generated"), &pair);
         assert_eq!(memory, sqlite, "device stores differ: {name}");
     });
-    assert_eq!((count, admitted), (546, 276));
+    assert_eq!((count, admitted), (587, 317));
     for pair in [generated::astra_move(), generated::astra_schedule(), generated::aligned_access_hidden_mark(), generated::blind_private_parent()] {
         pair_devices(&mut Memory::new(), &pair);
         pair_devices(&mut Sqlite::new("row-view-astra"), &pair);
