@@ -85,13 +85,14 @@ test('now stays integer and monotonic when the offset shrinks or wall time rolls
   assert.equal(clock.issuedDeviceNow(), 4000);
 });
 
-test('an offline cold start restores the estimate and issued floor beside device identity', async () => {
+test('an offline cold start restores the estimate and admission floor beside device identity', async () => {
   let wall = 1000;
   const device = store(), first = new ServerClock(() => wall);
   await first.attach(device);
   first.sample(90001000, 1000, 1000, 'host:0');
   wall += 123;
   const issued = first.issuedDeviceNow();
+  device.meta.set('server-clock-floor', String(issued)); // an admitted write pins this time
   await first.persist();
   const restarted = new ServerClock(() => wall);
   await restarted.attach(device);
@@ -195,11 +196,12 @@ for (const first of ['stream', 'slow']) test(`a 20s response cannot latch a midp
   const actual = wall + 120_000, issued = [];
   clock.subscribe(() => issued.push(clock.issuedDeviceNow()));
   const stream = () => clock.sampleStream(actual, 'host:1', 2);
-  const slow = () => clock.sample(actual, sent, wall, 'host:1', 3);
+  const slow = () => clock.sample(actual - 500, sent, wall, 'host:1', 3);
   if (first === 'stream') { stream(); slow(); } else { slow(); stream(); }
   assert.ok(issued.every(now => now <= actual + 100), JSON.stringify(issued));
   assert.equal(clock.issuedDeviceNow(), actual);
-  assert.equal(clock.estimatedServerNow(), actual, 'a slow real sample cannot outrank a receipt stamp');
+  assert.equal(clock.estimatedServerNow(), actual, 'the streaming estimate beats a slow stamp 500ms behind');
+  assert.equal(clock.serverDelay(actual + 100), 100, 'the slow stamp cannot postpone refetch by 500ms');
   assert.equal(clock.fork().issuedDeviceNow(), actual);
   const shortSent = wall; wall += 40;
   clock.sample(shortSent + 20 + 120_000, shortSent, wall, 'host:1', 4);
@@ -292,4 +294,32 @@ test('real changeFeed learns an advance from three buffered two-second polls', a
   const sent = wall; wall += 40;
   clock.sample(sent + 20 + 120_000, sent, wall, 'host:1');
   assert.equal(clock.issuedDeviceNow(), wall + 120_000, 'a short refinement finds no frozen overshoot');
+});
+
+for (const issuedOffset of [0, -31 * 86_400_000]) test(`a non-admission last cannot pin a negative startup correction (issuedOffset ${issuedOffset})`, async () => {
+  let wall = 1_780_000_000_000;
+  const offset = -31 * 86_400_000, device = store(), clock = new ServerClock(() => wall);
+  device.meta.set('server-clock', JSON.stringify({ offset, issuedOffset, last: wall - 5000 }));
+  const sent = wall; wall += 1500;
+  clock.sample(wall + offset, sent, wall, 'host:0');
+  await clock.attach(device);
+  assert.equal(clock.issuedDeviceNow(), wall + offset);
+  const expiresAt = sent + offset + 30 * 86_400_000;
+  assert.ok(clock.issuedDeviceNow() < expiresAt, 'a valid thirty-day session remains valid');
+  assert.equal('last' in JSON.parse(device.meta.get('server-clock')), false, 'only offsets are persisted here');
+  await clock.detach();
+});
+
+for (const kind of ['measured', 'streaming']) test(`newest equal-RTT ${kind} sample wins even when the issued floor masks its correction`, () => {
+  let wall = 10_000;
+  const clock = new ServerClock(() => wall);
+  const sample = offset => kind === 'streaming'
+    ? clock.sampleStream(wall + offset, 'host:0', 1)
+    : clock.sample(wall + offset - 10, wall - 20, wall, 'host:0');
+  sample(1000);
+  const floor = clock.issuedDeviceNow();
+  wall += 10; sample(500);
+  assert.equal(clock.estimatedServerNow(), wall + 500, 'newest wins the RTT tie, including a downward correction');
+  assert.equal(clock.issuedDeviceNow(), floor, 'live issuance remains monotonic');
+  assert.equal(clock.serverDelay(wall + 600), 100, 'refetch timing follows the newer estimate');
 });

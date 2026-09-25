@@ -1495,10 +1495,12 @@ A server restart or deliberate clock advance begins a new window. Older revision
 undo an advance. On a new epoch, requests already issued cannot switch the clock to another
 epoch; a newly issued request can. Receipt dating may lag true server time by
 transport latency, but never adds half a hold to the issued floor. The offset
-starts at zero and persists beside store identity, with the issued floor.
-Each admission atomically commits its issued floor with its outbox entry; the floor
-outlives settlement. Startup restores it and any older pending admission times before
-issuing time. Synchronous web journal capture remains unchanged.
+starts at zero and persists beside store identity. Issued time remains monotonic
+within a live clock. Each admission atomically commits its issued floor with its
+outbox entry; that separate `server-clock-floor` record outlives settlement.
+Startup restores a floor only from this record and queued `entry.now` values.
+An old `last` in offset metadata is ignored: ordinary `now()` calls do not pin
+time after reopening. Synchronous web journal capture remains unchanged.
 
 Estimated server time is **unfloored** and schedules refetches of server answers, including
 local fallbacks. Issued device time (`client.now()`) rounds to integer milliseconds and is

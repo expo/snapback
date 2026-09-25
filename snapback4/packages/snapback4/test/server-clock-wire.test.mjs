@@ -83,7 +83,7 @@ test('a real held heartbeat poll learns clock advance from its final body', asyn
   assert.ok(Math.abs(clock.issuedDeviceNow() - short.data.at) < 1000, 'the following short reply cannot leave a frozen overshoot');
 });
 
-for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares device time and restores offline (${clockOffset}${clockOffset === '-31d' ? ', 1500ms startup responses' : ''})`, async t => {
+for (const [clockOffset, staleLast] of [['+25h', false], ['-31d', false], ['-31d', true]]) test(`native JSON bridge shares device time and restores offline (${clockOffset}${clockOffset === '-31d' ? ', 1500ms startup responses' : ''}${staleLast ? ', non-admission last' : ''})`, async t => {
   const f = await devServer({ seed: [], extraSource, clockOffset }); t.after(() => f.close());
   const signed = await guest(f.api); assert.equal(signed.ok, true, JSON.stringify(signed));
   await member(f.api, signed.session.principal);
@@ -93,7 +93,7 @@ for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares devi
   let deletions = 0;
   const removeSession = sessions.delete;
   sessions.delete = async key => { deletions++; await removeSession(key); };
-  let offline = false, client, failClock = false, closedCores = 0;
+  let offline = false, client, failClock = false, closedCores = 0, seededLast = false;
   const device = processDevice({ dir, binary: binary() });
   const options = { url: f.api, session: signed.session, sessionStore: sessions, waitSeconds: 1,
     fetch: async (input, init) => {
@@ -109,6 +109,16 @@ for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares devi
     },
     device: { async open(...args) {
       const core = await device.open(...args);
+      if (staleLast && !seededLast) {
+        assert.deepEqual(slowPaths, ['/auth/refresh', '/schema'], 'the live slow samples precede attach');
+        assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
+        assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, null);
+        const result = await core.call({ op: 'set_meta', key: 'server-clock', value: JSON.stringify({
+          offset: -31 * 86_400_000, issuedOffset: 0, last: Date.now() - 5000,
+        }) });
+        assert.equal(result.denied, undefined);
+        seededLast = true;
+      }
       return { ...core, call: (request, ...rest) => {
         if (failClock && request.op === 'set_meta' && request.key === 'server-clock') return Promise.reject(Error('clock storage unavailable'));
         if (typeof request.now === 'number') observed.push(request);
@@ -120,6 +130,7 @@ for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares devi
   client = await createLocalClient(options);
   if (clockOffset === '-31d') assert.deepEqual(slowPaths, ['/auth/refresh', '/schema']);
   assert.equal(deletions, 0, 'valid thirty-day credentials survive slow negative-offset startup');
+  assert.equal(seededLast, staleLast);
   offline = true; await client.sync();
   const expected = clockOffset === '+25h' ? 90_000_000 : -31 * 86_400_000;
   assert.ok(Math.abs(client.now() - Date.now() - expected) < 1000);

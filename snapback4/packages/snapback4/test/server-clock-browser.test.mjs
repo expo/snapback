@@ -168,7 +168,7 @@ test('web crash recovery restores admission time before issuing time after wall-
   assert.equal(admitted.pending.state, 'pending');
   assert.equal(admitted.journal.length, 1, 'web admission custody is synchronous');
   assert.equal(admitted.journal[0].now, admitted.queue[0].now);
-  assert.ok(admitted.saved.last < admitted.queue[0].now, 'no close or later query has saved the admission floor');
+  assert.equal('last' in admitted.saved, false, 'offset metadata cannot supply an admission floor');
   await page.context().route(api + '/**', route => route.abort('internetdisconnected'));
   await page.addInitScript(wall => { window.wall = wall; Date.now = () => window.wall; }, admitted.originalWall);
   await f.reload(); // No client.close(): destroy the old JS lifetime with its pending admission.
@@ -217,7 +217,7 @@ test('web crash after settlement keeps the admission floor after its outbox entr
   assert.equal(admitted.settled.state, 'sent');
   assert.equal(admitted.journal.length, 1, 'admission custody remains synchronous');
   assert.deepEqual(admitted.queue, [], 'settlement and catchup retired the admission');
-  assert.ok(admitted.saved.last < admitted.journal[0].now, 'no later query, offset change or close flushed clock metadata');
+  assert.equal('last' in admitted.saved, false, 'recovery cannot borrow an issued floor from offset metadata');
   assert.equal(admitted.floor, admitted.journal[0].now, 'a separate durable record outlives the admission');
   await page.context().route(api + '/**', route => route.abort('internetdisconnected'));
   await page.addInitScript(wall => { window.wall = wall; Date.now = () => window.wall; }, admitted.originalWall);

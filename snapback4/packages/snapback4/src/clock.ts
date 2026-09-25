@@ -100,14 +100,15 @@ export class ServerClock {
     const kept = await core.call({ op: "meta", key: "server-clock" });
     if (kept.denied) throw new Error(JSON.stringify(kept.denied));
     try {
-      const state = JSON.parse(String(kept.ok)) as { offset: number; issuedOffset?: number; last: number } | null;
+      const state = JSON.parse(String(kept.ok)) as { offset: number; issuedOffset?: number } | null;
       const issuedOffset = state?.issuedOffset ?? state?.offset;
-      if (state && Number.isFinite(state.offset) && Math.abs(state.offset) <= Number.MAX_SAFE_INTEGER && typeof issuedOffset === "number" && Number.isFinite(issuedOffset) && Math.abs(issuedOffset) <= Number.MAX_SAFE_INTEGER && Number.isSafeInteger(state.last) && state.last >= 0) {
+      if (state && Number.isFinite(state.offset) && Math.abs(state.offset) <= Number.MAX_SAFE_INTEGER && typeof issuedOffset === "number" && Number.isFinite(issuedOffset) && Math.abs(issuedOffset) <= Number.MAX_SAFE_INTEGER) {
         if (!this.samples.length) this.offset = state.offset;
         this.issuedOffset ??= issuedOffset;
-        this.last = Math.max(this.last, state.last);
       }
     } catch { /* Missing or malformed clock metadata starts at offset zero. */ }
+    // Only admissions restore a durable floor. Old offset metadata's `last`
+    // may be a wall-time now() call and must not override a startup correction.
     // The device commits this floor atomically with admission, and retains it
     // after settlement. Pending entries also recover older stores/journals.
     const floor = await core.call({ op: "meta", key: "server-clock-floor" });
@@ -127,7 +128,7 @@ export class ServerClock {
   }
   persist(): Promise<void> {
     if (!this.save) return Promise.resolve();
-    const save = this.save, value = JSON.stringify({ offset: this.offset, issuedOffset: this.issuedOffset ?? 0, last: this.last });
+    const save = this.save, value = JSON.stringify({ offset: this.offset, issuedOffset: this.issuedOffset ?? 0 });
     this.saving = this.saving.catch(() => {}).then(() => save(value));
     return this.saving;
   }
