@@ -29,6 +29,62 @@ fn without_pending(mut value: serde_json::Value) -> serde_json::Value {
     value
 }
 
+fn text_payload_scenarios(guarded: bool) {
+    on_both(|host| {
+        for (name, expression, present, missing) in [
+            ("plain", "x ?? ''", "Alice Sender", ""),
+            ("sha256", "sha256(x ?? '')", "4507233f5cebb99d42954e1e79bbb1aa6957c9aad13e4aa37c9e549a82fd1aa6", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+            ("join", "join([x ?? ''], '')", "Alice Sender", ""),
+        ] {
+            for profile in [false, true] {
+                let (guard, indent) = if guarded { ("  if not exists connected[recipient]:\n", "    ") } else { ("", "  ") };
+                let source = format!("{}\nmutation sendPayload(chat: id, body: text <=2000, recipient: principal) predicts:\n  message = insert messages {{ chat, sender: viewer, body }}\n{guard}{indent}x = profiles[principal = viewer].displayName\n{indent}emit notify {{ recipient, text: {expression} }}\n  return message\n", source());
+                let (mut engine, mut backend) = compile(&source);
+                seed(&mut engine, profile);
+                backend.generation = engine.generation();
+                let fact = &backend.schema.operations["sendPayload"];
+                assert_eq!(fact.predicts.as_deref(), Some("eligible"));
+                assert_eq!(fact.connected_effects_only, guarded, "unguarded scenario must not depend on presence eligibility");
+                assert_eq!(fact.effect_payload_reads.len(), 1);
+                let pages = snapshot_pages(&mut engine, "alice", 20);
+                assert!(pages.iter().flat_map(|page| &page.events).all(|event| event.table != "profiles"));
+                let label = format!("effect-text-{name}-{guarded}-{profile}");
+                let mut device = host.open(&label, Some(backend)).unwrap();
+                for (i, page) in pages.iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
+                let prediction = ok(device.call(serde_json::json!({
+                    "op":"predict", "name":"sendPayload", "viewer":"alice", "now":11_000,
+                    "args":{"chat":"room", "body":"offline text", "recipient":"bob"}, "newIds":["message"],
+                })));
+                let predicted = query(&mut *device, "message", "alice", serde_json::json!({"id":"message"}), 11_000);
+                assert_eq!(predicted["data"]["pending"], true, "{label}: {predicted}");
+                assert!(engine.store().rows("messages").unwrap().is_empty());
+                assert!(engine.effects(None, 10).unwrap().is_empty());
+                let sent = engine.mutate("sendPayload", None, context("alice", &[
+                    ("chat", id("room")), ("body", Value::String("offline text".into())), ("recipient", id("bob")),
+                ]).at(11_000).with_ids(["message".into()])).unwrap();
+                let WriteState::Sent { result, .. } = sent.state else { panic!("{label}: {sent:?}") };
+                assert_eq!(without_pending(prediction["result"].clone()), snapback4_core::wire::to_json(&result), "{label}");
+                assert_eq!(without_pending(predicted["data"].clone()), snapback4_core::wire::to_json(&engine.store().rows("messages").unwrap()[0]), "{label}");
+                let effects = engine.effects(None, 10).unwrap();
+                assert_eq!(effects.len(), 1, "{label}");
+                assert_eq!(effects[0].payload.field("recipient").unwrap().as_str().unwrap(), "bob");
+                assert_eq!(effects[0].payload.field("text").unwrap().as_str().unwrap(), if profile { present } else { missing }, "{label}");
+                device.close();
+            }
+        }
+    });
+}
+
+#[test]
+fn total_text_payloads_skip_profile_reads_on_devices() {
+    text_payload_scenarios(true);
+}
+
+#[test]
+fn unguarded_payload_reads_predict_without_online_only_data() {
+    text_payload_scenarios(false);
+}
+
 #[test]
 fn effect_payload_send_predicts_offline_and_agrees_at_every_presence_state() {
     on_both(|host| {
