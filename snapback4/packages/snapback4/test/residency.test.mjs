@@ -266,7 +266,7 @@ for (const tier of ["wasm", "native"]) {
       const online = await client.query(query(name), { p: "dev:bob" });
       assert.deepEqual(online.data, name === "wrappedPresence" ? [{ online: false }] : { id: "dev:bob", online: false });
       const raw = f.deviceAnswers.findLast(answer => answer.name === name);
-      assert.equal(raw.speculative, true); assert.equal(raw.held, false);
+      assert.equal(raw.speculative, true);
     }
     f.offline(true); await client.sync();
     for (const name of ["wrappedPresence", "identifiedPresence"]) {
@@ -278,7 +278,7 @@ for (const tier of ["wasm", "native"]) {
     assert.deepEqual(shaped.data, [{ text: "local three", at: 3 }, { text: "local two", at: 2 }]);
     assert.equal(shaped.complete, false); assert.equal(shaped.fresh, false);
     const raw = f.deviceAnswers.findLast(answer => answer.name === "shapedNotes");
-    assert.equal(raw.speculative, false); assert.equal(raw.held, true); assert.equal(raw.unknown, true);
+    assert.equal(raw.speculative, false); assert.equal(raw.unknown, true);
   });
 }
 test("rule 5: a real process device never recovers private memory after its permit expiry", { timeout: 20000 }, async t => {

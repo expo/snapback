@@ -175,12 +175,7 @@ fn expired_boundary_on<H: Host>(mut host: H) {
         host.close(&name, device);
     }
     assert_expired_boundary(&worlds[0], &worlds[1]);
-    assert_eq!(wires[0]["ok"]["held"], true, "the complete control read held rows");
-    assert_eq!(wires[1]["ok"]["held"], false, "the examined prefix stopped before a held row");
     let mut expected = wires[0].clone();
-    // Like the existing data/complete/cut/next differences, provenance follows
-    // the actual prefix: the cut returned no row, the complete control did.
-    expected["ok"]["held"] = serde_json::json!(false);
     expected["ok"]["data"] = serde_json::json!([]);
     expected["ok"]["complete"] = serde_json::json!(false);
     expected["ok"]["cut"] = serde_json::json!("meter");

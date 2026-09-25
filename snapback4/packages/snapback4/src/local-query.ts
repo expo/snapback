@@ -4,7 +4,8 @@
 // 3. The engine decides unavailability (or the query could not run): offline,
 //    intersecting prediction, or held => loading; otherwise try original args.
 // 4. Unknown non-speculative values remain partial data. Speculative values
-//    recover unexpired memory or loading/E_OFFLINE; when fenced, keep held data.
+//    (including refusals) recover unexpired memory or loading/E_OFFLINE, and
+//    stay loading while fenced. Independent retained components keep local data.
 // 5. Recheck session and P ∩ S before any external answer lands. S is static
 //    (opaque programs read everything), narrowed only by a known COMPLETE L.
 //    Remembered answers share this fence; freshness is decided at publication.
@@ -15,7 +16,7 @@ import type { Queued } from "./local-types.ts";
 
 type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
-type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; held?: boolean; denied?: Refusal };
+type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
@@ -55,11 +56,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const key = `${op.name}:${JSON.stringify(args)}`;
   let remember = true;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
-  let fenced = false;
   // Missing provenance from an older device is conservatively speculative.
   const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
     && latest.outcome.speculative !== false;
-  const fallback = () => placeholder() && !(fenced && latest?.outcome.held) ? loading : latest?.result ?? loading;
+  // Rule 4: only independent component coverage certifies retained history.
+  // An unrelated point hit or filtered scan cannot validate a placeholder.
+  const retainedComposition = () => latest && "data" in latest.result.read
+    && Object.values(latest.outcome.components ?? {}).some(c => c.retained);
+  const fallback = () => placeholder() && !retainedComposition() ? loading : latest?.result ?? loading;
   const localCandidate = (): Candidate<R> => ({ result: fallback(), origin: "local" });
   // Rule 1. This check also preserves the local-commit invalidation fence.
   const checkpoint = () => {
@@ -69,7 +73,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   const pending = async () => {
     const entries = await env.queued(); checkpoint();
-    return fenced = entries.some(entry => {
+    return entries.some(entry => {
       if (entry.observed_seq != null || entry.predictable !== true) return false;
       if (!entry.predicted) return true; // Legacy missing footprints are unknown.
       return [...predictedTables(entry.predicted)].some(table => possible === null || possible.has(table));

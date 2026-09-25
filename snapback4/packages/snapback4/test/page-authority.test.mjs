@@ -78,7 +78,7 @@ test('a loading server reply retires memory before a speculative transport failu
   assert.equal(unavailable.denied.code, 'E_OFFLINE', 'unfenced speculative reads have no answer after loading retires memory');
   const local = (await f.core().call({ op: 'query', name: 'serverPage', viewer: 'dev:alice', args: {}, now: Date.now() })).ok;
   assert.equal(local.data[0].body, 'private', 'the device still holds its authorized prefix');
-  assert.equal(local.unknown, true); assert.equal(local.speculative, true); assert.equal(local.held, true);
+  assert.equal(local.unknown, true); assert.equal(local.speculative, true);
 });
 
 for (const postCommitFailure of [false, true]) test(`applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: ${postCommitFailure})`, { timeout: 30_000 }, async t => {

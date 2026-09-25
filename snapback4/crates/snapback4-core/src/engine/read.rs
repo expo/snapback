@@ -384,7 +384,6 @@ impl Runner<'_> {
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
             let live = self.live_aggregate(&read.table, row)?;
-            if self.device && live.is_some() { self.components.note(|frame| frame.held = true); }
             Ok(super::recorded::public_image(table, live.unwrap_or(Value::Null)))
         } else {
             self.next_expiry = expiry_mark;
@@ -968,7 +967,6 @@ impl Runner<'_> {
                     }
                     let Some(row) = live_row else { continue; };
                     let row = super::recorded::public_image(table, row);
-                    if self.device { self.components.note(|frame| frame.held = true); }
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;
