@@ -49583,3 +49583,129 @@ crosses the hidden count's 9/10 digit boundary and includes a folded query;
 papers, 9,239 refs, zero errors and zero unchecked refs. The report is
 `/home/ccheever/sb5/lane-b3.r3.final.md`. Commit only on `sb5/b3-row-keyed-view`;
 no push, publication, or deployment.
+
+## 2026-09-25 — Lane B3 round 4: generated populations, parent moves, and expiry
+
+Read Astra's saved scratch builder and both round-4 reviews before changing
+implementation. The paired-world builder/observer remains; the scenario side
+now generates a parent-visibility graph, population bucket edges (0, 1, 2,
+1,200, 10,000, plus the reviewers' 1/1,200 edge), source read rules, destination
+sizes, and expiry clocks. Every generated history includes owner mark writes;
+move histories traverse both directions. The public and membership-inherited
+controls run, while unsupported independent access/sender/deny audiences must
+refuse before any population is installed. Independent count oracles check
+five-to-two moves, zero/pending destination fallbacks, and correction meters.
+
+There are 360 generated scenario pairs: 90 executable, 270 admission refusals.
+Keeping the 16 legacy server pairs and adding both Astra scratch inputs plus
+three Grok born-expired populations gives 381 pairs (96 executable, 285 refused).
+Device coverage increases from 15 to the same 381, including the former
+server-only digit boundary. Executable generated pairs compare memory and
+file-backed SQLite servers through every recount commit to quiescence. Both
+device stores compare prediction, admission, durable outbox contents, settlement,
+confirmed stream images, and reacquisition; settled outboxes must empty. Rejected
+schemas are tested at compilation, raw server admission, and both device opens;
+they are explicitly not counted as runtime lifecycle executions.
+
+Chose the commissioned interim E_VIEW_KEY limit. The log sequence and /changes
+are global, so filtering view events alone cannot hide recount cardinality.
+Supporting a broader member audience would require a different log/watermark
+protocol; no byte cost is claimed for an unimplemented alternative. Admission
+allows public sources, the same parent grant on source/member, or a unique,
+non-expiring member witness with the corresponding owner read rule. Other
+source/member audiences refuse. The server checks construction, adoption and
+stored-backend reopening; devices check open/adoption before installation.
+LLP 3000.015 §3 and the maintains card name this limit and the residual global
+activity channel. No principal-specific commit sequence is claimed.
+
+Moving a member clears its previous-domain pending fallback. Completed deltas
+still require the same-parent guard; the new forward/reverse transition oracle
+kills its removal. Born-expired source writes are physically retired in their
+transaction before contribution maintenance, with deletion index work metered;
+there is no later contribution to subtract. Two tests that intended live rows
+now seed explicitly at their simulated clock instead of wall-clock time.
+Bounded unfinished expiry corrections publish zero/pending; their internally
+metered scans restore the public meter and charge one examined unit and one
+step. An expiring view already pending on a mark also publishes zero, closing
+another bypass around live correction. This supersedes round 3's journal note
+retaining the raw total on an unfinished correction. Non-expiring settled
+fallbacks remain only inside their original parent domain.
+
+Nine distinct mutations are killed: old-domain pending base, audience proof,
+same-parent delta guard, raw overflow value, retaining born-expired inputs,
+variable public correction meter, uncharged internal expiry walk, device
+admission bypass, and the pending-expiry bypass. The parent mutations were
+repeated after adding the pending-expiry check; production files were restored
+byte-for-byte after each experiment. Evidence: target/b3-r4-mutation-*.log,
+target/b3-r4-mutations.log and target/b3-r4-mutations-pending.log. The final
+focused language/engine run passes all 29 tests.
+
+The wasm build on Rust 1.97.0 / wasm-bindgen 0.2.127, without wasm-opt, measures
+1,792,729 B raw / 500,651 B gzip. Relative to round 3's recorded
+1,790,471 / 499,725 this is +2,258 raw / +926 gzip, a whole-artifact difference
+for the device admission fence, domain fallback handling and born-expired
+retirement with index accounting, including pending-expiry reads. No independent
+component attribution is claimed. The inherited 500,000 B ratchet is exceeded
+by 651 B; raise to 501,000 B, leaving 349 B. No runtime meter ceiling changes.
+
+Accepted residuals are explicit: formerly live expired inputs can select the
+pending bit and mark-recount chunk counts until swept; count-dependent writes
+then refuse incomplete values. Values remain zero while expiring counts are
+pending. Global activity from other principals, wall-clock time and resource
+contention are not masked. Old stored expired rows use correction until swept.
+The independent source/member combinations in the reported Astra attacks are
+refused, not declared confidential while still producing recount traffic.
+
+Final-generator audit extended the preceding counts with 90 executable shared
+access-grant cases: **450 generated pairs (180 executable / 270 refused)** and
+**471 total pairs on each device store (186 executable / 285 refused)**. The
+new directed grant graph covers actual hidden-to-readable, readable-to-hidden,
+and hidden-to-hidden transitions in admitted schemas. It exposed another
+scheduling leak: blind owner marks with hidden populations 1/1,200 ended the
+same four-operation history at watermark 5 versus 20. A non-system member
+insert/update now requires its destination source group to be readable to its
+writer; otherwise E_VIEW_KEY refuses before the source scan and the write rolls
+back. Devices queue missing coverage and settle the server refusal. Source
+and member deletion do not need a recount. The spec and guide state this
+runtime limit alongside the declaration limit. The dedicated shared-grant test
+asserts the refusal, unchanged mark, and complete paired transcript.
+
+The first full run finished `== 1 failure(s) in 755 s`: the client stage's codec
+census found direct serde calls in the new test-only internal-meter module.
+The fixture now uses the existing json_codec funnel; all 26 isolated census
+tests pass. No census rule or assertion changed. Its scan test also asserts
+that both examined and step ceilings actually stop the correction. The initial
+full log is target/b3-r4-test-first.log and is not counted as qualification.
+
+The runtime check also requires the new member image to be readable for a
+restricted source. Otherwise its refusal could expose a private member's parent
+to a blind non-owner (source membership granted in one hidden parent, absent in
+the other). The additional parent pair runs on both devices. Public sources
+retain blind member writes. Final case totals are therefore **472 per store:
+450 generated + 16 legacy + 5 reviewer probes + 1 private-parent pair**, with
+**187 executable / 285 schema-refused**. Removing destination readability or
+member readability fails the corresponding pair; the strengthened internal scan
+test kills removal of either resource charge. This brings the distinct killed
+mutations to eleven; target/b3-r4-mutations-aligned.log records the final three.
+
+Final server-guard build repeats 1,792,729 B raw and measures **500,653 B gzip**,
++928 B gzip versus round 3, leaving **347 B** under the unchanged new
+501,000 B ratchet. This supersedes the earlier intermediate 500,651/349 numbers;
+the final two-byte movement is a whole-artifact measurement. The added private
+member/destination checks are server-only. No runtime ceiling changed.
+
+Final complete run: **`== 0 failure(s) in 698 s`**, from the exact command
+`env -u FORCE_COLOR SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash snapback4/scripts/test.sh`.
+The complete Rust inventory passes in 245 s, including all 472 paired device
+scenarios, 12 core disclosure tests, 3 device disclosure tests, and 29
+language/engine row-view tests. Client results: **1,089 passed, zero failed,
+10 existing skips** in 681 s; fixture, type, doc and release checks also pass.
+The full-suite wasm build repeats **1,792,729 B raw / 500,653 B gzip**.
+No production source or test changed during this final run. Final log:
+`snapback4/target/b3-r4-test-final.log`. Reference validation: 507 LLP documents,
+9,240 references, zero errors and zero unchecked references. The supplemental
+Postgres-feature refusal test passed (1 test, 99 filtered out), without a
+Postgres runtime claim. All eleven mutation experiments reached their targeted
+test assertions; compilation failures were not counted as kills. The report is
+`/home/ccheever/sb5/lane-b3.r4.final.md`. Commit only on `sb5/b3-row-keyed-view`;
+no push, publication, or deployment.

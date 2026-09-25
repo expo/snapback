@@ -375,6 +375,14 @@ impl Runner<'_> {
             old.as_ref()
                 .is_none_or(|old| old.field(name).ok() != u.field(name).ok())
         });
+        #[cfg(feature = "sqlite")]
+        if !self.device && !self.context.is_system()
+            && !self.schema.tables[&m.source].rules.read.device_audience_rule().is_uniformly_readable()
+            && (!self.check_rule(&k.table, crate::schema::Effect::Read, None, &u)?
+                || !self.row_view_source_readable(m, &u)?)
+        {
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "private-source member writes require a readable member and destination source group; grant access first or use a public source for blind writes (guide maintains)".into() });
+        }
         if !changed
             && !live
             && let Some(existing) = &existing
@@ -438,8 +446,13 @@ impl Runner<'_> {
         let base = existing.as_ref().map_or(0, |v| number(v, "value"));
         let total = if complete {
             if delta.is_some() { base + n } else { n }
-        } else {
+        } else if old.as_ref().is_some_and(|old|
+            old.field(&k.member_key).ok() == u.field(&k.member_key).ok()
+        ) {
+            // A settled fallback belongs to one parent counting domain only.
             base
+        } else {
+            0
         };
         let row = self.view_image(m, &u, total, !complete)?;
         self.view_put(&m.target, &row, existing.as_ref(), false)?;
@@ -638,6 +651,11 @@ impl Runner<'_> {
         }
         if pending(&row) {
             self.pending_view_read()?;
+            // An expiring fallback has no certified live basis while recounting.
+            // Do not bypass expiry correction by exposing its historical raw total.
+            if self.schema.tables[&m.source].expire.is_some() {
+                return Ok(Some(self.view_image(m, &member, 0, true)?));
+            }
             return Ok(Some(row));
         }
         // Expiry is a live fact even before the physical sweep reaches the source.
@@ -657,11 +675,16 @@ impl Runner<'_> {
                 } else {
                     self.scan_room(m)
                 };
-                let (n, complete, _) =
-                    self.view_scan(m, &member, None, &index, bounds, limit, false)?;
+                // Bound the private correction internally, then expose one constant unit.
+                let mark = self.meter.mark();
+                let correction = self.view_scan(m, &member, None, &index, bounds, limit, false);
+                self.meter.restore(mark);
+                self.meter.charge(MeterKind::Examined, 1)?;
+                self.meter.step(1)?;
+                let (n, complete, _) = correction?;
                 if !complete {
                     self.pending_view_read()?;
-                    return Ok(Some(self.view_image(m, &member, number(&row, "value"), true)?));
+                    return Ok(Some(self.view_image(m, &member, 0, true)?));
                 } else if let Value::Row(fields) = &mut row {
                     let total = fields.get("value").unwrap().as_int()? - n;
                     fields.insert("value".into(), Value::Int(total));
@@ -851,3 +874,6 @@ impl super::Engine {
         Ok(None)
     }
 }
+
+#[cfg(all(test, feature = "sqlite"))]
+mod tests;

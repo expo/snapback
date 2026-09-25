@@ -42,10 +42,48 @@ fn undelivered_hidden_expiry_does_not_change_catchup() {
 
 #[test]
 fn hidden_count_digit_boundary_keeps_query_meters_identical() {
-    let mut pair = cases::hidden_source("insertRow");
-    for seed in &mut pair.seeds {
-        seed.extend((0..9).map(|n| cases::message(&format!("padding{n}"), 5, false)));
+    cases::digit_boundary().assert_equal();
+}
+
+#[path = "row_view_disclosure/generated.rs"]
+mod generated;
+#[test]
+fn generated_populations_transitions_and_expiry() {
+    let count = generated::visit(|name, mut pair| {
+        eprintln!("{name}");
+        pair.assert_equal();
+        if !pair.refused { pair.file_store = true; pair.assert_equal(); }
+    });
+    assert_eq!(count, 450);
+}
+#[test]
+fn astra_scratch_regressions_refuse_unsupported_audiences() {
+    generated::astra_schedule().assert_equal();
+    generated::astra_move().assert_equal();
+}
+
+#[test]
+fn grok_born_expired_cardinality_is_absent_from_counts_meters_and_commits() {
+    for (population, examined) in [(3,None), (30,Some(48)), (9999,None)] {
+        let mut pair = generated::grok_born_expired(population, examined);
+        pair.assert_equal();
+        pair.file_store = true;
+        pair.assert_equal();
     }
-    pair.source.push_str("\nquery foldedCount():\n  rows = unread first 100\n  return count(rows)\n");
+}
+
+#[test]
+fn shared_grant_blind_member_write_cannot_select_hidden_recount_traffic() {
+    let pair = generated::aligned_access_hidden_mark();
+    let mut e = pair.engine(0);
+    let op = &pair.operations[0];
+    let result = e.mutate(&op.name, None, snapback4_core::Context::new(&op.principal, inputs(&e,&op.name,&op.args)).at(NOW)).unwrap();
+    assert!(matches!(&result.state, snapback4_core::WriteState::Failed { why, .. } if why.code == "E_VIEW_KEY"), "{result:?}");
+    assert_eq!(e.store().rows("members").unwrap()[0].field("readUpTo").unwrap(), &snapback4_core::Value::Int(0));
     pair.assert_equal();
+}
+
+#[test]
+fn blind_nonowner_cannot_infer_a_private_parent_from_source_admission() {
+    generated::blind_private_parent().assert_equal();
 }

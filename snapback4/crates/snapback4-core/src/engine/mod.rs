@@ -273,6 +273,7 @@ impl Engine {
     /// Activate using the owning host's clock for parent liveness and captures.
     pub fn new_at(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
+        schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
@@ -304,6 +305,7 @@ impl Engine {
     /// checked convenience copy, never an independent authority.
     pub fn new_release(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
+        schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
@@ -326,6 +328,7 @@ impl Engine {
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
         crate::schema::timeline::check_version(&schema)?;
+        schema.check_row_view_audiences()?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;
@@ -434,6 +437,7 @@ impl Engine {
 
     pub fn adopt_at(&mut self, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<u64, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
+        schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {

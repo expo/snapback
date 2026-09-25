@@ -13,6 +13,7 @@ pub struct Operation {
     pub name: String,
     pub args: Json,
     pub principal: String,
+    pub now: i64,
 }
 impl Operation {
     pub fn new(name: &str, args: Json, principal: &str) -> Self {
@@ -20,6 +21,7 @@ impl Operation {
             name: name.into(),
             args,
             principal: principal.into(),
+            now: NOW,
         }
     }
 }
@@ -29,6 +31,10 @@ pub struct Pair {
     pub principal: String,
     pub operations: Vec<Operation>,
     pub queries: BTreeMap<String, Json>,
+    pub refused: bool,
+    pub page_size: usize,
+    pub file_store: bool,
+    pub examined: Option<u64>,
 }
 impl Pair {
     pub fn new(
@@ -43,6 +49,10 @@ impl Pair {
             principal: principal.into(),
             operations: vec![operation],
             queries: BTreeMap::new(),
+            refused: false,
+            page_size: 2,
+            file_store: false,
+            examined: None,
         }
     }
     pub fn query(mut self, name: &str, args: Json) -> Self {
@@ -52,6 +62,29 @@ impl Pair {
     pub fn then(mut self, operation: Operation) -> Self {
         self.operations.push(operation);
         self
+    }
+    /// Refused configurations are checked at compilation and again as raw IR.
+    /// No fictional runtime transcript is substituted for schema admission.
+    pub fn refused_backend(&self) -> Option<(snapback4_core::Schema, Vec<snapback4_core::ir::Program>)> {
+        if !self.refused { return None; }
+        let rejected = snapback4_lang::compile(&[("schema.q".into(), self.source.clone())]);
+        assert!(rejected.diagnostics.iter().any(|d| d.code == "E_VIEW_KEY"), "{:?}", rejected.diagnostics);
+        let start = self.source.find("table messages:").unwrap();
+        let end = self.source[start..].find("  read <- ").unwrap() + start;
+        let line = self.source[end..].find('\n').unwrap() + end;
+        let mut allowed = self.source.clone();
+        allowed.replace_range(end..line, "  read <- allow");
+        let stop = allowed.find("view unread:").unwrap();
+        let block = allowed[start..stop].replace("sync to .senderId", "sync public");
+        allowed.replace_range(start..stop, &block);
+        let mut b = snapback4_lang::compile(&[("schema.q".into(), allowed)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        b.schema.tables.get_mut("messages").unwrap().rules.read = rejected.schema.tables["messages"].rules.read.clone();
+        b.schema.tables.get_mut("messages").unwrap().sync = None;
+        let programs: Vec<_> = b.programs.into_iter().map(|p|p.program).collect();
+        let error = Engine::memory(b.schema.clone(), programs.clone()).err().expect("raw schema must refuse");
+        assert_eq!(error.refusal().code, "E_VIEW_KEY", "{error}");
+        Some((b.schema, programs))
     }
     pub fn engine(&self, world: usize) -> Engine {
         let source = format!(
@@ -95,7 +128,15 @@ impl Pair {
             native: false,
             returned_shapes: Default::default(),
         });
-        let mut e = Engine::memory(b.schema, programs).unwrap();
+        let mut e = if self.file_store {
+            // An unlinked open SQLite file gives independent file-backed stores
+            // without leaving test data outside this worktree.
+            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target").join(format!("b3-pair-{}-{}.sqlite", std::process::id(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+            let store = snapback4_core::Store::open(&path).unwrap();
+            std::fs::remove_file(path).unwrap();
+            Engine::new(store, b.schema, programs).unwrap()
+        } else { Engine::memory(b.schema, programs).unwrap() };
         e.set_ceilings(snapback4_core::Ceilings::unbounded());
         let seed = e
             .mutate("pairSeed", None, Context::system().at(NOW))
@@ -104,43 +145,50 @@ impl Pair {
             matches!(seed.state, snapback4_core::WriteState::Sent { .. }),
             "{seed:?}"
         );
-        e.set_ceilings(snapback4_core::Ceilings::default());
+        let mut ceilings = snapback4_core::Ceilings::default();
+        if let Some(examined) = self.examined { ceilings.examined = examined; }
+        e.set_ceilings(ceilings);
         e
     }
     pub fn assert_equal(&self) {
-        self.assert_with(|_, _, _, _| Json::Null);
+        if self.refused_backend().is_some() { return; }
+        self.assert_with(|_, _, _, _, _| Json::Null);
     }
     /// The device counterpart observes the same pages and engine phases.
-    pub fn assert_with(&self, mut device: impl FnMut(usize, &mut Engine, &str, &[Json]) -> Json) {
+    pub fn assert_with(&self, mut device: impl FnMut(usize, &mut Engine, &str, &[Json], i64) -> Json) -> Transcript {
         let worlds = [0, 1].map(|world| {
             let mut e = self.engine(world);
             let mut transcript = Transcript::new();
+            let mut now = NOW;
             let base = e.seq().unwrap();
             let mut watermark = base;
-            let pages = snapshot(&mut e, &self.principal);
+            let pages = snapshot(&mut e, &self.principal, now, self.page_size);
             transcript.insert("initial/snapshot".into(), json!(pages));
             transcript.insert(
                 "initial/device".into(),
-                device(world, &mut e, "initial", &pages),
+                device(world, &mut e, "initial", &pages, now),
             );
             observe_queries(
                 &mut e,
                 &self.principal,
                 &self.queries,
                 "initial",
-                &mut transcript,
+                &mut transcript, now,
             );
             for (n, op) in self.operations.iter().enumerate() {
+                now = op.now;
+                transcript.insert(format!("{n}/admission"), device(world, &mut e, &format!("admit/{n}"), &[], now));
                 let args = inputs(&e, &op.name, &op.args);
                 let result = e
                     .mutate(
                         &op.name,
                         Some(&format!("operation-{n}")),
                         Context::new(&op.principal, args)
-                            .at(NOW)
+                            .at(now)
                             .with_ids([format!("new-{n}")]),
                     )
                     .unwrap();
+                transcript.insert(format!("{n}/settlement"), device(world, &mut e, &format!("settle/{n}"), &[json!(result)], now));
                 if op.principal == self.principal {
                     transcript.insert(format!("{n}/write"), serde_json::to_value(result).unwrap());
                 } else {
@@ -149,38 +197,39 @@ impl Pair {
                         "background writer refused: {result:?}"
                     );
                 }
-                let pages = stream(&mut e, &self.principal, &mut watermark);
+                let pages = stream(&mut e, &self.principal, &mut watermark, now, self.page_size);
                 transcript.insert(format!("{n}/write-stream"), json!(pages));
                 transcript.insert(
                     format!("{n}/write-device"),
-                    device(world, &mut e, "stream", &pages),
+                    device(world, &mut e, "stream", &pages, now),
                 );
                 transcript.insert(
                     format!("{n}/write-changes"),
                     json!(e.changes(base, 10000).unwrap()),
                 );
+                observe_queries(&mut e, &self.principal, &self.queries, &format!("{n}/immediate"), &mut transcript, now);
                 let mut sequence = Vec::new();
                 for tick in 0..1000 {
-                    let timeline = e.run_timeline_chunk(NOW).unwrap();
-                    let aggregate = e.run_job_chunk(NOW).unwrap();
-                    let view = e.run_view_chunk(NOW).unwrap();
+                    let timeline = e.run_timeline_chunk(now).unwrap();
+                    let aggregate = e.run_job_chunk(now).unwrap();
+                    let view = e.run_view_chunk(now).unwrap();
                     let phase = format!("{n}/background/{tick}");
                     transcript.insert(
                         format!("{phase}/changes"),
                         json!(e.changes(base, 10000).unwrap()),
                     );
-                    let pages = stream(&mut e, &self.principal, &mut watermark);
+                    let pages = stream(&mut e, &self.principal, &mut watermark, now, self.page_size);
                     transcript.insert(format!("{phase}/stream"), json!(pages));
                     transcript.insert(
                         format!("{phase}/device"),
-                        device(world, &mut e, "stream", &pages),
+                        device(world, &mut e, "stream", &pages, now),
                     );
                     observe_queries(
                         &mut e,
                         &self.principal,
                         &self.queries,
                         &phase,
-                        &mut transcript,
+                        &mut transcript, now,
                     );
                     sequence.push(e.seq().unwrap() - base);
                     if timeline.is_none() && aggregate.is_none() && view.is_none() {
@@ -193,29 +242,29 @@ impl Pair {
                     format!("{n}/changes"),
                     json!(e.changes(base, 10000).unwrap()),
                 );
-                let pages = stream(&mut e, &self.principal, &mut watermark);
+                let pages = stream(&mut e, &self.principal, &mut watermark, now, self.page_size);
                 transcript.insert(format!("{n}/stream"), json!(pages));
                 // Re-fetch older puts against the latest authorized row image.
                 transcript.insert(
                     format!("{n}/refreshed-stream"),
-                    json!(stream(&mut e, &self.principal, &mut base.clone())),
+                    json!(stream(&mut e, &self.principal, &mut base.clone(), now, self.page_size)),
                 );
                 transcript.insert(
                     format!("{n}/device"),
-                    device(world, &mut e, "stream", &pages),
+                    device(world, &mut e, "stream", &pages, now),
                 );
                 observe_queries(
                     &mut e,
                     &self.principal,
                     &self.queries,
                     &format!("{n}"),
-                    &mut transcript,
+                    &mut transcript, now,
                 );
-                let pages = snapshot(&mut e, &self.principal);
+                let pages = snapshot(&mut e, &self.principal, now, self.page_size);
                 transcript.insert(format!("{n}/snapshot"), json!(pages));
                 transcript.insert(
                     format!("{n}/reacquired-device"),
-                    device(world, &mut e, "snapshot", &pages),
+                    device(world, &mut e, "snapshot", &pages, now),
                 );
             }
             transcript
@@ -226,6 +275,7 @@ impl Pair {
             "observable differences:\n{}",
             differences.join("\n")
         );
+        worlds[0].clone()
     }
 }
 pub fn differences(a: &Transcript, b: &Transcript) -> Vec<String> {
@@ -265,6 +315,7 @@ pub fn observe_queries(
     args: &BTreeMap<String, Json>,
     phase: &str,
     out: &mut Transcript,
+    now: i64,
 ) {
     let names = e
         .programs()
@@ -274,7 +325,7 @@ pub fn observe_queries(
     for name in names {
         let mut input = args.get(&name).cloned().unwrap_or(json!({}));
         for page in 0..100 {
-            let context = Context::new(who, inputs(e, &name, &input)).at(NOW);
+            let context = Context::new(who, inputs(e, &name, &input)).at(now);
             let result = e.query(&name, context);
             out.insert(
                 format!("{phase}/query/{name}/{page}"),
@@ -291,12 +342,12 @@ pub fn observe_queries(
         }
     }
 }
-pub fn snapshot(e: &mut Engine, who: &str) -> Vec<Json> {
+pub fn snapshot(e: &mut Engine, who: &str, now: i64, size: usize) -> Vec<Json> {
     let mut pages = Vec::new();
     let mut after: Option<String> = None;
     loop {
         let p = e
-            .snapshot_acquisition_page_at(who, after.as_deref(), 2, NOW)
+            .snapshot_acquisition_page_at(who, after.as_deref(), size, now)
             .unwrap();
         let next = p.next.map(|n| n.encode());
         pages.push(json!({"snapshot":true,"after":after,"held":p.held,"acquisitions":p.acquisitions,
@@ -310,10 +361,10 @@ pub fn snapshot(e: &mut Engine, who: &str) -> Vec<Json> {
     }
     pages
 }
-pub fn stream(e: &mut Engine, who: &str, watermark: &mut u64) -> Vec<Json> {
+pub fn stream(e: &mut Engine, who: &str, watermark: &mut u64, now: i64, size: usize) -> Vec<Json> {
     let mut pages = Vec::new();
     loop {
-        let p = e.stream_at(who, *watermark, 2, NOW).unwrap();
+        let p = e.stream_at(who, *watermark, size, now).unwrap();
         pages.push(json!({"snapshot":false,"requested_watermark":*watermark,"images_at":p.images_at,"joined":p.joined,"acquisitions":p.acquisitions,
             "events":p.events.iter().map(|v|json!({"table":v.table,"kind":v.kind,"id":v.id,"data":v.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>(),
             "watermark":p.watermark,"more":p.more,"generation":e.generation()}));

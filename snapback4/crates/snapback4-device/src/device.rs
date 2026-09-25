@@ -376,6 +376,7 @@ impl<S: DeviceStore> Device<S> {
             previous.clone().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?
         } else { backend.unwrap() };
         check_version(&backend.schema)?;
+        backend.schema.check_row_view_audiences()?;
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
@@ -488,6 +489,7 @@ impl<S: DeviceStore> Device<S> {
 
     pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         check_version(&backend.schema)?;
+        backend.schema.check_row_view_audiences()?;
         backend.schema.prepare_contribution_indexes();
         let required = self.store.meta(BACKEND_REQUIRED)?;
         expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());

@@ -563,7 +563,7 @@ fn incomplete_counts_cannot_authorize_writes_or_numeric_probes() {
     let b = bound(&source);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     join(&mut e, "b", "bob", 0, 0);
-    e.seed((1..=1200).map(|n| {
+    e.seed_at((1..=1200).map(|n| {
         (
             "messages".into(),
             object([
@@ -575,7 +575,7 @@ fn incomplete_counts_cannot_authorize_writes_or_numeric_probes() {
                 ("until", Value::Int(10000)),
             ]),
         )
-    }))
+    }), 1)
     .unwrap();
     let settled = e
         .query("unreadFor", ctx(&[("member", id("b"))], 1))
@@ -751,11 +751,11 @@ fn settled_expiring_counts_use_only_the_expired_subset() {
         let b = bound(&(SOURCE.to_owned() + "\nmutation useCount(member: members):\n  n = unread[member]\n  return n\n"));
         let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
         join(&mut e, "b", "bob", 0, 0);
-        e.seed((1..=size).map(|n| {
+        e.seed_at((1..=size).map(|n| {
             let mut row = message_row(&format!("m{n:05}"), "c", n).as_object().unwrap().clone();
             row.insert("until".into(), if n % 2 == 0 || size == 10000 && n > 1 { Value::Int(10) } else { Value::Null });
             ("messages".into(), Value::Row(row.into()))
-        })).unwrap();
+        }), 1).unwrap();
         count(&mut e, "b", size);
         let out = e.mutate("useCount", None, ctx(&[("member", id("b"))], 1)).unwrap();
         assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
@@ -764,7 +764,9 @@ fn settled_expiring_counts_use_only_the_expired_subset() {
         let remaining = if size == 10000 { 1 } else { size / 2 };
         let expired = e.query("unreadFor", ctx(&[("member", id("b"))], 10)).unwrap();
         assert_eq!(expired.complete, size == 1200, "{expired:?}");
-        assert_eq!(expired.data, Value::Int(if expired.complete { remaining } else { size }));
+        assert!(expired.metered.examined < 20, "subtraction leaked its population: {expired:?}");
+        assert!(expired.metered.steps < 100, "subtraction leaked its work: {expired:?}");
+        assert_eq!(expired.data, Value::Int(if expired.complete { remaining } else { 0 }));
         let out = e.mutate("useCount", None, ctx(&[("member", id("b"))], 10)).unwrap();
         if size == 10000 {
             assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_VIEW_KEY"), "{out:?}");
@@ -994,4 +996,84 @@ fn oversized_recount_parks_without_starving_another_member() {
     assert!(e.run_view_chunk(1).unwrap().is_none());
     count(&mut e, "a-stuck", 0);
     assert!(e.store().rows("$recount:unread").unwrap().is_empty());
+}
+
+#[test]
+fn parent_moves_recount_the_new_domain_and_clear_the_pending_fallback() {
+    let source = SOURCE.replace("  expire at .until\n", "") + "\nmutation moveMember(member: members, parent: conversations):\n  update members[member] { conversationId: parent }\n";
+    for size in [2, 1200] {
+        for old_size in [1, 2, 5] {
+            let b = bound(&source);
+            let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+            join(&mut e, "b", "bob", 0, 0);
+            let rows = [("c", old_size), ("d", size)].into_iter().flat_map(|(parent, size)| {
+                (1..=size).map(move |n| ("messages".into(), message_row(&format!("{parent}{n:05}"), parent, n)))
+            });
+            e.seed_at(rows, 1).unwrap();
+            count(&mut e, "b", old_size);
+            let from = e.seq().unwrap();
+            write(&mut e, "moveMember", &[("member", id("b")), ("parent", id("d"))]);
+            let r = e.query("unreadFor", ctx(&[("member", id("b"))], 1)).unwrap();
+            assert_eq!(r.data, Value::Int(if size == 2 {2} else {0}), "{r:?}");
+            assert_eq!(r.complete, size == 2);
+            let wire = e.stream_at("alice", from, 100, 1).unwrap();
+            let image = wire.events.iter().find(|e|e.table == "unread" && e.kind == "put").unwrap().data.as_ref().unwrap();
+            assert_eq!(image.field("value").unwrap(), &r.data);
+            while e.run_view_chunk(1).unwrap().is_some() {}
+            count(&mut e, "b", size);
+            write(&mut e, "moveMember", &[("member", id("b")), ("parent", id("c"))]);
+            count(&mut e, "b", old_size);
+        }
+    }
+}
+
+#[test]
+fn completed_expiry_correction_has_one_constant_public_meter_charge() {
+    let mut observations = Vec::new();
+    for expired in [0, 3, 30] {
+        let b = bound(SOURCE);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+        join(&mut e, "b", "bob", 0, 0);
+        let mut rows = vec![("messages".into(), message_row("live", "c", 1))];
+        for n in 0..expired {
+            let mut row = message_row(&format!("expired{n}"), "c", 1).as_object().unwrap().clone();
+            row.insert("until".into(), Value::Int(10));
+            rows.push(("messages".into(), Value::Row(row.into())));
+        }
+        e.seed_at(rows, 1).unwrap();
+        let r = e.query("unreadFor", ctx(&[("member", id("b"))], 10)).unwrap();
+        assert_eq!(r.data, Value::Int(1));
+        assert!(r.complete);
+        assert!(r.metered.examined < 20 && r.metered.steps < 100, "{r:?}");
+        observations.push(serde_json::to_value(r).unwrap());
+    }
+    assert_eq!(observations[0], observations[1]);
+    assert_eq!(observations[0], observations[2]);
+}
+
+#[test]
+fn pending_expiring_count_never_bypasses_the_live_correction() {
+    let b = bound(SOURCE);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+    join(&mut e, "b", "bob", 0, 0);
+    e.seed_at((0..1200).map(|n| {
+        let mut row = message_row(&format!("expired{n:05}"), "c", 5).as_object().unwrap().clone();
+        row.insert("until".into(),Value::Int(10));
+        ("messages".into(),Value::Row(row.into()))
+    }), 1).unwrap();
+    let before = e.query("unreadFor",ctx(&[("member",id("b"))],10)).unwrap();
+    assert!(before.complete);
+    assert_eq!(before.data,Value::Int(0));
+    let from = e.seq().unwrap();
+    let out = e.mutate("mark",None,ctx(&[("member",id("b")),("readUpTo",Value::Int(6))],10)).unwrap();
+    assert!(matches!(out.state,WriteState::Sent {..}));
+    let pending = e.query("unreadFor",ctx(&[("member",id("b"))],10)).unwrap();
+    assert!(!pending.complete);
+    assert_eq!(pending.data,Value::Int(0));
+    let stream = e.stream_at("alice",from,100,10).unwrap();
+    for event in stream.events.iter().filter(|e|e.table == "unread" && e.kind == "put") {
+        assert_eq!(event.data.as_ref().unwrap().field("value").unwrap(),&Value::Int(0));
+    }
+    while e.run_view_chunk(10).unwrap().is_some() {}
+    assert_eq!(e.query("unreadFor",ctx(&[("member",id("b"))],10)).unwrap().data,Value::Int(0));
 }

@@ -152,6 +152,12 @@ impl crate::schema::Schema {
             self.tables.insert(m.work_table(), work);
         }
     }
+    pub fn check_row_view_audiences(&self) -> Result<(), crate::RuntimeError> {
+        if self.maintains.iter().any(|m| m.row_key.as_ref().is_some_and(|k| !k.audience_supported(self, &m.source))) {
+            return Err(crate::RuntimeError::Structural { code: "E_VIEW_KEY", message: "row-keyed source/member audiences are unsupported; use the same parent grant, a membership witness, or a public source (guide maintains)".into() });
+        }
+        Ok(())
+    }
     pub fn is_recount_work(&self, name: &str) -> bool {
         self.maintains
             .iter()
@@ -160,6 +166,44 @@ impl crate::schema::Schema {
 }
 
 impl RowKey {
+    /// Conservative implication, not a general theorem prover: either the source
+    /// is public, both rows use the same parent grant, or the member itself is
+    /// the source's membership witness. No source cardinality is read here.
+    pub fn audience_supported(&self, schema: &crate::schema::Schema, source: &str) -> bool {
+        use crate::schema::{RuleExpr as R, RuleTerm as T};
+        let (Some(t), Some(u)) = (schema.tables.get(source), schema.tables.get(&self.table)) else { return false; };
+        let read = t.rules.read.device_audience_rule();
+        if read.is_uniformly_readable() { return true; }
+        // A group grant must depend only on the parent, not on another source field.
+        let R::Exists { table, index, key, equalities, .. } = read.as_ref() else { return false; };
+        if !equalities.is_empty() || key.iter().any(|v| matches!(v, T::Field(f) if f != &self.source_key)) {
+            return false;
+        }
+        let mut inherited = read.clone().into_owned();
+        if let R::Exists { key, .. } = &mut inherited {
+            for term in key {
+                if *term == T::Field(self.source_key.clone()) { *term = T::Field(self.member_key.clone()); }
+            }
+        }
+        let member_read = u.rules.read.device_audience_rule();
+        if *member_read == inherited { return true; }
+        if table != &self.table || u.expire.is_some() { return false; }
+        let Some(index) = u.indexes.get(index) else { return false; };
+        let fields = index.columns();
+        if !index.unique || fields.len() != key.len() { return false; }
+        let mut parent = false;
+        let mut owner = false;
+        for (field, term) in fields.iter().zip(key) {
+            match term {
+                T::Field(f) if f == &self.source_key && field == &self.member_key => parent = true,
+                T::Viewer if *member_read == R::Eq(T::Field(field.clone()), T::Viewer)
+                    || *member_read == R::Eq(T::Viewer, T::Field(field.clone())) => owner = true,
+                _ => return false,
+            }
+        }
+        parent && owner
+    }
+
     pub fn validate(&self, schema: &crate::schema::Schema, m: &Maintain) -> Result<(), String> {
         use crate::schema::{ColumnType as C, Constraint, MaintainKind};
         let fail = || {
@@ -172,6 +216,9 @@ impl RowKey {
         ) else {
             return Err(fail());
         };
+        if !self.audience_supported(schema, &m.source) {
+            return Err("E_VIEW_KEY: row-keyed source/member audiences are unsupported: make the entire source parent group readable to every member-row reader (use the same parent grant or membership witness), or use a public source (guide maintains)".into());
+        }
         let mut projected = BTreeSet::from([
             "id".to_owned(),
             "member".into(),

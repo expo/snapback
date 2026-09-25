@@ -261,6 +261,9 @@ pub(super) fn lower(
     m: &MaintainDecl,
 ) -> Fallible<()> {
     let (key, _) = bind(&catalog.tables, m)?;
+    if !key.audience_supported(schema, &m.source) {
+        return Err(refusal(&m.site, "row-keyed source/member audiences are unsupported: every member-row reader must be able to read the entire counted parent group; use the same parent grant, a membership witness, or a public source"));
+    }
     let u = &schema.tables[&key.table];
     let read = u.rules.read.clone();
     let sync = if m.online_only {

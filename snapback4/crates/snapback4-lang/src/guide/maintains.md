@@ -622,22 +622,42 @@ horizon; retained members are not updated by prediction.
 This is LLP 3000.015's unread expression. If members also have a `joinedAt`
 position, add `and .ordinal > m.joinedAt` to exclude pre-join history. This
 lane uses integer positions until `sequence by conversationId` is available.
-Own sends and tombstones are excluded explicitly. Expiring messages stop
-contributing to live reads. Server reads, snapshots and catch-up puts subtract
-matching unswept expired rows using the parent/expiry index. A correction that
-cannot fit the allowance is `recountPending`. The sweep applies the physical
-deletion delta. Devices compute an expiring count from their covered live source
-rows; they never subtract expiry from a received count, because snapshot pages
-can straddle a deadline and catch-up can omit expired rows. Without that covered
-basis, the device reports `recountPending` and `complete: false`.
+Own sends and tombstones are excluded explicitly. A source already expired at
+its commit clock is retired in that transaction, before adding a contribution;
+it will not be subtracted later. For sources that expire after insertion,
+server reads, snapshots and catch-up puts subtract matching unswept expired
+rows using the parent/expiry index. An unfinished correction is
+`value: 0, recountPending: true`; it never exposes the stored total. An already
+pending expiring view also exposes zero, since its fallback lacks a live basis. Its
+bounded internal scan uses examined/step charges, while its public meter charges
+one examined unit and one step. Physical sweeping removes the expired
+contributions. Devices compute from covered live rows and never subtract expiry
+from a received count. Without that coverage they report pending/incomplete.
 
-A member's read rule authorizes the view row, but cannot authorize a hidden
-source contribution. The counted parent group must also be readable. If its
-read rule is not decided by that parent, or denies the reader, queries and sync
-images carry `value: 0, recountPending: true`; zero is a placeholder, not a
-certified count. Restricted-source devices also need group coverage. Private
-view scans must pin their read audience (for example, `where .principal = viewer`)
-or use a member key; an unscoped private-view scan refuses with E_VIEW_KEY.
+Every member-row reader must be able to read the whole counted parent group.
+Admission proves this for a public source, the same parent-only `exists` grant
+on source and member, or a non-expiring member whose owner read rule itself
+witnesses the source's unique `exists members[parent, viewer]` membership probe.
+Other combinations refuse with E_VIEW_KEY, including an independently owned
+member with source `read <- .senderId = viewer`, `deny`, or an unrelated
+`exists access` grant. The limit also applies to raw server schemas and device
+open/adoption. For a restricted source, a member insert/update needs both its
+new member image and destination source group readable to its writer; grant
+access before writing or moving the member. Otherwise E_VIEW_KEY refuses before
+scanning that hidden group. Public sources still allow blind member writes. Deletion needs
+no source recount. Recount commits use global watermarks and `/changes`; filtering
+the view image alone would still expose hidden cardinality through that traffic.
+A defensive unreadable-group image remains zero/pending, not a certified count.
+Private-view scans must pin their audience or use a member key.
+
+For an admitted member reader, hidden rows outside the counted parent and
+born-expired source rows do not select its mark writer's meter or background
+recount sequence. Global activity from other principals and wall-clock work are
+not hidden. The pending bit can still reveal that correction of a formerly live
+expired subset exceeds its allowance; count-dependent writes then refuse until
+sweeping settles it. Formerly live expired rows can also select mark-recount
+chunk counts until swept. The pending value stays zero. Old stored expired rows use this
+correction path until swept.
 
 A small mark change scans the changed interval in the generated parent/ordinal
 index and updates the count in that transaction. A writer who cannot read the
@@ -645,7 +665,9 @@ old member or the source group uses a recount from the new member image, so an
 old private mark or hidden predicate range cannot select its background work.
 View refreshes do not depend on whether the hidden delta is zero.
 A larger change commits the
-mark and leaves the last settled count **pending**: reads report `complete: false`.
+mark and leaves a non-expiring last settled count **pending** within the same parent:
+reads report `complete: false`. A parent change discards that fallback and
+publishes zero/pending until the new parent settles.
 The server settles a durable recount in chunks of at most 256 source rows;
 source edits and deletes during the recount adjust its already-counted prefix.
 The writer examines at most 1,024 source rows, further limited by its remaining

@@ -45,7 +45,7 @@ pub fn hidden_source(op: &str) -> Pair {
             "  expire at .until\n  read <- .senderId = viewer",
         )
         + "\nmutation insertRow():\n  insert messages { id: 'new', conversationId: 'c', ordinal: 7, senderId: viewer, until: null }\nmutation insertAbsent():\n  insert messages { id: 'new', conversationId: 'c', ordinal: 7, senderId: viewer, until: null } if absent\nmutation upsertRow():\n  upsert messages['new'] { conversationId: 'c', ordinal: 7, senderId: viewer, until: null }\nmutation updateRow():\n  update messages['hidden'] { ordinal: 7 }\nmutation deleteRow():\n  delete messages['hidden']\nquery page(c: cursor ?):\n  return unread after c first 1 by .id\n";
-    Pair::new(
+    let mut pair = Pair::new(
         source,
         [false, true].map(|t| vec![member("a", "alice", 0), message("hidden", 5, t)]),
         "alice",
@@ -62,7 +62,9 @@ pub fn hidden_source(op: &str) -> Pair {
         "mark",
         json!({"member":"a","readUpTo":8}),
         "alice",
-    ))
+    ));
+    pair.refused = true;
+    pair
 }
 pub fn hidden_conversation() -> Pair {
     let source = private_members().replacen(
@@ -139,5 +141,14 @@ pub fn hidden_expiry() -> Pair {
         row.1["until"] = json!(expiry);
         vec![member("a", "alice", 0), row]
     });
+    pair
+}
+
+pub fn digit_boundary() -> Pair {
+    let mut pair = hidden_source("insertRow");
+    for seed in &mut pair.seeds {
+        seed.extend((0..9).map(|n| message(&format!("padding{n}"), 5, false)));
+    }
+    pair.source.push_str("\nquery foldedCount():\n  rows = unread first 100\n  return count(rows)\n");
     pair
 }

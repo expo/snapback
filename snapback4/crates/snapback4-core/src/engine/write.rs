@@ -570,9 +570,22 @@ impl Runner<'_> {
         if self.device { if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new, origin)?; } }
         else if !self.event_free { partition::row_changed(self, table_name, old, new, origin)?; }
         if origin == Origin::Source {
-            self.place_assets(table_name, &table, old, new)?;
-            self.maintain(table_name, old, new)?;
-            if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
+            // @ref LLP 3000.015#3 — a source born expired never enters the count basis.
+            // Retire it now, in the same transaction, so a later correction/sweep
+            // cannot subtract a contribution which was never added. Other derived
+            // consumers see the same physical deletion (including an expiring update).
+            let new = if let Some(row) = new.filter(|row| self.expired(&table, row))
+                && self.schema.maintains.iter().any(|m| m.source == table_name && m.row_key.is_some())
+            {
+                let entries = self.tx.delete(table_name, &table, row)?;
+                self.meter.charge(MeterKind::IndexEntries, entries)?;
+                None
+            } else { new };
+            if old.is_some() || new.is_some() {
+                self.place_assets(table_name, &table, old, new)?;
+                self.maintain(table_name, old, new)?;
+                if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
+            }
         }
         Ok(())
     }
