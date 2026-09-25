@@ -264,6 +264,10 @@ const cases = {
       await app.ready;
       let settled = false;
       const writing = app.mutate(mutation, { body: "one row" }, { id }).then(value => { settled = true; return value; });
+      // Store discovery now precedes fresh admission. This receipt-recovery
+      // witness mounts against an admitted intent, with its response held.
+      for (let n = 0; n < 100 && !sends; n++) await new Promise(resolve => setTimeout(resolve, 5));
+      equal(sends, 1, "the intent was admitted before mounting its receipt lookup");
       await mount(h(AppProvider, { app }, h(Pending)));
       for (let n = 0; n < 100 && latest.last?.state !== "pending"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
       equal(latest.last?.state, "pending", "hook observed the admitted intent");
