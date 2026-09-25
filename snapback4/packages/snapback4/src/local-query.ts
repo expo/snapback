@@ -12,6 +12,7 @@
 //    Remembered answers share this fence; all data rechecks expiry, and local
 //    expiry retries locally once through rules 2–5 (then dirties a watch if
 //    still expired). Only expired memory is retired by the expiry decision.
+//    Recovery preserves local wakeups; retry transport retires the old value.
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
@@ -106,7 +107,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (last) for (const table of last.tables) tables.add(table);
     const read: Read<R> = last ? { ...last.read, fresh: false, since: Math.min(last.at, Date.now()) } as Read<R>
       : watch ? { loading: true } : { denied: env.offline() };
-    return { origin: "remembered", result: { read, tables, nextExpiry: null, serverExpiry: last?.nextExpiry ?? null } };
+    // Rules 4/5: recovery still depends on the local branch's next deadline.
+    // Its wakeup is separate from the remembered answer's server-clock expiry.
+    return { origin: "remembered", result: { read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null } };
   };
   const local = async () => {
     checkpoint();
@@ -131,7 +134,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     latest = { outcome, result: { read, tables, nextExpiry } };
     return latest;
   };
-  const server = async (provenance = false): Promise<Candidate<R>> => {
+  const server = async (provenance = false, retain = true): Promise<Candidate<R>> => {
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; }
     const fetch = async (): Promise<Candidate<R>> => {
@@ -156,13 +159,13 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     };
     // The observation may retain a previous answer during transport; only this
     // procedure publishes the returned candidate after its final checks.
-    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, retain: true }) : await fetch(); checkpoint();
+    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, retain }) : await fetch(); checkpoint();
     return result;
   };
   // @ref LLP 3000.007#20.22.1 — known meter cuts and retained history do not ask the server for the same work.
   const wantsServer = (coverage: Coverage) => !!coverage.unknown && !coverage.retained;
   // Rules 2–4 apply to every local observation, including an expiry retry.
-  const routeLocal = async (first: { outcome: Outcome; result: Result<R> }): Promise<Candidate<R>> => {
+  const routeLocal = async (first: { outcome: Outcome; result: Result<R> }, retain = true): Promise<Candidate<R>> => {
     if (!first.outcome.unknown && first.outcome.complete === true) return localCandidate(); // Rule 2.
     const withheld = "loading" in first.result.read;
     const components = Object.values(first.outcome.components ?? {});
@@ -173,7 +176,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
     const composedSince = env.lastSyncAt;
-    const remote = await server(retainedRows); checkpoint();
+    const remote = await server(retainedRows, retain); checkpoint();
     if ((!composed && !retainedRows) || withheld) return remote;
     // Rule 5 applies to refusals and loading too. An authoritative refusal of
     // the original query must not be concealed by a second local observation.
@@ -234,7 +237,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
           // note_expiry records only deadlines after the evaluation's now.
           // Reobserve once, then run the same fallback/composition/recovery.
           const refreshed = await local(); checkpoint();
-          candidate = await routeLocal(refreshed); checkpoint();
+          // Rule 5: an expired watch value cannot survive a server round trip.
+          // A purely local retry publishes directly, without a loading reset.
+          candidate = await routeLocal(refreshed, false); checkpoint();
           continue;
         }
         // A second deadline crossed in flight: keep the watch runnable when

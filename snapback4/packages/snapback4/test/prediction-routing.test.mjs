@@ -716,3 +716,32 @@ for (const mode of ["publish", "issued expiry", "server expiry"]) {
     assert.equal(f.env.serverAnswers.size, 0, "retained composition never enters whole-page memory");
   });
 }
+
+// Round 11: recovery keeps the next local branch wakeup, independently of
+// the remembered answer's validity in the server clock domain.
+for (const transport of ["offline", "failed fallback"]) for (const memory of ["missing", null, 150, 50]) for (const observing of [false, true]) {
+  test(`rules 4/5: retry recovery preserves chained deadline (${transport}, memory=${memory}, watch=${observing})`, async t => {
+    const { f, calls } = expiryRetry(t, { ...unknownRetry(true), nextExpiry: 300 });
+    f.env.serverNow = () => 50;
+    let posts = 0;
+    if (transport === "offline") f.env.link = "offline";
+    else f.env.post = async () => { posts++; f.env.link = "offline"; return { ok: false }; };
+    const key = `read:${JSON.stringify(input)}`;
+    const remembered = { read: { data: ["remembered"], complete: true, fresh: true, cut: null, next: "memory-cursor" }, at: 25, nextExpiry: memory, tables: new Set(["posts"]) };
+    if (memory !== "missing") f.env.serverAnswers.set(key, remembered);
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    assert.equal(result.nextExpiry, 300, "loading, E_OFFLINE and remembered data all keep the next local wakeup");
+    if (memory === null || memory === 150) {
+      assert.deepEqual(result.read.data, ["remembered"]);
+      assert.equal(result.read.fresh, false); assert.equal(result.read.since, 25);
+      assert.equal(result.read.next, "memory-cursor"); assert.equal(result.serverExpiry, memory);
+      assert.equal(f.env.serverAnswers.get(key), remembered, "local time cannot retire valid server-clock memory");
+    } else {
+      assert.deepEqual(result.read, observing ? { loading: true } : { denied: f.env.offline() });
+      assert.equal(result.serverExpiry, null); assert.equal(f.env.serverAnswers.size, 0);
+    }
+    assert.equal(calls(), 2); assert.equal(posts, transport === "offline" ? 0 : 1);
+    if (watch) assert.equal(watch.dirty, false, "the future deadline schedules the next observation");
+  });
+}
