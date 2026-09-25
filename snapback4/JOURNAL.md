@@ -56353,3 +56353,59 @@ remain 2.387×, below the original 5× target; packed-format measurement is stil
 unclaimed. The [round-5 report](reports/20260925-bounded-following-r5/REPORT.md)
 records each rule and publishing path, file-by-file changes, engineering
 choices, every failure, mutation harness, prior inventory and compressed logs.
+
+
+## 2026-09-25 — Lane Z round 1: event-slot review corrections
+
+Addressed the Astra/Grok round-0 NOT READY findings for LLP 3000.016 revision
+12. Slot columns now derive a separate timeline-event-slots capability: the
+actual digest-pinned U round-1 pre-slot wasm refuses installation, adoption and
+persisted reopen, with no writes on failed adoption. A genuine old backend
+still installs/adopts; slotless timeline-v2 compatibility is preserved.
+
+Merged U round-six provenance and routing (e4a3ae5c9, 1049dd31e, 6a7e3b04f),
+keeping Z's internal slot access and public-image stripping in the read-path
+conflict. Unknown owned-event reads mark speculative provenance; the pending
+own-post plus unknown conditional event query now returns loading on both
+wasm and native. There are no direct Z edits to U's local.ts/local-query.ts.
+
+Aggregate classification inspects the actual write: replies and body edits
+predict, known event inserts and removal-flag updates have named Server sites,
+and unknown insert filters, conditional branches, upserts and unreposts reach
+the runtime guard. With a synced count, a generic post operation predicts a
+reply and queues a live original. A held floored unrepost refuses without
+predicted rows and rolls its source deletion back; an online-only count permits
+it. Both guard-removal mutations failed (exit 101): the guard body and the
+independent call from timeline_remove_id. Restored code passes 21 schedules,
+replayed on actual wasm and native devices (42 passes).
+
+The snapshot walk skips the owned table when neither kind is fully synced.
+Mixed-kind pages count excluded rows against page room and preserve the last
+examined key in the existing continuation. Three instrumented storage tests
+with 4,096 events prove a seven-unit page requests/decodes at most seven owned
+rows, including more than 500 empty progressing pages in each mixed direction;
+no selected row is lost or duplicated, skipped rows are not fetched twice, and
+fully partial tables incur zero scans. No new index or cursor format was added.
+
+Full qualification at b44e768ad, with every Z correction, returned exactly
+`== 0 failure(s) in 993 s`, exit 0, using
+`SNAPBACK4_RUST_TEST_PROCESSES=8 CARGO_BUILD_JOBS=8 taskset -c 0-15 bash
+scripts/test.sh`. Rust passed in 512 s, the main client run had 1,651 passes and
+10 existing skips, and all 78 model tests passed. There were no full-suite
+failures. U's final expiry follow-up 648abea48 arrived during that run; merge
+72f6d4fdf subsequently imported only local.ts and its residency regression.
+Package typecheck/build and all 199 affected watch, authority, lifecycle,
+routing and bounded-Following client checks passed afterward (zero skips).
+The full-suite timing is not claimed as a second run after that client-only
+merge. Initial focused compiler/helper mistakes and the artifact-budget failure
+were ours, resolved and enumerated in the report; no baseline failure was fixed.
+
+The combined U/Z wasm is 1,784,180 bytes raw / 499,383 gzip, -3,434 raw / +615
+gzip versus Z round 0. The smallest rounded ratchet rises from 499,000 to
+500,000 bytes, leaving 617 bytes; no runtime ceiling changed. No new acquisition
+inventory was run: round-0 inventory belongs to its recorded artifact. Slot
+stamping, activation and image-retention semantics retain the reviewed design.
+No known open correctness failure or stopped design part remains. No push or
+publication. The supervisor owns re-review and integration; file-by-file changes,
+reproductions, artifact provenance, failure accounting and compressed evidence
+are in the [round-1 report](reports/20260925-event-slots-r1/REPORT.md).
