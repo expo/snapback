@@ -76,7 +76,7 @@ fn uniform_prefix_deadline_is_provisional_even_when_true() {
                 runner.next_expiry = prior.into();
                 let docs = &schema.tables["docs"];
                 let (allowed, pending) = runner
-                    .prefix_verdict(docs, &docs.indexes["byId"], &[], &docs.rules.read, true)
+                    .prefix_verdict("docs", docs, &docs.indexes["byId"], &[], &docs.rules.read, true)
                     .unwrap();
                 assert_eq!(allowed, probes == 2);
                 assert_eq!(
