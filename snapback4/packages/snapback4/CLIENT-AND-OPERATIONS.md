@@ -613,13 +613,15 @@ changes. Pass the next future row deadline; `null` means no timer. Cleanup is au
 
 ```ts
 import { useClient, useNow } from "snapback4/react";
-const client = useClient();
-const deadline = Math.min(...rows.flatMap(row => row.expiresAt !== null && row.expiresAt > client.now() ? [row.expiresAt] : []));
-const now = useNow(Number.isFinite(deadline) ? deadline : null);
-const visibleRows = rows.filter(row => row.expiresAt === null || row.expiresAt > now);
+function useExpiringRows<T extends { expiresAt: number | null }>(rows: T[]) {
+  const client = useClient();
+  const deadline = Math.min(...rows.flatMap(row => row.expiresAt !== null && row.expiresAt > client.now() ? [row.expiresAt] : []));
+  const now = useNow(Number.isFinite(deadline) ? deadline : null);
+  return rows.filter(row => row.expiresAt === null || row.expiresAt > now);
+}
 ```
 
-Render `visibleRows`. A null expiry never expires.
+Render the rows returned by `useExpiringRows(rows)`. A null expiry never expires.
 
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,

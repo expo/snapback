@@ -243,13 +243,15 @@ In React, `useNow(deadline)` owns the timer and responds to clock estimates:
 
 ```ts
 import { useClient, useNow } from "snapback4/react";
-const client = useClient();
-const deadline = Math.min(...rows.flatMap(row => row.expiresAt !== null && row.expiresAt > client.now() ? [row.expiresAt] : []));
-const now = useNow(Number.isFinite(deadline) ? deadline : null);
-const visibleRows = rows.filter(row => row.expiresAt === null || row.expiresAt > now);
+function useExpiringRows<T extends { expiresAt: number | null }>(rows: T[]) {
+  const client = useClient();
+  const deadline = Math.min(...rows.flatMap(row => row.expiresAt !== null && row.expiresAt > client.now() ? [row.expiresAt] : []));
+  const now = useNow(Number.isFinite(deadline) ? deadline : null);
+  return rows.filter(row => row.expiresAt === null || row.expiresAt > now);
+}
 ```
 
-Render `visibleRows`. `client.now()` estimates the server's time and never
+Render the rows returned by `useExpiringRows(rows)`. `client.now()` estimates the server's time and never
 moves backward; `null` never expires. The hook cleans up on unmount.
 
 A row past the time in the column is absent — to every reader, on every

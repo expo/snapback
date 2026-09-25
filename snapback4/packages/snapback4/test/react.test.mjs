@@ -5,7 +5,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import ts from "typescript";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -107,6 +108,8 @@ test("React hooks and reference-app lifetimes", async (t) => {
   }
 });
 
+const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS.md", import.meta.url), "utf8")
+  .match(/function useExpiringRows[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const harness = `
 import { StrictMode, act, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
@@ -200,6 +203,7 @@ async function submit() {
   });
 }
 
+${expiryRecipe}
 const cases = {
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
     let offset = 90000000, revision = 0;
@@ -210,17 +214,31 @@ const cases = {
       } });
     } });
     await client.query(query, {});
-    function Deadline({ at }) { return h("span", null, useNow(at) < at ? "visible" : "expired"); }
-    await mount(h(Deadline, { at: client.now() + 100 }), client);
-    equal(host.textContent, "visible", "the server-clock deadline begins live");
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)); });
-    equal(host.textContent, "expired", "the hook owns the deadline render");
-    await render(h(Deadline, { at: client.now() + 120000 }), client);
-    equal(host.textContent, "visible", "new server answer begins live");
+    function Typing({ rows }) { return h("span", null, useExpiringRows(rows).map(row => row.principal).join(",")); }
+    await mount(h(Typing, { rows: [{ principal: "alice", expiresAt: client.now() + 200 }] }), client);
+    equal(host.textContent, "alice", "the server-clock deadline begins live");
+    const extended = client.now() + 500;
+    await render(h(Typing, { rows: [{ principal: "alice", expiresAt: extended }] }), client);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
+    equal(host.textContent, "alice", "a replacement answer cancels its old deadline");
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, Math.max(0, extended - client.now()) + 50)); });
+    equal(host.textContent, "", "the published hook owns the replacement deadline render");
+    const timers = new Set(), schedule = window.setTimeout, cancel = window.clearTimeout;
+    window.setTimeout = (fn, delay, ...args) => { const id = schedule(fn, delay, ...args); if (delay > 100000) timers.add(id); return id; };
+    window.clearTimeout = id => { timers.delete(id); cancel(id); };
+    await render(h(Typing, { rows: [{ principal: "bob", expiresAt: client.now() + 120000 }] }), client);
+    equal(host.textContent, "bob", "new server answer begins live");
+    equal(timers.size, 1, "one future render timer");
     offset += 120000; revision++;
     await act(async () => { await client.query(query, {}); });
-    equal(host.textContent, "expired", "clock advance repaints without another row answer");
-    await unmount(); await client.close();
+    equal(host.textContent, "", "clock advance repaints without another row answer");
+    equal(timers.size, 0, "clock advance cancels the old deadline");
+    await render(h(Typing, { rows: [{ principal: "carol", expiresAt: client.now() + 120000 }] }), client);
+    equal(timers.size, 1, "the replacement answer installs its timer");
+    await unmount();
+    equal(timers.size, 0, "unmount cancels the replacement timer");
+    window.setTimeout = schedule; window.clearTimeout = cancel;
+    await client.close();
   },
   async "AppProvider switches real clients, resets account state and routes existing mutation/query hooks"() {
     const seen = [];
