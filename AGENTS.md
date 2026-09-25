@@ -32,7 +32,8 @@ bootstraps, or proofs applies there, and none of Snapback 2's checks do either.
 
 **Working on Snapback 5?** It lives in [`snapback5/`](./snapback5/README.md)
 behind its own fence: read [`snapback5/AGENTS.md`](./snapback5/AGENTS.md),
-[LLP 4000](./llp/4000-snapback5.rfc.md),
+[LLP 4001](./llp/4001-snapback5-sql-front-end.rfc.md) (the current bet),
+[LLP 4000](./llp/4000-snapback5.rfc.md) (the first bet, Shelved, with its reviews),
 [LLP 3000.015](./llp/3000.015-shared-baseline-for-snapback5.spec.md) and
 [`snapback5/JOURNAL.md`](./snapback5/JOURNAL.md). It builds over the
 `snapback4-*` crates as a sibling treatment, with Snapback 4 as the control;

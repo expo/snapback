@@ -1,6 +1,8 @@
 # Snapback 5 — agent command sheet
 
-Read [LLP 4000](../llp/4000-snapback5.rfc.md), then
+Read [LLP 4001](../llp/4001-snapback5-sql-front-end.rfc.md) (the current bet),
+then [LLP 4000](../llp/4000-snapback5.rfc.md) (the first bet, Shelved; its §4–§5 are the
+runtime design of record), then
 [LLP 3000.015](../llp/3000.015-shared-baseline-for-snapback5.spec.md), then
 this directory's [JOURNAL.md](./JOURNAL.md). Read [NOT-DOING.md](./NOT-DOING.md)
 before widening scope. LLPs for Snapback 5 are numbered **4000 and up**;
