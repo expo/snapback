@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,8 +17,8 @@ const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_devi
 const query = name => ({ kind: "query", name });
 const mutation = name => ({ kind: "mutation", name });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(check, message) {
-  const deadline = Date.now() + 15000;
+async function until(check, message, timeout = 15000) {
+  const deadline = Date.now() + timeout;
   do { if (await check()) return; await sleep(10); } while (Date.now() < deadline);
   assert.fail(message);
 }
@@ -33,7 +33,7 @@ function parked(signal) {
     }, cancel() { cleanup(); },
   }));
 }
-async function fixture(t, tier, sync = "sync public last 3 by .at", configure = source => source) {
+async function fixture(t, tier, sync = "sync public last 3 by .at", configure = source => source, native = false) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-bounded-following-"));
   mkdirSync(join(directory, "snapback"));
   let source = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/following-view.q"), "utf8");
@@ -45,6 +45,14 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
     .replaceAll("last 20 by .at", "last 2 by .at");
   source += "\nquery wide(c: cursor ?):\n  return feed last 20 by .at after c { *, post: posts[.post] }\nquery wideMetadata():\n  return feed last 20 by .at\nquery required(postId: posts):\n  p = posts[postId] ! else MISSING\n  return p\n";
   writeFileSync(join(directory, "snapback/schema.q"), "use personas alice, bob, quiet, reader\n" + configure(source));
+  if (native) {
+    cpSync(join(root, "native-fixtures/following"), join(directory, "snapback/native"), { recursive: true });
+    const manifest = join(directory, "snapback/native/Cargo.toml");
+    writeFileSync(manifest, readFileSync(manifest, "utf8").replace("../../crates/snapback4-native", join(root, "crates/snapback4-native")));
+    mkdirSync(join(directory, "snapback/generated"));
+    mkdirSync(join(root, "target/native-fixture"), { recursive: true });
+    symlinkSync(join(root, "target/native-fixture"), join(directory, "snapback/generated/native-target"), "dir");
+  }
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", url;
@@ -57,7 +65,7 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
     await exited;
     rmSync(directory, { recursive: true, force: true });
   });
-  await until(() => { assert.equal(child.exitCode, null, log); return url; }, "server did not listen");
+  await until(() => { assert.equal(child.exitCode, null, log); return url; }, "server did not listen", native ? 90000 : 15000);
   const request = async (path, persona, args) => {
     const response = await fetch(url + path, { method: "POST", headers: { "x-snapback-persona": persona, "content-type": "application/json" }, body: JSON.stringify({ args }) });
     const result = await response.json();
@@ -108,6 +116,54 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
 }
 
 for (const tier of ["wasm", "native"]) {
+  test(`bounded Following ${tier}: untaken online-only card branches remain answerable when held`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, "online only", source => source + `
+query conditional(want: bool, postId: posts) held:
+  if want:
+    return exists posts[postId]
+  return false
+query conditionalGet(want: bool, postId: posts) held:
+  if want:
+    return posts[postId]
+  return null
+`), bob = await f.open("bob");
+    for (const offline of [false, true]) {
+      bob.offline = offline; await bob.client.sync();
+      for (const [name, data] of [["conditional", false], ["conditionalGet", null]]) {
+        const before = bob.queries.length;
+        const skipped = await bob.client.query(query(name), { want: false, postId: "p3" });
+        assert.equal(skipped.data, data); assert.equal(skipped.complete, true);
+        assert.deepEqual(await bob.client.query(query(name), { want: true, postId: "p3" }), { loading: true });
+        assert.equal(bob.queries.length, before, "held queries never dispatch, including their executed card reads");
+      }
+    }
+  });
+
+  test(`bounded Following ${tier}: composed reads withhold the entire answer across the prediction fence`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, undefined, source => source + `
+query composed(c: cursor ?):
+  rows = feed last 20 by .at after c { *, post: posts[.post] }
+  edges = follows first 20
+  return { rows, edges }
+`), bob = await f.open("bob");
+    const op = query("composed"), input = { c: null };
+    bob.offline = true; await bob.client.sync();
+    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+    bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-composed", parentId: null, at: 20 });
+    assert.ok((await bob.core.call({ op: "queued" })).ok.some(e => e.predictable));
+    const before = bob.queries.length;
+    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+    assert.equal(bob.queries.length, before);
+    bob.holdWrites = false;
+    await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "composed prediction not observed");
+    const answer = await bob.client.query(op, input);
+    assert.ok(answer.data.rows.some(row => row.post.id === "own-composed"));
+    assert.ok(answer.data.rows.some(row => row.post.id === "old"));
+    bob.failQueries = true;
+    assert.deepEqual(await bob.client.query(op, input), { loading: true });
+  });
+
   test(`bounded Following ${tier}: exact offline pages, original-cursor fallback and quiet authors`, { timeout: 30000 }, async t => {
     const f = await fixture(t, tier), bob = await f.open("bob");
     const first = await bob.client.query(query("cards"), { c: null });
@@ -310,3 +366,48 @@ query cut(c: cursor ?):
     assert.equal((await alice.client.query(query("crossing"), input)).data.length, 201, "unpredicted intent does not fence fallback");
   });
 }
+
+test("bounded Following native query module: executed dependencies fence fallback until prediction observation", { timeout: 120000 }, async t => {
+  const f = await fixture(t, "native", undefined, source => source + `
+query native_cards(postId: posts, c: cursor ?): native
+query native_held(postId: posts, c: cursor ?) held: native
+`, true), bob = await f.open("bob");
+  assert.ok((await bob.core.call({ op: "state" })).ok.native, "the actual guest module is installed");
+  const program = (await bob.core.call({ op: "backend" })).ok.programs.find(p => p.name === "native_cards");
+  assert.equal(program.native, true); assert.deepEqual(program.body, [], "there are no static Quarry dependencies");
+  const first = await bob.client.query(query("cards"), { c: null });
+  const input = { postId: "old", c: first.next }, op = query("native_cards");
+  const raw = (await bob.core.call({ op: "query", name: op.name, viewer: "dev:bob", args: input, now: Date.now() })).ok;
+  assert.equal(raw.loading, true, "native_query must propagate query_unavailable");
+  assert.equal(raw.unknown, true); assert.equal("data" in raw, false); assert.equal("next" in raw, false);
+  assert.ok(raw.tables.includes("posts") && raw.tables.includes("feedFeed"));
+  bob.offline = true; await bob.client.sync();
+  assert.deepEqual(await bob.client.query(op, input), { loading: true });
+  assert.equal((await bob.client.query(op, { postId: "p3", c: null })).data.original.id, "p3", "held native reads still answer offline");
+  bob.offline = false; await bob.client.sync();
+  const beforeHeld = bob.queries.length;
+  assert.deepEqual(await bob.client.query(query("native_held"), input), { loading: true });
+  assert.equal(bob.queries.length, beforeHeld);
+  const remote = await bob.client.query(op, input);
+  assert.equal(remote.data.original.id, "old"); assert.equal(remote.data.cursor, input.c);
+  assert.deepEqual(bob.queries.at(-1), { path: "/q/native_cards", args: input });
+  bob.failQueries = true;
+  assert.deepEqual(await bob.client.query(op, input), { loading: true }, "no remembered server answer on transport failure");
+  bob.failQueries = false; await bob.client.sync(); bob.holdWrites = true;
+  const pending = await bob.client.mutate(mutation("post"), { postId: "own-native", parentId: null, at: 20 });
+  assert.equal(pending.state, "pending");
+  assert.ok((await bob.core.call({ op: "queued" })).ok.some(e => e.predictable && e.observed_seq == null));
+  const before = bob.queries.length;
+  assert.deepEqual(await bob.client.query(op, input), { loading: true });
+  assert.equal(bob.queries.length, before, "server data cannot replace an unobserved native prediction");
+  bob.holdSync = true; bob.holdWrites = false;
+  await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "native prediction not acknowledged");
+  assert.deepEqual(await bob.client.query(op, input), { loading: true });
+  assert.equal(bob.queries.length, before);
+  bob.holdSync = false; f.releaseSync();
+  await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "native prediction not observed");
+  const observed = await bob.client.query(op, input);
+  assert.ok(observed.data.rows.some(row => row.postId === "own-native"));
+  assert.equal(observed.data.original.id, "old");
+  assert.deepEqual(observed.data, (await f.request("/q/native_cards", "bob", input)).data);
+});

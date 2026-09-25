@@ -1,19 +1,10 @@
 import type { Query } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
-import type { BackendJson, ProgramJson, SchemaJson } from "./backend.ts";
+import type { BackendJson, SchemaJson } from "./backend.ts";
 
-export function followingReads(schema: SchemaJson, tables: Set<string>, program?: ProgramJson) {
+export function followingReads(schema: SchemaJson, tables: Set<string>): boolean {
   const sources = schema.timelines?.flatMap(t => [t.posts[0], t.reposts[0]]) ?? [];
-  const online = new Set(sources.filter(name => !schema.tables[name]?.sync));
-  const pointRead = (value: unknown): boolean => {
-    if (!value || typeof value !== "object") return false;
-    return Object.entries(value).some(([kind, child]) =>
-      (["Get", "Exists"].includes(kind) && online.has((child as { table?: string })?.table ?? "")) || pointRead(child));
-  };
-  return {
-    following: sources.some(name => tables.has(name)) || !!schema.timelines?.some(t => tables.has(`${t.name}Feed`)),
-    remoteCard: online.size > 0 && pointRead(program?.body),
-  };
+  return sources.some(name => tables.has(name)) || !!schema.timelines?.some(t => tables.has(`${t.name}Feed`));
 }
 
 // @ref LLP 3000.016#2.2 — one precedence before server-run and remembered-answer shortcuts.

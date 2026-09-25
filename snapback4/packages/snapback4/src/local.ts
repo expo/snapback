@@ -916,7 +916,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const tables = program && schema ? operationTables(program, schema) : new Set<string>();
     if (partitionDenied) return { read: { denied: partitionDenied }, tables, nextExpiry: null };
     const held = schema.operations?.[op.name]?.held ?? program?.held ?? op.held ?? false;
-    const { following, remoteCard } = followingReads(schema, tables, program);
+    const following = () => followingReads(schema, tables);
     const pending = async () => (await queued()).some((e) => e.observed_seq == null && e.predictable === true);
     const key = `${op.name}:${JSON.stringify(args)}`;
     const remembered = () => {
@@ -977,14 +977,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return { outcome, result: { read, tables, nextExpiry }, terminal: !!(unavailableWhy || answer.denied) };
     };
     const loading = { read: { loading: true } as Read<R>, tables, nextExpiry: null as number | null };
-    const withheld = () => routeWithheld(link === "online", held, pending, loading, () => server(() => loading, false));
-    // Required online-only cards enter the same router before any shortcut.
-    if (remoteCard) return withheld();
-    let first = following && partitionCurrent && (!program?.native || nativeReady) ? await local() : undefined;
+    const withheld = (fallback = () => server(() => loading, false)) => routeWithheld(link === "online", held, pending, loading, fallback);
+    // Executed reads decide availability; native modules supply their dependencies in `tables`.
+    const isWithheld = (outcome: Outcome) => outcome.loading && outcome.unknown && followingReads(schema, new Set(outcome.tables));
+    let first = following() && partitionCurrent && (!program?.native || nativeReady) ? await local() : undefined;
     if (first?.terminal) return first.result;
-    if (first?.outcome.loading && first.outcome.unknown) return withheld();
+    if (first && isWithheld(first.outcome)) return withheld();
     // A reset cannot certify old rows; preserve the normal routing of other queries.
-    if (!partitionCurrent) return following ? withheld() : link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true };
+    if (!partitionCurrent) return following() ? withheld() : link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true };
     if (program?.native && !nativeReady) {
       if (link === "online") nativeReady = await installNative(aborter.signal);
       if (!nativeReady) return link === "online" ? server() : remembered();
@@ -992,7 +992,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!held && runsOnServer(backend!, op, nativeReady)) return link === "online" ? server() : remembered();
     first ??= await local();
     if (first.terminal) return first.result;
-    if (following && first.outcome.loading && first.outcome.unknown) return withheld();
+    if (isWithheld(first.outcome)) return withheld();
     if ("loading" in first.result.read) return !held && link === "online"
       ? server(() => first!.result, true, true) : first.result;
     const { outcome } = first;
@@ -1009,8 +1009,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!("data" in remote.read)) return remote;
       const second = await local();
       if (revision !== incarnation) return { read: { loading: true }, tables, nextExpiry: null };
+      if (second.terminal) return second.result;
+      if (isWithheld(second.outcome)) return withheld(async () => remote);
       if (!failed && "loading" in second.result.read && link === "online") return remote;
-      if (second.terminal || !("data" in second.result.read) || failed || link !== "online" || await pending()) return second.result;
+      if (!("data" in second.result.read) || failed || link !== "online" || await pending()) return second.result;
       const coverage = Object.entries(second.outcome.components ?? {});
       const retained = coverage.filter(([, c]) => c.retained);
       if (!retained.length) return remote;
