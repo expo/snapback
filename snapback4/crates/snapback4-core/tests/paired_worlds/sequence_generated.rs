@@ -164,3 +164,82 @@ pub fn address_cases() -> Vec<Case> {
     }
     cases
 }
+
+/// Compound write rules keep their final authority fixed while an unreadable
+/// first witness changes the evaluation path. Each rule is crossed with all
+/// effects, sequence/ordinary columns, read authority and probe exhaustion.
+pub fn compound_write_case(shape: &str, effect: &str, sequence: bool, readable: bool, reads: usize, ceiling: Option<u64>) -> Case {
+    let first = "exists grants[parent = .parent, who = viewer, kind = 'first']";
+    let stable = "exists grants[parent = .parent, who = viewer, kind = 'stable']";
+    let missing = "exists grants[parent = .parent, who = viewer, kind = 'missing']";
+    let rule = match shape {
+        "and-denied" => format!("{first} and {missing}"),
+        "or-allowed" => format!("{first} or {stable}"),
+        "or-public-allowed" => format!("{first} or exists grants[parent = .parent, who = .owner, kind = 'first'] or viewer = 'alice'"),
+        "or-denied" => format!("({first} or {missing}) and {missing}"),
+        "and-allowed" => format!("({first} and {stable}) or {stable}"),
+        _ => unreachable!(),
+    };
+    let statement = match effect {
+        "insert" => "return insert messages { parent, body: 'probe' }",
+        "update" => "return update messages[id = 'own'] { body: 'probe' }",
+        "delete" => "delete messages[id = 'own']",
+        _ => unreachable!(),
+    };
+    let source = format!("table parents:
+  public
+  online only
+table grants:
+  parent: parents
+  who: principal
+  kind: text <=10
+  unique parent, who, kind
+  read <- deny
+  online only
+table burnRows:
+  parent: parents
+  read <- exists grants[parent = .parent, who = viewer, kind = 'stable']
+  online only
+table messages:
+  parent: parents
+  ordinal: {ordinal}
+  body: text <=40
+  read <- {read}
+  {effect} <- {rule}
+  online only
+mutation probe(parent: parents):
+  for i in range(0, {reads}):
+    seen = burnRows[id = 'burn']
+  {statement}
+", ordinal = if sequence { "sequence by parent" } else { "int default 0" }, read = if readable { "allow" } else { "deny" });
+    let source = if shape == "or-public-allowed" {
+        source.replace("  body: text <=40\n", "  owner: principal default 'bob'\n  body: text <=40\n")
+    } else { source };
+    let mut common = vec![
+        ("burnRows".into(), json!({"id":"burn","parent":"p"})),
+        ("grants".into(), json!({"id":"stable","parent":"p","who":"alice","kind":"stable"})),
+    ];
+    if effect != "insert" { common.push(("messages".into(), json!({"id":"own","parent":"p","ordinal":1,"body":"old"}))); }
+    let mut hidden = common.clone();
+    hidden.push(("grants".into(), json!({"id":"secret","parent":"p","who":"alice","kind":"first"})));
+    let mut pair = Pair::new(source, [common, hidden], "alice", Operation::new("probe", json!({"parent":"p"}), "alice"));
+    pair.trusted = true;
+    pair.ceilings = ceiling.map(|rule_probes| Ceilings { rule_probes, ..Default::default() });
+    Case { label: format!("{shape}/{effect}/sequence={sequence}/readable={readable}/reads={reads}/probes={ceiling:?}"), pair }
+}
+
+pub fn compound_write_cases() -> Vec<Case> {
+    let mut cases = vec![];
+    for shape in ["and-denied", "or-denied", "and-allowed", "or-allowed"] {
+        for effect in ["insert", "update", "delete"] {
+            for sequence in [false, true] {
+                for readable in [false, true] {
+                    for (reads, ceiling) in [(0, None), (0, Some(0)), (0, Some(1)), (0, Some(2)), (0, Some(3)), (8191, None)] {
+                        cases.push(compound_write_case(shape, effect, sequence, readable, reads, ceiling));
+                    }
+                }
+            }
+        }
+    }
+    cases
+}

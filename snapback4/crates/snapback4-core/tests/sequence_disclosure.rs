@@ -132,22 +132,18 @@ fn generated_first_ordinal_page_at_examined_ceiling_one() {
 }
 
 #[test]
-fn hidden_ordinal_prefix_cannot_cut_before_the_readable_row() {
+fn hidden_ordinal_prefix_has_a_separate_internal_walk_limit() {
     use paired_worlds::*;
     use generated::{Principal, ReadRule};
-    let own = generated::row("own", "alice", 8194, "own");
-    let hidden = (1..=8193).map(|n| generated::row(&format!("h{n}"), "bob", n, &format!("h{n}"))).chain([own.clone()]).collect();
-    let mut pair = Pair::new(generated::schema(Principal::SelfReadable, ReadRule::Owner, false, false), [vec![own], hidden], "alice", Operation::new("edit", serde_json::json!({"parent":"p","body":"changed","n":8194}), "alice"))
-        .query("page", serde_json::json!({"parent":"p","c":null})).query("one", serde_json::json!({"parent":"p","n":8194}));
+    let hidden = (1..=8193).map(|n| generated::row(&format!("h{n}"), "bob", n, &format!("h{n}"))).chain([generated::row("own", "alice", 8194, "own")]).collect();
+    let mut pair = Pair::new(generated::schema(Principal::SelfReadable, ReadRule::Owner, false, false), [vec![], hidden], "alice", Operation::new("add", serde_json::json!({}), "alice"));
     pair.trusted = true;
     pair.ceilings = Some(snapback4_core::Ceilings { examined: 1, ..Default::default() });
-    pair.assert_equal();
-    for world in 0..2 {
-        let mut e = pair.engine(world);
-        let page = e.query("page", snapback4_core::Context::new("alice", inputs(&e, "page", &serde_json::json!({"parent":"p","c":null})))).unwrap();
-        assert_eq!(page.data.as_array().unwrap().len(), 1);
-        assert!(page.capped_at.is_none());
-    }
+    let mut e = pair.engine(1);
+    let page = e.query("page", snapback4_core::Context::new("alice", inputs(&e, "page", &serde_json::json!({"parent":"p","c":null})))).unwrap();
+    assert!(page.data.as_array().unwrap().is_empty(), "the internal walk must stop before own ordinal 8194");
+    assert!(!page.complete);
+    assert!(page.next.is_none(), "a hidden key cannot become a continuation");
 }
 
 #[test]
@@ -287,6 +283,84 @@ fn underfilled_and_full_caps_disclose_only_unreadable_occupancy() {
                     assert_eq!(why.code, "E_RULE");
                 }
             }
+        }
+    }
+}
+
+#[test]
+fn denied_compound_insert_reserves_whole_rule_before_any_witness() {
+    use snapback4_core::{Context, WriteState};
+    for readable in [false, true] {
+        for (reads, ceiling) in [(0, Some(1)), (8191, None)] {
+            let case = generated::compound_write_case("and-denied", "insert", true, readable, reads, ceiling);
+            case.pair.assert_equal();
+            for world in 0..2 {
+                let mut e = case.pair.engine(world);
+                let args = paired_worlds::inputs(&e, "probe", &serde_json::json!({"parent":"p"}));
+                let out = e.mutate("probe", None, Context::new("alice", args).at(paired_worlds::NOW).with_ids(["new".into()])).unwrap();
+                let WriteState::Failed { why, .. } = out.state else { panic!("{}: {out:?}", case.label) };
+                assert_eq!(why.code, "E_BOUND", "{}", case.label);
+                assert_eq!(out.metered.rule_probes, reads as u64 + 2, "reserve both probes before either witness");
+            }
+        }
+    }
+}
+
+#[test]
+fn generated_compound_write_rules_at_probe_boundaries() {
+    let cases = generated::compound_write_cases();
+    assert_eq!(cases.len(), 288);
+    let mut failed = vec![];
+    for case in cases {
+        if std::panic::catch_unwind(|| case.pair.assert_equal()).is_err() { failed.push(case.label); }
+    }
+    assert!(failed.is_empty(), "compound write pairs with differences: {failed:?}");
+}
+
+#[test]
+fn walk_bound_pages_are_identical_beyond_the_limit_in_both_directions() {
+    use paired_worlds::*;
+    use generated::{Principal, ReadRule};
+    use serde_json::json;
+    use snapback4_core::{Ceilings, Context};
+    for descending in [false, true] {
+        let source = generated::schema(Principal::SelfReadable, ReadRule::Owner, false, false)
+            .replace("first 1 by .ordinal", if descending { "last 1 by .ordinal" } else { "first 1 by .ordinal" });
+        let own = generated::row("own", "alice", if descending { 1 } else { 9000 }, "own");
+        let seeds = [8193, 8201].map(|count| (2..=count + 1)
+            .map(|n| generated::row(&format!("h{n}"), "bob", n, &format!("h{n}")))
+            .chain([own.clone()]).collect());
+        let mut pair = Pair::new(source, seeds, "alice", Operation::new("add", json!({}), "alice"));
+        pair.trusted = true;
+        // A full allowance is prepaid even with only one logical examined unit.
+        pair.ceilings = Some(Ceilings { examined: 1, ..Default::default() });
+        let pages = [0, 1].map(|world| {
+            let mut e = pair.engine(world);
+            let page = e.query("page", Context::new("alice", inputs(&e, "page", &json!({"parent":"p","c":null})))).unwrap();
+            assert!(page.data.as_array().unwrap().is_empty());
+            assert!(page.next.is_none());
+            assert!(!page.complete);
+            assert_eq!(page.metered.examined, 1);
+            assert!(page.capped_at.is_none(), "the physical stop is not a population-dependent logical cut");
+            serde_json::to_value(page).unwrap()
+        });
+        assert_eq!(pages[0], pages[1]);
+    }
+}
+
+#[test]
+fn grok_allowed_compound_insert_does_not_reserve_paid_probes_again() {
+    use snapback4_core::{Context, WriteState};
+    for (reads, ceiling) in [(0, Some(5)), (0, Some(6)), (8187, None)] {
+        let case = generated::compound_write_case("or-public-allowed", "insert", true, true, reads, ceiling);
+        case.pair.assert_equal();
+        for world in 0..2 {
+            let mut e = case.pair.engine(world);
+            let args = paired_worlds::inputs(&e, "probe", &serde_json::json!({"parent":"p"}));
+            let out = e.mutate("probe", None, Context::new("alice", args).at(paired_worlds::NOW).with_ids(["new".into()])).unwrap();
+            let WriteState::Sent { result, .. } = out.state else { panic!("{}: {out:?}", case.label) };
+            assert_eq!(result.field("ordinal"), Ok(&snapback4_core::Value::Int(1)));
+            assert_eq!(out.metered.rule_probes, reads as u64 + 2, "both witnesses are prepaid exactly once");
         }
     }
 }

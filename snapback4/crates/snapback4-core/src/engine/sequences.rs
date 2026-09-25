@@ -1,6 +1,6 @@
 //! Transactional per-parent ordinals and device suffix predictions.
 // @ref LLP 3000.015#2 — the counter is shared across tables and commits only with the write.
-use super::runner::Runner;
+use super::{runner::Runner, authorized_scan::Authorization};
 use crate::rows::word_heap;
 use crate::{
     error::{MeterKind, RuntimeError},
@@ -33,8 +33,8 @@ impl Runner<'_> {
     /// The insert image is supplied, unlike a write target's hidden old row.
     /// Reserve its exact copy and static authorization/counter allowance before
     /// learning a read witness; do not reserve schema-maximum hidden payloads.
-    pub(super) fn reserve_sequence_authorization(&mut self, table: &Table, row: &Value) -> Result<(), RuntimeError> {
-        let probes = super::rules::rule_probes(&table.rules.read).saturating_add(super::rules::rule_probes(&table.rules.insert).saturating_mul(2));
+    pub(super) fn reserve_sequence_authorization(&mut self, table: &Table, row: &Value, insert_checks: u64) -> Result<(), RuntimeError> {
+        let probes = super::rules::rule_probes(&table.rules.read).saturating_add(super::rules::rule_probes(&table.rules.insert).saturating_mul(insert_checks));
         for (kind, amount, used, ceiling) in [
             (MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
             (MeterKind::IndexEntries, table.sequences.len() as u64, self.meter.used.index_entries, self.meter.ceilings.index_entries),
@@ -63,7 +63,7 @@ impl Runner<'_> {
         let Some(position) = index.columns().iter().position(|field| table.sequences.contains_key(field)) else { return Ok(()); };
         let arity = index.components.len() + 1;
         let stable = &prefix[..prefix.len().min(position)];
-        let dependent = self.authorized_scan(&[], |runner| runner.device_work(|runner| {
+        let dependent = self.authorized_scan(&[], |runner, _| runner.device_work(|runner| {
             let mut bounds = Bounds::default();
             loop {
                 let rows = runner.tx.scan_metered(name, index_name, stable, &bounds, Dir::Asc, 1, &mut runner.meter)?;
@@ -86,12 +86,12 @@ impl Runner<'_> {
         Ok(false)
     }
 
-    pub(super) fn evaluate_sequence_rule(&mut self, name: &str, rule: &RuleExpr, effect: Effect, old: Option<&Value>, next: &Value) -> Result<bool, RuntimeError> {
+    pub(super) fn evaluate_sequence_rule(&mut self, allowance: &Authorization, name: &str, rule: &RuleExpr, effect: Effect, old: Option<&Value>, next: &Value) -> Result<bool, RuntimeError> {
         let next_provisional = self.device && (effect == Effect::Insert || self.is_provisional(name, next)?);
         let old_provisional = old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false);
         let viewer = self.context.viewer.clone();
         super::rules::evaluate(rule, &viewer, old, next, effect == Effect::Insert, &mut SequenceProbe {
-            runner: self, table: name, old: old_provisional, next: next_provisional,
+            runner: self, allowance, table: name, old: old_provisional, next: next_provisional,
         })
     }
 
@@ -174,9 +174,9 @@ impl Runner<'_> {
             let previous = if let Some(value) = values.get(&key) {
                 *value
             } else if self.device {
-                self.authorized_scan(&[], |runner| runner.device_work(|runner| runner.sequence_floor(parent, &id)))?
+                self.authorized_scan(&[], |runner, _| runner.device_work(|runner| runner.sequence_floor(parent, &id)))?
             } else {
-                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner| runner.tx.sequence_value(parent, &id))?
+                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner, _| runner.tx.sequence_value(parent, &id))?
             };
             let next = if previous >= crate::value::I53_MAX {
                 if self.device {
@@ -269,6 +269,7 @@ impl Runner<'_> {
 /// Dependency tracking follows rule evaluation, including its short circuits.
 struct SequenceProbe<'a, 'b> {
     runner: &'a mut Runner<'b>,
+    allowance: &'a Authorization,
     table: &'a str,
     old: bool,
     next: bool,
@@ -279,10 +280,10 @@ impl super::rules::Probe for SequenceProbe<'_, '_> {
             && self.runner.schema.tables[self.table].sequences.contains_key(field);
     }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
-        super::rules::Probe::exists(self.runner, table, index, key, equalities)
+        super::rules::Probe::exists(&mut super::read::RuleProbe { runner: self.runner, allowance: self.allowance }, table, index, key, equalities)
     }
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool {
-        super::rules::Probe::created(self.runner, table, index, key)
+        self.runner.created(table, index, key)
     }
 }
 

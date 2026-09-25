@@ -60,7 +60,10 @@ impl Runner<'_> {
         if !table.sequences.is_empty() {
             // Admission reserves the worst case before either read verdict;
             // restoring a refusal alone cannot hide a boundary abort.
-            self.reserve_sequence_authorization(table, &row)?;
+            // An independent insert rule was already prepaid and evaluated.
+            // Only still-pending checks belong in this preflight allowance.
+            let insert_checks = if authorized { 0 } else { 1 + u64::from(upsert_index.is_some() && supplied_sequence.is_ok()) };
+            self.reserve_sequence_authorization(table, &row, insert_checks)?;
         }
         // @ref LLP 3000.015#2 — an unreadable allocation cannot expose counter,
         // uniqueness or cap state, even to a principal allowed to insert.
@@ -70,7 +73,7 @@ impl Runner<'_> {
         if let Err(error) = supplied_sequence {
             // @ref LLP 3000.007#17 — absent upserts decide insert authority before field diagnostics.
             // A target key may supply an ordinal even when the patch does not.
-            if !self.check_rule(table_name, Effect::Insert, None, &row)? {
+            if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
                 return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
             }
             return Err(if upsert_index.is_some() { self.no_write_target() } else { error });
@@ -131,7 +134,7 @@ impl Runner<'_> {
             } else { "byId" };
             self.prove_upsert_insert(table_name, index, &row)?;
         }
-        let existing = self.authorized_scan(&[(MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner| {
+        let existing = self.authorized_scan(&[(MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, _| {
             let existing = runner.tx.get(table_name, &id)?;
             if let Some(row) = &existing && !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
             Ok(existing)
@@ -461,7 +464,7 @@ impl Runner<'_> {
                         (MeterKind::IndexEntries, 1),
                         (MeterKind::Examined, if private_cap { *max as u64 } else { 0 }),
                         (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 }),
-                    ], |runner| {
+                    ], |runner, _| {
                         if table.expire.is_none() && !private_cap {
                             return runner.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1);
                         }
@@ -495,8 +498,8 @@ impl Runner<'_> {
 
     fn collision_lookup(&mut self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value], except: Option<&str>, effect: Effect) -> Result<Option<Value>, RuntimeError> {
         let probes = super::rules::rule_probes(&self.schema.tables[table].rules.read);
-        self.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner| {
-            let found = runner.live_lookup(table, name, index, key)?;
+        self.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner, allowance| {
+            let found = runner.live_lookup(allowance, table, name, index, key)?;
             if let Some(row) = &found && Some(row.field("id")?.as_str()?) != except {
                 runner.observe_sequence_columns(table, row, &index.columns(), effect == Effect::Insert)?;
                 runner.visible_collision(table, row, effect)?;
@@ -550,7 +553,7 @@ impl Runner<'_> {
                 self.observe_sequence_selection(target, index, &key)?;
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
                 let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = match self.live_lookup(target, index, target_index, &key)? {
+                let found = match self.authorized_scan(&[], |runner, allowance| runner.live_lookup(allowance, target, index, target_index, &key))? {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };

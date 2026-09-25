@@ -1,4 +1,5 @@
 //! Read authorization of provisional images, over raw combined-state witnesses.
+use super::authorized_scan::Authorization;
 use super::{rules::{self, Probe}, runner::Runner};
 use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, RuleExpr, materialize_optional_fields}, value::Value};
 
@@ -23,16 +24,16 @@ impl Runner<'_> {
     pub(super) fn authorize_read(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         self.device_work(|runner| {
             let probes = if prepaid { 0 } else { rules::rule_probes(&runner.schema.tables[table].rules.read) };
-            runner.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner| {
+            runner.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner, allowance| {
                 let scratch = runner.meter.mark();
-                let result = runner.authorize_read_inner(table, row, prepaid || !runner.device_work_active);
+                let result = runner.authorize_read_inner(allowance, table, row, prepaid || !runner.device_work_active);
                 if runner.device_work_active { runner.meter.release_heap(scratch); }
                 result
             })
         })
     }
 
-    fn authorize_read_inner(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
+    fn authorize_read_inner(&mut self, allowance: &Authorization, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         let provisional = self.is_provisional(table, row)?;
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
@@ -41,7 +42,7 @@ impl Runner<'_> {
         materialize_optional_fields(&mut row, definition);
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
-        let verdict = evaluate(&rule, &viewer, &row, &mut ReadProbe { runner: self, table, provisional, prepaid, unknown: false })?;
+        let verdict = evaluate(&rule, &viewer, &row, &mut ReadProbe { runner: self, allowance, table, provisional, prepaid, unknown: false })?;
         if self.read_capped() { return Ok(false); }
         if verdict == Verdict::Unknown {
             self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
@@ -56,7 +57,7 @@ impl Runner<'_> {
             (self.schema.tables[table].sync.is_some() && !self.tx.retained_row(table, row)? && !self.tx.retained_group(table, index, key)?))
     }
 
-    pub(super) fn authorization_absence_covered(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
+    pub(super) fn authorization_absence_covered(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
         let definition = &self.schema.tables[table];
         let Some(sync) = &definition.sync else { return Ok(false) };
         if sync.horizon.is_some() || self.tx.retained_group(table, index, key)? { return Ok(false); }
@@ -71,21 +72,21 @@ impl Runner<'_> {
                 let target_def = &self.schema.tables[target];
                 self.read_tables.insert(target.clone());
                 // This is a raw audience membership, not the witness's ACL.
-                let found = self.live_lookup(target, &binding.group_index, target_def.index(&binding.group_index).expect("audience index"), &group)?;
+                let found = self.live_lookup(allowance, target, &binding.group_index, target_def.index(&binding.group_index).expect("audience index"), &group)?;
                 found.map(|row| self.witness_covered(target, &binding.group_index, &group, &row)).transpose().map(|known| known.unwrap_or(false))
             }
         }
     }
 }
 
-struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, table: &'a str, provisional: bool, prepaid: bool, unknown: bool }
+struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, allowance: &'a Authorization, table: &'a str, provisional: bool, prepaid: bool, unknown: bool }
 impl Probe for ReadProbe<'_, '_> {
     fn field(&mut self, field: &str, _old: bool) {
         self.runner.provisional_sequence_read |= self.provisional && self.runner.schema.tables[self.table].sequences.contains_key(field);
     }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.prepaid && !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
-        let (present, known) = self.runner.probe_witness(table, index, key, equalities, true)?;
+        let (present, known) = self.runner.probe_witness(self.allowance, table, index, key, equalities, true)?;
         self.unknown |= !known;
         Ok(present)
     }

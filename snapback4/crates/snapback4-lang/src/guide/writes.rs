@@ -285,25 +285,30 @@ A successful readable insert exposes its assigned ordinal, which reflects the
 shared counter. A hidden grant may establish read authority and permit success;
 an independently denied insert cannot use it as a witness oracle.
 
-One limit is accepted: a cap group containing an unreadable occupant returns
+Two limits are accepted: (a) a cap group containing an unreadable occupant returns
 generic E_RULE before cap constraint text. Compared with an empty group, this
 can disclose “someone unreadable is here”, but no occupant identity, ordinal,
 count or values. Ignoring those occupants would let a caller bypass the cap.
+(b) A caller's row behind more than the separate 8,192-candidate walk bound
+of unreadable siblings is unreachable by paging in that direction. The page
+is empty with no cursor, identically in every world beyond that bound.
 The generated harness compares hidden siblings, witnesses and counter history
 across refusals, logical meters, pages/cursors, sync images and watermarks, and
 device prediction, admission, reopened outboxes and settlement. It separately
-checks successful assignments and this cap limit; it does not promise identical
-outcomes when the caller's actual authority changes. Authorization-dependent scans prepay a fixed logical allowance from their
-schema and requested page size before examining occupants. This applies to cap
+checks successful assignments and these limits; it does not promise identical
+outcomes when the caller's actual authority changes. Authorization-dependent
+scans prepay a fixed logical allowance from their schema and requested page size before examining occupants. This applies to cap
 checks on insertion and upsert, unique collisions, counter reads, rule witnesses,
-and pages with simple or compound read rules. Hidden candidates cannot change
-logical meters, budget refusals, returned rows or cursors by changing their
+and pages with simple or compound read rules. Every effect prepays its whole
+rule before its first witness, so short-circuiting compound write rules cannot
+change the caller's probe allowance or budget refusal. Within the walk bound,
+hidden candidates cannot change logical meters, budget refusals, returned rows or cursors by changing their
 payload or position. For `first 1 by .ordinal` and `last 1 by .ordinal`, a denied
 sibling before or after the readable row adds no examined charge or visible cut.
-The same page protection applies to ordinary integer columns. Private scans use
-bounded batches and continue through denied rows; their physical work is not
-reported in the logical meter. A device still queues if its separate prediction
-work allowance is exhausted. `check --json` includes the same sequence-counter
+The same page protection applies to ordinary integer columns. Private scans
+prepay their allowance once per page and stop at the separate walk ceiling, also during word discovery; the logical meter does not expose
+how many denied candidates were traversed. A device still queues if its separate
+prediction work allowance is exhausted. `check --json` includes the same sequence-counter
 descriptions as text `check` under `sequences`.
 Ordinals and their parent reference are immutable; listing the ordinal
 in `immutable` is accepted and redundant.

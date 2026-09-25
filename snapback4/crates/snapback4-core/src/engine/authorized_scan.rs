@@ -2,13 +2,17 @@
 use super::runner::Runner;
 use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut}};
 
+// Only this module mints the capability; it cannot be constructed or cloned
+// by callers, and the borrowed token cannot escape the guarded closure.
+pub(super) struct Authorization { _private: () }
+
 impl Runner<'_> {
     // @ref LLP 3000.015#2 — admission depends on declared bounds, never on
     // occupants. Private scratch cannot cut the caller's prepaid scan.
-    pub(super) fn authorized_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], scan: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+    pub(super) fn authorized_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         // This meter is the device's separate physical-work budget. Its
         // caller maps exhaustion to uncertainty, never a logical E_BOUND.
-        if self.device_work_active { return scan(self); }
+        if self.device_work_active { return scan(self, &Authorization { _private: () }); }
         for &(kind, amount) in allowance {
             if !self.read_charge(kind, amount)? { return Ok(T::default()); }
         }
@@ -16,7 +20,7 @@ impl Runner<'_> {
         let mark = self.meter.mark();
         let ceilings = std::mem::replace(&mut self.meter.ceilings, Ceilings::unbounded());
         let cut = std::mem::replace(&mut self.meter.cut, Cut::Abort);
-        let result = scan(self);
+        let result = scan(self, &Authorization { _private: () });
         self.meter.restore(mark);
         self.meter.ceilings = ceilings;
         self.meter.cut = cut;
@@ -38,7 +42,7 @@ mod tests {
             for hidden_work in [0, 1, 8193] {
                 for refuses in [false, true] {
                     let mut runner = Runner::new(&tx, &schema, Context::new("alice", Default::default()), Meter::new(Ceilings { examined: 2, rule_probes: 2, heap_bytes: 8, ..Default::default() }, cut), 0);
-                    let result = runner.authorized_scan(&[(MeterKind::Examined, 2), (MeterKind::RuleProbes, 2)], |runner| {
+                    let result = runner.authorized_scan(&[(MeterKind::Examined, 2), (MeterKind::RuleProbes, 2)], |runner, _| {
                         runner.meter.charge(MeterKind::Examined, hidden_work)?;
                         runner.meter.charge(MeterKind::RuleProbes, hidden_work)?;
                         runner.meter.heap(hidden_work * 1024)?;
@@ -53,7 +57,7 @@ mod tests {
                     assert!(runner.meter.capped_at.is_none());
                     assert_eq!(runner.meter.ceilings.examined, 2);
                     assert_eq!(runner.meter.cut, cut);
-                    let result = runner.authorized_scan(&[(MeterKind::Examined, 1)], |_| -> Result<(), RuntimeError> { panic!("admission must precede all occupant access") });
+                    let result = runner.authorized_scan(&[(MeterKind::Examined, 1)], |_, _| -> Result<(), RuntimeError> { panic!("admission must precede all occupant access") });
                     if cut == Cut::Abort { assert!(matches!(result, Err(RuntimeError::Bound { kind: MeterKind::Examined, actual: 3, ceiling: 2, .. }))); }
                     else { assert!(result.is_ok()); assert!(runner.meter.capped_at.is_some()); }
                 }

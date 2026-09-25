@@ -640,17 +640,22 @@ for (const replay of [true, false]) test(`W7r1 runWorker and doctor observe ${re
   assert.equal((await f.post("/m/post", { id: "note", args: {} })).state, "sent");
   assert.equal(dependencies(), replay ? 0 : 1);
   assert.equal(effects().length, replay ? 0 : 1);
-  let handlers = 0, claims = 0;
+  let handlers = 0, claims = 0, settledClaim = false;
   const errors = [];
   const worker = f.launch({ wait: 0, effects: { notify: () => { handlers++; } }, onError: e => errors.push(String(e)), fetch: async (url, init) => {
     const response = await fetch(url, init);
-    if (String(url).endsWith("/effects/claim")) { await response.clone().json(); claims++; }
+    if (String(url).endsWith("/effects/claim")) {
+      await response.clone().json(); claims++;
+      settledClaim ||= effects()[0]?.state === "sent";
+    }
     return response;
   } });
   await until(() => claims >= 1);
   assert.equal(handlers, 0);
   assert.equal((await f.post("/dev/clock/advance", { duration: "36s" })).advancedMs, 36_000);
-  await until(() => replay ? claims >= 2 : effects()[0]?.state === "sent");
+  // A sent DB row can precede consumption of the settlement response.
+  // The next claim proves perform() finished, so shutdown cannot abort it.
+  await until(() => replay ? claims >= 2 : settledClaim);
   f.stop.abort(); await worker.done;
   assert.deepEqual(errors, []);
   assert.equal(handlers, replay ? 0 : 1);

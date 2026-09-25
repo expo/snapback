@@ -49792,3 +49792,106 @@ SHA-256: c2ede5b83ca05a5dd4701c4d0ac1a5dfc025c5edff5ace6c66216b46920ba8f3.
 
 Final report: /home/ccheever/sb5/lane-b2.r5.final.md. Local commit only; no push,
 live PostgreSQL qualification, publication, deployment or new blind-review claim.
+
+## 2026-09-25 — Lane B2 round 6: author ruling restores the walk ceiling
+
+The author's ruling of 2026-09-25 reverses round 5's removal of the separate
+8,192-candidate walk limit. That removal was not requested by the author;
+the round-5 journal's attribution was incorrect. This is an author ruling,
+not a review finding. The bounded-work guarantee stands. The prepaid helper
+stays, with constant admission per page and a separate physical walk ceiling.
+The round-4 walk-limit test is reinstated; the unlimited-prefix test is removed.
+LLP 3000 §7 is corrected, and LLP 3000.015 §2 and the writes card restore the
+second residual beside shared-cap occupancy: a caller's row behind more than
+the bound of unreadable siblings is unreachable by paging in that direction;
+an empty page has no cursor, identically in every world beyond the bound.
+
+Round-6 Astra High: every effect's complete bound rule now enters
+`authorized_scan` with its static witness count before the first witness.
+The choice to evaluate the next witness stays inside the guard. The denied
+compound insert regression covers read allow/deny, a one-probe ceiling, and
+8,191 preceding point reads under default ceilings. Both worlds now refuse
+E_BOUND on the same complete allowance before consulting either grant.
+
+Structural closure uses the requested non-optional token route. Only
+`authorized_scan` mints `Authorization`; live/witness lookups, provisional
+read coverage and the sequence rule evaluator require its borrowed token.
+Runner no longer implements Probe. This keeps the engine's transaction handle
+available to partition processing without relocating that processing. Removing
+the token from a rule call fails with E0061; constructing one outside the helper
+fails with E0451. Both compile failures were executed, not inferred. The
+helper's existing private-work and device physical-work tests remain in place.
+
+Astra Low: the earlier-child maximum now has explicit memory and SQLite
+regressions. Held alpha.ordinal = 10 then omega.ordinal = 1 must predict 11,
+with pending true. No floor algorithm change was needed; comparing against
+the saved provisional floor instead of the accumulated maximum makes both
+tests fail with 2. The new write-rule generator runs 288 pairs: conjunctions
+and disjunctions with fixed true/false authority across insert/update/delete,
+sequence and ordinary int columns, read allow/deny, probe ceilings 0/1/2/3,
+and 8,191 preceding reads under the default ceiling. The deliberately unguarded
+write-rule reproduction produced 91 unequal pairs (33 insert, 18 update,
+40 delete) and failed the named Astra regression. Removing the walk limit
+failed both the reinstated round-4 test and the new bidirectional paired-page
+test (8,193 versus 8,201 hidden siblings). All mutations were restored.
+
+Grok's completed round-6 review arrived during qualification. Its High names
+two unreadable exists branches followed by `or viewer = 'alice'`: authority
+is true in both worlds, but the old path spent one versus two probes, then
+reserved the insert tree again. The same whole-rule guard fixes the split.
+Sequence preflight now reserves only still-pending insert checks, and supplied
+sequence-key validation reuses already-established independent insert authority.
+The named Grok test commits ordinal 1 in both worlds at probe ceilings 5 and 6
+and after 8,187 point reads at the default ceiling, paying two probes once.
+Reinstating the redundant preflight makes that test fail with E_BOUND.
+Grok's unbounded-walk recommendation is superseded by the author's ruling above;
+it is not adopted as a residual or re-attributed to the author. The first suite
+was stopped to incorporate this completed review; its partial log is retained
+as target/b2-r6-suite-superseded.log. Final qualification follows below.
+
+The first complete suite caught remaining round-5 unlimited-traversal assertions
+in the shared merge and word-calibration fixtures, and a `created or exists`
+meter assertion that expected zero rather than the complete one-probe tree.
+Those oracles now match the ruling and whole-rule allowance. It also caught an
+initial implementation error: counting readable filter rejects against the
+private walk limit stopped before the ordinary examined ledger could publish
+its cut. The walk counter now decrements only for denied/expired candidates;
+readable candidates retain their ordinary budget. The unchanged direct-filter
+regressions pass on both device stores after this correction.
+
+That complete first run printed `== 1 failure(s) in 860 s` (cargo test),
+with all ten failing Rust cases explained above. Client summary: 1,106 passed,
+0 failed, 10 existing skips. Log: target/b2-r6-suite-initial.log. All steps
+completed; the corrected tree then started a fresh complete qualification.
+
+The second complete run printed `== 1 failure(s) in 828 s`; all Rust checks
+passed, including all 19 core disclosure and 12 device sequence tests. One
+client fixture failed during its own shutdown: the deferred presence-effect
+test saw the server's sent DB row and aborted before the worker consumed the
+settlement response, reporting AbortError. The fixture now waits for the next
+claim, which proves perform() finished, before aborting. Its no-errors,
+one-handler and durable-state assertions remain intact; worker runtime code
+is unchanged. Log: target/b2-r6-suite-second.log. Both presence variants are
+rechecked three times before the final complete run.
+
+Final qualification, Node v24.13.1, from snapback4/:
+```sh
+env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh
+```
+printed exactly `== 0 failure(s) in 864 s`, exit 0. Every step passed;
+client summary: 1,106 passed, 0 failed, 10 existing skips. All Rust targets and
+workspace doctests passed, including 19 core disclosure tests, 15 core sequence
+tests, 12 device sequence tests, four device disclosure tests and six language
+sequence tests. Both synchronized presence-worker fixtures passed. Final log:
+target/b2-r6-suite.log. LLP reference audit: 507 docs, 9,243 refs, 0 errors,
+0 unchecked. Staged whitespace validation passed.
+
+Final wasm: 1,780,745 B raw / 496,513 B gzip, Rust 1.97.0 / wasm-bindgen 0.2.127,
+without wasm-opt. The full-suite build and direct gzip measurement agree.
+Versus round 5: +55 B raw / -570 B gzip for the combined rule guard, required
+authorization token, pending-check preflight and restored walk limit. This is
+a whole-artifact delta, not per-component attribution. Keep the 498,000 B
+ratchet unchanged, with 1,487 B headroom. Runtime meter ceilings are unchanged.
+SHA-256: b367f384d21c9bf8c0ecb385351c252a4f6f1c3dbf49e7a48803ef9cb9058c3b.
+Report: /home/ccheever/sb5/lane-b2.r6.final.md. Local branch commit only;
+no push, live PostgreSQL qualification, publication or new blind-review claim.

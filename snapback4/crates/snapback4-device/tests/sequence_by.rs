@@ -323,3 +323,22 @@ fn two_sequence_columns_each_raise_the_held_parent_floor() {
     run(&mut Memory::new());
     run(&mut Sqlite::new("sequence-two-columns"));
 }
+
+// Astra Low: the maximum must survive a later table with a lower held value.
+fn reversed_cross_table_floor<H: Host>(host: &mut H) {
+    let source = "table parents:\n  public\n  sync public\ntable alpha:\n  parent: parents\n  ordinal: sequence by parent\n  public\n  sync public\n  insert <- allow\ntable omega:\n  parent: parents\n  ordinal: sequence by parent\n  public\n  sync public\n  insert <- allow\nmutation add(parent: parents):\n  return insert omega { parent }\n";
+    let (mut e, backend) = compile(source);
+    e.load_trusted([("alpha", "high", 10), ("omega", "low", 1)].map(|(table, name, ordinal)| (
+        table.into(), snapback4_core::value::object([("id", id(name)), ("parent", id("p")), ("ordinal", Value::Int(ordinal))]),
+    ))).unwrap();
+    let mut d = host.open("reverse-table-floor", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut e, "alice", 100).iter().enumerate() { d.apply(page, i == 0).unwrap(); }
+    let predicted = d.predict("add", "alice", &json!({"parent":"p"}), 1000, vec!["pending".into()], 0).unwrap();
+    assert_eq!(predicted.result["ordinal"], 11, "alpha holds the maximum even though omega is visited last");
+    assert_eq!(predicted.result["pending"], true);
+    host.close("reverse-table-floor", d);
+}
+#[test]
+fn reversed_cross_table_floor_memory() { reversed_cross_table_floor(&mut Memory::new()); }
+#[test]
+fn reversed_cross_table_floor_sqlite() { reversed_cross_table_floor(&mut Sqlite::new("reverse-table-floor")); }
