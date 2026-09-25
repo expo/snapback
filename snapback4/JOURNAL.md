@@ -56355,3 +56355,54 @@ rule, engine meter, bucket ceiling or public client signature changed. Did not
 push or publish. Implementation commit: d43b3c82e. File-by-file changes,
 examples, test reproductions, decisions and raw evidence are in
 `reports/20260925-lane-v-r5.md` and `reports/20260925-lane-v-r5-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 6: one intent binding through every handoff
+
+Addressed both Astra findings and Grok's higher-mirror mutant from the round-5
+reviews. Journaled intents now share one store-binding decision across own-tab
+recovery, fresh admission, orphan adoption, exit transport and ordinary flush.
+Orphans with unknown destination identity remain in their source store. A
+mismatch retires before destination enqueue, including fresh transfers. Both
+send paths also check the original binding and intended mutation ID. Host
+identity inspection is non-capturing; it cannot manufacture sync requests.
+
+Epoch reconciliation persists only a legacy marker that advances authoritative
+IndexedDB state. Existing sessions reopen without allocating a separate epoch
+record, including at actual localStorage quota exhaustion. Repair remains
+best-effort and new mutations still refuse synchronously with E_ADMISSION when
+the journal cannot be written. Mirror 10 beats present IDB epoch 9 through
+sign-in, capture and a successful mutation.
+
+New real-Chromium tests cover two-tab replacement with ordinary and exit
+transport, asserting no destination enqueue or request and audit B = 0 through
+close. An unidentified destination preserves source custody, then matching sync
+delivers the original ID once. The quota witness filled 5,241,876 characters,
+proved a new epoch key could not fit, and restored the same acquired session.
+Deleting both orphan checks, restoring unconditional allocation, or ignoring a
+higher mirror each fails a regression. The final affected set passed 158/158.
+
+Three complete suites were run. First: **`== 1 failure(s) in 431 s`**; ours,
+`IndexedDB model: reset termination before-commit preserves one complete
+transaction`, because the new restore inspection captured a request. Second:
+**`== 1 failure(s) in 406 s`**; ours, `wasm rejects a skipped snapshot page
+before accepting its completion`, because a remaining journal recovery read
+captured metadata later persisted by the refused call. All host identity reads
+now use capture:false. Targeted checks also exposed two fixtures that had
+implicitly relied on the old capture side effects. The reset and durability
+fixtures now explicitly declare real in-flight requests; their complete durable
+state comparisons remain, and recovery must not manufacture a new request.
+
+Final suite: **`== 0 failure(s) in 408 s`**, exit 0; 1,581 client checks passed,
+10 platform skips; 78 model checks passed, including all 13,000 seeded sequences.
+No final failures — ours, baseline or environmental. The baseline cargo failure
+did not recur. Reference audit: 509 LLP documents, 9,284 references, zero errors
+and zero unchecked references. One-row persistence remains 262,832 bytes at
+both 1,000 and 16,000 rows. No new cold-acquisition measurement; snapshot pages
+and bucket tuning are unchanged.
+
+No design deviation or unresolved scoped problem. No Quarry form, public client
+signature, source authorization rule, engine meter, bucket ceiling or transaction
+durability was weakened. local.ts remains 1,477 lines. Did not push or publish.
+Implementation: d501a115a. File map, examples, decisions, reproductions and every
+failure are in `reports/20260925-lane-v-r6.md`; raw evidence is in
+`reports/20260925-lane-v-r6-evidence/`.

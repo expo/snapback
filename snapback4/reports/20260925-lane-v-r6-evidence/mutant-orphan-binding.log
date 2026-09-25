@@ -1,0 +1,146 @@
+(node:2890707) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (941.567829ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (775.652469ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1836.814475ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2111.009049ms)
+  ✔ a hide during the startup probe waits for its accepted decision (865.701732ms)
+  ✔ a hide during the startup probe waits for its refused decision (810.362424ms)
+  ✔ a hide during the startup probe waits for its restore decision (849.7385ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1354.44128ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1453.013145ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (821.598853ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (830.124729ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (780.847685ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (773.104151ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (856.870999ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (924.096481ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (843.595135ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (880.653218ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (870.105663ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (788.965781ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (870.79065ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (899.213292ms)
+  ✔ a successful reconnect enables exit after startup 503s (1801.670055ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4813.036478ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4939.787205ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4858.828777ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5002.585758ms)
+  ✖ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (5934.673131ms)
+  ✖ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6098.647329ms)
+  ✖ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6018.238197ms)
+  ✔ same-epoch logout tombstone refuses live admission (513.266726ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (614.259129ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (426.181124ms)
+✖ web admission review: recovery and transport respect the session boundary (63843.609128ms)
+ℹ {"mode":"held-sync","id":"01M3CES7GNEPNZH5C4MMRQ71RT","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CES8B78834QSBX3D3WC9SR","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CESC5JMJ8A4BK2P7Z6D38M","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CESD00N00063VW2A5WKRHE","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CESDTGW1HF3Y665QQKAMMD","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CESENGAP9N6RFJGQCFTTB9","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CESG3DWHADXSN8T9WDX1PQ","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ tests 33
+ℹ suites 0
+ℹ pass 29
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 63931.511123
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:488:47
+✖ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (5934.673131ms)
+  AssertionError [ERR_ASSERTION]: retire the mismatch before enqueueing it in B
+  + actual - expected
+  
+  + [
+  +   '01M3CETGN22MG4M95N3MG3F3ZY'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:515:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:488:39)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '01M3CETGN22MG4M95N3MG3F3ZY' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:488:47
+✖ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6098.647329ms)
+  AssertionError [ERR_ASSERTION]: retire the mismatch before enqueueing it in B
+  + actual - expected
+  
+  + [
+  +   '01M3CETPKQ6RGCJST1XE2HE2PB'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:515:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:488:39)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '01M3CETPKQ6RGCJST1XE2HE2PB' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:529:11
+✖ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6018.238197ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   {
+  +     args: {
+  +       principal: 'user:other',
+  +       room: 'room'
+  +     },
+  +     id: '01M3CETWG1WF6RFVB85R8TYB5Q',
+  +     new_ids: [
+  +       '01M3CETWG2BTBRHES854PNXSEH',
+  +       '01M3CETWG2BTBRHES854PNXSEJ',
+  +       '01M3CETWG2BTBRHES854PNXSEK',
+  +       '01M3CETWG2BTBRHES854PNXSEM',
+  +       '01M3CETWG2BTBRHES854PNXSEN',
+  +       '01M3CETWG2BTBRHES854PNXSEP',
+  +       '01M3CETWG2BTBRHES854PNXSEQ',
+  +       '01M3CETWG2BTBRHES854PNXSER'
+  +     ],
+  +     now: 1790345835010,
+  +     observed_seq: null,
+  +     op: 'removeMember',
+  +     predictable: false,
+  +     predicted: [],
+  +     sent_seq: null,
+  +     seq: 1,
+  +     viewer: 'user:01M3CETVKACTVAANMRVK6GWS4R'
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:556:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:529:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { args: [Object], id: '01M3CETWG1WF6RFVB85R8TYB5Q', new_ids: [Array], now: 1790345835010, observed_seq: null, op: 'removeMember', predictable: false, predicted: [], sent_seq: null, seq: 1, viewer: 'user:01M3CETVKACTVAANMRVK6GWS4R' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
