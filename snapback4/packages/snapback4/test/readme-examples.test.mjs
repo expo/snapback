@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "nod
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 import ts from "typescript";
 import { runInNewContext } from "node:vm";
 import { createClient } from "../dist/client.js";
@@ -127,7 +128,8 @@ test("Queries teach predicate reads and engine-chosen scope lanes", () => {
   const queries = read(join(root, "../../crates/snapback4-lang/src/guide/reads.rs")).replace(/\s+/g, " ");
   assert.ok(queries.includes("messages where .roomId = roomId"));
   assert.ok(queries.includes("last 20 by .at after c"));
-  assert.ok(queries.includes("the author writes no lane list"));
+  const why = execFileSync(process.env.SNAPBACK4_BIN ?? join(root, "../../target/debug/snapback4"), ["why", "N_SPARSE_FILTER"], {encoding: "utf8"}).replace(/\s+/g, " ");
+  assert.ok(why.includes("the author writes no lane list"));
   assert.ok(read(join(root, "README.md")).includes("`guide reads`"));
 });
 

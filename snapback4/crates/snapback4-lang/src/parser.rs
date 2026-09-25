@@ -95,7 +95,11 @@ impl Parser {
             }
             "shape" => self.parse_shape_declaration(),
             "fn" => self.parse_function_declaration(),
-            "aggregate" => Err(unsupported(&token.site, "aggregate declaration", "view messageCounts: count messages by .conversation — name the source table and group column").guide("from-sql")),
+            "aggregate" => {
+                let line = self.source[token.site.line as usize - 1].trim_start();
+                let tail = line.strip_prefix("aggregate").unwrap_or(line);
+                Err(unsupported(&token.site, "aggregate declaration", format!("view{tail}")).guide("from-sql"))
+            },
             "proc" => Err(unsupported(&self.peek().site, "proc", "fn")),
             "cursor" => Err(unsupported(&token.site, "cursor as a declaration", "cursor is reserved for a future Quarry form; rename this declaration")),
             "channel" => Err(unsupported(&token.site, "channel", "ephemeral channels arrive after the first slice; keep presence and typing in the client for now")),

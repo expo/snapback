@@ -22,7 +22,7 @@
     "source": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\naggregate totals: count members by .conversation\n",
     "repaired": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nview totals: count members by .conversation\n",
     "code": "E_QUARRY_UNSUPPORTED",
-    "repair": "view messageCounts: count messages by .conversation"
+    "repair": "view totals: count members by .conversation"
   },
   {
     "name": "repeated-where",

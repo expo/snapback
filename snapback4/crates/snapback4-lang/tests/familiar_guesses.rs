@@ -99,7 +99,7 @@ fn foreign_spellings_are_refused_and_canonical_repairs_compile() {
         ("query bad(x: text):\n  return x.length\n", "count(x)"),
         ("query bad():\n  return count(*)\n", "count(rows)"),
         ("query bad(c: cursor ?):\n  return members where .principal = viewer limit 20\n", "first 20"),
-        ("aggregate totals: count members by .conversation\n", "view messageCounts: count messages by .conversation"),
+        ("aggregate totals: count members by .conversation\n", "view totals: count members by .conversation"),
     ] { diagnostic(source, "E_QUARRY_UNSUPPORTED", repair); }
     clean("query size(x: text):\n  return count(x)\nquery total():\n  return count(members)\nview totals: count members by .conversation\nquery limited(c: cursor ?):\n  return members where .principal = viewer first 20 after c\nquery field():\n  return { length: 2 }.length\n");
 }
