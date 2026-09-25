@@ -27,6 +27,7 @@ pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, Run
                         meter.heap(row.heap_bytes().saturating_mul(4).saturating_add(4096))?;
                         let id=row.field("id")?.as_str()?;
                         for key in crate::rows::stored_index_keys(table,index,&row,id) {
+                            if key.len() > crate::rows::MAX_INDEX_KEY_BYTES { return Err(crate::rows::index_key_refusal(name,index_name,1)); }
                             meter.charge(MeterKind::IndexEntries,1)?;
                             tx.execute("INSERT INTO i(t,ix,k,id) VALUES ($1,$2,$3,$4)", &[name,index_name,&key,&id])?;
                         }

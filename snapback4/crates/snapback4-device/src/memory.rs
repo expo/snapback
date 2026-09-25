@@ -183,7 +183,7 @@ impl MemoryStore {
         use snapback4_core::{meter::{Meter, Cut, Ceilings}, error::MeterKind, schema::IndexComponent};
         let state = self.state.borrow();
         let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
-        for (n, ((table_name, _), row)) in state.rows.iter().enumerate() {
+        for (n, ((table_name, id), row)) in state.rows.iter().enumerate() {
             if n % 32 == 0 { meter = Meter::new(Ceilings::job(), Cut::Abort); }
             let Some(table) = schema.table(table_name) else { continue };
             for (name, index) in &table.indexes {
@@ -196,6 +196,11 @@ impl MemoryStore {
                     // At most one physical contribution per row, even when
                     // its predicate will exclude it from the rebuilt index.
                     meter.charge(MeterKind::IndexEntries, 1)?;
+                    for key in stored_index_keys(table, index, row, id) {
+                        if key.len() > snapback4_core::rows::MAX_INDEX_KEY_BYTES {
+                            return Err(snapback4_core::rows::index_key_refusal(table_name, name, 1));
+                        }
+                    }
                     meter.used.heap_bytes = heap_before;
                 }
             }

@@ -133,6 +133,9 @@ impl Store {
                             contribution_meter.heap(row.heap_bytes().saturating_mul(4).saturating_add(4096))?;
                         }
                         for key in index_keys(index, &row, id) {
+                            if contribution.is_some() && key.len() > crate::rows::MAX_INDEX_KEY_BYTES {
+                                return Err(crate::rows::index_key_refusal(name, index_name, 1));
+                            }
                             if contribution.is_some() { contribution_meter.charge(crate::error::MeterKind::IndexEntries, 1)?; }
                             tx.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![catalog[&format!("{name}.{index_name}")], key, id])?;
                         }

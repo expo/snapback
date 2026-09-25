@@ -68,6 +68,43 @@ fn upgrade<S: DeviceStore>(mut store: S) {
 #[test] fn memory_041_upgrade() { upgrade(MemoryStore::new()); }
 #[test] fn sqlite_device_041_upgrade() { upgrade(Store::memory().unwrap()); }
 
+fn oversized_upgrade<S: DeviceStore>(mut store: S) {
+    use snapback4_core::{schema::ColumnType, rows::{MAX_INDEX_KEY_BYTES, index_key}};
+    let (_,mut backend) = compile(SOURCE);
+    backend.schema.maintains.retain(|m|m.target=="unreadCounts");
+    backend.schema.tables.retain(|name,_|name=="receipts" || name=="unreadCounts");
+    for table in backend.schema.tables.values_mut() {
+        table.columns.insert("chat".into(),ColumnType::Text {max:MAX_INDEX_KEY_BYTES as u32});
+    }
+    backend.schema.prepare_contribution_indexes();
+    let modern = backend.schema.clone();
+    let index = "$contribution:unreadCounts";
+    backend.schema.tables.get_mut("receipts").unwrap().indexes.get_mut(index).unwrap().components.truncate(1);
+    let table = &backend.schema.tables["receipts"];
+    let mut row = snapback4_core::value::object([
+        ("id",id("r")), ("chat",Value::String("x".repeat(MAX_INDEX_KEY_BYTES))), ("principal",id("alice")),
+        ("state",Value::Int(0)), ("visible",Value::Bool(true)), ("weight",Value::Int(1)),
+        ("at",Value::Int(0)), ("expiresAt",Value::Int(1000)),
+    ]);
+    let overhead = index_key(&table.indexes[index],&row,"r").len()-MAX_INDEX_KEY_BYTES;
+    if let Value::Row(fields) = &mut row { fields.insert("chat".into(),Value::String("x".repeat(MAX_INDEX_KEY_BYTES-overhead))); }
+    assert_eq!(index_key(&table.indexes[index],&row,"r").len(),MAX_INDEX_KEY_BYTES);
+    store.install(&backend.schema,&BTreeMap::from([("q:marker".into(),"before".into())]),false).unwrap();
+    let tx = store.transaction().unwrap();
+    tx.put("receipts",table,&row,None).unwrap();
+    tx.commit().unwrap();
+    let error = store.install(&modern,&BTreeMap::from([("q:marker".into(),"after".into())]),false).unwrap_err();
+    assert_eq!(error.code(),"E_INDEX_KEY_BYTES");
+    assert_eq!(store.meta("q:marker").unwrap().as_deref(),Some("before"));
+    let tx = store.transaction().unwrap();
+    let old = tx.scan("receipts",index,&[],&Bounds::default(),Dir::Asc,2).unwrap();
+    assert_eq!(old.len(),1); assert_eq!(old[0].0,row); assert_eq!(old[0].1.len(),MAX_INDEX_KEY_BYTES);
+    tx.rollback().unwrap();
+}
+
+#[test] fn memory_upgrade_preserves_the_portable_key_ceiling() { oversized_upgrade(MemoryStore::new()); }
+#[test] fn sqlite_upgrade_preserves_the_portable_key_ceiling() { oversized_upgrade(Store::memory().unwrap()); }
+
 #[test]
 fn refused_memory_rebuild_does_not_publish_metadata_or_clear_entries() {
     let (_, backend) = compile(SOURCE);
