@@ -4,7 +4,7 @@ use super::runner::Runner;
 use crate::{
     error::{MeterKind, RuntimeError},
     rows::{Bounds, Dir},
-    schema::{ColumnType, Table},
+    schema::{ColumnType, Effect, RuleExpr, RuleTerm, Table},
     value::Value,
 };
 use std::collections::BTreeMap;
@@ -29,6 +29,37 @@ pub(super) fn refuse_fields(table: &Table, name: &str, row: &Value) -> Result<()
 }
 
 impl Runner<'_> {
+    pub(super) fn sequence_field_is_provisional(&self, row: &Value, field: &str) -> Result<bool, RuntimeError> {
+        if !self.device || row.field("id").and_then(Value::as_str).is_err() { return Ok(false); }
+        for (name, table) in &self.schema.tables {
+            if table.sequences.contains_key(field) && self.is_provisional(name, row)? { return Ok(true); }
+        }
+        Ok(false)
+    }
+
+    pub(super) fn observe_sequence_rule(&mut self, name: &str, effect: Effect, old: Option<&Value>, next: &Value) -> Result<(), RuntimeError> {
+        if !self.device { return Ok(()); }
+        let table = &self.schema.tables[name];
+        fn reads(rule: &RuleExpr, table: &Table, old: bool) -> bool {
+            let term = |term: &RuleTerm| match term {
+                RuleTerm::Field(field) | RuleTerm::NextField(field) if !old => table.sequences.contains_key(field),
+                RuleTerm::OldField(field) if old => table.sequences.contains_key(field),
+                _ => false,
+            };
+            match rule {
+                RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => term(a) || term(b),
+                RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().any(|rule| reads(rule, table, old)),
+                RuleExpr::Not(rule) => reads(rule, table, old),
+                RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, term)| term)).any(term),
+                _ => false,
+            }
+        }
+        let rule = table.rules.for_effect(effect);
+        self.provisional_sequence_read |= (reads(rule, table, false) && (effect == Effect::Insert || self.is_provisional(name, next)?))
+            || (reads(rule, table, true) && old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false));
+        Ok(())
+    }
+
     #[cfg(feature = "sqlite")]
     pub(super) fn import_sequences(&mut self, name: &str, mut row: Value, old: Option<&Value>, restore: bool) -> Result<Value, RuntimeError> {
         let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
@@ -104,7 +135,8 @@ impl Runner<'_> {
                     ));
                 }
                 // The last representable value is only an authority candidate.
-                // Callers must refuse full before validation, collisions or writes;
+                // Callers must refuse full before validation or writes; only
+                // if-absent keys without a sequence can establish a no-op.
                 // denied writers cannot use exhaustion to inspect parent state.
                 full = true;
                 crate::value::I53_MAX

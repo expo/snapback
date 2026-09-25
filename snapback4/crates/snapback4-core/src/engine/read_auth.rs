@@ -32,6 +32,7 @@ impl Runner<'_> {
     }
 
     fn authorize_read_inner(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
+        self.observe_sequence_rule(table, crate::schema::Effect::Read, None, row)?;
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
         if self.device_work_active { self.meter.heap(crate::rows::word_heap::materialize(row, definition))?; }

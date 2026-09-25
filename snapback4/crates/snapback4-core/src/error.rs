@@ -259,8 +259,12 @@ impl RuntimeError {
                 refusal.rewrite = Some("omit sequence columns from inserts, updates and upserts; the engine assigns them".into());
                 refusal.guide = Some("writes".into());
             }
-            Self::Structural { code: "E_SEQUENCE_PARENT", .. } => {
-                refusal.rewrite = Some("declare a required reference column: conversationId: conversations; ordinal: sequence by conversationId".into());
+            Self::Structural { code: "E_SEQUENCE_PARENT", message } => {
+                refusal.rewrite = Some(if message.contains("cannot change after sequence allocation") {
+                    "import a new row id; do not retarget a sequence parent"
+                } else {
+                    "declare a required reference column: conversationId: conversations; ordinal: sequence by conversationId"
+                }.into());
                 refusal.guide = Some("types".into());
             }
             Self::Structural { code: "E_SEQUENCE_EXHAUSTED", .. } => {

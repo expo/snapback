@@ -133,7 +133,7 @@ async function fixture(t, tier, empty = false, schemaSource = source) {
     });
     clients.push(client); return client;
   };
-  return { open, backend, schemaPath, start, metadata, persist, restore: () => { restore = true; }, core: () => core, mode: (next) => { mode = next; }, counts: () => ({ snapshots, catchups, posts }) };
+  return { open, backend, post, schemaPath, start, metadata, persist, restore: () => { restore = true; }, core: () => core, mode: (next) => { mode = next; }, counts: () => ({ snapshots, catchups, posts }) };
 }
 
 test("W5R1x: terminal history is bounded independently of unresolved writes", async t => {
@@ -535,5 +535,34 @@ for (const tier of ["wasm", "process"]) {
     }, "settled images retained provisional flags");
     const settled = await client.query(query("oldest"), { conversationId: "c" });
     assert.deepEqual(settled.data.map(row => [row.body, row.ordinal]), [["first offline", 1], ["second offline", 2]]);
+  });
+}
+
+for (const form of ["rule", "require"]) {
+  test(`sequence by wasm: provisional ${form} refusal queues for the server`, { timeout: 30000 }, async t => {
+    let sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
+    if (form === "rule") sequence = sequence.replace("public 'sequence test messages'\n  insert <- allow", "public 'sequence test messages'\n  insert <- .ordinal != 1");
+    else sequence = sequence.replace("  return row\nmutation join", "  ordinal = row.ordinal\n  require ordinal != 1 else FIRST\n  return row\nmutation join");
+    const f = await fixture(t, "wasm", true, `use personas alice\n${sequence}`);
+    assert.equal((await f.post("/seed", Array.from({ length: 5 }, (_, n) => ({ table: "messages", row: { id: `old${n}`, conversationId: "c", body: `old${n}` } })))).seeded, 5);
+    for (let n = 0; n < 5; n++) assert.equal((await f.post("/m/remove", { args: { messageId: `old${n}` } })).state, "sent");
+    f.mode("online"); const client = await f.open();
+    await until(() => client.acquired, "sequence partition was not acquired");
+    assert.deepEqual((await client.query(query("history"), { conversationId: "c" })).data, []);
+    const prediction = await f.core().call({ op: "predict", name: "send", viewer: "dev:alice", args: { conversationId: "c", body: "preview" }, now: Date.now(), newIds: ["preview"] });
+    assert.equal(prediction.ok.denied.code, "E_PREDICT", JSON.stringify(prediction));
+    f.mode("offline");
+    const write = await client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c", body: "queued" });
+    assert.equal(write.state, "pending", JSON.stringify(write));
+    const held = (await f.core().call({ op: "queued" })).ok;
+    assert.equal(held.length, 1);
+    assert.equal(held[0].predictable, false);
+    assert.deepEqual(held[0].predicted, []);
+    assert.deepEqual((await client.query(query("history"), { conversationId: "c" })).data, []);
+    f.mode("online"); await client.sync();
+    await until(async () => (await client.write(write.id))?.state === "sent", "server did not accept ordinal 6");
+    await until(async () => (await client.query(query("history"), { conversationId: "c" })).data?.[0]?.ordinal === 6, "settled ordinal was not delivered");
+    const row = (await client.query(query("history"), { conversationId: "c" })).data[0];
+    assert.notEqual(row.pending, true);
   });
 }

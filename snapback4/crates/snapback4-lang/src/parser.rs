@@ -381,7 +381,8 @@ impl Parser {
     fn parse_column(&mut self) -> Fallible<ColumnDecl> {
         let name = self.word()?;
         self.take(":")?;
-        if self.maybe("sequence") {
+        if self.at("sequence") && self.peek_at(1).value == "by" {
+            self.take("sequence")?;
             self.take("by")?;
             let parent = if self.at_kind(Kind::Word) { self.word()?.value } else {
                 return Err(crate::diag::Diagnostic::new(&name.site, "E_SEQUENCE_PARENT", "sequence by needs a parent reference column", "ordinal: sequence by conversationId; declare conversationId: conversations").guide("types"));

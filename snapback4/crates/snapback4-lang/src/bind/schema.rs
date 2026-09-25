@@ -224,7 +224,6 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         }
         sequences.insert(column.name.clone(), parent.clone());
         // The reference cannot move after allocation: that would import a duplicate ordinal into another parent's order.
-        constraints.push(Constraint::Immutable { fields: vec![column.name.clone(), parent.clone()] });
         indexes.insert(core::sequence_index(&column.name), core::Index::of(&[parent, &column.name], false));
     }
     Table { sequences, maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }

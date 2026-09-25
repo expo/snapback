@@ -266,8 +266,11 @@ per conversation, starting at 1. Allocation is dense across the participating
 columns, rather than within messages alone: membership insertion takes the
 next position too. Each successful insertion takes a position; deletion does
 not reuse it. A rolled-back transaction, an `if absent` no-op, or retry of the
-same write id consumes no position. Different conversations have independent
-counters. Multiple sequence columns in one inserted row allocate in column-name
+same write id consumes no position. An `if absent` retry on a unique key without
+a sequence column still returns null at counter exhaustion. Bulk seeds capture
+engine-assigned ordinals in maintained reference paths even when the referring
+row comes first. Different conversations have independent counters. Multiple
+sequence columns in one inserted row allocate in column-name
 order. Ordinals and their parent reference are immutable; listing the ordinal
 in `immutable` is accepted and redundant.
 
@@ -282,6 +285,9 @@ The settled image replaces the provisional ordinal and reorders local pages.
 Two offline inserts keep their outbox order when they reach the server.
 If no provisional value fits above the device's held integers, the write queues
 without prediction; the server decides whether its counter has room.
+A rule or `require` refusal after reading a provisional ordinal also queues
+without a predicted row: the server's assigned value may satisfy it. Provisional
+ordinals returned by insert, upsert or update carry `pending: true`.
 
 ## Write authority
 

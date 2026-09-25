@@ -36,6 +36,7 @@ impl Runner<'_> {
         self.refuse_recorded(table_name, &row)?;
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
+        let unassigned = if if_absent && !self.schema.tables[table_name].sequences.is_empty() { Some(row.clone()) } else { None };
         let (row, sequence_full) = self.sequence_fields(table_name, row)?;
         if let Some(index) = upsert_index {
             if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
@@ -49,6 +50,19 @@ impl Runner<'_> {
         }
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
+        }
+        // Retry keys independent of engine allocation still identify a no-op
+        // at the ceiling. Never use the clamped authority candidate as a key.
+        if sequence_full && let Some(unassigned) = &unassigned {
+            let table = self.schema.tables[table_name].clone();
+            for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().all(|column| !table.sequences.contains_key(column))) {
+                let key = index_values(index, unassigned);
+                if key.contains(&Value::Null) { continue; }
+                if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
+                    self.visible_collision(table_name, &existing, Effect::Insert)?;
+                    return Ok(false);
+                }
+            }
         }
         if sequence_full { return Err(super::sequences::exhausted()); }
         let row = self.record_insert(table_name, row)?;

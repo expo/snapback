@@ -49399,3 +49399,73 @@ commit message; no runtime meter ceiling or package version changed.
 Whitespace and source-size checks pass. The complete file map, compiling
 forms, deviations and verification record are in the requested external
 lane-b2.r0.final.md report. No push, publication or deployment.
+
+
+## 2026-09-25 — Lane B2 round 1: close the two blind reviews
+
+Read the supplied Astra NOT READY and Grok READY WITH CHANGES records in full.
+Closed every requested finding on sb5/b2-sequence-by, after 179de7166.
+
+Prediction records consumption of provisional sequence fields in expressions
+and rule terms (including old/next). A later rule, require or conflict refusal
+queues through E_PREDICT, with its overlay rolled back and intent retained.
+The dependency stays set through aliases and selected branches; it is
+conservative after consumption. Merely constructing a provisional insert does
+not taint unrelated body refusals. Ordinary objects with numeric id fields are
+not table rows. Valued upsert/update re-reads now restore pending metadata,
+covering both arms of the fixture's put and a subsequent valued update.
+
+Bulk seed staging previews engine-filled images for all rows in input order
+inside a savepoint, including shared allocations from non-target tables.
+It then rolls back that preview before the ordinary transactional upserts.
+A receipt can capture its message's assigned ordinal regardless of seed order;
+a later invalid seed row rolls every allocation back. The parser reserves only
+the two-token sequence by form, preserving parent: sequence. Sequence and
+parent immutability are present in the catalog before maintained-path binding,
+so explicit immutable is redundant there as well as at runtime.
+
+At counter exhaustion, an authorized if-absent checks the unassigned row's
+unique keys without sequence columns, returning null on a visible existing
+member. Clamped sequence keys cannot manufacture a collision, and authority
+still precedes counter disclosure. E_SEQUENCE_PARENT distinguishes an import
+retargeting an existing parent from a malformed declaration: the former says
+"import a new row id; do not retarget a sequence parent". Types/writes cards
+and explain_code now describe these cases.
+
+The built-wasm tests reproduce the server-at-5/empty-device case for both the
+rule and aliased require: they failed before the fix with E_RULE and FIRST,
+then prove an unpredicted outbox entry, no local row and settlement at 6.
+Memory and SQLite device tests also cover a branch-selected require and
+independent refusals. A controlled pre-fix/mutation run killed every requested
+regression: seed attribution, pending results, parsing, implicit immutability,
+exhausted retries and diagnostic recovery. Both formerly surviving mutations
+were applied and killed: restoring 10 then 1 must allocate 11 (mutant: 2), and
+holding 1/2 then deleting 2 must predict 3 (mutant: 2). All temporary source
+mutations were restored. Logs: target/b2-r1-red-wasm.log,
+target/b2-r1-wasm-regressions.log and target/b2-r1-mutations.log.
+
+Final blocking suite: == 0 failure(s) in 821 s, target/b2-r1-suite-final.log.
+Native sequence targets: 14 core, 7 device, 5 language, all passing.
+Client totals: 1,092 passed, 0 failed, 10 existing skips. Node v24.13.1 at
+/home/ccheever/.local/bin/node; the requested Volta 24.18.0 is absent on this
+host. FORCE_COLOR was explicitly unset. CARGO_INCREMENTAL=0, test/dev debug
+info disabled, serial client files and eight Rust test processes match the
+loaded-host qualification settings. An earlier complete run also passed:
+== 0 failure(s) in 795 s. The final numeric-id object guard then passed its
+focused memory/SQLite regression and prompted the final complete rerun.
+
+Final build-wasm.sh: 1,765,680 B raw / 490,528 B gzip on Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. The combined provisional-refusal,
+pending-result, independent-retry and runtime-diagnostic changes add 3,570 B
+raw / 1,444 B gzip versus the reviewed 1,762,110 / 489,084 artifact. The
+490,000 B ratchet is exceeded by 528 B; raise it to 491,000 B, leaving 472 B.
+The metrics reason and commit message carry this whole-artifact measurement;
+no per-component byte attribution or runtime meter ceiling change is claimed.
+Seed staging and compiler changes are outside the web artifact.
+
+Both report examples compile with the built CLI. Whitespace and source-size
+checks pass. No store adapter changed; optional live Postgres tests were not
+rerun in this round. Test harnesses track and terminate their own children;
+no standalone server was started manually. The per-item fix/test record and
+file map are in /home/ccheever/sb5/lane-b2.r1.final.md. No push, publication or
+deployment; no claim that the reviewers have rerun these changes.

@@ -63,6 +63,9 @@ pub struct Runner<'a> {
     pub(crate) inserted: Vec<(String, Value)>,
     /// Images written during this execution, including reads inside prediction.
     pub(super) provisional_rows: BTreeSet<(String, String)>,
+    /// Sticky after consuming an unsettled ordinal: aliases and control flow
+    /// can carry that dependency into a later refusal.
+    pub(super) provisional_sequence_read: bool,
     /// Tables read and tables written, for live subscriptions and commits.
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
@@ -182,6 +185,7 @@ impl<'a> Runner<'a> {
             created_rows: BTreeMap::new(),
             inserted: Vec::new(),
             provisional_rows: BTreeSet::new(),
+            provisional_sequence_read: false,
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,
@@ -599,6 +603,7 @@ impl<'a> Runner<'a> {
                 if let Some((base, steps)) = borrowed(&self.env, base, &self.statement_site)? {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
+                    self.provisional_sequence_read |= self.sequence_field_is_provisional(base, name)?;
                     let value = base.field(name)?;
                     self.meter.heap(value.clone_heap_bytes())?;
                     return Ok(value.clone());
@@ -607,6 +612,7 @@ impl<'a> Runner<'a> {
                 match base {
                     Value::Null => Ok(Value::Null),
                     other => {
+                        self.provisional_sequence_read |= self.sequence_field_is_provisional(&other, name)?;
                         let value = other.field(name)?;
                         self.meter.heap(value.clone_heap_bytes())?;
                         Ok(value.clone())

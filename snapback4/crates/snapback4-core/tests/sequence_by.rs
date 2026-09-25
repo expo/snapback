@@ -357,7 +357,7 @@ fn exhausted_counters_stay_behind_authority() {
             let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}") };
             assert_eq!(why.code, expected, "{op} must not disclose counter {high}");
         }
-        if high == 2 {
+        {
             assert_eq!(
                 sent(e.mutate("join", None, ctx(&[("conversationId", id("c")), ("who", id("alice"))])).unwrap()),
                 Value::Null
@@ -373,4 +373,85 @@ fn exhausted_counters_stay_behind_authority() {
             assert_eq!(why.code, "E_SEQUENCE_EXHAUSTED");
         }
     }
+}
+
+#[test]
+fn descending_restoration_keeps_the_high_water_mark() {
+    let mut e = engine(Store::memory().unwrap());
+    for (name, ordinal) in [("ten", 10), ("one", 1)] {
+        e.load_trusted([("messages".into(), object([
+            ("id", id(name)), ("conversationId", id("c")),
+            ("body", Value::String(name.into())), ("ordinal", Value::Int(ordinal)),
+        ]))]).unwrap();
+    }
+    assert_eq!(send(&mut e, "eleven").field("ordinal"), Ok(&Value::Int(11)));
+}
+
+#[test]
+fn bulk_seed_captures_assigned_ordinals_in_either_row_order() {
+    let source = format!("{SOURCE}\ntable receipts:\n  messageId: messages\n  immutable messageId\n  public 'receipts'\n  sync public\nview receiptsByOrdinal: count receipts by messageId.ordinal\nquery totals():\n  return receiptsByOrdinal first 10 by byId\n");
+    for reverse in [false, true] {
+        let b = bound(&source);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let mut rows = vec![
+            ("messages".into(), object([("id", id("m")), ("conversationId", id("c")), ("body", Value::String("seed".into()))])),
+            ("receipts".into(), object([("id", id("r")), ("messageId", id("m"))])),
+        ];
+        if reverse { rows.reverse(); }
+        assert_eq!(e.seed(rows).unwrap(), 2);
+        let total = e.query("totals", ctx(&[])).unwrap().data;
+        let rows = total.as_array().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].field("messageId.ordinal"), Ok(&Value::Int(1)));
+        assert_eq!(rows[0].field("value"), Ok(&Value::Int(1)));
+        assert_eq!(send(&mut e, "next").field("ordinal"), Ok(&Value::Int(2)));
+        // Staging several shared allocations must not leak on a later refusal.
+        let failed = vec![
+            ("messages".into(), object([("id", id("failed")), ("conversationId", id("c")), ("body", Value::String("failed".into()))])),
+            ("messages".into(), object([("id", id("bad")), ("conversationId", id("c")), ("body", Value::String("x".repeat(41)))])),
+        ];
+        assert!(e.seed(failed).is_err());
+        assert_eq!(send(&mut e, "after rollback").field("ordinal"), Ok(&Value::Int(3)));
+        // A non-target table still draws from the same preview counter.
+        e.seed([
+            ("members".into(), object([("id", id("member")), ("conversationId", id("c")), ("principal", id("alice"))])),
+            ("receipts".into(), object([("id", id("r2")), ("messageId", id("m2"))])),
+            ("messages".into(), object([("id", id("m2")), ("conversationId", id("c")), ("body", Value::String("second".into()))])),
+        ]).unwrap();
+        let totals = e.query("totals", ctx(&[])).unwrap().data;
+        assert!(totals.as_array().unwrap().iter().any(|row| row.field("messageId.ordinal") == Ok(&Value::Int(5))));
+        assert_eq!(send(&mut e, "six").field("ordinal"), Ok(&Value::Int(6)));
+    }
+}
+
+#[test]
+fn parent_rewrites_distinguish_import_retargeting_from_bad_types() {
+    let mut e = engine(Store::memory().unwrap());
+    let row = send(&mut e, "existing");
+    let error = e.load([("messages".into(), object([
+        ("id", row.field("id").unwrap().clone()), ("conversationId", id("other")), ("body", Value::String("existing".into())),
+    ]))]).unwrap_err().refusal();
+    assert_eq!(error.code, "E_SEQUENCE_PARENT");
+    assert_eq!(error.rewrite.as_deref(), Some("import a new row id; do not retarget a sequence parent"));
+    let error = snapback4_core::error::RuntimeError::Structural {
+        code: "E_SEQUENCE_PARENT", message: "messages.parent must be a required parent reference (guide types)".into(),
+    }.refusal();
+    assert_eq!(error.rewrite.as_deref(), Some("declare a required reference column: conversationId: conversations; ordinal: sequence by conversationId"));
+}
+
+#[test]
+fn exhausted_if_absent_cannot_collide_on_a_clamped_sequence() {
+    let source = SOURCE.replace("  unique conversationId, body", "  unique conversationId, body\n  unique conversationId, ordinal");
+    let source = format!("{source}\nmutation sendAbsent(conversationId: conversations, body: text <=40):\n  return insert messages {{ conversationId, body }} if absent\n");
+    let b = bound(&source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.load_trusted([("messages".into(), object([
+        ("id", id("last")), ("conversationId", id("c")), ("body", Value::String("last".into())),
+        ("ordinal", Value::Int(snapback4_core::value::I53_MAX)),
+    ]))]).unwrap();
+    let out = e.mutate("sendAbsent", None, ctx(&[("conversationId", id("c")), ("body", Value::String("new".into()))])).unwrap();
+    let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}"); };
+    assert_eq!(why.code, "E_SEQUENCE_EXHAUSTED");
+    let out = e.mutate("sendAbsent", None, ctx(&[("conversationId", id("c")), ("body", Value::String("last".into()))])).unwrap();
+    assert_eq!(sent(out), Value::Null);
 }

@@ -85,8 +85,12 @@ must still fit the operation: `join` joins texts; `sum(page, .amount)` projects 
 inside the write transaction. The named column must be a required reference
 on this table, such as `conversationId: conversations`. E_SEQUENCE_PARENT
 names a missing, optional or non-reference parent column and gives the rewrite.
+For an import that retargets an existing sequence parent, keep the existing
+parent or import a new row id; redeclaring the column cannot move an ordinal.
 The ordinal and parent reference are immutable; an explicit `immutable ordinal`
-is redundant and accepted. Do not supply a value or default.
+is redundant and accepted, including for maintained reference paths. Do not
+supply a value or default. A table named `sequence` remains a reference type;
+only the two words `sequence by` introduce an ordinal.
 
 ```quarry
 table conversations:

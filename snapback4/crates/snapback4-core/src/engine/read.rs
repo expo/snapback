@@ -315,6 +315,7 @@ impl Runner<'_> {
         if self.context.is_system() {
             return Ok(true);
         }
+        self.observe_sequence_rule(table_name, effect, old, next)?;
         if effect == Effect::Read && self.is_provisional(table_name, next)? { return self.provisional_readable(table_name, next); }
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         // A device holds a synced table's rows because the server delivered
