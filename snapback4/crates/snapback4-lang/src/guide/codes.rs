@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_QUARRY_SELF_EQUALITY", "a predicate compares a filtered row column with itself. Use an operation argument, or bind the enclosing row in a named key: members[conversation = .conversation]. guide shapes."),
     ("N_OPTIONAL_FILTER_LIMIT", "at most three optional filter inputs get planned presence variants; the named extra filters remain metered residual predicates. Keep them, or split the screen into queries that branch on those inputs. guide reads."),
     ("E_INIT_CONFLICT", "init found conflicting destination files or package.json entries and wrote nothing. Rename the listed files or reconcile the named package entries, then rerun snapback4 init. Unrelated files are preserved; when README.md exists, setup instructions go in README.snapback.md."),
 
@@ -237,6 +238,16 @@ pub(crate) fn explanation_section(code: &str, keyword: &str) -> Option<String> {
 fn explain(code: &str, keyword: &str, dedicated: bool) -> Option<String> {
     let (_, explanation) = CODES.iter().find(|(name, _)| *name == code)?;
     let card = super::card(keyword)?;
+    if let Some(detail) = super::why::detail(code) {
+        // Authored why pages own their full facts. Tests reject overflow rather
+        // than relying on the generic excerpt truncation below. A project-specific
+        // guide pointer must not hide facts moved out of that card.
+        // The code owns this page; contextual cards still own the navigation pointer.
+        let home = crate::diag::guide_for(code);
+        let heading = super::card(home)?.lines().next().unwrap_or(home);
+        let body = detail.split_once('\n').map_or(detail, |(_, body)| body.trim_start());
+        return Some(format!("{code}: {explanation}\n\n{heading}\n\n{body}\nFull card: snapback4 guide {keyword}"));
+    }
     let paragraphs = prose(card);
     let section = paragraphs.iter().find(|(_, paragraph)| paragraph.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == code));
     if dedicated && section.is_none() { return None; }

@@ -62,8 +62,9 @@ fn s10_enum_widens_totally_to_bounded_text() {
     assert_eq!(refused.diagnostics.len(), 1);
     assert_eq!(refused.diagnostics[0].rewrite, "change take's parameter to `t: enum('é', 'long')`; not every variant fits text <=1");
     let optional = bind("schema.q", "fn take(t: text <=3): t\nquery q(t: enum('off', 'on') ?):\n  return take(t)\n");
-    assert_eq!(optional.diagnostics[0].rewrite, "guard `t != null` before calling take, or make its parameter `t: text <=3 ?`");
+    assert_eq!(optional.diagnostics[0].rewrite, "t ! else NOT_FOUND — require this argument once before calling take; absent or hidden rows refuse NOT_FOUND");
     clean("schema.q", "fn take(t: text <=3): t\nquery q(t: enum('off', 'on') ?):\n  require t != null else MISSING\n  return take(t)\n");
+    clean("schema.q", "fn take(t: text <=3): t\nquery q(t: enum('off', 'on') ?):\n  return take(t ! else NOT_FOUND)\n");
 }
 
 #[test]

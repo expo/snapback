@@ -13,6 +13,7 @@ pub mod parser;
 pub mod print;
 pub mod source;
 pub mod recipe;
+mod repair;
 pub mod types;
 
 pub use bind::{Bound, BoundProgram, bind};
@@ -28,6 +29,34 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
         diagnostics.append(&mut parsed);
         documents.push(document);
     }
+    // Refusals still block binding. On these malformed forms only, complete
+    // their repairs with column types/table names from the whole project,
+    // including files and declarations that follow the offending operation.
+    let repair_files: std::collections::BTreeSet<_> = diagnostics.iter().filter(|d|
+        d.code == "E_QUARRY_SELF_EQUALITY" || (d.code == "E_QUARRY_UNSUPPORTED" && d.message.starts_with("count(*)")))
+        .map(|d| d.site.file.clone()).collect();
+    if !repair_files.is_empty() {
+        let tables: Vec<_> = documents.iter().flat_map(|doc| doc.tables.iter().cloned()).collect();
+        // Use the ordinary binder's projected types, including renamed and
+        // computed fields. Invalid or non-scalar projections get no invented
+        // argument type. This discarded binding is diagnostic-only.
+        let views = if documents.iter().any(|doc| !doc.views.is_empty() || !doc.feed_views.is_empty()) {
+            let mut declarations = documents.clone();
+            for doc in &mut declarations {
+                doc.programs.clear(); doc.actions.clear(); doc.routes.clear(); doc.schedules.clear();
+            }
+            bind(declarations).view_types
+        } else { Default::default() };
+        diagnostics.retain(|d| !repair_files.contains(&d.site.file));
+        for ((file, source), document) in sources.iter().zip(&mut documents) {
+            if repair_files.contains(file) {
+                let (repaired, mut parsed) = parser::parse_with_types(file, source, tables.clone(), views.clone());
+                *document = repaired;
+                diagnostics.append(&mut parsed);
+            }
+        }
+    }
+    repair::verify(&documents, &mut diagnostics);
     if !diagnostics.is_empty() {
         return Bound { view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
     }

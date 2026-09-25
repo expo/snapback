@@ -495,7 +495,7 @@ impl Binder<'_> {
             if !ty.assignable_to(&expected) {
                 return Err(type_error(given.site(), format!("{name}'s {} is {}; got {}", declared.name, expected.name(), ty.name()), match (ty.required(), expected.required()) {
                     (Ty::Enum(variants), Ty::Text(max)) if variants.iter().any(|variant| variant.chars().count() > max as usize) => format!("change {name}'s parameter to `{}: {}`; not every variant fits text <={max}", declared.name, ty.name()),
-                    _ if ty.is_optional() && !expected.is_optional() => format!("guard `{} != null` before calling {name}, or make its parameter `{}: {} ?`", print::expression(given), declared.name, print::scalar_type(&declared.type_)),
+                    _ if ty.is_optional() && !expected.is_optional() => format!("{} — require this argument once before calling {name}; absent or hidden rows refuse NOT_FOUND", print::expression(&A::Assert { value: Box::new(given.clone()), code: "NOT_FOUND".into(), site: given.site().clone() })),
                     _ => format!("pass {} for {}", expected.name(), declared.name),
                 }));
             }

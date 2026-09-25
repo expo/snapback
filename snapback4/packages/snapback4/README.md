@@ -5,7 +5,7 @@ Rust interpreter as the server. The package carries the TypeScript client and th
 
 ## Start here: your first working account screen
 
-Follow this `README.md` through password signup, profile, avatar and reopen.
+Follow this `README.md` through password signup, profile, avatar and reopen. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`).
 
 ### 1. Create and run the backend
 

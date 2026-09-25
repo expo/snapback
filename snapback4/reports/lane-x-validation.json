@@ -1,0 +1,101 @@
+{
+  "date": "2026-09-25",
+  "tested_production_commit": "b8eceea7acd7544bbfa3b9ba8a34e17d737d45b2",
+  "baseline": "f5efae87f",
+  "first": {
+    "command": "SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh",
+    "exit": 1,
+    "summary": "== 2 failure(s) in 1442 s",
+    "log": "/tmp/lane-x-suite.log",
+    "log_sha256": "b82884d6c8290b18ab5d1de7e17c89b4ad960869d71ebbf6699907d333fa02b8"
+  },
+  "final": {
+    "command": "scripts/test.sh",
+    "exit": 0,
+    "summary": "== 0 failure(s) in 443 s",
+    "log": "/tmp/lane-x-suite-final.log",
+    "log_sha256": "b3e07e22049e2398b2d769b4c430f32564fa60b242e6f9c4250476c7fa38556a"
+  },
+  "first_failures": [
+    {
+      "target": "snapback4-lang::ergonomics",
+      "test": "s10_enum_widens_totally_to_bounded_text",
+      "classification": "introduced; corrected and reverified"
+    },
+    {
+      "target": "snapback4-device::readauth",
+      "test": "census::authoring_census",
+      "classification": "introduced; corrected and reverified"
+    },
+    {
+      "target": "snapback4::check",
+      "test": "guide_lists_aliases_and_resolves_them_on_stdout",
+      "classification": "introduced; corrected and reverified"
+    },
+    {
+      "target": "snapback4::check",
+      "test": "guide_unknown_word_suggests_cards_on_stdout",
+      "classification": "introduced; corrected and reverified"
+    },
+    {
+      "target": "snapback4::check",
+      "test": "w10c_check_keeps_independent_errors_and_other_operations",
+      "classification": "introduced; corrected and reverified"
+    },
+    {
+      "target": "snapback4::check",
+      "test": "w10r1_empty_job_keeps_its_independent_repair",
+      "classification": "introduced; corrected and reverified"
+    },
+    {
+      "target": "snapback4::check",
+      "test": "w10r1_multiple_job_prelude_statements_keep_the_independent_repair",
+      "classification": "introduced; corrected and reverified"
+    },
+    {
+      "target": "snapback4::check",
+      "test": "w10r1_nested_job_prelude_keeps_its_independent_repair",
+      "classification": "introduced; corrected and reverified"
+    },
+    {
+      "target": "client/readme-examples.test.mjs",
+      "test": "Queries teach predicate reads and engine-chosen scope lanes",
+      "classification": "introduced; corrected and reverified"
+    }
+  ],
+  "final_failures": [],
+  "regular_client_tests": {
+    "passed": 1509,
+    "failed": 0,
+    "existing_skips": 10
+  },
+  "client_models": {
+    "passed": 78,
+    "failed": 0,
+    "sequences": [
+      5000,
+      5000,
+      3000
+    ]
+  },
+  "guide_tests": {
+    "passed": 83,
+    "failed": 0
+  },
+  "hyphenated_guide_pointer_test": {
+    "passed": 1,
+    "failed": 0
+  },
+  "wasm_bytes": {
+    "raw": 1775799,
+    "gzip": 495258,
+    "gzip_budget": 496000
+  },
+  "ref_check": "ref-check: ok \u2014 509 LLP docs, 9282 refs in 26200 files, 0 errors, 0 unchecked",
+  "target_clique": {
+    "exit": 0,
+    "problems": 0,
+    "notes": 6,
+    "notes_identical_to_baseline": true
+  }
+}

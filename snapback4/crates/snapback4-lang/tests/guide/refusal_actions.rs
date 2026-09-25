@@ -2,6 +2,7 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_QUARRY_SELF_EQUALITY", &["members[conversation = .conversation]", "the named key reads the enclosing row"]),
     ("E_QUARRY_DUPLICATE_FIELD", &["Rename or remove the second field"]),
     ("E_QUARRY_SPREAD", &["Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`"]),
     ("E_QUARRY_SHAPE_JOIN", &["Spread both row arms before joining, or build both arms with the same shape and kind"]),

@@ -57551,3 +57551,276 @@ increase or iOS simulator claim. No deviation from the round-8 brief and no
 known open finding. The clock card and operations reference describe the full
 commit and restore rule. File map, examples, implementation choice and evidence:
 [Lane Y round-8 report](reports/20260925-lane-y-r8.md).
+
+
+## 2026-09-25 — Lane X: SQL/Convex Rosetta, familiar guesses and shorter first reads
+
+Implemented LLP 3000.013’s Lane X: `guide from-sql` with `sql`, `convex`
+and `rosetta` aliases and first-screen entry points; repeated `where` combines
+with `and`; a helper in `m.q` accepts `m.helper(...)` with checked ownership.
+A filtered row compared with itself receives E_QUARRY_SELF_EQUALITY and a
+named-key nested-read repair. Nullable helper arguments, aggregate declarations,
+`.length`, `count(*)`, `limit` and duplicate sync have concrete repairs; `len`
+remains refused with its existing mechanical `check --fix` behavior.
+
+The six core cards now open with paved examples and short limits. Their word
+count falls from 18,300 to 10,417 (43.1%); opening reductions range from 78.5%
+to 96.8%. All 17 original compiled Quarry blocks are preserved byte-for-byte.
+All 133 original prose fragments have tested homes: 79 in dedicated why pages,
+54 in Details. Facts stay reachable under every diagnostic guide context.
+All 207 why pages fit 4,096 bytes; the largest default authored page is 4,039
+bytes. No source file added or enlarged by this lane exceeds 1,500 lines.
+
+Native engine, wasm/memory and native/SQLite witnesses check nested keys, predicate ordering,
+short-circuiting, helper placement and recursion, same-result metering, and
+an explicit foreign-owner read through a qualified helper that returns null
+before projection. Eleven guesses were replayed through the exact baseline
+`f5efae87f` CLI and this lane; every repaired fixture compiles. Evidence lanes
+were read-only; missing failed source text is labelled as reconstructed.
+The external target-clique.q checks with zero problems and the same six notes
+as baseline. The guide authorization census gained the new/reordered examples;
+no normalized prior authorization fact was removed.
+
+Final default-concurrency `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 443 s`**. Regular clients: 1,509 passed, 10 existing skips;
+all three models retain 5,000 / 5,000 / 3,000 sequences. The first serial run
+was `== 2 failure(s) in 1442 s`: nine introduced test failures in the Rust and
+client phases, all corrected and listed in the report. No failure was waived.
+Ref-check: zero errors/unchecked. Wasm: 1,775,799 B raw / 495,258 B gzip against
+the unchanged 496,000 B budget. A damaged Cargo registry extraction was repaired
+from its cached archive before testing; no dependency version changed.
+
+No authorization, disclosure, durability or meter redesign; no client-source,
+Following, package-version, publication or push work. No new calibration or
+suite-speed claim. The supervisor retains integration and release ownership.
+File-by-file changes, word counts, all fact destinations, guess provenance,
+reproduction commands and exact verification receipts:
+[Lane X report](reports/lane-x-report.md).
+
+
+## 2026-09-25 — Lane X round 1: scoped comparisons, pasteable repairs and offline prediction
+
+Closed Astra and Grok's round-zero findings. E_QUARRY_SELF_EQUALITY now refuses
+all six scalar self-comparisons and `in` lists containing the same focal column.
+Read/merge, aggregate-view, maintained-column and timeline-event predicates use
+one validator; nested read keys retain the enclosing scope and inner filters get
+their own. Contextual repairs name the actual count domain and an existing
+compatible argument, or add a typed argument while preserving the declaration.
+Project table declarations supply repair types even across files or declaration
+order. Argument-free derived declarations get an explicit constant repair with
+an intent warning. These repairs never run mechanically through `check --fix`.
+
+The qualified-helper witness now submits predictable mutations fully offline on
+wasm/memory and native/SQLite. Each has a real predicted outbox row. Local queries
+return the owner's doubled value with pending metadata, hide a foreign-owned row
+in the pending overlay, and confirm that neither offline write reached the server.
+Six language regressions and a CLI paste test cover the review reproductions,
+all operators, nested scopes, declarations and actual diagnostic repairs.
+All 133 moved guide facts and 17 original compiled blocks remain covered; the
+cards total 10,420 words, still 43.1% below the 18,300-word baseline.
+
+Final default-concurrency `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 409 s`**. Client tests: 1,509 passed, ten existing skips.
+Client models: 78 passed; 5,000 / 5,000 / 3,000 sequences retained. The first run
+was `== 1 failure(s) in 411 s`: three introduced instances of the shared
+empty-scan meter test used the newly forbidden `.roomId != .roomId`. The fixture
+now compares its distinct `r...` room ids with its `m...` row ids; every empty
+result, meter-cut and continuation assertion is unchanged and passes on all
+three runners. No failures were waived or attributed to the older baseline.
+Ref-check: zero errors/unchecked. Wasm remains 1,775,799 B raw / 495,258 B gzip
+within the unchanged 496,000 B budget. The external target checks with zero
+problems and its six existing notes.
+
+No engine, authorization, disclosure, durability, meter, client-source, Following,
+version, push or publication changes. No unresolved review finding. The existing
+suite wall-time budget overrun remains outside this lane. File map, engineering
+decisions, tests, reproductions and log digests:
+[Lane X round-one report](reports/lane-x-round1-report.md).
+
+
+## 2026-09-25 — Lane X round 2: safe repairs, nullable presence and mutation-resistant tests
+
+Closed Astra and Grok's round-one delta findings. Declaration repair boundaries
+now follow parsed layout tokens and balanced delimiters, including an unindented
+closing parenthesis in a multiline predicate. Every source replacement range is
+checked before splicing; uncertain types or spans yield a refusal without a
+replacement. Projected view columns use the ordinary binder's inferred types,
+including renamed and computed fields, rather than a guessed id argument.
+
+Optional focal columns retain inclusive ordered self-comparisons as presence
+tests in reads and nested keys, including late and cross-file declarations.
+Required inclusive comparisons and the other accidental self-comparisons remain
+refused. Optional ordered aggregates retain the baseline E_QUARRY_MAINTAIN
+restriction, verified against the saved f5efae87f binary; no constant-true repair
+is emitted for them. Nested-key repairs require a matching enclosing column and
+a known bound, preserve other conjuncts and page/order clauses, and fall back to
+an argument when needed. Ambiguous count-star no longer returns prose as code.
+
+Added six language regressions, a checked-splice unit test, exact count-star CLI
+paste assertions, and offline nullable-presence/guarded-update witnesses on both
+wasm/memory and native/SQLite. The qualified helper in Write.condition predicts
+value 21 for x = 7; a false guard leaves it unchanged. Existing pending-overlay
+owner visibility and foreign-row hiding assertions remain. Actually deleting
+seek traversal, deleting Write.condition traversal, and emitting the prose
+count repair each failed the corresponding test. All mutations were restored.
+
+Targeted language/guide tests: 101 passed; language units: 20 passed; CLI: three
+passed; both-store witness: passed. One full default-concurrency scripts/test.sh
+run, exit 0: **== 0 failure(s) in 423 s**. Client tests: 1,509 passed, ten existing
+skips; models: 78 passed with all 5,000 / 5,000 / 3,000 sequences retained.
+Final failures: ours zero, baseline zero, environmental zero. The report records
+six corrected introduced development-test failures and the deliberate mutants.
+No failure was waived. The external Clique target has zero problems/six existing
+notes. Ref-check has zero errors/unchecked. Wasm remains 1,775,799 B raw /
+495,258 B gzip under the unchanged 496,000 B budget.
+
+All 133 fact homes and 17 original compiled blocks remain tested. Six cards total
+10,422 words versus 18,300 originally (43.0% reduction); openings total 860 versus
+12,540, with every card exceeding the two-thirds target. No engine, store,
+authorization, disclosure, durability, meter, client-source, Following, version,
+push or publication changes. No unresolved round-two finding; the existing
+60-second suite wall-time budget remains exceeded on this shared host.
+File ledger, examples, compatibility reproductions, fact mapping, per-card
+measurements, exact tests and log digests: [Lane X round-two report](reports/lane-x-round2-report.md).
+
+Verification note: one final ref-check invocation used the fence as its working
+directory and reported missing LLPs. This was an invocation error, corrected by
+running from the repository root; no reference or source edit was needed.
+
+
+## 2026-09-25 — Lane X round 3: source-preserving repairs and scoped fresh names
+
+Closed Astra and Grok's round-two delta findings. Self-comparison repairs now
+splice exact comparison token spans in the author's source. They never reprint
+retained expressions. Named-key repairs insert the key and replace just the bad
+comparison with true; the remaining nested keys, comments, grouping, predicates,
+page size and order remain verbatim. Existing/new argument and constant repairs
+use the same checked source edits. Parser-only comparison spans never reach the
+schema, IR or device payload. Fresh parameter names scan bindings at every depth
+within the current declaration, excluding focal column names and later operations.
+
+Added four Rust regressions. Pasting Astra's repair and executing the two-row
+example now gives a's roster exactly a; the test also covers empty/existing key
+lists. Existing/new argument repairs retain a commented multiline nested key and
+return the correct row. Nested local bindings receive fresh names, later bindings
+do not rename this operation, and same-named bool/text columns require the typed
+argument fallback. The device witness now runs the pure due <= due presence
+query online and offline on wasm/memory and native/SQLite, with the undated row
+excluded independently of any other disjunct.
+
+Actually weakened the type-equality guard, omitted only the <= null guard, and
+reintroduced the retained-key scope change in three temporary source mutations.
+Each built and failed its designated test; the scope mutation compiled its bad
+repair and failed at runtime with zero roster rows instead of one. Restored every
+mutation and reran the correct-code checks. Targeted results: 125 language/unit/
+guide tests, three CLI tests and the both-store witness passed. The report records
+an obsolete exact-rewrite expectation and three incorrect Value::field test
+assertions corrected during development; no failure was waived.
+
+One full default-concurrency scripts/test.sh run, exit 0:
+**== 0 failure(s) in 418 s**. Client tests: 1,509 passed, ten existing skips.
+Models: 78 passed with all 5,000 / 5,000 / 3,000 sequences retained. Final failures:
+ours zero, baseline zero, environmental zero. Ref-check: zero errors/unchecked.
+The external Clique target has zero problems and six existing notes. Wasm remains
+1,775,799 B raw / 495,258 B gzip under the unchanged 496,000 B budget. The why page
+is 2,250 rendered bytes within 4,096; all 133 fact homes and 17 original compiled
+blocks remain tested. Core-card counts remain 10,422 words versus 18,300, with
+860 opening words versus 12,540 and each opening meeting the two-thirds target.
+
+No engine, store, authorization, disclosure, durability, meter, client-source,
+Following, version, push or publication changes. No unresolved round-three
+finding or deviation from the brief. The existing optional-aggregate/point-seek
+restrictions and shared-host suite wall-time budget overrun remain unchanged.
+File ledger, examples, exact tests, mutation evidence, word counts, fact/guess
+mapping and log digests: [Lane X round-three report](reports/lane-x-round3-report.md).
+
+## 2026-09-25 — LLP 3000.013 lane X, round four: verify offered source repairs
+
+Addressed both delta reviews of round three. Self-comparison and count(*) source
+repairs now carry checked replacement spans. The compiler patches and reparses
+only the affected declaration, binds it against the project declarations, and
+withholds the rewrite if parsing, binding or admission fails. Named-key repairs
+also bind the intended read AST in the same scope and compare actual point/page
+plans using existing source-to-IR mappings. No syntax tree is printed into a
+repair; no other operation is rebound and no recursive diagnostic compilation
+occurs. Uncertain proofs keep the refusal and explanation without a rewrite.
+
+Key edits remove a sole comparison with its where, or one conjunct with its
+adjacent and; insert named equalities before the first parsed seek; carry grouped
+reads' full opening token; and reuse trailing commas. Tests paste and execute
+id/unique point reads, explicit pages, grouped reads, all four seek operators,
+existing/nested operands, trailing-comma keys and conjunct/repeated-where cases.
+Three injected-bad-repair tests cover syntax/name/type failures, compiling
+point/page changes in both directions, and count(*) prose. Earlier executed
+nested-scope and both-store prediction/visibility witnesses remain intact.
+Standalone shapes without a focal type and helper signature edits have no local
+proof and get no rewrite; existing-argument helper repairs remain checked.
+The earlier independently invalid point-seek probe now has no broken repair.
+
+Actually removed the comma separator guard, the plan-class comparison and the
+verification gate in three temporary mutations. Each built and failed its
+specified test with exit 101; each was restored before the final checks.
+Restored targeted validation: 134 language/unit/guide tests and three CLI tests
+passed. One full scripts/test.sh run exited 0, with the exact summary:
+**== 0 failure(s) in 469 s**. Final failures: ours zero, baseline zero,
+environmental zero. Client tests: 1,509 passed, ten existing skips. Client models:
+78 passed, preserving all 5,000 / 5,000 / 3,000 sequences. Development failures
+and their corrections are recorded in the report; none was waived.
+
+Ref-check: 509 LLP docs, 9,282 refs, zero errors/unchecked. External Clique target:
+zero problems and six existing notes. Wasm: unchanged 1,775,799 B raw / 495,258 B
+gzip under the unchanged 496,000 B budget. Rendered why E_QUARRY_SELF_EQUALITY:
+2,583 bytes within 4,096. All 133 fact homes and 17 original compiled blocks remain
+tested; core cards remain 10,422 words versus 18,300, with 860 opening words versus
+12,540. Every changed source file stays below 1,500 lines.
+
+No unresolved round-four finding or design deviation. No engine, store,
+authorization, disclosure, durability, meter, client-source, Following, package
+version, push or publication change. Existing aggregate/seek restrictions and
+the shared-host wall-time budget overrun remain unchanged. Implementation:
+3c3a69461. File ledger, examples, guess/fact mapping, word counts, limitations and
+log digests: [Lane X round-four report](reports/lane-x-round4-report.md).
+
+## 2026-09-25 — LLP 3000.013 lane X, round five: aggregate repair context
+
+Addressed Grok's aggregate repair finding and both requested mutation tests.
+When a named point key fails to bind in its enclosing declaration, verification
+now retries the same source with first 1, provided id or a total unique key
+proves that this preserves the whole population. The page candidate must pass
+ordinary compilation/admission and the intended plan-class check. A compiling
+wrong-plan candidate cannot trigger this retry. Valid point reads and existing
+multi-row pages remain unchanged. Candidate-specific messages and replacements
+are now published together only after verification; a rejected named key leaves
+neither a rewrite nor misleading advice.
+
+Tests paste and execute count and sum repairs for id and a non-id unique key,
+both direct and grouped. They also retain full counts for capped non-unique
+pages and tied null keys, refuse an unprovable single-row fallback, and ensure
+an invalid helper body gets no repair even without an external caller. Actually
+skipping count-candidate verification produced the noncompiling point argument
+and failed its paste test with exit 101. Actually deleting the synthetic helper
+invocation leaked a repair for int + bool and failed the new helper test with
+exit 101. Both mutations were restored before final validation. Fixture
+assumptions corrected during development are recorded in the report.
+
+Restored-code checks: 140 language/unit/guide tests and three CLI tests passed.
+One full scripts/test.sh run exited 0, exact summary:
+**== 0 failure(s) in 574 s**. Final failures: ours zero, baseline zero,
+environmental zero; none waived or retried. Client tests: 1,509 passed, ten
+existing skips. Client models: 78 passed, with all 5,000 / 5,000 / 3,000 sequences
+retained. The wasm/native familiarity witness passed. Wasm remains 1,775,799 B
+raw / 495,258 B gzip, under the unchanged 496,000 B budget. Ref-check: zero
+errors/unchecked. External Clique target: zero problems, six existing notes.
+Rendered why E_QUARRY_SELF_EQUALITY is 2,892 bytes within 4,096. Core cards remain
+10,422 words versus 18,300, with 860 opening words versus 12,540; all 133 fact
+homes and 17 original compiled blocks remain tested. Changed source files stay
+below 1,500 lines. Frozen Bun installation changed no dependencies.
+
+No unresolved round-five finding or design deviation. The existing fully pinned
+extra-key page restriction still withholds an unverified repair; this round does
+not alter planner admission. No authorization, disclosure, durability, runtime
+meter, store, client-source, Following, version, push or publication changes.
+The existing shared-host wall-time target remains exceeded; no thresholds were
+reduced. Implementation: d56014670. File ledger, forms, tests, mutation evidence,
+limitations, counts/mappings and log digests:
+[Lane X round-five report](reports/lane-x-round5-report.md).
