@@ -3,9 +3,15 @@ import type { SessionStore } from "./auth.ts";
 import type { BackendJson } from "./backend.ts";
 import type { PendingSend } from "./local-exit.ts";
 import type { MediaStorage, AssetRetention } from "./local-assets.ts";
+import { admissionCapture } from "./admission.ts";
+import { admissionOwnership, type AdmissionAuthorityContext } from "./admission-authority.ts";
 
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
+  /** Internal web capabilities. Adapters must forward all properties (including
+   * symbols) with {...core} before overriding methods. */
+  [admissionCapture]?: (request: Record<string, unknown>) => Refusal | undefined;
+  [admissionOwnership]?: (context: AdmissionAuthorityContext) => void;
   /** Native host instrumentation, absent on ordinary launches. Uses this client, never a second one. */
   onClient?(client: LocalClient, url: string): void | (() => void);
   readonly media?: MediaStorage;

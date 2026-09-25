@@ -1,0 +1,83 @@
+import type { SessionStore } from "./auth.ts";
+import { StorageWarning } from "./app-storage.ts";
+
+type Mirror = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type Authority = { source: string; read(key: string): Promise<string | null> };
+// Function identity survives `{ ...localStorageSessionStore() }`.
+const authorities = new WeakMap<SessionStore["get"], Authority>();
+export const sessionAuthority = (store: SessionStore): Authority | undefined => authorities.get(store.get);
+const database = "snapback4-session-authority";
+const records = "sessions";
+const failed = (error: unknown) => new StorageWarning({ code: "E_CLIENT", family: "store", site: "app.auth",
+  message: `session authority could not be committed or read: ${String(error)}`,
+  rewrite: "restore writable IndexedDB and localStorage, then retry app.auth.login", guide: "writes" });
+const done = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => {
+  tx.oncomplete = () => resolve();
+  tx.onabort = () => reject(tx.error ?? new Error("session transaction aborted"));
+  // Request errors abort the transaction by default. Wait for that terminal
+  // event too, so the caller never releases its session lock before rollback.
+});
+
+// @ref LLP 3000.013#6 — the browser authority commits before releasing the
+// session lock; localStorage is only the synchronous admission mirror.
+export function indexedDbSessionStore(mirror: () => Mirror, namespace: string | undefined): SessionStore {
+  const open = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+    if (namespace === undefined || namespace.length === 0) {
+      reject(new Error("a custom localStorage mirror requires a stable, unique authority namespace: localStorageSessionStore(mirror, 'my-app')"));
+      return;
+    }
+    const request = indexedDB.open(database, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(records);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const updateMirror = (key: string, value: string | null) => {
+    if (value === null) mirror().removeItem(key); else mirror().setItem(key, value);
+  };
+  const read = async (key: string): Promise<string | null> => {
+    const db = await open();
+    try {
+      const tx = db.transaction(records, "readonly"), committed = done(tx);
+      const request = tx.objectStore(records).get([namespace!, key]);
+      await committed;
+      // Missing authority never imports a possibly stale legacy mirror.
+      if (request.result === undefined) return null;
+      const value = request.result as string | null;
+      // Repair a stale mirror while the caller holds the session lock. A
+      // mirror failure cannot turn this coherent read into stale authority.
+      try { updateMirror(key, value); } catch { /* Admission will refuse if its mirror is unusable. */ }
+      return value;
+    } finally { db.close(); }
+  };
+  const write = async (key: string, value: string | null) => {
+    let db: IDBDatabase | undefined;
+    let previous: string | null = null, mirrored = false;
+    try {
+      db = await open();
+      const tx = db.transaction(records, "readwrite", { durability: "strict" }), committed = done(tx);
+      const store = tx.objectStore(records), request = store.get([namespace!, key]);
+      let cause: unknown;
+      request.onsuccess = () => {
+        previous = request.result ?? null;
+        try {
+          // A fallible mirror write precedes the authoritative commit. A
+          // crash/abort can leave only a speculative mirror, never authority.
+          updateMirror(key, value); mirrored = true;
+          // Keep a null deletion marker, so stale mirrors cannot resurrect it.
+          store.put(value, [namespace!, key]);
+        } catch (error) { cause = error; tx.abort(); }
+      };
+      try { await committed; } catch (error) { throw cause ?? error; }
+    } catch (error) {
+      if (mirrored) try { updateMirror(key, previous); } catch { /* Locked checks still see the old IDB authority. */ }
+      throw failed(error);
+    } finally { db?.close(); }
+  };
+  const store: SessionStore = {
+    async get(key) { try { return await read(key); } catch (error) { throw failed(error); } },
+    set: write,
+    delete: key => write(key, null),
+  };
+  authorities.set(store.get, { source: `indexeddb-v1:${namespace ?? ""}`, read: store.get });
+  return store;
+}

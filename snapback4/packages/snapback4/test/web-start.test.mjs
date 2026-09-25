@@ -51,7 +51,7 @@ test('web startup: immediate admin navigation, synchronous refusals and acquisit
   if (process.env.SNAPBACK4_WEB_START_AUTHORITY_MUTANT === '1') {
     const path = join(root, 'packages/snapback4/src/web-journal.ts');
     sourceOverrides[path] = readFileSync(path, 'utf8').replace(
-      'return storeLock(stamp.key, () => sameAdmissionAuthority(stamp, this.authority!, record.entry.viewer) ? admitted() : refused());', 'return admitted();');
+      'return storeLock(stamp.key, async () => await sameAdmissionAuthority(stamp, this.authority!, record.entry.viewer) ? admitted() : refused());', 'return admitted();');
   }
   if (process.env.SNAPBACK4_WEB_START_AUTHORITY_MUTANT === 'recovery') {
     const path = join(root, 'packages/snapback4/src/web-journal.ts');
@@ -272,17 +272,17 @@ window.mountProgress = (app) => {
         await page.waitForURL('**/?logout-recovery=1'); await page.waitForFunction(() => !!window.createApp);
       }
       const other = change === 'principal' ? (await fetch(api + '/auth/guest', { method: 'POST' }).then(r => r.json())).session : session;
-      await peer.evaluate(({ api, change, other, epoch }) => {
+      await peer.evaluate(async ({ api, change, other, epoch }) => {
         const value = change === 'principal' ? { ...other, snapback4Epoch: epoch }
           : change === 'epoch' ? { ...other, snapback4Epoch: String(BigInt(epoch) + 1n) }
           : { snapback4Logout: String(BigInt(epoch) + 1n) };
-        localStorage.setItem(sessionKey(api), JSON.stringify(value));
+        await localStorageSessionStore().set(sessionKey(api), JSON.stringify(value));
         window.releaseSession();
       }, { api, change, other, epoch: captured.record.authority.epoch });
       if (change === 'recovery') {
         await page.evaluate(async ({ api, session, epoch }) => {
           // A subsequent sign-in must not promote the older unadmitted click.
-          localStorage.setItem(sessionKey(api), JSON.stringify({ ...session, snapback4Epoch: String(BigInt(epoch) + 1n) }));
+          await navigator.locks.request(sessionKey(api), () => localStorageSessionStore().set(sessionKey(api), JSON.stringify({ ...session, snapback4Epoch: String(BigInt(epoch) + 1n) })));
           window.app = createApp({ url: api, sessionStore: localStorageSessionStore(), device: webDevice(), waitSeconds: 1 });
           await app.ready;
         }, { api, session, epoch: captured.record.authority.epoch });

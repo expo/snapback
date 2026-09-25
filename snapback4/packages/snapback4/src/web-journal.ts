@@ -205,7 +205,7 @@ export class AdmissionJournal {
     // Raw local clients have no app epoch and retain their existing custody.
     if (!stamp) return this.authority ? refused() : admitted();
     if (!this.authority) throw new Error("the journal's session reader has not been attached");
-    return storeLock(stamp.key, () => sameAdmissionAuthority(stamp, this.authority!, record.entry.viewer) ? admitted() : refused());
+    return storeLock(stamp.key, async () => await sameAdmissionAuthority(stamp, this.authority!, record.entry.viewer) ? admitted() : refused());
   }
 
   // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.

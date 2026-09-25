@@ -8,7 +8,8 @@ import { holdClose } from "./closing-responses.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { prepareClient, waitForRotation } from "./client-start.ts";
 import { createLocalClient, type DeviceOpener, type LocalOptions, type LocalClient } from "./local.ts";
-import { storeLock, sessionEpoch, StorageWarning } from "./app-storage.ts";
+import { storeLock, sessionEpoch, logoutEpoch, StorageWarning } from "./app-storage.ts";
+import { sessionAuthority } from "./session-authority.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
 import { onlineCustody } from "./app-online.ts";
 import { guardClient } from "./app-client.ts";
@@ -73,6 +74,7 @@ export function createApp(options: AppOptions): App {
   const url = options.url.replace(/\/$/, "");
   const fetcher = options.fetch ?? defaultFetch;
   const backing = options.sessionStore ?? memorySessionStore();
+  const authority = sessionAuthority(backing);
   const storage: SessionStore = { set: (key, value) => backing.set(key, value), delete: key => backing.delete(key), async get(key) {
     const bytes = await backing.get(key);
     if (key === sessionKey(url)) {
@@ -322,8 +324,14 @@ export function createApp(options: AppOptions): App {
       delete: key => scope.valid ? (key === sessionKey(url) ? removeSession(scope.session.token, restoreToken !== undefined) : sessionStore.delete(key)) : Promise.resolve(),
     };
     async function authorized(): Promise<boolean> {
-      const startedEpoch = await captureEpoch();
-      if (!scope.valid || startedEpoch !== epoch) {
+      const valid = await persist(() => storeLock(sessionKey(url), async () => {
+        if (!scope.valid || await readEpoch() !== epoch) return false;
+        if (preparing || !authority) return true;
+        const raw = await authority.read(sessionKey(url));
+        if (!raw || logoutEpoch(raw) !== null) return false;
+        try { return JSON.parse(raw)?.principal === scope.session.principal; } catch { return false; }
+      }));
+      if (!valid) {
         fence(scope, new SessionEpochChanged()); return false;
       }
       return true;
@@ -334,11 +342,12 @@ export function createApp(options: AppOptions): App {
       if (!read) return admissionRefusal("the session store cannot be checked synchronously", "app.mutate", "use localStorageSessionStore() on the web, then retry with the same id");
       try {
         const marker = read(epochKey) ?? "0";
-        const stored = sessionEpoch(read(sessionKey(url))) ?? "0";
+        const raw = read(sessionKey(url));
+        const stored = sessionEpoch(raw) ?? "0";
         const currentEpoch = BigInt(marker) > BigInt(stored) ? marker : stored;
         // An unlocked observation may catch our own session commit before its
         // in-memory epoch assignment. Confirm under the lock before fencing.
-        if (!scope.valid || currentEpoch !== epoch) {
+        if (!scope.valid || !raw || logoutEpoch(raw) !== null || JSON.parse(raw)?.principal !== scope.session.principal || currentEpoch !== epoch) {
           void authorized().catch(() => {});
           return new SessionEpochChanged().why;
         }
@@ -447,9 +456,8 @@ export function createApp(options: AppOptions): App {
         // when an untyped caller supplies lower-level sign-in options.
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
         const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch };
-        const read = sessionReader(backing);
         prepareAdmissionAuthority(prepared, {
-          capture: () => ({ key: sessionKey(url), epoch, principal: scope.session.principal }), read,
+          capture: () => ({ key: sessionKey(url), epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
         });
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
         raw = local.client; startClient = local.start;

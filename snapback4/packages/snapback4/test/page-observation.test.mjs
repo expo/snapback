@@ -76,7 +76,7 @@ test("web IndexedDB device bridges the two-device inbox fetch in useQuery and us
         const prefix = "page-observation-" + storeNumber++ + ":";
         return localStorageSessionStore({ getItem: key => localStorage.getItem(prefix + key),
           setItem: (key, value) => localStorage.setItem(prefix + key, value),
-          removeItem: key => localStorage.removeItem(prefix + key) });
+          removeItem: key => localStorage.removeItem(prefix + key) }, prefix);
       },
       deviceFactory: () => webDevice(), durableSessions: true,
       mount: async app => {

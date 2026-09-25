@@ -4,10 +4,10 @@ import type { SessionStore } from "./auth.ts";
 
 /** Internal synchronous web admission boundary. Native hosts still commit
  * through their normal async call. No transport runs before that commit. */
-const hosts = new WeakMap<DeviceCore, (request: Record<string, unknown>) => Refusal | undefined>();
-export const admissionHost = (core: DeviceCore, capture: (request: Record<string, unknown>) => Refusal | undefined) => { hosts.set(core, capture); };
+export const admissionCapture = Symbol("snapback4.admissionCapture");
+export const admissionHost = (core: DeviceCore, capture: (request: Record<string, unknown>) => Refusal | undefined) => { core[admissionCapture] = capture; };
 export const admitNow = (core: DeviceCore, request: Record<string, unknown>) => {
-  const capture = hosts.get(core);
+  const capture = core[admissionCapture];
   return capture ? capture(request) : browserAdmission() ? admissionRefusal("the device has no synchronous admission journal", "client.mutate", "open a webDevice() with an exclusive persistence claim before writing") : undefined;
 };
 export const browserAdmission = () => typeof window !== "undefined" && typeof window.location !== "undefined";
@@ -20,6 +20,6 @@ export function failedAdmission<R>(id: string, why: Refusal): Promise<Write<R>> 
   const write = { state: "failed" as const, id: typeof id === "string" ? id : "", why };
   return Object.assign(Promise.resolve(write), write);
 }
-const readers = new WeakMap<SessionStore, (key: string) => string | null>();
-export function synchronousSessionStore(store: SessionStore, read: (key: string) => string | null): SessionStore { readers.set(store, read); return store; }
-export const sessionReader = (store: SessionStore) => readers.get(store);
+const readers = new WeakMap<SessionStore["get"], (key: string) => string | null>();
+export function synchronousSessionStore(store: SessionStore, read: (key: string) => string | null): SessionStore { readers.set(store.get, read); return store; }
+export const sessionReader = (store: SessionStore) => readers.get(store.get);

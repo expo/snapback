@@ -1,4 +1,5 @@
-import { synchronousSessionStore } from "./admission.ts";
+import { browserAdmission, synchronousSessionStore } from "./admission.ts";
+import { indexedDbSessionStore } from "./session-authority.ts";
 import { defaultFetch } from "#fetch";
 // Sign-in (H0): a guest session, or a password account. Each returns a
 // bearer token the client sends as `authorization`; the token is the
@@ -85,19 +86,21 @@ export function memorySessionStore(): SessionStore {
 
 export const defaultSessionStore: SessionStore = memorySessionStore();
 
-/** Explicit browser persistence. Any script running on the page can read
- * this token; use it only when that exposure is acceptable. */
-export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">): SessionStore {
+/** Explicit browser persistence: coherent IndexedDB authority and a synchronous
+ * localStorage mirror. Custom mirror adapters need a stable unique namespace.
+ * Any script on this origin can read the token; opt in only when acceptable. */
+export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">, authorityNamespace?: string): SessionStore {
   const target = () => {
     const found = storage ?? globalThis.localStorage;
     if (!found) throw new Error("localStorage is unavailable in this runtime");
     return found;
   };
-  return synchronousSessionStore({
+  const store = browserAdmission() ? indexedDbSessionStore(target, authorityNamespace ?? (!storage || storage === globalThis.localStorage ? "default" : undefined)) : {
     async get(key) { return target().getItem(key); },
     async set(key, value) { target().setItem(key, value); },
     async delete(key) { target().removeItem(key); },
-  }, key => target().getItem(key));
+  } satisfies SessionStore;
+  return synchronousSessionStore(store, key => target().getItem(key));
 }
 
 export const sessionKey = (url: string) => storeKey("session", url.replace(/\/$/, ""));
