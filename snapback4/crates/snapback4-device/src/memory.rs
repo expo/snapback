@@ -176,6 +176,33 @@ impl MemoryStore {
         out
     }
 
+    // Check before publishing any metadata or clearing entries. The actual
+    // rebuild remains infallible; charge both this pass and its evaluation.
+    // @ref LLP 3000.007#20.9.3 — contribution-format adoption uses bounded work chunks on the memory host too.
+    fn check_contribution_rebuild(&self, schema: &Schema) -> Result<(), RuntimeError> {
+        use snapback4_core::{meter::{Meter, Cut, Ceilings}, error::MeterKind, schema::IndexComponent};
+        let state = self.state.borrow();
+        let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
+        for (n, ((table_name, _), row)) in state.rows.iter().enumerate() {
+            if n % 32 == 0 { meter = Meter::new(Ceilings::job(), Cut::Abort); }
+            let Some(table) = schema.table(table_name) else { continue };
+            for (name, index) in &table.indexes {
+                if let Some(IndexComponent::Contribution(maintain)) = index.components.first() {
+                    meter.at(&format!("adopt {table_name}.{name}"));
+                    let heap_before = meter.used.heap_bytes;
+                    meter.charge(MeterKind::Examined, 1)?;
+                    meter.step(maintain.evaluation_steps().saturating_mul(2))?;
+                    meter.heap(row.heap_bytes().saturating_mul(4).saturating_add(4096))?;
+                    // At most one physical contribution per row, even when
+                    // its predicate will exclude it from the rebuilt index.
+                    meter.charge(MeterKind::IndexEntries, 1)?;
+                    meter.used.heap_bytes = heap_before;
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn rebuild_entries(state: &mut State, schema: &Schema) {
         state.entries.clear();
         for ((table_name, id), row) in &state.rows {
@@ -218,6 +245,7 @@ impl DeviceStore for MemoryStore {
         self.install(schema, metadata, reset)
     }
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
+        if !reset { self.check_contribution_rebuild(schema)?; }
         // Installation below is infallible and memory has one exclusive owner.
         // Run fallible cleanup first; the host persists this whole call together.
         let tx = self.transaction()?;
