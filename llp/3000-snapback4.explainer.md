@@ -1565,7 +1565,19 @@ time-ordered 128-bit form.
   failures, with 13,000 model sequences. The blind reviews of the ruled close
   and replay code found narrow defects: two concurrent calls with one id, a
   held refresh at close, an unbound intent after a crash, and a weakened
-  oracle. Integration round 6 fixed them before publication. `snapback4@0.4.1` and `snapback4-expo@0.4.1`
+  oracle. Integration rounds 6 and 7 fixed them before publication.
+
+  0.4.1 also carries Lane S: a read whose value only feeds an effect never
+  costs prediction, so calibration #19's `send` predicts offline without
+  hoisting. Grok found Lane S READY; Astra's changes follow in 0.4.2.
+
+  The first publication dry run on the M5 stopped on macOS-only failures:
+  - Node's bundled Undici threw outside the fetch promise;
+  - a refused adoption wrote Lane P's counters into the old store;
+  - canonical printing lost four `[]` pairs.
+
+  A fix lane fixed all three, and the M5 suite with the published-0.2.33
+  fences has 0 failures. `snapback4@0.4.1` and `snapback4-expo@0.4.1`
   follow, then calibration #20.
 
 ## 8. Implementation map
