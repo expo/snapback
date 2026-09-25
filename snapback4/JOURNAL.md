@@ -56564,3 +56564,59 @@ retuning or cold-acquisition measurement. No push or publication. Implementation
 and test commits: 6ea85f28b, 0efdc1638, 251336465, 2b47ba061, 44e21d0ef,
 0a8996caf. The file map, examples, failures and reproductions are in
 `reports/20260925-lane-v-r9.md` and its evidence folder.
+
+## 2026-09-25 — Lane V round 10: acknowledgements resolve replacement refusals
+
+Implemented the round-9 review ruling: a correlated outbox acknowledgement
+resolves an unknown-outcome `E_STORE_REPLACED` as `sent`, including when its
+aborted receipt was saved before sync applied the acknowledgement. Receipt
+selection discards an unpersisted replacement refusal before retrying storage.
+Ordinary flush, preflight and write lookup use the acknowledged sequence. The
+shared device receipt writer overwrites an existing replacement refusal only
+when the same transaction finds that matching sequence in the outbox; it keeps
+the row's position in the bounded receipt window. Authored refusals such as
+`NOT_ADMIN` retain their existing custody.
+
+Added memory/SQLite cases for both acknowledgement fields, missing and
+mismatched proof, authored-refusal preservation and reopen; a client-history
+test proves that the speculative refusal is dropped before another save.
+Real-browser tests cover A committing a lost reply, B refusing the retry while
+receipt persistence aborts, A's sync acknowledgement repairing the stored
+refusal, and reopening with the original sent sequence (A audit +1, B audit 0).
+The pending `/changes` rewind case now holds a capture taken after `begin_send`;
+an aborted successful receipt prevents the observation from installing a
+restore fence, then becomes durable when storage recovers. Both requested
+fault variants fail their intended assertions.
+
+Measured: 49 browser admission checks pass; 192 affected client checks pass;
+eight device write-authority checks pass; 55 client seam checks pass. Wasm is
+1,776,633 bytes raw and 495,460 bytes gzip, within the existing 496,000-byte
+ceiling. Reference audit: 509 LLP documents, 9,288 references, zero errors and
+zero unchecked references. Final complete qualification:
+
+```text
+== 0 failure(s) in 772 s
+```
+
+Exit 0 with `SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`:
+Rust 384 s; clients 137 s (1,601 passes, zero failures, 10 existing platform
+skips); models 231 s (78 passes, 13,000 seeded sequences).
+
+The first complete run ended `== 1 failure(s) in 716 s`: the process-device
+immediate lost-acknowledgement seam expected a second HTTP response even when
+sync settled first. Classified as ours. Its fixture now keeps sync temporarily
+unavailable until the HTTP replay reply, retaining every original wire,
+idempotency and value-redaction assertion. Initial browser-harness failures
+were also ours: an obsolete poll capture missed the barrier mutation, and an
+unawaited app authorization check allowed retry ahead of the intended sync.
+The final tests explicitly establish those orders. There were no final-run
+baseline or environmental failures; the supplied baseline cargo failure was
+inspected and was not reproduced. Intentional mutant failures are recorded as
+such in the evidence.
+
+No design deviation or open scoped problem. No new public form, refusal code,
+authorization/disclosure rule, storage ceiling or meter change. No acquisition
+retuning or cold-acquisition remeasurement in this receipt-only round. No push
+or publication. Implementation/test commits: 45a5825bd, 852aa4aea, cb967633b.
+The file map, examples and evidence are in `reports/20260925-lane-v-r10.md` and
+`reports/20260925-lane-v-r10-evidence/`.
