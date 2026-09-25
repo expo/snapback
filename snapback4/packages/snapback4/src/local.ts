@@ -1090,14 +1090,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const entry of await queued()) {
       await exitDone;
       if (closed) return;
-      if (entry.sent_seq != null || (!acquire && entry.observed_seq != null)) {
-        const receipt = { state: "sent" as const, id: entry.id, seq: entry.sent_seq ?? entry.observed_seq!, replayed: true as const };
-        const known = await history.read(entry.id);
+      if (entry.sent_seq != null || entry.observed_seq != null) {
+        const known = await history.read(entry.id, true);
+        const receipt = known && known.state !== "pending" ? known : { state: "sent" as const, id: entry.id, seq: entry.sent_seq ?? entry.observed_seq!, replayed: true as const };
         // A sent outbox entry already persisted its receipt before settlement;
         // re-reading it must not refresh an evicted receipt. Emission is per
         // client: another owner's durable receipt is still this client's first
         // completion, and the emitted set suppresses a repeat.
-        if (entry.sent_seq == null && !known) await history.keep(receipt);
+        if (entry.sent_seq == null) await settleReceipt(history, call, receipt);
         settled.get(entry.id)?.resolve(receipt); settled.delete(entry.id);
         emitWrite(receipt);
         if (acquire) await syncOnce();
@@ -1108,18 +1108,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const result = await network(async () => {
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
-          if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
-          const known = await recoverReceipt(history, call, entry.id);
+          const current = (await queued()).find(current => current.id === entry.id);
+          if (!current || current.sent_seq != null) return { ok: true as const, retired: true as const };
+          const known = await recoverReceipt(history, call, entry.id, current.observed_seq);
           if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false };
           const binding = entry.store_id ?? storeIdentity;
           if (!binding) return { ok: false as const };
           if (settling.has(entry.id)) return { ok: false as const };
-          ordinarySending = entry.id;
           settling.add(entry.id);
           ownsSettlement = true;
           try {
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
+            const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }> } | undefined)?.receipt;
+            if (receipt) { await settleReceipt(history, call, receipt); return { ok: true as const, json: { ...receipt }, obsoleteAuth: false }; }
+            ordinarySending = entry.id;
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
             if (response.ok) {
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
@@ -1441,7 +1444,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const sendOnExit = exitTransport(doFetch, base, aborter.signal, exitRefusalSettlement({
       closed: () => closed, owners: settling, active,
       commit: async write => {
-        const known = await history.read(write.id);
+        const known = await history.read(write.id, true);
         if (known && known.state !== "pending") return false;
         const applied = await call({ op: "settle_exit", write });
         if (applied.denied) throw new Error(applied.denied.message);

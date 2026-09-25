@@ -140,7 +140,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       // Committed outbox entries, mirrored from persisted changes, so a page
       // being hidden can send what IndexedDB already holds.
-      const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null }>();
+      const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null; observed_seq?: number | null }>();
       const committedListeners = new Set<() => void>();
       let working = false;
       let publishPending = false;
@@ -225,7 +225,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           };
           const dispatch = () => {
             if (!suspended || closing || !device) return;
-            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
+            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null && e.observed_seq == null).sort((a, b) => a.seq - b.seq)
               .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: journal.boundStore(e.id) }));
             if (entries.length) flush(entries, () => beginSend(entries[0]!.id));
           };
@@ -291,6 +291,10 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                   return reply;
                 }
                 if (request.op === "begin_send" && typeof request.id === "string") {
+                  const entry = committed.get(request.id), seq = entry?.sent_seq ?? entry?.observed_seq;
+                  // An acknowledgement may commit while receipt preflight waits.
+                  // Return that custody from the serialized final send check.
+                  if (seq != null) return { ok: { receipt: { state: "sent", id: request.id, seq, replayed: true } } };
                   const binding = journal.binding(device!, request.id);
                   if (!committed.has(request.id) || binding !== "allow") {
                     journal.fence(device!);

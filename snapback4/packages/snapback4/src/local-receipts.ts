@@ -12,8 +12,8 @@ export async function settleReceipt(history: WriteHistory, call: Call, write: Te
   if (applied.denied) throw new Error(applied.denied.message);
 }
 
-export async function recoverReceipt(history: WriteHistory, call: Call, id: string): Promise<Terminal | undefined> {
-  const known = await history.read(id);
+export async function recoverReceipt(history: WriteHistory, call: Call, id: string, observedSeq?: number | null): Promise<Terminal | undefined> {
+  const known = await history.read(id, true) ?? (observedSeq == null ? undefined : { state: "sent" as const, id, seq: observedSeq, replayed: true as const });
   if (!known || known.state === "pending") return;
   // read() preserves known outcomes through storage failure. It does not prove
   // durability: keep() must succeed before the outbox or transport can advance.

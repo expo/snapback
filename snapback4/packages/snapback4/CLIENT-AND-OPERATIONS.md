@@ -535,6 +535,8 @@ replace its known success or refusal. A known terminal outcome whose receipt sav
 failed is persisted before sync, another POST or replacement handling touches
 that id; retry settles the original receipt locally. Otherwise the refusal receipt and outbox retirement commit
 together, after rechecking terminal history and custody; a failed save retains the outbox.
+A local admission-storage error does not establish the server outcome; its
+captured intent remains recoverable.
 Under `createApp`, records also capture the session epoch and principal.
 The browser's authoritative session lives in IndexedDB. Login, logout and
 principal replacement mirror their value to localStorage, then await a strict

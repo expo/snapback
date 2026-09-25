@@ -150,7 +150,7 @@ export class WriteHistory {
     for (const write of this.unpersisted.values()) await this.keep(write);
   }
 
-  async read(id: string): Promise<Write | undefined> {
+  async read(id: string, receiptsOnly = false): Promise<Write | undefined> {
     const known = this.unpersisted.get(id);
     if (known) {
       try { await this.keep(known); } catch { /* The known result survives failed receipt persistence. */ }
@@ -160,7 +160,9 @@ export class WriteHistory {
     // @ref LLP 3000.007#20.4 — the device owns the receipt window; memory never retains a second server history.
     const durable = saved ? (JSON.parse(saved) as Terminal[]).find(write => write.id === id) : undefined;
     if (durable) { this.values.delete(id); this.terminal.delete(id); }
-    return durable ?? this.values.get(id);
+    // A local admission/storage error does not establish the server outcome;
+    // its captured journal may still be recoverable and must not be retired.
+    return durable ?? (receiptsOnly ? undefined : this.values.get(id));
   }
 
   retainEmissions(queued: Iterable<string>): void {
