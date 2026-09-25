@@ -55044,3 +55044,74 @@ Full file map, forms, test proofs, deviations and reproductions:
 `reports/20260925-lane-q-expiring-counts.md`; every intermediate test failure:
 `reports/20260925-lane-q-test-failures.md`. Final suite evidence:
 `~/sb4-intent/lane-q-test-complete.log`.
+
+
+## 2026-09-25 — LLP 3000.013 Lane Q review round 1: bounded adoption and live witnesses
+
+Resolved Astra's two Medium findings and Low differential-test weakness, plus
+Grok's High PostgreSQL adoption finding and Medium physical existence-walk
+finding. Grok's Low cap finding duplicates Astra's. Commits 811dbb1a5,
+9bb1a3261 and 2707b0093 hold the implementation, regressions and guide/LLP
+updates. The supervisor accepted the device stop: local counts that cannot
+complete stay unavailable and use the existing server fallback. No physical
+total or private next-expiry certificate is delivered.
+
+Cap validation now selects only plain indexes. The legacy `cap 1 by expiresAt`
+fixture with Alice's rows expiring at 1000 and 2000 upgrades successfully.
+Activation preflights stored byte lengths and reserves a fitting page before
+fetching serialized rows; contribution decoding/evaluation shares that meter
+while the whole page remains resident. Cap and uniqueness validation now
+stream keys, avoiding a second unmetered source-image buffer. The independent
+allocator regression for 600 receipts with 65,536-byte payloads measured
+33,225,445 additional live Rust bytes before and 2,893,625 after, within the
+unchanged 16,777,216-byte job heap. An oversized final row refuses after earlier
+pages without changing rows, indexes, cap occupancy, catalog or metadata.
+
+PostgreSQL uses its own adaptive serialized-page preflight under the existing
+writer lock, with per-row decoder/index scratch released after consumption.
+Its query scan's conservative reservation is unchanged. Real PostgreSQL tests
+first reproduced E_BOUND for 96 receipts with 4 KiB bodies, then passed that
+case and 600 receipts with 64 KiB bodies after the fix. Live, expired-unswept
+and null-expiry contributions remain exact; physical totals are intact and
+reopen keeps generation 2 instead of retrying adoption. The private socket-only
+PostgreSQL server was stopped afterward.
+
+Existence probes now seek strictly past the pinned instant on the new internal
+index. Independent counters at the store boundary reproduced 9,000 fetched
+expired rows before the fix; after it, absence fetches zero source rows and
+presence one, on memory and SQLite for server reads and device predictions.
+Finite/null live expiry, another principal's group and unselected rows are
+covered. The existing read-authority target passes 20/20, including unchanged
+ordinary-expiry and heap-refusal boundaries; the simulator's one-probe tests
+pass 2/2. This does not make a large device aggregate value available.
+
+The differential test requires every valid write to succeed, checks its stored
+image, and observes all nine transition classes in every seed. Its 4,320
+comparisons now include 63 successful state=1 updates, 9 filter-on and 65
+filter-off transitions, 16 expiry-to-null, 11 earlier-expiry, 109 later-expiry
+or null-to-instant transitions, and 68 computed-day moves. A separate test
+checks 50 scalar reads across 25 chat keys/two principals and two pages with
+all 24 live Alice groups exactly once. Server examined costs remain 2/502 for
+backlogs 0/500 at live populations 100/10,000. Devices retain unavailable at
+8,193 examinations for the large value read; server fallback answers exactly.
+
+The first round-1 complete suite passed `== 0 failure(s) in 353 s`. After
+Grok's fixes, a run ended `== 1 failure(s) in 240 s`: all 883 Rust executions
+passed, but two stale-session client cases and one worker ECONNRESET failed.
+Their unchanged fixture schemas have no expiring maintains; all three passed
+in the prior full run and twice in isolation. Classification is environmental/
+intermittent, inferred with root cause unproven; no client code or assertions
+were changed. The exact names, traces, reproduction command, preliminary
+implementation failures and attribution are in the round-1 report.
+
+Final scripts/test.sh, unchanged source, exit 0:
+**`== 0 failure(s) in 205 s`**. All 883 Rust executions across 175 binaries
+and the separate workspace doctests pass. Main client process: 1,479 tests, 1,469 pass, zero
+failures and ten existing explicit skips; separate shards pass. All three
+intermittent cases pass in this full run. No new skip or failure waiver.
+Wasm is 1,768,024 bytes raw / 492,569 gzip, within the unchanged 493,000-byte
+artifact ratchet with 431 bytes headroom. No runtime ceiling, wire shape,
+new syntax, refusal code, version, push or publication. Build artifacts remain
+on shared disk. Full file map, evidence and remaining accepted limitation:
+`reports/20260925-lane-q-round1.md`; final suite log:
+`~/sb4-intent/lane-q-r1-test-complete.log`.
