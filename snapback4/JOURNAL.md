@@ -56218,3 +56218,46 @@ measurement remain explicit inherited limits. The report includes the prior
 inventory, all file changes, publication paths and proving tests, exact
 commands, decisions, failure classifications and compressed evidence:
 [Lane U round-3 report](reports/20260925-bounded-following-r3/REPORT.md).
+
+
+## 2026-09-25 — Lane U round 4: one query publication procedure
+
+Addressed both round-3 NOT READY delta reviews under the supervisor's five-rule
+procedure. `local-query.ts` now runs every executable query locally first,
+prefers known complete results over static `runs`, takes withholding from the
+engine, and preserves available unknown partial data. One shared gate compares
+predictable, unobserved write tables with possible reads before dispatch,
+after delivery/composed re-observation, and at final external publication.
+Every awaited routing boundary rechecks the session and incarnation; caller
+continuations check again before returning or notifying. Local commits still
+retire the whole evaluation. Whole-server remembered recovery and E_OFFLINE
+shortcuts were removed; failed fallback keeps local data or loading.
+
+Added the real wasm/native known conditional-branch and unknown-profile beside
+predicted feed regressions, ten real-client sign-out/close interleavings, and
+direct routing matrices for all five rules. Four routing mutations fail their
+regressions, including disabled session checking and a restored server shortcut
+after known-branch narrowing. Existing auth/model transport fixtures now use
+actual unknown online-only reads. All model seeds, invariants and coverage
+assertions remain; no security assertion was relaxed to preserve a shortcut.
+The client reference states the procedure in three lines.
+
+Final qualification: `taskset -c 0-15 env SNAPBACK4_RUST_TEST_PROCESSES=8 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 591 s`: 1,552 main client
+passes, 34 shard passes, 10 existing skips and all 78 model passes, plus the
+complete Rust/build/docs/package checks. The reduced CPU affinity limits Node's
+parallel file count on the shared host; no case, timeout or ceiling changed.
+The initial full run was `== 2 failure(s) in 610 s`: six client compatibility
+fixtures and one model coverage fixture were ours and corrected; three shared-
+host timeouts passed unchanged in focused and final full reruns. Every failure
+is enumerated in the report. Fifty focused routing checks, 29 acquisition/
+publication checks and the corrected 5,000-sequence local model also passed.
+Reference audit: 509 LLP docs, 9293 refs in 26151 files, zero errors/unchecked.
+Wasm remains 1,776,325 bytes raw / 495,299 gzip; source stays below 1,500 lines.
+
+No new syntax, diagnostic, engine, storage format, package version, acquisition
+measurement, push or publication. The earlier full-event inventory, 2.387×
+browser acquisition result, unmet 5× target and unclaimed packed-format
+measurement remain explicit inherited limits. File changes, each rule's tests,
+all publication paths, decisions, failure classifications, reproduction and
+compressed evidence are in the [round-4 report](reports/20260925-bounded-following-r4/REPORT.md).
