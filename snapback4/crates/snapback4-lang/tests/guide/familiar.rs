@@ -19,6 +19,14 @@ fn every_moved_fact_has_its_why_or_details_home() {
             let why = explain_code(&fact.home).unwrap_or_else(|| panic!("{} lost {}", fact.id, fact.home));
             assert!(why.len() + 1 <= WHY_MAX_BYTES, "{} is too large: {} bytes", fact.home, why.len()+1);
             assert!(!why.contains("[excerpt truncated]"), "{} is not fully reachable", fact.home);
+            // CLI why selects the current project's matching diagnostic card.
+            // That context must not replace moved facts with an opening fallback.
+            for keyword in snapback4_lang::guide::KEYWORDS {
+                let contextual = snapback4_lang::Diagnostic::new(&Default::default(), &fact.home, "", "")
+                    .guide(keyword).explanation().unwrap();
+                assert!(contextual.len() + 1 <= WHY_MAX_BYTES, "{} / {keyword}: too large", fact.home);
+                assert!(normalized(&contextual).contains(&normalized(&fact.text)), "{} lost its home with {keyword} context", fact.id);
+            }
             why
         };
         assert!(normalized(&home).contains(&normalized(&fact.text)), "{} lost its {} home", fact.id, fact.home);

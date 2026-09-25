@@ -237,10 +237,13 @@ pub(crate) fn explanation_section(code: &str, keyword: &str) -> Option<String> {
 fn explain(code: &str, keyword: &str, dedicated: bool) -> Option<String> {
     let (_, explanation) = CODES.iter().find(|(name, _)| *name == code)?;
     let card = super::card(keyword)?;
-    if keyword == crate::diag::guide_for(code) && let Some(detail) = super::why::detail(code) {
+    if let Some(detail) = super::why::detail(code) {
         // Authored why pages own their full facts. Tests reject overflow rather
-        // than relying on the generic excerpt truncation below.
-        let heading = card.lines().next().unwrap_or(keyword);
+        // than relying on the generic excerpt truncation below. A project-specific
+        // guide pointer must not hide facts moved out of that card.
+        // The code owns this page; contextual cards still own the navigation pointer.
+        let home = crate::diag::guide_for(code);
+        let heading = super::card(home)?.lines().next().unwrap_or(home);
         let body = detail.split_once('\n').map_or(detail, |(_, body)| body.trim_start());
         return Some(format!("{code}: {explanation}\n\n{heading}\n\n{body}\nFull card: snapback4 guide {keyword}"));
     }

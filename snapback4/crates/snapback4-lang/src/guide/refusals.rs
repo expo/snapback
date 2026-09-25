@@ -41,8 +41,9 @@ followed by the full-card command. Every registered code has a dedicated
 why page or a paragraph on its default card. Compiler proofs, planner choices,
 meter charges and repair eligibility live here when the first-read card
 only needs the short limit. A diagnostic may choose another
-card for its context; if that card lacks a section, explicit `why` labels
-its fallback to the card's opening. Output is at most 4,096 UTF-8
+card for its context. A dedicated why page keeps the code's reference text
+and title, with that contextual card's full-card pointer. Otherwise, if the
+card lacks a section, explicit `why` labels its fallback to the card's opening. Output is at most 4,096 UTF-8
 bytes including the pointer and final newline; a shortened excerpt says so.
 When the same code and card occur twice in text `check` or a `dev` save refusal,
 a dedicated section prints once under the first occurrence; cards without
