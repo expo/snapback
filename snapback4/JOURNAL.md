@@ -54981,3 +54981,68 @@ retirement was added. Did not push, publish, bump versions or run an iOS
 simulator on Linux. The complete file map, failure classification and release
 results are in reports/20260924-intent-integration-r5-final.md; evidence logs use
 ~/sb4-intent/integration-r5i-*.log.
+
+## 2026-09-25 — LLP 3000.013 Lane R: column min/max (0.4.2)
+
+Implemented domain, page and row-list `min`/`max` through the shared
+server/device interpreter. Domains use sum's authorized incremental consumer,
+admission and complete-coverage contract. Nulls are skipped; empty/all-null
+inputs return null, while a cut stays unavailable even through `?? 2`.
+Binary calls keep their prior meaning. Ambiguous ordered-page commas and
+competing focal scopes reuse E_QUARRY_AMBIGUOUS with concrete rewrites.
+
+Existing indexes whose next column follows the equality prefix provide an
+ascending minimum or descending maximum seek. Equality-pin permutations and
+extra tie columns are safe for a scalar endpoint. Nullable endpoints skip the
+entire null segment; other domains scan under the unchanged meters. The cost
+certificate names seek versus scan and shares the runtime's order eligibility.
+No dedicated extremum index is synthesized just to turn a scan into a seek.
+
+Measured minimum and maximum each examine one row among 10,000; an all-null
+10,000-row index examines zero. A 4,096-row text scan retains one selected
+value and fits 128 KiB. The 16 new language tests cover empty/null inputs,
+hidden rows, rule-before-predicate ordering, cuts, types, overloads, optional
+filters, expiry, page binding and stale maintained-value index refusal. A late
+binary-read regression caught aggregate planning reordering a cap-bounded
+binary operand; restricting consumer recognition and preserving enclosing
+collection comparisons fixes it without changing aggregate plans. Both
+memory and SQLite device tests agree with the server, deny partial/horizon
+and online-only predictions, and survive reopen. The 80 guide tests and the
+10 source-cost tests pass; the 18 cost-classification tests include the new
+receiptStatus operation. The language card compiles and runs the exact
+`min(receipts where .message = m.id, .state) ?? 2` helper.
+
+Qualified the combined lane diff with `scripts/test.sh`:
+**`== 0 failure(s) in 1141 s`**. The final run uses sixteen Cargo build jobs and disabled
+incremental compilation, with the script's existing serial-client option.
+The earlier serial-client control run also passed:
+`== 0 failure(s) in 1266 s`, 1,502 client passes and ten existing skips.
+No test, deadline or assertion was removed or weakened. An initial attempt
+was interrupted after shared-disk ENOSPC prevented compilation and log writes;
+only this lane's ignored Cargo cache and temporary data were relocated to
+executable /dev/shm. The first completed run ended `== 1 failure(s) in 604 s`:
+the guide operation-class pin lacked receiptStatus, fixed by adding its
+correct Grows classification. The next ended `== 1 failure(s) in 493 s`:
+all Rust checks passed, but 14 concurrent client transport/recovery cases
+failed intermittently. Their isolated controls passed 73 tests with zero
+failures and one existing skip. Every name, error and reproduction command
+is in reports/20260925-intent-lane-r.md; the underlying concurrent transport
+cause remains unresolved. A 16-CPU concurrent retry ended
+`== 1 failure(s) in 443 s`: Rust passed, but an unchanged full-release restore
+case observed done instead of parked. Its isolated rerun passed 1/1; the
+timing cause is unresolved and final qualification uses serial client files.
+No supplied-baseline failure was repaired here.
+
+Production wasm measures 1,772,147 bytes raw / 493,832 gzip on Rust 1.97.0 and
+wasm-bindgen 0.2.127: +6,351 / +2,192 against the last recorded 0.4.1 artifact,
+not a freshly rebuilt control or independent component attribution. The
+shared aggregate runtime and typed IR exceed the 492,000-byte gzip ratchet
+by 1,832 bytes; raise it to 494,000 in this commit, leaving 168 bytes. Runtime
+examined, steps, heap and write ceilings are unchanged.
+
+Preserved sum's non-uniform-domain admission/completeness restriction and the
+existing refusal of indexes over expiring maintained totals' live value.
+Did not redesign authorization, disclosure, durability, client contracts or
+the planner; did not add SQL lowering, change versions, push or publish.
+All touched source files remain below 1,500 lines. The broken llp-orient
+symlink required direct orientation from the commissioned documents/source.

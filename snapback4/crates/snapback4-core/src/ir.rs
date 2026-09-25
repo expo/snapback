@@ -224,6 +224,8 @@ pub enum Builtin {
     At,
     Min,
     Max,
+    /// SQL-style column extrema; domain reads require complete coverage.
+    Extremum { field: String, max: bool, domain: bool },
     Divmod { remainder_sink: String },
     Sort { keys: Vec<SortKey> },
     MentionTokens,
@@ -240,7 +242,7 @@ pub enum Builtin {
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
-            Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::Extremum { .. } | Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
             Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
@@ -310,6 +312,20 @@ pub struct Scan {
     pub provenance: KeyProvenance,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant: Option<crate::ir::VariantId>,
+}
+
+impl Scan {
+    /// True only for an ordinary index ordered by this column after its pins.
+    /// Kept shared by execution and the cost certificate.
+    pub fn orders_field(&self, schema: &crate::schema::Schema, field: &str) -> bool {
+        let Some(index) = schema.table(&self.table).and_then(|table| table.index(&self.index)) else { return false; };
+        // Expiring maintained totals are refreshed while reading. Their
+        // stored index value does not order the live value returned today.
+        if field == "value" && schema.maintain_for(&self.table).is_some_and(|maintain|
+            schema.table(&maintain.source).is_some_and(|source| source.expire.is_some())) { return false; }
+        self.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
+            && matches!(index.components.get(self.prefix.len()), Some(crate::schema::IndexComponent::Column(column)) if column == field)
+    }
 }
 
 /// A union owns its projected cursor descriptor, including when no branch survives.

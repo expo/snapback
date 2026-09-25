@@ -29,6 +29,7 @@ pub use pages::expression_page_site;
 mod shaping;
 pub use pages::returned_page_sites;
 pub mod read;
+mod extrema;
 mod read_auth;
 pub mod rules;
 pub mod runner;

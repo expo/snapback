@@ -814,7 +814,7 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
-    pub(super) fn stream_aggregate(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
+    pub(super) fn stream_aggregate(&mut self, scan: &Scan, aggregate: super::extrema::Aggregate<'_>) -> Result<Value, RuntimeError> {
         // Prefixes may be hoisted, and filter/projection locals evaluated
         // before this frame. Without input provenance, conservatively retain
         // earlier unknown coverage. An enclosing page's non-uniformity alone
@@ -828,7 +828,7 @@ impl Runner<'_> {
             ..Default::default()
         };
         let outer = self.components.scalar.replace(inputs);
-        let result = self.stream_aggregate_scoped(scan, projection);
+        let result = self.stream_aggregate_scoped(scan, aggregate);
         let coverage = self.components.scalar.take().expect("scalar coverage scope");
         self.components.scalar = outer;
         let value = result?;
@@ -839,28 +839,27 @@ impl Runner<'_> {
         Ok(value)
     }
 
-    fn stream_aggregate_scoped(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
+    fn stream_aggregate_scoped(&mut self, scan: &Scan, mut aggregate: super::extrema::Aggregate<'_>) -> Result<Value, RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
         let prefix = self.prefix_values(scan)?;
         let table = &self.schema.tables[&scan.table];
         let index = &table.indexes[&scan.index];
         let bounds = self.bounds(scan, table, index, Some(&prefix))?;
-        let mut total = 0_i128;
         self.page_depth += 1;
-        let result = self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, Some((&mut total, projection)), false, false);
+        let result = self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, Some(&mut aggregate), false, false);
         self.page_depth -= 1;
         result?;
-        if scan.existence && total == 0 && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
+        if scan.existence && aggregate.is_zero() && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
             let prefix = self.prefix_values(scan)?;
             let retained = self.retained_group(&scan.table, &scan.index, &prefix)?;
             self.horizon_coverage(scan, &prefix, retained);
         }
         // @ref LLP 3000.013#5.1 — a domain total has no partial scalar answer, including on a device with unknown coverage.
         self.meter.require_uncapped()?;
-        Value::int(total).map_err(Into::into)
+        aggregate.finish()
     }
 
-    fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<(&mut i128, Option<&Expr>)>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+    fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<&mut super::extrema::Aggregate<'_>>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
@@ -1037,16 +1036,10 @@ impl Runner<'_> {
                         let matched = matched?.as_bool()?;
                         if !matched { continue; }
                     }
-                    if let Some((total, projection)) = &mut aggregate {
-                        let amount = if let Some(projection) = projection {
-                            let prior = self.env.insert("$filter".into(), row.clone());
-                            let value = self.expr(projection);
-                            match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
-                            value?.as_int()? as i128
-                        } else { 1 };
-                        **total += amount;
+                    if let Some(aggregate) = &mut aggregate {
+                        let done = aggregate.push(self, &row)?;
                         consumed += 1;
-                        if scan.existence && consumed == take { break 'outer; }
+                        if done || (scan.existence && consumed == take) { break 'outer; }
                         continue;
                     }
                     if visible.len() == take {

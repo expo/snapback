@@ -682,10 +682,14 @@ impl<'a> Runner<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
+                if let Builtin::Extremum { field, max, domain } = builtin {
+                    if args.len() != 1 { return Err(RuntimeError::Input("column min/max takes one source".into())); }
+                    return self.extremum(&args[0], field, *max, *domain);
+                }
                 if matches!(builtin, Builtin::Count | Builtin::Sum) && let Some(Expr::Scan(scan)) = args.first()
                     && (scan.take == Bound::Meter || scan.existence) && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)))
                     && ((matches!(builtin, Builtin::Count) && args.len() == 1) || (matches!(builtin, Builtin::Sum) && args.len() == 2)) {
-                    let result = self.stream_aggregate(scan, args.get(1));
+                    let result = self.stream_aggregate(scan, super::extrema::Aggregate::total(args.get(1)));
                     if matches!(&result, Err(RuntimeError::Bound { kind: MeterKind::Steps, .. })) && self.meter.cut == Cut::Cap {
                         self.meter.capped_at.get_or_insert((MeterKind::Steps, scan.site.clone()));
                     }
@@ -744,6 +748,7 @@ impl<'a> Runner<'a> {
 
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
+            Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
             Builtin::Calendar { millis } => {
                 if *millis <= 0 { return Err(RuntimeError::Input("calendar duration must be positive".into())); }
