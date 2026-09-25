@@ -28,6 +28,7 @@ const source = `use personas alice
   conversation: id
   owner: principal
   body: text
+  unique conversation, owner
   cap 10 by conversation, owner
   read <- .owner = viewer
   insert <- allow
@@ -46,6 +47,8 @@ const source = `use personas alice
   return twice(x)
  query size(x: text):
   return count(x)
+ query privateOne(chat: id, owner: principal):
+  return m.note(chat, owner)
  query required(id: members):
   return m.label(members[id] ! else NOT_FOUND)
  mutation seed():
@@ -62,7 +65,7 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
   const directory = mkdtempSync(join(tmpdir(), 'sb4-familiar-'));
   mkdirSync(join(directory, 'snapback'));
   writeFileSync(join(directory, 'snapback/schema.q'), source);
-  writeFileSync(join(directory, 'snapback/m.q'), 'fn twice(x: int): x + x\nfn label(row: members): row.principal\n');
+  writeFileSync(join(directory, 'snapback/m.q'), 'fn twice(x: int): x + x\nfn label(row: members): row.principal\nfn note(chat: id, owner: principal): privateNotes[conversation = chat, owner = owner] { body }\n');
   const server = spawn(binary, ['dev', '--port', '0', '--no-watch', '--memory', '--hold-schedules'], {cwd: directory, stdio: ['ignore', 'pipe', 'pipe']});
   const exited = once(server, 'exit');
   let log = '', url;
@@ -92,12 +95,13 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
   const conjunctionOnline = await online('q', 'conjunction', {chat: 'one', c: null});
   assert.ok(repeatedOnline.meter, 'loopback dev exposes measured server work');
   assert.deepEqual(repeatedOnline.meter, conjunctionOnline.meter);
+  assert.equal((await online('q', 'privateOne', {chat: 'one', owner: 'bob'})).data, null, 'qualified helper cannot project a foreign-owned note');
   const expected = await online('q', 'roster', {c: null});
   assert.equal(expected.data.length, 2);
   for (const row of expected.data) {
     assert.equal(row.roster.length, 2);
     assert.ok(row.roster.every(member => member.conversation === row.conversation));
-    assert.deepEqual(row.notes, [{body: `visible ${row.conversation}`}]);
+    assert.deepEqual(row.notes, {body: `visible ${row.conversation}`});
   }
   const openers = [
     ['wasm-memory', webDevice({wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence()})],
@@ -127,6 +131,8 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
     for (const op of ['qualified', 'bare']) assert.equal((await query(op, {x: 3})).data, 6);
     assert.equal((await query('size', {x: 'hello'})).data, 5);
     assert.equal((await query('required', {id: 'b'})).data, 'bob');
+    assert.equal((await query('privateOne', {chat: 'one', owner: 'bob'})).data, null, host);
+    assert.deepEqual((await query('privateOne', {chat: 'one', owner: 'dev:alice'})).data, {body: 'visible one'}, host);
     const missing = await client.query({kind: 'query', name: 'required'}, {id: 'missing'});
     assert.equal(missing.denied?.code, 'NOT_FOUND');
     await client.close();

@@ -31,7 +31,7 @@ query myAccount():
 | `PRIMARY KEY` | Every table has an implicit unique `id`; omit it on insert to mint one. |
 | `UNIQUE (handle)` | `unique handle else HANDLE_TAKEN`; hidden collisions keep their generic refusal. |
 | Bounded text / validation | `text 3..20 format handle`; validated on writes. |
-| `CHECK (...)` | No general SQL CHECK clause; use column bounds/formats and `require` in each mutation, as below. |
+| `CHECK (...)` | No general SQL CHECK clause; use column bounds/formats and `require` in every writer, as below. |
 | `INSERT ... ON CONFLICT DO UPDATE` | `upsert accounts[principal = viewer]`; omitted patch fields stay unchanged. |
 | RLS `USING` / `WITH CHECK` | `read <-`, `insert <-`, `update <-`; absent rules deny. |
 | `auth.uid()` / `ctx.auth` | `viewer` is the authenticated principal; sessions are handled by the client auth API. |
