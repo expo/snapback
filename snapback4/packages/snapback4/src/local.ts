@@ -11,15 +11,16 @@ import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
+import { evaluateLocal } from "./local-query.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { followingReads, routeWithheld, runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
 import { requireSyncProtocol, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport, type PendingSend } from "./local-exit.ts";
-import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
+import type { Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
@@ -896,10 +897,27 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // @ref LLP 3000.007#6.5 — route from compiled facts; keep server answers only in this client's memory.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch) {
+    const queryEnvironment = {
+      get backend() { return backend!; },
+      get partitionDenied() { return partitionDenied; },
+      get credentialRevision() { return credentialRevision; },
+      get incarnation() { return incarnation; },
+      get authority() { return answers.revision; },
+      get sessionDead() { return sessionDead; },
+      get refreshing() { return refreshing; },
+      get link() { return link; },
+      get caughtUp() { return caughtUp; },
+      get identityChecked() { return identityChecked; },
+      get lastSyncAt() { return lastSyncAt; },
+      get partitionCurrent() { return partitionCurrent; },
+      get nativeReady() { return nativeReady; },
+      set nativeReady(value: boolean) { nativeReady = value; },
+      principal, signal: aborter.signal, unavailable, queued, call, post, installNative, notify, offline, serverAnswers,
+    };
     const work = (async () => {
       while (true) {
         const revision = incarnation, authority = answers.revision;
-        const result = await evaluateLocal(op, args, revision, authority, watch);
+        const result = await evaluateLocal(queryEnvironment, op, args, revision, authority, watch);
         if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
       }
     })();
@@ -908,123 +926,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   }
 
-  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean }> {
-    const refused = unavailable();
-    if (refused) return { read: { denied: refused }, tables: new Set(), nextExpiry: null };
-    const schema = backend!.schema;
-    const program = backend!.programs.find((p) => p.name === op.name);
-    const tables = program && schema ? operationTables(program, schema) : new Set<string>();
-    if (partitionDenied) return { read: { denied: partitionDenied }, tables, nextExpiry: null };
-    const held = schema.operations?.[op.name]?.held ?? program?.held ?? op.held ?? false;
-    const following = () => followingReads(schema, tables);
-    const pending = async () => (await queued()).some((e) => e.observed_seq == null && e.predictable === true);
-    const key = `${op.name}:${JSON.stringify(args)}`;
-    const remembered = () => {
-      if (watch) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
-      const last = serverAnswers.get(key);
-      if (last) for (const table of last.tables) tables.add(table);
-      return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: !last };
-    };
-    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean } = remembered, remember = true, retain = false) => {
-      const fetch = async () => {
-        // A held query must not turn missing local coverage into a server scan, even during reset.
-        if (held) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: true };
-        while (true) {
-          const credentials = credentialRevision;
-          const result = await post(`/q/${op.name}`, { args });
-          if (revision !== incarnation || authority !== answers.revision) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
-          if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
-          if (!result.ok) return failure();
-          if (result.obsoleteAuth || (!remember && credentials !== credentialRevision)) {
-            const rotation = refreshing;
-            if (rotation) try { await rotation; } catch {}
-            const unavailableWhy = unavailable();
-            if (unavailableWhy) return { read: { denied: unavailableWhy } as Read<R>, tables, nextExpiry: null };
-            continue;
-          }
-          const json = result.json;
-          for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
-          if (json.denied) { serverAnswers.delete(key); return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null }; }
-          const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-          if (json.loading || !("data" in json)) {
-            serverAnswers.delete(key);
-            return { read: { loading: true } as Read<R>, tables, nextExpiry };
-          }
-          const next = (json.next as Cursor | null | undefined) ?? null;
-          const read = { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next };
-          if (remember) serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
-          return { read, tables, nextExpiry };
-        }
-      };
-      return watch ? watch.fetch(fetch, () => notify(watch), { publishResult: remember, retain }) : fetch();
-    };
-    type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; denied?: Refusal };
-    type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
-    // Keep whole-query and component routing on the same coverage rule.
-    // @ref LLP 3000.007#20.22.1 — ask the server only for facts the device cannot establish (a missing fact, presence), not cuts the server would repeat; the same rule routes a composed component.
-    const wantsServer = (coverage: Coverage) => !held && !coverage.retained && !!coverage.unknown;
-    const local = async () => {
-      const before = unavailable();
-      if (before) return { outcome: {} as Outcome, result: { read: { denied: before } as Read<R>, tables, nextExpiry: null }, terminal: true };
-      const answer = await call({ op: "query", name: op.name, viewer: principal, args, now: Date.now() });
-      const unavailableWhy = unavailable();
-      const outcome = (answer.ok ?? {}) as Outcome;
-      for (const table of outcome.tables ?? []) tables.add(table);
-      const fresh = link === "online" && caughtUp && identityChecked;
-      const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
-      const denied = unavailableWhy ?? answer.denied ?? outcome.denied;
-      const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true } : { data: outcome.data as R, complete: outcome.complete !== false, cut: outcome.cut ?? null, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) };
-      return { outcome, result: { read, tables, nextExpiry }, terminal: !!(unavailableWhy || answer.denied) };
-    };
-    const loading = { read: { loading: true } as Read<R>, tables, nextExpiry: null as number | null };
-    const withheld = (fallback = () => server(() => loading, false)) => routeWithheld(link === "online", held, pending, loading, fallback);
-    // Executed reads decide availability; native modules supply their dependencies in `tables`.
-    const isWithheld = (outcome: Outcome) => outcome.loading && outcome.unknown && followingReads(schema, new Set(outcome.tables));
-    let first = following() && partitionCurrent && (!program?.native || nativeReady) ? await local() : undefined;
-    if (first?.terminal) return first.result;
-    if (first && isWithheld(first.outcome)) return withheld();
-    // A reset cannot certify old rows; preserve the normal routing of other queries.
-    if (!partitionCurrent) return following() ? withheld() : link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true };
-    if (program?.native && !nativeReady) {
-      if (link === "online") nativeReady = await installNative(aborter.signal);
-      if (!nativeReady) return link === "online" ? server() : remembered();
-    }
-    if (!held && runsOnServer(backend!, op, nativeReady)) return link === "online" ? server() : remembered();
-    first ??= await local();
-    if (first.terminal) return first.result;
-    if (isWithheld(first.outcome)) return withheld();
-    if ("loading" in first.result.read) return !held && link === "online"
-      ? server(() => first!.result, true, true) : first.result;
-    const { outcome } = first;
-    // @ref LLP 3000.007#18.2 — a left group answers from delivered rows, online and offline, including watch reruns.
-    if (outcome.denied) return wantsServer(outcome) ? link === "online" ? server(remembered, true, true) : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true } : first.result;
-    const components = Object.values(outcome.components ?? {});
-    // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — one original server query, then a second local observation and one publication of independent fields.
-    if (!held && link === "online" && components.some(wantsServer) && components.some((c) => c.retained) && !await pending()) {
-      // A composed operation must never recover a remembered whole server answer.
-      serverAnswers.delete(key);
-      let failed = false;
-      const composedSince = lastSyncAt;
-      const remote = await server(() => { failed = true; return first.result; }, false, true);
-      if (!("data" in remote.read)) return remote;
-      const second = await local();
-      if (revision !== incarnation) return { read: { loading: true }, tables, nextExpiry: null };
-      if (second.terminal) return second.result;
-      if (isWithheld(second.outcome)) return withheld(async () => failed ? loading : remote);
-      if (!failed && "loading" in second.result.read && link === "online") return remote;
-      if (!("data" in second.result.read) || failed || link !== "online" || await pending()) return second.result;
-      const coverage = Object.entries(second.outcome.components ?? {});
-      const retained = coverage.filter(([, c]) => c.retained);
-      if (!retained.length) return remote;
-      if (!coverage.some(([, c]) => wantsServer(c))) return second.result;
-      const kept = coverage.filter(([, c]) => !wantsServer(c));
-      const data = { ...remote.read.data as Record<string, unknown> };
-      for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-      const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
-      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
-    }
-    if (wantsServer(outcome) && link === "online" && !await pending()) return server(remembered, true, true);
-    return first.result;  }
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
