@@ -13,7 +13,7 @@ import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 
 import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, predictedTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
@@ -801,7 +801,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
       } else if (!closed && caughtUp && identityChecked) {
         for (const watch of watches.values()) {
-          if (serverRun(watch.op) || watch.kept) { void rerun(watch); continue; }
+          if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept) { void rerun(watch); continue; }
           if (watch.incarnation !== incarnation || !("data" in watch.snapshot) || watch.snapshot.fresh) continue;
           const { since: _, ...read } = watch.snapshot;
           watch.publish({ ...read, fresh: true });
@@ -862,7 +862,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
         for (const watch of watches.values()) {
-          if (serverRun(watch.op) && (watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table)))) void rerun(watch);
+          if (runsOnServer(backend!, watch.op, nativeReady) && (watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table)))) void rerun(watch);
         }
       }
       return changed;
@@ -895,12 +895,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // ----- reads -----
 
   // @ref LLP 3000.007#6.5 — route from compiled facts; keep server answers only in this client's memory.
-  function serverRun(op: Query<unknown, unknown>): boolean {
-    const program = backend?.programs.find((program) => program.name === op.name);
-    if (program?.native) return !nativeReady;
-    return (backend?.schema.operations?.[op.name]?.runs ?? program?.runs ?? op.runs) === "server";
-  }
-
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch) {
     const work = (async () => {
       while (true) {
@@ -922,6 +916,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const tables = program && schema ? operationTables(program, schema) : new Set<string>();
     if (partitionDenied) return { read: { denied: partitionDenied }, tables, nextExpiry: null };
     const held = schema.operations?.[op.name]?.held ?? program?.held ?? op.held ?? false;
+    const followingCards = schema.timelines?.some(t => [t.posts[0], t.reposts[0]].some(name => tables.has(name)));
+    const pending = async () => (await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0));
     const key = `${op.name}:${JSON.stringify(args)}`;
     const remembered = () => {
       if (watch) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
@@ -969,7 +965,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (link === "online") nativeReady = await installNative(aborter.signal);
       if (!nativeReady) return link === "online" ? server() : remembered();
     }
-    if (!held && serverRun(op)) return link === "online" ? server() : remembered();
+    if (!held && runsOnServer(backend!, op, nativeReady)) {
+      // Online-only Following cards obey the same whole-query withholding
+      // and prediction fence as a missing card below a source floor.
+      const remoteCard = schema.timelines?.some(t => [t.posts[0], t.reposts[0]].some(name => tables.has(name) && !schema.tables[name]?.sync));
+      if (remoteCard) {
+        const loading = () => ({ read: { loading: true } as Read<R>, tables, nextExpiry: null });
+        return link === "online" && !await pending() ? server(loading, false, true) : loading();
+      }
+      return link === "online" ? server() : remembered();
+    }
     type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; denied?: Refusal };
     type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
     // Keep whole-query and component routing on the same coverage rule.
@@ -990,11 +995,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     };
     const first = await local();
     if (first.terminal) return first.result;
-    if (!held && "loading" in first.result.read && link === "online") return server(() => first.result, true, true);
+    // @ref LLP 3000.016#2.2 — retry the original args only after every prediction is observed; never replace a pending row with a server page.
+    if ("loading" in first.result.read) return !held && link === "online" && (!followingCards || !await pending())
+      ? server(() => first.result, true, true) : first.result;
     const { outcome } = first;
     // @ref LLP 3000.007#18.2 — a left group answers from delivered rows, online and offline, including watch reruns.
     if (outcome.denied) return wantsServer(outcome) ? link === "online" ? server(remembered, true, true) : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true } : first.result;
-    const pending = async () => (await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0));
     const components = Object.values(outcome.components ?? {});
     // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — one original server query, then a second local observation and one publication of independent fields.
     if (!held && link === "online" && components.some(wantsServer) && components.some((c) => c.retained) && !await pending()) {
@@ -1023,10 +1029,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
-  }
-
-  function predictedTables(predicted: readonly string[]): Set<string> {
-    return new Set(predicted.map((row) => row.slice(0, row.lastIndexOf("/"))).filter(Boolean));
   }
 
   function rerunTables(tables: Set<string>) {
