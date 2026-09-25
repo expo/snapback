@@ -56130,3 +56130,42 @@ client in both. No delivery/window change, new syntax, ceiling increase,
 package version bump, push, or publication. The earlier report is marked
 historical. File map, complete inventory, fingerprints, failures, and reproduction:
 [Lane U round-1 report](reports/20260925-bounded-following-r1/REPORT.md).
+
+### 2026-09-25 — Lane U round 2: executed Following reads and meter interactions
+
+Addressed Astra's High and Medium findings and both Medium findings from
+Grok's completed review against accepted LLP 3000.016 revision 5. Following
+withholding now uses the device's actual unavailable result and returned
+tables, including native query modules with empty Quarry bodies. Untaken
+online-only card branches no longer block answerable held queries. Composed
+re-observation obeys the same prediction fence and cannot recover a discarded
+partial result after a failed server request, even when another in-flight
+request restores the link. Original arguments and local-commit invalidation
+remain intact.
+
+A horizon point miss is recorded before an examined-meter cut can return a
+null card. Both Quarry and native execution discard unavailable data before
+charging final output bytes. Execution and heap work remain charged; the
+identical oversized published result still hits the unchanged output limit.
+Added a real guest module, four Rust tests across memory/SQLite, seven real
+wasm/native client cases, and four composed-routing interleavings. Against
+the old client the new tests reproduce both Astra findings. Setting native
+query's unavailable flag to false fails both guest-module Rust tests. Both
+Grok failures were reproduced before their fixes, then passed on both stores.
+
+Final full suite: **`== 0 failure(s) in 632 s`**, with the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=8` setting; all tests, timeouts and model counts
+unchanged. The first full run had our new transport-recovery test setup error
+(`== 1 failure(s) in 537 s`), corrected. The second hit an environmental timing
+failure in the unchanged HTTP poll-admission test (`== 1 failure(s) in 616 s`);
+that test passed in isolation and in the final full run without a code change.
+No baseline waiver. Ref-check: 509 LLP docs, 9,293 refs, zero errors/unchecked.
+Wasm: **1,776,325 B raw / 495,299 B gzip**, below the unchanged 496,000 B ceiling.
+
+No design deviation, new syntax/diagnostic, authorization relaxation, ceiling
+increase, push or publication. Storage and acquisition are unchanged, so no
+new browser inventory is claimed; the prior measured 2.387× cold acquisition
+improvement, full-event dominance, unattainable 5× row/byte target under these
+floors, and unavailable packed-format measurement remain recorded in round 1.
+File map, examples, all failure classifications, inventory reference, and logs:
+[Lane U round-2 report](reports/20260925-bounded-following-r2/REPORT.md).
