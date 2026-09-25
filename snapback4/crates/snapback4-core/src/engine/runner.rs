@@ -170,6 +170,7 @@ pub struct Runner<'a> {
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
     pub(crate) maintain_prepaid: bool,
+    pub(crate) capture_prepaid: bool,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
     pub(crate) column_heap: u64,
@@ -257,6 +258,7 @@ impl<'a> Runner<'a> {
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
+            capture_prepaid: false,
             maintain_heap: 0,
             timeline_authority: None,
             column_heap: 0,
@@ -299,6 +301,9 @@ impl<'a> Runner<'a> {
             Err(error) => Err(error),
         }
     }
+
+    /// Logical work charged so far, including a refused transaction.
+    pub fn metered(&self) -> crate::meter::Metered { self.meter.used }
 
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {

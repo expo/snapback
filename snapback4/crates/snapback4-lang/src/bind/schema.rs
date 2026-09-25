@@ -29,6 +29,14 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         }
         schema.tables.insert(info.decl.name.clone(), table);
     }
+    // Identity is semantic, independent of source locations and index planning order.
+    for name in schema.through_order() {
+        let Some(t) = schema.tables[&name].through.clone() else { continue; };
+        let parent=&schema.tables[&t.parent];
+        let fields: Vec<_> = t.fields.values().map(|f| (f,parent.columns.get(f),parent.defaults.get(f))).collect();
+        let identity=snapback4_core::value::digest(&(&parent.rules.read,fields,&parent.expire,&parent.through,&schema.tables[&name].columns[&t.reference],schema.tables[&name].defaults.get(&t.reference)));
+        schema.tables.get_mut(&name).unwrap().through.as_mut().unwrap().identity=identity;
+    }
     // @ref LLP 3000.007#6.7 — inherit the resolved audience, unless explicitly online only.
     for maintain in catalog.maintains.values() {
         if maintain.online_only || !schema.tables.contains_key(&maintain.name) { continue; }
@@ -51,6 +59,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         let Some(source) = source else { continue };
         let mut source = source.clone();
         source.columns.extend(source.recorded.clone());
+        source.columns.extend(source.captures.clone());
         if !schema.tables.contains_key(&maintain.name) { continue; }
         let kind = match &maintain.column {
             Some(column) => core::MaintainKind::Sum { of: column.clone() },
@@ -58,7 +67,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         };
         let computed = match super::maintains::keys(&source, maintain) { Ok(keys) => keys, Err(d) => { diagnostics.push(d); continue; } };
         let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(&source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
-        schema.maintains.push(core::Maintain { private: None, filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
+        schema.maintains.push(core::Maintain { parent_key: schema.tables[&maintain.source].through.clone().filter(|t| maintain.read.is_none() && maintain.by.contains(&t.reference)), aliases: super::maintains::inherited_aliases(&source,maintain), private: None, filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
     super::columns::lower(catalog, &mut schema, diagnostics);
     schema.prepare_contribution_indexes();
@@ -118,6 +127,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         recorded.insert(path.clone(), core::RecordedField { reference: reference.into(), table: table.clone(), column: column.into() });
         columns.insert(path.clone(), scalar_to_column(kind));
     }
+    columns.extend(info.captures.iter().map(|(name, ty)| (name.clone(), scalar_to_column(ty))));
     let mut indexes = BTreeMap::new();
     let mut constraints = Vec::new();
     for index in &info.indexes {
@@ -213,7 +223,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     };
     let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
-    Table { maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    Table { through: info.through.clone(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -376,6 +386,11 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             other => Err(unknown(site, format!("`{other}` is not a rule operator; rules use and, or, not, =, and !="), "read <- .ownerId = viewer")),
         },
         Expr::Unary { op, value, .. } if op == "not" => Ok(RuleExpr::Not(Box::new(rule_expr(catalog, info, value, bindings)?))),
+        Expr::Member { .. } => {
+            let (term, ty) = rule_term(catalog,info,expr,bindings)?;
+            if ty != Ty::Bool { return Err(type_error(site,"a bare rule field must be bool","compare this field with a value of its declared type")); }
+            Ok(RuleExpr::Eq(term,RuleTerm::Literal(Value::Bool(true))))
+        }
         Expr::Exists { read, site } => {
             let (table, index, key, equalities) = probe(catalog, info, read, site, bindings, true)?;
             Ok(RuleExpr::Exists { table, index, key, equalities, provenance: KeyProvenance::Shape })
@@ -440,7 +455,7 @@ fn column_ty(info: &TableInfo, name: &str) -> Option<Ty> {
     if name == "id" {
         return Some(Ty::Ref(info.decl.name.clone()));
     }
-    info.columns.get(name).map(Ty::from_scalar)
+    info.columns.get(name).or_else(|| info.captures.get(name)).map(Ty::from_scalar)
 }
 
 /// Final-insert obligations retain their exact-index write-path contract.
@@ -469,7 +484,7 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     let named: Option<Vec<String>> = if terms.iter().all(|(c, _)| c.is_some()) && !terms.is_empty() { Some(terms.iter().map(|(c, _)| c.clone().unwrap()).collect()) } else { None };
     // @ref LLP 3000.007#17 — an expiring maintain's physical value is not its live fact; only existence is a one-unit rule probe.
     if named.as_ref().is_some_and(|names| names.iter().any(|name| name == "value"))
-        && catalog.maintains.get(&read.table).and_then(|maintain| catalog.tables.get(&maintain.source)).is_some_and(|source| source.decl.expire.is_some()) {
+        && catalog.maintains.get(&read.table).and_then(|maintain| catalog.tables.get(&maintain.source)).is_some_and(|source| source.decl.expire.is_some() || source.through.as_ref().is_some_and(|t| t.expiring)) {
         return Err(Diagnostic::new(site, "E_QUARRY_LIVE_MAINTAIN_PROBE", format!("a rule cannot probe {}.value because its source expires", read.table),
             "read the view in the program; its live value cannot be probed at one unit").guide("expire"));
     }
@@ -589,9 +604,10 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
     };
     columns.push(ColumnDecl { maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
     let computed = super::maintains::keys(&source, maintain)?;
+    let aliases = super::maintains::inherited_aliases(source,maintain);
     if let Some(expr) = &maintain.filter { super::maintains::predicate(&source, expr)?; }
     for field in &maintain.by {
-        let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[field].clone() };
+        let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[aliases.get(field).unwrap_or(field)].clone() };
         columns.push(ColumnDecl { maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
@@ -601,7 +617,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         let index = index.clone();
         if index.columns.contains(&"value".into()) {
             // @ref LLP 3000.007#20.21 — stored order is stale; the sound server count upper-bound threshold read is not built.
-            if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built", maintain.name, maintain.source), "for an entity-time window over a non-expiring source, use the Trending predicate in guide feeds; for expiring contributions, stream each candidate's live count and rank only a complete candidate domain; a meter cut makes the ranking incomplete").guide("feeds")); }
+            if source.decl.expire.is_some() || source.through.as_ref().is_some_and(|t| t.expiring) { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built", maintain.name, maintain.source), "for an entity-time window over a non-expiring source, use the Trending predicate in guide feeds; for expiring contributions, stream each candidate's live count and rank only a complete candidate domain; a meter cut makes the ranking incomplete").guide("feeds")); }
             // @ref LLP 3000.007#14 — ruling 41's interim retires with maintained columns.
             let value_at = index.columns.iter().position(|field| field == "value").unwrap();
             let fields = index.columns.iter().collect::<BTreeSet<_>>();

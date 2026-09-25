@@ -9,6 +9,7 @@ fn lifetime_changed(schema: &Schema, previous: &Schema, parent: &str) -> bool {
     let old = previous.table(parent);
     let new = schema.table(parent);
     old.and_then(|t| t.expire.as_ref()) != new.and_then(|t| t.expire.as_ref())
+        || old.and_then(|t| t.through.as_ref()) != new.and_then(|t| t.through.as_ref())
         || old.into_iter().chain(new).filter_map(|t| t.expire.as_ref()).any(|field|
             crate::successor::interpretation(previous, parent, field) != crate::successor::interpretation(schema, parent, field))
 }
@@ -27,6 +28,16 @@ pub(super) fn changed_parents(schema: &Schema, previous: Option<&Schema>) -> BTr
 }
 
 impl Runner<'_> {
+    /// An authoritative in-memory generation rebuilds before publishing its
+    /// staged store. Ordinary device installation does not call this path.
+    pub fn rebuild_server_derivations(&mut self, previous: Option<&Schema>) -> Result<(),RuntimeError> {
+        let saved=self.event_free;self.event_free=true;
+        let result=(|| {
+            for m in self.schema.maintains.iter().filter(|m|m.private.is_none()){self.rebuild_maintain(m)?;}
+            self.activate_columns(previous,&self.schema.maintains.iter().collect::<Vec<_>>(),&changed_parents(self.schema,previous))
+        })();
+        self.event_free=saved;result
+    }
     pub(super) fn activate_columns(&mut self, previous: Option<&Schema>, rebuild: &[&Maintain], parents: &BTreeSet<String>) -> Result<(), RuntimeError> {
         let saved = self.event_free;
         self.event_free = true;

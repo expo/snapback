@@ -89,6 +89,7 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
             if !old.columns.contains_key(column) {
                 // @ref LLP 3000.007#18.3 — literal defaults describe old images on every host; contextual defaults belong to the write
                 let (change, message) = match (kind.is_optional(), new.defaults.get(column)) {
+                    _ if new.engine_field(column) => (Change::Additive, format!("engine capture {name}.{column} is filled during atomic activation")),
                     (true, _) => (Change::Additive, format!("column {name}.{column} is added as optional")),
                     (false, Some(ColumnDefault::Literal(value))) => {
                         let value = crate::wire::to_json(value);
@@ -226,6 +227,7 @@ pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
 // @ref LLP 3000.007.001#3.11 — rebuild on resolved source dependency changes.
 pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &crate::schema::Maintain) -> bool {
     from.maintain_for(&maintain.target) != Some(maintain)
+        || from.table(&maintain.source).and_then(|t| t.through.as_ref()) != to.table(&maintain.source).and_then(|t| t.through.as_ref())
         || retired_timeline_tables(from, to).contains(&maintain.target)
         || from.table(&maintain.source).and_then(|t| t.expire.as_ref()) != to.table(&maintain.source).and_then(|t| t.expire.as_ref())
         || maintain.dependencies().iter().any(|field| interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))

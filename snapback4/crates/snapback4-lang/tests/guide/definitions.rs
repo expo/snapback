@@ -112,6 +112,11 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_READ_THROUGH", "read through .ref"),
+    ("E_READ_THROUGH_SYNC", "online only"),
+    ("E_READ_THROUGH_ADOPT", "Reconcile the named table before adoption."),
+    ("E_PARENT_HAS_CHILDREN", "deleting the named live children"),
+    ("E_READ_THROUGH_SCAN", "complete key"),
     ("E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name"),
     ("E_QUARRY_SPREAD", "E_QUARRY_SPREAD refuses nullable operands and values without statically known fields"),
     ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses joining different row kinds"),

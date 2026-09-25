@@ -581,3 +581,5 @@ whose arguments are included. A native job can write tables outside this syntax
 census, so its presence makes the all-writers proof unknown and silent. The note does not infer meaning from column names,
 and its absence is not proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.
+
+E_READ_THROUGH_SCAN refuses a scan of an aggregate grouped by a read-through reference. Read `viewName[parent]` with the complete key.

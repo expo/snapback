@@ -1,4 +1,9 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_READ_THROUGH_SCAN", "an aggregate grouped by a read-through reference is served by its complete parent key. Replace the scan with viewName[parent]. Scanning other groups would disclose their population. guide maintains."),
+    ("E_READ_THROUGH_ADOPT", "activation or restore found children with missing or expired parents, disagreeing captures, or no unambiguous old audience correspondence. Reconcile the named table before retrying; nothing is published. guide rules."),
+    ("E_READ_THROUGH", "read through .ref is the entire read rule and needs a required immutable reference with no default to an ordinary application table. Parent rule fields and authored expiry must be immutable. Remove other read rules and put service grants on the parent. Break reference cycles with an ordinary read rule. guide rules."),
+    ("E_READ_THROUGH_SYNC", "read through tables run on the server until the device increment. Replace sync with online only. guide rules."),
+    ("E_PARENT_HAS_CHILDREN", "a readable parent cannot be deleted while live children reference it. Delete the named child rows before deleting the parent. guide rules."),
     ("N_OPTIONAL_FILTER_LIMIT", "at most three optional filter inputs get planned presence variants; the named extra filters remain metered residual predicates. Keep them, or split the screen into queries that branch on those inputs. guide reads."),
     ("E_INIT_CONFLICT", "init found conflicting destination files or package.json entries and wrote nothing. Rename the listed files or reconcile the named package entries, then rerun snapback4 init. Unrelated files are preserved; when README.md exists, setup instructions go in README.snapback.md."),
 

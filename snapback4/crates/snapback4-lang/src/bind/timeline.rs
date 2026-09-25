@@ -52,7 +52,7 @@ fn source<'a>(schema: &'a Schema, decl: &TimelineDecl, name: &str, actor: &str, 
     let fail = |message| refusal(decl, "E_TIMELINE_SHAPE", message,
         format!("declare {name} public with full sync public; require .{actor} = viewer for inserts and allowed deletes/updates; keep mapped fields immutable"));
     let t = schema.table(name).ok_or_else(|| fail(format!("missing timeline source {name}")))?;
-    if !t.rules.read.is_public() || t.expire.is_some() || schema.maintain_for(name).is_some()
+    if !t.rules.read.is_public() || t.is_expiring() || schema.maintain_for(name).is_some()
         || !t.sync.as_ref().is_some_and(|s| s.audience == Audience::Public && s.horizon.is_none()) {
         return Err(fail(format!("{name} must be explicitly public, fully synced, non-expiring application data")));
     }

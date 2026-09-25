@@ -14,7 +14,7 @@ impl Runner<'_> {
         match rule {
             Exists { table, .. } | Created { table, .. } => {
                 if let Some(maintain) = self.schema.maintain_for(table)
-                    && self.schema.table(&maintain.source).is_some_and(|t| t.expire.is_some()) { self.word_note_table(&maintain.source)?; }
+                    && self.schema.table(&maintain.source).is_some_and(|t| t.is_expiring()) { self.word_note_table(&maintain.source)?; }
                 self.word_note_table(table)?;
             }
             And(rules) | Or(rules) => { for rule in rules { self.word_dependencies(rule)?; } }

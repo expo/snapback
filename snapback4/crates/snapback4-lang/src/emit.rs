@@ -21,7 +21,7 @@ pub fn typescript(bound: &Bound) -> String {
     out.push_str("export type Rows = {\n");
     for (name, table) in bound.schema.visible_tables() {
         out.push_str(&format!("  {}: {{\n", property(name)));
-        for (column, kind) in table.columns.iter().filter(|(name, _)| !table.recorded.contains_key(*name)) {
+        for (column, kind) in table.columns.iter().filter(|(name, _)| !table.engine_field(name)) {
             out.push_str(&format!("    {}: {};\n", property(column), column_ts(kind, &bound.schema)));
         }
         out.push_str("    /** True on this device's own unconfirmed change (the card). */\n    pending?: boolean;\n");

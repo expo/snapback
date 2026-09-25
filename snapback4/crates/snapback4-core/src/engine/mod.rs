@@ -38,6 +38,9 @@ mod maintains;
 pub(crate) mod timeline;
 mod timeline_authority;
 mod recorded;
+mod through;
+#[cfg(feature = "sqlite")]
+pub mod through_activation;
 pub(crate) mod columns;
 #[cfg(feature = "sqlite")]
 mod column_activation;
@@ -434,6 +437,11 @@ impl Engine {
         self.ceilings
     }
 
+    /// Counts shortened by the last schema activation, committed with its generation.
+    pub fn read_through_shortened(&self) -> Result<BTreeMap<String,u64>,RuntimeError> {
+        self.store.meta("read_through_shortened")?.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose().map(Option::unwrap_or_default)
+    }
+
     /// Replace the schema and programs in place (a successor generation);
     /// the store keeps every row and rebuilds changed indexes; the
     /// generation advances so every device re-derives its partition.
@@ -476,7 +484,7 @@ impl Engine {
                 return Err(RuntimeError::Schema("scheduled work takes periodStart: time and periodEnd: time, or nothing".into()));
             }
         }
-        store.activate(schema, Some(programs), false, |tx, changed| {
+        store.activate_at(schema, Some(programs), false, now, |tx, changed| {
             if let Some((release, expected)) = release {
                 use rusqlite::OptionalExtension;
                 let actual: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
@@ -494,7 +502,7 @@ impl Engine {
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)))
-                    || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))
+                    || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.is_expiring()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;
             let attribution = recorded::paths_changed(schema, previous.as_ref());
@@ -728,7 +736,7 @@ impl Engine {
     /// Stop between row removals; a short sweep can still leave due rows.
     pub fn sweep_expired_for(&mut self, now: i64, limit: usize, budget: std::time::Duration) -> Result<u64, RuntimeError> {
         let started = std::time::Instant::now();
-        let expiring: Vec<(String, String)> = self.schema.tables.iter().filter_map(|(name, table)| table.expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
+        let expiring: Vec<(String, String)> = self.schema.through_order().into_iter().rev().filter_map(|name| self.schema.tables[&name].expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
         if expiring.is_empty() {
             return Ok(0);
         }
@@ -747,6 +755,7 @@ impl Engine {
                 let count = rows.len();
                 for (row, _) in rows {
                     if removed > 0 && started.elapsed() >= budget { break 'tables; }
+                    if runner.physical_children(table_name,row.field("id")?)? { break 'tables; }
                     runner.remove(table_name, &row)?;
                     removed += 1;
                 }
@@ -1011,6 +1020,9 @@ impl Engine {
 
     /// Development hosts supply their clock so seed commits share operation and stream time.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+        let order = self.schema.through_order();
+        let mut rows: Vec<_> = rows.into_iter().collect();
+        if self.schema.tables.values().any(|t|t.through.is_some()) { rows.sort_by_key(|(name,_)| order.iter().position(|n| n == name).unwrap_or(usize::MAX)); }
         let targets: std::collections::BTreeSet<_> = self.schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
         let tx = self.store.transaction()?;
         let mut imports = BTreeMap::<(String, String), Value>::new();
@@ -1088,6 +1100,7 @@ impl Engine {
     /// cannot supply it. Device stores restore/page-apply at their own trusted
     /// transaction boundary with the same stored row representation.
     pub fn load_mode(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
+        if mode == LoadMode::Import && self.schema.tables.values().any(|t| t.through.is_some()) { return self.seed(rows); }
         if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty() && table.maintained.is_empty()) { return self.load_stored_rows(rows, mode); }
         let now = crate::now_ms();
         let tx = self.store.transaction()?;
@@ -1147,7 +1160,11 @@ impl Engine {
         let mut seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
-        for (table_name, row) in rows {
+        let order = self.schema.through_order();
+        let mut rows: Vec<_> = rows.into_iter().collect();
+        if self.schema.tables.values().any(|t|t.through.is_some()) { rows.sort_by_key(|(name,_)| order.iter().position(|n| n == name).unwrap_or(usize::MAX)); }
+        for (table_name, mut row) in rows {
+            if let Some(table) = self.schema.table(&table_name) { table.recompute_deadline(&mut row)?; }
             if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
             validate::validate_row(&self.schema, &table_name, &row)?;
             if mode == LoadMode::Restore { seq = seq.max(timeline::restored_sequence(&self.schema, &table_name, &row)?); }
@@ -1159,6 +1176,7 @@ impl Engine {
             if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
             count += 1;
         }
+        through_activation::validate_restore(&tx,&self.schema,now)?;
         let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);

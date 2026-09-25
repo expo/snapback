@@ -54,7 +54,7 @@ pub(super) fn plan(schema: &Schema, program: &Program) -> Vec<String> {
     // A sum over expiring rows can overflow after a cancelling row expires.
     // That is a semantic refusal, not the accepted server-only meter delta.
     let fallible_reads = schema.maintains.iter().filter(|view| matches!(view.kind, MaintainKind::Sum { .. })
-        && schema.tables[&view.source].expire.is_some()).map(|view| view.target.clone()).collect();
+        && schema.tables[&view.source].is_expiring()).map(|view| view.target.clone()).collect();
     let mut slice = Slice { fallible_reads, ..Slice::default() };
     slice.body(&program.body, &program.name);
     for (name, facts) in &slice.definitions {

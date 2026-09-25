@@ -75,7 +75,7 @@ impl Runner<'_> {
         rules::probe_sites(rule, &mut sites);
         for (table, _) in sites {
             if let Some(maintain) = self.schema.maintain_for(&table)
-                && self.schema.table(&maintain.source).is_some_and(|source| source.expire.is_some()) {
+                && self.schema.table(&maintain.source).is_some_and(|source| source.is_expiring()) {
                 self.read_tables.insert(maintain.source.clone());
             }
             self.read_tables.insert(table);
@@ -83,6 +83,11 @@ impl Runner<'_> {
     }
 
     fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr, uniform: bool) -> Result<bool, RuntimeError> {
+        if let Some(through) = &table.through && let Some(id) = index.columns().iter().zip(prefix).find_map(|(name,v)| (name == &through.reference).then_some(v)) {
+            let verdict = self.parent_verdict(through,id)?;
+            if verdict == super::through::ParentVerdict::Unknown { self.beyond_horizon = true; }
+            return Ok(verdict == super::through::ParentVerdict::Readable);
+        }
         let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
         let viewer = self.context.viewer.clone();
         let expiry = self.next_expiry;
@@ -99,7 +104,7 @@ impl Runner<'_> {
         if !self.device { return; }
         let Some(maintain) = self.schema.maintain_for(table) else { return };
         let source = &self.schema.tables[&maintain.source];
-        if self.schema.maintain_subset_unknown(table) || (source.expire.is_some() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
+        if self.schema.maintain_subset_unknown(table) || (source.is_expiring() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
             self.read_tables.insert(maintain.source.clone());
             self.unknown_fact(table, index, key, site);
         }
@@ -133,7 +138,7 @@ impl Runner<'_> {
         if let Some(row) = &found {
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table)
-                && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
+                && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.is_expiring()) {
                 self.read_tables.insert(maintain.source.clone());
                 if self.device_work_active {
                     let group_bytes = word_heap::slots::<Value>(maintain.by.len())
@@ -188,12 +193,12 @@ impl Runner<'_> {
     // @ref LLP 3000.013#11.1 — target expiry work is charged only after authority; denied targets reveal no backlog.
     pub(super) fn lookup_live_charged(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool, mut expired_work: Option<&mut u64>) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        if table.expire.is_none() && !self.device_work_active {
+        if !table.is_expiring() && !self.device_work_active {
             return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
         }
         let mut bounds = Bounds::default();
         loop {
-            let (rows, limit) = self.witness_scan(table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
+            let (rows, limit) = self.witness_scan(table_name, name, key, &bounds, if !table.is_expiring() { 1 } else { 32 })?;
             let count = rows.len();
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, table)?;
@@ -241,7 +246,7 @@ impl Runner<'_> {
     pub(crate) fn live_aggregate(&mut self, table_name: &str, row: Value) -> Result<Option<Value>, RuntimeError> {
         let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
         let source = self.schema.table(&maintain.source).ok_or_else(|| RuntimeError::Schema("missing maintain source".into()))?;
-        if source.expire.is_none() { return Ok(Some(row)); }
+        if !source.is_expiring() { return Ok(Some(row)); }
         let bytes = super::write_target::row_copy_ceiling(source).saturating_mul(32)
             .saturating_add(super::write_target::row_copy_ceiling(&self.schema.tables[table_name]).saturating_mul(16));
         self.maintain_scratch(bytes, |runner| runner.live_aggregate_inner(&maintain, row))
@@ -300,7 +305,7 @@ impl Runner<'_> {
     }
 
     fn note_expiry(&mut self, table: &Table, row: &Value) {
-        if let Some(column) = &table.expire
+        if let Some(column) = table.expiry_column()
             && let Ok(Value::Int(at)) = row.field(column)
             && self.context.now.is_some_and(|now| *at > now)
         {
@@ -314,7 +319,7 @@ impl Runner<'_> {
     fn trust_synced_read(&self, table: &Table) -> bool {
         self.device && table.sync.as_ref().is_some_and(|sync| {
             table.leave == crate::schema::LeavePolicy::DeliveredHistory || match &sync.audience {
-                crate::schema::Audience::Target { table, .. } => self.schema.table(table).is_none_or(|target| target.expire.is_none()),
+                crate::schema::Audience::Target { table, .. } => self.schema.table(table).is_none_or(|target| !target.is_expiring()),
                 _ => true,
             }
         })
@@ -346,7 +351,9 @@ impl Runner<'_> {
             old
         });
         let viewer = self.context.viewer.clone();
-        rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self)
+        if effect == Effect::Insert && table.through.is_some() {
+            rules::evaluate(&rule, &viewer, old.as_ref(), &next, true, &mut PrefixProbe { runner:self })
+        } else { rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self) }
     }
 
     /// A row by id, materialized, without a rule check.
@@ -381,6 +388,26 @@ impl Runner<'_> {
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
+        let inherited = self.schema.maintain_for(&read.table).filter(|m| self.schema.tables[&m.source].through.is_some());
+        let mut inherited_admitted = false;
+        if let Some(m) = inherited {
+            let visible = if let Some(parent) = &m.parent_key {
+                let Some(at) = index.columns().iter().position(|f| f == &parent.reference) else { return Err(RuntimeError::Structural {code:"E_READ_THROUGH_SCAN",message:format!("{} must be read by its full parent key; use {}[parent] (guide maintains)",read.table,read.table)}); };
+                let parent_id = key.get(at).ok_or_else(|| RuntimeError::Input("read through aggregate needs its full parent key".into()))?;
+                match self.parent_verdict(parent,parent_id)? {
+                    super::through::ParentVerdict::Readable => true,
+                    super::through::ParentVerdict::Unknown => { self.unknown_fact(&read.table,&read.index,&key,&read.site); false },
+                    _ => false,
+                }
+            } else {
+                let row = Value::Row(index.columns().into_iter().zip(key.iter().cloned()).collect());
+                self.meter.charge(MeterKind::RuleProbes,rules::rule_probes(&table.rules.read))?;
+                let viewer = self.context.viewer.clone();
+                self.context.is_system() || rules::evaluate(&table.rules.read,&viewer,None,&row,false,&mut PrefixProbe {runner:self})?
+            };
+            if !visible { return Ok(crate::value::object([("value",Value::Null)])); }
+            inherited_admitted = true;
+        }
         if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
@@ -390,7 +417,7 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         // @ref LLP 3000.007#20.12 — reserve authorization before knowing hit, miss or hidden; an exhausted probe is not a false verdict to roll back.
-        let trusted = self.context.is_system() || self.trust_synced_read(table);
+        let trusted = inherited_admitted || self.context.is_system() || self.trust_synced_read(table);
         // Prediction keeps the server's reservation even for delivered rows.
         // Only the additional physical authority work uses the device allowance.
         let prepaid = !trusted || (self.device_allowance.is_some() && !self.context.is_system());
@@ -402,7 +429,7 @@ impl Runner<'_> {
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
         // An expiring lookup already charged its live candidate while
         // passing expired siblings. A miss still costs one point read.
-        if (table.expire.is_none() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
+        if (!table.is_expiring() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
@@ -861,6 +888,9 @@ impl Runner<'_> {
     }
 
     fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<(&mut i128, Option<&Expr>)>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        if self.schema.maintain_for(&scan.table).is_some_and(|m| m.parent_key.is_some()) {
+            return Err(RuntimeError::Structural {code:"E_READ_THROUGH_SCAN",message:format!("{} at {} is keyed by its parent; read {}[parent] instead of scanning groups (guide maintains)",scan.table,scan.site,scan.table)});
+        }
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
@@ -880,7 +910,8 @@ impl Runner<'_> {
         };
         let visibility = if word.is_some_and(|w| w.metered) { rules::Visibility { uniform: true, decided_true: true } }
             else { rules::scan_visibility(self.schema, scan) };
-        let always_visible = word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        let parent_pinned = table.through.as_ref().is_some_and(|t| index.columns().iter().take(prefix.len()).any(|f| f == &t.reference));
+        let always_visible = !parent_pinned && (word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }
@@ -1360,7 +1391,7 @@ impl Runner<'_> {
 
 }
 
-struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b> }
+pub(super) struct PrefixProbe<'a, 'b> { pub(super) runner: &'a mut Runner<'b> }
 impl Probe for PrefixProbe<'_, '_> {
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         self.runner.rule_probe_exists(table, index, key, equalities)

@@ -233,11 +233,11 @@ impl Analysis<'_> {
                 Stmt::Delete { table, key } => { self.expr(key, times); self.write(table, "delete", times); }
                 Stmt::DeleteTarget { target } => {
                     for key in &target.key { self.expr(key, times); }
-                    if self.schema.table(&target.table).is_some_and(|t| t.expire.is_some()) { self.expiry_write(&target.table, &target.index); }
+                    if self.schema.table(&target.table).is_some_and(|t| t.is_expiring()) { self.expiry_write(&target.table, &target.index); }
                     self.write(&target.table, "delete", times);
                 }
                 Stmt::WriteTarget { target, patch, upsert, condition, result } => {
-                    if self.schema.table(&target.table).is_some_and(|t| t.expire.is_some()) {
+                    if self.schema.table(&target.table).is_some_and(|t| t.is_expiring()) {
                         // Write targets are complete unique keys. Their only
                         // variable expiry work is the matching collision backlog.
                         for key in &target.key { self.expr(key, times); }
@@ -356,20 +356,20 @@ impl Analysis<'_> {
     }
 
     fn point_work(&mut self, table: &str, index: &str, site: &str, times: u64, authorize: bool) {
-        self.rows(times.saturating_mul(if self.schema.table(table).is_some_and(|t| t.expire.is_some()) { 2 } else { 1 }));
+        self.rows(times.saturating_mul(if self.schema.table(table).is_some_and(|t| t.is_expiring()) { 2 } else { 1 }));
         if self.in_filter { self.probes(times); }
         self.lookup_growth(table, index, site);
         if authorize && let Some(table) = self.schema.table(table) { self.rule(&table.rules.read, site, times); }
     }
 
     fn lookup_growth(&mut self, name: &str, index: &str, site: &str) {
-        if self.schema.table(name).is_some_and(|t| t.expire.is_some()) && index != "byId" {
+        if self.schema.table(name).is_some_and(|t| t.is_expiring()) && index != "byId" {
             self.growth(site, Self::expiry_reason(name, &format!("by the `{index}` lookup")),
                 "read by id, or use a non-expiring keyed view");
             self.rows(self.result.bounds.meters.examined);
         }
         if let Some(m) = self.schema.maintain_for(name)
-            && self.schema.table(&m.source).is_some_and(|t| t.expire.is_some()) {
+            && self.schema.table(&m.source).is_some_and(|t| t.is_expiring()) {
             self.growth(site, format!("live {} rows in the group behind `{name}`", m.source),
                 "use a view over non-expiring contributions, or cap the source domain");
             self.rows(self.result.bounds.meters.examined);
@@ -428,7 +428,7 @@ impl Analysis<'_> {
                 "pin the read rule's deciding columns in the domain");
             grows = true;
         }
-        if table.is_some_and(|t| t.expire.is_some()) {
+        if table.is_some_and(|t| t.is_expiring()) {
             self.growth(&scan.site, Self::expiry_reason(&scan.table, &format!("before {} live rows match", display::bound(&scan.take))),
                 "");
             grows = true;

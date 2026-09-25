@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 pub mod columns;
+pub mod through;
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
@@ -213,6 +214,9 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Table {
+    /// Lifetime-bound inherited authority. Absent on legacy schemas.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub through: Option<through::Through>,
     /// Engine-maintained readable fields, with their derivation identity.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub maintained: BTreeMap<String, String>,
@@ -290,13 +294,13 @@ impl Table {
     /// Whether `row` is past its `expire` column at `now`: absent to every
     /// reader, pending the sweep. A null time never expires.
     pub fn expired(&self, row: &Value, now: i64) -> bool {
-        self.expire.as_ref().is_some_and(|column| matches!(row_image(row, self).field(column), Ok(Value::Int(at)) if *at <= now))
+        self.deadline(row).is_some_and(|at| at <= now)
     }
 
     /// The index the expiry sweep walks: the first leading with the
     /// `expire` column, as the declaration requires.
     pub fn expiry_index(&self) -> Option<(&str, &Index)> {
-        let column = self.expire.as_deref()?;
+        let column = self.expiry_column()?;
         self.indexes.iter().find(|(_, index)| {
                 index.is_plain() && index.columns().first().map(String::as_str) == Some(column)
             }).map(|(name, index)| (name.as_str(), index))
@@ -709,6 +713,10 @@ impl TextFormat {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Maintain {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_key: Option<through::Through>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub aliases: BTreeMap<String,String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub private: Option<columns::ColumnOwner>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter: Option<crate::maintain::Predicate>,
@@ -749,6 +757,7 @@ pub const BY_ID: &str = "byId";
 pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
+        through: None,
         maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         residency: Residency::default(),
         defaults: BTreeMap::new(),
@@ -774,6 +783,7 @@ pub struct SchemaIssue {
 /// maintain has the closed target shape; every `sync` is invertible.
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = columns::validate(schema);
+    issues.extend(through::validate(schema));
     timeline::validate(schema, &mut issues);
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
     let mut route_paths = BTreeSet::new();
@@ -1011,12 +1021,12 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         return;
     };
     // @ref LLP 3000.007#20.9 — stored value order cannot rank live sums between expiry and sweep; enforce at every schema entry point.
-    if source.expire.is_some() && target.indexes.values().any(|index| index.columns().iter().any(|column| column == "value")) {
+    if source.is_expiring() && target.indexes.values().any(|index| index.columns().iter().any(|column| column == "value")) {
         issue(issues, format!("maintain {} cannot order by value because source {} expires", maintain.target, maintain.source));
     }
     // The sweep, and a commit retiring its expired births, delete expired
     // rows as source writes; a maintained row is the engine's to write.
-    if target.expire.is_some() {
+    if target.is_expiring() {
         issue(issues, format!("maintain {} cannot expire; give its source {} the lifetime", maintain.target, maintain.source));
     }
     if maintain.by.is_empty() {
@@ -1025,7 +1035,7 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     if let Err(message) = maintain.validate_keys(source) { issue(issues, message); }
     for (field, target_field) in maintain.by.iter().zip(maintain.group_fields()) {
         let calendar_type = if maintain.computed.get(field).is_some_and(|key| source.recorded.contains_key(&key.column)) { ColumnType::Optional(Box::new(ColumnType::Int)) } else { ColumnType::Int };
-        let expected = if maintain.computed.contains_key(field) { Some(&calendar_type) } else { source.columns.get(field) };
+        let expected = if maintain.computed.contains_key(field) { Some(&calendar_type) } else { source.columns.get(maintain.aliases.get(field).unwrap_or(field)) };
         match expected {
             None => issue(issues, format!("maintain names unknown source column {}.{field}", maintain.source)),
             Some(kind) if target.columns.get(&target_field) != Some(kind) => issue(issues, format!("maintain target column {field} must match the source type {kind}")),
