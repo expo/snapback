@@ -1,6 +1,7 @@
 //! Durable event transitions under the caller's transaction and meter.
 // @ref LLP 3000.013#4-following-without-caps — only own delivery is synchronous.
 use super::runner::Runner;
+mod slots;
 #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 mod online;
 #[cfg(feature = "sqlite")]
@@ -80,7 +81,9 @@ impl Runner<'_> {
                 let removed = !t.posts[3].is_empty() && field(new, &t.posts[3])? == Value::Bool(true);
                 if old.is_none() {
                     if removed { return Err(refusal("E_TIMELINE_REMOVAL", "insert the post with its removal flag false; set it true only to remove an existing event")); }
-                    if let Some(filter) = &t.filter {
+                    if t.has_slot(self.schema, false) {
+                        if !self.timeline_original_live(t, new)? { return Ok(()); }
+                    } else if let Some(filter) = &t.filter {
                         self.meter.step(filter.steps())?;
                         if !filter.matches(new) { return Ok(()); }
                     }
@@ -90,14 +93,15 @@ impl Runner<'_> {
                     let event = object([("id", Value::Id(id.clone())), ("postId", Value::Id(id)),
                         ("actorId", Value::Id(actor.clone())), ("authorId", Value::Id(actor)),
                         ("repost", Value::Bool(false)), ("at", field(new, &t.posts[2])?)]);
-                    self.insert(&t.table("Posts"), event.clone())?;
+                    if !self.device || t.fully_synced(self.schema, false) { self.insert(&t.table("Posts"), event.clone())?; }
                     self.timeline_deliver(t, &event)?;
                 } else if let Some(old) = old {
                     let was_removed = !t.posts[3].is_empty() && field(old, &t.posts[3])? == Value::Bool(true);
                     if was_removed && !removed { return Err(refusal("E_TIMELINE_REMOVAL", "a removed post cannot be restored; keep its flag true and insert a new post for new content")); }
                     if removed && !was_removed {
-                        let event = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(old, &t.posts[1])?, field(old, "id")?, Value::Bool(false)])?;
-                        if let Some(event) = event { self.timeline_remove(t, &event)?; }
+                        if self.timeline_original_live(t, old)? {
+                            self.timeline_remove_id(t, field(old, "id")?, field(old, &t.posts[1])?, false)?;
+                        }
                         else {
                             if let Some(filter) = &t.filter { self.meter.step(filter.steps())?; }
                             if t.filter.as_ref().is_none_or(|p| p.matches(old)) {
@@ -115,21 +119,20 @@ impl Runner<'_> {
                     let actor = text(row, &t.reposts[1])?;
                     let post = self.timeline_get(&t.posts[0], "byId", vec![field(row, &t.reposts[2])?])?;
                     let post = required(post, "FEED_APP_NOT_FOUND")?;
-                    let original = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(&post, &t.posts[1])?, field(&post, "id")?, Value::Bool(false)])?;
-                    require(original.is_some(), "FEED_POST_NOT_FOUND")?;
+                    require(self.timeline_original_live(t, &post)?, "FEED_POST_NOT_FOUND")?;
                     // @ref LLP 3000.016#2.3 — held event metadata alone cannot justify repost prediction when removal has arrived.
                     self.timeline_require_live_id(t, &field(&post, "id")?)?;
-                    let id = self.context.mint()?;
+                    let id = if t.has_slot(self.schema, true) { field(row, &t.slot(true))?.as_str()?.to_owned() } else { self.context.mint()? };
                     self.timeline_require_live_id(t, &Value::Id(id.clone()))?;
                     let event = object([("id", Value::Id(id)), ("postId", field(&post, "id")?),
                         ("actorId", Value::Id(actor)), ("authorId", field(&post, &t.posts[1])?),
                         ("repost", Value::Bool(true)), ("at", field(row, &t.reposts[3])?)]);
-                    self.insert(&t.table("Posts"), event.clone())?;
+                    if !self.device || t.fully_synced(self.schema, true) { self.insert(&t.table("Posts"), event.clone())?; }
                     self.timeline_deliver(t, &event)?;
                 }
                 (Some(row), None) => {
-                    if let Some(event) = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(row, &t.reposts[1])?, field(row, &t.reposts[2])?, Value::Bool(true)])? {
-                        self.timeline_remove(t, &event)?;
+                    if let Some(id) = self.timeline_repost_id(t, row)? {
+                        self.timeline_remove_id(t, id, field(row, &t.reposts[1])?, true)?;
                     }
                 }
                 _ => {}
@@ -209,13 +212,6 @@ impl Runner<'_> {
     fn timeline_tombstone(&mut self, t: &Timeline, event: Value, actor: Value) -> Result<(), RuntimeError> {
         self.timeline_insert(t, "RemovedEvents", &[event.clone()], object([("eventId", event), ("actorId", actor)]))?;
         Ok(())
-    }
-
-    fn timeline_remove(&mut self, t: &Timeline, event: &Value) -> Result<(), RuntimeError> {
-        let id = text(event, "id")?;
-        self.timeline_tombstone(t, Value::Id(id.clone()), field(event, "actorId")?)?;
-        self.timeline_enqueue(t, "purge", field(event, "actorId")?, Value::Null, Value::Id(id.clone()), Value::Null, 0, None)?;
-        self.delete(&t.table("Posts"), &id)
     }
 
     fn timeline_insert(&mut self, t: &Timeline, suffix: &str, key: &[Value], row: Value) -> Result<TimelineInsert, RuntimeError> {

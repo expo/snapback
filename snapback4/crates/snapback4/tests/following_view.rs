@@ -41,9 +41,10 @@ fn bounded_target_certificate_names_whole_partition_floors_and_card_fallback() {
     for fact in [
         "following following acquisition: global, non-sliding source floors",
         "posts: newest 1000 by (at, id) globally", "reposts: newest 1000 by (at, id) globally",
-        "followingPosts: full sync",
+        "followingPosts originals: event state follows the source's engine slot; no owned event rows on devices",
+        "followingPosts reposts: event state follows the source's engine slot; no owned event rows on devices",
         "followingFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader",
-        "follows and followingRemovedEvents: full sync",
+        "follows: full sync", "followingRemovedEvents: full sync",
         "history: newest 1000 events per followed author, unchanged",
         "retry original input online; loading offline, while a prediction is unobserved, or for held queries",
     ] { assert!(text.contains(fact), "missing {fact}: {text}"); }

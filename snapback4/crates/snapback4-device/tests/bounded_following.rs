@@ -30,7 +30,7 @@ fn cards<H: Host>(mut host: H) {
     let mut d = host.open("bob", Some(backend.clone())).unwrap();
     acquire(&mut d, &mut e, "bob");
     assert_eq!(d.store().raw_rows("posts").len(), 3);
-    assert_eq!(d.store().raw_rows("feedPosts").len(), 6);
+    assert_eq!(d.store().raw_rows("feedPosts").len(), 0);
     let first = d.query("cards", "bob", &json!({"c":null}), 21).unwrap();
     assert!(first.complete && !first.unavailable, "{first:?}");
     assert_eq!(first.data.as_array().unwrap().len(), 2);
@@ -97,7 +97,7 @@ fn adoption<H: Host>(mut host: H) {
         assert!(d.query("cards", "alice", &json!({"c":null}), 30).is_err(), "new generation must acquire first");
         acquire(&mut d, &mut e, "alice");
         assert_eq!(d.store().raw_rows("posts").len(), held);
-        assert_eq!(d.store().raw_rows("feedPosts").len(), 6, "event absence stays knowable across every source residency");
+        assert_eq!(d.store().raw_rows("feedPosts").len(), if sync == "sync public" { 6 } else { 0 }, "partial event state stays in the held source slots");
         let page = d.query("cards", "alice", &json!({"c":null}), 30).unwrap();
         assert_eq!(page.unavailable, held == 0);
         assert_eq!(page.complete, held != 0);
@@ -163,7 +163,7 @@ fn known_event_absence<H: Host>(mut host: H) {
     drain(&mut e);
     let mut d = host.open("charlie", Some(backend.clone())).unwrap();
     acquire(&mut d, &mut e, "charlie");
-    assert_eq!(d.store().raw_rows("feedPosts").len(), 2);
+    assert_eq!(d.store().raw_rows("feedPosts").len(), 1, "only the fully synced repost kind stores owned rows");
     let entry = d.admit(serde_json::from_value(json!({"id":"held-original","seq":1,"op":"repost","viewer":"charlie","args":{"postId":"original"},"now":3,"predictable":true})).unwrap()).unwrap();
     assert!(entry.predictable && !entry.predicted.is_empty(), "a newer repost cannot evict original event metadata");
     write(&mut e, "post", "alice", &[("postId", id("reply")), ("parentId", id("original"))], 4);

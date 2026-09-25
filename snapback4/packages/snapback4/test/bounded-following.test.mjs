@@ -119,6 +119,88 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
 }
 
 for (const tier of ["wasm", "native"]) {
+  test(`event slots ${tier}: owned-event fallback waits for the source prediction`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, undefined, source => source.replace("sync public\n\ntable follows", "sync public last 3 by .at\n\ntable follows") + `
+query ownedEvent(eventId: id):
+  return feedPosts[eventId]
+query ownedEvents():
+  return feedPosts last 10 by .at
+table eventSwitch:
+  enabled: bool
+  public 'conditional event witness'
+  insert <- true
+  online only
+mutation enableEvents():
+  insert eventSwitch { id: 'gate', enabled: true }
+query conditionalEvents():
+  if exists eventSwitch['gate']:
+    return feedPosts last 10 by .at
+  return []
+query conditionalEventsHeld():
+  held = posts['p3']
+  if exists eventSwitch['gate']:
+    return feedPosts last 10 by .at
+  return []
+`), bob = await f.open("bob");
+    await f.mutate("enableEvents", "bob", {});
+    const input = { eventId: "p3" };
+    assert.equal((await bob.client.query(query("ownedEvent"), input)).data.id, "p3");
+    bob.offline = true; await bob.client.sync();
+    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+    assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
+    bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-event", parentId: null, at: 30 });
+    const queued = (await bob.core.call({ op: "queued" })).ok;
+    assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("posts/"))));
+    assert.ok(queued.every(q => q.predicted.every(row => !row.startsWith("feedPosts/"))), "partial events have no predicted owned row");
+    const before = bob.queries.length;
+    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+    assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
+    assert.deepEqual(await bob.client.query(query("conditionalEvents"), {}), { loading: true });
+    assert.deepEqual(await bob.client.query(query("conditionalEventsHeld"), {}), { loading: true }, "an unrelated held post cannot validate the speculative branch");
+    const branch = bob.observed.at(-1);
+    assert.deepEqual(branch.data, []);
+    assert.equal(branch.unknown, true); assert.equal(branch.speculative, true); assert.ok(branch.tables.includes("posts"));
+    assert.equal(bob.queries.length, before, "executed and possible event reads depend on the predicted source slot");
+    bob.holdWrites = false;
+    await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "source prediction was not observed");
+    assert.ok((await bob.client.query(query("ownedEvents"), {})).data.some(row => row.postId === "own-event"));
+    bob.failQueries = true;
+    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+  });
+
+  test(`event slots ${tier}: rejected owned events cannot make a speculative scan publishable`, { timeout: 30000 }, async t => {
+    // Both source kinds are full: the scan must visit held owned rows, then
+    // reject them on the unknown filter, rather than withhold a partial table.
+    const f = await fixture(t, tier, "sync public", source => source + `
+table eventSwitch:
+  enabled: bool
+  public 'filtered event witness'
+  insert <- true
+  online only
+mutation enableEvents():
+  insert eventSwitch { id: 'gate', enabled: true }
+query filteredEvents():
+  return feedPosts last 10 by .at where exists eventSwitch['gate']
+`);
+    await f.mutate("enableEvents", "bob", {});
+    const bob = await f.open("bob");
+    assert.ok((await bob.client.query(query("filteredEvents"), {})).data.length > 0, "the server gate selects real events");
+    bob.holdWrites = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-filtered", parentId: null, at: 30 });
+    const queued = (await bob.core.call({ op: "queued" })).ok;
+    assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("feedPosts/"))), "the scan intersects a pending owned-event prediction");
+    const before = bob.queries.length;
+    assert.deepEqual(await bob.client.query(query("filteredEvents"), {}), { loading: true });
+    const scan = bob.observed.at(-1);
+    assert.deepEqual(scan.data, []); assert.equal(scan.unknown, true); assert.equal(scan.speculative, true);
+    assert.equal("held" in scan, false, "query-wide held provenance has been removed");
+    assert.equal(bob.queries.length, before, "the prediction fence prevents a server replacement");
+    bob.holdWrites = false;
+    await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "filtered prediction was not observed");
+    assert.ok((await bob.client.query(query("filteredEvents"), {})).data.some(row => row.postId === "own-filtered"));
+  });
+
   test(`bounded Following ${tier}: unrelated held reads cannot validate speculative refusals or empty pages`, { timeout: 30000 }, async t => {
     const f = await fixture(t, tier, undefined, source => source + `
 table notes:
@@ -177,6 +259,10 @@ query speculativePage():
           assert.ok(raw.data.length > 0, "a nonempty page can still contain placeholder values");
           assert.ok(raw.data.some(row => row.post === "own-gated"), "even a prediction cannot validate speculative presence");
           assert.ok(raw.data.every(row => row.online === true));
+        } else if (name === "filteredEvents") {
+          // Z's partial owned-table read withholds before the scan. The fully
+          // synced event-slot case above separately exercises rejected rows.
+          assert.equal(raw.loading, true); assert.equal("data" in raw, false);
         } else assert.deepEqual(raw.data, []);
         assert.equal(bob.queries.length, before, "neither a server nor remembered answer can pass the fence");
       }

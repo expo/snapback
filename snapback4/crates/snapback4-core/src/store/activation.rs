@@ -89,6 +89,7 @@ impl Store {
         let tx = Tx { tx: sql, page_size: self.page_size, catalog: &catalog };
         if programs.is_some() { crate::engine::timeline::check_activation(&tx, schema)?; }
         if schema_changed && programs.is_some() {
+            super::event_slots::fill(&tx, schema, crate::now_ms())?;
             if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
                 return Err(step.refusal(schema));
             }

@@ -675,7 +675,7 @@ table timelineFollows:
   public 'edges'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
-  sync public
+  online only
 
 view timelineActivity:
   timelineCards where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }

@@ -56300,6 +56300,56 @@ all publication paths, decisions, failure classifications, reproduction and
 compressed evidence are in the [round-4 report](reports/20260925-bounded-following-r4/REPORT.md).
 
 
+## 2026-09-25 — Lane Z: Following event slots (LLP 3000.016 revision 12, increment 5)
+
+Implemented engine-owned per-declaration post bool and repost id slots, prepared
+before source writes and log accounting. Owned event residency now follows each
+source kind: full kinds retain ordinary owned rows, floored kinds use source
+slots, and online-only kinds are never held. Transitions use those witnesses;
+ordinary unproved event reads withhold, and synced event aggregates fence partial
+kind prediction. Follows admit public full sync, public horizons and online-only.
+Slot fill runs inside adoption before assessment and validation at one pinned
+time without logs; all new slots veto literal-default image retention. Read-only
+upgrade preview recognizes this fill. Query dependencies include partial event
+sources so a pending source prediction fences fallback. U's local.ts and
+local-query.ts were not edited.
+
+The same Clique fixture and SQLite backup as U round 1, on the pre-Lane-V
+IndexedDB serialized row/index format, measured these logical snapshot row JSON
+inventories (bytes are not physical disk usage): full follows has 9,484 view rows /
+1,855,714 bytes, 6.100 s view-only cold; 49,315 whole rows / 7,386,725 bytes,
+59.746 s whole cold. Online-only follows has 3,563 view rows / 1,003,090 bytes,
+2.294 s view-only cold; 41,383 whole rows / 6,312,824 bytes, 33.245 s whole cold.
+Against U's already-floored 58,712 view rows / 9,561,158 bytes, the reductions
+are 6.19x rows / 5.15x bytes and 16.48x / 9.53x respectively. The 49,228 owned
+event rows are absent in both treatments. A supplemental view-only legacy
+control, using U's exact before-server binary and current wasm/client, measured
+131,499 rows / 30,370,560 bytes in 201.325 s. These are single shared-host runs,
+not latency distributions. The report records scope, digests and all tables.
+
+Added six memory/SQLite slot tests, compiler/guide assertions, nineteen fault
+schedules replayed on actual wasm and native devices (38 passes), and two public
+client fallback tests. They cover slot/byActorPost agreement, log order, stream
+splits, source/event id reuse, snapshot deletion before catch-up, whole floors,
+two declarations, aggregate fences, deferred folding and interrupted activation
+beside pinned's literal default. Final qualification on the committed code:
+`SNAPBACK4_RUST_TEST_PROCESSES=8 CARGO_BUILD_JOBS=8 taskset -c 0-15 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 612 s`, exit 0. All stages
+passed, including 1,592 main client passes, 10 existing skips and 78 model passes.
+The first full run was `== 1 failure(s) in 1061 s`: nine test/compatibility
+failures were ours and corrected; each is enumerated with its cause in the
+report. None of the supplied baseline's four failures reproduced.
+
+Wasm is 1,787,614 bytes raw / 498,768 gzip; the gzip ratchet rises from 496,000
+to the smallest rounded 499,000 bytes, with its reason in the budget file.
+Runtime meters and write ceilings are unchanged. Static aggregate classification
+conservatively fences source updates; runtime fencing tests actual event changes.
+Recorded slotless backends retain legacy behavior until normal adoption. No
+packed storage, event horizon, serving-time pairing, tombstone bound, history
+change, arbitrary corrupt-import repair, publication or push. No known open
+correctness failure or blocked design part. The supervisor owns blind reviews
+and integration. See the [file-by-file report and evidence](reports/20260925-event-slots/REPORT.md).
+
 ## 2026-09-25 — Lane U round 5: preserve incomplete read fences and offline answers
 
 Addressed both round-4 delta reviews and the supervisor's five-rule refinements
@@ -56341,6 +56391,61 @@ unclaimed. The [round-5 report](reports/20260925-bounded-following-r5/REPORT.md)
 records each rule and publishing path, file-by-file changes, engineering
 choices, every failure, mutation harness, prior inventory and compressed logs.
 
+
+## 2026-09-25 — Lane Z round 1: event-slot review corrections
+
+Addressed the Astra/Grok round-0 NOT READY findings for LLP 3000.016 revision
+12. Slot columns now derive a separate timeline-event-slots capability: the
+actual digest-pinned U round-1 pre-slot wasm refuses installation, adoption and
+persisted reopen, with no writes on failed adoption. A genuine old backend
+still installs/adopts; slotless timeline-v2 compatibility is preserved.
+
+Merged U round-six provenance and routing (e4a3ae5c9, 1049dd31e, 6a7e3b04f),
+keeping Z's internal slot access and public-image stripping in the read-path
+conflict. Unknown owned-event reads mark speculative provenance; the pending
+own-post plus unknown conditional event query now returns loading on both
+wasm and native. There are no direct Z edits to U's local.ts/local-query.ts.
+
+Aggregate classification inspects the actual write: replies and body edits
+predict, known event inserts and removal-flag updates have named Server sites,
+and unknown insert filters, conditional branches, upserts and unreposts reach
+the runtime guard. With a synced count, a generic post operation predicts a
+reply and queues a live original. A held floored unrepost refuses without
+predicted rows and rolls its source deletion back; an online-only count permits
+it. Both guard-removal mutations failed (exit 101): the guard body and the
+independent call from timeline_remove_id. Restored code passes 21 schedules,
+replayed on actual wasm and native devices (42 passes).
+
+The snapshot walk skips the owned table when neither kind is fully synced.
+Mixed-kind pages count excluded rows against page room and preserve the last
+examined key in the existing continuation. Three instrumented storage tests
+with 4,096 events prove a seven-unit page requests/decodes at most seven owned
+rows, including more than 500 empty progressing pages in each mixed direction;
+no selected row is lost or duplicated, skipped rows are not fetched twice, and
+fully partial tables incur zero scans. No new index or cursor format was added.
+
+Full qualification at b44e768ad, with every Z correction, returned exactly
+`== 0 failure(s) in 993 s`, exit 0, using
+`SNAPBACK4_RUST_TEST_PROCESSES=8 CARGO_BUILD_JOBS=8 taskset -c 0-15 bash
+scripts/test.sh`. Rust passed in 512 s, the main client run had 1,651 passes and
+10 existing skips, and all 78 model tests passed. There were no full-suite
+failures. U's final expiry follow-up 648abea48 arrived during that run; merge
+72f6d4fdf subsequently imported only local.ts and its residency regression.
+Package typecheck/build and all 199 affected watch, authority, lifecycle,
+routing and bounded-Following client checks passed afterward (zero skips).
+The full-suite timing is not claimed as a second run after that client-only
+merge. Initial focused compiler/helper mistakes and the artifact-budget failure
+were ours, resolved and enumerated in the report; no baseline failure was fixed.
+
+The combined U/Z wasm is 1,784,180 bytes raw / 499,383 gzip, -3,434 raw / +615
+gzip versus Z round 0. The smallest rounded ratchet rises from 499,000 to
+500,000 bytes, leaving 617 bytes; no runtime ceiling changed. No new acquisition
+inventory was run: round-0 inventory belongs to its recorded artifact. Slot
+stamping, activation and image-retention semantics retain the reviewed design.
+No known open correctness failure or stopped design part remains. No push or
+publication. The supervisor owns re-review and integration; file-by-file changes,
+reproductions, artifact provenance, failure accounting and compressed evidence
+are in the [round-1 report](reports/20260925-event-slots-r1/REPORT.md).
 
 ### 2026-09-25 — Lane U round 6: read provenance and authorization deadlines
 
@@ -56478,3 +56583,91 @@ Left the whole-page remembered row-expiry issue unchanged as requested;
 it is tracked on origin/main at
 issues/20260925-snapback4-remembered-answer-row-expiry.md. No acquisition
 remeasurement: the historical 2.387x speedup and unmet 5x target remain.
+## 2026-09-25 — Lane Z round 2: event-slot mutation coverage and speculative routing
+
+Addressed the Astra/Grok round-1 delta findings for LLP 3000.016 revision 12.
+Added the conditional removal of a live, held, floored original with a synced
+event count. The operation remains statically eligible; its true branch reaches
+the runtime aggregate fence, refuses without predicted rows, preserves the
+source and live slot, and leaves no tombstone. The untaken branch predicts.
+An online-only count permits removal and tombstoning. Both cases join the real
+wasm/native fault schedules: 23 schedules, 271 dispatcher calls and four reopen
+boundaries per host; all 46 host replays passed.
+
+Expanded snapshot instrumentation to page budgets 1, 2, 3, 5 and 7 and to a page
+crossing two public owned groups. The second group receives exactly the 1, 2,
+3 or 5 remaining units after the first group's excluded rows and intervening
+empty groups. Independently executed mutants all fail: bypassing original
+aggregate guards incorrectly predicts the conditional removal; charging only
+returned rows reads 16 rows against a budget of 14; a minimum scan of seven
+reads seven rows at budget one. Restored implementations pass all four snapshot
+tests and both device trace tests. No production guard or meter was loosened.
+
+Merged U round seven 633e566fc and follow-up f6dd23f3e (merge commits 77b9a358f
+and 032b4a70a). Query-wide held provenance and its fenced publication exception
+are removed. Z's unknown event reads still mark speculative provenance, and
+known full-kind point hits remain non-speculative. Internal transition images
+retain slots while application images hide them. Both blind-review client
+reproductions were demonstrated red before the merge on both hosts: an
+unrelated held post before an unknown conditional, and a fully synced owned
+scan filtered by an online-only exists. Both now publish loading under the
+prediction fence. The six combined focused routing cases pass on wasm/native.
+No direct Z edits to local-query.ts or local.ts; both lanes' journal entries
+and regressions were preserved during integration.
+
+Full qualification at 032b4a70a: `== 0 failure(s) in 696 s`, exit 0. Rust passed
+in 233 s; client tests in 198 s (main run 1,671 passes, ten existing skips);
+all 78 models passed in 252 s. No introduced, baseline or environmental failure
+remains in that completed run. An earlier pre-U run was stopped to merge U.
+A second interrupted run passed Rust but saw two existing online global-logout
+tests fail transiently under host load 105.48/96 CPUs. Both passed unchanged in
+isolation and in the final full run; classified environmental/transient, not
+baseline. No timeouts or assertions were weakened. Compressed logs preserve
+these attempts, the pre-merge routing failures, and every intentional mutant.
+
+The rebuilt wasm is 1,781,822 B raw / 498,394 B gzip, below the unchanged 500,000 B
+budget. No acquisition inventory rerun, author syntax, diagnostics, residency
+redesign, authorization/disclosure change, push or publication. No known open
+implementation issue or design deviation remains. The [round-2 report](reports/20260925-event-slots-r2/REPORT.md)
+records changes file by file, forms, reproductions, merge decisions, failure
+accounting and the executable mutation harness.
+
+
+## 2026-09-25 — Lane Z round 3: snapshot charge regressions, awaiting U8
+
+Completed review items 2 and 3 for LLP 3000.016 revision 12. The two-group
+snapshot fixture now has a kept highest-key original followed by excluded
+reposts before moving to the next public owned group. It checks that the
+second group gets exactly the 1, 2, 3 or 5 remaining units. Omitting the kept
+row from the page charge makes the test fail: two units requested/read instead
+of one. The all-excluded version remains covered.
+
+Added budgets 257 and 600 in both mixed-residency directions, crossing the
+256-row storage-batch boundary. The store counts cumulative decoded rows and
+requested limits independently of emitted events; continuations still deliver
+the selected events exactly once and examine all 4,096 source events exactly
+once. Resetting examined to the latest batch count makes the test fail with
+3,841 decoded rows against budget 257. Both requested mutants independently
+exit 101; after restoration all six snapshot tests pass. Production snapshot
+accounting was already correct and is unchanged. Tests and the executable
+mutation harness are committed in 525c623cd.
+
+Full qualification: `== 0 failure(s) in 658 s`, exit 0. Rust passed in 194 s;
+client tests in 193 s (main run: 1,671 passes, ten existing skips); all 78 models
+passed in 238 s. No introduced, baseline or environmental failure in this
+round's complete run; the two intentional mutant failures are preserved as
+evidence. No assertions, timeouts or engine bounds were relaxed.
+
+Item 1 is waiting, as explicitly requested when U8 has not committed after
+items 2 and 3: U's branch remained at cdb029a83, its round-seven documentation
+commit, both after the mutation checks and after the full suite. No U8 merge
+or new real-host client reproductions landed here. The known client Highs
+remain open: retained local data can cross its expiry before publication, and
+a retained sibling can let a speculative events component publish as data.
+A future U8 merge must be followed by both wasm/native regressions; the full
+suite result above does not claim those Highs fixed.
+
+No new author forms, diagnostics, production behavior, inventory measurement,
+authorization/disclosure/durability change, push or publication. The
+[round-3 report](reports/20260925-event-slots-r3/REPORT.md) lists files, exact
+mutation evidence, pending reproductions, scope decisions and compressed logs.

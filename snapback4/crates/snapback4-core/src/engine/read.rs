@@ -132,6 +132,12 @@ impl Runner<'_> {
                 None => self.authorization_absence_covered(table, index, key)?,
             }
         } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
+        if found.is_none() && self.event_read_unknown(table, index, key, "rule probe") { known = false; }
+        if self.device && found.as_ref().is_some_and(|row| !crate::schema::timeline::holds_event(self.schema, table, row)) {
+            self.event_read_unknown(table, index, key, "rule probe");
+            known = false;
+            live = false;
+        }
         if let Some(row) = &found {
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table)
@@ -353,6 +359,11 @@ impl Runner<'_> {
         let mark = self.meter.mark();
         let expiry_mark = self.next_expiry;
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
+        if found.is_none() { self.event_read_unknown(&read.table, &read.index, &key, &read.site); }
+        if self.device && found.as_ref().is_some_and(|row| !crate::schema::timeline::holds_event(self.schema, &read.table, row)) {
+            self.event_read_unknown(&read.table, &read.index, &key, &read.site);
+            return Ok(Value::Null);
+        }
         // @ref LLP 3000.016#2.2 — a known horizon miss still withholds when charging the point read exhausts examination.
         if found.is_none() && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
@@ -384,7 +395,10 @@ impl Runner<'_> {
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
             let live = self.live_aggregate(&read.table, row)?;
-            Ok(super::recorded::public_image(table, live.unwrap_or(Value::Null)))
+            let row = live.unwrap_or(Value::Null);
+            // Engine transitions need the source's slot; application rows never expose it.
+            Ok(if matches!(self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_))) { row }
+                else { super::recorded::public_image(table, row) })
         } else {
             self.next_expiry = expiry_mark;
             if !provisional {
@@ -819,6 +833,7 @@ impl Runner<'_> {
     }
 
     fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<&mut super::extrema::Aggregate<'_>>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        self.event_read_unknown(&scan.table, &scan.index, &prefix, &scan.site);
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
