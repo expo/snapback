@@ -55031,3 +55031,75 @@ added. Existing process-loss, permanently lost refresh reply and bounded receipt
 history limits remain. No version bump, push, package publication or iOS simulator
 run. The report's round-6 section has the file map and review dispositions;
 evidence logs use ~/sb4-intent/integration-r6-*.log.
+
+
+## 2026-09-24 — 0.4.1 publication blockers fixed on the black M5 Max
+
+Worked from `ab52d0646bb78758bf7df884b9751398edc29ac2` in
+`~/projects/snapback-fix-041`, branch `sb4-intent/fix-041`, with Node 24.18.0,
+Bun 1.4.2 and Rust 1.97.0. Both frozen installs passed.
+
+The transport escape was Node 24.18's bundled Undici calling
+`Socket.setTypeOfService(0)` from its asynchronous HTTP writer
+(`node:internal/deps/undici/undici:8006`, throwing at `node:net:684`). This
+bypasses the fetch promise and therefore the existing catches in `client.ts`
+and `local.ts`, shared by WASM and native devices. It matches the upstream
+[macOS socket-state failure](https://github.com/nodejs/undici/issues/5544):
+Darwin can reject this best-effort QoS operation; the Linux run did not expose
+that failure. The exact kernel socket state of the stopped run was not captured.
+Node SDK requests now use a private pinned Undici 8.8.0 dispatcher, including
+its bundled-fetch handler compatibility wrapper. Browser and React Native requests
+use the host fetch; supplied transports stay in control. Neither global fetch
+nor the global dispatcher is replaced. The 24 new transport cases cover fetch
+and body rejection after dispatch, mutations and actions, close and no close,
+online/WASM/native, with same-id mutation recovery and exactly one committed
+row. The socket-callback fault probe passes; replacing the fixed dispatcher with
+bundled fetch in a temporary negative control reproduces the uncaught EINVAL.
+The original eight receipt tests passed five consecutive reruns (40/40), plus
+both complete suite attempts. Known outcomes remain known through receipt-store
+failure; missing responses remain pending.
+
+Lane P created `_cap_counts` eagerly in `Store::prepare` (`store.rs:168` at the
+base), and activation wrote its schema marker even for schemas with no counters
+(`store/activation.rs:133`). Counter DDL, rebuild and marker now belong to the
+successful activation transaction and only exist when needed or already
+installed. Clear/reset and legacy engine-open paths respect that optional state.
+The new `refused_legacy_counter_upgrade_preserves_bytes_and_accepted_upgrade_runs_once`
+regression compares actual SQLite bytes after rollback, verifies existing rows
+are counted on accepted upgrade, and forbids a second rebuild with a trigger.
+All 32 expiry-write tests and the three unchanged published-0.2.33 adoption
+fences pass.
+
+Commit `e5f11c19af` changed `bind/intent_variants.rs:25` from printed reads to
+authored excerpts. Those diagnostic excerpts also fed persisted residency
+sites, removing four empty `[]` pairs from the compatibility backend. Separate
+canonical origins now preserve inferred-read backend bytes while authored
+origins still serve diagnostics and explicitly indexed search alternatives.
+The unchanged 2,950-byte backend and stored-schema pins pass. Both new source
+regressions, nine existing authored-source tests, and the unchanged search-WASM
+fixture pass. No fixture or pin was regenerated.
+
+Final full suite: **`== 0 failure(s) in 1213 s`**, with
+`SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 scripts/test.sh`.
+Used the existing scheduling settings `SNAPBACK4_RUST_TEST_PROCESSES=4` and
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1` after warming the build cache; all tests,
+time limits and sequence counts stayed intact. Clients: 1,581 tests, 1,576 pass,
+zero failures/cancellations and five unchanged inherited skips. Rust: 2,967 pass,
+zero failures and 16 unchanged ignores. Online and local models each completed
+5,000 sequences in 93 s and 187 s under their existing 240 s limits. Fixture
+wrappers: 9/9. Browser production build, package/browser/Expo typechecks and
+release guard pass. WASM: 1,766,024 raw / 491,511 gzip bytes against the unchanged
+492,000-byte limit. README remains 300 lines. Ref-check: 507 LLP documents,
+9,270 references, zero errors and zero unchecked.
+
+The initial full attempt reported `== 2 failure(s) in 2217 s`: an over-broad
+canonical-origin fix changed two explicit-search fixture spellings, while heavy
+cold-build contention coincided with the five-second replay deadline, the online
+model timeout and then local model clock-step exhaustion. Corrected the printing
+scope without changing the fixture. An extra local-model run also timed out
+under that load and was stopped. The first full run's local seed 3 passes alone.
+The final full run passes the search fixture, replay deadline and both complete models. No
+baseline or environmental waiver substitutes for the zero-failure result.
+Evidence logs, including both full attempts and the negative control, are under
+`~/sb4-intent/fix-041/`. No version bump, publication, credential or keychain
+change. The branch is for the supervisor to merge and requalify for publication.
