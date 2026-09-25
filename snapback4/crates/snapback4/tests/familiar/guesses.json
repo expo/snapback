@@ -36,7 +36,7 @@
     "name": "nested-roster",
     "origin": "comparative M3 diary and final rosterFor; failed inline predicate reconstructed",
     "source": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess(c: cursor ?):\n  return members where .principal = viewer first 20 by .conversation after c { conversation, roster: members where .conversation = .conversation first 50 by .principal }\n",
-    "repaired": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess(c: cursor ?):\n  return members where .principal = viewer first 20 by .conversation after c { conversation, roster: members[conversation = .conversation] }\n",
+    "repaired": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess(c: cursor ?):\n  return members where .principal = viewer first 20 by .conversation after c { conversation, roster: members[conversation = .conversation] first 50 by .principal }\n",
     "code": "E_QUARRY_SELF_EQUALITY",
     "repair": "members[conversation = .conversation]"
   },
@@ -66,11 +66,12 @@
   },
   {
     "name": "count-star",
-    "origin": "additional requested guess",
-    "source": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess():\n  return count(*)\n",
-    "repaired": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess():\n  return count(members)\n",
+    "origin": "additional requested guess, inside a members shape to make the counted table unambiguous",
+    "source": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess(c: cursor ?):\n  return members first 20 after c { total: count(*) }\n",
+    "repaired": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess(c: cursor ?):\n  return members first 20 after c { total: count(members) }\n",
     "code": "E_QUARRY_UNSUPPORTED",
-    "repair": "count(members)"
+    "repair": "count(members)",
+    "exact_repair": true
   },
   {
     "name": "limit",

@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::{fs, process::Command};
 
 #[derive(Deserialize)]
-struct Guess { name: String, source: String, repaired: String, code: Option<String>, repair: Option<String>, module: Option<String> }
+struct Guess { name: String, source: String, repaired: String, code: Option<String>, repair: Option<String>, module: Option<String>, #[serde(default)] exact_repair: bool }
 
 #[test]
 fn builder_guesses_have_one_step_check_repairs() {
@@ -25,7 +25,13 @@ fn builder_guesses_have_one_step_check_repairs() {
             if !repaired && let Some(code) = &guess.code {
                 assert!(!result.status.success(), "{} unexpectedly compiled", guess.name);
                 let diag = problems.iter().find(|p| p["code"] == *code).unwrap_or_else(|| panic!("{}: {checked}", guess.name));
-                assert!(diag["rewrite"].as_str().unwrap().contains(guess.repair.as_deref().unwrap()), "{}: {diag}", guess.name);
+                if guess.exact_repair {
+                    assert_eq!(diag["rewrite"], guess.repair.as_deref().unwrap(), "{}: {diag}", guess.name);
+                    assert_eq!(guess.source.replace("count(*)", diag["rewrite"].as_str().unwrap()), guess.repaired,
+                        "the next check must compile the actual emitted replacement");
+                } else {
+                    assert!(diag["rewrite"].as_str().unwrap().contains(guess.repair.as_deref().unwrap()), "{}: {diag}", guess.name);
+                }
                 assert!(diag["site"]["line"].as_u64().unwrap() > 0);
                 assert!(diag["site"]["col"].as_u64().unwrap() > 0);
                 let why = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["why", code]).current_dir(directory.path()).output().unwrap();
