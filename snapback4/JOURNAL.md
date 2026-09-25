@@ -56042,3 +56042,29 @@ Q's accepted device fallback/disclosure boundary and documented PostgreSQL
 query-reservation limitation remain. No new authoring form, package version
 bump, simulator qualification, push or publication. Full file map, regressions,
 all suite attempts and evidence: [round-8 report](reports/20260925-intent-integration-r8.md).
+
+## 2026-09-25 — macOS read-stall investigation: periodic signature not reproduced
+
+On the black M5 Max, the stall lane measured 168,000 sequential reads over the
+seven calibration #20 query shapes. It used copies of the saved scale store,
+both checkpointed and with the original 1.2 GB WAL retained, the release build
+from `e2fb801e88`, and published 0.4.1 through npx. The published executable's
+SHA-256 matches the packet's installed binary. The packet was only read.
+
+The initial 7,000-read runs had no read above 20 ms on either binary. A longer
+70,000-read main run had four above 20 ms and none in [27,31) ms; a 70,000-read
+published/preserved-WAL run had eighteen above 20 ms and six in [27,31) ms.
+There was no stable request-count or wall-time period. All published traced
+reads made one HTTP 200 attempt, excluding the SDK's 25 ms retry backoff for
+these observed tails. One 29.070 ms read had already parsed its HTTP body at
+4.347 ms, localizing its remaining delay to the client-side continuation window.
+A separate 7,000-read direct-HTTP control had no read above 20 ms.
+
+No runtime fix is justified by these measurements; the historical stall's cause
+remains undetermined. The saved store's 49,228 delivery tasks were done, so
+restarting it does not reproduce a backlog or the original replay process's
+heap, active clients or machine load. FIFO fairness and synchronous=FULL are
+unchanged. No publication. The opt-in probe, every latency, per-shape histograms,
+HTTP-attempt timings, sample captures and limitations are in
+[the investigation report](./reports/20260925-stall-macos/README.md), on
+`sb4-intent/stall-macos`.

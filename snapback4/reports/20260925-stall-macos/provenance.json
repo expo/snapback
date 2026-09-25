@@ -1,0 +1,67 @@
+{
+  "base_commit": "e2fb801e88b91c107f9a6b283b1eb448f41d95cd",
+  "host": "macOS-26.6.2-arm64-arm-64bit",
+  "node": "v24.18.0",
+  "files": {
+    "/Users/ccheever/projects/snapback-stall/snapback4/target/release/snapback4": {
+      "bytes": 21199456,
+      "sha256": "11d2fd62f192d9b3d0ff9641e80744ed6caea39419da8eed753f052fccb87381"
+    },
+    "/Users/ccheever/.npm/_npx/216d459f51089096/node_modules/snapback4-darwin-arm64/snapback4": {
+      "bytes": 11401392,
+      "sha256": "6661de6001b315489dca317669d03ed52a0527c44a885fa27d850096c70a8b48"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4": {
+      "bytes": 11401392,
+      "sha256": "6661de6001b315489dca317669d03ed52a0527c44a885fa27d850096c70a8b48"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/scale-instance/.snapback4/store.sqlite": {
+      "bytes": 2358583296,
+      "sha256": "759c2f7a0eb5668d18987904e4623b39b52d22c293f8d2557861ff2fb2d308f7"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/scale-instance/.snapback4/store.sqlite-wal": {
+      "bytes": 1203262512,
+      "sha256": "f19d5236951d6cebe4753fb94d140b0f31bdecd0c1bf1a4e223581c60fd44609"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/evidence/scale-receipt.json": {
+      "bytes": 9699,
+      "sha256": "89626d7dd2e51606377fe74c500367e2bb9e688c9e776769afc59af3c12feb05"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/scripts/verify-scale.mjs": {
+      "bytes": 5954,
+      "sha256": "1e9866c221e06e39b217fd5e5a070acb65c8839db912633bf2d9d2d97becd569"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/instrument/fixtures/scale.log": {
+      "bytes": 13014016,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/node_modules/snapback4/dist/client.js": {
+      "bytes": 42198,
+      "sha256": "e3f6b2dcf7fdbad646ee70801c889729d12a23d42a6f96c706128ee250030a9c"
+    },
+    "/Users/ccheever/projects/snapback-stall/snapback4/reports/20260925-stall-macos/probe.mjs": {
+      "bytes": 4954,
+      "sha256": "ee15d1fe4fe8897f3ba64627cb8d1b356f4e2e5484dd0f2f9b8fbc604a7461b3"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/scale-instance/snapback/analytics.q": {
+      "bytes": 1118,
+      "sha256": "2e5baeb951135c9de86f09d8e6a12c00f5e09dea59cc504d68da3185f80ca6c7"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/scale-instance/snapback/digest.q": {
+      "bytes": 1392,
+      "sha256": "f70d3b43840ec9b3590cd28e15ea1d66e2c67febe08f7b3a1dc92e32d523738e"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/scale-instance/snapback/schedule.q": {
+      "bytes": 93,
+      "sha256": "fc7cf63ecf5bcabe45e61e33665751d8309ad0b3d87d7ad5001c0c9fda2b9146"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/scale-instance/snapback/schema.q": {
+      "bytes": 20546,
+      "sha256": "1952b9fa0f0f30dca783e3d8d02588abdad991564ee434d3244d179b4eb973fa"
+    },
+    "/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/scale-instance/snapback/windows.q": {
+      "bytes": 213,
+      "sha256": "bc8a3dc5c8c4846d76b9eaa6939a36318ba8ebd38ede3f4c7a884f4d1a04552e"
+    }
+  }
+}
