@@ -148,6 +148,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return options.device.open(storeName, { initial_backend: backend });
   });
   let stopSuspend: (() => void) | undefined;
+  // Web mutations can arrive after publication but before startup validation.
+  let sendingAllowed = !core.onSuspend;
   let stopOutbox: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
@@ -755,6 +757,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       seq = watermark;
       lastSyncAt = Date.now();
       await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
+      // A later reconnect can establish custody that startup could not validate.
+      listenForExit();
       return true;
     } finally {
       if (!closed && adoptedGeneration) {
@@ -1084,7 +1088,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   async function flushOnce(acquire = true) {
     await exitDone;
-    if (closed) return;
+    if (closed || !sendingAllowed) return;
     for (const entry of await queued()) {
       await exitDone;
       if (closed) return;
@@ -1155,7 +1159,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function replayOnOpen(): Promise<boolean> {
     const capture = await captureStore();
     if (!capture || capture.backend_required || closed || sessionDead) return false;
-    if (!(await queued()).some(entry => entry.sent_seq == null)) return true;
     if (!capture.store_id) return false;
     const request = requestCredentials();
     let response: Response;
@@ -1167,10 +1170,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!response.ok || head.ok !== true || closed || sessionDead || request.revision !== credentialRevision) return false;
       if (await witnessRestore(head.store_id, head.seq, capture)) return false;
       if (head.store_id !== capture.store_id) return false;
-      // A slow snapshot must not hold an unknown write behind acquisition.
-      // Receipt settlement still runs in the ordinary network queue; these
-      // sends retain their IDs and the first sync collects their effects.
-      await flushOnce(false);
       return !closed && !sessionDead;
     } catch { return false; } // Failed validation or persistence cannot authorize exit transport.
   }
@@ -1432,15 +1431,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   const prepared = startDeferred(options);
-  const listenForExit = () => {
-    if (!core.onSuspend || stopSuspend || closed) return;
+  function listenForExit() {
+    if (!core.onSuspend || stopSuspend || closed || sessionDead) return;
+    sendingAllowed = true;
     const sendOnExit = exitTransport(doFetch, base, aborter.signal);
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
       exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
     });
-  };
+  }
   const start = async () => {
     if (closed) return;
     if (prepared && session && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
@@ -1448,14 +1448,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     // Native owners retain their existing snapshot/receipt coordination first.
     const replayAllowed = core.onSuspend && await replayOnOpen();
     if (replayAllowed) listenForExit();
-    if (link === "online") {
-      const synced = await syncOnce();
-      // First installation or backend adoption may establish custody in sync.
-      if (synced && !replayAllowed && core.onSuspend) {
-        const capture = await captureStore();
-        if (capture?.store_id && !capture.backend_required && !sessionDead) listenForExit();
-      }
-    }
+    // Install the same-head exit retry before awaiting ordinary delivery.
+    // Slow delivery and snapshots must not consume the page's exit opportunity.
+    if (replayAllowed) await flushOnce(false);
+    if (link === "online") await syncOnce();
     stopOutbox = core.onOutbox?.(() => { void flush(); });
     follow();
     void flush();

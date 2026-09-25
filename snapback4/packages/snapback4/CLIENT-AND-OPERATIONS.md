@@ -524,28 +524,54 @@ not prevent healthy stores from opening.
 Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
 Under `createApp`, records also capture the session epoch and principal.
-Device admission and recovery check that authority while holding the session
-lock through the admission commit. A logout or changed epoch/principal cancels
+The browser's authoritative session lives in IndexedDB. Login, logout and
+principal replacement mirror their value to localStorage, then await a strict
+IndexedDB transaction commit before releasing the session lock. A failed mirror
+write aborts that transaction; an aborted commit restores the previous mirror
+where storage permits. Async session reads, locked device admission and recovery
+use IndexedDB, never the mirror as authority. A logout or changed epoch/principal cancels
 an unadmitted record; a live caller receives `E_AUTH`. A subsequent sign-in
 cannot revive that earlier click. Synchronous journaling still precedes waiting
 for the lock, so a navigation while the session is unchanged keeps its intent.
+Chromium can expose a stale localStorage mirror even after granting a Web Lock:
+such a click can be captured, but its locked IndexedDB check refuses it before
+outbox admission or transport. An already-visible logout refuses synchronously.
 App ownership is attached before recovery, including with wrapped or asynchronous
-session stores. An unadmitted legacy record with no epoch stamp, or an app record
+session stores and device adapters that forward `{ ...core }` (including symbol
+capabilities). A browser adapter dropping those capabilities fails opening with
+`E_ADMISSION`. An unadmitted legacy record with no IndexedDB authority stamp, or an app record
 whose authority cannot be read, is cancelled because its originating login cannot
 be established; already committed outbox entries keep their custody.
 Page-hide transport starts after the admission lock releases. Startup installs
-it after the ordinary replay checks permit sending, before the initial sync
-wait, including offline. A refused probe, backend mismatch, restore refusal or
+it after validation permits sending, before waiting for ordinary replay or the
+initial sync, including offline. Empty outboxes undergo the same validation;
+new clicks journal during opening but neither transport sends before validation.
+A refused probe, backend mismatch, restore refusal or
 required backend adoption prevents early exit sending. An unreachable probe
 leaves the kept store's offline custody intact. If the page became hidden during
 the probe, registration makes one send attempt. A successful sync can establish
-the backend needed to validate and install the sender afterward.
+the backend needed to validate and install the sender afterward, including on a
+later reconnect after an unsuccessful startup.
 
-Cross-tab epoch validation has an unresolved coherence limitation: Chromium can
-return an older localStorage session even after granting its Web Lock. The lock
-alone therefore does not prove that an unadmitted journal still has authority.
-The [round-3 report](../../reports/20260925-lane-v-r3.md) records the two-tab
-counterexample; this authorization protocol needs a design correction.
+On upgrading from a browser session stored only in localStorage, sign in again:
+the mirror alone cannot establish a coherent authority record. Pre-upgrade
+unadmitted journals are cancelled; committed outbox custody is preserved. The
+default memory session store and native platform stores retain their behavior.
+For a custom-prefixed localStorage adapter, pass a stable, unique namespace as
+the second argument; omitting it fails closed with `E_CLIENT` instead of sharing
+another adapter's account. Wrapping the returned store with `{ ...store }`
+preserves its authority and synchronous reader. For example:
+
+```ts
+import { localStorageSessionStore } from "snapback4/auth";
+
+const prefix = "work-account:";
+const sessions = localStorageSessionStore({
+  getItem: key => localStorage.getItem(prefix + key),
+  setItem: (key, value) => localStorage.setItem(prefix + key, value),
+  removeItem: key => localStorage.removeItem(prefix + key),
+}, "work-account");
+```
 
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
 device store, and at most 64 KiB per serialized record. A browser mutation that

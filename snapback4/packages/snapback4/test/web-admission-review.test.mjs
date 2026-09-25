@@ -65,15 +65,20 @@ query total():
   if (mutant === 'probe-store') replace('local.ts', 'if (head.store_id !== capture.store_id) return false;', '/* mutant: accept a replacement probe */');
   if (mutant === 'probe-restore') replace('local.ts', 'if (await witnessRestore(head.store_id, head.seq, capture)) return false;', '/* mutant: skip restore validation */');
   if (mutant === 'hidden-registration') replace('web.ts', 'if (suspended) publishCommitted();', '/* mutant: lose the hide during the probe */');
-  if (mutant === 'wrapped-owner') replace('app.ts', 'prepareAdmissionAuthority(prepared, {', 'if (read) prepareAdmissionAuthority(prepared, {');
+  if (mutant === 'wrapped-owner') replace('app.ts', 'prepareAdmissionAuthority(prepared, {', 'if (sessionReader(backing)) prepareAdmissionAuthority(prepared, {');
   if (mutant === 'journal-fence') replace('web.ts', 'if (!reply.denied && observesStore) journal.fence(device!);', '/* mutant: retain recovered intents after replacement */');
+  if (mutant === 'observed') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null && entry.observed_seq == null)) return true;\n    if (!capture.store_id) return false;');
+  if (mutant === 'empty-queue') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null)) return true;\n    if (!capture.store_id) return false;');
+  if (mutant === 'ordinary-gate') replace('local.ts', 'if (closed || !sendingAllowed) return;', 'if (closed) return;');
+  if (mutant === 'replay-delivery') replace('local.ts', 'if (replayAllowed) listenForExit();', 'if (replayAllowed) { sendingAllowed = true; await flushOnce(false); listenForExit(); }');
+  if (mutant === 'reconnect-exit') replace('local.ts', '      listenForExit();\n      return true;', '      return true;');
   const witness = await launch({ sourceDir, seed: [{ table: 'removals', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
 import { mintId } from '${path('client.ts')}';
 Object.assign(window, { createApp, keepSession, localStorageSessionStore, sessionKey, mintId });
 window.ops = { remove: { kind: 'mutation', name: 'removeMember' }, roster: { kind: 'query', name: 'roster' } };
-window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, holdProbe = false, probeMode = 'accept', backendUrl = url }) => {
+window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, wrappedDevice = false, holdProbe = false, probeMode = 'accept', backendUrl = url, unavailable = false }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
   window.sessionLocks = 0; window.exitLocks = []; window.sent = []; window.syncHeld = false; window.openingDone = false; window.probeHeld = false; window.exitRegistrations = 0;
   const request = navigator.locks.request.bind(navigator.locks);
@@ -86,6 +91,7 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
     });
   };
   window.holdAdmission = holdAdmission;
+  window.unavailable = unavailable;
   const persist = indexedDbPersistence(), save = persist.save;
   persist.save = async (name, changes) => {
     if (window.holdAdmission && changes.some(c => c.s === 'o' && c.v !== null)) {
@@ -98,16 +104,19 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
   const gate = new Promise(resolve => window.releaseSync = resolve);
   const probeGate = new Promise(resolve => window.releaseProbe = resolve);
   const sessionStore = localStorageSessionStore();
-  window.app = createApp({ url, sessionStore: wrappedStore ? { ...sessionStore } : sessionStore, waitSeconds: 25,
+  window.app = createApp({ url, sessionStore: wrappedStore === 'async'
+    ? { get: key => sessionStore.get(key), set: (key, value) => sessionStore.set(key, value), delete: key => sessionStore.delete(key) }
+    : wrappedStore ? { ...sessionStore } : sessionStore, waitSeconds: 25,
     device: { async open(name, backend) {
       const core = await opener.open(name, backend), subscribe = core.onSuspend.bind(core);
       window.core = core;
       core.onSuspend = flush => { window.exitRegistrations++; return subscribe((...args) => { window.exitLocks.push(window.sessionLocks); flush(...args); }); };
-      return core;
+      return wrappedDevice ? { ...core, call: (...args) => core.call(...args) } : core;
     } },
     fetch: async (input, init) => {
       const parsed = new URL(String(input)), route = parsed.pathname;
       const destination = backendUrl + route + parsed.search;
+      if (window.unavailable && (route === '/probe' || route === '/sync')) return Response.json({}, { status: 503 });
       if (route === '/probe' && holdProbe) {
         window.probeHeld = true; await probeGate;
         if (probeMode === 'refused') return Response.json({ denied: { code: 'E_AUTH', family: 'auth', message: 'probe refused' } }, { status: 401 });
@@ -121,6 +130,11 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
       if (route.startsWith('/m/')) {
         window.sent.push({ id: JSON.parse(init.body).id, keepalive: !!init.keepalive });
         if (blockMutations && !init.keepalive) {
+          if (blockMutations === 'hold') {
+            window.mutationHeld = true;
+            await new Promise(resolve => window.releaseMutation = resolve);
+            return fetch(destination, init);
+          }
           if (blockMutations === 'retry') return Response.json({ denied: { code: 'E_OFFLINE', family: 'link', message: 'ordinary send held', retryable: true } });
           throw new TypeError('ordinary transport held offline');
         }
@@ -129,7 +143,7 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
       return fetch(destination, init);
     } });
   void app.ready.then(() => { window.openingDone = true; });
-  if (!holdSync && !holdProbe) await app.ready;
+  if (!holdSync && !holdProbe && blockMutations !== 'hold') await app.ready;
 };
 window.captureClick = () => {
   const id = mintId();
@@ -165,6 +179,24 @@ window.captureClick = () => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
+  const replacementFor = async session => {
+    const replacement = await devServer({ sourceDir, seed: [
+      { table: 'removals', row: { id: 'audit', total: 0 } },
+      { table: 'members', row: { id: 'admin', room: 'room', principal: session.principal, admin: true } },
+      { table: 'members', row: { id: 'target', room: 'room', principal: 'user:other', admin: false } },
+    ] });
+    // A replacement retains real identity records but has new application storage.
+    const db = new DatabaseSync(join(replacement.app, '.snapback4/store.sqlite'));
+    try {
+      db.prepare('ATTACH DATABASE ? AS source').run(join(witness.app, '.snapback4/store.sqlite'));
+      for (const table of ['_principals', '_sessions', '_principal_generations']) db.exec(`INSERT OR REPLACE INTO ${table} SELECT * FROM source.${table}`);
+    } finally { db.close(); }
+    const heads = await Promise.all([url, replacement.api].map(backend => fetch(backend + '/probe', {
+      headers: { authorization: `Bearer ${session.token}` },
+    }).then(r => r.json())));
+    assert.ok(heads.every(head => head.ok === true)); assert.notEqual(heads[0].store_id, heads[1].store_id);
+    return replacement;
+  };
 
   await t.test('hiding during strict admission releases the session lock before transport and peer logout', async () => {
     const { session } = await fresh();
@@ -248,44 +280,39 @@ window.captureClick = () => {
     } finally { await page.evaluate(async () => { releaseSync(); await app.ready; await app.close(); }); }
   });
 
-  for (const mode of ['accepted', 'refused', 'restore', 'replacement']) await t.test(`a hide during the startup probe waits for its ${mode} decision`, async () => {
+  for (const mode of ['accepted', 'refused', 'restore', 'replacement', 'observed-replacement']) await t.test(`a hide during the startup probe waits for its ${mode} decision`, async () => {
     const { session } = await fresh();
     const observer = await auth('signup', { email: `probe-observer-${mode}@example.com`, password: 'a-test-password-long-enough' });
     const before = await total(observer);
-    await page.evaluate(options => boot(options), { url, session, holdAdmission: true });
+    await page.evaluate(options => boot(options), { url, session, holdAdmission: mode !== 'observed-replacement', blockMutations: true });
     await page.waitForFunction(() => app.client.acquired);
     const captured = await page.evaluate(() => captureClick());
+    if (mode === 'observed-replacement') {
+      await until(() => page.evaluate(async ({ store, id }) => !!await indexedDbPersistence().read(store, 'o', id), captured), 'observed fixture admission');
+      await page.evaluate(async ({ store, id, record }) => {
+        await app.close();
+        const persist = indexedDbPersistence(), entry = JSON.parse(await persist.read(store, 'o', id));
+        entry.sent_seq = null; entry.observed_seq = 1; entry.receipt_store = { id: record.storeId };
+        await persist.save(store, [{ s: 'o', k: id, v: JSON.stringify(entry) }]);
+      }, captured);
+    }
     await navigate('probe=' + mode);
     let replacement;
     try {
-      if (mode === 'replacement') {
-        replacement = await devServer({ sourceDir, seed: [
-          { table: 'removals', row: { id: 'audit', total: 0 } },
-          { table: 'members', row: { id: 'admin', room: 'room', principal: session.principal, admin: true } },
-          { table: 'members', row: { id: 'target', room: 'room', principal: 'user:other', admin: false } },
-        ] });
-        // Simulate a replacement deployment retaining identity but replacing
-        // application storage. The real servers validate the same opaque token.
-        const db = new DatabaseSync(join(replacement.app, '.snapback4/store.sqlite'));
-        try {
-          db.prepare('ATTACH DATABASE ? AS source').run(join(witness.app, '.snapback4/store.sqlite'));
-          for (const table of ['_principals', '_sessions', '_principal_generations']) db.exec(`INSERT OR REPLACE INTO ${table} SELECT * FROM source.${table}`);
-        } finally { db.close(); }
-        const heads = await Promise.all([url, replacement.api].map(backend => fetch(backend + '/probe', {
-          headers: { authorization: `Bearer ${session.token}` },
-        }).then(r => r.json())));
-        assert.ok(heads.every(head => head.ok === true));
-        assert.notEqual(heads[0].store_id, heads[1].store_id);
+      if (mode.endsWith('replacement')) {
+        replacement = await replacementFor(session);
       }
       const backendUrl = replacement?.api ?? url;
       await page.evaluate(options => boot(options), { url, holdProbe: true, holdSync: true,
         probeMode: mode, backendUrl, blockMutations: 'retry' });
-      await page.waitForFunction(() => window.probeHeld);
+      await page.waitForFunction(() => window.probeHeld, null, { timeout: 5000 });
       const recovered = await page.evaluate(async ({ id, store }) => ({
         write: await app.client.write(id), outbox: await indexedDbPersistence().read(store, 'o', id),
         state: (await core.call({ op: 'sync_state', capture: false })).ok,
       }), captured);
-      assert.equal(recovered.write?.state, 'pending'); assert.equal(JSON.parse(recovered.outbox).id, captured.id);
+      assert.equal(recovered.write?.state, mode === 'observed-replacement' ? 'sent' : 'pending');
+      assert.equal(JSON.parse(recovered.outbox).id, captured.id);
+      if (mode === 'observed-replacement') assert.equal(JSON.parse(recovered.outbox).observed_seq, 1);
       if (mode === 'restore') assert.ok(recovered.state.watermark > 0, 'the held probe must contradict a durably acquired head');
       await hide();
       // Drain local work and a browser task while the probe remains held. No
@@ -321,12 +348,12 @@ window.captureClick = () => {
         if (replacement) assert.equal(await total(observer, replacement.api), 0, 'store B must never execute A’s recovered click');
       }
       await page.evaluate(async () => { releaseSync(); await app.ready; });
-      if (mode === 'replacement') {
+      if (mode.endsWith('replacement')) {
         // This must fail even when the startup guard works but journal.fence is
         // removed: sync adoption must durably retire A's recovered outbox entry.
         assert.equal(await page.evaluate(({ store, id }) => indexedDbPersistence().read(store, 'o', id), captured), null,
           'backend replacement must durably dequeue the recovered journal intent');
-        assert.equal(await page.evaluate(id => app.client.write(id), captured.id), undefined);
+        assert.equal((await page.evaluate(id => app.client.write(id), captured.id))?.state, mode === 'observed-replacement' ? 'sent' : undefined);
         await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
         await page.evaluate(() => core.call({ op: 'state' }));
         assert.equal(await total(observer, replacement.api), 0);
@@ -334,7 +361,7 @@ window.captureClick = () => {
         await page.evaluate(() => app.close());
         await navigate('replacement-reopen=1');
         await page.evaluate(options => boot(options), { url, backendUrl: replacement.api });
-        assert.equal(await page.evaluate(id => app.client.write(id), captured.id), undefined);
+        assert.equal((await page.evaluate(id => app.client.write(id), captured.id))?.state, mode === 'observed-replacement' ? 'sent' : undefined);
         assert.equal(await total(observer, replacement.api), 0, 'fresh load cannot resurrect A’s click');
       }
       t.diagnostic(JSON.stringify({ mode, originalId: captured.id, sendsWhileProbeHeld: held.sends.length,
@@ -345,7 +372,7 @@ window.captureClick = () => {
     }
   });
 
-  for (const wrappedStore of [false, true]) for (const committed of [false, true]) for (const legacy of wrappedStore && !committed ? [true, false] : [true]) await t.test(`${legacy ? 'legacy' : 'stamped'} journal after logout ${committed ? 'preserves committed outbox custody' : 'refuses an unestablished epoch'} (wrapped store: ${wrappedStore})`, async () => {
+  for (const [wrappedStore, wrappedDevice] of [[false, false], [true, false], [true, true], ['async', true]]) for (const committed of [false, true]) for (const legacy of wrappedStore && !committed ? [true, false] : [true]) await t.test(`${legacy ? 'legacy' : 'stamped'} journal after logout ${committed ? 'preserves committed outbox custody' : 'refuses an unestablished epoch'} (wrapped store: ${wrappedStore}, device: ${wrappedDevice})`, async () => {
     const { credentials, session } = await fresh();
     const before = await total(session);
     await page.evaluate(options => boot(options), { url, session, holdAdmission: !committed, blockMutations: true });
@@ -356,18 +383,83 @@ window.captureClick = () => {
       localStorage.setItem(record.key, JSON.stringify(record));
     }, { ...captured, legacy });
     await navigate('legacy=' + committed + '-' + wrappedStore + '-' + legacy);
-    await page.evaluate(({ url, epoch }) => localStorage.setItem(sessionKey(url), JSON.stringify({ snapback4Logout: epoch })), { url, epoch: captured.record.authority.epoch });
+    await page.evaluate(({ url, epoch }) => navigator.locks.request(sessionKey(url), () => localStorageSessionStore().set(sessionKey(url), JSON.stringify({ snapback4Logout: epoch }))), { url, epoch: captured.record.authority.epoch });
     await auth('logout', {}, session.token);
     const next = await auth('login', credentials);
     assert.equal(next.principal, session.principal);
-    await page.evaluate(({ url, session, epoch }) => localStorage.setItem(sessionKey(url), JSON.stringify({ ...session, snapback4Epoch: String(BigInt(epoch) + 1n) })), { url, session: next, epoch: captured.record.authority.epoch });
-    await page.evaluate(options => boot(options), { url, wrappedStore });
+    await page.evaluate(({ url, session, epoch }) => navigator.locks.request(sessionKey(url), () => localStorageSessionStore().set(sessionKey(url), JSON.stringify({ ...session, snapback4Epoch: String(BigInt(epoch) + 1n) }))), { url, session: next, epoch: captured.record.authority.epoch });
+    await page.evaluate(options => boot(options), { url, wrappedStore, wrappedDevice });
     if (committed) await until(() => page.evaluate(async id => (await app.client.write(id))?.state === 'sent', captured.id), 'committed write sent');
     else assert.equal(await page.evaluate(id => app.client.write(id), captured.id), undefined);
     assert.equal(await page.evaluate(key => localStorage.getItem(key), captured.record.key), null);
     assert.equal(await total(next), before + (committed ? 1 : 0));
     assert.equal(await page.evaluate(id => sent.filter(send => send.id === id).length, captured.id) > 0, committed);
     await page.evaluate(() => app.close());
+  });
+
+  for (const reconnect of [false, true]) await t.test(reconnect ? 'a successful reconnect enables exit after startup 503s' : 'an accepted probe enables exit before ordinary replay resolves', async () => {
+    const { session } = await fresh();
+    const before = await total(session);
+    await page.evaluate(options => boot(options), { url, session, holdAdmission: true });
+    const captured = await page.evaluate(() => captureClick());
+    await navigate('delivery=' + reconnect);
+    await page.evaluate(options => boot(options), { url, unavailable: reconnect, blockMutations: reconnect ? 'retry' : 'hold' });
+    try {
+      if (reconnect) {
+        assert.equal(await page.evaluate(() => exitRegistrations), 0);
+        await page.evaluate(async () => { window.unavailable = false; await app.client.sync(); });
+        await page.waitForFunction(() => app.client.acquired);
+      } else await page.waitForFunction(() => window.mutationHeld);
+      assert.equal(await page.evaluate(() => exitRegistrations), 1);
+      const delivered = page.waitForResponse(response => response.url().endsWith('/m/removeMember')
+        && JSON.parse(response.request().postData()).id === captured.id, { timeout: 3000 });
+      void delivered.catch(() => {});
+      await hide();
+      assert.equal((await delivered).status(), 200);
+      assert.equal(await total(session), before + 1);
+      assert.equal(await page.evaluate(id => sent.filter(send => send.id === id && send.keepalive).length, captured.id), 1);
+    } finally { await page.evaluate(async () => { window.releaseMutation?.(); await app.ready; await app.close(); }); }
+  });
+
+  for (const mode of ['accepted', 'refused', 'restore', 'replacement']) await t.test(`an empty-outbox open gates new clicks on its ${mode} probe`, async () => {
+    const { session } = await fresh();
+    const observer = await auth('signup', { email: `empty-${mode}@example.com`, password: 'a-test-password-long-enough' });
+    const before = await total(observer);
+    await page.evaluate(options => boot(options), { url, session });
+    await page.evaluate(() => app.close());
+    await navigate('empty-open=' + mode);
+    const replacement = mode === 'replacement' ? await replacementFor(session) : undefined;
+    await page.evaluate(options => boot(options), { url, holdProbe: true, holdSync: true, probeMode: mode, backendUrl: replacement?.api ?? url });
+    try {
+      await page.waitForFunction(() => window.probeHeld, null, { timeout: 5000 });
+      assert.deepEqual(await page.evaluate(async () => (await core.call({ op: 'queued' })).ok), []);
+      const captured = await page.evaluate(() => captureClick());
+      assert.ok(captured.record, 'the new click is synchronously journaled');
+      // Await the caller's admission/send attempt, not just the durable commit.
+      const pending = await page.evaluate(() => write);
+      assert.equal(pending.state, 'pending');
+      await hide();
+      const held = await page.evaluate(async () => { await core.call({ op: 'state' }); return { sent, exitRegistrations }; });
+      assert.deepEqual(held.sent, []); assert.equal(held.exitRegistrations, 0);
+      assert.equal(await total(observer), before);
+      const delivered = mode === 'accepted' ? page.waitForResponse(response => response.url().endsWith('/m/removeMember')
+        && JSON.parse(response.request().postData()).id === captured.id, { timeout: 5000 }) : undefined;
+      void delivered?.catch(() => {});
+      await page.evaluate(() => releaseProbe());
+      if (delivered) {
+        assert.equal((await delivered).status(), 200);
+        assert.equal(await total(observer), before + 1);
+      } else {
+        if (mode === 'restore') await until(() => page.evaluate(async () => !!(await core.call({ op: 'sync_state', capture: false })).ok?.restore_refusal), 'empty-open restore refusal');
+        else await page.waitForFunction(() => window.syncHeld || window.openingDone);
+        assert.deepEqual(await page.evaluate(() => sent), []);
+        assert.equal(await total(observer), before);
+        if (replacement) assert.equal(await total(observer, replacement.api), 0);
+      }
+    } finally {
+      await page.evaluate(async () => { releaseProbe(); releaseSync(); await app.ready; await app.close(); });
+      await replacement?.close();
+    }
   });
 
   for (const retainFields of [false, true]) await t.test(`same-epoch logout tombstone refuses live admission${retainFields ? ' even with retained session fields' : ''}`, async () => {
@@ -381,10 +473,10 @@ window.captureClick = () => {
         void navigator.locks.request(sessionKey(url), async () => { resolve(); await new Promise(release => window.releaseSession = release); });
       }), url);
       const captured = await page.evaluate(() => captureClick());
-      await peer.evaluate(({ url, epoch, session, retainFields }) => {
+      await peer.evaluate(async ({ url, epoch, session, retainFields }) => {
         // The exact restoringStore.delete tombstone, plus the reader's accepted
         // logout shape with extra session metadata. Both must mean logged out.
-        localStorage.setItem(sessionKey(url), JSON.stringify({ ...(retainFields ? session : {}), snapback4Logout: epoch }));
+        await localStorageSessionStore().set(sessionKey(url), JSON.stringify({ ...(retainFields ? session : {}), snapback4Logout: epoch }));
         releaseSession();
       }, { url, epoch: captured.record.authority.epoch, session, retainFields });
       const write = await page.evaluate(() => window.write);
@@ -401,9 +493,9 @@ window.captureClick = () => {
     await page.evaluate(() => { window.old = app.client; window.observed = old.observe(ops.roster, { room: 'room' }); });
     await page.waitForFunction(() => window.pollHeld && window.observed.getSnapshot()?.data?.length > 0);
     // A peer's durable logout marker; no storage event is needed to discover it.
-    const result = await page.evaluate(url => {
+    const result = await page.evaluate(async url => {
       const key = sessionKey(url), kept = JSON.parse(localStorage.getItem(key));
-      localStorage.setItem(key, JSON.stringify({ snapback4Logout: String(BigInt(kept.snapback4Epoch ?? '0') + 1n) }));
+      await navigator.locks.request(key, () => localStorageSessionStore().set(key, JSON.stringify({ snapback4Logout: String(BigInt(kept.snapback4Epoch ?? '0') + 1n) })));
       const write = old.mutate(ops.remove, { room: 'room', principal: 'user:other' });
       return { state: write.state, code: write.why?.code };
     }, url);
