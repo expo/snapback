@@ -55399,3 +55399,53 @@ and activation correction beside the existing physical-child deletion ruling.
 No syntax, cursor/store format, sync/device support, broad guide rewrite,
 unrelated baseline repair, push or publication was added. No requested review
 fix remains open. Full file map, choices and evidence are in the round-2 report.
+
+
+### 2026-09-25 — Lane T round 3: authorize expiring aggregates from group keys
+
+Addressed the Astra/Grok round-2 delta reviews by refusing the entire unsafe
+class. `E_MAINTAIN_READ_EXPIRE` rejects value-dependent authorization over any
+expiring source, including an inherited effective deadline, even with a source
+cap or `online only`. The rewrite names group-key authorization or inheritance.
+Compiler and raw-schema validation agree; LLP 3000.014 §5 records the requested
+implementation decision. Non-expiring value-dependent authorization remains.
+
+Removed the pre-authorization recount, cap proof and prepaid counters. A point
+read reserves uniform scratch and one examined lookup before discovering
+occupancy, authorizes before a live recount, then releases temporary scratch on
+hits, misses and denials while retaining returned images, work, heap peak and
+cuts. Denied dependency-table and expiry restoration remains. Explicit key rules
+also preserve the prohibition on scanning parent-group aggregates.
+
+The refusal matrix covers direct/inherited expiry, caps, `online only`, the
+reviewers' stored-total page and signed-overflow programs, raw schemas and
+compiling repairs. Sequential wide-row reads complete under the default heap
+ceiling on memory, SQLite and PostgreSQL. A 65-contribution witness proves
+multi-batch live recounts (65 before expiry, 32 afterward). Six updated tests
+fail against round 2; separate scratch-retention and first-batch-only mutations
+fail their witnesses and were restored. Targeted qualification: 38 read-through
+and 80 guide tests; after the compatibility correction, 125 affected tests.
+PostgreSQL: 17 passed on the isolated cluster, stopped afterward. Ref-check:
+508 LLP docs, 9,284 references, zero errors and zero unchecked references.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 258 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 3,001 passed, zero failed, 16 ignored. Clients: 1,557 total, 1,547 passed,
+zero failed, ten skipped. The first run was `== 1 failure(s) in 272 s`:
+five failures, all ours, in core `corpus`, two device `read_authority` cases and
+two language `derived_maintains` cases. Synthetic admission applied too broadly
+changed ordinary zero/raw-null outcomes. Restricting it to read-through groups
+restored those outcomes; all five pass. The report names every failure.
+No baseline or environmental failure was waived or repaired.
+
+Fresh Rust 1.97.0 / wasm-bindgen 0.2.127 control `5cba90e42` measured
+1,797,060 raw / 502,035 gzip bytes; final measured 1,795,777 / 501,638:
+−1,283 raw / −397 gzip, a whole-artifact comparison without component
+attribution. Keep the 503,000-byte artifact budget (1,362 bytes headroom) and
+all runtime ceilings unchanged. No source exceeds the lane's size limit.
+
+No requested fix remains open. No syntax, cursor/store format, sync/device
+feature, broad guide rewrite, push or publication was added. The requested
+restriction deliberately supersedes the round-2 cap exception and its old
+refusal code. File map, examples, negative controls and complete failure
+accounting: [round-3 report](reports/20260925-intent-lane-t-round3.md).
