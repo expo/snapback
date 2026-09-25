@@ -144,6 +144,18 @@ export class WriteHistory {
 
   hasUnpersisted(id?: string): boolean { return id === undefined ? this.unpersisted.size > 0 : this.unpersisted.has(id); }
 
+  async acknowledged(id: string, seq: number): Promise<Extract<Terminal, { state: "sent" }>> {
+    // A replacement refusal says execution is unknown. A correlated outbox
+    // acknowledgement proves it; discard the speculative refusal before read
+    // can retry its save. Authored refusals cannot produce acknowledgements.
+    const pending = this.unpersisted.get(id);
+    if (pending?.state === "failed" && pending.why.code === "E_STORE_REPLACED") this.unpersisted.delete(id);
+    const known = await this.read(id, true);
+    const sent = { state: "sent" as const, id, seq, replayed: true as const };
+    if (known?.state === "failed" && known.why.code === "E_STORE_REPLACED") await this.keep(sent);
+    return sent;
+  }
+
   // A known result is custody, even when its receipt transaction aborted.
   // Callers must cross this barrier before sync or another delivery can retire it.
   async persistPending(): Promise<void> {

@@ -535,6 +535,9 @@ replace its known success or refusal. A known terminal outcome whose receipt sav
 failed is persisted before sync, another POST or replacement handling touches
 that id; retry settles the original receipt locally. Otherwise the refusal receipt and outbox retirement commit
 together, after rechecking terminal history and custody; a failed save retains the outbox.
+An outbox acknowledgement resolves an earlier `E_STORE_REPLACED` (whose execution
+outcome was unknown) as `sent`. Its matching sequence repairs that history row;
+an authored refusal such as `NOT_ADMIN` is not overwritten.
 A local admission-storage error does not establish the server outcome; its
 captured intent remains recoverable.
 Under `createApp`, records also capture the session epoch and principal.
