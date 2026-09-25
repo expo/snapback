@@ -148,7 +148,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 message,
             })
         };
-        if table.leave == LeavePolicy::DeliveredHistory && table.columns.contains_key("retained") {
+        if table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory && table.columns.contains_key("retained") {
             refuse("read through delivered history reserves retained metadata; rename the column to wasRetained".into());
         }
         let Some(parent) = schema.table(&t.parent) else {

@@ -25,7 +25,7 @@ pub fn typescript(bound: &Bound) -> String {
             out.push_str(&format!("    {}: {};\n", property(column), column_ts(kind, &bound.schema)));
         }
         out.push_str("    /** True on this device's own unconfirmed change (the card). */\n    pending?: boolean;\n");
-        if table.through.is_some() && table.leave == snapback4_core::schema::LeavePolicy::DeliveredHistory {
+        if table.through.is_some() && table.sync.is_some() && table.leave == snapback4_core::schema::LeavePolicy::DeliveredHistory {
             out.push_str("    /** Delivered history, outside the current parent page. */\n    retained?: boolean;\n");
         }
         out.push_str("  };\n");

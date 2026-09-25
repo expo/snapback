@@ -54,7 +54,7 @@ are removed. A conjunction such as membership and an archived flag stays
 authorization once, while completeness still requires the child's own coverage.
 An unknown or mismatched parent takes the server fallback. Retained history
 stays marked `retained: true` beside the server's current page.
-On these delivered-history children, `retained` is row metadata; name an
+On these syncing delivered-history children, `retained` is row metadata; name an
 application column `wasRetained` instead. Row shapes and spreads preserve the mark.
 
 A device predicts a plain child insert only with a live parent covered by its

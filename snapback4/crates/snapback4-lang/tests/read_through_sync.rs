@@ -49,4 +49,7 @@ const MODEL:&str="table parents:\n  owner: principal\n  archived: bool\n  immuta
     let mut raw=b.schema.clone();raw.tables.get_mut("children").unwrap().columns.insert("retained".into(),snapback4_core::schema::ColumnType::Bool);
     assert!(snapback4_core::schema::validate(&raw).iter().any(|d|d.message.contains("reserves retained")));
     bound(&MODEL.replace("table children:","table children:\n  retained: bool"));
+    let old=MODEL.replace("table children:","table children:\n  retain delivered-history\n  retained: bool").replace("  sync last 10 by .id","  online only");
+    let b=bound(&old);
+    assert!(!snapback4_lang::emit::typescript(&b).contains("    retained?: boolean;"),"an existing server-only column keeps its required type");
 }
