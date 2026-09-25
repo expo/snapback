@@ -12,8 +12,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromiumExecutable } from "../../witness/lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const evidence = dirname(fileURLToPath(import.meta.url));
-const scratch = join(root, "target/event-slots-scale");
+const evidence = process.env.INVENTORY_EVIDENCE ?? join(root, "reports/20260925-intent-integration-r9");
+const scratch = process.env.INVENTORY_SCRATCH ?? join(root, "target/intent-integration-r9-scale");
 const app = process.env.CLIQUE_SCALE_APP ?? join(process.env.HOME, "clique-cmp-20260925/lanes/astra-snapback4/scale-instance");
 const fixture = process.env.CLIQUE_SCALE_LOG ?? join(process.env.HOME, "clique-cmp-20260925/instrument/fixtures/scale.log");
 const legacyControl = process.argv.includes("--legacy-own");
@@ -36,6 +36,7 @@ function fingerprints(directory, prefix = "") {
   }));
 }
 mkdirSync(scratch, { recursive: true });
+mkdirSync(evidence, { recursive: true });
 const saved = join(scratch, "snapshot.sqlite");
 if (!existsSync(saved)) {
   const copy = spawnSync("python3", ["-c", "import sqlite3,sys; s=sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True); d=sqlite3.connect(sys.argv[2]); s.backup(d); d.close(); s.close()", join(app, ".snapback4/store.sqlite"), saved], { stdio: "inherit" });
@@ -96,15 +97,16 @@ const browser = await chromium.launch({ executablePath: chromiumExecutable(), he
 const credentials = readFileSync(fixture, "utf8").split("\n").find(line => line.includes(" u0500 register "))
   .match(/"(?:[^"\\]|\\.)*"|\S+/g).map(word => word.startsWith('"') ? JSON.parse(word) : word).slice(3);
 const result = {
-  at: new Date().toISOString(), browser: browser.version(), actor: "u0500", fixture: digest(fixture),
+  at: new Date().toISOString(), browser: browser.version(), node: process.version,
+  harness: digest(fileURLToPath(import.meta.url)), actor: "u0500", fixture: digest(fixture),
   sourceStore: join(app, ".snapback4/store.sqlite"),
   sourceSnapshot: digest(saved),
   browserBundle: fingerprints(join(harness, "dist")),
   quarry: Object.fromEntries(modes.map(mode => [mode, fingerprints(join(scratch, mode, "snapback"))])),
   scope: "whole authorized device partition, including all additional application tables; snapshot row bytes are UTF-8 JSON of event.data, wire bytes include snapshot and catch-up envelopes; time is authenticated createLocalClient through completed IndexedDB acquisition, excluding login, page load and UI rendering",
   floor: legacyControl ? null : 1000, inboxFloor: legacyControl ? null : 1000, historyWindow: 1000, ownedEvents: legacyControl ? "legacy fully synced event rows" : "source-row slots; zero owned rows for either floored kind", design: legacyControl ? "U round-1 before server, view-only control on current wasm/IndexedDB" : "LLP 3000.016 revision 12",
-  storageFormat: "Lane U revision-5 IndexedDB format: serialized row/index changes, no Lane V packing; bytes are logical UTF-8 row JSON, not disk usage",
-  laneVCheckedMain: process.env.LANE_V_CHECKED_MAIN ?? null,
+  storageFormat: "Lane V IndexedDB format 2 (verified row-buckets marker); rowBytes are logical UTF-8 row JSON, not disk usage",
+  revision: spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim(),
   clientWasm: digest(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")),
   binaries: Object.fromEntries(Object.entries(binaries).map(([mode, path]) => [mode, { path, ...digest(path) }])),
   runs: [],
@@ -155,9 +157,30 @@ try {
         const acquisitionMs = performance.now() - start;
         const acquired = client.acquired;
         await client.close();
-        return { acquisitionMs, acquired, tables, wireBytes, snapshotPages, catchupPages };
+        // Inspect persistence after stopping the acquisition timer. These are
+        // record counts, not a physical IndexedDB disk-size measurement.
+        const storage = [];
+        for (const info of await indexedDB.databases()) {
+          const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open(info.name);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          try {
+            if (!db.objectStoreNames.contains("changes")) continue;
+            const records = await new Promise((resolve, reject) => {
+              const request = db.transaction("changes", "readonly").objectStore("changes").getAll();
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            });
+            storage.push({ format: records.find(r => r.s === "$format" && r.k === "row-buckets")?.v,
+              buckets: records.filter(r => r.s === "$bucket").length, records: records.length });
+          } finally { db.close(); }
+        }
+        return { acquisitionMs, acquired, tables, wireBytes, snapshotPages, catchupPages, storage };
       }, { url, credentials });
       assert.equal(measured.acquired, true);
+      assert.ok(measured.storage.some(s => s.format === "2" && s.buckets > 0), "packed acquisition persisted");
       measured.rows = Object.values(measured.tables).reduce((sum, table) => sum + table.rows, 0);
       measured.rowBytes = Object.values(measured.tables).reduce((sum, table) => sum + table.bytes, 0);
       result.runs.push({ mode, ...measured });
@@ -170,6 +193,7 @@ try {
     }
   }
   result.baseline = JSON.parse(readFileSync(join(root, "reports/20260925-bounded-following-r1/inventory.json"), "utf8"));
+  result.slotsRound0 = JSON.parse(readFileSync(join(root, "reports/20260925-event-slots/inventory.json"), "utf8"));
   for (const run of [...result.baseline.runs, ...result.runs]) {
     run.viewOwn = Object.entries(run.tables).filter(([name]) => own(name)).reduce((a, [, t]) => ({ rows: a.rows + t.rows, rowBytes: a.rowBytes + t.bytes }), { rows: 0, rowBytes: 0 });
   }
