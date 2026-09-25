@@ -1,0 +1,30 @@
+== cargo build
+-- ok: cargo build (3 s)
+== wasm build
+-- ok: wasm build (1 s)
+== docs budget
+-- ok: docs budget (2 s)
+== release guard
+-- ok: release guard (3 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (2 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- ok: cargo test (120 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- ok: fixture wrapper tests (18 s)
+== client tests
+✖ a device restores its session on its own (76.547964ms)
+✖ failing tests:
+✖ a device restores its session on its own (76.547964ms)
+-- FAIL: client tests (65 s)
+== client models
+-- ok: client models (269 s)
+== 1 failure(s) in 466 s

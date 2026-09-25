@@ -56042,3 +56042,63 @@ Q's accepted device fallback/disclosure boundary and documented PostgreSQL
 query-reservation limitation remain. No new authoring form, package version
 bump, simulator qualification, push or publication. Full file map, regressions,
 all suite attempts and evidence: [round-8 report](reports/20260925-intent-integration-r8.md).
+
+
+## 2026-09-25 — Lane V: web admission before return and faster acquisition
+
+Implemented LLP 3000.013 Lane V on `sb4-intent/v-web-start`. The acquired-page
+navigation loss is reproducible with the old `createApp` guard: it awaits the
+session epoch lock before reaching the web journal. Calibration #20 already
+supplied a web device and persisted session, and its failing trace had a store
+identity. The generated API is an inert descriptor and added no wait. Chromium
+now captures the admin removal in the click's own stack and recovers its
+original ID after `location.assign`, including before an identified device's
+initial sync completes.
+
+Browser calls with an unrestored identity, an unidentified store, no provider
+claim, no durable device/session store, full journal/storage or the test-only
+memory provider refuse synchronously with E_ADMISSION. Session transport still
+uses its locked epoch checks. Added optional synchronous failure fields on
+MutationPromise to implement the brief; the awaited Write union is unchanged.
+This additive exception to the ordinary lane contract fence is explicit for
+supervisor review. Refused IDs can be retried after repair. Native/Node retain
+their existing admission behavior.
+
+Added useAcquisition() with committed snapshot row counts per source table and
+completion; useAcquired() stays. The compiled recipe keeps reads and UI active
+through server fallback. Progress describes this runtime's acquisition, so a
+warm acquired reopen can have zero newly received rows. Split device interfaces
+out of local.ts; it remains 1,465 lines.
+
+Measured the frozen Clique public corpus on Chromium/Linux: 50,228 posts,
+1,004 reposts, 5,921 follows, 1,008 profiles, plus likes and count tables, for
+65,180 acquired rows. Original IDB storage took 93.581 s (85.111 s saving IDB,
+3.240 s Wasm apply, 3.187 s snapshot HTTP). Packed rows took
+15.553 / 18.386 / 19.782 s: 5.09x faster at the median, meeting the 3x target.
+A repeat of the retained legacy format took 76.250 s; even the slowest packed
+run is 3.85x faster than that control. All runs used 4,000-row requested pages;
+all packed runs recovered every row after a fresh-document offline reopen.
+
+New IDB stores pack row images into 256 buckets per row store. Rows, metadata,
+outbox and transfer markers still share one atomic strict transaction. Legacy
+stores remain readable/writable without migration. No page/engine ceiling was
+raised. The benchmark projects the frozen action log into the public calibration
+schema, with media null and its Following timeline omitted for seeding; it is
+not the full application UX or an effect/media replay. Snapshot HTTP includes
+server work, serialization and loopback transport; pure server CPU was not
+measured. Larger pages and streaming apply were unnecessary. Old clients opening
+new packed databases were not qualified for rollback.
+
+Focused checks: 35 browser/React tests, 20 write-ID/two-device-page tests,
+80 guide tests, ten immediate-navigation cases, and the IDB witness pass.
+Ref-check passes with zero errors/unchecked refs. Wasm is 1,775,799 B raw /
+495,258 B gzip under the unchanged 496,000 B budget. The first suite's guide and
+client regressions were mine and fixed. A second run hit an intermittent
+existing session-logout probe; it passed unchanged alone and in the final serial
+run. The complete final suite, including all 13,000 model sequences, reports:
+**`== 0 failure(s) in 1373 s`**. The report classifies every failure from every attempt.
+
+No package version bump, publication, push or native simulator qualification.
+Implementation commits: 26ad8a083, 65231c446, a04b83063. File map, examples,
+reproduction commands, measurements and evidence:
+[Lane V report](reports/20260925-lane-v-web-start.md).
