@@ -6,9 +6,13 @@ use snapback4_device::store::DeviceStore;
 
 fn meters<S: DeviceStore>(mut store: S) {
     let source = include_str!("../../snapback4-lang/tests/fixtures/following-view.q")
-        .replacen("sync public", "sync public last 3 by .at", 1) + r#"
+        .replacen("sync public", "sync public last 3 by .at", 2) + r#"
 query point(postId: posts):
   return { card: posts[postId] }
+query repostId(postId: id):
+  return { card: reposts[postId] }
+query repostPair(postId: posts):
+  return { card: reposts[viewer, postId] }
 query oversized(postId: posts, payload: text <=600):
   card = posts[postId]
   padding = []
@@ -25,12 +29,14 @@ query oversized(postId: posts, payload: text <=600):
         if name == "oversized" { inputs.insert("payload".into(), Value::String("x".repeat(600))); }
         local::query_with_coverage(&tx, schema, program, Context::new("alice", inputs), ceilings)
     };
-    let (cut, unknown, _) = run("point", &backend.schema, Ceilings { examined: 0, ..Default::default() });
-    let cut = cut.unwrap();
-    assert!(cut.unavailable && unknown, "{cut:?}");
-    assert_eq!(cut.data, Value::Null);
-    assert!(cut.next.is_none() && cut.capped_at.is_some());
-    assert!(cut.metered.examined > 0, "the failed read still spends the meter");
+    for name in ["point", "repostId", "repostPair"] {
+        let (cut, unknown, _) = run(name, &backend.schema, Ceilings { examined: 0, ..Default::default() });
+        let cut = cut.unwrap();
+        assert!(cut.unavailable && unknown, "{name}: {cut:?}");
+        assert_eq!(cut.data, Value::Null);
+        assert!(cut.next.is_none() && cut.capped_at.is_some());
+        assert!(cut.metered.examined > 0, "the failed read still spends the meter");
+    }
 
     let (large, unknown, _) = run("oversized", &backend.schema, Ceilings::default());
     let large = large.unwrap();

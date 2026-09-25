@@ -116,12 +116,65 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
 }
 
 for (const tier of ["wasm", "native"]) {
+  test(`bounded Following ${tier}: unknown conditions preserve static and helper dependencies`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, "sync public", source => source.replace("sync public\n\ntable follows", "online only\n\ntable follows") + `
+table switches:
+  enabled: bool
+  public 'routing witness'
+  insert <- true
+  online only
+mutation enable():
+  return insert switches { id: 'gate', enabled: true }
+fn conditionalRows(c: cursor ?):
+  return feed last 20 by .at after c { *, card: reposts[.actor, .post] }
+query conditionalFeed(c: cursor ?):
+  if exists switches['gate']:
+    return feed last 20 by .at after c { *, card: reposts[.actor, .post] }
+  return []
+query conditionalHelper(c: cursor ?):
+  if exists switches['gate']:
+    return conditionalRows(c)
+  return []
+`);
+    await f.mutate("enable", "bob", {});
+    const bob = await f.open("bob"), input = { c: null };
+    // Confirm the server has a different, nonempty branch before predicting.
+    for (const name of ["conditionalFeed", "conditionalHelper"]) {
+      assert.ok((await bob.client.query(query(name), input)).data.length > 0);
+    }
+    bob.holdWrites = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-conditional", parentId: null, at: 20 });
+    const entries = (await bob.core.call({ op: "queued" })).ok;
+    assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith("feedFeed/"))));
+    for (const offline of [false, true]) {
+      bob.offline = offline; await bob.client.sync();
+      for (const name of ["conditionalFeed", "conditionalHelper"]) {
+        const before = bob.queries.length;
+        assert.deepEqual(await bob.client.query(query(name), input), { loading: true });
+        const raw = bob.observed.at(-1);
+        assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true);
+        assert.deepEqual(raw.tables, ["switches"]);
+        assert.equal(bob.queries.length, before, "unknown branches cannot authorize a server replacement");
+      }
+    }
+    bob.offline = false; await bob.client.sync(); bob.holdSync = true; bob.holdWrites = false;
+    await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "conditional prediction not acknowledged");
+    assert.deepEqual(await bob.client.query(query("conditionalHelper"), input), { loading: true });
+    bob.holdSync = false; f.releaseSync();
+    await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "conditional prediction not observed");
+    assert.ok((await bob.client.query(query("conditionalHelper"), input)).data.some(row => row.post === "own-conditional"));
+  });
+
   test(`bounded Following ${tier}: a late card miss and oversized withheld output still use fallback`, { timeout: 30000 }, async t => {
-    const f = await fixture(t, tier, undefined, source => source + `
+    const f = await fixture(t, tier, undefined, source => source.replace("sync public\n\ntable follows", "sync public last 3 by .at\n\ntable follows") + `
 query cappedCard(postId: posts):
   for i in range(0, 8192):
     burn = posts['p3']
   return { card: posts[postId] }
+query cappedRepost(postId: posts):
+  for i in range(0, 8192):
+    burn = posts['p3']
+  return { card: reposts[viewer, postId] }
 query oversized(postId: posts, payload: text <=600):
   card = posts[postId]
   padding = []
@@ -129,7 +182,7 @@ query oversized(postId: posts, payload: text <=600):
     padding = padding + [payload]
   return { card, padding }
 `), bob = await f.open("bob");
-    const cases = [["cappedCard", { postId: "old" }], ["oversized", { postId: "old", payload: "x".repeat(600) }]];
+    const cases = [["cappedCard", { postId: "old" }], ["cappedRepost", { postId: "p0" }], ["oversized", { postId: "old", payload: "x".repeat(600) }]];
     bob.offline = true; await bob.client.sync();
     for (const [name, input] of cases) {
       assert.deepEqual(await bob.client.query(query(name), input), { loading: true });
@@ -402,16 +455,18 @@ query cut(c: cursor ?):
 
 test("bounded Following native query module: executed dependencies fence fallback until prediction observation", { timeout: 120000 }, async t => {
   const f = await fixture(t, "native", undefined, source => source + `
-query native_cards(postId: posts, c: cursor ?): native
-query native_held(postId: posts, c: cursor ?) held: native
+query native_cards(postId: posts, c: text <=2000 ?): native
+query native_held(postId: posts, c: text <=2000 ?) held: native
 `, true), bob = await f.open("bob");
   assert.ok((await bob.core.call({ op: "state" })).ok.native, "the actual guest module is installed");
   const program = (await bob.core.call({ op: "backend" })).ok.programs.find(p => p.name === "native_cards");
   assert.equal(program.native, true); assert.deepEqual(program.body, [], "there are no static Quarry dependencies");
-  const first = await bob.client.query(query("cards"), { c: null });
-  const input = { postId: "old", c: first.next }, op = query("native_cards");
+  const first = await bob.client.query(query("native_cards"), { postId: "p3", c: null });
+  assert.deepEqual(first.data.rows.map(row => row.postId), ["p3", "p2"]);
+  assert.ok(first.data.next);
+  const input = { postId: "old", c: first.data.next }, op = query("native_cards");
   const raw = (await bob.core.call({ op: "query", name: op.name, viewer: "dev:bob", args: input, now: Date.now() })).ok;
-  assert.equal(raw.loading, true, "native_query must propagate query_unavailable");
+  assert.equal(raw.loading, true, `native_query must propagate query_unavailable: ${JSON.stringify(raw)}`);
   assert.equal(raw.unknown, true); assert.equal("data" in raw, false); assert.equal("next" in raw, false);
   assert.ok(raw.tables.includes("posts") && raw.tables.includes("feedFeed"));
   bob.offline = true; await bob.client.sync();
@@ -422,7 +477,10 @@ query native_held(postId: posts, c: cursor ?) held: native
   assert.deepEqual(await bob.client.query(query("native_held"), input), { loading: true });
   assert.equal(bob.queries.length, beforeHeld);
   const remote = await bob.client.query(op, input);
-  assert.equal(remote.data.original.id, "old"); assert.equal(remote.data.cursor, input.c);
+  assert.equal(remote.data.original.id, "old");
+  assert.equal(remote.data.rows.length, 2);
+  assert.ok(remote.data.rows.every(row => !first.data.rows.some(previous => previous.id === row.id)), "the original cursor must advance the native scan");
+  assert.deepEqual(remote.data, (await f.request("/q/native_cards", "bob", input)).data);
   assert.deepEqual(bob.queries.at(-1), { path: "/q/native_cards", args: input });
   bob.failQueries = true;
   assert.deepEqual(await bob.client.query(op, input), { loading: true }, "no remembered server answer on transport failure");
@@ -439,8 +497,8 @@ query native_held(postId: posts, c: cursor ?) held: native
   assert.equal(bob.queries.length, before);
   bob.holdSync = false; f.releaseSync();
   await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "native prediction not observed");
-  const observed = await bob.client.query(op, input);
+  const observed = await bob.client.query(op, { ...input, c: null });
   assert.ok(observed.data.rows.some(row => row.postId === "own-native"));
   assert.equal(observed.data.original.id, "old");
-  assert.deepEqual(observed.data, (await f.request("/q/native_cards", "bob", input)).data);
+  assert.deepEqual(observed.data, (await f.request("/q/native_cards", "bob", { ...input, c: null })).data);
 });

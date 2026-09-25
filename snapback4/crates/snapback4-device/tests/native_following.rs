@@ -27,7 +27,7 @@ fn reads<H: Host>(mut host: H) {
     let digest: String = Sha256::digest(module()).iter().map(|b| format!("{b:02x}")).collect();
     for (n, sync) in ["sync public", "sync public last 3 by .at", "online only"].iter().enumerate() {
         let source = base.replacen("sync public", sync, 1)
-            + "\nquery native_cards(postId: posts, c: cursor ?): native\nquery native_large(postId: posts, c: cursor ?): native\n";
+            + "\nquery native_cards(postId: posts, c: text <=2000 ?): native\nquery native_large(postId: posts, c: text <=2000 ?): native\n";
         let (mut server, backend) = common::compile(&source);
         assert!(backend.programs.iter().find(|p| p.name == "native_cards").unwrap().body.is_empty());
         server.install_native(module()).unwrap();
