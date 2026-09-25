@@ -55031,3 +55031,50 @@ added. Existing process-loss, permanently lost refresh reply and bounded receipt
 history limits remain. No version bump, push, package publication or iOS simulator
 run. The report's round-6 section has the file map and review dispositions;
 evidence logs use ~/sb4-intent/integration-r6-*.log.
+
+
+## 2026-09-25 — Integration round 7: fresh online store binding and review regressions
+
+For the still-unpublished 0.4.1 candidate, fresh online writes discover the
+current store before admission and save the returned identity with their intent.
+A completed A write followed by close, dev --fresh replacement with B, and a
+fresh mutation before any query now succeeds on B. Retrying that ID, including
+after reopen, returns its receipt without another execution. Recovered unbound
+intent retains the strict first-store guard. A post-discovery fence check keeps
+a delayed admission from appending behind completed store retirement (J seed
+1278). Close detaches a held probe and preserves pending intent for reopen.
+Implementation: 20bde3d2a. The deterministic React receipt-recovery fixture now
+waits for admission before mounting its lookup: b82845f11.
+
+Closed Astra's Medium and Low. Grok finished READY before the full suite, with
+no new High/Medium findings. Closed both of its test gaps: online same-id action
+concurrency during held session cleanup, and full refusal equality after a
+caller fence on online/real-wasm model tiers. Existing oracles, counts and
+coverage requirements remain. Negative controls fail when discovery, the
+post-discovery fence, invocation-owned action capture or full fenced-refusal
+equality is removed. The client reference and LLP 3000.013 section 6 record the
+admission distinction. The round-7 report section has the file map, reproductions,
+review dispositions and measurements.
+
+Final scripts/test.sh: **== 0 failure(s) in 345 s**. E online 5,000, E real-wasm
+local 5,000 and J 3,000 sequences all pass. Main client process: 1,532 tests,
+1,522 passed, zero failures, ten existing skips; separate shards pass. Guide
+80/80, Clique 3/3 and issue tracker server/devices 4/4 pass. Named checks: 64
+store/close/retirement tests, all 21 React tests, all 26 J tests and four
+live/fenced refusal-corruption controls. README remains 300/300 lines. Rebuilt
+wasm is unchanged at 1,765,796 B raw / 491,640 B gzip, within the 492,000 B
+ratchet with 360 B headroom. Ref-check: 507 LLP docs, 9,269 refs, zero errors
+and zero unchecked. Logs: ~/sb4-intent/integration-r7-*.log.
+
+The first targeted run found two integration errors: an unnecessary async step
+in recovered admission and J seed 1278's late-admission retirement race; both
+are fixed and regression-tested. The first full suite was one failure in 345 s:
+React's receipt-remount fixture assumed admission preceded its mount. It failed
+alone identically, then all 21 React tests passed after making that precondition
+explicit. No assertion or timeout was weakened; no intermittent, baseline or
+environmental failure was waived. The complete suite was rerun to zero.
+
+No new Quarry form, diagnostic, device code, runtime limit, version bump, merge,
+push or package publication. The separate M5 lane owns macOS dry-run blockers.
+Existing offline/identityless first-store fencing, process-loss and receipt-window
+limits remain; the tests do not claim exhaustive proof or iOS simulator coverage.
