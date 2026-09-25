@@ -1,3 +1,4 @@
+import { indexedDbStore } from "./web-idb.ts";
 import { admissionHost } from "./admission.ts";
 // The device on the web: the same device, as wasm, over memory (the
 // interpreter's store boundary is synchronous and IndexedDB is not), with
@@ -540,82 +541,8 @@ async function shareReceipts(persist: Persistence, name: string, text: string): 
 
 // ----- persistence -----
 
-/** IndexedDB: one database per store, one object store of changes keyed by
- * store and key, written in one transaction per call. */
-export function indexedDbPersistence(): Persistence {
-  const open = (name: string, create = true): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
-    let absent = false;
-    const request = indexedDB.open(name, 1);
-    request.onupgradeneeded = () => {
-      if (create) request.result.createObjectStore("changes", { keyPath: ["s", "k"] });
-      else { absent = true; request.transaction!.abort(); }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => absent ? resolve(null) : reject(request.error);
-  });
-  const done = (tx: IDBTransaction): Promise<void> => new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
-  });
-  return {
-    async has(name) {
-      if (indexedDB.databases) return (await indexedDB.databases()).some(db => db.name === name);
-      const db = await open(name, false);
-      db?.close();
-      return db !== null;
-    },
-    claim: claimWithWebLocks,
-    async read(name, store, key) {
-      const db = await open(name, false);
-      if (!db) return null;
-      try {
-        const tx = db.transaction("changes", "readonly");
-        const request = tx.objectStore("changes").get([store, key]);
-        await done(tx);
-        return (request.result as Change | undefined)?.v ?? null;
-      } finally { db.close(); }
-    },
-    async load(name) {
-      const db = (await open(name))!;
-      try {
-        const tx = db.transaction("changes", "readonly");
-        const request = tx.objectStore("changes").getAll();
-        await done(tx);
-        return (request.result as Change[]).map((c) => ({ s: c.s, k: c.k, v: c.v }));
-      } finally {
-        db.close();
-      }
-    },
-    async save(name, changes) {
-      const db = (await open(name))!;
-      try {
-        const tx = db.transaction("changes", "readwrite", { durability: "strict" });
-        const store = tx.objectStore("changes");
-        for (const change of changes) {
-          if (change.v === null) store.delete([change.s, change.k]);
-          else store.put(change);
-        }
-        await done(tx);
-      } finally {
-        db.close();
-      }
-    },
-    async others(prefix) {
-      const list = (indexedDB as { databases?: () => Promise<{ name?: string }[]> }).databases;
-      if (!list) return [];
-      return (await list.call(indexedDB)).map((d) => d.name ?? "").filter((n) => n.startsWith(prefix));
-    },
-    async remove(name) {
-      await new Promise<void>((resolve, reject) => {
-        const request = indexedDB.deleteDatabase(name);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-        request.onblocked = () => resolve();
-      });
-    },
-  };
-}
+/** IndexedDB keeps each device call atomic and strictly durable. */
+export function indexedDbPersistence(): Persistence { return indexedDbStore(claimWithWebLocks); }
 
 /** Memory: what a test keeps between opens. */
 export function memoryPersistence(): Persistence & { readonly stores: Map<string, Map<string, Change>> } {

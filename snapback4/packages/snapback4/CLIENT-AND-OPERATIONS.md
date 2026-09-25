@@ -420,6 +420,13 @@ The JavaScript client requires a device module with this capture protocol. Each 
 module digest to the adopted store identity. Another owner's replacement
 requires adoption and module reload before local reads or prediction resume.
 
+New IndexedDB stores pack row images into 256 buckets per device row store.
+Each apply still writes its row changes, metadata, outbox and transfer markers
+in one atomic transaction with `durability: "strict"`. No page or watermark
+publishes before that transaction completes. Existing stores retain their
+per-row format and remain readable and writable; the packing optimization
+applies to newly created stores.
+
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
 durable writes survive. When a replacement or adoption save succeeds, existing
