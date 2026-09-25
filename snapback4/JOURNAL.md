@@ -54981,3 +54981,66 @@ retirement was added. Did not push, publish, bump versions or run an iOS
 simulator on Linux. The complete file map, failure classification and release
 results are in reports/20260924-intent-integration-r5-final.md; evidence logs use
 ~/sb4-intent/integration-r5i-*.log.
+
+
+## 2026-09-25 — LLP 3000.013 Lane Q: expiring counts read the unswept backlog
+
+Implemented expiry-ordered contribution indexes `(group, expiry, source id)`,
+with null expiry last, and server live reads that subtract the unswept expired
+backlog from the physical total. Existing writes and sweeps retain physical
+occupancy and subtract each deleted contribution exactly once. The final live
+seek preserves candidate semantics and clock invalidation; interrupted scans
+still return unavailable, never zero or a partial total. Added metered, atomic
+0.4.1-shaped index adoption for SQLite, PostgreSQL and memory/device stores,
+including rollback at the unchanged 2,048-byte portable index-key limit.
+The compiled guide, cost certificate and dated LLP 3000.007 §20.9.3 amendment
+state the server backlog bound and the retained device behavior.
+
+Measured server examined rows at live group sizes 100 and 10,000 with backlogs
+0 and 500: respectively 2 and 502 at both sizes. The old live-recomputation
+path retained on devices measures 101 at size 100 and cuts at 8,193 for 10,000;
+this is a device reference-path measurement, not an old server binary run.
+The actual one-second sweep cadence, 2 ms slice and 2,000-row maximum drained
+300 expired receipts among 10,000 in 12 passes / 12,000 ms on the shared host.
+The physical total then became 9,700 and server examined returned to 2. This
+is an observed lag, not a maximum guarantee. Seeded differential tests made
+4,320 comparisons across counts, sums, predicates, computed keys, expiry
+updates, deletes, sweeps and clock advances. Memory/SQLite prediction checks,
+legacy store upgrades, adoption refusal atomicity, certificate metrology and
+an explicitly run isolated real-PostgreSQL regression all pass.
+
+Stopped the physical-total/nextExpiry device protocol under the brief's
+explicit rule. At time 100 an empty table and one unswept receipt expiring at
+100 have the same empty fresh live snapshot; transmitting physical total 1
+and its past deadline distinguishes the expired data. Engine-owned metadata
+does not prevent disclosure to its recipient. Separately, the specified device
+recomputation over 10,000 held receipts after 300 expire cannot return the
+required exact answer within the unchanged 8,192 examined ceiling. Executable
+counterexamples and reproduction commands are in the lane report. Constant
+cost device answers and the new delivery/prediction metadata remain unbuilt;
+the current device returns unavailable when its live scan cannot complete.
+
+The suite exposed a pre-existing client fallback bug: loading did not retire
+a remembered server answer, so later transport failure could revive it. Added
+a regression that failed on the old client and fixed that cache retirement.
+Also made the existing readiness fixture await actual sync after its controlled
+transport loss; all assertions remain and ten repeated runs pass. The exact
+intermediate failure ledger attributes every failure as ours, baseline or
+environmental, including the interrupted disk-full run and two completed runs
+with 2 and 1 failing stages. Final `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 265 s`**. All 882 Rust executions including doctests pass;
+the main client process has 1,479 tests, 1,469 passes, zero failures and ten
+existing explicit skips. Separate shards pass; no new skips or waived failures.
+Final real-PostgreSQL rerun passed and its private server was stopped afterward.
+
+Wasm measures 1,767,654 raw / 492,341 gzip bytes, +1,858 / +701 from the
+recorded integration artifact. Raised the documented artifact ratchet from
+492,000 to 493,000 bytes, leaving 659 bytes headroom; runtime ceilings remain
+unchanged. Builds stayed on the shared disk. No new syntax or refusal code,
+value-order indexes over expiring sources, maintained columns over expiring
+sources, expiring-maintain rule value comparisons, version bump, push or
+publication. The supervisor owns integration and the stopped design decisions.
+Full file map, forms, test proofs, deviations and reproductions:
+`reports/20260925-lane-q-expiring-counts.md`; every intermediate test failure:
+`reports/20260925-lane-q-test-failures.md`. Final suite evidence:
+`~/sb4-intent/lane-q-test-complete.log`.
