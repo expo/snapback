@@ -299,14 +299,14 @@ test("local generation adoption reruns observations whose dependencies changed",
   });
   const oldBackend = backend(1, "a"), newBackend = backend(2, "b");
   let serverGeneration = 1, deviceGeneration = 1, schemas = 0, queryRuns = 0;
-  const change = deferred();
+  const change = deferred(), queryGenerations = [];
   const device = emptyDevice({ call: async (request) => {
     if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: deviceGeneration, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
     if (request.op === "state") return { ok: { watermark: 0, generation: deviceGeneration } };
     if (request.op === "adopt") { deviceGeneration = request.backend.generation; return { ok: null }; }
     if (request.op === "apply") return { ok: { touched: [] } };
     if (request.op === "query") {
-      queryRuns++;
+      queryRuns++; queryGenerations.push(deviceGeneration);
       const current = deviceGeneration === 1 ? { value: "old", table: "a" } : { value: "new", table: "b" };
       return { ok: { data: [current.value], complete: true, tables: [current.table], unknown: false, nextExpiry: null } };
     }
@@ -325,7 +325,14 @@ test("local generation adoption reruns observations whose dependencies changed",
   serverGeneration = 2;
   await client.sync();
   await until(() => observed.getSnapshot().data?.[0] === "new", "generation adoption left the old observation fresh");
-  assert.equal(queryRuns, 2);
+  // Persisting the issued clock floor adds a durable boundary. Adoption's
+  // invalidation and sync completion may each request a new-generation read.
+  assert.equal(queryGenerations[0], 1);
+  assert.ok(queryRuns >= 2 && queryRuns <= 3, JSON.stringify(queryGenerations));
+  assert.ok(queryGenerations.slice(1).every(generation => generation === 2), "no old backend may answer after adoption");
+  const settledRuns = queryRuns;
+  await sleep(20);
+  assert.equal(queryRuns, settledRuns, "adoption must settle without idle reruns");
   unsubscribe(); observed.close(); await client.close();
 });
 
