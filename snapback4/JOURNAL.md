@@ -56344,3 +56344,53 @@ change, authorization/disclosure/meter weakening, push, package publication or
 iOS simulator claim. No known open finding. File map, examples, fixture changes,
 mutation results and qualification:
 [Lane Y round-6 report](reports/20260925-lane-y-r6.md).
+
+
+## 2026-09-25 — Lane Y round 7: recovery advances live device time
+
+Implemented both round-6 delta review findings in `e39a43dec`.
+`ServerClock.raiseIssued(time)` raises the live issued floor without changing
+estimated server time and notifies deadline subscribers, including a 1 ms
+crossing. Orphan adoption reports the maximum transferred admission time after
+the destination commit, on the serialized device chain. The local client
+registers its listener before attachment and the first store observation.
+Admissions already waiting behind recovery clamp their execution timestamp to
+the durable floor; their journal capture remains synchronous before the first
+await. Journal replay uses the same helper. The clock card and operations
+reference describe this behavior.
+
+New live local-client/Wasm tests attach at wall 1000000, recover admissions at
+1002000 and 1004000, and require the same client's clock and its next admission
+to reach 1004000 without reopening. One recovers during the first startup
+observation; another holds the persistence commit while a mutation captures its
+journal record, then requires the queued admission's actual time to respect the
+recovered floor. A controlled held read republishes at a 1 ms recovered deadline
+crossing without wall-time advancement. Unit coverage checks invalid/lower
+floors and isolation from estimated server time. Memory/SQLite recovery tests
+now start from a nonzero 1002000 floor and require 1004000 after retirement and
+rollback; the web transfer has two increasing times and keeps its atomic-batch
+and live/reopen assertions.
+
+Focused checks: 44 clock/live/regression tests, 14 browser/wire/native tests,
+and 9 Rust durability tests pass. Five deliberate mutations fail and were
+restored: zero-only floor writes, late listener registration, unclamped waiting
+admissions, silent floor increases, and first-transferred-time selection.
+Wasm remains 1776761 B raw / 495516 B gzip, below the unchanged 496000 B
+ceiling. Held browser expiry lateness in the final full run was 2, 2, 2, 2 and
+2 ms. No changed source exceeds 1500 lines. Reference audit: zero errors and
+zero unchecked references.
+
+The first full run reported `== 1 failure(s) in 627 s`: an environmental
+5000 ms timeout in the unchanged revoked-bearer streaming HTTP test. It passed
+alone in 1117 ms and in the full retry in 1040 ms. No test or timeout was relaxed.
+The full retry used the suite's existing serial-client-file option and passed:
+**`== 0 failure(s) in 1385 s`**, exit 0. All 1566 regular client tests passed,
+with 10 existing skips, and all 78 model tests passed with 5000 / 5000 / 3000
+seeded sequences. Final failures: lane-owned 0, baseline 0, environmental 0.
+The report also records the corrected development-only typing/fixture failures.
+
+No new Quarry form, public client API or refusal code; no server implementation
+change, authorization/disclosure/meter weakening, push, publication, ceiling
+increase or iOS simulator claim. No deviation from the round-7 brief and no
+known open finding. File map, examples, implementation choice and qualification:
+[Lane Y round-7 report](reports/20260925-lane-y-r7.md).
