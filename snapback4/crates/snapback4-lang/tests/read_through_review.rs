@@ -252,3 +252,7 @@ scenario!(predicate_index_expiry);
 scenario!(predicate_point_expiry);
 scenario!(predicate_private_authorization_expiry);
 scenario!(streaming_count_expiry);
+
+scenario!(predicate_cut_discards_expiry);
+
+scenario!(predicate_kept_row_expiry);

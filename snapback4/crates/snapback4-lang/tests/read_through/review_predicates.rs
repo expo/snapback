@@ -222,3 +222,42 @@ pub fn streaming_count_expiry(mut factory: impl FnMut(&str) -> Box<dyn Backend>)
         );
     }
 }
+
+// Astra R7: a completed first read belongs to an interrupted predicate scope.
+pub fn predicate_cut_discards_expiry(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
+    for keep in [false, true] {
+        let source = format!("{MODEL}\nquery cut():\n  {}\n  return {{ kept: {}, page: docs where .body = gates[id = .gate].label and .body = gates[id = .gate].label first 10 by .id }}\n",
+            if keep { "kept = gates[id = 'keep']" } else { "kept = null" }, "kept");
+        let mut replies = Vec::new();
+        for deadline in [300, 500] {
+            let mut e = factory(&source);
+            doc(&mut *e,"a","match","g");
+            gate(&mut *e,"g","a",deadline);
+            gate(&mut *e,"second","second",700);
+            gate(&mut *e,"keep","keep",250);
+            let ceilings = Ceilings { rule_probes: 1, ..Ceilings::default() };
+            if let Some(reply) = e.query("cut", ctx("alice",200,&[]), ceilings) {
+                assert!(!reply.complete && !reply.unavailable, "{reply:?}");
+                assert!(reply.capped_at.is_some(), "{reply:?}");
+                assert_eq!(reply.next_expiry, keep.then_some(250), "{reply:?}");
+                assert!(reply.data.field("page").unwrap().as_array().unwrap().is_empty(),"{reply:?}");
+                assert_eq!(reply.metered.rule_probes,2,"{reply:?}");
+                replies.push(reply);
+            }
+        }
+        if replies.len() == 2 { assert_eq!(replies[0],replies[1]); }
+    }
+}
+
+// Grok R7: a kept filtered row must commit its own candidate token as well.
+pub fn predicate_kept_row_expiry(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
+    let model=MODEL.replace("table docs:\n", "table docs:\n  until: time default 300\n  expire at .until\n");
+    let source=format!("{model}\nquery kept():\n  docs where .body = 'keep' and slice(.body, 0, 1) = 'k' first 10 by .id\n");
+    let mut e=factory(&source);
+    doc(&mut *e,"a","keep","none");
+    for (now,expected,expiry) in [(200,vec!["a"],Some(300)),(300,vec![],None)] {
+        if let Some(reply)=e.query("kept",ctx("alice",now,&[]),Ceilings::default()) {
+            assert!(reply.complete && !reply.unavailable,"{reply:?}");assert_eq!(reply.next_expiry,expiry,"{reply:?}");assert_rows(reply.data,&expected);
+        } else {assert_rows(e.run("kept",ctx("alice",now,&[]),Ceilings::default()).0.unwrap(),&expected);}
+    }
+}
