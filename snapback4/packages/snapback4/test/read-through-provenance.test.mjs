@@ -39,6 +39,10 @@ fn rowsFor(parent: parents):
 query outer():
   parents where .visible = true first 10 by .rank {title, rows: rowsFor(.id)}
 
+query nested(parent: parents):
+  rows = children where .parent = parent first 10 by .id {id, body}
+  return [{rows}]
+
 query page(parent: parents):
   children where .parent = parent first 10 by .id {roomId: .parent, body}
 
@@ -84,6 +88,9 @@ mutation replace(old: children, id: children, parent: parents):
 
 mutation edit(id: children):
   update children[id] {body: 'current'}
+
+mutation dropChild(id: children):
+  delete children[id]
 
 mutation dropReaction(id: reactions):
   delete reactions[id]
@@ -182,5 +189,41 @@ for(const tier of ["wasm","process"]) {
     const local=host.answers.findLast(a=>a.name==="partial");
     assert.deepEqual(local.retainedRows.map(m=>m.source),[["parents","A"],null,["parents","C"],["parents","D"]]);
     assert.equal(local.retainedRows[3].retained,false);
+  });
+}
+
+for(const tier of ["wasm","process"]) {
+  test(`${tier}: an anonymous nested page appends only retained history after a partial rejoin`,{timeout:60000},async t=>{
+    const host=await server(t,tier,source);
+    assert.equal((await host.post("/seed",[parent("A",0),child("c","A"),child("old","A")])).seeded,3);
+    const client=await host.open();await leave(host,"children");
+    const state=(await host.core.call({op:"state"})).ok;
+    const snapshot=await host.post("/sync",{from:0,limit:100});
+    const current=snapshot.events.find(e=>e.table==="children"&&e.id==="c");assert.ok(current);
+    const rejoined=await host.core.call({op:"apply",page:{snapshot:false,watermark:state.watermark,generation:state.generation,more:false,events:[current],joined:{children:[["dev:bob"]]}}});
+    assert.equal(rejoined.denied,undefined,JSON.stringify(rejoined));
+    await mutate(host,"edit",{id:"c"});await mutate(host,"dropChild",{id:"old"});
+    const local=(await host.core.call({op:"query",name:"nested",args:{parent:"A"},viewer:"dev:bob",now:Date.now()})).ok;
+    assert.equal(local.unknown,true);assert.equal(local.complete,false);
+    assert.deepEqual(local.data,[{rows:[{id:"c",body:"old-A"},{id:"old",body:"old-A",retained:true}]}]);
+    assert.equal(local.retainedRows[0].source,null);
+    assert.deepEqual(local.retainedRows[0].fields.rows.map(m=>[m.source,m.retained]),[[["children","c"],false],[["children","old"],true]]);
+    const result=await client.query({kind:"query",name:"nested"},{parent:"A"});
+    assert.deepEqual(result.data,[{rows:[{id:"c",body:"current"}]},{rows:[{id:"old",body:"old-A",retained:true}]}]);
+    assert.equal(result.complete,false);assert.equal(result.fresh,false);
+  });
+  test(`${tier}: an in-place edit under an anonymous nested page replaces its retained copy`,{timeout:60000},async t=>{
+    const host=await server(t,tier,source);
+    assert.equal((await host.post("/seed",[parent("A",0),child("x","A")])).seeded,2);
+    const client=await host.open();await leave(host,"children");await mutate(host,"edit",{id:"x"});
+    const local=(await host.core.call({op:"query",name:"nested",args:{parent:"A"},viewer:"dev:bob",now:Date.now()})).ok;
+    assert.equal(local.unknown,true);
+    assert.deepEqual(local.data,[{rows:[{id:"x",body:"old-A",retained:true}]}]);
+    assert.deepEqual(local.retainedRows[0].fields.rows[0].source,["children","x"]);
+    const remote=await host.post("/q/nested",{args:{parent:"A"},provenance:true});
+    assert.deepEqual(remote.rowProvenance[0].fields.rows[0].source,["children","x"]);
+    const result=await client.query({kind:"query",name:"nested"},{parent:"A"});
+    assert.deepEqual(result.data,[{rows:[{id:"x",body:"current"}]}],"no stale retained duplicate or empty anonymous wrapper");
+    assert.equal(result.complete,false);assert.equal(result.fresh,false);
   });
 }

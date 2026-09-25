@@ -20,6 +20,38 @@ const uniqueSources = (masks: unknown[]): Map<string, number> => {
   });
   return new Map([...positions].filter(([, index]) => index !== -1));
 };
+const sourcesIn = (mask: unknown, sources = new Set<string>()): Set<string> => {
+  if (Array.isArray(mask)) mask.forEach(child => sourcesIn(child, sources));
+  else if (object(mask)) {
+    const source = identity(mask);
+    if (source !== undefined) sources.add(source);
+    if (object(mask.fields)) Object.values(mask.fields).forEach(child => sourcesIn(child, sources));
+  }
+  return sources;
+};
+const omitted = Symbol("no retained projection");
+// Anonymous leftovers cannot identify a current row. Keep only retained rows
+// and the containers leading to them, excluding sources the server returned.
+// A retained row keeps its own scalar/JSON fields; nested source rows decide
+// retention independently, so they cannot reintroduce a stale current image.
+function retainedProjection(value: unknown, mask: unknown, sources: Set<string>, retained = false): unknown {
+  if (Array.isArray(value) && Array.isArray(mask)) {
+    const items = value.map((child, index) => retainedProjection(child, mask[index], sources, retained)).filter(child => child !== omitted);
+    return retained || items.length ? items : omitted;
+  }
+  if (object(value) && object(mask) && object(mask.fields)) {
+    const source = identity(mask);
+    if (source !== undefined && sources.has(source)) return omitted;
+    retained = mask.retained === true || (source === undefined && retained);
+    const fields = mask.fields;
+    const entries = Object.entries(value).flatMap(([key, child]) => {
+      const projected = retainedProjection(child, fields[key], sources, retained);
+      return projected === omitted ? [] : [[key, projected]];
+    });
+    return retained || entries.length ? Object.fromEntries(entries) : omitted;
+  }
+  return retained ? value : omitted;
+}
 export function keepRetainedRows(current: unknown, local: unknown, mask: unknown, currentMask?: unknown): unknown {
   if (!hasRetainedRows(mask)) return current;
   if (Array.isArray(current) && Array.isArray(local)) {
@@ -29,6 +61,7 @@ export function keepRetainedRows(current: unknown, local: unknown, mask: unknown
     const locals = uniqueSources(mask), servers = uniqueSources(currentMask);
     const pairs = new Map<number, number>();
     const pairedLocals = new Set<number>();
+    let serverSources: Set<string> | undefined;
     for (const [source, index] of servers) {
       const paired = locals.get(source);
       if (paired !== undefined) { pairs.set(index, paired); pairedLocals.add(paired); }
@@ -38,7 +71,12 @@ export function keepRetainedRows(current: unknown, local: unknown, mask: unknown
         const paired = pairs.get(index);
         return paired === undefined ? value : keepRetainedRows(value, local[paired], mask[paired], currentMask[index]);
       }),
-      ...local.filter((_, index) => !pairedLocals.has(index) && hasRetainedRows(mask[index])),
+      ...local.flatMap((value, index) => {
+        if (pairedLocals.has(index) || !hasRetainedRows(mask[index])) return [];
+        if (identity(mask[index]) !== undefined) return [value];
+        const projected = retainedProjection(value, mask[index], serverSources ??= sourcesIn(currentMask));
+        return projected === omitted ? [] : [projected];
+      }),
     ];
   }
   if (object(current) && object(local) && object(mask) && object(currentMask)) {

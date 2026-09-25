@@ -214,3 +214,34 @@ for(const repeated of ["local", "server", "both"]) test(`retained fallback leave
     ...servers.slice(0,-1),{label:"B-current",rows:[{body:"B-current"},{body:"B-old",retained:true}]},...locals.slice(0,-1),
   ]);
 });
+
+
+test("retained fallback never attaches one object's history to a different source",()=>{
+  const local={title:"A",rows:[{body:"old-A",retained:true}]};
+  const current={title:"B",rows:[{body:"new-B"}]};
+  const localMask=mask("parents","A",false,{rows:[mask("children","old-A",true)]});
+  const currentMask=mask("parents","B",false,{rows:[mask("children","new-B")]});
+  assert.deepEqual(keepRetainedRows(current,local,localMask,currentMask),local);
+});
+
+test("anonymous retained projections use nested source identities and keep identified leftovers whole",()=>{
+  const ordinary={id:"projected",body:"stale"}, old={id:"projected",body:"history",retained:true};
+  const current=[{rows:[{id:"projected",body:"fresh"}]}];
+  const anonymous=fields=>({source:null,retained:false,fields});
+  const local=[{label:"current label",rows:[ordinary,{body:"unreturned current"},old]}];
+  const fields={label:null,rows:[mask("comments","x"),mask("comments","unreturned"),mask("reactions","x",true,{id:null,body:null,retained:null})]};
+  const serverMask=[anonymous({rows:[mask("comments","x")]})];
+  assert.deepEqual(keepRetainedRows(current,local,[anonymous(fields)],serverMask),[...current,{rows:[old]}],"table qualification keeps the reaction; projected IDs and stale wrapper fields cannot supply identity");
+  assert.deepEqual(keepRetainedRows(current,local,[mask("parents","A",false,fields)],serverMask),[...current,...local],"identified unpaired elements remain whole");
+});
+
+
+test("anonymous projection preserves retained JSON fields but excludes nested current rows",()=>{
+  const details={labels:["kept",null],seen:false};
+  const stale={body:"stale"}, history={body:"history",retained:true,details,related:[stale]};
+  const anonymous=fields=>({source:null,retained:false,fields});
+  const provenance=[anonymous({rows:[mask("comments","old",true,{
+    body:null,retained:null,details:anonymous({labels:[null,null],seen:null}),related:[mask("reactions","current",false,{body:null})],
+  })]})];
+  assert.deepEqual(keepRetainedRows([], [{rows:[history]}],provenance,[]),[{rows:[{body:"history",retained:true,details,related:[]}]}]);
+});
