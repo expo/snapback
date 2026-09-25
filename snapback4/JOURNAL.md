@@ -55553,3 +55553,62 @@ source is 1,435 lines. No syntax, refusal code, store/cursor format, sync/device
 feature, guide rewrite, push or publication was added. No requested fix
 remains open. File map, examples, mutation witnesses and full failure accounting:
 [round-5 report](reports/20260925-intent-lane-t-round5.md).
+
+
+## 2026-09-25 — LLP 3000.014 Lane T round-6 provisional read deadlines
+
+Addressed Grok's admitted aggregate-page recount cut and uniform-prefix cut,
+and Astra's two-group partial-page witness. Implementation commit: `5c2167257`.
+Deadlines now belong to nested provisional scopes. Point reads and page
+candidates commit on emission; all other exits discard their provisional
+metadata while preserving charges and cuts. Prefix decisions and candidate
+preparation return opaque pending deadlines and cannot publish them directly.
+Removed the redundant point, shortcut, page, prefix and parent-resolver expiry
+restores. Earlier emitted partial-page rows retain their own deadlines.
+
+Four shared scenarios cover admitted point/page recount cuts at private
+deadlines 300/500, uniform ordinary/matching pages with absent/300/500 gates,
+partial pages retaining the first group's 300 deadline, and filtered/lookahead
+candidates that emit nothing. Two native MemoryRows boundary tests prove that
+successful preparation alone cannot publish metadata. Existing shortcut tests
+now use the owning point-read boundary and still observe physical lookups.
+Both reported leaks fail against unchanged round-5 production. All four
+mutations fail independently: premature prefix publication, premature admitted
+candidate publication, missing page-row emission, and missing central emission
+join. Every mutation was restored before qualification.
+
+Targeted shared tests: 28 passed on SQLite/native MemoryStore. Core unit tests:
+91 passed. PostgreSQL: 30 passed (seven original read-through and 23 review
+scenarios), with ignored tests enabled on the lane's isolated cluster; stopped
+that cluster afterward. Ref-check: 508 LLP documents, 9,286 references across
+25,909 files, zero errors and zero unchecked references. The reviewer's
+throwaway `delta_probe.rs` was absent. Frozen Bun install changed nothing.
+
+Full `scripts/test.sh`: **`== 0 failure(s) in 1320 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust: 3,020 passed, zero failed, 16 ignored. Clients: 1,591 total, 1,581 passed,
+zero failed, ten existing skips. All 80 guide tests passed. No baseline or
+environmental failure was waived or repaired, and no assertion was weakened.
+
+Failed preflights, all ours: the first wasm build exceeded the old gzip ratchet
+by 13 bytes; the final scope fast path and a discarded no-inline experiment
+both exceeded it by 28 bytes. A command launched from the worktree root instead
+of `snapback4/` exited 127 before running any tests. The corrected full run
+above passed every step. The report records those attempts and all intentional
+negative controls separately from the successful qualification.
+
+Round 5 remeasured at 1,796,003 raw / 501,797 gzip bytes. Round 6 measures
+1,799,122 / 503,028 on Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt:
++3,119 raw / +1,231 gzip for the whole artifact, without independent component
+attribution. Following the explicit artifact ratchet policy, the implementation
+commit raises the gzip budget from 503,000 to 504,000 bytes, leaving 972 bytes;
+its message and budget `why` record the reason. Runtime ceilings and recount
+charges are unchanged. One fixed control allocation per runner owns stack-sized
+marks; nesting adds no row-dependent ledger. Deferred matching metadata uses
+the existing size-based heap charge. `engine/read.rs` remains 1,436 lines.
+
+LLP 3000.014 §5 and the maintains card record provisional ownership and emission.
+No requested fix remains open. No new form, refusal code, store/cursor/wire
+format, sync/device feature, broad guide rewrite, push or publication was added.
+File map, examples, mutation witnesses, decisions and complete failure accounting:
+[round-6 report](reports/20260925-intent-lane-t-round6.md).
