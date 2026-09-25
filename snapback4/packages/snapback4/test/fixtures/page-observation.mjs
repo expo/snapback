@@ -21,8 +21,8 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     if (offline) throw Error("controlled offline link after pending send");
     if (holdInbox && path === "q/inbox") await inboxGate;
     const response = await fetch(input, init);
-    // Schedule one rerun per observation without committing device rows. The
-    // data comes from the real server; only the retry deadline is controlled.
+    // Give each observation a known authorization deadline without a row
+    // commit. A stalled replacement cannot extend the old answer's lifetime.
     if (path === "q/inbox" && !expiryArmed.has(init.body)) {
       expiryArmed.add(init.body);
       return Response.json({ ...await response.json(), nextExpiry: Date.now() + 2000 });
@@ -61,16 +61,14 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     await until(() => inbox.getSnapshot().data?.[0]?.unread === 3, "published inbox");
     if (hooks) await until(() => hooks.read().query.data?.[0]?.unread === 3 && hooks.read().page.items[0]?.unread === 3, "both hooks published inbox");
     check(replies.some(row => row.name === "inbox" && row.reply.ok?.loading), "the cold device's unread domain crosses its horizon");
+    const initialUnread = inbox.getSnapshot().data[0].unread;
     const publicationStart = snapshots.length;
     holdInbox = true; inboxGate = new Promise(resolve => { releaseInbox = resolve; });
     const before = requests.filter(path => path === "q/inbox").length;
-    await until(() => requests.filter(path => path === "q/inbox").length > before && inbox.getSnapshot().fresh === false, "local server fallback");
-    const kept = inbox.getSnapshot();
-    check(kept.data?.[0]?.unread === 3 && Number.isFinite(kept.since), "published inbox bridges the server fetch");
-    if (hooks) await until(() => hooks.read().query.fresh === false && hooks.read().page.read.fresh === false, "both hooks bridge the fetch");
-    if (hooks) check(hooks.read().query.data[0].unread === 3 && hooks.read().page.items[0].unread === 3, "neither hook blanks its first page during the fetch");
-    check(snapshots.slice(publicationStart).every(read => "data" in read), "no blank while the replacing fetch is in flight");
-    check(inbox.getSnapshot().since === kept.since, "since is stable during the fetch");
+    await until(() => requests.filter(path => path === "q/inbox").length > before && inbox.getSnapshot().loading, "expired inbox with stalled fallback");
+    if (hooks) await until(() => hooks.read().query.loading && hooks.read().page.read.loading, "both hooks withdraw expired data");
+    if (hooks) check(hooks.read().page.items.length === 0, "expired first-page rows cannot bridge the fetch");
+    check(snapshots.slice(publicationStart).every(read => !("data" in read)), "no expired data while the replacing fetch is in flight");
     holdWrite = true;
     const pending = await reader.mutate(m("resetRead"), { chat: dm.result });
     check(pending.state === "pending" && reader.client.link() === "online", "pending prediction while online");
@@ -110,7 +108,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     check(inbox.getSnapshot().denied?.code === "E_AUTH", "the retired app facade refuses access and clears its kept answer");
     if (hooks) await until(() => hooks.read().query.data?.[0]?.principal === bob.session.principal, "new account's hooks answer");
     if (hooks) check(hooks.read().page.items.every(row => row.principal === bob.session.principal), "pages contain only the new account's rows");
-    return { keptUnread: kept.data[0].unread, since: kept.since, serverFallback: true, accountCleared: true };
+    return { initialUnread, expiryCleared: true, serverFallback: true, accountCleared: true };
   } finally {
     releaseInbox?.(); releaseWrite?.();
     await unmount?.();

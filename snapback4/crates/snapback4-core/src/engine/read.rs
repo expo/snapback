@@ -395,7 +395,6 @@ impl Runner<'_> {
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
             let live = self.live_aggregate(&read.table, row)?;
-            if self.device && live.is_some() { self.components.note(|frame| frame.held = true); }
             let row = live.unwrap_or(Value::Null);
             // Engine transitions need the source's slot; application rows never expose it.
             Ok(if matches!(self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_))) { row }
@@ -983,7 +982,6 @@ impl Runner<'_> {
                     }
                     let Some(row) = live_row else { continue; };
                     let row = super::recorded::public_image(table, row);
-                    if self.device { self.components.note(|frame| frame.held = true); }
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;

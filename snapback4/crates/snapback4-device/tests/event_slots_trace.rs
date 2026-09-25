@@ -206,7 +206,7 @@ fn mixed(reposts: &str) -> Json {
         let out=t.query(name,input); assert_eq!(out["ok"]["speculative"],true,"{out}");
     }
     assert_eq!(t.query("original",json!({"actor":"alice","postId":"missing"}))["ok"]["data"],Json::Null);
-    let hit=t.query("event",json!({"eventId":"p"})); assert_eq!(hit["ok"]["data"]["id"],"p"); assert_eq!(hit["ok"]["held"],true); assert_eq!(hit["ok"]["speculative"],false);
+    let hit=t.query("event",json!({"eventId":"p"})); assert_eq!(hit["ok"]["data"]["id"],"p"); assert_eq!(hit["ok"]["unknown"],false); assert_eq!(hit["ok"]["speculative"],false);
     let out=t.admit("needsEvent",json!({"eventId":"E"})); assert_eq!(out["ok"]["predictable"],false,"{out}");
     for (name, input) in [("gated",json!({"eventId":"E"})),("gatedActor",json!({"actor":"unheld"}))] {
         let out=t.admit(name,input); assert_eq!(out["ok"]["predictable"],false,"{out}");

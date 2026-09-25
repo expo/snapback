@@ -56409,3 +56409,32 @@ No known open correctness failure or stopped design part remains. No push or
 publication. The supervisor owns re-review and integration; file-by-file changes,
 reproductions, artifact provenance, failure accounting and compressed evidence
 are in the [round-1 report](reports/20260925-event-slots-r1/REPORT.md).
+
+### 2026-09-25 — Lane U round 6: read provenance and authorization deadlines
+
+Implemented the round-6 refinements to LLP 3000.016's numbered publication
+procedure. Quarry/native device replies and composed components now carry
+speculative/held provenance; removed the client's shape heuristic. Unknown
+non-speculative prefixes, empty retained components and scalar projections stay
+data. Speculative results recover unexpired server memory unless a prediction
+fence requires preserving held local values. Memory keeps nextExpiry and the
+original since; recovery and final publication reject expired data. Watches
+withdraw expired snapshots before asynchronous recovery, including a blocked
+device call. Session/incarnation, prediction, local-commit, authorization and
+meter fences remain; authoritative refusal/loading are preserved.
+
+Measured: final scripts/test.sh **== 0 failure(s) in 576 s**, exit 0.
+Rust passed; main client 1,605 passed / 0 failed / 10 existing skips, all 34
+acquisition/server shard tests and all 78 model tests passed. Both requested
+timestamp/freshness mutations fail their tests. Real wasm/process probes cover
+wrapped presence and projections without id; memory/SQLite cover retained empty
+and scalar values. The process-device expiry probe blocks recovery at the
+deadline; Chromium/IndexedDB and useQuery/usePage withdraw expired pages.
+Wasm is 1,772,196 B raw / 495,698 B gzip under the unchanged 496,000 B budget.
+All development failures and corrections are recorded in the
+[round-6 report](reports/20260925-bounded-following-r6/REPORT.md).
+
+Not done: no acquisition or packed-format remeasurement, no residency/history
+redesign, no increased ceilings/timeouts, no push or publication. The prior
+2.387× acquisition result and unmet 5× target remain explicit; fully synced
+events alone prevent a 5× reduction in the prior raw row-count/row-byte units.

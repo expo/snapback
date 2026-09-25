@@ -322,7 +322,6 @@ for (const held of [false, true]) for (const fenced of [false, true]) {
     f.outcome = { data: [{ body: "local", online: true }], unknown: true, complete: false, speculative: true, held, tables: ["posts"] };
     const read = await f.read();
     if (!fenced) assert.deepEqual(read.data, ["server"]);
-    else if (held) { assert.deepEqual(read.data, [{ body: "local", online: true }]); assert.equal(read.complete, false); }
     else assert.deepEqual(read, { loading: true });
   });
 }
@@ -370,5 +369,61 @@ for (const reply of [{ denied: { code: "E_BOUND", family: "bound", message: "cei
     const f = routing(); f.entries = [];
     f.env.post = async () => ({ ok: true, json: { ...reply, nextExpiry: 1 }, obsoleteAuth: false });
     assert.deepEqual(await f.read(), reply);
+  });
+}
+
+// Round 7: unrelated read provenance cannot authorize a speculative refusal.
+for (const fenced of [false, true]) test(`rule 4: speculative refusal is a placeholder (fenced=${fenced})`, async () => {
+  const f = routing(); f.entries = []; await f.read();
+  f.env.link = "offline"; f.entries = fenced ? [prediction] : [];
+  f.outcome = { denied: { code: "NOT_FOUND", family: "application", message: "placeholder" }, unknown: true, complete: false, speculative: true, held: true, tables: ["posts"] };
+  const read = await f.read();
+  if (fenced) assert.deepEqual(read, { loading: true });
+  else assert.deepEqual(read.data, ["server"], "a speculative refusal recovers memory like a speculative null");
+});
+
+for (const fenced of [false, true]) for (const failed of [false, true]) {
+  test(`rule 4: retained composition beside speculative null (fenced=${fenced}, failed=${failed})`, async () => {
+    const f = routing(); f.entries = fenced ? [prediction] : [];
+    const data = { left: [{ body: "retained" }], right: null };
+    f.outcome = { data, unknown: true, complete: false, speculative: true, tables: ["posts"],
+      components: { left: { retained: true, unknown: false, speculative: false }, right: { unknown: true, speculative: true } } };
+    f.env.serverAnswers.set(`read:${JSON.stringify(input)}`, { read: { data: "obsolete" }, at: 1, nextExpiry: null, tables: new Set() });
+    let attempts = 0;
+    if (failed) f.env.post = async () => { attempts++; f.env.link = "offline"; return { ok: false }; }; else f.env.link = "offline";
+    const read = await f.read();
+    assert.deepEqual(read.data, data); assert.equal(read.complete, false);
+    assert.equal(attempts, failed && !fenced ? 1 : 0);
+    assert.equal(f.env.serverAnswers.size, 0, "independent components never recover whole-answer memory");
+  });
+}
+
+for (const composed of [false, true]) for (const boundary of ["transport", "publication"]) {
+  test(`rule 5: delayed ${composed ? "composed" : "server"} data expires during ${boundary}`, async t => {
+    let now = 100; t.mock.method(Date, "now", () => now);
+    const f = routing(); f.entries = [];
+    if (composed) f.outcome = { data: { left: [{ body: "retained" }], right: null }, unknown: true, complete: false, speculative: true, tables: ["posts"],
+      components: { left: { retained: true, unknown: false, speculative: false }, right: { unknown: true, speculative: true } } };
+    let release, reached;
+    const gate = new Promise(resolve => { release = resolve; });
+    const waiting = new Promise(resolve => { reached = resolve; });
+    let delivered = false, checks = 0, calls = 0;
+    f.env.post = async () => {
+      if (boundary === "transport") { reached(); await gate; }
+      delivered = true;
+      return { ok: true, json: { data: composed ? { left: [], right: { body: "private" } } : [{ body: "private" }], complete: true, nextExpiry: 200 }, obsoleteAuth: false };
+    };
+    // Server: delivery + final check. Composition also gates after reobservation.
+    f.env.queued = async () => {
+      if (boundary === "publication" && delivered && ++checks === (composed ? 3 : 2)) { reached(); await gate; }
+      return [];
+    };
+    const call = f.env.call; f.env.call = async (...args) => { calls++; return call(...args); };
+    const pending = evaluateLocal(f.env, op, input, 0, 0);
+    await waiting; now = 200; release();
+    const result = await pending;
+    assert.deepEqual(result.read, { loading: true }); assert.equal(result.nextExpiry, null);
+    assert.equal(f.env.serverAnswers.size, 0, "an expired response never becomes remembered data");
+    assert.equal(calls, composed ? 2 : 1, "exercise the composed publication candidate, not just server routing");
   });
 }

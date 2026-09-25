@@ -132,7 +132,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                     },
                     Err(refusal) => json!({ "denied": encoded(&refusal)? }),
                 };
-                for (field, value) in [("unknown", unknown), ("retained", retained), ("speculative", provenance.speculative), ("held", provenance.held)] {
+                for (field, value) in [("unknown", unknown), ("retained", retained), ("speculative", provenance.speculative)] {
                     reply[field] = Json::Bool(value);
                 }
                 reply

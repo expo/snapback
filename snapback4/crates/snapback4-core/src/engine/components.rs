@@ -7,12 +7,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Coverage { pub complete: bool, pub unknown: bool, pub retained: bool, pub speculative: bool, pub held: bool }
+pub struct Coverage { pub complete: bool, pub unknown: bool, pub retained: bool, pub speculative: bool }
 
 /// Read provenance, independent of the returned value's shape.
 // @ref LLP 3000.007#6.5 — placeholder recovery needs read facts, including through projections and presence wrappers.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Provenance { pub speculative: bool, pub held: bool }
+pub struct Provenance { pub speculative: bool }
 
 #[derive(Clone, Default)]
 pub(super) struct Frame {
@@ -26,13 +26,12 @@ pub(super) struct Frame {
     pub capped: bool,
     pub pending: bool,
     pub speculative: bool,
-    pub held: bool,
 }
 impl Frame {
     pub(super) fn coverage(&self) -> Coverage {
         let other = self.pending || self.unknown || self.non_uniform || self.overflow || self.words || self.presence || self.capped;
         // @ref LLP 3000.007#20.22.1 — presence is server knowledge: a component that waited on it is unknown, not merely incomplete.
-        Coverage { complete: !other && !self.beyond, unknown: self.unknown || self.presence, retained: self.retained && !other, speculative: self.speculative, held: self.held || self.retained }
+        Coverage { complete: !other && !self.beyond, unknown: self.unknown || self.presence, retained: self.retained && !other, speculative: self.speculative }
     }
 }
 
@@ -54,10 +53,9 @@ impl Frames {
     }
     pub fn provenance(&self) -> Provenance {
         // Observe even without a composition plan, and preserve facts on refusal.
-        let mut facts = Provenance { speculative: self.shared.speculative, held: self.shared.held || self.shared.retained };
+        let mut facts = Provenance { speculative: self.shared.speculative };
         for frame in &self.frames {
             facts.speculative |= frame.speculative;
-            facts.held |= frame.held || frame.retained;
         }
         facts
     }

@@ -160,7 +160,7 @@ query conditionalEventsHeld():
     assert.deepEqual(await bob.client.query(query("conditionalEventsHeld"), {}), { loading: true }, "an unrelated held post cannot validate the speculative branch");
     const branch = bob.observed.at(-1);
     assert.deepEqual(branch.data, []);
-    assert.equal(branch.unknown, true); assert.equal(branch.speculative, true); assert.equal(branch.held, true);
+    assert.equal(branch.unknown, true); assert.equal(branch.speculative, true); assert.ok(branch.tables.includes("posts"));
     assert.equal(bob.queries.length, before, "executed and possible event reads depend on the predicted source slot");
     bob.holdWrites = false;
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "source prediction was not observed");
@@ -194,11 +194,73 @@ query filteredEvents():
     assert.deepEqual(await bob.client.query(query("filteredEvents"), {}), { loading: true });
     const scan = bob.observed.at(-1);
     assert.deepEqual(scan.data, []); assert.equal(scan.unknown, true); assert.equal(scan.speculative, true);
-    assert.equal(scan.held, false, "filter-rejected rows do not contribute a held result");
+    assert.equal("held" in scan, false, "query-wide held provenance has been removed");
     assert.equal(bob.queries.length, before, "the prediction fence prevents a server replacement");
     bob.holdWrites = false;
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "filtered prediction was not observed");
     assert.ok((await bob.client.query(query("filteredEvents"), {})).data.some(row => row.postId === "own-filtered"));
+  });
+
+  test(`bounded Following ${tier}: unrelated held reads cannot validate speculative refusals or empty pages`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, undefined, source => source + `
+table notes:
+  body: text <=40
+  public 'guard witness'
+  insert <- true
+  sync public
+table audit:
+  body: text <=40
+  public 'guard witness'
+  online only
+table eventSwitch:
+  enabled: bool
+  public 'unknown filter witness'
+  online only
+mutation addNote(id: id):
+  return insert notes { id, body: 'predicted' }
+query guarded():
+  ignored = notes[id = 'n2']
+  return audit[id = 'a1'] ! else NOT_FOUND
+query conditionalEvents():
+  held = posts['p3']
+  if exists eventSwitch['gate']:
+    return feedPosts last 10 by .at
+  return []
+query filteredEvents():
+  return feedPosts last 10 by .at where exists eventSwitch['gate']
+`);
+    await f.seed([
+      { table: "notes", row: { id: "n2", body: "held" } },
+      { table: "audit", row: { id: "a1", body: "server" } },
+      { table: "eventSwitch", row: { id: "gate", enabled: true } },
+    ]);
+    const bob = await f.open("bob");
+    for (const name of ["guarded", "conditionalEvents", "filteredEvents"]) {
+      const answer = await bob.client.query(query(name), {});
+      if (name === "guarded") assert.equal(answer.data.id, "a1");
+      else assert.ok(answer.data.length > 0, "server takes the true gate branch");
+    }
+    bob.holdWrites = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-gated", parentId: null, at: 20 });
+    await bob.client.mutate(mutation("addNote"), { id: "own-note" });
+    const entries = (await bob.core.call({ op: "queued" })).ok;
+    for (const table of ["posts", "notes"]) assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith(table + "/"))));
+    for (const offline of [false, true]) {
+      bob.offline = offline; await bob.client.sync();
+      for (const name of ["guarded", "conditionalEvents", "filteredEvents"]) {
+        const before = bob.queries.length;
+        assert.deepEqual(await bob.client.query(query(name), {}), { loading: true }, name);
+        const raw = bob.observed.at(-1);
+        assert.equal(raw.unknown, true); assert.equal(raw.speculative, true);
+        if (name === "guarded") assert.equal(raw.denied.code, "NOT_FOUND");
+        else if (name === "filteredEvents") {
+          // Z's partial owned-table read withholds before the scan. The fully
+          // synced event-slot case above separately exercises rejected rows.
+          assert.equal(raw.loading, true); assert.equal("data" in raw, false);
+        } else assert.deepEqual(raw.data, []);
+        assert.equal(bob.queries.length, before, "neither a server nor remembered answer can pass the fence");
+      }
+    }
   });
 
   test(`bounded Following ${tier}: unknown conditions preserve static and helper dependencies`, { timeout: 30000 }, async t => {
@@ -310,7 +372,7 @@ query conditionalFeed(c: cursor ?):
     assert.equal(bob.queries.length, before, "known local branch always wins, even after narrowing possible reads");
   });
 
-  test(`bounded Following ${tier}: an available unknown profile preserves predicted feed rows`, { timeout: 30000 }, async t => {
+  test(`bounded Following ${tier}: a speculative profile withholds while a non-speculative page keeps predicted rows`, { timeout: 30000 }, async t => {
     const f = await fixture(t, tier, undefined, source => source + `
 table profiles:
   name: text <=40
@@ -330,6 +392,9 @@ mutation profile(id: id, at: time):
 query withProfile():
   rows = feed last 2 by .at { *, post: posts[.post] }
   return { rows, profile: profiles['old'] }
+query partialWithProfile():
+  rows = feed last 2 by .at { *, post: posts[.post] }
+  return { rows, profiles: profiles last 10 by .at }
 query remoteProfile():
   return remoteProfiles['old']
 `);
@@ -344,17 +409,21 @@ query remoteProfile():
     await bob.client.mutate(mutation("post"), { postId: "own-profile", parentId: null, at: 20 });
     const before = bob.queries.length;
     const answer = await bob.client.query(query("withProfile"), {});
-    assert.equal(answer.data.rows[0].post.id, "own-profile"); assert.equal(answer.data.rows[0].pending, true);
-    assert.equal(answer.data.profile, null); assert.equal(answer.complete, false);
+    assert.deepEqual(answer, { loading: true }, "an unrelated held page cannot validate a speculative profile");
     const raw = bob.observed.at(-1); assert.equal(raw.unknown, true); assert.notEqual(raw.loading, true);
-    assert.equal(raw.speculative, true); assert.equal(raw.held, true);
-    assert.equal(bob.queries.length, before, "an available prediction must stay data without fallback");
+    assert.equal(raw.speculative, true);
+    assert.equal(bob.queries.length, before, "a prediction fences speculative profile recovery");
+    const partial = await bob.client.query(query("partialWithProfile"), {});
+    assert.equal(partial.data.rows[0].post.id, "own-profile"); assert.equal(partial.data.rows[0].pending, true);
+    assert.equal(partial.complete, false); assert.equal(bob.observed.at(-1).speculative, false);
     const profile = await bob.client.query(query("remoteProfile"), {});
     assert.equal(profile.data.name, "remote");
     assert.equal(bob.queries.at(-1).path, "/q/remoteProfile", "unrelated profiles are not fenced by a pending post");
     bob.offline = true; await bob.client.sync();
     const offline = await bob.client.query(query("withProfile"), {});
-    assert.equal(offline.data.rows[0].post.id, "own-profile"); assert.equal(offline.complete, false);
+    assert.deepEqual(offline, { loading: true });
+    const offlinePartial = await bob.client.query(query("partialWithProfile"), {});
+    assert.equal(offlinePartial.data.rows[0].post.id, "own-profile"); assert.equal(offlinePartial.complete, false);
   });
 
   test(`bounded Following ${tier}: a late card miss and oversized withheld output still use fallback`, { timeout: 30000 }, async t => {
@@ -663,7 +732,6 @@ query native_held(postId: posts, c: text <=2000 ?) held: native
   assert.equal(raw.loading, true, `native_query must propagate query_unavailable: ${JSON.stringify(raw)}`);
   assert.equal(raw.unknown, true); assert.equal("data" in raw, false); assert.equal("next" in raw, false);
   assert.equal(raw.speculative, true, "native card misses carry engine provenance");
-  assert.equal(raw.held, true, "native scan inputs include actually held inbox rows");
   assert.ok(raw.tables.includes("posts") && raw.tables.includes("feedFeed"));
   bob.offline = true; await bob.client.sync();
   assert.deepEqual(await bob.client.query(op, input), { loading: true });

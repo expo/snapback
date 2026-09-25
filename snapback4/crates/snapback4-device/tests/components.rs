@@ -117,10 +117,8 @@ fn frames<S: DeviceStore>(mut store: S) {
                 if ceilings.output_bytes == 1 { assert!(components.is_empty(), "shared output charging withholds components"); }
                 continue;
             }
-            assert!(facts.held, "authorized rows/retained groups are provenance even for scalars");
             assert_eq!(facts.speculative, program.name == "point", "only the past-horizon point is a placeholder");
             if program.name != "point" {
-                assert!(components["left"].held);
                 assert!(!components["left"].speculative);
                 assert!(!components["held"].speculative, "a horizon scan is partial data, even when empty");
             }
@@ -215,9 +213,9 @@ fn empty_provenance<S: DeviceStore>(mut store: S) {
         let program = backend.programs.iter().find(|p| p.name == name).unwrap();
         let (answer, unknown, _, components, facts) = local::observe_query(&rows, &backend.schema, program, context("viewer", &[]).at(100), Ceilings::default(), true);
         assert!(unknown);
-        assert!(facts.held && !facts.speculative);
-        assert!(components["left"].retained && components["left"].held && !components["left"].speculative);
-        assert!(components["held"].unknown && !components["held"].speculative && !components["held"].held);
+        assert!(!facts.speculative);
+        assert!(components["left"].retained && !components["left"].speculative);
+        assert!(components["held"].unknown && !components["held"].speculative);
         let data = answer.unwrap().data;
         assert_eq!(data.field("left").unwrap(), &if name == "empty" { Value::Array(vec![]) } else { Value::Int(0) });
         assert_eq!(data.field("held").unwrap(), &if name == "empty" { Value::Array(vec![]) } else { Value::Null });
