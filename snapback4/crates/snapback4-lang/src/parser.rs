@@ -9,6 +9,7 @@ use crate::print;
 
 mod expr;
 mod predicates;
+mod repairs;
 mod views;
 mod maintains;
 mod timeline;
@@ -30,13 +31,13 @@ pub(crate) fn precedence(op: &str) -> Option<u8> {
 }
 
 pub fn parse_document(file: &str, source: &str) -> (Document, Vec<Diagnostic>) {
-    parse_with_tables(file, source, Vec::new())
+    parse_with_types(file, source, Vec::new(), Default::default())
 }
 
-pub(crate) fn parse_with_tables(file: &str, source: &str, known_tables: Vec<TableDecl>) -> (Document, Vec<Diagnostic>) {
+pub(crate) fn parse_with_types(file: &str, source: &str, known_tables: Vec<TableDecl>, known_views: std::collections::BTreeMap<String, crate::types::Ty>) -> (Document, Vec<Diagnostic>) {
     let (tokens, diagnostics) = lex(file, source);
     let source = source.replace("\r\n", "\n").replace('\r', "\n").split('\n').map(str::to_owned).collect();
-    let mut parser = Parser { source, tokens, position: 0, diagnostics, focal_table: None, repair_args: None, known_tables, document: Document { file: file.to_owned(), ..Document::default() } };
+    let mut parser = Parser { source, tokens, position: 0, declaration_start: 0, diagnostics, focal_table: None, repair_args: None, known_tables, known_views, document: Document { file: file.to_owned(), ..Document::default() } };
     parser.document();
     (parser.document, parser.diagnostics)
 }
@@ -45,10 +46,12 @@ struct Parser {
     source: Vec<String>,
     tokens: Vec<Token>,
     position: usize,
+    declaration_start: usize,
     diagnostics: Vec<Diagnostic>,
     document: Document,
     focal_table: Option<String>,
     known_tables: Vec<TableDecl>,
+    known_views: std::collections::BTreeMap<String, crate::types::Ty>,
     repair_args: Option<(Site, Vec<ArgDecl>)>,
 }
 
@@ -70,6 +73,7 @@ impl Parser {
     }
 
     fn top_level(&mut self) -> Fallible<()> {
+        self.declaration_start = self.position;
         self.focal_table = None;
         self.repair_args = None;
         let token = self.peek().clone();

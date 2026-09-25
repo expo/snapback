@@ -19,26 +19,24 @@ impl Parser {
             .or_else(|| (tables.len() == 1).then(|| *tables.first().unwrap()));
         match table {
             Some(table) => format!("count({table})"),
-            None if !tables.is_empty() => format!("pass the intended read: {}", tables.iter().map(|table| format!("count({table})")).collect::<Vec<_>>().join(" or ")),
-            None => "count(<read>) — name the table or filtered read to count".into(),
+            // No table is unambiguously in scope. Keep the refusal and let the
+            // author choose the read; prose alternatives are not source edits.
+            None => String::new(),
         }
     }
 
     pub(super) fn filtered_predicate(&mut self, table: &str, stops: &[&str], maintained: bool) -> Fallible<Expr> {
-        let enclosing = self.focal_table.is_some();
         let start = self.position;
         let predicate = self.with_focal(table, |parser| {
             if maintained { parser.maintain_predicate(0) } else { parser.expression(0, stops) }
         })?;
-        let Some(comparison) = self_comparison(&predicate) else { return Ok(predicate); };
-        let Expr::Binary { left, op, .. } = comparison else { unreachable!() };
-        let column = focal_column(left).expect("self-comparison column");
-        let (rewrite, advice) = if enclosing {
-            (format!("{table}[{column} = .{column}]"), "bind the enclosing row with a named read key".to_owned())
-        } else if let Some((args_site, args)) = &self.repair_args {
-            let type_ = self.document.tables.iter().chain(&self.known_tables).find(|t| t.name == table)
-                .and_then(|t| t.columns.iter().find(|c| c.name == column)).map(|c| c.type_.clone())
-                .unwrap_or(ScalarType { kind: TypeKind::Id, optional: false });
+        let Some(comparison) = self_comparison(&predicate, &|column| self.column_type(table, column).is_some_and(|ty| ty.optional)) else { return Ok(predicate); };
+        let Expr::Binary { left, op, .. } = comparison else { return Ok(predicate); };
+        let Some(column) = focal_column(left) else { return Ok(predicate); };
+        let (rewrite, advice) = if self.repair_args.is_some() && self.column_type(table, column).is_none() {
+            (String::new(), "compare with an explicit argument once the column type is known".to_owned())
+        } else if let Some((args_site, args)) = &self.repair_args
+            && let Some(type_) = self.column_type(table, column) {
             let compatible: Vec<_> = args.iter().filter(|a| a.type_ == type_).collect();
             let argument = compatible.iter().find(|a| a.name == column).copied()
                 .or_else(|| (compatible.len() == 1).then(|| compatible[0]));
@@ -49,16 +47,14 @@ impl Parser {
                 });
                 (format!("where {}", print::expression(&repaired)), "compare with the operation argument".into())
             } else {
-                let end_line = self.tokens.iter().find(|t| t.site.line > args_site.line && t.site.col == 1 && TOP_LEVEL.contains(&t.value.as_str()))
-                    .map_or(u32::MAX, |t| t.site.line);
                 let mut name = column.to_owned();
-                while args.iter().any(|a| a.name == name) || self.tokens.iter().any(|t| t.kind == Kind::Word && t.value == name && t.site.line > args_site.line && t.site.line < end_line && t.site.col == 3) { name.push_str("Argument"); }
+                while args.iter().any(|a| a.name == name) || self.tokens[self.declaration_start..].windows(2).any(|pair| pair[0].kind == Kind::Word && pair[0].value == name && pair[1].value == "=" && pair[0].site.col == 3) { name.push_str("Argument"); }
                 let mut repaired = predicate.clone();
                 replace_comparison(&mut repaired, comparison.site(), Expr::Binary {
                     op: "=".into(), left: left.clone(), right: Box::new(Expr::Name { name: name.clone(), site: comparison.site().clone() }), site: comparison.site().clone(),
                 });
                 let rewrite = self.declaration_rewrite(start, self.position, &print::expression(&repaired),
-                    Some((args_site, format!("{name}: {}{}", print::scalar_type(&type_), if args.is_empty() { "" } else { ", " }))));
+                    Some((args_site, format!("{name}: {}{}", print::scalar_type(&type_), if args.is_empty() { "" } else { ", " })))).unwrap_or_default();
                 (rewrite, "add an explicit operation argument and compare with it".into())
             }
         } else {
@@ -68,7 +64,7 @@ impl Parser {
             replace_comparison(&mut repaired, comparison.site(), Expr::Literal {
                 value: Literal::Bool(matches!(op.as_str(), "=" | "<=" | ">=" | "in")), site: comparison.site().clone(),
             });
-            (self.declaration_rewrite(start, self.position, &print::expression(&repaired), None),
+            (self.declaration_rewrite(start, self.position, &print::expression(&repaired), None).unwrap_or_default(),
                 "use the explicit constant only if intended, or replace it with a column-to-value predicate; declarations have no operation arguments".into())
         };
         self.diagnostics.push(Diagnostic::new(comparison.site(), "E_QUARRY_SELF_EQUALITY",
@@ -78,31 +74,59 @@ impl Parser {
         Ok(predicate)
     }
 
-    // A missing argument requires a whole declaration repair, not an unbound
-    // name in a where fragment. Keep all other source text and body statements.
-    fn declaration_rewrite(&self, start: usize, end: usize, replacement: &str, argument: Option<(&Site, String)>) -> String {
-        let first = &self.tokens[start].site;
-        let last = &self.tokens[end - 1];
-        let header = argument.as_ref().map_or_else(|| {
-            (0..first.line as usize).rev().find(|&i| self.source[i].starts_with(|c: char| !c.is_whitespace()) && !self.source[i].starts_with("--")).unwrap_or(first.line as usize - 1)
-        }, |(site, _)| site.line as usize - 1);
-        let tail = (first.line as usize..self.source.len()).find(|&i| self.source[i].starts_with(|c: char| !c.is_whitespace()) && !self.source[i].starts_with("--")).unwrap_or(self.source.len());
-        let mut text = self.source[header..tail].join("\n");
-        let offset = |site: &Site| self.source[header..site.line as usize - 1].iter().map(|s| s.len() + 1).sum::<usize>()
-            + self.source[site.line as usize - 1].chars().take(site.col as usize - 1).map(char::len_utf8).sum::<usize>();
-        let mut finish = offset(&last.site) + last.value.len();
-        if last.kind == Kind::Str {
-            let mut chars = text[offset(&last.site)..].char_indices();
-            let quote = chars.next().expect("string token").1;
-            while let Some((i, ch)) = chars.next() {
-                if ch == '\\' { chars.next(); }
-                else if ch == quote { finish = offset(&last.site) + i + ch.len_utf8(); break; }
-            }
+    // The range and order may follow `where`. Wait for the complete read before
+    // proposing a key, and only move a top-level conjunct across focal scopes.
+    pub(super) fn finish_read_repair(&mut self, read: &ReadExpr, enclosing: Option<&str>, diagnostic_start: usize, probe: bool) {
+        let Some(enclosing) = enclosing else { return; };
+        let Some(filter) = read.filter.as_deref() else { return; };
+        let Some(comparison) = self_comparison(filter, &|c| self.column_type(&read.table, c).is_some_and(|t| t.optional)) else { return; };
+        let Expr::Binary { left, .. } = comparison else { return; };
+        let Some(column) = focal_column(left) else { return; };
+        let Some(inner_type) = self.column_type(&read.table, column) else { return; };
+        if self.column_type(enclosing, column).as_ref() != Some(&inner_type) { return; }
+        // Views have projected fields but do not admit named-key reads.
+        let Some(table) = self.table_decl(&read.table) else { return; };
+        if read.keys.iter().any(|key| key.column.is_none() || key.column.as_deref() == Some(column)) { return; }
+        let Some(rest) = without_conjunct(filter, comparison.site()) else { return; };
+        let has_key = |name: &str| name == column || read.keys.iter().any(|key| key.column.as_deref() == Some(name));
+        if let Some(index) = &read.index {
+            let Some(index) = table.indexes.iter().find(|i| &i.name == index) else { return; };
+            let count = read.keys.len() + 1;
+            if index.columns.len() < count || !index.columns[..count].iter().all(|name| has_key(name)) { return; }
         }
-        text.replace_range(offset(first)..finish, replacement);
-        if let Some((site, value)) = argument { text.insert_str(offset(site) + 1, &value); }
-        text
+        let bounded = probe || read.range.is_some() || column == "id"
+            || table.caps.iter().any(|cap| cap.by.iter().all(|name| has_key(name)))
+            || table.indexes.iter().any(|index| index.unique && index.columns.iter().all(|name| has_key(name)));
+        if !bounded { return; }
+        let mut repaired = read.clone();
+        repaired.filter = rest.map(Box::new);
+        repaired.keys.push(KeyPart { column: Some(column.into()), value: *left.clone(), site: comparison.site().clone() });
+        // The general printer can turn named keys into where clauses when an
+        // intent order is present. Here that would rebind '.' to the inner row.
+        let order = std::mem::take(&mut repaired.order_keys);
+        let mut rewrite = print::read_expr(&repaired);
+        if !order.is_empty() { rewrite.push_str(&format!(" by {}", order.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "))); }
+        if let Some(d) = self.diagnostics[diagnostic_start..].iter_mut().find(|d| d.code == "E_QUARRY_SELF_EQUALITY" && &d.site == comparison.site()) {
+            d.rewrite = rewrite;
+            d.message = format!("{} compares the filtered {} row's .{column} with itself; bind the enclosing row with a named read key", print::expression(comparison), read.table);
+        }
     }
+}
+
+fn without_conjunct(value: &Expr, site: &Site) -> Option<Option<Expr>> {
+    if value.site() == site { return Some(None); }
+    let Expr::Binary { op, left, right, site: and_site } = value else { return None; };
+    if op != "and" { return None; }
+    let join = |a: Option<Expr>, b: &Expr| Some(a.map_or_else(|| b.clone(), |a| Expr::Binary {
+        op: "and".into(), left: Box::new(a), right: Box::new(b.clone()), site: and_site.clone(),
+    }));
+    if let Some(rest) = without_conjunct(left, site) { return Some(join(rest, right)); }
+    if let Some(rest) = without_conjunct(right, site) {
+        return Some(Some(rest.map_or_else(|| *left.clone(), |rest| Expr::Binary {
+            op: "and".into(), left: left.clone(), right: Box::new(rest), site: and_site.clone(),
+        })));
+    }
+    None
 }
 
 fn focal_column(value: &Expr) -> Option<&str> {
@@ -113,7 +137,7 @@ fn focal_column(value: &Expr) -> Option<&str> {
 }
 
 // @ref LLP 3000.013#2.1 — key operands keep the enclosing focal row; a filter introduces its own.
-fn self_comparison(value: &Expr) -> Option<&Expr> {
+fn self_comparison<'a>(value: &'a Expr, optional: &impl Fn(&str) -> bool) -> Option<&'a Expr> {
     if let Expr::Binary { op, left, right, .. } = value
         && let Some(column) = focal_column(left) {
         let same = match (op.as_str(), right.as_ref()) {
@@ -121,10 +145,12 @@ fn self_comparison(value: &Expr) -> Option<&Expr> {
             ("in", Expr::Array { items, .. }) => items.iter().any(|item| focal_column(item) == Some(column)),
             _ => false,
         };
-        if same { return Some(value); }
+        // Ordered read predicates are false on null: inclusive reflexive
+        // ordering is a useful presence test for an optional column.
+        if same && !(matches!(op.as_str(), "<=" | ">=") && optional(column)) { return Some(value); }
     }
     let mut found = None;
-    children(value, &mut |child| { if found.is_none() { found = self_comparison(child); } });
+    children(value, &mut |child| { if found.is_none() { found = self_comparison(child, optional); } });
     found
 }
 

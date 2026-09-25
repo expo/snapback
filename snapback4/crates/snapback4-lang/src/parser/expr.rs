@@ -251,7 +251,9 @@ impl Parser {
                 let (name, name_site) = call_name(&value).expect("a helper name");
                 let site = self.take("(")?.site;
                 if name == "count" && self.at("*") {
-                    return Err(unsupported(&name_site, "count(*)", self.count_star_rewrite()).guide("from-sql"));
+                    let mut refusal = unsupported(&name_site, "count(*)", self.count_star_rewrite()).guide("from-sql");
+                    if refusal.rewrite.is_empty() { refusal.message.push_str("; pass the table or filtered read to count"); }
+                    return Err(refusal);
                 }
                 let mut args = Vec::new();
                 while !self.at(")") {
@@ -340,6 +342,8 @@ impl Parser {
     }
 
     pub(super) fn parse_range(&mut self, mut read: ReadExpr, probe: bool) -> Fallible<ReadExpr> {
+        let enclosing = self.focal_table.clone();
+        let diagnostic_start = self.diagnostics.len();
         let mut order = None;
         let mut take = None;
         let mut cursor: Option<Box<Expr>> = None;
@@ -409,18 +413,21 @@ impl Parser {
             return Err(syntax_with(&violation.site, format!("read modifier {} is repeated; choose one value", violation.value), "write each modifier once: [matching q] [after c] first|last N by index [where predicate]"));
         }
         if take.is_none() && cursor.is_none() {
+            self.finish_read_repair(&read, enclosing.as_deref(), diagnostic_start, probe);
             return Ok(read);
         }
         if probe && take.is_none() {
             // Retain the cursor long enough for exists/created to give their
             // plain-read rewrite instead of suggesting a page inside a probe.
             read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor, site });
+            self.finish_read_repair(&read, enclosing.as_deref(), diagnostic_start, probe);
             return Ok(read);
         }
         let (Some(take), Some(order)) = (take, order) else {
             return Err(syntax_with(&site, "range reads require first N or last N", format!("{} first 50", print::read_expr(&read))));
         };
         read.range = Some(RangeSpec { order, take, cursor, site: site.clone() });
+        self.finish_read_repair(&read, enclosing.as_deref(), diagnostic_start, probe);
         Ok(read)
     }
 

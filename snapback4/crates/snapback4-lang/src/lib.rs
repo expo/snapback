@@ -36,10 +36,20 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
         .map(|d| d.site.file.clone()).collect();
     if !repair_files.is_empty() {
         let tables: Vec<_> = documents.iter().flat_map(|doc| doc.tables.iter().cloned()).collect();
+        // Use the ordinary binder's projected types, including renamed and
+        // computed fields. Invalid or non-scalar projections get no invented
+        // argument type. This discarded binding is diagnostic-only.
+        let views = if documents.iter().any(|doc| !doc.views.is_empty() || !doc.feed_views.is_empty()) {
+            let mut declarations = documents.clone();
+            for doc in &mut declarations {
+                doc.programs.clear(); doc.actions.clear(); doc.routes.clear(); doc.schedules.clear();
+            }
+            bind(declarations).view_types
+        } else { Default::default() };
         diagnostics.retain(|d| !repair_files.contains(&d.site.file));
         for ((file, source), document) in sources.iter().zip(&mut documents) {
             if repair_files.contains(file) {
-                let (repaired, mut parsed) = parser::parse_with_tables(file, source, tables.clone());
+                let (repaired, mut parsed) = parser::parse_with_types(file, source, tables.clone(), views.clone());
                 *document = repaired;
                 diagnostics.append(&mut parsed);
             }
