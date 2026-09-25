@@ -5,6 +5,7 @@
 mod log;
 mod store;
 mod caps;
+mod contribution_upgrade;
 mod authority;
 mod prefetch;
 mod tail;
@@ -42,6 +43,7 @@ pub struct Stats {
 pub struct PostgresEngine {
     store: Store,
     schema: Schema,
+    generation: u64,
     programs: BTreeMap<String, Program>,
     ceilings: Ceilings,
     mode: WriteMode,
@@ -97,11 +99,13 @@ impl PostgresEngine {
         Self::attach(client, schema, programs)
     }
 
-    fn attach(mut client: Client, schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
+    fn attach(mut client: Client, mut schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
         client.batch_execute("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         client.batch_execute("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&mut client, &schema)?;
-        Ok(Self { store: Store::new(client), schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
+        let mut store = Store::new(client);
+        let generation = contribution_upgrade::install(&mut store, &mut schema)?;
+        Ok(Self { store, schema, generation, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
     }
 
     pub fn schema(&self) -> &Schema {
@@ -111,7 +115,7 @@ impl PostgresEngine {
         &self.programs
     }
     pub fn generation(&self) -> u64 {
-        1
+        self.generation
     }
     pub fn set_ceilings(&mut self, ceilings: Ceilings) {
         self.ceilings = ceilings;
