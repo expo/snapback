@@ -118,6 +118,71 @@ fn binary_calls_over_cap_bounded_reads_keep_their_row_order() {
 }
 
 #[test]
+fn binary_maintained_point_extrema_keep_their_scalar_overload() {
+    for builtin in ["min", "max"] {
+        for (groups, positional, named) in [(".owner", "viewer", "owner = viewer"),
+            (".owner, .bucket", "viewer, 1", "owner = viewer, bucket = 1")] {
+            let source = format!("table t:\n  owner: principal\n  bucket: int\n  public\n  online only\nview totals: count t by {groups}\n  by byValue: value, id\n  online only\nquery direct():\n  return [{{ value: 5 }}] {{ n: {builtin}(totals[{positional}], .value) }}\nquery named():\n  return [{{ value: 5 }}] {{ n: {builtin}(totals[{named}], .value) }}\nquery explicit():\n  return [{{ value: 5 }}] {{ n: {builtin}(totals[{positional}] by byGroup, .value) }}\nquery bound():\n  total = totals[{positional}]\n  return [{{ value: 5 }}] {{ n: {builtin}(total, .value) }}\n");
+            let b = bound(&source);
+            for program in &b.programs { assert!(ir::scans(&program.program).is_empty()); }
+            let mut e = engine(&source);
+            for count in [0, 3, 7] {
+                e.seed((0..count).map(|i| ("t".into(), object([
+                    ("id", Value::Id(format!("r{i}"))), ("owner", Value::Id("alice".into())), ("bucket", Value::Int(1))])))).unwrap();
+                for op in ["direct", "named", "explicit", "bound"] {
+                    let result = e.query(op, Context::new("alice", BTreeMap::new())).unwrap();
+                    assert!(result.complete, "{builtin} {op}: {result:?}");
+                    let expected = if builtin == "min" { count.min(5) } else { count.max(5) };
+                    assert_eq!(result.data.as_array().unwrap()[0].field("n").unwrap(), &Value::Int(expected), "{builtin} {op}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn streamed_json_winners_exhaust_the_retained_heap() {
+    let source = "table witness:\n  payload: json <=3000000\n  public\n  online only\nquery q():\n  return min(witness, .payload) = max(witness, .payload)\nquery low():\n  return min(witness, .payload) != null\nquery high():\n  return max(witness, .payload) != null\n";
+    let mut e = engine(source);
+    e.seed(["a", "b"].map(|id| ("witness".into(), object([
+        ("id", Value::Id(id.into())), ("payload", object([("big", Value::String("x".repeat(2_500_000)))]))])))).unwrap();
+    let result = e.query("q", Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(!result.complete, "the retained shared JSON payload must be charged: {result:?}");
+    assert_eq!(result.data, Value::Null);
+    assert_eq!(result.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::HeapBytes));
+    // Each fold fits alone. The second fold cannot fit while the first
+    // winner remains live as the left operand of the equality expression.
+    e.set_ceilings(Ceilings { heap_bytes: 18 << 20, ..Ceilings::default() });
+    for op in ["low", "high"] {
+        let result = e.query(op, Context::new("alice", BTreeMap::new())).unwrap();
+        assert!(result.complete, "{op}: {result:?}");
+        assert_eq!(result.data, Value::Bool(true));
+    }
+    let result = e.query("q", Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(!result.complete, "{result:?}");
+    assert_eq!(result.data, Value::Null);
+    assert!(result.metered.examined >= 3, "the first winner is already live: {result:?}");
+    assert_eq!(result.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::HeapBytes));
+}
+
+#[test]
+fn replacing_a_json_winner_releases_its_full_retained_charge() {
+    let source = "table t:\n  payload: json <=2048\n  public\n  online only\nquery low():\n  return min(t, .payload)\nquery high():\n  return max(t, .payload)\n";
+    let mut e = engine(source);
+    let payload = |i| Value::Array(vec![object([("big", Value::String(format!("{i:04}{}", "x".repeat(1000))))])]);
+    e.seed((0..128).map(|i| ("t".into(), object([("id", Value::Id(format!("r{i:04}"))), ("payload", payload(i))])))).unwrap();
+    e.set_ceilings(Ceilings { heap_bytes: 64 * 1024, ..Ceilings::default() });
+    for (op, winner) in [("low", 0), ("high", 127)] {
+        let result = e.query(op, Context::new("alice", BTreeMap::new())).unwrap();
+        assert!(result.complete, "{op}: {result:?}");
+        assert_eq!(result.data, payload(winner));
+        assert_eq!(result.metered.examined, 128);
+        assert!(result.metered.heap_bytes >= result.data.heap_bytes());
+        assert!(result.metered.heap_bytes < 64 * 1024);
+    }
+}
+
+#[test]
 fn ordered_index_seeks_one_row_among_ten_thousand_and_fallback_scans() {
     let source = SOURCE.replace("state: int ?", "state: int");
     let mut e = engine(&source);

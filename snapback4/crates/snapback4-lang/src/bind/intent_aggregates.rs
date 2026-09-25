@@ -65,9 +65,27 @@ pub(super) fn is_consumer(name: &str, args: &[Expr], tables: &BTreeMap<String, T
     // A binary comparison of two pages keeps their observable row order.
     // A focal member absent from this table can belong to an outer shape.
     match args.first() {
-        Some(Expr::Read(read)) => tables.get(&read.table).is_some_and(|table| field == "id" || table.columns.contains_key(field)),
+        Some(Expr::Read(read)) => tables.get(&read.table).is_some_and(|table|
+            extremum_domain(read, table) && (field == "id" || table.columns.contains_key(field))),
         _ => true,
     }
+}
+
+fn extremum_domain(read: &ReadExpr, table: &TableInfo) -> bool {
+    if !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some()
+        || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() { return true; }
+    // Decide the argument's kind before adding an aggregate order. In
+    // particular, a complete maintained group lookup is a scalar total.
+    // Positional keys without an index retain their point/refusal path;
+    // only the binder can resolve their types or diagnose an ambiguity.
+    let named = read.keys.iter().all(|key| key.column.is_some());
+    if !named && read.index.is_none() { return false; }
+    let index = read.index.as_deref().or_else(|| table.maintained.as_ref().map(|_| "byGroup"));
+    !table.indexes.iter().any(|candidate| candidate.unique && candidate.is_plain()
+        && index.is_none_or(|name| candidate.name == name)
+        && (candidate.columns.len() == read.keys.len()
+            || named && table.total_unique(candidate) && candidate.columns.len() < read.keys.len())
+        && (!named || candidate.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column)))))
 }
 
 fn consumer(value: &mut Expr, tables: &BTreeMap<String, TableInfo>, functions: &BTreeMap<String, FunctionDecl>, required: &BTreeSet<String>) {

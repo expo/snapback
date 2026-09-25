@@ -55046,3 +55046,40 @@ Did not redesign authorization, disclosure, durability, client contracts or
 the planner; did not add SQL lowering, change versions, push or publish.
 All touched source files remain below 1,500 lines. The broken llp-orient
 symlink required direct orientation from the commissioned documents/source.
+
+## 2026-09-25 — LLP 3000.013 Lane R: review round 1
+
+Addressed Astra's two Medium findings and Grok's matching Medium heap
+finding. Extremum planning now recognizes point-shaped arguments before
+adding an order, preserving binary min/max on complete maintained group
+lookups even when the view has an index on value. Streamed winners reserve
+their full payload, including shared JSON subtrees; the fold records the
+exact allowance and releases it when replacing the winner. Also addressed
+Grok's Low test finding by checking min/max/fallback values after reopening
+both device stores, in addition to their completeness flags.
+
+Three new regressions prove scalar overload compatibility for both
+operators and positional/named/explicit/compound group keys, heap exhaustion
+while a prior JSON winner stays live, and release of replaced nested JSON
+winners under a small heap. Both reported defects failed before the fixes.
+Focused validation passed 19 extrema tests, 80 guide tests and both device
+tests. Final `scripts/test.sh`: **`== 0 failure(s) in 1136 s`**, exit 0;
+all Rust targets/doctests passed, and clients reported 1,512 tests, 1,502
+passed, 10 existing skips and 0 failed. Used the script's existing serial
+client option and this lane's existing tmpfs build/temp directories.
+
+The first suite attempt hit environmental E0514 in the lifecycle panic
+probe: it selected a Rust 1.93.1 libc artifact from the mixed cache while
+using pinned Rust 1.97.0. Quarantined that incompatible rlib/rmeta; the
+isolated probe then passed, as did all 20 lifecycle tests in the final run.
+Preserved the failed Rust and partial client logs before stopping that
+already-red attempt with SIGTERM (143, no final summary line) and rerunning
+with Grok's final test assertions. No baseline failure was repaired.
+
+Production wasm: 1,771,556 bytes raw / 493,764 gzip, a whole-artifact change
+of −591 / −68 from round 0's recorded build on the same toolchain. Keep the
+494,000-byte gzip budget (236 bytes headroom) and every runtime meter ceiling.
+No new language form/refusal, guide rewrite, design change, version change,
+push or publication. All touched source files remain below 1,500 lines.
+Full file map, reproductions, review status and durable log paths:
+`reports/20260925-intent-lane-r-round1.md`.

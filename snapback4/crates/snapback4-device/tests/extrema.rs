@@ -54,7 +54,11 @@ fn run<H: Host>(host: &mut H) {
         if complete { assert_eq!(device.query("saved", "alice", &json!({}), 100).unwrap().data.field("state").unwrap(), &Value::Int(1)); }
         host.close(name, device);
         let mut reopened = host.open(name, None).unwrap();
-        assert_eq!(reopened.query("low", "alice", &json!({}), 100).unwrap().complete, complete);
+        for (op, expected) in [("low", 1), ("high", 8), ("fallback", 1)] {
+            let result = reopened.query(op, "alice", &json!({}), 100).unwrap();
+            assert_eq!(result.complete, complete, "reopened {name} {op}: {result:?}");
+            assert_eq!(result.data, if complete { Value::Int(expected) } else { Value::Null }, "reopened {name} {op}");
+        }
     }
 }
 
