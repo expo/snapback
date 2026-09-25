@@ -1010,7 +1010,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const second = await local();
       if (revision !== incarnation) return { read: { loading: true }, tables, nextExpiry: null };
       if (second.terminal) return second.result;
-      if (isWithheld(second.outcome)) return withheld(async () => remote);
+      if (isWithheld(second.outcome)) return withheld(async () => failed ? loading : remote);
       if (!failed && "loading" in second.result.read && link === "online") return remote;
       if (!("data" in second.result.read) || failed || link !== "online" || await pending()) return second.result;
       const coverage = Object.entries(second.outcome.components ?? {});
