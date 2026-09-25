@@ -352,16 +352,17 @@ impl Runner<'_> {
         let mark = self.meter.mark();
         let expiry_mark = self.next_expiry;
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
+        // @ref LLP 3000.016#2.2 — a known horizon miss still withholds when charging the point read exhausts examination.
+        if found.is_none() && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
+            self.unknown_fact(&read.table, &read.index, &key, &read.site);
+            self.withhold_unheld_card(&read.table);
+        }
         // An expiring lookup already charged its live candidate while
         // passing expired siblings. A miss still costs one point read.
         if (table.expire.is_none() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
-                self.unknown_fact(&read.table, &read.index, &key, &read.site);
-                self.withhold_unheld_card(&read.table);
-            }
             return Ok(Value::Null);
         };
         if self.expired(table, &row) {

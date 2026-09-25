@@ -44,6 +44,8 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
         Err(_) if runner.query_unavailable => Value::Null,
         Err(error) => return Err(error.refusal()),
     };
+    // @ref LLP 3000.016#2.2 — withheld work keeps its execution charges, but discarded data is not published output.
+    let data = if runner.query_unavailable { Value::Null } else { data };
     let capped = runner.meter.capped_at.is_some();
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
@@ -55,7 +57,7 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
         capped_at: runner.meter.capped_at.clone(),
         word_cut_at: runner.word_cut_at.clone(),
         next,
-        data: if runner.query_unavailable { Value::Null } else { data },
+        data,
         seq: 0,
         metered: runner.meter.used,
         tables: runner.read_tables.iter().cloned().collect(),
@@ -135,6 +137,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
             Err(_) if runner.query_unavailable => Value::Null,
             Err(error) => return Err(error.refusal()),
         };
+        let data = if runner.query_unavailable { Value::Null } else { data };
         runner.charge_output(&data)?;
         Ok(QueryOutcome {
             unavailable: runner.query_unavailable,
@@ -143,7 +146,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),
             next: None,
-            data: if runner.query_unavailable { Value::Null } else { data },
+            data,
             seq: 0,
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),

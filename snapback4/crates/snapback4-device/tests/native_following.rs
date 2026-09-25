@@ -27,7 +27,7 @@ fn reads<H: Host>(mut host: H) {
     let digest: String = Sha256::digest(module()).iter().map(|b| format!("{b:02x}")).collect();
     for (n, sync) in ["sync public", "sync public last 3 by .at", "online only"].iter().enumerate() {
         let source = base.replacen("sync public", sync, 1)
-            + "\nquery native_cards(postId: posts, c: cursor ?): native\n";
+            + "\nquery native_cards(postId: posts, c: cursor ?): native\nquery native_large(postId: posts, c: cursor ?): native\n";
         let (mut server, backend) = common::compile(&source);
         assert!(backend.programs.iter().find(|p| p.name == "native_cards").unwrap().body.is_empty());
         server.install_native(module()).unwrap();
@@ -66,6 +66,15 @@ fn reads<H: Host>(mut host: H) {
             let remote = server.query("native_cards", Context::new("alice", args(&[("postId", id(post)), ("c", Value::Null)]))).unwrap();
             assert!(remote.complete && !remote.unavailable);
             assert_eq!(remote.data.field("original").unwrap().field("id").unwrap().as_str().unwrap(), post);
+            let large = device.query("native_large", "alice", &json!({"postId":post,"c":null}), 10);
+            if withheld {
+                let large = large.unwrap();
+                assert!(large.unavailable && large.next.is_none());
+                assert_eq!(large.data, Value::Null);
+                assert!(large.metered.output_bytes < 100);
+            } else {
+                assert_eq!(large.unwrap_err().code, "E_BOUND", "known native output remains bounded");
+            }
         }
     }
 }

@@ -116,6 +116,39 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
 }
 
 for (const tier of ["wasm", "native"]) {
+  test(`bounded Following ${tier}: a late card miss and oversized withheld output still use fallback`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, undefined, source => source + `
+query cappedCard(postId: posts):
+  for i in range(0, 8192):
+    burn = posts['p3']
+  return { card: posts[postId] }
+query oversized(postId: posts, payload: text <=600):
+  card = posts[postId]
+  padding = []
+  for i in range(0, 2048):
+    padding = padding + [payload]
+  return { card, padding }
+`), bob = await f.open("bob");
+    const cases = [["cappedCard", { postId: "old" }], ["oversized", { postId: "old", payload: "x".repeat(600) }]];
+    bob.offline = true; await bob.client.sync();
+    for (const [name, input] of cases) {
+      assert.deepEqual(await bob.client.query(query(name), input), { loading: true });
+      const raw = bob.observed.at(-1);
+      assert.equal(raw.loading, true); assert.equal(raw.unknown, true);
+      assert.equal("data" in raw, false); assert.equal("next" in raw, false);
+      assert.equal(raw.denied, undefined);
+    }
+    bob.offline = false; await bob.client.sync();
+    for (const [name, input] of cases) {
+      const before = bob.queries.length;
+      const online = await bob.client.query(query(name), input);
+      assert.equal(bob.queries.length, before + 1);
+      assert.deepEqual(bob.queries.at(-1), { path: `/q/${name}`, args: input });
+      if (name === "oversized") assert.equal(online.denied.code, "E_BOUND", "the actual server output stays bounded");
+      else assert.equal(online.cut, "meter");
+    }
+  });
+
   test(`bounded Following ${tier}: untaken online-only card branches remain answerable when held`, { timeout: 30000 }, async t => {
     const f = await fixture(t, tier, "online only", source => source + `
 query conditional(want: bool, postId: posts) held:
