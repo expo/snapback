@@ -59083,3 +59083,24 @@ No language/API form, new refusal code, native protocol or storage-format change
 No acquisition retuning or scale remeasurement; no version bump, push or publish.
 The file map, exact results, examples, all deviations and the stopped case's
 reproduction are in `reports/20260926-lane-v-r13.md` and its evidence directory.
+
+## 2026-09-26 — Lane V round 14: lookup reads a shared correction
+
+Astra's round-13 Medium: a reader that still held its own `E_STORE_REPLACED`
+kept answering with it after a sibling had verified and shared the real
+outcome, because lookup let local history win unconditionally. Lookup now
+applies adoption's correction rule. A verified shared outcome answers over the
+reader's own `E_STORE_REPLACED`, and every other local outcome answers first.
+One predicate, `unknownOutcome`, defines the replaceable outcome for both
+paths. Grok's round-13 mutation, a correction rule that accepted only
+`NOT_ADMIN`, now fails a new case that corrects a shared `E_STORE_REPLACED` to
+an orphan's `sent`.
+
+The supervisor wrote this round, because the lane's codex session could not
+authenticate. It adds two browser cases (Chromium, Wasm, IndexedDB) and two
+mutants, `lookup-correction` and `sent-correction`. Each mutant fails exactly
+its case; the existing `shared-correction` mutant fails both adoption cases.
+The affected client files pass 23 of 23 and the adoption cases 12 of 12. The
+typecheck, docs budget and `ref-check` pass. The full suite runs on the 0.4.3
+integration branch that merges this round. TypeScript only: no wasm, protocol,
+storage or meter change. Report: `reports/20260926-lane-v-r14.md`.
