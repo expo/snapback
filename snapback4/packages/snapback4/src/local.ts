@@ -944,7 +944,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const delay = Math.min(Math.max(0, nextExpiry - Date.now()), 2_147_483_647);
     watch.expiryTimer = setTimeout(() => {
       watch.expiryTimer = null;
-      if (watches.get(watch.key) === watch) void rerun(watch);
+      if (watches.get(watch.key) !== watch) return;
+      if (Date.now() < nextExpiry) { scheduleExpiry(watch, nextExpiry); return; }
+      // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before
+      // asynchronous recovery, including an already-running replacement.
+      const denied = unavailable();
+      watch.reset(denied ? { denied } : { loading: true });
+      notify(watch);
+      void rerun(watch);
     }, delay);
     (watch.expiryTimer as { unref?: () => void }).unref?.();
   }
