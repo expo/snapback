@@ -275,7 +275,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let partitionDenied: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
-  const serverAnswers = new Map<string, { read: Extract<Read<unknown>, { data: unknown }>; at: number; tables: Set<string> }>();
   const settled = new Map<string, { resolve: (write: Write) => void; response: ClosingResponse }>();
   const answers = new LocalReads();
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
@@ -324,7 +323,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     identityChecked = false;
     seq = 0;
     lastSyncAt = 0;
-    answers.clear(watches.values(), serverAnswers);
+    answers.clear(watches.values());
     // Finish invalidating every answer before invoking application callbacks.
     const deliver = () => {
       if (wasAcquired) for (const listener of acquiredListeners) listener(false);
@@ -337,7 +336,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   function invalidateAnswers(delivery: (() => void)[] = []) {
-    answers.clear(watches.values(), serverAnswers);
+    answers.clear(watches.values());
     delivery.push(() => { for (const watch of watches.values()) { notify(watch); void rerun(watch); } });
     return delivery;
   }
@@ -895,7 +894,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // ----- reads -----
 
-  // @ref LLP 3000.007#6.5 — route from compiled facts; keep server answers only in this client's memory.
+  // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch) {
     const queryEnvironment = {
       get backend() { return backend!; },
@@ -903,7 +902,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get credentialRevision() { return credentialRevision; },
       get incarnation() { return incarnation; },
       get authority() { return answers.revision; },
-      get sessionDead() { return sessionDead; },
       get refreshing() { return refreshing; },
       get link() { return link; },
       get caughtUp() { return caughtUp; },
@@ -912,12 +910,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get partitionCurrent() { return partitionCurrent; },
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
-      principal, signal: aborter.signal, unavailable, queued, call, post, installNative, notify, offline, serverAnswers,
+      principal, signal: aborter.signal, unavailable, queued, call, post, installNative, notify,
     };
     const work = (async () => {
       while (true) {
         const revision = incarnation, authority = answers.revision;
         const result = await evaluateLocal(queryEnvironment, op, args, revision, authority, watch);
+        const denied = unavailable(); // Rule 1 also holds across the caller's await.
+        if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
         if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
       }
     })();
@@ -956,14 +956,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, incarnation: revision, authority, transportOffline } = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
       scheduleExpiry(watch, nextExpiry);
-      if (watch.snapshot !== read || transportOffline) {
-        watch.publish(transportOffline ? { loading: true } : read);
+      if (watch.snapshot !== read) {
+        const denied = unavailable(); // Rule 1: immediately before notifying observers.
+        watch.publish(denied ? { denied } : read);
         notify(watch);
       }
     } catch {
@@ -1119,6 +1120,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async query(op, args) {
       while (true) {
         const result = await runLocal(op, args);
+        const denied = unavailable(); // Rule 1: immediately before returning to the caller.
+        if (denied) return { denied };
         if ((result.incarnation === incarnation && result.authority === answers.revision) || closed) return result.read;
       }
     },

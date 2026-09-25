@@ -306,11 +306,9 @@ already manage their own session lifetime:
 
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
 
-The local client routes queries using the compiled `runs` word. An observed
-server-run query refreshes when a commit touches its tables; offline, its
-observation is `loading`. A direct `query()` may return a remembered server
-answer with `fresh: false` and `since`, or `denied: E_OFFLINE` when none exists.
-It never uses an empty device page as a server answer.
+The local client runs locally first: known complete answers win, regardless of `runs`; available unknown answers remain partial data.
+Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments.
+Every await and publication checks the session; external answers also recheck the prediction fence, keeping the local answer (or `loading`) when fenced. Failed fallback keeps that same result, never a remembered server page.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
@@ -341,7 +339,7 @@ holds (`link()` is `"offline"`, reads carry `fresh: false` and `since`)
 and catches up when the link returns. A device needs a kept backend to open
 offline. Merely installing that backend does not acquire its partition: until
 a snapshot and catch-up finish, partition-dependent reads fall back to the
-server or return `E_OFFLINE`, and writes queue without invented predictions.
+server or stay `loading`, and writes queue without invented predictions.
 `client.acquired` and React's `useAcquired()` become true after the snapshot
 and catch-up finish for the current store, including an empty partition.
 They stay true offline and across an offline reopen, and become false when
@@ -671,7 +669,7 @@ observation owner cancels its retries.
 A local observation may keep its previous answer with `fresh: false` and `since`
 only during an unavailable device read's server fallback, ending at fetch
 settlement or any local commit, reset, adoption, generation, account change or close.
-An unavailable device read asks the server while online even with pending writes.
+An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix

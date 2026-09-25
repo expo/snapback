@@ -30,6 +30,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
           case "apply": return { ok: { touched: [] } };
           case "queued": return { ok: pending ? [{ id: "pending", predictable: true, observed_seq: null, predicted: ["posts/pending"] }] : [] };
           case "query": {
+            if (request.name === "probe") return { ok: { loading: true, unknown: true } };
             assert.equal(request.name, "read");
             assert.deepEqual(request.args, input);
             if (++observations === 1) return { ok: {

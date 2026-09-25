@@ -112,7 +112,7 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
     clients.push(client);
     return Object.assign(control, { client });
   };
-  return { open, request, mutate, releaseSync: () => releases.splice(0).forEach(release => release()) };
+  return { open, request, mutate, backend: async () => (await fetch(url + "/schema", { headers: { "x-snapback-persona": "bob" } })).json(), releaseSync: () => releases.splice(0).forEach(release => release()) };
 }
 
 for (const tier of ["wasm", "native"]) {
@@ -152,10 +152,11 @@ query conditionalHelper(c: cursor ?):
     assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith("feedFeed/"))));
     for (const offline of [false, true]) {
       bob.offline = offline; await bob.client.sync();
-      assert.deepEqual(await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" }), { loading: true }, "a slash inside the predicted ID cannot hide its source-table write");
+      assert.equal((await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" })).data, null, "an unknown available branch stays partial, with no server replacement");
       for (const name of ["conditionalFeed", "conditionalHelper"]) {
         const before = bob.queries.length;
-        assert.deepEqual(await bob.client.query(query(name), input), { loading: true });
+        const read = await bob.client.query(query(name), input);
+        assert.deepEqual(read.data, []); assert.equal(read.complete, false);
         const raw = bob.observed.at(-1);
         assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true);
         assert.deepEqual(raw.tables, ["switches"]);
@@ -164,10 +165,82 @@ query conditionalHelper(c: cursor ?):
     }
     bob.offline = false; await bob.client.sync(); bob.holdSync = true; bob.holdWrites = false;
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "conditional prediction not acknowledged");
-    assert.deepEqual(await bob.client.query(query("conditionalHelper"), input), { loading: true });
+    assert.deepEqual((await bob.client.query(query("conditionalHelper"), input)).data, []);
     bob.holdSync = false; f.releaseSync();
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "conditional prediction not observed");
     assert.ok((await bob.client.query(query("conditionalHelper"), input)).data.some(row => row.post === "own/conditional"));
+  });
+
+  test(`bounded Following ${tier}: a known branch wins over static server routing`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, "sync public", source => source.replace("sync public\n\ntable follows", "online only\n\ntable follows") + `
+table switches:
+  enabled: bool
+  public 'routing witness'
+  insert <- true
+  sync public
+mutation enable():
+  return insert switches { id: 'gate', enabled: true }
+query conditionalFeed(c: cursor ?):
+  if exists switches['gate']:
+    return feed last 20 by .at after c { *, card: reposts[.actor, .post] }
+  return []
+`);
+    const bob = await f.open("bob");
+    // The server learns this branch after acquisition. The parked stream leaves
+    // local absence known; `runs: server` does not authorize the other branch.
+    await f.mutate("enable", "alice", {});
+    bob.holdWrites = true; bob.holdSync = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-known", parentId: null, at: 20 });
+    const program = (await f.backend()).programs.find(p => p.name === "conditionalFeed");
+    assert.equal(program.runs, "server");
+    const remote = await f.request("/q/conditionalFeed", "bob", { c: null });
+    assert.ok(remote.data.length > 0); assert.ok(remote.data.every(row => row.post !== "own-known"));
+    const before = bob.queries.length;
+    const local = await bob.client.query(query("conditionalFeed"), { c: null });
+    assert.deepEqual(local.data, []); assert.equal(local.complete, true);
+    assert.equal(bob.observed.at(-1).unknown, false); assert.deepEqual(bob.observed.at(-1).tables, ["switches"]);
+    assert.equal(bob.queries.length, before, "known local branch always wins, even after narrowing possible reads");
+  });
+
+  test(`bounded Following ${tier}: an available unknown profile preserves predicted feed rows`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, undefined, source => source + `
+table profiles:
+  name: text <=40
+  at: time
+  by byTime: at, id
+  public 'profile witness'
+  insert <- true
+  sync public last 1 by .at
+table remoteProfiles:
+  name: text <=40
+  public 'remote profile witness'
+  insert <- true
+  online only
+mutation profile(id: id, at: time):
+  insert profiles { id, name: 'profile', at }
+  return insert remoteProfiles { id, name: 'remote' }
+query withProfile():
+  rows = feed last 2 by .at { *, post: posts[.post] }
+  return { rows, profile: profiles['old'] }
+query remoteProfile():
+  return remoteProfiles['old']
+`);
+    await f.mutate("profile", "bob", { id: "old", at: 1 });
+    await f.mutate("profile", "bob", { id: "new", at: 2 });
+    const bob = await f.open("bob"); bob.holdWrites = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-profile", parentId: null, at: 20 });
+    const before = bob.queries.length;
+    const answer = await bob.client.query(query("withProfile"), {});
+    assert.equal(answer.data.rows[0].post.id, "own-profile"); assert.equal(answer.data.rows[0].pending, true);
+    assert.equal(answer.data.profile, null); assert.equal(answer.complete, false);
+    const raw = bob.observed.at(-1); assert.equal(raw.unknown, true); assert.notEqual(raw.loading, true);
+    assert.equal(bob.queries.length, before, "an available prediction must stay data without fallback");
+    const profile = await bob.client.query(query("remoteProfile"), {});
+    assert.equal(profile.data.name, "remote");
+    assert.equal(bob.queries.at(-1).path, "/q/remoteProfile", "unrelated profiles are not fenced by a pending post");
+    bob.offline = true; await bob.client.sync();
+    const offline = await bob.client.query(query("withProfile"), {});
+    assert.equal(offline.data.rows[0].post.id, "own-profile"); assert.equal(offline.complete, false);
   });
 
   test(`bounded Following ${tier}: a late card miss and oversized withheld output still use fallback`, { timeout: 30000 }, async t => {
@@ -324,7 +397,9 @@ query composed(c: cursor ?):
     bob.offline = true; await bob.client.sync();
     assert.deepEqual(await bob.client.query(query("cards"), { c: null }), { loading: true });
     assert.equal((await bob.client.query(query("home"), { c: null })).complete, true);
-    assert.deepEqual((await bob.client.query(query("globalRows"), {})).data, global.data, "an ordinary server scan keeps its existing remembered-answer contract");
+    const partial = await bob.client.query(query("globalRows"), {});
+    assert.deepEqual(partial.data, []); assert.equal(partial.complete, false);
+    assert.ok(global.data.length > 0, "a remembered server page must not mask available local uncertainty");
   });
 
   test(`bounded Following ${tier}: repost prediction needs a held original`, { timeout: 30000 }, async t => {

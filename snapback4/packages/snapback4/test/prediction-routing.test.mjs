@@ -25,85 +25,133 @@ function routing() {
     read: async () => (await evaluateLocal(env, op, input, 0, 0)).read };
 }
 
-for (const path of ["server shortcut", "remembered", "local unknown", "E_OFFLINE reset", "E_OFFLINE unknown refusal", "E_OFFLINE remembered miss"]) {
-  test(`prediction publication fence: ${path}`, async () => {
-    const f = routing();
-    if (path === "server shortcut") f.program.runs = "server";
-    if (path.startsWith("E_OFFLINE") || path === "remembered") f.env.link = "offline";
-    if (path.includes("remembered")) {
-      f.program.runs = "server";
-      f.program.body = []; // The device has not run: possible reads are all tables.
-      if (path === "remembered") f.env.serverAnswers.set(`read:${JSON.stringify(input)}`, {
-        read: { data: ["old"], complete: true, cut: null, fresh: true, next: "stale-next" }, at: 1, tables: new Set(["switches"]),
-      });
-    }
-    if (path === "E_OFFLINE reset") { f.env.partitionCurrent = false; f.program.body = []; }
-    if (path === "E_OFFLINE unknown refusal") {
-      f.program.body = [{ table: "other" }];
-      f.entries = [{ ...prediction, predicted: ["other/own"] }];
-      f.outcome = { denied: { code: "MISSING", family: "app", message: "unknown" }, unknown: true, tables: ["other"] };
-    }
-    assert.deepEqual(await f.read(), { loading: true });
-    assert.equal(f.requests.length, 0);
-    if (path === "remembered") {
-      f.entries = [];
-      assert.deepEqual((await f.read()).data, ["old"], "the control actually exercises remembered recovery");
-    }
+// Rule 2: even a static server class must execute and prefer a complete answer.
+for (const native of [false, true]) for (const held of [false, true]) {
+  test(`rule 2: known complete branch wins (native=${native}, held=${held})`, async () => {
+    const f = routing(); f.program.runs = "server"; f.program.native = native; f.program.held = held;
+    f.outcome = { data: false, unknown: false, complete: true, tables: ["switches"] };
+    assert.equal((await f.read()).data, false);
+    assert.equal(f.requests.length, 0, "narrowing known reads must never authorize a different server branch");
   });
 }
 
-test("prediction publication fence: dispatch and delivery both check opaque native dependencies", async () => {
-  const f = routing(); f.program.native = true; f.program.body = []; f.env.partitionCurrent = false;
-  f.entries = [];
-  const send = f.env.post;
-  f.env.post = async (...args) => { const response = await send(...args); f.entries = [prediction]; return response; };
-  assert.deepEqual(await f.read(), { loading: true });
-  assert.deepEqual(f.requests, [{ path: "/q/read", body: { args: input } }]);
-  assert.equal(f.env.serverAnswers.size, 0);
-});
-
-test("prediction publication fence: transport failure cannot recover an answer after a prediction arrives", async () => {
-  const f = routing(); f.program.body = []; f.program.runs = "server"; f.entries = [];
-  f.env.serverAnswers.set(`read:${JSON.stringify(input)}`, {
-    read: { data: ["old"], complete: true, cut: null, fresh: true, next: "old-next" }, at: 1, tables: new Set(["switches"]),
+for (const state of ["offline", "prediction", "held", "server", "transport failure"]) {
+  test(`rule 3: engine-withheld ${state}`, async () => {
+    const f = routing(); f.entries = [];
+    f.outcome = { loading: true, unknown: true, tables: ["posts"] };
+    if (state === "offline") f.env.link = "offline";
+    if (state === "prediction") f.entries = [prediction];
+    if (state === "held") f.program.held = true;
+    if (state === "transport failure") f.env.post = async () => ({ ok: false });
+    const answer = await f.read();
+    if (state === "server") {
+      assert.deepEqual(answer.data, ["server"]);
+      assert.deepEqual(f.requests, [{ path: "/q/read", body: { args: input } }]);
+    } else assert.deepEqual(answer, { loading: true });
   });
-  f.env.post = async () => { f.entries = [prediction]; f.env.link = "offline"; return { ok: false }; };
-  assert.deepEqual(await f.read(), { loading: true });
+}
+
+for (const state of ["offline", "prediction", "held", "server", "transport failure"]) {
+  test(`rule 4: available unknown Following ${state}`, async () => {
+    const f = routing(); f.entries = [];
+    f.outcome = { data: ["own"], unknown: true, complete: false, tables: ["posts"] };
+    if (state === "offline") f.env.link = "offline";
+    if (state === "prediction") f.entries = [prediction];
+    if (state === "held") f.program.held = true;
+    if (state === "transport failure") f.env.post = async () => ({ ok: false });
+    const read = await f.read();
+    assert.deepEqual(read.data, state === "server" ? ["server"] : ["own"]);
+    assert.equal(read.complete, state === "server");
+  });
+}
+
+test("rule 4: unknown conditions retain static possible reads, including slash IDs", async () => {
+  const f = routing(); f.entries = [{ ...prediction, predicted: ["posts/author/own"] }];
+  assert.deepEqual((await f.read()).data, []);
+  assert.equal(f.requests.length, 0);
 });
 
-test("prediction publication fence: row IDs containing slashes still intersect their source table", async () => {
+test("rules 2/3: an unrelated profile read runs before considering a pending post", async () => {
+  const f = routing(); f.program.runs = "server"; f.program.body = [{ table: "profiles" }];
+  f.outcome = { data: "profile", unknown: false, complete: true, tables: ["profiles"] };
+  assert.equal((await f.read()).data, "profile");
+  assert.equal(f.requests.length, 0);
+  f.outcome = { loading: true, unknown: true, tables: ["profiles"] };
+  assert.deepEqual((await f.read()).data, ["server"], "a disjoint footprint does not fence fallback");
+});
+
+test("rule 3: known meter prefixes stay partial without fallback", async () => {
+  const f = routing(); f.entries = [];
+  f.outcome = { data: ["prefix"], unknown: false, complete: false, cut: "meter", next: "resume", tables: ["posts"] };
+  const read = await f.read();
+  assert.deepEqual(read.data, ["prefix"]); assert.equal(read.complete, false); assert.equal(read.next, "resume");
+  assert.equal(f.requests.length, 0);
+});
+
+for (const available of [false, true]) for (const wait of ["delivery", "publication"]) {
+  test(`rule 5: prediction arriving at ${wait} keeps ${available ? "local data" : "withholding"}`, async () => {
+    const f = routing(); f.entries = [];
+    f.outcome = available ? { data: ["local"], unknown: true, complete: false, tables: ["posts"] } : { loading: true, unknown: true, tables: ["posts"] };
+    const send = f.env.post; let delivered = false, checks = 0;
+    f.env.post = async (...args) => { const answer = await send(...args); delivered = true; return answer; };
+    f.env.queued = async () => delivered && ++checks >= (wait === "delivery" ? 1 : 2) ? [prediction] : [];
+    const read = await f.read();
+    if (available) { assert.deepEqual(read.data, ["local"]); assert.equal(read.complete, false); }
+    else assert.deepEqual(read, { loading: true });
+    assert.equal(f.requests.length, 1);
+  });
+}
+
+for (const available of [false, true]) test(`rules 3/4: remembered pages cannot replace ${available ? "local data" : "withholding"}`, async () => {
+  const f = routing(); f.program.runs = "server";
+  f.env.serverAnswers.set(`read:${JSON.stringify(input)}`, {
+    read: { data: ["old"], complete: true, cut: null, fresh: true, next: "stale-next" }, at: 1, tables: new Set(["switches"]),
+  });
+  f.outcome = available ? { data: ["own"], unknown: true, complete: false, tables: ["posts"] } : { loading: true, unknown: true, tables: ["posts"] };
+  for (const online of [true, false]) for (const entries of [[prediction], []]) {
+    f.entries = entries; f.env.link = online ? "online" : "offline";
+    f.env.post = async () => ({ ok: false });
+    const read = await f.read();
+    if (available) assert.deepEqual(read.data, ["own"]); else assert.deepEqual(read, { loading: true });
+  }
+});
+
+test("rule 5: a native program stays opaque after local execution", async () => {
+  const f = routing(); f.program.native = true; f.program.body = [];
+  f.outcome = { loading: true, unknown: true, tables: ["switches"] };
+  assert.deepEqual(await f.read(), { loading: true }); assert.equal(f.requests.length, 0);
+});
+
+test("rule 5: observed entries and predictable no-ops release the fence", async () => {
   const f = routing();
-  f.entries = [{ ...prediction, predicted: ["posts/author/own"] }];
-  assert.deepEqual(await f.read(), { loading: true });
-  assert.equal(f.requests.length, 0);
+  for (const entry of [{ ...prediction, predicted: [] }, { ...prediction, observed_seq: 10 }]) {
+    f.entries = [entry]; assert.deepEqual((await f.read()).data, ["server"]);
+  }
+  assert.equal(f.requests.length, 2);
 });
 
-test("prediction publication fence: ordinary local prefixes retain predicted rows without remote replacement", async () => {
-  const f = routing(); f.env.backend.schema.timelines = [];
-  f.outcome = { data: ["own"], complete: false, unknown: true, tables: ["posts"] };
-  assert.deepEqual((await f.read()).data, ["own"]);
-  assert.equal(f.requests.length, 0);
+for (const code of ["E_PREDICT", "E_NATIVE"]) test(`rule 3: device preflight ${code} cannot certify local coverage`, async () => {
+  const f = routing(); f.program.body = [{ table: "other" }];
+  f.outcome = { denied: { code, family: "prediction", message: "device cannot run" }, unknown: true };
+  assert.deepEqual(await f.read(), { loading: true }); assert.equal(f.requests.length, 0);
+  f.entries = []; assert.deepEqual((await f.read()).data, ["server"]);
 });
 
-test("prediction publication fence: a predictable no-op has no written-table intersection", async () => {
-  const f = routing(); f.program.body = []; f.program.runs = "server";
-  f.entries = [{ ...prediction, predicted: [] }];
-  assert.deepEqual((await f.read()).data, ["server"]);
-  assert.equal(f.requests.length, 1);
-});
-
-test("prediction publication fence: established branches and disjoint writes remain answerable", async () => {
-  const f = routing(); f.program.held = true;
-  f.outcome = { data: false, unknown: false, complete: true, tables: [] };
-  assert.equal((await f.read()).data, false);
-  f.program.held = false;
-  f.outcome = { data: [], unknown: true, complete: false, tables: ["switches"] };
-  f.entries = [{ ...prediction, predicted: ["unrelated/own"] }];
-  assert.deepEqual((await f.read()).data, ["server"]);
-  assert.equal(f.requests.length, 1);
-  f.entries = [{ ...prediction, observed_seq: 10 }];
-  assert.deepEqual((await f.read()).data, ["server"], "observation releases the fence");
-});
+for (const wait of ["delivery", "publication"]) for (const code of ["E_AUTH", "E_CLOSED"]) {
+  test(`rule 1: router itself refuses ${code} during ${wait}`, async () => {
+    const f = routing(); f.entries = [];
+    f.outcome = { loading: true, unknown: true, tables: ["posts"] };
+    let delivered = false, checks = 0, denied = null;
+    const send = f.env.post;
+    f.env.post = async (...args) => { const answer = await send(...args); delivered = true; return answer; };
+    f.env.unavailable = () => denied;
+    f.env.queued = async () => {
+      if (delivered && ++checks === (wait === "delivery" ? 1 : 2)) denied = { code, family: "auth", message: "session ended" };
+      return [];
+    };
+    assert.deepEqual(await f.read(), { denied: { code, family: "auth", message: "session ended" } });
+  });
+}
 
 for (const mode of ["reset", "install failure"]) {
   for (const held of [false, true]) test(`native client ${mode} with an unobserved prediction${held ? " held" : ""}`, async t => {
