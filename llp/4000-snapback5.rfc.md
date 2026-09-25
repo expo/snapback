@@ -979,8 +979,10 @@ counter stay, pointed at the next bet. What stops: §9.6 steps 5–7.
 
 The next bet is [LLP 4001](./4001-snapback5-sql-front-end.rfc.md): the same
 engine under a language builders already know (Postgres DDL, RLS-shaped
-policies, SQL views and queries, a small mutation subset), which targets the
-item the record names most and the only surface this grader has scored at 94.
+policies, SQL views and queries, a small mutation subset). Its premise is
+stated there as an open question; the earlier claim here that it "targets the
+item the record names most and the only surface this grader has scored at 94"
+is withdrawn (the 94 lane wrote unrestricted Postgres with no policies).
 That bet's runtime is Snapback 4's as LLP 3000, LLP 3000.007 §6, LLP 3000.013
 and LLP 3000.015 define it, **not** this document's §4–§5 (which describe the
 shelved derived-residency design); only §4.5 here, as a restatement of Snapback
