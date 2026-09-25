@@ -623,13 +623,28 @@ This is LLP 3000.015's unread expression. If members also have a `joinedAt`
 position, add `and .ordinal > m.joinedAt` to exclude pre-join history. This
 lane uses integer positions until `sequence by conversationId` is available.
 Own sends and tombstones are excluded explicitly. Expiring messages stop
-contributing to live reads: reads subtract matching unswept expired rows from
-the stored count using the parent/expiry index. Only an expired subset too large
-for the read allowance makes that correction pending. The sweep applies the
-physical deletion delta, after which the subtraction is zero.
+contributing to live reads. Server reads, snapshots and catch-up puts subtract
+matching unswept expired rows using the parent/expiry index. A correction that
+cannot fit the allowance is `recountPending`. The sweep applies the physical
+deletion delta. Devices compute an expiring count from their covered live source
+rows; they never subtract expiry from a received count, because snapshot pages
+can straddle a deadline and catch-up can omit expired rows. Without that covered
+basis, the device reports `recountPending` and `complete: false`.
+
+A member's read rule authorizes the view row, but cannot authorize a hidden
+source contribution. The counted parent group must also be readable. If its
+read rule is not decided by that parent, or denies the reader, queries and sync
+images carry `value: 0, recountPending: true`; zero is a placeholder, not a
+certified count. Restricted-source devices also need group coverage. Private
+view scans must pin their read audience (for example, `where .principal = viewer`)
+or use a member key; an unscoped private-view scan refuses with E_VIEW_KEY.
 
 A small mark change scans the changed interval in the generated parent/ordinal
-index and updates the count in that transaction. A larger change commits the
+index and updates the count in that transaction. A writer who cannot read the
+old member or the source group uses a recount from the new member image, so an
+old private mark or hidden predicate range cannot select its background work.
+View refreshes do not depend on whether the hidden delta is zero.
+A larger change commits the
 mark and leaves the last settled count **pending**: reads report `complete: false`.
 The server settles a durable recount in chunks of at most 256 source rows;
 source edits and deletes during the recount adjust its already-counted prefix.
@@ -644,8 +659,8 @@ A covered device predicts; without source coverage it keeps the settled
 value and queues the mark without prediction. An acquired horizon suffix can
 cover the changed interval; a device recount that exceeds its allowance also
 queues without prediction. Expiring sources need covered live input to certify
-an unswept count: an uncovered device returns its settled value as incomplete
-until it can certify that live input. Count-dependent writers and numeric
+an unswept count: an uncovered device reports a pending count until it can
+certify that live input. Count-dependent writers and numeric
 rule probes refuse an incomplete value; ordinary queries carry incomplete
 coverage. Indexes/ranking by `value` refuse
 with E_VIEW_KEY. Pure view existence follows the member's lifetime, including

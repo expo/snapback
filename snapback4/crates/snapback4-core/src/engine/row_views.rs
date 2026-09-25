@@ -55,7 +55,11 @@ impl Runner<'_> {
                     let limit = self.scan_room(&m).min(WRITER_RECOUNT) as u64;
                     self.meter.charge(MeterKind::Examined, limit)?;
                     self.meter.step(limit * (key.predicate.steps() * 2 + 4))?;
-                    let heap = self.meter.ceilings.heap_bytes.saturating_sub(self.meter.used.heap_bytes);
+                    let heap = self
+                        .meter
+                        .ceilings
+                        .heap_bytes
+                        .saturating_sub(self.meter.used.heap_bytes);
                     self.meter.heap(heap)?;
                     self.meter.used.heap_bytes -= heap;
                     let reserved = std::mem::replace(&mut self.meter, scan);
@@ -121,7 +125,7 @@ impl Runner<'_> {
         old: Option<&Value>,
         work: bool,
     ) -> Result<(), RuntimeError> {
-        if old == Some(row) {
+        if work && old == Some(row) {
             return Ok(());
         }
         let entries = self.tx.put(table, &self.schema.tables[table], row, old)?;
@@ -359,19 +363,32 @@ impl Runner<'_> {
             return Ok(());
         }
         let u = row_image(u, &self.schema.tables[&k.table]).into_owned();
-        let old = old.map(|o| row_image(o, &self.schema.tables[&k.table]).into_owned());
+        // A blind writer may select work only from the new image, never a private old mark.
+        let old = match old {
+            Some(old) if self.check_rule(&k.table, crate::schema::Effect::Read, None, old)? => {
+                Some(row_image(old, &self.schema.tables[&k.table]).into_owned())
+            }
+            _ => None,
+        };
+        let live = self.device && self.schema.tables[&m.source].expire.is_some();
         let changed = k.fields().iter().any(|name| {
             old.as_ref()
                 .is_none_or(|old| old.field(name).ok() != u.field(name).ok())
         });
-        if !changed && let Some(existing) = &existing {
+        if !changed
+            && !live
+            && let Some(existing) = &existing
+        {
             let row = self.view_image(m, &u, number(existing, "value"), pending(existing))?;
             return self.view_put(&m.target, &row, Some(existing), false);
         }
         let mut index = k.source_index();
         let mut bounds = Bounds::default();
+        let source_readable = self.row_view_source_readable(m, &u)?;
         let delta = old.as_ref().filter(|old| {
-            existing.as_ref().is_some_and(|v| !pending(v))
+            !live
+                && source_readable
+                && existing.as_ref().is_some_and(|v| !pending(v))
                 && old.field(&k.member_key).ok() == u.field(&k.member_key).ok()
         });
         if let Some(old) = delta {
@@ -414,7 +431,7 @@ impl Runner<'_> {
             return Err(RuntimeError::Prediction("row-keyed view recount needs the covered source range; queued without a predicted row".into()));
         }
         let limit = self.scan_room(m).min(WRITER_RECOUNT);
-        let (n, complete, _) = self.view_scan(m, &u, delta, &index, bounds, limit, false)?;
+        let (n, complete, _) = self.view_scan(m, &u, delta, &index, bounds, limit, live)?;
         if self.device && !complete {
             return Err(RuntimeError::Prediction("row-keyed recount exceeds this device writer's allowance; queued without a predicted value".into()));
         }
@@ -483,6 +500,11 @@ impl Runner<'_> {
                     if r.device && r.retained_row(&k.table,&member)? {continue;}
                     live+=1;if live>k.fanout {return Err(RuntimeError::Structural {code:"E_VIEW_KEY", message:"recipient cap exceeded; repair the member group (guide maintains)".into()});}
                     let member=row_image(&member,&r.schema.tables[&k.table]).into_owned();
+                    if r.device && t.expire.is_some() {
+                        // Reuse the bounded new-image recount; a wire count is never a raw delta basis.
+                        r.row_view_member(m, None, Some(&member))?;
+                        continue;
+                    }
                     let id=member.field("id")?.as_str()?;
                     let existing=r.view_get(&m.target,id)?;
                     let delta=i64::from(new.as_ref().is_some_and(|v|k.matches(v,&member)))-i64::from(old.as_ref().is_some_and(|v|k.matches(v,&member)));
@@ -501,7 +523,7 @@ impl Runner<'_> {
                                 r.view_put(&name,&Value::Row(next.into()),Some(&work),true)?;
                             }
                         }
-                    } else if delta!=0 || existing.is_none() {
+                    } else {
                         if existing.is_none() {
                             if r.device { return Err(RuntimeError::Prediction("the held member needs a settled view before predicting its delta".into())); }
                             // Adoption and ordinary member writes create the value. Repair a missing
@@ -511,7 +533,10 @@ impl Runner<'_> {
                             let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false))]);
                             r.view_put(&m.work_table(),&work,None,true)?;
                         }
-                        else {let row=r.view_image(m, &member,number(existing.as_ref().unwrap(),"value")+delta,false)?;r.view_put(&m.target,&row,existing.as_ref(),false)?;}
+                        else {
+                            let row=r.view_image(m, &member,number(existing.as_ref().unwrap(),"value")+delta,false)?;
+                            r.view_put(&m.target,&row,existing.as_ref(),false)?;
+                        }
                     }
                 }
                 }
@@ -544,47 +569,127 @@ impl Runner<'_> {
         self.note_expiry(&self.schema.tables[&k.table], &member);
         Ok(Some(member))
     }
+    // @ref LLP 3000.015#3 — a readable member does not authorize hidden source contributions.
+    fn row_view_source_readable(
+        &mut self,
+        m: &Maintain,
+        member: &Value,
+    ) -> Result<bool, RuntimeError> {
+        let k = m.row_key.as_ref().unwrap();
+        let source = &self.schema.tables[&m.source];
+        if source.rules.read.is_uniformly_readable() {
+            return Ok(true);
+        }
+        #[cfg(feature = "sqlite")]
+        if !self.device {
+            if self.context.is_system() {
+                return Ok(true);
+            }
+            let value = member.field(&k.member_key)?.clone();
+            let expression = crate::ir::Expr::Literal(value.clone());
+            let pins = std::collections::BTreeMap::from([(&k.source_key, &expression)]);
+            let rule = source.rules.read.device_audience_rule();
+            let visibility = super::rules::prefix_visibility(&m.source, source, &rule, &pins);
+            if visibility.decided_true {
+                return Ok(true);
+            }
+            if !visibility.uniform {
+                return Ok(false);
+            }
+            let row = object([(k.source_key.as_str(), value)]);
+            let rule = rule.into_owned();
+            let viewer = self.context.viewer.clone();
+            return super::rules::evaluate(&rule, &viewer, None, &row, false, self);
+        }
+        self.covered_view_source(m, member, &k.source_index(), &Bounds::default())
+    }
+    fn device_live_count(
+        &mut self,
+        m: &Maintain,
+        member: &Value,
+    ) -> Result<Option<i64>, RuntimeError> {
+        let index = m.row_key.as_ref().unwrap().source_index();
+        let bounds = Bounds::default();
+        if !self.covered_view_source(m, member, &index, &bounds)? {
+            return Ok(None);
+        }
+        let limit = if self.meter.cut == crate::meter::Cut::Abort {
+            self.scan_room(m).min(WRITER_RECOUNT)
+        } else {
+            self.scan_room(m)
+        };
+        let (n, complete, _) = self.view_scan(m, member, None, &index, bounds, limit, true)?;
+        Ok(complete.then_some(n))
+    }
     pub(super) fn live_row_view(
         &mut self,
         m: &Maintain,
-        mut row: Value,
+        #[allow(unused_mut)] mut row: Value,
     ) -> Result<Option<Value>, RuntimeError> {
-        let k = m.row_key.as_ref().unwrap();
-        self.read_tables.insert(k.table.clone());
+        self.read_tables
+            .insert(m.row_key.as_ref().unwrap().table.clone());
         self.read_tables.insert(m.source.clone());
         let Some(member) = self.row_view_member_image(m, &row)? else {
             return Ok(None);
         };
+        if !self.row_view_source_readable(m, &member)? {
+            self.pending_view_read()?;
+            return Ok(Some(self.view_image(m, &member, 0, true)?));
+        }
         if pending(&row) {
             self.pending_view_read()?;
             return Ok(Some(row));
         }
         // Expiry is a live fact even before the physical sweep reaches the source.
-        if let Some(expiry) = &self.schema.tables[&m.source].expire {
-            let index = k.range_index(expiry);
-            let now = self.context.now.unwrap_or(0);
-            let bounds = Bounds { gt: Some(Value::Null), lte: Some(Value::Int(now)), ..Default::default() };
-            if !self.covered_view_source(m, &member, &index, &bounds)? {
-                self.pending_view_read()?;
+        if self.schema.tables[&m.source].expire.is_some() {
+            #[cfg(feature = "sqlite")]
+            if !self.device {
+                let k = m.row_key.as_ref().unwrap();
+                let index = k.range_index(self.schema.tables[&m.source].expire.as_ref().unwrap());
+                let now = self.context.now.unwrap_or(0);
+                let bounds = Bounds {
+                    gt: Some(Value::Null),
+                    lte: Some(Value::Int(now)),
+                    ..Default::default()
+                };
+                let limit = if self.meter.cut == crate::meter::Cut::Abort {
+                    self.scan_room(m).min(WRITER_RECOUNT)
+                } else {
+                    self.scan_room(m)
+                };
+                let (n, complete, _) =
+                    self.view_scan(m, &member, None, &index, bounds, limit, false)?;
+                if !complete {
+                    self.pending_view_read()?;
+                    return Ok(Some(self.view_image(m, &member, number(&row, "value"), true)?));
+                } else if let Value::Row(fields) = &mut row {
+                    let total = fields.get("value").unwrap().as_int()? - n;
+                    fields.insert("value".into(), Value::Int(total));
+                }
+                // One future-expiry head supplies a conservative reactive deadline;
+                // null/future rows never participate in the subtraction scan.
+                let bounds = Bounds {
+                    gt: Some(Value::Int(now)),
+                    ..Default::default()
+                };
+                let (_, end, head) = self.view_scan(m, &member, None, &index, bounds, 1, true)?;
+                if !end && head.is_none() {
+                    self.pending_view_read()?;
+                }
                 return Ok(Some(row));
             }
-            let limit = if self.meter.cut == crate::meter::Cut::Abort {
-                self.scan_room(m).min(WRITER_RECOUNT)
-            } else {
-                self.scan_room(m)
-            };
-            let (n, complete, _) = self.view_scan(m, &member, None, &index, bounds, limit, false)?;
-            if !complete {
+            // Wire images are live at serve time. Devices never subtract from them:
+            // pages can straddle expiry or omit rows that expired before catch-up.
+            let total = self.device_live_count(m, &member)?;
+            if total.is_none() {
                 self.pending_view_read()?;
-            } else if let Value::Row(fields) = &mut row {
-                let total = fields.get("value").unwrap().as_int()? - n;
-                fields.insert("value".into(), Value::Int(total));
             }
-            // One future-expiry head supplies a conservative reactive deadline;
-            // null/future rows never participate in the subtraction scan.
-            let bounds = Bounds { gt: Some(Value::Int(now)), ..Default::default() };
-            let (_, end, head) = self.view_scan(m, &member, None, &index, bounds, 1, true)?;
-            if !end && head.is_none() { self.pending_view_read()?; }
+            return Ok(Some(self.view_image(
+                m,
+                &member,
+                total.unwrap_or(0),
+                total.is_none(),
+            )?));
         }
         Ok(Some(row))
     }

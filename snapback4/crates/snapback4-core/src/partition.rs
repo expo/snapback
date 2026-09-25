@@ -535,14 +535,14 @@ pub fn snapshot(tx: &dyn PartitionRows, schema: &Schema, principal: &str, now: i
 fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize, now: i64, viewer: Option<(&Schema, &str)>) -> Result<(Vec<(Value, Vec<u8>)>, bool), RuntimeError> {
     // Select through U's horizon, then fetch only the projected count image.
     // The horizon's order columns stay on U; they never become view payload.
-    if let Some((schema, _)) = viewer
+    if let Some((schema, principal)) = viewer
         && let Some(m) = schema.maintain_for(table_name).filter(|m| m.row_key.is_some()) {
         let k = m.row_key.as_ref().unwrap();
         let member = &schema.tables[&k.table];
         if let Some(member_sync) = member.sync.as_ref().filter(|s| s.horizon.is_some()) {
             let (members, exhausted) = group_rows_from(tx, &k.table, member, member_sync, group, after, taken, room, now, viewer)?;
             let mut rows = Vec::new();
-            let mut aggregate = Runner::new(tx, schema, crate::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
+            let mut aggregate = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
             for (member, key) in members {
                 if let Some(row) = tx.get(table_name, member.field("id")?.as_str()?)?
                     && let Some(row) = aggregate.live_aggregate(table_name, row)? { rows.push((row, key)); }
@@ -562,7 +562,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let mut live = Vec::new();
     let mut exhausted = false;
     let mut reader = viewer.map(|(schema, principal)| Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0));
-    let mut aggregate = viewer.map(|(schema, _)| Runner::new(tx, schema, crate::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
+    let mut aggregate = viewer.map(|(schema, principal)| Runner::new(tx, schema, if schema.maintain_for(table_name).is_some_and(|m|m.row_key.is_some()) { crate::Context::new(principal, BTreeMap::new()).at(now) } else { crate::Context::system().at(now) }, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
     // One extra readable row decides pagination, never selection past N.
     let target = remaining.min(room.saturating_add(1));
     loop {
@@ -866,6 +866,8 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
     // its images: never re-fetch them or probe their read rule a second time.
     let mut reader = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now),
         crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0);
+    let mut aggregate = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now),
+        crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
     for mut event in page {
         if event.kind != "join" {
             if event.kind == "put" {
@@ -886,7 +888,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                         let (selected, _) = group_rows_from(tx, &k.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
                         live = selected.iter().any(|(u, _)| u.field("id") == row.field("member"));
                     }
-                    if !live { event.data = None; }
+                    event.data = if live { aggregate.live_aggregate(&event.table, row.clone())? } else { None };
                 }
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }

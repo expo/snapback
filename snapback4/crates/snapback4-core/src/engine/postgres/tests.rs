@@ -291,6 +291,7 @@ fn legacy_keys_can_shrink_and_open_reports_the_index_and_count() {
 fn row_keyed_views_need_the_sqlite_background_runner() {
     let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").into())]);
     assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
-    let error=supported(&bound.schema,&BTreeMap::new()).unwrap_err();
+    let schema: Schema = serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
+    let error=supported(&schema,&BTreeMap::new()).unwrap_err();
     assert_eq!(error.code(),"E_VIEW_KEY");assert!(error.to_string().contains("background recount"));
 }

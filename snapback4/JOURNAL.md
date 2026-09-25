@@ -49494,3 +49494,92 @@ No B3 assertion or check was skipped or weakened. Final log:
 `/tmp/lane-b3-r2-test-final.log`. Report:
 `/home/ccheever/sb5/lane-b3.r2.final.md`. Work remained on
 `sb5/b3-row-keyed-view`; no push, publication or deployment.
+
+## 2026-09-25 — Lane B3 round 3: paired-world disclosure and device count basis
+
+Copied B1's paired-world builder from its core `tests/disclosure/mod.rs` and
+adapted its device observer before changing implementation. The B3 copy lives
+in core `tests/row_view_disclosure/`. It compares serialized observable bytes:
+whole mutation envelopes and meters, query results/cursors, snapshots and stream
+images, watermarks, `/changes`, and the background sequence. The extension
+observes the writer and every row-view recount commit through quiescence;
+memory and SQLite devices replay the pages and predict counted inserts. Fixed
+IDs, clocks and one setup commit isolate the single hidden input. The fixture
+seed alone uses an unbounded meter, then restores ordinary production ceilings.
+The 15 pairs include counted/excluded private source rows with all five write
+forms, permitted and refused writes, private old marks, private source ranges,
+hidden conversation and member existence, and an undelivered hidden expiry.
+
+The harness exposed the old-mark background sequence, hidden source counts,
+zero-delta event presence, private source range scheduling, and the examined
+meter of an unscoped private-view scan. Blind marks now recount from the new
+member image. A source interval is an optimization only for a reader of that
+source group. A member read rule does not grant hidden source contributions:
+unproved source groups expose the constant zero placeholder with
+`recountPending: true`. Recipient-aware snapshot and stream normalization applies
+that same rule. View refresh events no longer depend on a nonzero hidden delta.
+Private view scans must pin the read audience or use a member key; the uniform
+E_VIEW_KEY refusal supplies that rewrite.
+
+Server snapshots and catch-up puts use the same live count basis. The server
+keeps the expired-subset optimization, while an expiring device reconstructs
+from covered live rows and never subtracts from a delivered count. Missing
+coverage or a recount beyond its allowance remains pending. Expiring source
+prediction reuses the bounded new-image recount; an unchanged mark after local
+expiry also recounts, avoiding a stale predicted image. The memory/SQLite basis
+regressions cover a snapshot spanning expiry, a snapshot excluding expiry before
+a subsequent stream put, and expired inserts on both sides of the watermark.
+The rebuilt-wasm replay covers both count directions, catch-up, and prediction.
+LLP 3000.015 §3 and the maintains card record the basis and conservative
+parent-group readability proof.
+
+The Postgres-feature test now converts the compiler schema through serde into
+the unit-test crate's local Schema. Its library test build succeeds and the
+row-keyed-view refusal test runs without a database; no Postgres runtime
+qualification is claimed. Added legacy-source default adoption followed by a
+pre-sweep read and physical expiry sweep. Removing old-source row_image now
+fails that test. Bypassing snapshot live_aggregate now fails both device stores'
+wire-basis assertions. These were the two surviving mutations from round 3.
+
+All eleven targeted Rust/build mutations are killed, including the Postgres
+E0308 and the same-value predicted mark. A twelfth experiment rebuilt wasm with
+the original expiry read; the actual JS/WASM replay fails at `-1 !== 0`.
+Production files were restored byte-for-byte after every mutation. Evidence is
+under `snapback4/target/b3-r3-mutation-*.log`, with summaries in
+`b3-r3-mutations.log` and `b3-r3-wasm-mutation.log`.
+
+The complete-suite build measures 1,790,471 B raw / 499,725 B gzip with Rust
+1.97.0 and wasm-bindgen 0.2.127, without wasm-opt. Against round 2's
+1,790,586 / 499,948, this is -115 raw / -223 gzip, leaving 275 B under the
+unchanged 500,000 B budget. Reusing prediction's bounded recount and excluding
+the server-only correction from the web build pays for the added checks. No
+runtime ceiling or size budget was raised.
+
+The first complete run exposed one compatibility regression: a bounded server
+expiry correction replaced the last settled number with zero. The implementation
+now retains that previously readable number and explicitly marks its image
+recountPending; the existing assertion remains unchanged. Hidden-source images
+still use the constant zero placeholder. Full-run outcomes follow below.
+
+The first full run finished `== 1 failure(s) in 772 s`, solely the server
+settled-value assertion described above. All 1,089 client tests passed with
+10 existing skips, including the rebuilt-wasm replay. The unchanged 26-test
+row-view engine suite passes after retaining the pending settled value. The
+final Postgres-feature library test recompiles and passes its row-view refusal
+case (1 passed, 98 filtered out). The failed full log is preserved at
+`snapback4/target/b3-r3-test-first.log`; it is not counted as qualification.
+
+Final complete run: **`== 0 failure(s) in 734 s`**, from the exact command
+`env -u FORCE_COLOR SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash snapback4/scripts/test.sh`.
+The complete Rust inventory and all fixture/type/doc checks pass. Client tests:
+1,089 passed, zero failed, 10 existing skips (698 s). The rebuilt-wasm test
+passes and the build repeats **1,790,471 raw / 499,725 gzip**. Final log:
+`snapback4/target/b3-r3-test-final.log`. No production source changed during this
+final run. A supplemental read-meter pair added while client checks finished
+crosses the hidden count's 9/10 digit boundary and includes a folded query;
+`hidden_count_digit_boundary_keeps_query_meters_identical` passes separately
+(`b3-r3-digit-boundary.log`). This brings the server builder to 16 pairs; the
+15 original pairs run on each device store. Reference validation: 507 LLP
+papers, 9,239 refs, zero errors and zero unchecked refs. The report is
+`/home/ccheever/sb5/lane-b3.r3.final.md`. Commit only on `sb5/b3-row-keyed-view`;
+no push, publication, or deployment.
