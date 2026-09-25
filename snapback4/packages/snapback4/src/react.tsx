@@ -45,6 +45,7 @@ export function useClient(): Client {
  * the estimate changes; held device queries already publish their own expiry. */
 export function useNow(deadline: number | null = null): number {
   const client = useClient();
+  const renderedNow = client.now();
   const [, tick] = useState(0);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -55,9 +56,12 @@ export function useNow(deadline: number | null = null): number {
     };
     const stop = onClock(client.now, () => { tick(n => n + 1); schedule(); });
     schedule();
+    // Render and subscription are separate phases: catch a missed correction
+    // or a deadline crossed before this effect could install its timer.
+    if (client.now() !== renderedNow) tick(n => n + 1);
     return () => { stop(); clearTimeout(timer); };
   }, [client, deadline]);
-  return client.now();
+  return renderedNow;
 }
 
 const LOADING: Read<never> = { loading: true };

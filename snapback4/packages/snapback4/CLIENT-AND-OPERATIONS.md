@@ -1361,6 +1361,9 @@ step.
   offset keep their times after restart; use a fresh store per offset test.
   Devices keep the server's time for predictions, reads and expiry, including offline starts.
   `clock advance` and `--clock-offset` reach connected devices at their next response.
+  Estimated server time is unfloored and schedules server-answer refetches; issued device
+  time (`client.now()`) is monotonic and drives device execution, predictions, expiry and rendering.
+  Freshness labels (`since` / `syncedAt`) stay on wall time for "as of three minutes ago".
   `serve` refuses every clock control with
   `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`. Scripts may call the same
   loopback-only dev endpoint, `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the
@@ -1482,14 +1485,22 @@ in its final JSON, because its headers may precede a clock advance.
 
 The client estimates `serverNow - (sent + received) / 2`, using the smallest round
 trip among the latest 32 samples received within 60 seconds; ties use the newest.
-A server restart or deliberate clock advance begins a new window. Late replies from
-an older revision cannot undo an advance. Streaming final stamps use the whole poll's
-round trip; short responses refine their larger timing uncertainty. The offset is zero
-before a first estimate and persists as device metadata beside store identity, along
-with the issued time floor, for offline starts. `client.now()` rounds to integer
-milliseconds and never goes backward when an estimate shrinks. Local predictions,
-queries, expiry and asset homes use this clock. A confirmed row always carries the
-server's settlement time; the server never adopts a submitted client clock.
+A server restart or deliberate clock advance begins a new window. Older revisions cannot
+undo an advance. On a new epoch, requests already issued cannot switch the clock to another
+epoch; a newly issued request can. Streaming final stamps are provisional receipt-time
+samples, avoiding half-poll-wait error. Any real round-trip sample in that window takes
+precedence over a provisional stamp. The offset is zero before a first estimate and
+persists as device metadata beside store identity, with the issued floor. Before issuing
+time after a restart, the device also restores that floor from durable pending admissions;
+synchronous web journal capture remains unchanged.
+
+Estimated server time is **unfloored** and schedules refetches of server answers, including
+local fallbacks. Issued device time (`client.now()`) rounds to integer milliseconds and is
+**monotonic**: local execution, predictions, expiry, asset homes and rendering use it.
+Mixed reads retain a deadline from each clock and wake at the earlier delay. `since` and
+`syncedAt` are **wall time**, independent of either server clock, for freshness labels.
+A confirmed row always carries the server's settlement time; the server never adopts a
+submitted client clock.
 
 `POST /q/<op>` with `{ "args": {..} }` answers `{ data, complete, cut, seq, next, nextExpiry,
 tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry the visible read encountered, or

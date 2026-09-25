@@ -182,7 +182,7 @@ export function createApp(options: AppOptions): App {
         else await storage.delete(key);
       })),
     };
-    const session = await restoreSession(url, restoringStore, options.device ? () => 0 : clock.now);
+    const session = await restoreSession(url, restoringStore, options.device ? () => 0 : clock.issuedDeviceNow);
     return { session, epoch };
   }
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };

@@ -95,7 +95,7 @@ export function createMockClient(options: MockOptions): MockClient {
   }
 
   const client: MockClient = {
-    now: new ServerClock().now,
+    now: new ServerClock().issuedDeviceNow,
     async act(op, args, options_) {
       const id = options_?.id ?? mockId();
       if (link !== "online") return { denied: { code: link === "offline" ? "E_OFFLINE" : "E_AUTH", family: link === "offline" ? "link" : "auth", message: "an action needs an online signed-in client", retryable: link === "offline" }, id };

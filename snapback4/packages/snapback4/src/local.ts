@@ -115,7 +115,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       session = signedIn.session;
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
-    if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - clock.estimate() <= REFRESH_BEFORE_EXPIRY_MS) {
+    if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - clock.estimatedServerNow() <= REFRESH_BEFORE_EXPIRY_MS) {
       const refreshed = await rotateSession(base, session.token, doFetch);
       if (refreshed.ok) {
         if (refreshed.session.principal !== session.principal) {
@@ -199,11 +199,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
   await clock.attach(core);
-  if (session && session.expiresAt <= clock.now()) {
+  if (session && session.expiresAt <= clock.issuedDeviceNow()) {
     await forgetSession(base, sessions);
     throw new Error("createLocalClient: E_AUTH: this session expired; sign in again");
   }
-  media = new MediaCache(core, principal, retention, clock.now);
+  media = new MediaCache(core, principal, retention, clock.issuedDeviceNow);
   await media.open();
   // The app's native module (LLP 3000.005 §9): fetched once per digest and
   // installed on the device, which keeps it; offline, the device answers
@@ -465,7 +465,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     if (closed || sessionDead || options.persona || !session || session.kind === "action") return;
-    const untilDue = Math.max(0, session.expiresAt - clock.now() - REFRESH_BEFORE_EXPIRY_MS);
+    const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - REFRESH_BEFORE_EXPIRY_MS);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
     refreshTimer = setTimeout(() => {
@@ -784,7 +784,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!caughtUp) return false;
       await refreshAcquired();
       seq = watermark;
-      lastSyncAt = clock.now();
+      lastSyncAt = Date.now(); // Freshness labels use wall time, not either server clock.
       await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
       return true;
     } finally {
@@ -907,7 +907,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   }
 
-  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean }> {
+  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; transportOffline?: boolean }> {
     const refused = unavailable();
     if (refused) return { read: { denied: refused }, tables: new Set(), nextExpiry: null };
     const schema = backend!.schema;
@@ -922,7 +922,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (last) for (const table of last.tables) tables.add(table);
       return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: !last };
     };
-    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean } = remembered, remember = true, retain = false) => {
+    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; transportOffline?: boolean } = remembered, remember = true, retain = false) => {
       const fetch = async () => {
         // A held query must not turn missing local coverage into a server scan, even during reset.
         if (held) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: true };
@@ -942,15 +942,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const json = result.json;
           for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
           if (json.denied) { serverAnswers.delete(key); return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null }; }
-          const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
+          const serverExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
           if (json.loading || !("data" in json)) {
             serverAnswers.delete(key);
-            return { read: { loading: true } as Read<R>, tables, nextExpiry };
+            return { read: { loading: true } as Read<R>, tables, nextExpiry: null, serverExpiry };
           }
           const next = (json.next as Cursor | null | undefined) ?? null;
           const read = { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next };
-          if (remember) serverAnswers.set(key, { read, at: clock.now(), tables: new Set(tables) });
-          return { read, tables, nextExpiry };
+          if (remember) serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
+          return { read, tables, nextExpiry: null, serverExpiry };
         }
       };
       return watch ? watch.fetch(fetch, () => notify(watch), { publishResult: remember, retain }) : fetch();
@@ -971,7 +971,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const local = async () => {
       const before = unavailable();
       if (before) return { outcome: {} as Outcome, result: { read: { denied: before } as Read<R>, tables, nextExpiry: null }, terminal: true };
-      const answer = await call({ op: "query", name: op.name, viewer: principal, args, now: clock.now() });
+      const answer = await call({ op: "query", name: op.name, viewer: principal, args, now: clock.issuedDeviceNow() });
       const unavailableWhy = unavailable();
       const outcome = (answer.ok ?? {}) as Outcome;
       for (const table of outcome.tables ?? []) tables.add(table);
@@ -1008,8 +1008,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const kept = coverage.filter(([, c]) => !wantsServer(c));
       const data = { ...remote.read.data as Record<string, unknown> };
       for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-      const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
-      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
+      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.serverExpiry ?? null };
     }
     if (wantsServer(outcome) && link === "online" && !await pending()) return server(remembered, true, true);
     return first.result;  }
@@ -1027,11 +1026,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((table) => tables.has(table))) void rerun(watch);
   }
 
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null) {
     if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
     watch.expiryTimer = null;
-    if (nextExpiry == null || closed) return;
-    const delay = Math.min(clock.delay(nextExpiry), 2_147_483_647);
+    if ((nextExpiry == null && serverExpiry == null) || closed) return;
+    const delay = Math.min(nextExpiry == null ? Infinity : clock.deviceDelay(nextExpiry), serverExpiry == null ? Infinity : clock.serverDelay(serverExpiry), 2_147_483_647);
     watch.expiryTimer = setTimeout(() => {
       watch.expiryTimer = null;
       if (watches.get(watch.key) === watch) void rerun(watch);
@@ -1047,12 +1046,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, incarnation: revision, authority, transportOffline } = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, serverExpiry, incarnation: revision, authority, transportOffline } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
-      scheduleExpiry(watch, nextExpiry);
+      scheduleExpiry(watch, nextExpiry, serverExpiry);
       if (watch.snapshot !== read || transportOffline) {
         watch.publish(transportOffline ? { loading: true } : read);
         notify(watch);
@@ -1203,7 +1202,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   let stopHost: void | (() => void);
   const client: LocalClient = {
-    now: clock.now,
+    now: clock.issuedDeviceNow,
     act(op, args, options) {
       const response = closingResponses.request();
       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => unavailable() ?? (link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return response.take(); } });
@@ -1268,7 +1267,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const result = new Promise<Write>((resolve) => settled.set(id, { resolve, response }));
         try {
           // @ref LLP 3000.007#20.4 — capture replay eligibility with the synchronous journal entry; recovery must also defer local refusals to the server.
-          const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.now(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued });
+          const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.issuedDeviceNow(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued });
           if (admitted.denied) {
             settled.delete(id);
             const failed = { state: "failed" as const, id, why: admitted.denied };
@@ -1459,7 +1458,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const prepared = startDeferred(options);
   const start = async () => {
     if (closed) return;
-    if (prepared && session && session.kind !== "action" && session.expiresAt - clock.now() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
+    if (prepared && session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
     if (link === "online") {
       // Web stores have one owner. Native owners may share an outbox with an
       // active sender, so their existing snapshot/receipt coordination runs first.

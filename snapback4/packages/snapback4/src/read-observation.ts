@@ -58,6 +58,7 @@ export class ReadObservation<T> {
     this.revision++;
     this.snapshot = read;
     this.kept = false;
+    // Freshness age uses wall time even when row deadlines use issued device time.
     this.since = "data" in read ? read.since ?? (read.fresh ? Date.now() : undefined) : undefined;
   }
 

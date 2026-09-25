@@ -220,6 +220,9 @@ Rows stamped under an offset keep their times after restart; use a fresh store p
 An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
 Devices keep the server's time for predictions, reads and expiry, including offline starts.
 `clock advance` and `--clock-offset` reach connected devices at their next response.
+Estimated server time is unfloored: it refines the offset and schedules server-answer refetches.
+Issued device time (`client.now()`) is monotonic: it drives device execution, predictions, expiry and rendering.
+Freshness labels (`since` / `syncedAt`) use wall time, so "as of three minutes ago" stays meaningful.
 
 `snapback4 run <op> --now 1789352669447` pins just that local invocation
 (query, mutation or job) to Unix milliseconds; `--now +25h` pins it relative
