@@ -1,0 +1,15 @@
+{
+  "name": "attempt-1-bun-install",
+  "command": [
+    "bun",
+    "install",
+    "--frozen-lockfile"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-042/snapback4",
+  "started_at": "2026-09-25T21:16:09.667567+00:00",
+  "pid": 5387,
+  "log": "attempt-1-bun-install.log",
+  "finished_at": "2026-09-25T21:16:10.575662+00:00",
+  "seconds": 0.908,
+  "exit_code": 0
+}

@@ -1,0 +1,14 @@
+{
+  "name": "attempt-1-npm-identity",
+  "command": [
+    "npm",
+    "whoami"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-042/snapback4",
+  "started_at": "2026-09-25T21:21:49.793848+00:00",
+  "pid": 14918,
+  "log": "attempt-1-npm-identity.log",
+  "finished_at": "2026-09-25T21:21:50.946058+00:00",
+  "seconds": 1.151,
+  "exit_code": 0
+}
