@@ -385,6 +385,10 @@ for (const tier of ["online", "process-device"]) for (const queued of [false, tr
     const attempts = [], replies = [];
     const transport = async (input, init) => {
       if (offline) throw new TypeError("offline");
+      // Exercise the HTTP replay receipt deterministically. Acquisition is
+      // temporarily unavailable until that reply arrives; otherwise sync can
+      // acknowledge the id first and correctly avoid the second POST.
+      if (String(input).endsWith("/sync") && dropped && replies.length < 2) return Response.json({}, { status: 503 });
       if (!String(input).endsWith("/m/record")) return fetch(input, init);
       attempts.push(JSON.parse(init.body));
       const response = await fetch(input, init);
