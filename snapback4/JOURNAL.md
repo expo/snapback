@@ -56080,3 +56080,39 @@ gzip against the unchanged 496,000 B budget. No new authoring form, refusal,
 runtime fix, package version, push or publication. File map, concrete
 counterexample, development-test corrections, before/after histograms and
 reproduction commands: [Lane W report](reports/20260925-lane-w.md).
+
+
+## 2026-09-25 — Lane Y: devices keep the server's time (0.4.3)
+
+Committed the server response stamps, a bounded minimum-RTT offset estimator,
+per-store clock persistence and monotonic device time. Queries, predictions,
+expiry timers and asset homes use the estimate; `client.now()` and React's
+`useNow(deadline)` expose it. Clock revisions carry development advances at the
+next response, including a held poll's final body. Confirmed rows still use only
+the server's execution clock. The expire/read cards now reserve render-deadline
+filtering for server answers; held observations already republish locally.
+
+In real Chromium with IndexedDB and `--clock-offset +25h`, pending messages stayed
+first in the latest 20 across an offline reload and a second offline send. The
+final full run measured a 90,000,001 ms offset both before and after reload;
+settlement after a two-minute server advance replaced the prediction timestamp
+with a server timestamp 120,495 ms later. Held typing removals published
+2, 1, 1, 1 and 2 ms after their deadlines. A response after `clock advance 2m`
+removed typing even with sync deletions held. Native JSON/SQLite cold starts at
++25h and -31d passed; React replacement, shrinking-offset and cleanup cases passed.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 497 s`**.
+Regular clients: 1,524 passed, 10 existing skips. All 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. First full attempt was
+`== 2 failure(s) in 1630 s`: one Rust and 23 client cases, all lane-owned and
+fixed. These were stale recipe/coalescing expectations, an incomplete doc snippet,
+and final clock-save errors escaping journal teardown; all 62 existing navigation
+cases pass unchanged. No baseline or environmental failure remained or was waived.
+Wasm is unchanged at 1,775,799 B raw / 495,258 B gzip (budget 496,000 B).
+
+No Quarry grammar, refusal code, interpreter, authorization, disclosure, meters,
+native bridge or web admission journal changed. No iOS simulator or service-worker
+shell qualification, package version bump, push or publication. Supervisor owns
+integration and blind review. Implementation revision: `1d0960c07`; full file map,
+engineering decisions, test meanings, every failed first-run case and reproduction
+commands: [Lane Y report](reports/20260925-lane-y.md).
