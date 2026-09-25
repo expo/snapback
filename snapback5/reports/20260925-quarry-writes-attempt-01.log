@@ -1,0 +1,21 @@
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/writes
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/writes/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/writes/snapback/schema.q`
+schema.q:30:3 — E_QUARRY_POSITIONAL_SCAN: counters positional key has 2 declared unique keys of arity 1; use named columns
+  rewrite: counters[id = who]
+  guide: reads
+
+check: 1 problem
+5 mutations never predict: createPost (writes online-only table posts), deletePost (writes online-only table posts), edit (writes online-only table posts), editIf (writes online-only table posts), setLike (reads online-only table likes); 2 mutations have insert arms that never predict: createPost (posts is online only), setLike (likes is online only) — snapback4 why <op>
+
+[exit 1]

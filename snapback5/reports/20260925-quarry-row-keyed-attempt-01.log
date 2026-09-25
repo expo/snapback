@@ -1,0 +1,42 @@
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/row-keyed
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/row-keyed/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/row-keyed/snapback/schema.q`
+schema.q:19:3 — E_QUARRY_SYNTAX: unknown maintain property where
+  rewrite: read <- rule
+  guide: language
+
+E_QUARRY_SYNTAX: the parser expected the token or construct named at file:line:column. Object fields use name: expression (or a bare name for name: name); ...value spreads a present row or object; ...shape inside a row/page shape names a declared shape. Operations need name(args): followed by an indented body, including () for no arguments. Close each (, [ and { with its matching delimiter; separate fields and arguments with commas. The rewrite names the expected spelling; `check --fix` applies only repairs marked mechanical. Read `snapback4 guide language` for complete examples. `check` hides a parser-proven empty-operation cascade after an earlier error in that operation; `--verbose` and `--json` retain it. Independent errors stay visible. A query merge lane takes a prefix page, range(a, b), or a bounded list; walk is not a lane domain. A time function occurs at most once per index.
+
+## Refusals
+
+E_QUARRY_SYNTAX means the parser could not read the form at the reported
+file, line and column. For example, `query answer:` is missing its argument
+parentheses: write `query answer():`, then indent `return 42` by two spaces
+on the next line. Keep the colon, close each `(`, `[` and `{`, and separate
+arguments and object fields with commas. Follow the diagnostic's rewrite;
+`snapback4 check --fix` applies it only when marked mechanical. Fix the first
+bad line and rerun `check`; a later empty-body error may be its consequence.
+
+Full card: snapback4 guide language
+
+schema.q:20:1 — E_QUARRY_SYNTAX: expected a name, got "<indent>"
+  rewrite: write an identifier here; object fields use name: expression, and row fields use row.name or .name inside a shape
+  guide: language
+
+schema.q:21:1 — E_QUARRY_SYNTAX: unexpected top-level "<dedent>"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+
+check: 3 problems
+
+[exit 1]

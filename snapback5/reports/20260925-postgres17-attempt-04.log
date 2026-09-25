@@ -1,0 +1,1186 @@
+$ /opt/homebrew/opt/postgresql@17/bin/initdb -D /Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem/data -A trust --no-locale -E UTF8
+The files belonging to this database system will be owned by user "ccheever".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "C".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+creating directory /Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem/data ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default "max_connections" ... 100
+selecting default "shared_buffers" ... 128MB
+selecting default time zone ... America/Los_Angeles
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+Success. You can now start the database server using:
+
+    '/opt/homebrew/opt/postgresql@17/bin/pg_ctl' -D /Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem/data -l logfile start
+
+
+[exit 0]
+$ /opt/homebrew/opt/postgresql@17/bin/pg_ctl -D /Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem/data -l /Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem/server.log -o '-h 127.0.0.1 -k /Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem -p 65533 -c wal_level=logical' -w start
+waiting for server to start.... done
+server started
+
+[exit 0]
+Started postmaster PID 91025; data=/Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem/data; port=65533
+$ /opt/homebrew/opt/postgresql@17/bin/psql -X -h /Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem -p 65533 -d postgres -v ON_ERROR_STOP=1 --echo-all -f /Users/ccheever/projects/snapback-sb5/snapback5/stubs/snapback.sql -f /Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql
+-- LLP 4001 §3.7 A: executable syntax/type dummies, never a runtime.
+-- Every function is IMMUTABLE and returns a typed constant without side effects.
+create schema snapback;
+CREATE SCHEMA
+create schema auth;
+CREATE SCHEMA
+create schema cron;
+CREATE SCHEMA
+create domain snapback.id as text;
+CREATE DOMAIN
+create domain snapback.principal as text;
+CREATE DOMAIN
+create domain snapback.cursor as text;
+CREATE DOMAIN
+create domain snapback.image as text;
+CREATE DOMAIN
+create domain snapback.video as text;
+CREATE DOMAIN
+create function snapback.mint() returns snapback.id language sql immutable as $$ select 'dummy-minted-id'::snapback.id $$;
+CREATE FUNCTION
+create function snapback.count(source text, by text default null, "where" text default null) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.sum(source text, "of" text, by text default null, "where" text default null) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.sequence(parent anyelement) returns bigint language sql immutable as $$ select 1::bigint $$;
+CREATE FUNCTION
+create function snapback.recorded(ref snapback.id, field text) returns snapback.principal language sql immutable as $$ select 'alice'::snapback.principal $$;
+CREATE FUNCTION
+create function snapback.day(at timestamptz) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.hour(at timestamptz) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.bytes(asset text) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.duration(asset snapback.video) returns interval language sql immutable as $$ select interval '0 seconds' $$;
+CREATE FUNCTION
+create function snapback.format(name text) returns text language sql immutable as $$ select '.*'::text $$;
+CREATE FUNCTION
+create function snapback.cap(maximum bigint, variadic keys text[]) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.matches(row_value anyelement, query text) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.connected(who snapback.principal) returns boolean language sql immutable as $$ select false $$;
+CREATE FUNCTION
+create function snapback.emit(effect text, payload json, once anyelement) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.period_start() returns timestamptz language sql immutable as $$ select '2026-09-25 00:00:00+00'::timestamptz $$;
+CREATE FUNCTION
+create function snapback.period_end() returns timestamptz language sql immutable as $$ select '2026-09-26 00:00:00+00'::timestamptz $$;
+CREATE FUNCTION
+create function snapback.bound(items anyarray, maximum bigint) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.created(table_name text, key snapback.id) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.identity(kind text) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.effect(name text, attempts integer default null, backoff text default null, deadline text default null) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.publish(table_name text, horizon text default null, recipient text default null) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.retain(table_name text, mode text) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.expire_at(table_name text, column_name text) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.search(table_name text, variadic columns text[]) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.immutable(table_name text, variadic columns text[]) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.written_by(table_name text, column_name text, by text, visible boolean default false) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.once(table_name text, column_name text) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.online_only(view_name text) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.server(operation text) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function auth.uid() returns snapback.principal language sql immutable as $$ select 'alice'::snapback.principal $$;
+CREATE FUNCTION
+create publication snapback;
+CREATE PUBLICATION
+create function cron.schedule(name text, cron text, command text) returns bigint language sql immutable as $$ select 1::bigint $$;
+CREATE FUNCTION
+-- Complete executable witnesses for LLP 4001 §3.1–§3.6.
+-- Fixture setup/DO assertions/GRANT/seed DML are harness, not admitted app syntax.
+-- Non-GAP SQL rows execute; the three proposed-baseline rows also execute here.
+set timezone = 'UTC';
+SET
+set datestyle = 'ISO, YMD';
+SET
+select version();
+                                                            version
+--------------------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit
+(1 row)
+
+create schema private;
+CREATE SCHEMA
+create schema insights;
+CREATE SCHEMA
+create role form_reader nologin;
+CREATE ROLE
+\echo ROW 3.1-04 3.1-05 3.1-06 3.1-08 3.1-09 3.1-10 3.1-11 3.1-12 3.2-01 3.2-02 3.2-05 3.2-06 3.2-09 3.2-11 3.2-14 definitions
+ROW 3.1-04 3.1-05 3.1-06 3.1-08 3.1-09 3.1-10 3.1-11 3.1-12 3.2-01 3.2-02 3.2-05 3.2-06 3.2-09 3.2-11 3.2-14 definitions
+create type role as enum ('member', 'admin');
+CREATE TYPE
+create table profiles (
+ id snapback.id primary key default snapback.mint(),
+ principal snapback.principal not null unique,
+ display_name text not null check (length(display_name) between 1 and 50),
+ handle text not null check (length(handle) between 3 and 20) check (handle ~ snapback.format('handle')),
+ link text check (link ~ snapback.format('url')),
+ created_at timestamptz not null default now(),
+ constraint handle_taken unique(handle),
+ check (snapback.cap(1, principal))
+);
+CREATE TABLE
+comment on constraint handle_taken on profiles is 'That handle is taken.';
+COMMENT
+create table posts (
+ id snapback.id primary key default snapback.mint(),
+ author_id snapback.principal not null,
+ parent_id snapback.id references posts(id),
+ body text not null check (length(body) <= 500),
+ photo snapback.image, video snapback.video,
+ at timestamptz not null default now(), removed boolean not null default false,
+ like_count bigint generated always as (snapback.count('likes')) stored,
+ children_count bigint generated always as (snapback.count('posts', by => 'parent_id')) stored,
+ weight_total bigint generated always as (snapback.sum('likes', of => 'weight')) stored,
+ selected_count bigint generated always as (snapback.count('likes', by => 'post_id', "where" => 'selected')) stored,
+ check (snapback.bytes(photo) <= 10000000), check (snapback.bytes(video) <= 50000000)
+);
+CREATE TABLE
+create table likes (
+ id snapback.id primary key default snapback.mint(),
+ post_id snapback.id not null references posts(id), principal snapback.principal not null,
+ at timestamptz not null default now(), weight bigint not null default 1,
+ selected boolean not null default true, unique(post_id, principal)
+);
+CREATE TABLE
+create table reposts (
+ id snapback.id primary key default snapback.mint(),
+ post_id snapback.id not null references posts(id), actor_id snapback.principal not null,
+ at timestamptz not null default now(), unique(actor_id, post_id)
+);
+CREATE TABLE
+create table follows (
+ id snapback.id primary key default snapback.mint(),
+ follower_id snapback.principal not null, followed_id snapback.principal not null,
+ at timestamptz not null default now(), unique(follower_id, followed_id)
+);
+CREATE TABLE
+create table conversations (id snapback.id primary key default snapback.mint());
+CREATE TABLE
+create table members (
+ id snapback.id primary key default snapback.mint(),
+ conversation_id snapback.id not null references conversations(id),
+ principal snapback.principal not null, role role not null default 'member',
+ read_up_to bigint not null default 0, left_at timestamptz,
+ unique(conversation_id, principal), constraint at_most_50 check(snapback.cap(50, conversation_id))
+);
+CREATE TABLE
+create table messages (
+ id snapback.id primary key default snapback.mint(),
+ conversation_id snapback.id not null references conversations(id), sender_id snapback.principal not null,
+ body text not null, ordinal bigint generated always as (snapback.sequence(conversation_id)) stored,
+ tombstone boolean not null default false, at timestamptz not null default now(),
+ expires_at timestamptz, photo snapback.image not null default 'dummy-image',
+ constraint photo_bound check(snapback.bytes(photo) <= 10000000)
+);
+CREATE TABLE
+create table receipts (
+ id snapback.id primary key default snapback.mint(),
+ chat snapback.id not null references conversations(id),
+ message snapback.id not null references messages(id),
+ principal snapback.principal not null,
+ read_at timestamptz not null default 'epoch'::timestamptz,
+ unique(message, principal), check(snapback.cap(50, chat, message))
+);
+CREATE TABLE
+create table scalar_forms (
+ id snapback.id primary key default snapback.mint(), owner snapback.principal not null,
+ tag snapback.id not null, plain text not null, small text not null check(length(small)<=20),
+ ranged text not null check(length(ranged) between 3 and 20), n bigint not null,
+ flag boolean not null, at timestamptz not null default now(),
+ read_at timestamptz not null default 'epoch'::timestamptz,
+ kind text not null check(kind in ('a','b')), photo snapback.image not null,
+ clip snapback.video not null, check(snapback.bytes(photo)<=10000000),
+ check(snapback.bytes(clip)<=50000000)
+);
+CREATE TABLE
+insert into profiles(id,principal,display_name,handle) values ('pr-a','alice','Alice','alice'),('pr-b','bob','Bob','bobby');
+INSERT 0 2
+insert into posts(id,author_id,parent_id,body) values ('p1','alice',null,'hello');
+INSERT 0 1
+insert into posts(id,author_id,parent_id,body) values ('p2','bob','p1','reply');
+INSERT 0 1
+insert into likes(id,post_id,principal) values ('l1','p1','bob');
+INSERT 0 1
+insert into reposts(id,post_id,actor_id) values ('rp1','p1','alice');
+INSERT 0 1
+insert into follows(id,follower_id,followed_id) values ('f1','alice','bob'),('f2','bob','alice');
+INSERT 0 2
+insert into conversations(id) values ('c1');
+INSERT 0 1
+insert into members(id,conversation_id,principal,role) values ('m1','c1','alice','admin'),('m2','c1','bob','member');
+INSERT 0 2
+insert into messages(id,conversation_id,sender_id,body) values ('msg1','c1','bob','hello');
+INSERT 0 1
+insert into receipts(id,chat,message,principal) values ('r1','c1','msg1','alice');
+INSERT 0 1
+insert into scalar_forms(owner,tag,plain,small,ranged,n,flag,kind,photo,clip) values ('alice','tag','unbounded','small','range',3,true,'a','image','video');
+INSERT 0 1
+select id,owner,read_at,photo,clip from scalar_forms;
+       id        | owner |        read_at         | photo | clip
+-----------------+-------+------------------------+-------+-------
+ dummy-minted-id | alice | 1970-01-01 00:00:00+00 | image | video
+(1 row)
+
+select like_count,children_count,weight_total,selected_count from posts order by id;
+ like_count | children_count | weight_total | selected_count
+------------+----------------+--------------+----------------
+          0 |              0 |            0 |              0
+          0 |              0 |            0 |              0
+(2 rows)
+
+select ordinal from messages;
+ ordinal
+---------
+       1
+(1 row)
+
+\echo ROW 3.1-01 identity
+ROW 3.1-01 identity
+select snapback.identity('password');
+ identity
+----------
+ t
+(1 row)
+
+\echo ROW 3.1-02 effect bare and explicit work policy
+ROW 3.1-02 effect bare and explicit work policy
+select snapback.effect('push');
+ effect
+--------
+ t
+(1 row)
+
+select snapback.effect('push', attempts => 5, backoff => '30s', deadline => '1h');
+ effect
+--------
+ t
+(1 row)
+
+\echo ROW 3.1-03 viewer
+ROW 3.1-03 viewer
+select auth.uid();
+  uid
+-------
+ alice
+(1 row)
+
+\echo ROW 3.1-07 bare id argument
+ROW 3.1-07 bare id argument
+create function echo_id(value snapback.id) returns snapback.id language sql immutable as $$ select value $$;
+CREATE FUNCTION
+select echo_id('client-minted-id');
+     echo_id
+------------------
+ client-minted-id
+(1 row)
+
+\echo ROW 3.1-12 media metadata and once
+ROW 3.1-12 media metadata and once
+select snapback.bytes('image'), snapback.duration('video'::snapback.video);
+ bytes | duration
+-------+----------
+     0 | 00:00:00
+(1 row)
+
+select snapback.once('messages','photo');
+ once
+------
+ t
+(1 row)
+
+\echo ROW 3.2-03 immutable
+ROW 3.2-03 immutable
+select snapback.immutable('posts','author_id','parent_id','at');
+ immutable
+-----------
+ t
+(1 row)
+
+select snapback.immutable('members','principal');
+ immutable
+-----------
+ t
+(1 row)
+
+\echo ROW 3.2-04 search
+ROW 3.2-04 search
+select snapback.search('profiles','display_name','handle');
+ search
+--------
+ t
+(1 row)
+
+\echo ROW 3.2-07 retain
+ROW 3.2-07 retain
+select snapback.retain('messages','delivered-history');
+ retain
+--------
+ t
+(1 row)
+
+\echo ROW 3.2-08 expiry
+ROW 3.2-08 expiry
+select snapback.expire_at('messages','expires_at');
+ expire_at
+-----------
+ t
+(1 row)
+
+\echo ROW 3.2-10 inferred and explicit residency
+ROW 3.2-10 inferred and explicit residency
+select snapback.publish('profiles');
+ publish
+---------
+ t
+(1 row)
+
+select snapback.publish('messages');
+ publish
+---------
+ t
+(1 row)
+
+select snapback.publish('messages',horizon => 'last 500 by at');
+ publish
+---------
+ t
+(1 row)
+
+select snapback.publish('receipts',recipient => 'principal');
+ publish
+---------
+ t
+(1 row)
+
+select snapback.publish('receipts',horizon => 'last 500 by read_at',recipient => 'principal');
+ publish
+---------
+ t
+(1 row)
+
+-- Membership recipient qualification is inferred from the read-policy probe.
+create table audience_groups(id snapback.id primary key);
+CREATE TABLE
+create table audience_members(id snapback.id primary key, group_id snapback.id not null references audience_groups(id), principal snapback.principal not null, added_by snapback.principal not null, unique(group_id,principal));
+CREATE TABLE
+alter table audience_members enable row level security;
+ALTER TABLE
+create policy audience_read on audience_members for select using(exists(select 1 from audience_members m where m.group_id=audience_members.group_id and m.principal=auth.uid()));
+CREATE POLICY
+select snapback.publish('audience_members');
+ publish
+---------
+ t
+(1 row)
+
+-- Read this self-probe as the owner for spelling verification; Postgres RLS
+-- recursion is the already-registered policy-semantic difference.
+select * from audience_members;
+ id | group_id | principal | added_by
+----+----------+-----------+----------
+(0 rows)
+
+\echo ROW 3.2-13 field authority private and readable by audience
+ROW 3.2-13 field authority private and readable by audience
+select snapback.written_by('members','read_up_to',by => 'principal');
+ written_by
+------------
+ t
+(1 row)
+
+select snapback.written_by('members','read_up_to',by => 'principal',visible => true);
+ written_by
+------------
+ t
+(1 row)
+
+\echo ROW 3.2-12 3.2-15 3.3-01 3.3-02 3.3-03 3.3-04 3.3-07 policies
+ROW 3.2-12 3.2-15 3.3-01 3.3-02 3.3-03 3.3-04 3.3-07 policies
+alter table profiles enable row level security;
+ALTER TABLE
+alter table posts enable row level security;
+ALTER TABLE
+alter table likes enable row level security;
+ALTER TABLE
+alter table reposts enable row level security;
+ALTER TABLE
+alter table follows enable row level security;
+ALTER TABLE
+alter table members enable row level security;
+ALTER TABLE
+alter table messages enable row level security;
+ALTER TABLE
+alter table receipts enable row level security;
+ALTER TABLE
+create policy profiles_public on profiles for select using(true);
+CREATE POLICY
+comment on policy profiles_public on profiles is 'Clique profiles are discoverable';
+COMMENT
+create policy profiles_insert on profiles for insert with check(principal=auth.uid());
+CREATE POLICY
+create policy profiles_update on profiles for update using(principal=auth.uid()) with check(principal=auth.uid());
+CREATE POLICY
+create policy posts_public on posts for select using(true);
+CREATE POLICY
+create policy posts_insert on posts for insert with check(author_id=auth.uid());
+CREATE POLICY
+create policy posts_update on posts for update using(author_id=auth.uid());
+CREATE POLICY
+create policy likes_public on likes for select using(true);
+CREATE POLICY
+create policy likes_insert on likes for insert with check(principal=auth.uid());
+CREATE POLICY
+create policy likes_delete on likes for delete using(principal=auth.uid());
+CREATE POLICY
+create policy reposts_public on reposts for select using(true);
+CREATE POLICY
+create policy follows_public on follows for select using(true);
+CREATE POLICY
+-- A plain owner rule makes PostgreSQL non-owner probes nonrecursive. Snapback's
+-- self-probe spelling is exercised separately below through the admitted helper.
+create policy members_read on members for select using(principal=auth.uid());
+CREATE POLICY
+create policy messages_read on messages for select using(exists(select 1 from members m where m.conversation_id=messages.conversation_id and m.principal=auth.uid()) or auth.uid()='service:x');
+CREATE POLICY
+create policy messages_insert on messages for insert with check(sender_id=auth.uid() and exists(select 1 from members m where m.conversation_id=messages.conversation_id and m.principal=auth.uid()));
+CREATE POLICY
+create policy receipts_read on receipts for select using(principal=auth.uid());
+CREATE POLICY
+\echo ROW 3.3-01 probe residuals and null-safe grammar
+ROW 3.3-01 probe residuals and null-safe grammar
+create function private.is_member(c snapback.id) returns boolean language sql stable security definer as $$
+ select exists(select 1 from members m where m.conversation_id=c and m.principal=auth.uid() and m.left_at is null)
+$$;
+CREATE FUNCTION
+select private.is_member('c1'),private.is_member('missing');
+ is_member | is_member
+-----------+-----------
+ t         | f
+(1 row)
+
+create policy residual_member on messages as restrictive for select using(exists(select 1 from members m where m.conversation_id=messages.conversation_id and m.principal is not distinct from auth.uid() and m.left_at is null));
+CREATE POLICY
+create policy self_probe on members for insert with check(exists(select 1 from members m where m.conversation_id=members.conversation_id and m.principal=auth.uid() and m.role='admin'));
+CREATE POLICY
+create policy null_safe on posts as restrictive for select using(parent_id is null or parent_id is not distinct from id or parent_id is distinct from id);
+CREATE POLICY
+\echo ROW 3.3-08 created messages
+ROW 3.3-08 created messages
+create policy fresh on receipts for insert with check(snapback.created('messages',message));
+CREATE POLICY
+select snapback.created('messages','msg1');
+ created
+---------
+ t
+(1 row)
+
+\echo ROW 3.3-05 3.3-06 transition and explicit grant
+ROW 3.3-05 3.3-06 transition and explicit grant
+create policy update_base on receipts for update using(true) with check(true);
+CREATE POLICY
+create policy owner_restrict on receipts as restrictive for update using(principal=auth.uid()) with check(principal=auth.uid());
+CREATE POLICY
+create function receipt_transition() returns trigger language plpgsql as $$ begin
+ if not (new.principal is not distinct from old.principal) then raise exception 'E_RULE'; end if;
+ return new;
+end $$;
+CREATE FUNCTION
+create trigger receipt_guard before update on receipts for each row execute function receipt_transition();
+CREATE TRIGGER
+create table all_rules(id snapback.id primary key, owner snapback.principal not null, flag boolean not null);
+CREATE TABLE
+alter table all_rules enable row level security;
+ALTER TABLE
+create policy owner_all on all_rules for all using(owner=auth.uid()) with check(owner=auth.uid());
+CREATE POLICY
+create policy flag_restrict on all_rules as restrictive for all using(flag) with check(flag);
+CREATE POLICY
+insert into all_rules values ('a1','alice',true);
+INSERT 0 1
+-- Privileges are harness only. All policy-sensitive calls run as a non-owner.
+grant usage on schema public,snapback,auth,private,insights to form_reader;
+GRANT
+grant select,insert,update,delete on all tables in schema public to form_reader;
+GRANT
+set role form_reader;
+SET
+select current_user,private.is_member('c1');
+ current_user | is_member
+--------------+-----------
+ form_reader  | t
+(1 row)
+
+select * from messages;
+  id  | conversation_id | sender_id | body  | ordinal | tombstone |              at               | expires_at |    photo
+------+-----------------+-----------+-------+---------+-----------+-------------------------------+------------+-------------
+ msg1 | c1              | bob       | hello |       1 | f         | 2026-09-25 06:52:24.773363+00 |            | dummy-image
+(1 row)
+
+insert into profiles(id,principal,display_name,handle) values ('pr-test','alice','Another','another') on conflict do nothing;
+INSERT 0 0
+update profiles set display_name='Alice updated' where id='pr-a';
+UPDATE 1
+update posts set body='hello updated' where id='p1';
+UPDATE 1
+insert into members(id,conversation_id,principal,role) values ('m-existing','c1','alice','admin') on conflict do nothing;
+INSERT 0 0
+insert into receipts(id,chat,message,principal) values ('r-existing','c1','msg1','alice') on conflict do nothing;
+INSERT 0 0
+update receipts set read_at='2026-09-25 00:00:00+00' where id='r1';
+UPDATE 1
+update all_rules set flag=true where id='a1';
+UPDATE 1
+delete from all_rules where id='missing';
+DELETE 0
+-- Harness catches the deliberately triggered exception so ON_ERROR_STOP stays on.
+do $$ begin
+ begin
+  update receipts set principal='mallory' where id='r1';
+  raise exception 'HARNESS: expected E_RULE';
+ exception when raise_exception then
+  if sqlerrm <> 'E_RULE' then raise; end if;
+  raise notice 'EXPECTED transition E_RULE';
+ end;
+end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:217: NOTICE:  EXPECTED transition E_RULE
+DO
+reset role;
+RESET
+\echo ROW 3.4-01 activity union
+ROW 3.4-01 activity union
+create view activity as select id,id as post,author_id as actor,at,false as repost from posts where parent_id is null and not removed
+union all select id,post_id,actor_id,at,true from reposts;
+CREATE VIEW
+select * from activity order by id;
+ id  | post | actor |              at               | repost
+-----+------+-------+-------------------------------+--------
+ p1  | p1   | alice | 2026-09-25 06:52:24.771987+00 | f
+ rp1 | p1   | alice | 2026-09-25 06:52:24.772596+00 | t
+(2 rows)
+
+\echo ROW 3.4-02 following
+ROW 3.4-02 following
+create materialized view following as select * from activity where actor=auth.uid() or exists(select 1 from follows f where f.follower_id=auth.uid() and f.followed_id=activity.actor);
+SELECT 2
+select * from following order by id;
+ id  | post | actor |              at               | repost
+-----+------+-------+-------------------------------+--------
+ p1  | p1   | alice | 2026-09-25 06:52:24.771987+00 | f
+ rp1 | p1   | alice | 2026-09-25 06:52:24.772596+00 | t
+(2 rows)
+
+\echo ROW 3.4-03 3.4-10 count and inherited residency
+ROW 3.4-03 3.4-10 count and inherited residency
+create materialized view follower_count as select followed_id,count(*) as count from follows group by followed_id;
+SELECT 2
+create materialized view following_count as select follower_id,count(*) as count from follows group by follower_id;
+SELECT 2
+select * from follower_count;
+ followed_id | count
+-------------+-------
+ bob         |     1
+ alice       |     1
+(2 rows)
+
+\echo ROW 3.4-04 filtered count
+ROW 3.4-04 filtered count
+create materialized view original_posts as select author_id,count(*) as count from posts where parent_id is null group by author_id;
+SELECT 1
+select * from original_posts;
+ author_id | count
+-----------+-------
+ alice     |     1
+(1 row)
+
+\echo ROW 3.4-05 recorded attribution
+ROW 3.4-05 recorded attribution
+create materialized view received_likes as select snapback.recorded(post_id,'author_id') as author_id,count(*) as count from likes group by 1;
+SELECT 1
+select * from received_likes;
+ author_id | count
+-----------+-------
+ alice     |     1
+(1 row)
+
+\echo ROW 3.4-06 day aggregate
+ROW 3.4-06 day aggregate
+create materialized view daily_likes as select snapback.recorded(post_id,'author_id') as author_id,snapback.day(at) as day,count(*) as count from likes group by 1,2;
+SELECT 1
+select * from daily_likes;
+ author_id | day | count
+-----------+-----+-------
+ alice     |   0 |     1
+(1 row)
+
+select snapback.day(now()),snapback.hour(now());
+ day | hour
+-----+------
+   0 |    0
+(1 row)
+
+\echo ROW 3.4-07 row keyed view proposed baseline
+ROW 3.4-07 row keyed view proposed baseline
+create materialized view unread as select m.id,count(x.id) as count from members m left join messages x on x.conversation_id=m.conversation_id and x.ordinal>m.read_up_to and x.sender_id<>m.principal and not x.tombstone group by m.id;
+SELECT 2
+select * from unread order by id;
+ id | count
+----+-------
+ m1 |     1
+ m2 |     0
+(2 rows)
+
+\echo ROW 3.4-08 online maintain
+ROW 3.4-08 online maintain
+create materialized view post_totals as select author_id,count(*) as count from posts group by author_id;
+SELECT 2
+select snapback.online_only('post_totals');
+ online_only
+-------------
+ t
+(1 row)
+
+select snapback.online_only('follower_count');
+ online_only
+-------------
+ t
+(1 row)
+
+create materialized view reply_count as select parent_id,count(*) as count from posts group by parent_id;
+SELECT 2
+\echo ROW 3.4-09 shape with nullable aggregate point
+ROW 3.4-09 shape with nullable aggregate point
+create type post_card_t as (
+ id snapback.id,author_id snapback.principal,parent_id snapback.id,body text,photo snapback.image,video snapback.video,
+ at timestamptz,removed boolean,like_count bigint,children_count bigint,weight_total bigint,selected_count bigint,
+ author profiles,reply_count bigint,liked boolean
+);
+CREATE TYPE
+create function post_card(p posts) returns post_card_t language sql stable as $$
+ select p.*,(select pr from profiles pr where pr.principal=p.author_id) as author,
+ (select c.count from reply_count c where c.parent_id=p.id) as reply_count,
+ exists(select 1 from likes l where l.post_id=p.id and l.principal=auth.uid()) as liked
+$$;
+CREATE FUNCTION
+select (post_card(p)).* from posts p order by p.id;
+ id | author_id | parent_id |     body      | photo | video |              at               | removed | like_count | children_count | weight_total | selected_count |                               author                                | reply_count | liked
+----+-----------+-----------+---------------+-------+-------+-------------------------------+---------+------------+----------------+--------------+----------------+---------------------------------------------------------------------+-------------+-------
+ p1 | alice     |           | hello updated |       |       | 2026-09-25 06:52:24.771987+00 | f       |          0 |              0 |            0 |              0 | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") |           1 | f
+ p2 | bob       | p1        | reply         |       |       | 2026-09-25 06:52:24.772227+00 | f       |          0 |              0 |            0 |              0 | (pr-b,bob,Bob,bobby,,"2026-09-25 06:52:24.771674+00")               |             | f
+(2 rows)
+
+\echo ROW 3.4-12 nested shape and replacement
+ROW 3.4-12 nested shape and replacement
+create type activity_card_t as (id snapback.id,post post_card_t,actor profiles,at timestamptz,repost boolean);
+CREATE TYPE
+create function activity_card(a activity) returns activity_card_t language sql stable as $$
+ select a.id,(select post_card(p) from posts p where p.id=a.post) as post,
+ (select pr from profiles pr where pr.principal=a.actor) as actor,a.at,a.repost
+$$;
+CREATE FUNCTION
+select (activity_card(a)).* from activity a;
+ id  |                                                                         post                                                                          |                                actor                                |              at               | repost
+-----+-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------+-------------------------------+--------
+ p1  | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.771987+00 | f
+ rp1 | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.772596+00 | t
+(2 rows)
+
+select (activity_card(row(f.id,f.post,f.actor,f.at,f.repost)::activity)).* from following f;
+ id  |                                                                         post                                                                          |                                actor                                |              at               | repost
+-----+-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------+-------------------------------+--------
+ p1  | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.771987+00 | f
+ rp1 | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.772596+00 | t
+(2 rows)
+
+\echo ROW 3.4-13 spread object
+ROW 3.4-13 spread object
+create type social_profile_t as (id snapback.id,principal snapback.principal,display_name text,handle text,link text,created_at timestamptz,followers bigint,following boolean);
+CREATE TYPE
+\echo ROW 3.5-01 home
+ROW 3.5-01 home
+create function home(c snapback.cursor default null) returns setof activity_card_t language plpgsql stable as $$ begin
+ return query select (activity_card(row(f.id,f.post,f.actor,f.at,f.repost)::activity)).* from following f order by f.at desc limit 20; return;
+end $$;
+CREATE FUNCTION
+select * from home();
+ id  |                                                                         post                                                                          |                                actor                                |              at               | repost
+-----+-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------+-------------------------------+--------
+ rp1 | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.772596+00 | t
+ p1  | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.771987+00 | f
+(2 rows)
+
+\echo ROW 3.5-02 global
+ROW 3.5-02 global
+create function global(c snapback.cursor default null) returns setof activity_card_t language plpgsql stable as $$ begin
+ return query select (activity_card(a)).* from activity a order by a.at desc limit 20; return;
+end $$;
+CREATE FUNCTION
+select * from global();
+ id  |                                                                         post                                                                          |                                actor                                |              at               | repost
+-----+-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------+-------------------------------+--------
+ rp1 | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.772596+00 | t
+ p1  | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.771987+00 | f
+(2 rows)
+
+\echo ROW 3.5-03 thread
+ROW 3.5-03 thread
+create function thread(post_id posts.id%type,c snapback.cursor default null) returns setof post_card_t language plpgsql stable as $$ begin
+ return query select (post_card(p)).* from posts p where p.parent_id is not distinct from thread.post_id order by p.at asc limit 20; return;
+end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:285: NOTICE:  type reference posts.id%TYPE converted to snapback.id
+CREATE FUNCTION
+select * from thread('p1');
+ id | author_id | parent_id | body  | photo | video |              at               | removed | like_count | children_count | weight_total | selected_count |                        author                         | reply_count | liked
+----+-----------+-----------+-------+-------+-------+-------------------------------+---------+------------+----------------+--------------+----------------+-------------------------------------------------------+-------------+-------
+ p2 | bob       | p1        | reply |       |       | 2026-09-25 06:52:24.772227+00 | f       |          0 |              0 |            0 |              0 | (pr-b,bob,Bob,bobby,,"2026-09-25 06:52:24.771674+00") |             | f
+(1 row)
+
+\echo ROW 3.5-04 3.5-05 people alternatives and matching
+ROW 3.5-04 3.5-05 people alternatives and matching
+create function people(q varchar(100),c snapback.cursor default null) returns setof profiles language plpgsql stable as $$ begin
+ if q='' then return query select p.* from profiles p order by p.created_at desc limit 20; return; end if;
+ return query select p.* from profiles p where snapback.matches(p,q) order by p.created_at desc limit 20; return;
+end $$;
+CREATE FUNCTION
+select * from people('');
+  id  | principal | display_name  | handle | link |          created_at
+------+-----------+---------------+--------+------+-------------------------------
+ pr-b | bob       | Bob           | bobby  |      | 2026-09-25 06:52:24.771674+00
+ pr-a | alice     | Alice updated | alice  |      | 2026-09-25 06:52:24.771674+00
+(2 rows)
+
+select * from people('ali');
+  id  | principal | display_name  | handle | link |          created_at
+------+-----------+---------------+--------+------+-------------------------------
+ pr-b | bob       | Bob           | bobby  |      | 2026-09-25 06:52:24.771674+00
+ pr-a | alice     | Alice updated | alice  |      | 2026-09-25 06:52:24.771674+00
+(2 rows)
+
+select * from profiles where snapback.matches(profiles,'ali');
+  id  | principal | display_name  | handle | link |          created_at
+------+-----------+---------------+--------+------+-------------------------------
+ pr-b | bob       | Bob           | bobby  |      | 2026-09-25 06:52:24.771674+00
+ pr-a | alice     | Alice updated | alice  |      | 2026-09-25 06:52:24.771674+00
+(2 rows)
+
+\echo ROW 3.5-06 social profile and expected NOT_FOUND
+ROW 3.5-06 social profile and expected NOT_FOUND
+create function social_profile(handle profiles.handle%type) returns social_profile_t language plpgsql stable as $$
+declare p profiles;
+begin
+ select * into strict p from profiles where profiles.handle=social_profile.handle;
+ return (select row((p).*,(select c.count from follower_count c where c.followed_id=p.principal),exists(select 1 from follows f where f.follower_id=auth.uid() and f.followed_id=p.principal))::social_profile_t);
+ exception when no_data_found then raise exception 'NOT_FOUND';
+end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:302: NOTICE:  type reference profiles.handle%TYPE converted to text
+CREATE FUNCTION
+select social_profile('alice');
+                             social_profile
+-------------------------------------------------------------------------
+ (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00",1,f)
+(1 row)
+
+do $$ begin
+ begin perform social_profile('missing'); raise exception 'HARNESS: expected NOT_FOUND';
+ exception when raise_exception then if sqlerrm<>'NOT_FOUND' then raise; end if; raise notice 'EXPECTED social_profile NOT_FOUND'; end;
+end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:307: NOTICE:  EXPECTED social_profile NOT_FOUND
+DO
+\echo ROW 3.5-07 initialized arrays and end-exclusive range
+ROW 3.5-07 initialized arrays and end-exclusive range
+create type day_t as(day bigint,likes bigint);
+CREATE TYPE
+create type insights_t as(days day_t[]);
+CREATE TYPE
+create function insights(a integer,b integer) returns insights_t language plpgsql stable as $$
+declare d integer; days day_t[] := array[]::day_t[];
+begin
+ for d in a..b-1 loop days:=days || row(d,(select c.count from daily_likes c where c.author_id=auth.uid() and c.day=d))::day_t; end loop;
+ return row(days)::insights_t;
+end $$;
+CREATE FUNCTION
+select insights(0,7),cardinality((insights(0,7)).days);
+                               insights                                | cardinality
+-----------------------------------------------------------------------+-------------
+ ("{""(0,1)"",""(1,)"",""(2,)"",""(3,)"",""(4,)"",""(5,)"",""(6,)""}") |           7
+(1 row)
+
+select insights(2,2);
+ insights
+----------
+ ({})
+(1 row)
+
+\echo ROW 3.5-08 cursor-free trending
+ROW 3.5-08 cursor-free trending
+create function trending() returns setof post_card_t language plpgsql stable as $$ begin
+ return query select (post_card(p)).* from posts p where parent_id is null and not removed and at>now()-interval '24 hours' and at<=now() order by like_count desc,at desc limit 10; return;
+end $$;
+CREATE FUNCTION
+select * from trending();
+ id | author_id | parent_id |     body      | photo | video |              at               | removed | like_count | children_count | weight_total | selected_count |                               author                                | reply_count | liked
+----+-----------+-----------+---------------+-------+-------+-------------------------------+---------+------------+----------------+--------------+----------------+---------------------------------------------------------------------+-------------+-------
+ p1 | alice     |           | hello updated |       |       | 2026-09-25 06:52:24.771987+00 | f       |          0 |              0 |            0 |              0 | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") |           1 | f
+(1 row)
+
+\echo ROW 3.5-09 streaming count
+ROW 3.5-09 streaming count
+create function message_total(conversation_id conversations.id%type) returns bigint language plpgsql stable as $$ declare n bigint; begin select count(*) into n from messages m where m.conversation_id=message_total.conversation_id; return n; end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:325: NOTICE:  type reference conversations.id%TYPE converted to snapback.id
+CREATE FUNCTION
+select message_total('c1');
+ message_total
+---------------
+             1
+(1 row)
+
+\echo ROW 3.5-10 3.5-14 expression and block helpers, interval arithmetic
+ROW 3.5-10 3.5-14 expression and block helpers, interval arithmetic
+create function private.edit_window() returns interval language sql immutable as $$ select interval '60 seconds' $$;
+CREATE FUNCTION
+create function private.short_ttl() returns interval language sql immutable as $$ select interval '180 seconds' $$;
+CREATE FUNCTION
+create function private.receipt_state(m messages) returns bigint language plpgsql stable as $$
+declare r record; n bigint:=0;
+begin
+ for r in select * from receipts where message=m.id loop n:=n+1; end loop;
+ return n;
+end $$;
+CREATE FUNCTION
+create function private.other_profile(who snapback.principal) returns profiles language plpgsql stable as $$ declare p profiles; begin select * into p from profiles where principal=who order by created_at limit 1; return p; end $$;
+CREATE FUNCTION
+create function private.unread(m members) returns bigint language plpgsql stable as $$ declare n bigint; begin select count(*) into n from messages x where x.conversation_id=m.conversation_id and x.ordinal>m.read_up_to and x.sender_id<>m.principal and not x.tombstone; return n; end $$;
+CREATE FUNCTION
+select private.edit_window(),private.short_ttl();
+ edit_window | short_ttl
+-------------+-----------
+ 00:01:00    | 00:03:00
+(1 row)
+
+select private.receipt_state(m),now()-m.at<=private.edit_window(),now()+private.short_ttl() from messages m;
+ receipt_state | ?column? |           ?column?
+---------------+----------+-------------------------------
+             1 | t        | 2026-09-25 06:55:24.806116+00
+(1 row)
+
+select private.other_profile('bob'),private.other_profile('missing');
+                     other_profile                     | other_profile
+-------------------------------------------------------+---------------
+ (pr-b,bob,Bob,bobby,,"2026-09-25 06:52:24.771674+00") | (,,,,,)
+(1 row)
+
+select private.unread(m) from members m;
+ unread
+--------
+      1
+      0
+(2 rows)
+
+\echo ROW 3.5-11 server marker
+ROW 3.5-11 server marker
+select snapback.server('edit');
+ server
+--------
+ t
+(1 row)
+
+\echo ROW 3.5-12 optional nominal reference and bounded media
+ROW 3.5-12 optional nominal reference and bounded media
+create function optional_media(photo posts.photo%type,parent posts.id%type default null) returns snapback.id language plpgsql stable as $$ begin return parent; end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:345: NOTICE:  type reference posts.photo%TYPE converted to snapback.image
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:345: NOTICE:  type reference posts.id%TYPE converted to snapback.id
+CREATE FUNCTION
+select optional_media('image','p1'),optional_media(null);
+ optional_media | optional_media
+----------------+----------------
+ p1             |
+(1 row)
+
+\echo ROW 3.5-13 list bounds/growth/cardinality/text length
+ROW 3.5-13 list bounds/growth/cardinality/text length
+create function list_forms(ids snapback.id[],extra snapback.id,body text) returns bigint language plpgsql stable as $$ declare n bigint; grown snapback.id[]; begin
+ perform snapback.bound(ids,50); grown:=ids || array[extra]; n:=cardinality(grown); n:=n+length(body); return n;
+end $$;
+CREATE FUNCTION
+select list_forms(array[]::snapback.id[],'x','hello'),list_forms(array['p1'::snapback.id],'x','');
+ list_forms | list_forms
+------------+------------
+          6 |          2
+(1 row)
+
+\echo ROW 3.5-15 unpaged shaped scan and first
+ROW 3.5-15 unpaged shaped scan and first
+create type roster_t as (principal snapback.principal);
+CREATE TYPE
+create function roster(conversation_id conversations.id%type) returns setof roster_t language plpgsql stable as $$ begin return query select m.principal from members m where m.conversation_id=roster.conversation_id; return; end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:354: NOTICE:  type reference conversations.id%TYPE converted to snapback.id
+CREATE FUNCTION
+select * from roster('c1');
+ principal
+-----------
+ alice
+ bob
+(2 rows)
+
+-- Additional expression/statement grammar witnesses (§3.6 prose, §3.7).
+create function private.expression_forms(a bigint,b bigint) returns text language plpgsql immutable as $$ declare s text; begin
+ s:=substr('abcdefghijklmno',5,10);
+ return case when a<b then s else coalesce(null::text,'fallback') end;
+end $$;
+CREATE FUNCTION
+select private.expression_forms(1,2),private.expression_forms(3,2),least(2,4),greatest(2,4);
+ expression_forms | expression_forms | least | greatest
+------------------+------------------+-------+----------
+ efghijklmn       | fallback         |     2 |        4
+(1 row)
+
+create function private.loop_forms(items bigint[]) returns bigint language plpgsql immutable as $$ declare x bigint; n bigint:=0; begin
+ foreach x in array items loop
+  if x=0 then continue; elsif x<0 then exit; else n:=n+x; end if;
+ end loop;
+ return n;
+end $$;
+CREATE FUNCTION
+select private.loop_forms(array[0,1,2,-1,3]::bigint[]);
+ loop_forms
+------------
+          3
+(1 row)
+
+\echo ROW 3.6-01 insert if absent, explicit and omitted ids
+ROW 3.6-01 insert if absent, explicit and omitted ids
+create function create_post(post_id snapback.id,body varchar(500),parent_id posts.id%type default null) returns posts language plpgsql volatile as $$ declare r posts; begin
+ insert into posts(id,author_id,parent_id,body) values(create_post.post_id,auth.uid(),create_post.parent_id,create_post.body) on conflict do nothing returning * into r;
+ return r;
+end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:374: NOTICE:  type reference posts.id%TYPE converted to snapback.id
+CREATE FUNCTION
+select create_post('new-post','new'),create_post('new-post','duplicate');
+                            create_post                            |  create_post
+-------------------------------------------------------------------+---------------
+ (new-post,alice,,new,,,"2026-09-25 06:52:24.807345+00",f,0,0,0,0) | (,,,,,,,,,,,)
+(1 row)
+
+\echo ROW 3.6-02 upsert matched fields
+ROW 3.6-02 upsert matched fields
+create table counters(id snapback.id primary key default snapback.mint(),principal snapback.principal not null unique,n bigint not null);
+CREATE TABLE
+create function upsert_counter(who snapback.principal,value bigint) returns void language plpgsql volatile as $$ begin
+ insert into counters(principal,n) values(who,value) on conflict(principal) do update set n=excluded.n;
+end $$;
+CREATE FUNCTION
+select upsert_counter('alice',1),upsert_counter('alice',2);
+ upsert_counter | upsert_counter
+----------------+----------------
+                |
+(1 row)
+
+select * from counters;
+       id        | principal | n
+-----------------+-----------+---
+ dummy-minted-id | alice     | 2
+(1 row)
+
+\echo ROW 3.6-03 unconditional point update
+ROW 3.6-03 unconditional point update
+create function edit(post_id posts.id%type,body text) returns void language plpgsql volatile as $$ begin update posts p set body=edit.body where p.id=edit.post_id; end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:384: NOTICE:  type reference posts.id%TYPE converted to snapback.id
+CREATE FUNCTION
+select edit('new-post','changed');
+ edit
+------
+
+(1 row)
+
+\echo ROW 3.6-04 conditional update
+ROW 3.6-04 conditional update
+create function edit_if(post_id posts.id%type,body text) returns void language plpgsql volatile as $$ begin update posts p set body=edit_if.body where p.id=edit_if.post_id and not p.removed; end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:387: NOTICE:  type reference posts.id%TYPE converted to snapback.id
+CREATE FUNCTION
+select edit_if('new-post','conditional');
+ edit_if
+---------
+
+(1 row)
+
+\echo ROW 3.6-05 point delete
+ROW 3.6-05 point delete
+create function delete_post(post_id posts.id%type) returns void language plpgsql volatile as $$ begin delete from posts p where p.id=delete_post.post_id; end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:390: NOTICE:  type reference posts.id%TYPE converted to snapback.id
+CREATE FUNCTION
+select delete_post('new-post');
+ delete_post
+-------------
+
+(1 row)
+
+\echo ROW 3.6-06 require and custom code
+ROW 3.6-06 require and custom code
+create function require_other(who snapback.principal) returns boolean language plpgsql volatile as $$ begin if not (who<>auth.uid()) then raise exception 'CANNOT_FOLLOW_SELF'; end if; return true; end $$;
+CREATE FUNCTION
+select require_other('bob');
+ require_other
+---------------
+ t
+(1 row)
+
+do $$ begin begin perform require_other('alice'); raise exception 'HARNESS expected require'; exception when raise_exception then if sqlerrm<>'CANNOT_FOLLOW_SELF' then raise; end if; raise notice 'EXPECTED CANNOT_FOLLOW_SELF'; end; end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:395: NOTICE:  EXPECTED CANNOT_FOLLOW_SELF
+DO
+\echo ROW 3.6-07 emit once heterogeneous record
+ROW 3.6-07 emit once heterogeneous record
+create function emit_example() returns void language plpgsql volatile as $$ begin perform snapback.emit('push',json_build_object('principal',auth.uid()),once => row(auth.uid(),now())); end $$;
+CREATE FUNCTION
+select emit_example();
+ emit_example
+--------------
+
+(1 row)
+
+\echo ROW 3.6-08 elsif exists and omitted id insert
+ROW 3.6-08 elsif exists and omitted id insert
+create function set_like(post_id posts.id%type,want boolean) returns boolean language plpgsql volatile as $$ declare r likes; begin
+ if want then insert into likes(post_id,principal) values(set_like.post_id,auth.uid()) on conflict do nothing returning * into r;
+ elsif exists(select 1 from likes l where l.post_id=set_like.post_id and l.principal=auth.uid()) then delete from likes l where l.post_id=set_like.post_id and l.principal=auth.uid();
+ end if;
+ return found;
+end $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql:405: NOTICE:  type reference posts.id%TYPE converted to snapback.id
+CREATE FUNCTION
+-- Non-owner repeats exercise body SQL and policies, including insert conflict.
+grant select on all tables in schema public to form_reader;
+GRANT
+set role form_reader;
+SET
+select * from home(); select * from global(); select * from thread('p1'); select * from people(''); select * from people('ali'); select * from trending();
+ id  |                                                                         post                                                                          |                                actor                                |              at               | repost
+-----+-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------+-------------------------------+--------
+ rp1 | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.772596+00 | t
+ p1  | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.771987+00 | f
+(2 rows)
+
+ id  |                                                                         post                                                                          |                                actor                                |              at               | repost
+-----+-------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------+-------------------------------+--------
+ rp1 | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.772596+00 | t
+ p1  | (p1,alice,,"hello updated",,,"2026-09-25 06:52:24.771987+00",f,0,0,0,0,"(pr-a,alice,""Alice updated"",alice,,""2026-09-25 06:52:24.771674+00"")",1,f) | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") | 2026-09-25 06:52:24.771987+00 | f
+(2 rows)
+
+ id | author_id | parent_id | body  | photo | video |              at               | removed | like_count | children_count | weight_total | selected_count |                        author                         | reply_count | liked
+----+-----------+-----------+-------+-------+-------+-------------------------------+---------+------------+----------------+--------------+----------------+-------------------------------------------------------+-------------+-------
+ p2 | bob       | p1        | reply |       |       | 2026-09-25 06:52:24.772227+00 | f       |          0 |              0 |            0 |              0 | (pr-b,bob,Bob,bobby,,"2026-09-25 06:52:24.771674+00") |             | f
+(1 row)
+
+  id  | principal | display_name  | handle | link |          created_at
+------+-----------+---------------+--------+------+-------------------------------
+ pr-b | bob       | Bob           | bobby  |      | 2026-09-25 06:52:24.771674+00
+ pr-a | alice     | Alice updated | alice  |      | 2026-09-25 06:52:24.771674+00
+(2 rows)
+
+  id  | principal | display_name  | handle | link |          created_at
+------+-----------+---------------+--------+------+-------------------------------
+ pr-b | bob       | Bob           | bobby  |      | 2026-09-25 06:52:24.771674+00
+ pr-a | alice     | Alice updated | alice  |      | 2026-09-25 06:52:24.771674+00
+(2 rows)
+
+ id | author_id | parent_id |     body      | photo | video |              at               | removed | like_count | children_count | weight_total | selected_count |                               author                                | reply_count | liked
+----+-----------+-----------+---------------+-------+-------+-------------------------------+---------+------------+----------------+--------------+----------------+---------------------------------------------------------------------+-------------+-------
+ p1 | alice     |           | hello updated |       |       | 2026-09-25 06:52:24.771987+00 | f       |          0 |              0 |            0 |              0 | (pr-a,alice,"Alice updated",alice,,"2026-09-25 06:52:24.771674+00") |           1 | f
+(1 row)
+
+select set_like('p1',true),set_like('p1',true),set_like('p1',false),set_like('p1',false);
+ set_like | set_like | set_like | set_like
+----------+----------+----------+----------
+ t        | f        | t        | f
+(1 row)
+
+reset role;
+RESET
+\echo ROW 3.6-09 3.6-12 multiple sweeps, nested locals, presence-only emit
+ROW 3.6-09 3.6-12 multiple sweeps, nested locals, presence-only emit
+create procedure daily(period_start timestamptz,period_end timestamptz) language plpgsql as $$ declare p record; m record; begin
+ for p in select * from profiles loop
+  declare n bigint; begin
+   select count(*) into n from messages where at>=daily.period_start and at<daily.period_end;
+   if not snapback.connected(p.principal) then perform snapback.emit('push',json_build_object('n',n),once => row(p.principal,period_end)); end if;
+  end;
+ end loop;
+ for m in select * from members where principal=auth.uid() loop
+  perform snapback.emit('push',json_build_object('member',m.id),once => row(m.id,period_end));
+ end loop;
+end $$;
+CREATE PROCEDURE
+call daily(snapback.period_start(),snapback.period_end());
+CALL
+\echo ROW 3.6-10 schedule period plus offset
+ROW 3.6-10 schedule period plus offset
+select cron.schedule('daily-digest','0 8 * * *',$$ call daily(snapback.period_start(),snapback.period_end()) $$);
+ schedule
+----------
+        1
+(1 row)
+
+select cron.schedule('every-two','*/2 * * * *',$$ call daily(snapback.period_start(),snapback.period_end()) $$);
+ schedule
+----------
+        1
+(1 row)
+
+select cron.schedule('hourly','15 * * * *',$$ call daily(snapback.period_start(),snapback.period_end()) $$);
+ schedule
+----------
+        1
+(1 row)
+
+\echo ROW 3.6-11 qualified procedure
+ROW 3.6-11 qualified procedure
+create procedure insights.daily(period_start timestamptz,period_end timestamptz) language plpgsql as $$ declare p record; begin
+ for p in select * from profiles loop perform snapback.emit('push',json_build_object('principal',p.principal),once => row(p.principal,period_end)); end loop;
+end $$;
+CREATE PROCEDURE
+call insights.daily(snapback.period_start(),snapback.period_end());
+CALL
+select cron.schedule('insights-digest','0 8 * * *',$$ call insights.daily(snapback.period_start(),snapback.period_end()) $$);
+ schedule
+----------
+        1
+(1 row)
+
+\echo GAP 3.3-09 3.4-11 3.5-16 3.5-17 3.5-18 3.5-19 3.5-20 3.6-13 no admitted SQL spelling
+GAP 3.3-09 3.4-11 3.5-16 3.5-17 3.5-18 3.5-19 3.5-20 3.6-13 no admitted SQL spelling
+\echo ALL_SQL_ROWS_COMPLETED
+ALL_SQL_ROWS_COMPLETED
+
+[exit 0]
+$ /opt/homebrew/opt/postgresql@17/bin/pg_ctl -D /Users/ccheever/projects/snapback-sb5-pg/rev4-fr3iuiem/data -m fast -w stop
+waiting for server to shut down.... done
+server stopped
+
+[exit 0]
+Stopped only recorded postmaster PID 91025; pid file absent=True

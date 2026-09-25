@@ -1,0 +1,45 @@
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/rules
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/rules/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/rules/snapback/schema.q`
+schema.q:34:31 — E_QUARRY_UNKNOWN: `.flag` is not a rule
+  rewrite: read <- exists memberships[.conversationId, viewer]
+  guide: language
+
+E_QUARRY_UNKNOWN: a name is not declared; the rewrite suggests the nearest one.
+
+## Refusals
+
+E_QUARRY_UNKNOWN means a name cannot be resolved in this scope: a local,
+argument, table, column, index or helper may be misspelled or undeclared.
+For example, after `message = 'hello'`, `return mesage` must be
+`return message`. Check the declared spelling and the diagnostic's suggested
+name; declare a missing local before using it. For a page, name its predicate and order: `posts where .authorId = viewer
+last 20 by .at after c`. `snapback4 check --fix` applies only mechanical repairs.
+
+Full card: snapback4 guide language
+
+schema.q:35:33 — E_QUARRY_UNKNOWN: `.flag` is not a rule
+  rewrite: read <- exists memberships[.conversationId, viewer]
+  guide: language
+
+schema.q:36:75 — E_QUARRY_UNKNOWN: `old.flag` is not a rule
+  rewrite: read <- exists memberships[.conversationId, viewer]
+  guide: language
+
+schema.q:37:33 — E_QUARRY_UNKNOWN: `.flag` is not a rule
+  rewrite: read <- exists memberships[.conversationId, viewer]
+  guide: language
+
+check: 4 problems
+
+[exit 1]

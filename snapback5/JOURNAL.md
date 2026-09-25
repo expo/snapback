@@ -117,3 +117,43 @@ checkout lacks the three additions' parser support; verification will
 record actual failures rather than import another worktree or change core.
 AGENTS now explicitly supersedes the shelved README/NOT-DOING instructions
 for this bet; those files are outside the authorized edit set.
+
+## 2026-09-25 — LLP 4001 §9 step 3 verification
+
+Committed revision 4 as `0a2f2ce4f8`; this second commit contains executable
+stubs, representative lowerings and the [full transcript](./reports/20260925-form-table-postgres17.md).
+The input table had 69 rows (11 ✓ / 55 ≈ / 3 ✗); revision 4 had 82
+(10 ✓ / 64 ≈ / 8 ✗); verification leaves 82 (10 ✓ / 61 ≈ / 11 ✗).
+All 74 rows with SQL spellings execute on Postgres 17.10, including every
+function/procedure body via seeded calls, expected exceptions and non-owner
+policy/page/mutation witnesses. 71 corresponding Quarry rows bind.
+
+Three rows fail against the assigned checkout: `written by` (also its
+`readable by audience` opt-out), `sequence by`, and row-keyed maintains.
+They are marked ✗, with exact diagnostics, rather than approximated by
+ordinary columns or relabeled as passing. The Snapback 4 subtree remains
+`f301a6910c90123238c26de7a2c6def2f9369843`, identical to the assigned
+`d9f177a434` starting commit. This is current-checkout verification, not a
+shared-baseline qualification; these additions must land and be rechecked
+before a pre-test. No other worktree or branch was used.
+
+Verification forced local corrections: configured effects use `retry` and
+have no SQL-loaded worker module; boolean rules lower as equality to true;
+streamed/unpaged reads pin the admitted audience scope; filtered sweep
+index columns must be immutable; id-list growth initializes a local before
+its recognized append, and upserts use named unique keys when arity is
+ambiguous. A SQL-language stub cannot accept plain `record`, so the emit
+stub uses `anyelement` for the heterogeneous once-key. That first failing
+stub run and every subsequent attempt remain in the committed logs.
+
+The private clusters were initialized only under the authorized
+`/Users/ccheever/projects/snapback-sb5-pg/` scratch root. Started postmaster
+PIDs were 17336, 24045, 67499, 91025, 96594 and 11240; every one was stopped
+through its own data directory after checking its recorded PID. The final
+run's port/data path and stop receipt are in the report. No existing
+cluster was used. Cargo built once into ignored `snapback5/stubs/.build`;
+`check` discovers projects rather than accepting a single source file, so
+the checked fixtures have their own project wrappers under `stubs/lowered`.
+All routine bodies are executed; typed constant stubs make no runtime,
+authorization-equivalence, IR-equivalence or performance claim. No pre-test
+1, compiler implementation, fourth review, push or publication was run.
