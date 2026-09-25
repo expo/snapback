@@ -341,12 +341,13 @@ impl Engine {
         let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;
         let mut schema: Schema = schema;
+        let stored_schema_hash = schema.hash();
         schema.prepare_contribution_indexes();
         let schema_hash = schema.hash();
         // Upgrade derived candidates from older binaries using the stored
         // backend, never a caller's source. The repair logs its row changes.
         // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
-        let generation = if store.meta("schema_hash")?.as_deref() == Some(&schema_hash)
+        let generation = if stored_schema_hash == schema_hash
             && store.meta("live_sum_candidates")?.as_deref() == Some("1")
             && (!crate::rows::caps::required(&schema) || store.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash)) { generation }
             else { Self::activate(&mut store, &schema, &programs, None, now)? };
