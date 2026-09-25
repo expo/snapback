@@ -31,7 +31,7 @@ async function fixture(t, hooks = {}) {
   const core = {
     async call({ op, key }) {
       if (op === "set_meta" && key === "media:manifest") await hooks.beforeMediaSave?.();
-      if (op === "sync_state") return { ok: { acquired: true, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [] } };
+      if (op === "sync_state") return { ok: { acquired: true, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: [] } };
       if (op === "state") return { ok: { watermark: 0, generation: 1, native: null } };
       if (op === "backend") return { ok: backend };
       if (op === "meta") return { ok: null };

@@ -450,7 +450,7 @@ for (const tier of ["wasm", "process"]) for (const transfer of ["deferred stream
         const first = syncs++ === 0;
         return Response.json(early && first
           ? { denied: { code: "E_SYNC_GENERATION", family: "generation", message: "adopt" }, generation: 2, store_id: storeId, watermark: head }
-          : { snapshot: false, events: [], more: false, images_at: head, generation: 2, store_id: storeId, watermark: head, acknowledged: { q: 20 } });
+          : { snapshot: false, events: [], more: false, images_at: head, generation: 2, store_id: storeId, watermark: head, acknowledged: { q: 20 }, sent: { q: 20 } });
       });
       f.trace.length = 0; f.calls.length = 0;
       await f.client.sync();

@@ -513,7 +513,7 @@ for (const exit of [false, true]) test(`replacement receipts use ${exit ? "exit"
   const known = await f.client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "known" });
   const unknown = await f.client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "unknown" });
   // Simulate A's stream acknowledgement after losing the full POST reply.
-  ok(await f.core.call({ op: "apply", page: { snapshot: false, store_id: "A", events: [], watermark: 10, more: false, acknowledged: { [known.id]: 10 } } }));
+  ok(await f.core.call({ op: "apply", page: { snapshot: false, store_id: "A", events: [], watermark: 10, more: false, acknowledged: { [known.id]: 10 }, sent: { [known.id]: 10 } } }));
   const before = ok(await f.core.call({ op: "queued" }));
   const unknownIds = before.find(e => e.id === unknown.id).new_ids;
   assert.equal(before.find(e => e.id === known.id).observed_seq, 10);

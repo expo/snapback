@@ -49,6 +49,8 @@ pub(crate) struct StreamReply {
     pub(crate) images_at: Option<u64>,
     pub(crate) joined: wire::HeldGroups,
     pub(crate) more: bool,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) sent: BTreeMap<String, u64>,
     pub(crate) snapshot: bool,
     pub(crate) store_id: String,
     pub(crate) watermark: u64,
@@ -65,6 +67,8 @@ pub(crate) struct SnapshotReply {
     pub(crate) held: Option<wire::HeldGroups>,
     pub(crate) more: bool,
     pub(crate) next: Option<String>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) sent: BTreeMap<String, u64>,
     pub(crate) snapshot: bool,
     pub(crate) store_id: String,
     pub(crate) watermark: u64,

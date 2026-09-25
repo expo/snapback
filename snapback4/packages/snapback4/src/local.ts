@@ -23,7 +23,7 @@ import { changeFeed } from "./changes.ts";
 import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { recoverReceipt, settleReceipt } from "./local-receipts.ts";
+import { recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -263,8 +263,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   await refreshAcquired();
   // A kept sent entry can disappear on the first catch-up, before a screen mounts.
   for (const entry of await queued()) {
-    const seq = entry.sent_seq ?? entry.observed_seq;
-    if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+    const seq = successSequence(entry);
+    if (entry.sent_seq == null && seq != null) { const receipt = await history.acknowledged(entry.id, seq, true); if (receipt) await history.keep(receipt); }
   }
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
   function observeIncarnation(id?: string, force = false, delivery?: (() => void)[]) {
@@ -1090,8 +1090,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const entry of await queued()) {
       await exitDone;
       if (closed) return;
-      if (entry.sent_seq != null || entry.observed_seq != null) {
-        const receipt = await history.acknowledged(entry.id, entry.sent_seq ?? entry.observed_seq!);
+      const success = successSequence(entry);
+      if (success != null) {
+        const receipt = (await history.acknowledged(entry.id, success, true))!;
         // A sent outbox entry already persisted its receipt before settlement;
         // re-reading it must not refresh an evicted receipt. Emission is per
         // client: another owner's durable receipt is still this client's first
@@ -1110,10 +1111,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
           const current = (await queued()).find(current => current.id === entry.id);
-          if (!current || current.sent_seq != null) return { ok: true as const, retired: true as const };
-          const known = await recoverReceipt(history, call, entry.id, current.observed_seq);
+          if (!current) return { ok: true as const, retired: true as const };
+          const known = await recoverReceipt(history, call, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null);
           if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false };
-          const binding = entry.store_id ?? storeIdentity;
+          const binding = entry.store_id ?? entry.receipt_store?.id ?? storeIdentity;
           if (!binding) return { ok: false as const };
           if (settling.has(entry.id)) return { ok: false as const };
           settling.add(entry.id);
@@ -1121,8 +1122,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           try {
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
-            const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }> } | undefined)?.receipt;
-            if (receipt) { const known = await recoverReceipt(history, call, entry.id, receipt.state === "sent" ? receipt.seq : undefined); return { ok: true as const, json: { ...(known ?? receipt) }, obsoleteAuth: false }; }
+            const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }>; qualified?: boolean } | undefined)?.receipt;
+            if (receipt) { const known = await recoverReceipt(history, call, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }
             ordinarySending = entry.id;
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
             if (response.ok) {
@@ -1131,7 +1132,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
                 try {
                   await settleReceipt(history, call, json.state === "sent"
                     ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
-                    : { state: "failed", id: entry.id, why: why! });
+                    : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined);
                 } catch { retryFlush(); return { ...response, persistencePending: true }; }
               }
             }
@@ -1286,7 +1287,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const entry = (await queued()).find(entry => entry.id === id);
       if (unavailable()) return undefined;
       const seq = entry?.sent_seq ?? entry?.observed_seq;
-      const receipt = seq == null ? await history.read(id) : await history.acknowledged(id, seq).catch(() => history.read(id));
+      const receipt = seq == null ? await history.read(id) : await history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id));
       if (unavailable()) return undefined;
       if (!entry || (receipt && receipt.state !== "pending")) return receipt;
       return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length

@@ -12,6 +12,8 @@ import type { Write } from "./contract.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { DeviceCore, DeviceOpener, DeviceOpening } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
+import type { Queued } from "./local-types.ts";
+import { successSequence } from "./local-receipts.ts";
 import { AdmissionError, AdmissionJournal, bindingRefusal, journalStoreBinding, journalStores, writeRefusal } from "./web-journal.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
 
@@ -140,7 +142,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       // Committed outbox entries, mirrored from persisted changes, so a page
       // being hidden can send what IndexedDB already holds.
-      const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null; observed_seq?: number | null }>();
+      const committed = new Map<string, Queued>();
       const committedListeners = new Set<() => void>();
       let working = false;
       let publishPending = false;
@@ -225,8 +227,8 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           };
           const dispatch = () => {
             if (!suspended || closing || !device) return;
-            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null && e.observed_seq == null).sort((a, b) => a.seq - b.seq)
-              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: journal.boundStore(e.id) }));
+            const entries: PendingSend[] = [...committed.values()].filter(e => successSequence(e) == null).sort((a, b) => a.seq - b.seq)
+              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: journal.boundStore(e.id) ?? e.receipt_store?.id ?? undefined }));
             if (entries.length) flush(entries, () => beginSend(entries[0]!.id));
           };
           const suspend = () => { suspended = true; publishCommitted(); };
@@ -294,7 +296,17 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                   const entry = committed.get(request.id), seq = entry?.sent_seq ?? entry?.observed_seq;
                   // An acknowledgement may commit while receipt preflight waits.
                   // Return that custody from the serialized final send check.
-                  if (seq != null) return { ok: { receipt: { state: "sent", id: request.id, seq, replayed: true } } };
+                  if (seq != null) {
+                    const qualified = successSequence(entry) === seq;
+                    if (!qualified) {
+                      // Legacy custody still needs a same-id POST. Invalidate
+                      // any in-flight sync before allowing that replay.
+                      const started = JSON.parse(device!.call(JSON.stringify({ op: "begin_send" })));
+                      if (started.denied) return started;
+                      await settle();
+                    }
+                    return { ok: { receipt: { state: "sent", id: request.id, seq, replayed: true }, qualified } };
+                  }
                   const binding = journal.binding(device!, request.id);
                   if (!committed.has(request.id) || binding !== "allow") {
                     journal.fence(device!);

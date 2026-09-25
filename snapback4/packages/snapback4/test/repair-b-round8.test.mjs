@@ -21,7 +21,7 @@ test("publication notifies watches even when its following state read fails; ret
         }
         return { ok: { acquired: true, backend_required: false, generation: 1, store_id: "S",
           watermark, transfer_watermark: watermark, snapshot_catchup: false,
-          restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
+          restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
       case "apply":
         if (advance) { advance = false; value = 2; watermark = 9; denyRead = true; return { ok: { touched: ["counters"], published: true } }; }
         return { ok: { touched: [], published: true } };

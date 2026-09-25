@@ -56671,3 +56671,68 @@ round. No push or publication. Implementation/test commit: `7df63b7d1`. The
 file map, examples, failure accounting and reproductions are in
 `reports/20260925-lane-v-r11.md` and
 `reports/20260925-lane-v-r11-evidence/`.
+
+
+## 2026-09-25 — Lane V round 12: qualify acknowledgement outcomes (0.4.3)
+
+Addressed the complete Astra and Grok round-11 reviews. A legacy observation
+proves a decision without proving success. Sequence-only `observed_seq` and
+legacy-promoted `sent_seq`, without known terminal history, now stay pending
+and retain custody until same-id replay against the original bound store
+returns the recorded outcome. New stream/snapshot replies explicitly qualify
+successful acknowledgements with `sent: { id: sequence }`. The device persists
+that qualification beside the receipt binding and exposes it only with the
+matching published sequence; resets and replacement never manufacture it.
+
+An original-store replay may correct an unknown `E_STORE_REPLACED` to success
+or an authored refusal. The history transaction verifies the original binding
+and strips the internal replay proof before storage; aborted receipt saves keep
+the proof for retry. Authored failures remain immutable. The native capability
+check refuses older modules with the existing `E_DEVICE_VERSION`; a JavaScript
+upgrade must rebuild its Expo native binary. No public authoring API or Quarry
+form was added. The client reference and LLP 3000.013 §6 state the upgrade rule.
+
+Added eight real-server upgrade combinations on memory and SQLite: observed
+or legacy-promoted sent sequences, empty or replacement-refusal history. Every
+case replays the original id and bound store, resolves `NOT_ADMIN`, leaves audit
+at zero and survives row reset/reopen. Real Chromium coverage now includes no
+terminal history and a gated final `begin_send` with intervening refusal custody;
+mutation, notification and lookup agree. Unit tests cover `NOT_ADMIN`, `NOT_FOUND`
+and `CONFLICT`, and replay-proof retention through an aborted save. Both device
+stores reject foreign/absent replay proof, adopted-history replacement and real
+refusal replacement. The three negative controls fail their intended assertions:
+legacy success inference, discarding final recovered receipt, and narrowing the
+authored-refusal guard to `NOT_ADMIN`.
+
+Measured wasm: 1,779,595 B raw / 496,604 B gzip with Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Against round 11's recorded
+1,776,633 / 495,460 this whole-artifact change is +2,962 raw / +1,144 gzip.
+The outcome qualification, original-store replay check and capability guard
+exceed the prior 496,000 B ratchet by 604 B. Per LLP 3000.002's recorded ruling,
+raise the rounded ratchet to 497,000 B, leaving 396 B. Runtime examined, steps,
+heap, output and write ceilings remain unchanged.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 701 s`**, exit 0. Invocation:
+`SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`.
+Rust: 891 targets, 307 s. Client tests: 1,620 passes / 10 platform or optional
+fixture skips, 152 s, including all 54 browser admission checks. Models: 78
+passes / 13,000 seeded sequences, 231 s. Reference audit: 509 LLP documents,
+9,290 refs, zero errors. Source files remain under 1,500 lines (`local.ts`: 1,497).
+
+The initial full suite reported `== 2 failure(s) in 512 s`: `cargo test`
+missed the additive field in direct test constructors; `client tests` had two
+replacement and eight deferred/generation fixtures expecting bare-sequence
+success. These were ours and are corrected, with the original assertions kept
+and positive fixtures explicitly qualified. Earlier development failures were
+our nullable-boolean test source, legacy fixture assumptions, empty-map wire
+serialization and one intermediate test-constructor syntax edit. Deliberate
+negative controls remain red. The supplied baseline Cargo failure was inspected
+and was not reproduced; the final run has no failures in any classification.
+
+Engineering choices: additive outcome qualification instead of historical
+result data; qualification shares the existing receipt binding; old native
+modules must rebuild; original-store proof is private to receipt persistence.
+No open scoped problem, authorization/disclosure change, new refusal code,
+acquisition retuning or scale remeasurement. No release version bump, push or
+publication; integration owns the 0.4.3 release. File map, examples and all
+reproductions are in `reports/20260925-lane-v-r12.md` and its evidence directory.

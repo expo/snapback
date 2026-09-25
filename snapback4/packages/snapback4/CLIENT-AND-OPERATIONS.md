@@ -912,8 +912,15 @@ wait for a matching open or sync signal. Persistence failures get at most three
 retries, after 1, 2 and 4 seconds; later opens or sync signals can try again.
 Receipt lookups do not create the shared window before adoption. Browser storage
 clearing or eviction from both receipt windows can still make an id unknown. Rebuild the Expo native binary with this client
-version: acquisition is a device protocol field, and an older module refuses
-startup with `E_DEVICE_VERSION`.
+version: acquisition and qualified receipt outcomes are device protocol fields,
+and an older module refuses startup with `E_DEVICE_VERSION`.
+
+A sequence-only observation from an older device proves that the server decided,
+not that it succeeded. Without a retained outcome, the upgraded client keeps it
+pending and replays the same id against its original store to recover the recorded
+success or refusal. New sync pages explicitly qualify successful acknowledgements;
+only that evidence, or the original store's replay, can correct `E_STORE_REPLACED`.
+Authored refusals such as `NOT_ADMIN` remain failures.
 
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent or fixture; arbitrary fixture strings still need an application ledger.
@@ -1633,14 +1640,16 @@ success, `{ state: "sent", id, seq, replayed: true }` on replay, or `{ state: "f
 `result` and `current`; a fresh `E_CONFLICT` may carry the live row in `current`. A job is refused over the
 wire (`E_OP`). `POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults: `0`,
 `2000`, `null`, `false`, `[]`, absent). With `from: 0` it returns the paged snapshot: `{ snapshot: true,
-events: [{ table, kind, id, data }], watermark, more, next, generation, store_id, acknowledged }`. Continue
+events: [{ table, kind, id, data }], watermark, more, next, generation, store_id, acknowledged, sent? }`. Continue
 with `after: next`; `limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs, each 1–128 UTF-8
 bytes, and reports which queued writes the server applied. The request body is at most **262,144 bytes (256
 KiB)**, including the cursor and JSON escaping; this accommodates all 256 maximum-length IDs even with
 six-byte escapes. A larger body is HTTP 413 with `denied: E_INPUT`, including chunked bodies; malformed fields
 are HTTP 400 with `E_INPUT`. With `from: W` or `stream: true` it returns the stream from a watermark: `{
-snapshot: false, events: [{ seq, table, kind, id, data }], watermark, more, generation, store_id, acknowledged
-}`. The optional `store_id` echoes the previous reply's database identity; a different identity invalidates
+snapshot: false, events: [{ seq, table, kind, id, data }], watermark, more, generation, store_id, acknowledged, sent?
+}`. The optional `sent` map qualifies successful sequences in `acknowledged` and
+`committed_above`; its absence requires same-id replay to establish an unknown
+outcome. The optional `store_id` echoes the previous reply's database identity; a different identity invalidates
 old snapshot cursors and partition evidence, even if the watermark is equal or higher, while a server restart
 on the same database keeps its identity. An older server can omit this additive field; a backwards watermark
 still requires reacquisition, and a device with no stored identity reacquires once when it first learns one.

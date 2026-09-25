@@ -429,7 +429,7 @@ test('acknowledgement drops an unsaved replacement refusal before any persistenc
   });
   await assert.rejects(history.keep({ state: 'failed', id: 'acknowledged', why: { code: 'E_STORE_REPLACED', family: 'store', message: 'unknown' } }));
   abort = false;
-  const sent = await history.acknowledged('acknowledged', 7);
+  const sent = await history.acknowledged('acknowledged', 7, true);
   await history.keep(sent);
   assert.deepEqual(attempts.map(write => write.state), ['failed', 'sent']);
   assert.equal((await history.read('acknowledged')).seq, 7);
@@ -442,6 +442,7 @@ test('a legacy acknowledgement returns a known authored refusal without saving s
   const saves = [];
   const history = new WriteHistory({ read: async () => JSON.stringify([refused]), save: async value => { saves.push(value); } });
   assert.deepEqual(await history.acknowledged(refused.id, 7), refused);
+  assert.deepEqual(await history.acknowledged(refused.id, 7, true), refused);
   assert.deepEqual(await history.read(refused.id), refused);
   assert.deepEqual(saves, []);
 });
