@@ -55205,3 +55205,175 @@ baseline or environmental waiver substitutes for the zero-failure result.
 Evidence logs, including both full attempts and the negative control, are under
 `~/sb4-intent/fix-041/`. No version bump, publication, credential or keychain
 change. The branch is for the supervisor to merge and requalify for publication.
+
+
+## 2026-09-24 — LLP 3000.013 Lane S round 1: total text effect payloads
+
+Closed the Astra/Grok round-1 items for 0.4.2 on `sb4-intent/s-effect-reads`.
+`Builtin::Sha256` and `Builtin::Join` now qualify as total effect-payload work
+when every argument is total. The binder already requires their text/list
+argument types; their remaining cuts are the accepted server meter cuts. No
+runtime code, authorization, durability policy, meter ceiling or syntax changed.
+The prediction card names both operations explicitly.
+
+The new compiler test covers `sha256(x ?? '')` and `join([x ?? ''], '')` with
+and without presence guards, using a local from an online-only profile read.
+The existing never-list now also contains `n / 0` and `n % 0` after a nullable
+profile read coalesces into n; both lock the nonzero-constant proof condition.
+
+Two new device tests cover 24 worlds: memory/SQLite × guarded/unguarded ×
+plain/sha256/join payloads × present/missing profiles. Snapshot pages never
+contain profiles, each device predicts a pending message before the server
+runs, and server rows and returned values match prediction. Server payloads
+match fixed expected text and SHA-256 vectors, including empty-input fallbacks.
+The unguarded operation explicitly has `connected_effects_only = false`, so
+restricting runtime skips to presence-controlled operations loses prediction
+and fails the device test. Existing offline/reopen, presence-state,
+authorization and meter-rollback witnesses remain green.
+
+Focused qualification: 8 language effect-read tests, 80 guide tests and all
+4 device effect-read tests pass. Full `scripts/test.sh`:
+**`== 0 failure(s) in 755 s`**, exit 0. Command:
+`CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=4 TMPDIR=/dev/shm/sb4-intent-lane-s-tests scripts/test.sh`.
+The worker cap and private tmpfs temporary directory retain the prior successful
+host setup; assertions, timeouts and production storage settings are unchanged.
+No failed checks or baseline waivers in this round. Wasm remains 1,767,624 raw /
+492,341 gzip bytes under 493,000. Reference audit: 507 LLP documents, 9,271
+references, zero errors and zero unchecked. Logs are
+`~/sb4-intent/lane-s-r1-{lang,device,test,ref-check}.log`.
+
+No deviations or new open issues. The prior conservative local-slot and
+arithmetic proof boundaries are unchanged. Did not push, publish or bump package
+versions; the supervisor owns release integration.
+
+## 2026-09-24 — publication fix lane 2: session-model clock custody
+
+On the black M5 Max, Node 24.18.0, from `b1edaa05cff`, the exact saved
+local seed-11 sequence passed 200 repetitions alone (3.07 s) and 1,000 with
+36 CPU worker threads (80.07 s). Another 1,000 instrumented repetitions
+alongside the suite's build also passed, as did 100 repetitions of the
+seed-1-through-11 prefix. CPU load alone did not reproduce the local failure.
+
+A controlled preceding online-test timeout did: Node rejects the test but
+leaves its async body running. The unchanged helper continued generating online
+sequences while the local test enabled/reset process-global mock timers.
+The exact seed-11 replay failed on repetition 8 with the original 100-step
+fair-recovery assertion. A second traced reproduction caught online
+`scheduleRefresh` handles created in one local clock generation being cleared
+by online `close`/`signOut` in a later one. Node 24's mock timer reset leaves
+those handles with queue positions; a late clear can remove a current timer.
+The exhausted model had no held response or pending command and no real
+Timeout resource left to make close progress. This is cross-test timer
+contamination after the online timeout, not a client session transition bug
+or evidence that 100 fair steps are insufficient.
+
+`execute` now waits for the previous sequence's real work and cleanup before
+starting another sequence or enabling its local clock. The seeded test also
+checks its abort signal before starting another sequence and before failure
+minimization. The 5,000 counts, 240-second limits, 100-step recovery bound and
+I1–I13 assertions are unchanged. The exact saved sequence is retained in a
+regression that overlaps online and local invocations, including two local
+clock owners, for 20 repetitions. It passes. In the same deliberately timed-out
+online negative control, all 100 local replays now pass and the cross-generation
+clear trace is empty; the deliberately failed online test still fails.
+
+The online model alone completed its full 5,000 sequences in 66.33 s.
+The default-schedule suite measurement and the two final publisher-equivalent
+qualifications follow in this lane's next journal entry. Evidence is under
+`~/sb4-intent/fix-041b/`. No client production code, version, credential or
+keychain setting changed; nothing was published.
+
+## 2026-09-24 — publication fix lane 2: a serial slot for the three models
+
+The unchanged default-schedule suite reproduced the online model timeout at
+240,000.588 ms, followed by local model failure at 13,002.081 ms. This run
+selected the existing serial-client-file fallback (load 115.59, 18 CPUs),
+but Rust test compilation still ran alongside it. The diagnostic suite was
+stopped after reproducing both failures; it is not a qualification result.
+`baseline-model-results.log` records the observed live output; the supplied
+publication failure record remains the preserved original counterexample.
+
+`scripts/test.sh` now excludes `app-session-model.test.mjs` and
+`online-client-model.test.mjs` from both ordinary client-file schedules, then
+runs those two files with file concurrency one after collecting every Rust,
+fixture and other client job. That gives the online/local 5,000-sequence
+session models and the 3,000-sequence online-client model their own serial
+slot. Both ordinary scheduling branches retain every other file and the
+existing acquisition/server-e2e shards. Failures still accumulate; the model
+slot runs even if an earlier check fails. No count, timeout, assertion, fence
+or pin changed.
+
+With the clock-custody fix, the exact seed-11 sequence passed another 200
+replays without synthetic workers, then 1,000 with 36 CPU workers. Each phase
+also passed 20 overlapping batches of one online and two local sequences;
+the loaded phase took 125.60 s including those batches. The controlled
+preceding online timeout still reports its intended failure, but all 100 local
+replays pass with no cross-generation timer clear. The model clock cannot
+start until its predecessor's actual work completes, regardless of host
+scheduling speed; recovery still has exactly its original 100-step bound.
+
+The two complete publisher-equivalent qualification results are recorded below
+when finished. No publication is performed by this branch.
+
+## 2026-09-24 — publication fix lane 2: isolate client startup too
+
+The first complete qualification attempt, with the seeded models isolated but
+ordinary clients still alongside Rust, ended `== 1 failure(s) in 1372 s`
+(the `client tests` group). All three seeded models passed at full counts:
+online sessions 68.15 s, local sessions 160.32 s, online-client interleavings
+48.97 s; all 78 model-file tests passed. Rust and its 24 native witnesses,
+fixture wrappers and all four published-0.2.33 fences passed.
+
+The four failing ordinary-client cases were timing cuts, not changed expected
+values: `close-boundary.test.mjs` failed the five-second server-startup probe;
+`expo-media-storage.test.mjs` timed out launching/running its native helper
+with its existing 15-second limit; `navigation-model.test.mjs` failed a
+five-second dev-readiness probe and a two-second background-response delivery
+probe. Their failure stacks are retained in `~/sb4-intent/fix-041b/suite-1.log`.
+All four pass unchanged in focused reruns (including every one of the 32
+device-close sequences). Rust's own log shows multiple process wall times of
+40–65 seconds for test bodies finishing below one second during the overlap.
+
+The suite now waits for Rust and the light fixture/typecheck jobs before
+starting ordinary client files, then runs the seeded model slot. It chooses
+the existing loaded-host/idle-host client concurrency policy at that actual
+client start, not before Rust compilation. This separates process-startup
+load as well as the seeded-model CPU load. No subprocess timeout, readiness
+budget, response-delivery assertion, case count or test was changed. The
+next two full runs must each reach zero failures; the failed attempt is not
+waived or counted as one of them.
+
+## 2026-09-24 — publication fix lane 2: two complete zero-failure qualifications
+
+Both final runs used implementation commit `77185a8d40`, Node 24.18.0 on the
+black M5 Max, the requested toolchain PATH, the publisher's
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, and exactly:
+
+```sh
+SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 scripts/test.sh
+```
+
+No sequence-count, Rust-process, client-file-concurrency or binary override was
+set. The first run selected the existing parallel client policy at load 13.38;
+the second selected its serial policy at load 18.14 (18 CPUs). Thus both
+ordinary scheduling branches ran their complete inventories after Rust.
+
+| Log under `~/sb4-intent/fix-041b/` | Exact suite line | Online sessions, 5,000 | Local sessions, 5,000 | Online client, 3,000 |
+| --- | --- | --- | --- | --- |
+| `suite-2.log` | `== 0 failure(s) in 645 s` | 44.90 s | 112.31 s | 55.02 s |
+| `suite-3.log` | `== 0 failure(s) in 1458 s` | 49.22 s | 113.87 s | 49.79 s |
+
+Both commands exited 0. Each run includes 2,979 Rust passes (the same 16
+inherited ignores), all 24 native witnesses, 9 fixture-wrapper passes,
+1,514 ordinary client cases (1,509 passes and the same 5 inherited skips),
+and all 78 model-file tests passing. All four requested published-0.2.33
+fences passed in each run. Neither the earlier interrupted diagnostic nor the
+first red complete attempt is counted as qualification. The four short cases
+that failed during Rust/client overlap pass in both final full runs.
+
+Final scope: the model execution barrier, cancellation checkpoints, the exact
+seed-11 overlap regression, and suite scheduling. I1–I13, the 100-step fair
+recovery bound, both 240-second session limits, all sequence counts, other
+deadlines and all compatibility pins are unchanged. No client production code,
+package version, keychain setting or credential changed. Nothing was published.
+The final commit appends this qualification record only.

@@ -187,3 +187,401 @@ What a competent implementer will build wrong from this text:
 **NOT READY.**
 
 The direction worth keeping is a CLI front-end, the engine left alone, Quarry as the control, and an explicit subset class so a moved charge is visible. This draft is not that experiment yet. The illustrative program does not parse and does not lower; the committed Clique program has no spelling for sync, identity, coded uniques, formats, dotted and calendar aggregates, in-table counts, `socialProfile`, `insights`, or the digest; §3.7 presents Snapback semantics as Postgres; and the verdict can pass on a language count that SQL makes zero by default. A revision that is only a form table, an honest §3.7, a corrected pipeline, and the equivalence gate on the pinned pair is a different review. This text is not ready to build.
+
+
+---
+
+## Round 2 — revision 2 (`9bc2ea9c83`), 2026-09-25
+
+**Mode:** blind delta review, read-only, over a detached worktree at that commit; `grok -p … -m grok-4.7 --reasoning-effort xhigh --disable-web-search`. **Brief:** `~/projects/snapback-sb5-reviews/4001-r2.brief.md` (reproduced in the Opus round-2 section).
+
+### Verbatim review
+
+I'll review revision 2 against the three round-1 reviews and the sources those reviews depend on, without changing anything. Starting with the round-1 reviews, then the RFC and the diff.The three round-1 reviews and revision 2 are loaded. Next I’ll check the form table against the Clique target, the binder, and the cited LLPs rather than taking the dispositions at their word.Revision 2 of LLP 4001 at `9bc2ea9c83` is **not ready**. The premise, the runtime, and the pipeline's direction are now right. The normative table is not: several of its own spellings do not parse on Postgres 17, several lowered forms do not bind, calibration #19 still has no rows, and the new gate, pre-tests, and null rule can all come out the right color for the wrong reason.
+
+Checked against the three round-1 reviews, `intent-clique.q`, #19's `schema.q` / `chat.q` / `insights.q` / `config.q`, the Quarry AST and binder, `print.rs`, LLP 3000.007 §5–§6, LLP 3000.009 §6.2, LLP 3000.013 §2.1, LLP 3000.015, the Supabase lanes under `~/clique-full-20260905/lanes/`, and a throwaway Postgres 17.10. Nothing was changed.
+
+## What is now sound
+
+The premise is stated as the question the record actually supports. Unrestricted Postgres scored 94 with no policies; the RLS-and-RPC lane scored 85; five of the eight "language" phrases name restriction; #19's note names no language item; LLP 0252's familiar profile finished worse. Opus's "within noise" expectation is written down beside the bet.
+
+The runtime is Snapback 4's. LLP 4000 §4–§5 are no longer the runtime of record; §13 of that document now says so. Unpublished means online-only, which is §6.1, and a published table whose select policy does not invert refuses with `E_SYNC` instead of a silent downgrade.
+
+The pipeline points at the right intermediate: Postgres AST to `ast::Document`, then text, then the unchanged `snapback4` binary. `pg_query` belongs in the CLI only. Mutations are volatile functions and jobs are procedures. `union all`, security-invoker views, per-reader materialized views, zero groups, cursors kept out of `WHERE`, non-recursive probes, `service_role` versus ignored `authenticated`, array `once` keys, and period-plus-offset cron with engine-supplied bounds are the right contracts. `latest` and maintained `min`/`max` are gone. `through` and `after insert` are explicit gaps. A zero surface charge in both arms supports nothing. The clock neither passes nor fails. Passing a pre-test is permission to build, not confirmation.
+
+## 1. Disposition table
+
+| §12 row | Verdict | Where it is real, and the gap |
+| --- | --- | --- |
+| Premise overclaims | **Real** | Summary and §1. Residual, Low: LLP 4000 §13 still says this bet "targets the item the record names most" and "the only surface this grader has scored at 94." |
+| Runtime was LLP 4000; no `sync` | **Partial** | §2 and the corrected §13 name Snapback 4. `alter publication snapback add table` parses, and absence meaning online-only is the right default. The horizon and recipient spellings do not parse (finding 1). |
+| §3 cannot spell the target | **Partial** | The fixture's simple tables, policies, union, and point writes have rows. The table does not cover #19, and §9 step 2 cannot verify the LLP 3000.015 rows (findings 1–3). |
+| Policy grammar, `old`, recursion, roles, omitted `WITH CHECK` | **Partial** | §3.3's operator list matches `rule_expr`. The update-policy row contradicts itself, and Muse's real transition trigger does not fit the admitted trigger (finding 4). |
+| `min`/`max`, `latest`, in-table counts | **Real** | `latest` is withdrawn. `generated always as (snapback.count('likes')) stored` parses against an immutable stub and lowers to `count likes`, which the binder infers when there is one reference. No spelling for an explicit `by`, a filter, or `sum of`. #19's in-table counts happen to be inferable. |
+| Recorded attribution, `day()`, zero groups | **Real** | The three rows are the right Quarry forms. Unstated bind-time requirements: the reference and the target column must be immutable, and the target table must be public (`maintains.rs`). |
+| The three additions | **Partial** | The headlines are in §3.2 and §3.4. `sequence(col)` is rejected even after a domain stub. None of the three lowered forms parse in today's binder, and §9 verifies the table before LLP 3000.015 lands (finding 2). |
+| Views, shapes, Following | **Partial** | The bijection, `union all`, the nullable subselect, and `E_FEED` are real. #19's `messageCard`, inline shapes, and `online only` maintains have no row (finding 3). |
+| `socialProfile`, `insights`, cursor, `%type` | **Partial** | The cursor rule is real. `%type` does not carry a reference. `for d in a..b` is the wrong range (finding 5). |
+| DML, `:=`, jobs, schedules, `once` | **Partial** | The statement list and `create procedure` are real, and both parse. `where <key> and <cond>` cannot produce both `NOT_FOUND` and `E_CONFLICT`. Program-level `exists` is still not in the expression subset (finding 6). |
+| SQL value semantics | **Only asserted** | "By guard insertion" is not three-valued logic, and it fights the equivalence gate (finding 7). |
+| §3.7 incomplete | **Partial** | The three-way rule is the right rule. Category A is false for `image(N)`, `sequence(col)`, `snapback_words`, and the `WITH` reloptions. `ENABLE ROW LEVEL SECURITY`, owner bypass, and `FOR ALL` policies are still missing. |
+| Immutability via `GRANT` | **Partial** | The inference bug is gone. `GRANT UPDATE (cols)` is not immutability (finding 8). |
+| Silent downgrade | **Real** | A published non-invertible select policy is `E_SYNC`. Horizons remain finding 1. |
+| Pre-test measured reading | **Partial** | Two tests exist and reading gates nothing. Both stop rules can be satisfied without the premise being true (finding 9). |
+| Comparison passes by construction | **Partial** | Surface class, masking, a registered `data_modeling` prediction, floors, one fail rule, and a maturity gate are all in §8. The bet can still pass without being true and fail without being false (finding 10). |
+| Wrong lowering target; `sqlparser`; diagnostics | **Partial** | The target is `ast::Document`, and the diagnostic tier is a real bound. `print.rs` does not print a document (finding 11). |
+| LLP 3000.009 §6.2 | **Partial** | The row and the sequencing exist. §6.2's Quarry form is `query …: sql reading … returning …`, not "the server-only read," and §3.5 both requires a marker and auto-promotes anything that fails to lower. |
+| One spelling, one code, `api.ts` names | **Partial** | CamelCase `api.ts` is decided. The code family is real. Canonicalization is still an open question, and it is not limited to aliases (question 4). |
+| Evidence rows overstate | **Real** | §1 now has the overlap, the full #19 note, 82→90, and the parallel lanes. |
+
+## 2. The form table
+
+Postgres 17.10, with the `snapback` and `auth` stubs the RFC describes, accepts `snapback.identity`, `snapback.effect`, `snapback.count` in a `stored` generated column, `snapback.written_by` in a check, `comment on constraint`, `create policy`, `union all`, `security_invoker`, a materialized view, `create procedure`, and `posts.id%type` in a signature. It rejects the spellings below.
+
+### Rows that are wrong
+
+**Blocker — §3.2 residency row.** `alter publication snapback add table profiles2 with (snapback.horizon = …, snapback.recipient = …)` is a syntax error at `with`. `alter publication … set (snapback.horizon = …)` is a syntax error at the dot. Publication parameters are not reloptions, and stubs cannot create grammar. #19's `sync to members[.chat] last 10000 by .at` and `sync to .principal` therefore have no spelling. The bare `add table` half of the row is fine, and so is the default.
+
+Smallest fix: keep `add table` as "sync, audience inferred." Spell the horizon and the recipient as calls the parser already accepts, for example `select snapback.horizon('messages', 'last 10000 by at')` and `select snapback.recipient('pairs', 'principal')`, lowered to `SyncDecl.horizon` and `SyncAudience::Column`. Pin that the index name is the one the binder already checks.
+
+**Blocker — §3.2 `image` / `video` and `sequence` rows.** A domain stub does not make these execute. Postgres 17 reports `type modifier is not allowed for type "snapback.image"` and the same for `snapback.sequence(conversation_id)`. Category A's sentence that "domains and functions" make category A parse is false for both. `using snapback_words` fails with `access method "snapback_words" does not exist`, which SQL cannot stub. `with (snapback.retain = …)` and `with (snapback.expire_at = …)` fail with `unrecognized parameter namespace "snapback"`. §9 step 2, as written, cannot go green.
+
+Smallest fix: move every Snapback fact that is not legal Postgres after those stubs to a `select snapback.…` call or a `comment on`, and delete the typmod and reloption spellings. Keep `snapback.id` and `snapback.cursor` as domains; those two succeed.
+
+**High — §3.2 `grant update (cols)` row.** The statement parses once the role exists. It does not mean the complement is immutable. `GRANT` adds a privilege for one role; the owner keeps every column; no grant does not revoke anything. The lowering drops the role, so `to authenticated` and `to service_role` become the same global constraint, including for jobs. A second table-level `GRANT UPDATE` is unspecified. Following and recorded paths then depend on an accident of which columns were listed.
+
+Smallest fix: a marker call, `select snapback.immutable('posts', 'author_id', 'parent_id', 'at')`, lowered to `TableDecl.immutable`. State that it binds every writer, including jobs.
+
+**High — §3.3 update-policy row.** The cell says an omitted `WITH CHECK` applies `USING` to the next image, and also that `USING` alone lowers to a transition over `old`. Those are different rules. Muse's `msg_upd` supplies both `USING` and `WITH CHECK`; that combination has no lowering. `FOR ALL` parses and is not in the table.
+
+Smallest fix: one sentence. `WITH CHECK` alone lowers to next-image `update <-`. `USING` alone lowers to `update (old, next) <- expr(old) and expr(next)`. Both clauses lower to `expr(old) and expr(next)`. `FOR ALL` is four policies.
+
+**High — §3.3 trigger row.** `execute function snapback.transition($$…$$)` parses. Postgres does not parse the string. The only expression language that binds is `rule_expr`, which has no `<=`, no `now()`, and no assignments. Muse's `enforce_message_windows` writes `NEW.edited` and compares `extract(epoch from now() - OLD.created_at)`. It is refused by the row that was added to admit it. Two such triggers AND, while permissive policies OR. That combination is unstated.
+
+Smallest fix: say the string is a second grammar, limited to a boolean expression over `OLD`/`NEW` that binds as `update (old, next)`, and that it cannot assign `NEW`. Put time windows in `raise`, as §5 already says. Give multiple triggers the same `OR`/`AND` rule as policies.
+
+**High — §3.5 `%type` row, marked ✓.** On Postgres 17, `post_id tpol.id%type` parses and is an `integer`. `%TYPE` copies the type. It does not remember `tpol`. The same spelling cannot separate #19's `id: id` (a new id), `post: posts` (a reference), `owner: principal`, and `parent: posts ?`.
+
+Smallest fix: mark the row ≈. `posts.id%type` lowers to a reference only by a documented Snapback rule. Spell bare `id` as `snapback.id`, `principal` as `snapback.principal`, and optional refs as `posts.id%type default null` with the nullability stated. Add those three rows.
+
+**High — §3.5 `insights` row.** Quarry `range(a, b)` is end-exclusive (`LoopDomain::ExpressionRange { end_exclusive }`). PL/pgSQL `for d in a..b` includes both ends. `range(day(now) - 6, day(now) + 1)` is seven days; `a..b` as written is eight. The difference cell is empty. `json_build_object` is not the control's typed object, so `api.ts` is not the control's.
+
+Smallest fix: lower `range(a, b)` to `for d in a..b-1`, and say so. Return a declared composite, not json, or withdraw the "identical `api.ts`" sentence for these two queries.
+
+**High — §3.6 conditional update row.** `UPDATE … WHERE key AND cond` affects zero rows both when the row is missing and when `cond` is false. The writes card requires `NOT_FOUND` for a missing or unreadable target and `E_CONFLICT` when the row is readable and the condition is false. One `WHERE` cannot do both without a pre-read, and the pre-read is what changes prediction. The row asserts the outcome and omits the read.
+
+Smallest fix: specify the pre-read and the disclosure rule (unreadable target stays `NOT_FOUND`), or refuse `AND cond` and spell the condition as a preceding `if`, accepting that this form is not Quarry's `if`.
+
+**High — §3.7 expression subset versus the fixture's toggles.** The subset lists comparisons, arithmetic, `is null`, `in (select …)`, and a short builtin list. It does not list `exists`. `setLike` and `setFollow` are `else if exists`. §3.3's probe grammar does not apply inside a function body.
+
+Smallest fix: add `exists <key probe>` to the expression subset and name it in the §3.6 grammar.
+
+**Medium — §3.4 recorded and Following rows.** The lowered Quarry binds only when the hop is immutable and the target is public. The difference cell says the capture differs from a join, which is true, and not that the view is refused without those two facts. `day(.at)` has no offset form; #19 does not need one.
+
+Smallest fix: put the two bind conditions in the difference cell.
+
+**Medium — §3.5 server-only row.** LLP 3000.009 §6.2's form is `query name(…): sql reading <relations> returning …`. The row lowers to "the server-only read" and also says any unlowerable read-only function becomes one. Those are two mechanisms. The second one empties the refusal bucket in pre-test 1.
+
+Smallest fix: the marker is the only door. A function that fails to lower is refused, with a rewrite that names the marker.
+
+### Forms in the committed target, LLP 3000.015, or #19 with no row
+
+From #19, each of these is used and none is determined by an existing row:
+
+- `fn` helpers (`editWindow`, `receiptState`, `otherProfile`, `unread`, `reactionList`). A `stable` function is a client-callable query under §3.5, so these would appear in `api.ts`.
+- `mutation edit(…): server` and `deleteMessage(…): server`.
+- `insert <- created chats[.chat]` and the same on receipts. §3.3 mentions `snapback.created` in prose and has no row.
+- `merge feedEvents after c last 20 by byActorTime`, and the named index `by byActorTime` that `create index` refuses.
+- `view postTotals: … online only` on the maintain, not on a table. Without it, #19's aggregates sync and the control's do not.
+- `sync to .principal` (`pairs`).
+- `cap 50 by chat, message` and `cap 1 by principal`. The shown `snapback.cap` takes one column.
+- `group(rows, 'emoji')`, `first(...)`, `slice`, `count(text)`, `video.duration`, `now + 4s`, `??`, and `a if c else b` inside `messageCard`. Category C refuses `coalesce` and `case` outside "recognized shapes," and no shape is recognized.
+- List arguments, `ids: [messages] <=50`.
+- Argument types `principal`, bare `id`, `posts ?`, and `text 3..20 format handle` (`socialProfile`, `saveProfile`).
+- Point returns that are not `! else NOT_FOUND`: `me`, `chat`, `postDetail`, `pair`.
+- Inline and nested shapes: `inbox`'s `{ *, conversation, other, unread }` and `quoted: messages[.quote] { body, senderProfile }`.
+- A qualified schedule target, `insights.daily`.
+
+From the fixture, additionally: `parentId = null` has no row (finding 7). From LLP 3000.015: the three rows exist but do not bind on this binder, and §9 step 2 runs `snapback4 check` before step 5 lands the spec. The spec's owner-may-patch-without-an-update-rule, `E_FIELD_AUTHORITY`, supplied-value refusal, and the pending-recount contract (meter-sized range in the writer's transaction, otherwise `complete: false` and a background recount) are not in the difference cells. "The pending recount is stated" is the claim, not the contract.
+
+`through` and `after insert` are marked ✗. That is correct. They are not in these three programs.
+
+## 3. New defects
+
+**High — finding 7, §3.7 and §11 question 5.** Guard insertion does not implement SQL's three-valued logic. `NOT (parent_id = $1)` when `parent_id` is null: SQL yields unknown and the row drops; `a = b AND a IS NOT NULL` made false, then negated, yields true and the row stays. SQL `CHECK` treats unknown as success; a guard treats it as failure. The pinned programs test nulls with total equality (`parentId = null`, `parent != null`). Quarry `col != null` already matches `IS NOT NULL`. Rewriting the pinned `= null` into guards makes `print` disagree with the pinned program, so the equivalence gate fails on the program it was built for. Leaving `= null` total makes the gate green while every other nullable `<>` differs.
+
+Smallest fix: do not insert guards. Lower `IS NULL` and `IS NOT DISTINCT FROM` to Quarry's total `=` / `!=`. Rewrite the literal patterns `col = null` and `col <> null` to those. Refuse `=` / `<>` when either side is a nullable column. That is a §3.7 difference, and it is the whole difference.
+
+**High — finding 9, §7.** Both stop rules can be met while the restricted surface is the wrong one.
+
+Pre-test 1 counts "statements," and a mechanical rewrite is defined only by the word "canonicalization." Every refusal in §3.7 already has a rewrite, so a classifier can move `CREATE INDEX`, triggers, and `insert … select` into "admitted after a mechanical rewrite," or mark unlowerable reads server-only, and the one-third line never moves. The named-construct clause fires only when the construct is refused in all three lanes. Astra's SQL has triggers and no policies. Grok's `schema.sql` has indexes and no policies. Muse is the only lane with a membership policy, and that policy calls `is_member`, whose body has `left_at is null` and is not an admitted probe. "Refused in all three" is false because two lanes never wrote it. The same is true of the feed read, which lives in application code on the 94 lane. One third is the wrong kind of threshold until server-only counts against it and the corpus is a named file list. The non-`attempt1` lanes on this host are about 1,700 lines, close to the cited 1,690; including `attempt1/` doubles Muse and moves the denominator.
+
+Pre-test 2 stops only when SQL is strictly worse than Quarry. A tie at one-out-of-five passes. The five scenarios include a 10,000-message mark advance and an edit window that the messaging half may not contain. Families holding the SQL card can avoid every refusal the card lists. That tests whether the card is complete, which is useful, and it does not test a Supabase prior. The threshold "not worse than Quarry" is the right bar for a stop and the wrong bar for the premise. §7 already says passing is permission, not confirmation. The hole is that permission is cheap.
+
+Smallest fix: name the files. Count server-only toward the third. Define a mechanical rewrite as a renaming that `print` cannot distinguish, and nothing else. Fire the named-construct stop when Muse's membership policy, Muse's counter trigger, or Muse's `enforce_message_windows` is refused, without requiring the other lanes to have written them. On pre-test 2, stop on a tie below a registered floor (four of the five scenarios), and publish the expected answer with each scenario.
+
+**High — finding 10, §8.** The bet can pass without the restricted surface earning the familiarity credit. `data_modeling` mean plus 3, with surface and total learning-cost merely equal, passes. Three is asserted as "one scorer sd" and is not in LLP 4000. The only multi-scorer cell §1 cites for this lane is 94 / 86 / 85. Equal surface counts do not show that restriction got cheaper; they show that the phrase count did not rise. The relief valve makes the arm less restricted and can raise `data_modeling` while the surface class stays quiet. The mask list (`Quarry`, `SQL`, `policy`, `plpgsql`, `rule`, `view`, `sync`, `publication`, code names) leaves `RLS`, `trigger`, `auth.uid`, `:=`, `procedure`, `generated always`, and every code block. "Paired run" is not defined.
+
+It can also fail without the claim being false. Reading (A) must hold in every paired run, so one phrase fails N = 3. The floor set adds `queries_and_live`, `offline_sync`, `writes_and_transactions`, and the holistic score on top of the three language-relevant categories. The holistic floor reintroduces the clock that §8 says neither passes nor fails. A control mean and sd estimated from three runs is not a stable floor.
+
+Smallest fix: keep the directional prediction, and require the surface count to be strictly lower, not equal, if the mechanism is part of the pass. Drop the holistic score from the floors. Mask syntax, not only tokens, or drop the blindness claim and use a third family that is allowed to know the arm. Define a pair as run i against run i in a registered order. Cite the sd or stop calling 3 one sd.
+
+**Medium — §10's second sample.** The equivalence gate is one pair. §10 says the blind-writing programs, lowered and checked, are the second sample. §9 runs that writing test before the compiler exists and never says those sources are frozen and re-lowered when the compiler lands. A lossy printer greens "byte-identically under `print`" whenever both sides are printed by it. `check` and `why` on the original Quarry catch a loss only when they surface the dropped clause. Immutable columns, refusal messages, and `residency.inferred` are easy to drop and easy not to notice.
+
+Smallest fix: freeze the pre-test sources and require `check` and `why` on their lowering before any counted run. Say that `print` means a document printer that round-trips every clause `snapback4 check` observes, not `print::expression`.
+
+## 4. The pipeline
+
+The shape is bounded and the direction is correct: `pg_query` to `ast::Document` to source text to the unchanged binary. The binder consumes documents (`lib.rs`, `compile` → `parse_document` → `bind`). It does not consume `ir::Program`.
+
+It is not yet correct as written. `print.rs` prints expressions, reads, and scalar types for diagnostics. It has no document printer. §1's evidence row says it "prints a document back to Quarry." That sentence is false. "Byte-identically under `print`" is not a check that exists until someone writes a round-trip printer. That work is bounded by the forms in §3 only after those forms are real.
+
+`pg_query` does make "this text is Postgres syntax" mechanical for ordinary DDL, policies, views, and function bodies. It does not make §3 legal. The publication `WITH` clause is rejected by the grammar. The trigger condition, the cron command, and `snapback.transition`'s argument are strings, not plpgsql statement trees. `parse_plpgsql` will not see them.
+
+A competent implementer will still:
+
+- call `print::expression` and treat the result as a program;
+- attach spans to the AST, then hand printed text to `snapback4`, whose parser assigns new spans, so the span map points at nothing;
+- lower `USING` both as next-only and as an old-image transition, because §3.3 says both;
+- treat `%TYPE` as `ArgType::Ref`;
+- insert `IS NOT NULL` next to each comparison and break `NOT`;
+- read `GRANT UPDATE (cols)` as a role-scoped privilege and also as a global constraint;
+- imply `sync` from an invertible policy when the publication line was forgotten, which is the default flip §2 just forbade;
+- chunk every `FOR`, including the digest's inner loops;
+- auto-promote a failed read to a server-only SQL read;
+- lower `for d in a..b` inclusive;
+- emit one sequence object per column;
+- use `timestamptz` for Quarry `time`, so `readAt: time default 0` and `periodStart` change type;
+- resolve a PL/pgSQL name to the column when a parameter has the same name. The pinned `handle` argument against `profiles.handle` is the case.
+
+Pin the `pg_query` crate and the Postgres major version. Add the document printer to lane (a)'s exit, with a round-trip test on `intent-clique.q` before any SQL is lowered.
+
+## 5. §11, questions 4–7
+
+**4. Canonicalize aliases. Do not canonicalize meaning changes.** Yes for `<>` and `!=`, and for `col = null` rewritten to the total null test. No for `UNION` versus `UNION ALL`, inclusive `..` versus `range`, `IN (SELECT …)` versus `exists` (nulls and cardinality), or `COALESCE` versus a point read of a maintain. The ruling should name the alias list. An open "admitted alternatives" permission is how the off-by-one lands in `insights`.
+
+**5. Reject guard insertion.** Keep Quarry's total equality in the lowered program. That is what the pinned programs mean, what LLP 3000.013 §2.1 keeps, and what the equivalence gate can check. Spell it with `IS NULL` and `IS NOT DISTINCT FROM`. Refuse bare `=` / `<>` on nullable columns. True SQL three-valued logic is an engine change, and this bet forbids engine changes. The recommendation in §11 is the wrong one.
+
+**6. `auth.uid()`.** Keep it. It is the name in the lanes that this premise is about. It is not a Postgres built-in: the stub file has to create `auth.uid()`, and category A should say so. `current_user` would be a false friend.
+
+**7. Do not run the pre-tests on this text.** Run them after the table parses on Postgres, lowers through `snapback4 check`, and the stop rules are no longer vacuous, and before any compiler lane. That is later than "after round 2" as this round finds the table. Running them now grades spellings Postgres rejects and a writing card that cannot express #19. Two days spent that way would not show whether Opus's expectation is wrong.
+
+## Verdict
+
+**NOT READY.**
+
+The experiment is still the right experiment: one engine, Quarry as the control, the parser in the CLI, the premise treated as a question, and a pre-test before a compiler. This revision does not yet have a surface the unchanged binder can accept, and its new checks can pass while that is still true. The next edit is the form table, the null rule, the stop rules, and a document printer that actually exists. It is not a lane.
+
+
+---
+
+## Round 3 — revision 3 (`b1edaa05cf`), 2026-09-25
+
+**Mode:** blind delta review, read-only, over a detached worktree at that commit; `grok -p … -m grok-4.7 --reasoning-effort xhigh --disable-web-search`. **Brief:** `~/projects/snapback-sb5-reviews/4001-r3.brief.md`.
+
+### Verbatim review
+
+I'll review revision 3 against the round-2 findings and the committed Clique, Quarry, and calibration evidence, read-only. First I'll read the three prior reviews and the revision-2 text.Revision 3 is loaded. Next I’ll check the round-2 Opus findings and the diff, then test the form table against the binder and the committed programs.Revision 3 of LLP 4001 is **not ready**. The premise, the runtime, the grant rule, the null ruling's direction, and the gate's oracle are now right. The form table still does not lower the pinned programs, and pre-test 1's stop rule fires on this corpus before it measures anything.
+
+Checked against the three round-1 and round-2 reviews, `intent-clique.q`, calibration #19's four files, the Quarry AST, binder, and guide cards, LLP 3000.007 §6, LLP 3000.009 §6.2, LLP 3000.013, LLP 3000.015, LLP 4000 §9.3 and §13, and the Supabase lanes under `~/clique-full-20260905/lanes/`. The nine manifest files are 1,729 lines, as §1 says. No Postgres server is listening on this host, so the syntax claims below are from the Postgres 17 grammar plus the spellings round 2 actually executed; nothing here was re-executed. Nothing was changed.
+
+## What is now sound
+
+The premise is the question the record supports, and LLP 4000 §13 no longer says this bet targets the 94. The runtime is Snapback 4's. Unpublished tables are online-only. A published table whose select policy does not invert is `E_SYNC`.
+
+`snapback.immutable(...)` is immutability: it binds every writer, including jobs, and no call means nothing is immutable. That matches `Constraint::Immutable`, which has no system-principal bypass. `written by` is exempt, which is what LLP 3000.015 §1 needs.
+
+The pipeline points at the right intermediate: `pg_query` to a resolver to `ast::Document` to a new document printer to the unchanged binary. The equivalence gate compares `snapback4 check --json` of the transpiled program with the **original** pinned `.q`, so a printer that drops a clause no longer passes by dropping it on both sides. Guard insertion is gone. LLP 3000.009 §6.2 is not a relief valve. `using (E) with check (E)` over immutable columns is the single-image rule, `with check` alone is refused, and permissive policies combine per image, so the draft-to-published bypass and the "canonical update admits nothing" bug are closed. `a..b-1`, `row(...)` once-keys, `declare p record`, and `snapback.period_start()` / `period_end()` are the right contracts. The power numbers in §8 match a difference of means at σ ≈ 3 and N = 3.
+
+## 1. Is each round-2 disposition real?
+
+| §12 row | Verdict | Where |
+| --- | --- | --- |
+| Typmods, reloptions, `alter publication … with`, access method | **Partial** | The facts are calls or checks, and `select snapback.publish(...)` is legal Postgres. `timestamptz default 0` is not (§3.1). `interval '1 day'` on `timestamptz` is a calendar day, not 86,400,000 ms. |
+| `grant update (cols)` is not immutability | **Real** | `snapback.immutable`; no call emits nothing; jobs included; `written_by` exempt. |
+| Reference columns; `%type` erases the table | **Partial** | §3.1's reference, principal, bare `id`, and scalar rows are real, including "no existence, no `on delete`." `posts.id%type` is stated as a Snapback rule. `[messages] <=50` is still `snapback.id[]` (§3.5), and `default null` on a reference is not said to be `t ?`. |
+| Update-rule combination; trigger form; `with check` alone | **Partial** | The formula and the `returns trigger` shape fix the OR bypass and the dead `with check`. A transition with no permissive policy is still the empty disjunction, which is deny. #19's receipts have only `update (old, next)`. The `raise exception 'CODE'` in the trigger body is not in the lowered rule. |
+| Policy grammar, service role, recursion, RLS, owner bypass | **Partial** | `is null`, non-recursive probes, `enable row level security`, no owner bypass, and `auth.uid() = 'service:x'` are in. The probe grammar is narrower than `bind_probe` (finding 2). |
+| `home`, shapes, `insights`, `trending`, `once`, job `declare`, `period_start` | **Partial** | `home` reads `following`; both trending endpoints are present; `insights` is `a..b-1` and a composite; `once` is `row(...)`. `activity_card(a activity)` does not accept a `following` row, and `coalesce(..., 0)` turns a hidden group into 0 (finding 3). |
+| Conditional update, `if absent`, general upsert | **Real** | `where <key> and <cond>` lowers to Quarry `if cond`, whose engine returns `E_CONFLICT` or `NOT_FOUND` (writes card). Targetless `on conflict do nothing` matches `if absent` (null on a readable clash). `do update` is `excluded` only. Residue, Low: the delete row omits the unreadable-target half of `NOT_FOUND`. |
+| `exists`, and #19's missing forms | **Asserted** | `exists`, `case`, `coalesce`, `least`/`greatest`, and `: server` are in. The sentence "#19's forms covered or marked ✗" is false (finding 4). |
+| Null semantics by guard insertion | **Partial** | Guard insertion is withdrawn. Bare `=` / `<>` / `in` on a nullable operand is refused, and `is null` / `is not distinct from` lower to total equality. `<` `<=` `>` `>=` and `not` of those are still admitted and unspecified (finding 5). |
+| No document printer; gate trusts it; resolver; two-level parsing | **Partial** | The printer is lane work. The oracle is the original `.q`. The round-trip test is over every guide `.q`, which includes `route`, `walk`, `decimal`, and `money`, while the printer is specified only for §3. |
+| §6.2 is not a relief valve | **Real** | The §3.5 row is ✗. Pre-test 1 has no server-only class. |
+| Pre-test 1 idiom clause, units, server-only | **Partial** | The manifest, the per-kind classes, body statements, and per-instance stops are real, and the line count checks out. The idiom stop cannot come back "continue" (finding 6). |
+| Pre-test 2 asymmetric, one answer decides | **Partial** | Both cards are frozen, one rubric, the edit window and the mark are required, and there is a margin. A tie passes, and so does SQL worse by 10 points or by 2 of 15. Omission of every other feature is still allowed (finding 6). |
+| §8 equality, all-zero, floors, masking, power | **Partial** | Strictly-lower summed SURFACE, a second masked scorer, placeholders, and a blindness check are real, and the power arithmetic is right. All-zero fails the bet rather than being "not shown." The floor set is eight categories, not LLP 4000 §9.3's five, and the trip rate is not stated (finding 7). |
+| §9 prerequisites after consumers | **Real** | LLP 3000.015, then the transcript, then the pre-tests, then instruments, then lanes. Pre-test 2's programs are lowered in step 6. |
+| Maintain residency default | **Asserted** | The opt-out call exists. The default when it is absent is not stated, and the table default is the wrong one (finding 1). |
+| SQL arm still reads Quarry; generated `.q` in the tree | **Real** | §2 and §4: Quarry output is listed under SURFACE, and it is written only to a build directory. |
+| LLP 4000 §13; #19's quotes | **Real** | §13 withdraws the 94 sentence. §1 quotes the comparison line and the essay paragraph. |
+
+Not in the table: `snapback5/AGENTS.md` still says LLP 4000 §4–§5 are "the runtime design of record" and that treatment hooks live in feature-gated modules. §2 says the opposite.
+
+## 2. The form table
+
+Rows that are wrong or not the whole difference:
+
+| Row | What is wrong |
+| --- | --- |
+| §3.1 `time`, defaults | `read_at timestamptz default 0` does not parse: there is no assignment cast from `integer` to `timestamptz`. #19 has `readAt: time default 0` (`chat.q`). `interval '1 day'` added to `timestamptz` is a calendar day. Quarry `1d` is 86,400,000 ms. The cell says both are the Quarry types. |
+| §3.1 `effect push` | The illustrated call is 5 attempts, 30s backoff, 1h deadline. A bare `effect push` binds as 8 attempts and 4s backoff (`WorkPolicy::default`, then the effect path forces 4s when backoff is omitted). Copied as written, the row fails the gate on the fixture. |
+| §3.2 online-only, applied to maintains | "No `snapback.publish` call" is online-only for a **table** (LLP 3000.007 §6.1). A maintain with no `online only` **inherits** its source's audience and drops the horizon (`bind/schema.rs`, the loop at the `inherited_from` assignment; §6.7). `intent-clique.q`'s `followerCount` and #19's `followerCounts` inherit `sync public`. Emitting online-only fails the gate on the pinned target. |
+| §3.2 publish | `select snapback.publish('messages', horizon => '...', recipient => 'principal')` parses. `recipient => 'principal'` is `sync to .principal` only. The target form `sync to members[.chat]` is inference, and the row never says `recipient` must be omitted to get it. Passing it against an `exists members` policy is `E_SYNC`. |
+| §3.3 transition, and the combination formula | `(⋁ permissive using)` of no policies is false, so a trigger with no update policy admits nothing. #19 `receipts` and `ephemeralReceipts` have only `update (old, next) <- ...`. Postgres agrees with "no policy means deny"; Quarry does not. The formula does not say which empty case it means. The trigger's `'CODE'` is also dropped: the lowered form is a rule, so the failure is `E_RULE`. |
+| §3.3 grammar | Admitted probes are `t.col = <literal>` plus `t.principal = auth.uid()`. `bind_probe` allows any rule term as a residual equality. #19's `exists messages[id = old.message, sender = viewer]` does not fit: `sender` is not named `principal`, and `viewer` is not a literal. `role = 'admin'` does fit. `snapback.created(t, col)` is named and has no row for `created chats[.chat]`. |
+| §3.4 `post_card` / `activity_card` | `activity_card(a activity)` and `select activity_card(f) from following f` are different composite types. Postgres will not apply one to the other. `coalesce((select c.count ...), 0)` is 0 when the point read is null. A hidden group is null and must stay null (maintains card: authorized miss is 0, hidden hit and hidden miss are null). The coalesce publishes 0. |
+| §3.5 `fn` helpers | The prose says an immutable function is a helper. The row says `language sql immutable`. `receiptState`, `otherProfile`, `unread`, and `reactionList` are block bodies that read tables. `language sql` cannot express them. `language plpgsql stable` puts them in `api.ts`. `language plpgsql immutable` is not Postgres `IMMUTABLE`, and that lie is not in §3.7 B. |
+| §3.5 list arguments | `ids: [messages] <=50` is a list of references. `snapback.id[]` is a list of bare ids. `%type` is specified for scalars only. |
+| §3.6 job | One top-level `for` over a table is the right sweep, and the inner `declare` exemption is right. A job is a **sequence** of sweeps (jobs card). #19 `backfillFeedEvents` has two top-level loops. The row reads as one sweep. A top-level `for` with a `where` is also a sweep, not an inner loop. |
+| §3.7 `substr(s, i, n)` | Quarry `slice(text, start, end)` is 0-based and end-exclusive (`b - a` in `bind/program/expr.rs`). `substr` is 1-based and the third argument is a **length**. "The 1-based offset is stated" does not convert either fact. `substr(body, 5, 10)` lowered by subtracting 1 from the start only is `slice(body, 4, 10)`, six characters, not ten. |
+| §3.7 expression subset | `first`, `group`, and `count` of a list are missing. #19 uses all three (`otherProfile`, `findGroup`, `reactionList`, `count(actors)`, `count(body)`). Quarry `count(text)` is `length`, not SQL `count`. `bucket` is a guide form; #19 does not use it. `hour` is listed and unused. |
+
+Rows that are sound, as spellings the binder already accepts or that LLP 3000.015 defines and §9 lands first: identity; principal and reference columns; text bounds and named formats; enums; `unique` and commented codes; `immutable`; `search`; both `cap` shapes (the planner synthesizes the index); `retain` and `expire_at`; generated `count` / `sum` / `sequence` once the baseline exists (the count shape is the one round 2 executed); `written_by`; RLS required and no owner bypass; single-image update canonicalization; `for all`; service grants as `auth.uid() = 'service:x'`; `union all`; Following's admission list; filtered, recorded, and day aggregates, including the immutable-hop and public-target conditions; the zero-preserving unread join and the pending-recount sentence; `online_only` as an opt-out; cursor-per-`return query` with the cursor kept out of `where`; `into strict` / `no_data_found`; `varchar(n)`; `matching`; trending's two endpoints; `: server`; targetless `if absent`; `excluded`-only upsert; point update with the engine's `if`; `require` of a non-null boolean; `row(...)` once-keys; the admitted cron subset; `through` and `after insert` and §6.2 marked ✗.
+
+Forms in the committed target, LLP 3000.015, or #19 with no row and no ✗:
+
+- `group(rows, 'emoji')`, including `.key` and `count(.items)`.
+- `first(...)` as a scalar (`otherProfile`, `findGroup`), as distinct from `first N` pages.
+- `merge feedEvents after c last 20 by byActorTime`, and the named index that merge uses. `create index` is correctly refused; nothing replaces this name.
+- Block helpers that read: `receiptState`, `reactionList`, `otherProfile`, `unread`. Expression helpers (`editWindow(): 60000`) are the immutable-SQL row and only that.
+- `count` of a list, and `count(text)` as `length`.
+- List of references, `[messages] <=50`.
+- `now - m.at <= editWindow()` and `now + 4s` compared with an integer duration. `extract` is refused, and `timestamptz - timestamptz` is an interval, which does not compare with `edit_window()`'s integer. Pre-test 2 requires this edit window.
+- Inline nested shapes: `quoted: messages[.quote] { body, senderProfile }` and inbox `{ *, conversation, other, unread }`.
+- Two mutually exclusive pages on **one** cursor (`people`'s `if q = ''`). §3.5 gives each page its own cursor argument.
+- `created chats[.chat]` / `created messages[.message]`, beyond the bare name `snapback.created(t, col)`.
+- A maintain's derived `read` when the line is omitted (maintains card: public source derives `read <- allow`; otherwise every rule field must be a bare group key). §3.4 says read rules "are calls" and shows none.
+- Bare `public` with no reason string. The parser supplies `"<table> is public"`. A `using (true)` without `comment on policy` is not said to do that.
+
+`through` and `after insert` are correctly ✗. They are not in these programs.
+
+## 3. The focus list
+
+**Residency spelling and default. High. §3.2 online-only row, §3.4 intro, §3.2 publish row.**
+
+`snapback.publish` replaces the illegal `alter publication … with`. For tables, absence meaning online-only is Snapback 4. For maintains it is the wrong default. `view followerCount: count follows by .followedId` has no `online only`; `follows` is `sync public`; the binder copies that audience and clears the horizon. The same is true of #19's `followerCounts` and `followingCounts`. The opt-out call covers only the views that already say `online only` (`postTotals` and the other five in `insights.q`). An implementer who applies "no call means online-only" to every `create materialized view` ships a different partition, and the equivalence gate fails on the pinned target.
+
+Smallest fix: one sentence. A table with no `snapback.publish` is online-only. A maintain with no `snapback.online_only` inherits, horizon dropped, under the §6.7 rule. `recipient` is omitted to infer and is passed only for `sync to .<column>`.
+
+**`grant update` as immutability. Resolved.** The call is the constraint, not a privilege. No new defect in the replacement.
+
+**`generated always as (snapback.count(...)) stored`. Sound as a spelling, with the bind conditions now stated.** Round 2 executed the no-argument form against an immutable stub. `snapback.sequence(conversation_id)` is the same generated-column shape, and "parent is a reference" matches `E_SEQUENCE_PARENT`. This is category B, not Postgres maintenance. Not a new defect.
+
+**`before update` trigger as the only transition. High. §3.3 formula and transition row.**
+
+The per-image OR and the ban on assigning `new` are right, and they close the round-2 privilege bypass. The empty case is not defined. Concrete program: #19 `receipts` has no `update <-`, only
+
+```quarry
+update (old, next) <- old.principal = viewer or exists messages[id = old.message, sender = viewer]
+```
+
+Under the formula as boolean algebra, no permissive policy makes the old-image disjunction false, and the trigger never gets to decide. That is Postgres (RLS with no policy updates nothing). It is not this program. The row also turns `raise exception 'MARK_FROZEN'` into a bare rule failure.
+
+Smallest fix: state the empty cases. No permissive policy and no transition denies. A transition and no permissive policy **is** the update rule. Say that this is not Postgres, in §3.7 B. Keep the application code only if the lowered rule is a `require`, not a rule; otherwise delete `'CODE'` from the trigger body.
+
+**`%type` arguments. Partial, still wrong for lists. §3.5.**
+
+Scalar `%type` keeping the reference, the bound, and the format is the right Snapback rule, and it is marked ≈. It does not extend to `messages.id%type[]`, and `parent posts.id%type default null` is not said to lower to `posts ?`. #19's `fetched` and `createPost` need both.
+
+Smallest fix: add those two rows.
+
+**`create procedure` as a job. Mostly sound. Medium residue. §3.6 job row.**
+
+Procedure versus volatile function is the right split, the chunk rule matches the jobs card for a single sweep, and `declare p record` is correctly exempt. #19's backfill is two sweeps. The card says a job is a sequence of sweeps and that a filtered top-level `for` is itself a sweep. The row will be implemented as "the first loop chunks, anything after it is inside the chunk."
+
+Smallest fix: "every top-level `for` over a table, filtered or not, is its own sweep; a `for` above the first sweep is prelude only when it is paged and write-free."
+
+**Null semantics. The ruling is the right one, and it is not finished. High. §3.7 B and §11.5.**
+
+Refusing guard insertion is correct. The pinned programs use total equality (`parentId = null`, `parent != null`), LLP 3000.013 keeps equality total, and real SQL three-valued logic would be an engine change this bet forbids. `is null` and `is not distinct from` are the right spellings, and refusing bare `=` / `<>` / `in` on a nullable operand keeps the gate honest.
+
+The subset still admits `< <= > >=`. LLP 3000.013 makes an ordering comparison of a nullable scanned column **false** on null, not unknown. So `not (expires_at > now())` keeps the null row in Quarry and drops it in SQL. `not removed` on a nullable boolean has the same split. Maintain predicates already refuse ordering of optional columns; the SQL subset does not.
+
+Smallest fix: refuse `< <= > >=` and `not` when any operand is nullable, with the same rewrite, and lower `is distinct from` to `!=`. Do not insert guards.
+
+**Equivalence gate. The round-2 hole is closed. Medium residue. §4 and §2.**
+
+The oracle is the original `.q` through the unchanged binary, with sites stripped, and `why` must agree. A lossy printer fails that comparison. Byte identity of printed text is correctly not the gate.
+
+It can still be green while the arms differ, in two ways that the text overclaims past:
+
+- §2 says residency, plans, and prediction "are identical by construction." That is true of the pinned pair only. The calibration lanes write their own programs. Pre-test 2's programs are checked later; the lane programs are not.
+- The pinned SQL is hand-written to hit the pinned Quarry. An off-by-one that the SQL author compensated for (`a..b-1` lowered as if `..` were already exclusive) matches the `.q` and contradicts the table. §10 names "one semantic fixture per ≈ row" and does not say what any fixture asserts.
+
+Smallest fix: strike "by construction" for anything but the pinned pair. Define the fixture as a second `.q` that the SQL must hit, one behavior per ≈ row, before any counted run.
+
+**Pre-tests. High. §7.**
+
+Pre-test 1 cannot be gamed into a pass, and it also cannot come out "continue." The idiom rule stops the bet if any instance of a membership policy, a counter, a transition, or a feed read is refused. On this manifest, all four are refused by §3 itself:
+
+- Muse `is_member` is `security definer` and its body is `left_at is null`. §3.3 says that is not an admitted probe.
+- Muse `enforce_message_windows` assigns `NEW.edited` and compares `extract(epoch from now() - OLD.created_at)`. The admitted body cannot assign `new` and cannot call `extract`.
+- Muse `bump_counters` and Astra `clqfa_like_counter` are `after insert or delete` triggers that update another table. Category C admits only the `before update` form.
+- Muse `feed` is a `security definer` SQL function with CTEs and a keyset `where`. CTEs are refused, and a keyset predicate on a page is refused.
+
+So the stop is entailed by the table. Two days of classification will confirm it. That is not evidence about whether a restricted surface keeps a familiarity credit. The one-third line is honestly labeled an investment threshold. It never gets to decide. The `{{P}}` prefixes mean Muse's files are not executable as listed; a hand classifier can still see the idioms.
+
+Pre-test 2 can pass while the surface is worse. "More than 10 points" and "3 or more of 15" let a tie through, and also a 10-point refusal gap and two missed predictions. The writing task must include the edit window and the mark, and nothing else, so a family can skip search, caps, the digest, and media. The expected answers are "published"; if that means the writers see them, the prediction half is vacuous. Read it as pre-registered and hidden, and say so. Including the builder's own family, which has read this RFC, pulls one of the three SQL writers.
+
+The margins are a reasonable cushion against one noisy answer. They are the wrong bar for "the prior survived," and §7 already says a pass is permission. The hole is that permission is available to an incomplete program, and that pre-test 1's permission is unavailable to a complete reading of the corpus.
+
+Smallest fix: make the four idioms a reported breakdown, not an automatic stop, **or** say in §7 that this corpus trips the stop and delete §11.8's "decide with the numbers." If the stop stays, classify a counter trigger as admitted when it rewrites to `snapback.count` without a behavior change, and a window trigger as admitted when the whole condition moves into a `raise` — and define "behavior change" so `NEW.edited := true` and `left_at is null` still trip it. For pre-test 2, require a registered feature list before the rate is computed, hide the answers from the writers, and stop on a tie below 4 of the 5 scenarios.
+
+**§8. Medium. The worst round-2 holes are closed; the bet can still pass without being true, and fail without being false.**
+
+Pass without being true:
+
+- At a true effect of 0, P(primary met) ≈ 0.10 is disclosed. SURFACE has no minimum gap. One phrase across three runs makes the sum strictly lower. Both can happen together.
+- The sum hides a bad pair: treatment 0, 0, 4 against control 2, 2, 2 passes.
+- Phrase splitting is still the unit. A longer control note is a higher count.
+
+Fail without being false:
+
+- Zero SURFACE in both arms means reading (A) does not hold, and (A) not holding **fails** the bet. A real `data_modeling` win with nothing for either arm to complain about is recorded as a failure. That case should be "not shown," which is what the primary's miss already is.
+- Equal SURFACE also fails, rather than "not shown." That is harsher than the primary, and it is a choice. Say it is deliberate or move it to "not shown."
+- Floors are holistic, queries, offline, client, writes, setup (7), plus diagnostics and authorization "computed later." LLP 4000 §9.3 floored five categories and stated the trip rate. §1 has no sd for diagnostics or authorization. Eight floors without a trip rate will fail a neutral arm more often than 4000's design. The clock is not itself a fail rule; a holistic score that moves because the arm was slow still can. 4000 included holistic on purpose. Adding three categories is not a restoration.
+
+Masking is now a real attempt: code spans and identifiers become placeholders, the dictionary covers the words round 2 listed, and a guess rate above 65% on held-out notes extends the dictionary before the counted pass. Residual: the repair can delete the words SURFACE needs until the guess rate falls, and 65% on a handful of notes is a weak test. Do not claim the arm is hidden. Claim that the check was run.
+
+Smallest fix: all-zero and equal SURFACE are "not shown," not fail. Require the SURFACE sum to be lower by a registered minimum (at least 3 phrases, or say the unit is a complaint, not a sentence). Drop diagnostics and authorization from the floors until their sds exist, and state the trip rate for the set that remains.
+
+## 4. The pipeline
+
+The shape is bounded: pinned `pg_query`, a catalog and a resolver, two-level parsing of the strings plpgsql returns, lowering to `ast::Document`, a printer that does not exist yet, then the unchanged `snapback4` binary. `print.rs` still prints expressions, reads, quoted strings, and scalar types. §4 says so. That part is no longer a false claim.
+
+It is not yet a spec an implementer can follow without inventing the semantics above. The same person will still:
+
+- treat "no publish call" as online-only on a materialized view;
+- AND a trigger into an empty policy and deny #19's mark updates, or OR it and recreate the bypass §3.3 just closed;
+- give `activity_card` the type `activity` and then call it with `following`;
+- emit `coalesce(point, 0)` and turn hidden groups into zeros;
+- lower `substr(s, i, n)` as `slice(s, i - 1, n)`;
+- mark a block helper `stable` and publish it on `api.ts`, or `immutable` and have Postgres reject the body for reading tables;
+- type `ids` as `snapback.id[]` and lose `messages`;
+- lower `for d in a..b` inclusive except the one `insights` example, where the source happens to say `b-1`;
+- chunk only the first `for`, and run `backfillFeedEvents`'s second loop inside the last chunk;
+- accept `timestamptz default 0` and `now() - at <= edit_window()` because the table calls them the Quarry types;
+- satisfy lane (a)'s exit by failing the guide-corpus round trip, or by growing the printer to `route` and `walk`, which this bet does not lower.
+
+`snapback5/AGENTS.md` tells that implementer that LLP 4000 §4–§5 are the runtime of record. §2 says they are not. One of those has to change before a lane starts. The fence is the one that is wrong.
+
+Smallest fix on the printer test: round-trip the committed target, #19's four files, and the guide files whose forms are in §3. Do not make `route` and `walk` part of lane (a)'s exit.
+
+## 5. §11, questions 4–7
+
+**4. Canonicalize the registered list only.** Yes. `<>` and `!=`, the literal `col = null` / `col <> null` forms, `using (E) with check (E)` and `using (E)` alone when `E` reads only immutable columns, and `check (col in (...))` to an enum. Not `in` versus `exists`, not `union` versus `union all`, not `coalesce` versus a maintain point read, not `substr` versus `slice` until the length and the origin are in the rule. The list in §3.7 is the right list except that last one.
+
+**5. Quarry's total equality, in the lowered program.** The revision's choice is the right one for a bet that cannot change the engine. Spell it with `is null` and `is not distinct from`. Refuse bare `=` / `<>` / `in` on nullable operands, and extend that refusal to ordered comparisons and to `not` of a nullable boolean. SQL three-valued logic remains the alternative if the author wants the reader's prior badly enough to pay for an engine change. Guard insertion is not that alternative.
+
+**6. `auth.uid()`, typed `snapback.principal`.** Keep it. It is the name in the lanes this premise is about, and it is not a Postgres built-in; the stub has to create it. Refuse `uuid` principal columns. Muse's `user_id uuid` and Astra's `user_id uuid` will show up in pre-test 1's refused count. That is the right count.
+
+**7. Do not run these pre-tests on this text.** Pre-test 1, as registered, stops as soon as someone reads `is_member`, `enforce_message_windows`, the two counter triggers, and `feed`. Running it does not test Opus's expectation. Fix the idiom rule and the rows in §2 first, then pre-test 1, then the card, then pre-test 2. §11.8's recommendation to run steps 2–4 unchanged would spend the two days confirming a stop the table already contains.
+
+## Verdict
+
+**NOT READY.**
+
+Nothing here needs a different experiment. One engine, Quarry as the control, the parser in the CLI, the premise as a question, and a pre-test before a compiler are still the right shape. This revision does not yet have a surface on which the pinned target lowers to itself: maintain residency, the trigger-only update, the probe grammar, and the time type are wrong in the table, and #19 still has forms with no row and no GAP. Pre-test 1 cannot return the answer §11.8 wants to decide on.
+
+The smallest revision that would be READY WITH CHANGES is those rows corrected, the missing #19 forms either given a spelling or marked ✗, the pre-test stops restated so they are not entailed by §3, and `snapback5/AGENTS.md` pointed at §2. I would not need to see pre-test results to call that revision READY WITH CHANGES.

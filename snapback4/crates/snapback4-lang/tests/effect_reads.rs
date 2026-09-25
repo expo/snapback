@@ -34,6 +34,22 @@ fn infallible_effect_payload_reads_are_server_only_with_source_sites() {
 }
 
 #[test]
+fn total_text_payloads_keep_guarded_and_unguarded_mutations_eligible() {
+    for expression in ["sha256(x ?? '')", "join([x ?? ''], '')"] {
+        for guarded in [false, true] {
+            let (guard, indent) = if guarded { ("  if not exists connected[p]:\n", "    ") } else { ("", "  ") };
+            let bound = compile(&format!("{guard}{indent}x = profiles[principal = viewer].displayName\n{indent}emit notify {{ text: {expression} }}"));
+            let fact = &bound.schema.operations["probe"];
+            let why = residency::operation_lines("probe", fact);
+            assert_eq!(fact.predicts.as_deref(), Some("eligible"), "{expression}, guarded={guarded}: {why}");
+            assert_eq!(fact.effect_payload_reads.len(), 1, "{why}");
+            assert!(fact.sites.iter().all(|site| site.table != "profiles"), "{why}");
+            assert!(why.contains("server-only, feeds an effect"), "{why}");
+        }
+    }
+}
+
+#[test]
 fn shared_reads_and_fallible_payload_work_still_cost_prediction() {
     for body in [
         "  if not exists connected[p]:\n    name = profiles[principal = viewer].displayName\n    if name != null:\n      emit notify { name }",
@@ -44,6 +60,8 @@ fn shared_reads_and_fallible_payload_work_still_cost_prediction() {
         "  n = profiles[principal = viewer].n ?? 0\n  for i in range(0, n):\n    emit notify { n, i }",
         "  if not exists connected[p]:\n    emit notify { profile: profiles[principal = viewer] ! else MISSING }",
         "  if not exists connected[p]:\n    n = profiles[principal = viewer].n ?? 0\n    emit notify { ratio: 1 / n }",
+        "  if not exists connected[p]:\n    n = profiles[principal = viewer].n ?? 0\n    emit notify { ratio: n / 0 }",
+        "  if not exists connected[p]:\n    n = profiles[principal = viewer].n ?? 0\n    emit notify { remainder: n % 0 }",
         "  if not exists connected[p]:\n    n = profiles[principal = viewer].n ?? 0\n    emit notify { n: n + 1 }",
         "  n = 0\n  for i in range(0, 2):\n    insert notes { n }\n    n = profiles[principal = viewer].n ?? 0\n    emit notify { n }",
         "  n = 0\n  for i in range(0, 2):\n    n = profiles[principal = viewer].n ?? 0\n    emit notify { n }\n    if i = 0:\n      break\n    n = 0\n  return n",
