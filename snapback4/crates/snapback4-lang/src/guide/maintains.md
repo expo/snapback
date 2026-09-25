@@ -213,7 +213,10 @@ short cooperative time slices. This is no maximum lag guarantee.
 Zero-sum occupancy uses one entry. If the meter interrupts a backlog scan or a
 maintained point lookup, the Quarry query returns `data: null, complete: false`
 without a continuation; an unfinished count is neither zero nor a partial total.
-A missing group still reads as zero when its lookup completes.
+A missing group still reads as zero when its lookup completes. An existence-only
+rule probe seeks the first live contribution past `now`, skipping the expired
+backlog; it keeps the one-probe cost. Rules still cannot compare the live value
+of an expiring aggregate.
 
 An inherited aggregate has no horizon and remains until-revoked even when its
 source retains delivered-history. After leave, retained source rows are

@@ -143,10 +143,13 @@ impl Runner<'_> {
                 let group = crate::schema::maintained_key(row, &maintain.by);
                 let (name, prefix) = maintain.source_scan(source, &group);
                 if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { known = false; }
-                let mut bounds = Bounds::default();
+                // @ref LLP 3000.007#20.9.3 — an expiry-ordered existence witness skips the entire expired backlog.
+                let expiry_ordered = source.index(name).is_some_and(|index| matches!(index.components.as_slice(),
+                    [crate::schema::IndexComponent::Contribution(_), crate::schema::IndexComponent::Column(column)] if Some(column) == source.expire.as_ref()));
+                let mut bounds = Bounds { gt: self.context.now.filter(|_| expiry_ordered).map(Value::Int), ..Bounds::default() };
                 live = false;
                 'sources: loop {
-                    let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, 32)?;
+                    let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, if expiry_ordered { 1 } else { 32 })?;
                     let count = rows.len();
                     for (mut candidate, stored) in rows {
                         self.witness_materialize(&mut candidate, source)?;

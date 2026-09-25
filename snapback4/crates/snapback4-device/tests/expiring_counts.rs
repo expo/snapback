@@ -45,6 +45,47 @@ fn server_cost_is_constant_plus_backlog_and_cuts_never_return_a_number() {
     }
 }
 
+#[test]
+fn backlog_subtraction_stays_in_its_group_and_pages_each_live_group_once() {
+    let (mut server,_) = compile(&(SOURCE.to_owned()+"query at(chat: id):\n  return unreadCounts[chat, viewer]\n"));
+    let mut expected = std::collections::BTreeMap::new();
+    let mut rows = Vec::new();
+    for group in 0..25 {
+        let chat = format!("chat{group:02}");
+        for (principal,live,expired) in [("alice",group,group%4+1),("bob",100,2)] {
+            for n in 0..live+expired {
+                let (_,mut receipt)=row(rows.len(),if n<expired {Value::Int(100)} else if n%2==0 {Value::Null} else {Value::Int(200)});
+                if let Value::Row(fields)=&mut receipt { fields.insert("chat".into(),id(&chat)); fields.insert("principal".into(),id(principal)); }
+                rows.push(("receipts".into(),receipt));
+            }
+        }
+        if group>0 {expected.insert(chat,group as i64);}
+    }
+    server.seed(rows).unwrap();
+    for group in 0..25 {
+        for (principal,expected) in [("alice",group),("bob",100)] {
+            let out=server.query("at",Context::new(principal,args(&[("chat",id(&format!("chat{group:02}")))])).at(100)).unwrap();
+            assert!(out.complete,"{out:?}");
+            assert_eq!(out.data,Value::Int(expected));
+        }
+    }
+    let (mut after,mut seen,mut pages)=(Value::Null,std::collections::BTreeMap::new(),0);
+    loop {
+        let out=server.query("groups",Context::new("alice",args(&[("c",after)])).at(100)).unwrap();
+        assert!(out.capped_at.is_none(),"{out:?}");
+        let Value::Array(rows)=out.data else {panic!("expected a group page")};
+        for row in rows {
+            assert_eq!(row.field("principal").unwrap(),&id("alice"));
+            assert!(seen.insert(row.field("chat").unwrap().as_str().unwrap().to_owned(),row.field("value").unwrap().as_int().unwrap()).is_none(),"no repeated group");
+        }
+        pages+=1;
+        match out.next {Some(next)=>after=Value::String(next),None=>{assert!(out.complete);break;}}
+        assert!(pages<3,"pagination must advance");
+    }
+    assert_eq!(pages,2);
+    assert_eq!(seen,expected);
+}
+
 fn scale<H: Host>(host: &mut H) {
     for n in [100,10_000] {
         let (mut server,backend) = compile(SOURCE);

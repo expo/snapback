@@ -47,3 +47,63 @@ fn expiry_counts_and_041_upgrade_match_sqlite() {
     assert_eq!(engine.generation(),2);
     engine.store.client.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
 }
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn ordinary_payloads_adopt_across_multiple_pages() {
+    let source="table receipts:\n  principal: principal\n  payload: text <=65536\n  expiresAt: time ?\n  expire at .expiresAt\n  read <- .principal = viewer\nview counts: count receipts by .principal\nquery count():\n  return counts[viewer]\n";
+    let bound=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let connection=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    for (count,bytes) in [(96,4096),(600,65_536)] {
+        let schema: Schema=serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+        let programs:Vec<Program>=bound.programs.iter().map(|p|serde_json::from_str(&serde_json::to_string(&p.program).unwrap()).unwrap()).collect();
+        let name=format!("sb4_eval_q_payload_{:x}",crate::ids::seed());
+        let mut engine=PostgresEngine::create(Client::connect(&connection,postgres::NoTls).unwrap(),&name,schema,programs).unwrap();
+        engine.seed_at((0..count).map(|n|("receipts".into(),object([
+            ("id",Value::Id(format!("r{n:04}"))),("principal",Value::Id("alice".into())),
+            ("payload",Value::String("x".repeat(bytes))),
+            ("expiresAt",match n%3 {0=>Value::Int(100),1=>Value::Int(1000),_=>Value::Null}),
+        ]))),0).unwrap();
+        let mut legacy=engine.schema.clone();
+        let index="$contribution:counts";
+        legacy.tables.get_mut("receipts").unwrap().indexes.get_mut(index).unwrap().components.truncate(1);
+        let tx=engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+        tx.execute("DELETE FROM i WHERE t=$1 AND ix=$2",&[&"receipts",&index]).unwrap();
+        let mut bounds=Bounds::default();
+        loop {
+            let rows=tx.scan("receipts","byId",&[],&bounds,Dir::Asc,32).unwrap();
+            if rows.is_empty() {break;}
+            for (row,key) in rows {
+                let id=row.field("id").unwrap().as_str().unwrap();
+                for old in crate::rows::index_keys(&legacy.tables["receipts"].indexes[index],&row,id) {
+                    tx.execute("INSERT INTO i(t,ix,k,id) VALUES($1,$2,$3,$4)",&[&"receipts",&index,&old,&id]).unwrap();
+                }
+                bounds.after=crate::key::decode(&key);
+            }
+        }
+        tx.execute("UPDATE _backend SET schema=$1",&[&canonical_json(&legacy)]).unwrap();
+        tx.commit().unwrap(); drop(engine);
+        let upgraded=PostgresEngine::open(Client::connect(&connection,postgres::NoTls).unwrap(),&name);
+        if let Err(error)=&upgraded {
+            Client::connect(&connection,postgres::NoTls).unwrap().batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
+            panic!("rows={count} payload={bytes}: {error:?}");
+        }
+        let mut engine=upgraded.unwrap();
+        assert_eq!(engine.generation(),2);
+        let result=engine.query("count",Context::new("alice",BTreeMap::new()).at(100)).unwrap();
+        assert!(result.complete,"{result:?}");
+        assert_eq!(result.data,Value::Int(count*2/3));
+        assert_eq!(result.metered.examined,count as u64/3+2);
+        drop(engine);
+        let mut engine=PostgresEngine::open(Client::connect(&connection,postgres::NoTls).unwrap(),&name).unwrap();
+        assert_eq!(engine.generation(),2,"a successful upgrade is not retried");
+        let tx=engine.store.transaction(None).unwrap();
+        assert_eq!(tx.count_prefix("receipts",index,&[],1000).unwrap(),count as u64);
+        let physical=tx.scan("counts","byId",&[],&Bounds::default(),Dir::Asc,1).unwrap();
+        assert_eq!(physical[0].0.field("value").unwrap(),&Value::Int(count));
+        tx.rollback().unwrap();
+        engine.store.client.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
+        println!("POSTGRES_ADOPTION rows={count} payload={bytes} generation=2 complete=true");
+    }
+}

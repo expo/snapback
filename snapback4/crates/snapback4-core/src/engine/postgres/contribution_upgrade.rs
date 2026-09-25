@@ -1,6 +1,6 @@
 //! Internal contribution format adoption under the evaluation adapter's writer lock.
 use super::{store::Store, WriteMode};
-use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, rows::{Bounds, Dir, Rows}, schema::{IndexComponent, Schema}, value::canonical_json};
+use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, rows::word_heap as heap, schema::{IndexComponent, Schema}, value::{Value, canonical_json}};
 
 pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, RuntimeError> {
     let tx = store.transaction(Some(WriteMode::Serialized))?;
@@ -15,25 +15,36 @@ pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, Run
                 let Some(IndexComponent::Contribution(maintain)) = index.components.first() else {continue};
                 if previous.table(name).and_then(|t|t.index(index_name)) == Some(index) {continue;}
                 tx.execute("DELETE FROM i WHERE t = $1 AND ix = $2", &[name,index_name])?;
-                let mut bounds=Bounds::default();
+                let mut after: Option<String> = None;
                 loop {
                     let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
                     meter.at(&format!("adopt {name}.{index_name}"));
-                    let page=tx.scan_metered(name,"byId",&[],&bounds,Dir::Asc,32,&mut meter)?;
-                    let count=page.len();
-                    for (row,key) in page {
+                    meter.heap(4096 + after.as_deref().map_or(0, heap::text))?;
+                    let page=source_page(&tx,name,after.as_deref(),&mut meter)?;
+                    if page.is_empty() { break; }
+                    for raw in &page {
+                        let scratch=meter.mark();
+                        let id=raw.get::<_,&str>(0);
+                        let data=raw.get::<_,&str>(1);
+                        meter.heap(heap::stored_row(data).saturating_mul(4).saturating_add(4096))?;
+                        let row: Value=super::store::decode(data)?;
                         meter.charge(MeterKind::Examined,1)?;
                         meter.step(maintain.evaluation_steps())?;
                         meter.heap(row.heap_bytes().saturating_mul(4).saturating_add(4096))?;
-                        let id=row.field("id")?.as_str()?;
                         for key in crate::rows::stored_index_keys(table,index,&row,id) {
                             if key.len() > crate::rows::MAX_INDEX_KEY_BYTES { return Err(crate::rows::index_key_refusal(name,index_name,1)); }
                             meter.charge(MeterKind::IndexEntries,1)?;
                             tx.execute("INSERT INTO i(t,ix,k,id) VALUES ($1,$2,$3,$4)", &[name,index_name,&key,&id])?;
                         }
-                        bounds.after=crate::key::decode(&key);
+                        drop(row);
+                        meter.release_heap(scratch);
                     }
-                    if count<32 {break;}
+                    let last=page.last().expect("nonempty page").get::<_,&str>(0);
+                    meter.heap(heap::text(last))?;
+                    after=Some(last.to_owned());
+                    // The full driver-owned page remains reserved until every
+                    // decoded row and its index scratch have been consumed.
+                    drop(page);
                 }
             }
         }
@@ -42,4 +53,32 @@ pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, Run
     }
     tx.commit()?;
     u64::try_from(generation).map_err(|_|RuntimeError::Generation("negative generation".into()))
+}
+
+// @ref LLP 3000.007#20.9.3 — adoption reserves fetched images separately from per-row contribution scratch.
+fn source_page(tx: &super::store::Tx<'_>, table: &str, after: Option<&str>, meter: &mut Meter) -> Result<Vec<postgres::Row>, RuntimeError> {
+    let sizes=if after.is_some() {
+        "SELECT COALESCE(SUM(octet_length(id) + octet_length(data)),0)::bigint, COUNT(*) FROM (SELECT id,data FROM r WHERE t=$1 AND id>$2 ORDER BY id LIMIT $3) AS picked"
+    } else {
+        "SELECT COALESCE(SUM(octet_length(id) + octet_length(data)),0)::bigint, COUNT(*) FROM (SELECT id,data FROM r WHERE t=$1 AND $2::text IS NULL ORDER BY id LIMIT $3) AS picked"
+    };
+    let mut limit=32i64;
+    loop {
+        let size=tx.query(sizes,&[&table,&after,&limit])?;
+        let bytes=size[0].get::<_,i64>(0) as u64;
+        let count=size[0].get::<_,i64>(1) as u64;
+        // Network/read buffers, retained driver rows and their metadata. Typed
+        // JSON decode is priced from borrowed text later, one row at a time;
+        // the query scan's conservative 256x all-rows decoder is inappropriate
+        // for this walk. Keep half the heap for the active row's scratch.
+        let reservation=bytes.saturating_mul(8).saturating_add(count.saturating_mul(1024));
+        if limit>1 && reservation>meter.ceilings.heap_bytes/2 { limit/=2; continue; }
+        meter.heap(reservation)?;
+        let query=if after.is_some() {
+            "SELECT id,data FROM r WHERE t=$1 AND id>$2 ORDER BY id LIMIT $3"
+        } else {
+            "SELECT id,data FROM r WHERE t=$1 AND $2::text IS NULL ORDER BY id LIMIT $3"
+        };
+        return tx.query(query,&[&table,&after,&limit]);
+    }
 }
