@@ -115,13 +115,14 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ expiry local watch left", "MQ local permit", "MQ local permit watch", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ expiry local watch left", "MQ local permit", "MQ local permit watch", "MQ local branch", "MQ local branch watch", "MQ local page", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   const expiring = scenario.startsWith("MQ expiry");
   let fixtureSource = expiring ? source.replace("  body: text <=40\n  unique", "  body: text <=40\n  expiresAt: time\n  expire at .expiresAt\n  by byExpiresAt: expiresAt\n  unique").replace("insert messages {room, at, body}", "insert messages {room, at, body, expiresAt: now + 3600000}") : source;
   const permitCase = scenario.startsWith("MQ local permit");
-  if (permitCase) fixtureSource += `
+  const branchCase = scenario.startsWith("MQ local branch"), pageCase = scenario === "MQ local page";
+  if (permitCase || branchCase || pageCase) fixtureSource += `
 table permits:
   room: text <=40
   principal: principal
@@ -138,6 +139,19 @@ table secrets:
   sync to permits[.room]
 query permitBoth():
   return { left: messages['left'] last 50 by byTime, right: messages['held'] last 50 by byTime, secret: secrets['secret'] }
+`;
+  if (branchCase || pageCase) fixtureSource += `
+table audits:
+  body: text <=40
+  public 'expiry branch witness'
+  online only
+query expiryBranch():
+  if exists permits['permit']:
+    return false
+  return exists audits['a1']
+query expiryPage(c: cursor ?):
+  ignored = permits['permit']
+  return messages['held'] after c last 5 by byTime
 `;
   const eventCase = scenario === "MQ speculative events";
   if (eventCase) fixtureSource += readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/following-view.q"), "utf8")
@@ -209,14 +223,20 @@ query wordBoth():
   if (wordCase) rows.push(...rows.filter(item => item.table === "messages" && item.row.room === "held").map(item => ({ table: "recent", row: item.row })));
   if (boundCase) rows.push(...Array.from({ length: 26 }, (_, at) => ({ table: "payloads", row: { id: `large-${at}`, at, body: "x".repeat(50000) } })));
   const permitDeadline = Date.now() + 3_600_000;
-  if (permitCase) rows.push(
+  if (permitCase || branchCase || pageCase) rows.push(
     { table: "permits", row: { id: "permit", room: "vault", principal: "dev:bob", expiresAt: permitDeadline } },
     { table: "secrets", row: { id: "secret", room: "vault", body: "private" } },
   );
+  if (branchCase) rows.push({ table: "audits", row: { id: "a1", body: "server only" } });
   if (eventCase) rows.push({ table: "eventSwitch", row: { id: "gate", enabled: true } });
   assert.equal((await post("/seed", rows)).seeded, rows.length);
   if (eventCase) assert.equal((await post("/m/post", { args: { postId: "p3", parentId: null }, id: "event-p3" }, "bob")).state, "sent");
   for (const room of ["left", "held", "current"]) assert.equal((await post("/m/join", { args: { room }, id: `join-${room}` })).state, "sent");
+  let freezeSync = false;
+  const parked = signal => new Promise((_, reject) => {
+    if (signal.aborted) reject(signal.reason);
+    else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+  });
   let offline = false, intercept, holdWrites = false, interruptSnapshot = false, snapshotStarted = false, deviceNow, interceptDevice;
   const syncPages = [];
   let syncedAt, querySince;
@@ -230,6 +250,7 @@ query wordBoth():
       if (offline) throw new TypeError("test offline");
       const path = new URL(input).pathname;
       allRequests.push(path);
+      if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
       if (scenario === "R2 sync during reply" && path === "/q/both") querySince = syncedAt;
       if (path === "/q/history") requests.push(JSON.parse(init.body).args.room);
       if (holdWrites && path.startsWith("/m/")) {
@@ -241,6 +262,7 @@ query wordBoth():
         init = { ...init, body: JSON.stringify({ ...JSON.parse(init.body), ...(scenario === "MQ retained snapshot" ? { from: 0, stream: false, after: null } : {}), limit: 2 }) };
       }
       const response = await fetch(input, init);
+      if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
       if (path === "/sync") {
         const page = await response.clone().json(); syncPages.push(page);
         if (interruptSnapshot && page.snapshot && page.more) snapshotStarted = true;
@@ -267,6 +289,67 @@ query wordBoth():
   assert.equal((await post("/m/leave", { args: { room: "left" }, id: "leave-left" })).state, "sent");
   await client.sync();
   const expected = (room, start) => rows.filter((item) => item.table === "messages" && item.row.room === room && item.row.at >= start).map((item) => item.row).reverse();
+  if (branchCase || pageCase) {
+    // No sync or expiry event can rescue the watch: only the delayed query's
+    // own retry and post-local routing can answer it.
+    unsubscribe(); watch.close(); freezeSync = true;
+    let now = permitDeadline - 1;
+    t.mock.method(Date, "now", () => now);
+    const op = { kind: "query", name: branchCase ? "expiryBranch" : "expiryPage" };
+    const args = branchCase ? {} : { c: null };
+    const before = await client.query(op, args);
+    if (branchCase) assert.equal(before.data, false);
+    else assert.deepEqual(before.data, expected("held", 21));
+    assert.equal(allRequests.filter(path => path === `/q/${op.name}`).length, 0);
+    let reached, calls = 0;
+    const waiting = new Promise(resolve => { reached = resolve; });
+    const gate = new Promise(resolve => { releaseReply = resolve; });
+    interceptDevice = async (request, reply) => {
+      if (request.op !== "query" || request.name !== op.name) return;
+      if (++calls === 1) {
+        assert.equal(request.now, permitDeadline - 1);
+        assert.equal(reply.ok.nextExpiry, permitDeadline);
+        assert.equal(reply.ok.unknown, false);
+        if (branchCase) assert.equal(reply.ok.data, false);
+        reached(); await gate;
+      } else {
+        assert.equal(request.now, permitDeadline);
+        if (branchCase) {
+          assert.equal(reply.ok.unknown, true); assert.equal(reply.ok.speculative, true);
+          assert.equal(reply.ok.nextExpiry, null);
+        }
+      }
+    };
+    let live, stop, pending;
+    const publications = [];
+    if (scenario.includes("watch")) {
+      live = client.observe(op, args);
+      pending = new Promise(resolve => {
+        stop = live.subscribe(() => { const value = live.getSnapshot(); publications.push(value); if ("data" in value) resolve(value); });
+      });
+      t.after(() => { stop(); live.close(); });
+    } else pending = client.query(op, args);
+    await waiting;
+    // Advance the real server too, without delivering the expiry to the device.
+    assert.equal((await post("/dev/clock/advance", { duration: "2h" })).advancedMs, 7_200_000);
+    now = permitDeadline; releaseReply();
+    const result = await pending;
+    assert.equal(calls, 2, "one expiry retry, with no unrelated watch invalidation");
+    if (branchCase) {
+      assert.equal(result.data, true); assert.equal(result.complete, true); assert.equal(result.fresh, true);
+      assert.equal(allRequests.filter(path => path === "/q/expiryBranch").length, 1);
+      for (const value of publications) if ("data" in value) assert.equal(value.data, true, "never republish the expired false branch");
+      if (live) assert.equal(live.getSnapshot().data, true, "the idle watch recovers without sync or another timer");
+    } else {
+      assert.deepEqual(result.data, expected("held", 21));
+      assert.ok(result.next, "a successful expiry retry must keep its real continuation");
+      const following = await client.query(op, { c: result.next });
+      assert.deepEqual(following.data, expected("held", 16).slice(5));
+      assert.ok(following.next); assert.notEqual(following.next, result.next);
+      assert.equal(allRequests.filter(path => path === "/q/expiryPage").length, 0);
+    }
+    return;
+  }
   if (permitCase || scenario.startsWith("MQ expiry local")) {
     // Keep both one-shot and watch coverage. The first device evaluation is
     // before the deadline; only its reply/outbox delivery crosses that deadline.

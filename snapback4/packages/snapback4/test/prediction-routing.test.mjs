@@ -519,3 +519,111 @@ for (const composed of [false, true]) for (const boundary of ["transport", "publ
     assert.equal(calls, composed ? 2 : 1, "exercise the composed publication candidate, not just server routing");
   });
 }
+
+
+// Round 10: an expiry retry is a new observation, not a publication shortcut.
+function expiryRetry(t, outcome) {
+  let now = 100, calls = 0;
+  t.mock.method(Date, "now", () => now);
+  const f = routing(); f.entries = [];
+  f.env.call = async request => {
+    assert.deepEqual(request.args, input, "retry/fallback must keep the original cursor");
+    if (++calls === 1) {
+      assert.equal(request.now, 100); now = 200;
+      return { ok: { data: ["expired"], unknown: false, complete: true, tables: ["posts"], nextExpiry: 200 } };
+    }
+    assert.equal(request.now, 200);
+    return { ok: outcome };
+  };
+  return { f, calls: () => calls };
+}
+const retryWatch = () => ({ dirty: false, fetch: work => work() });
+const unknownRetry = (speculative = false) => ({ data: ["retry"], unknown: true, complete: false, speculative, tables: ["posts"], nextExpiry: null });
+for (const speculative of [false, true]) for (const observing of [false, true]) {
+  test(`rules 3/4/5: online unknown expiry retry takes fallback (speculative=${speculative}, watch=${observing})`, async t => {
+    const { f, calls } = expiryRetry(t, unknownRetry(speculative));
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    assert.deepEqual(result.read.data, ["server"], "neither the expired snapshot nor the unknown retry may bypass fallback");
+    assert.equal(result.read.complete, true); assert.equal(result.read.fresh, true);
+    assert.equal(calls(), 2); assert.deepEqual(f.requests, [{ path: "/q/read", body: { args: input } }]);
+    if (watch) assert.equal(watch.dirty, false, "the idle watch is answered by the fallback");
+    assert.deepEqual(f.env.serverAnswers.get(`read:${JSON.stringify(input)}`).read.data, ["server"]);
+  });
+}
+for (const deadline of [null, 300, 200]) for (const observing of [false, true]) {
+  test(`rules 4/5: offline speculative expiry retry recovers independent memory (deadline=${deadline}, watch=${observing})`, async t => {
+    const { f, calls } = expiryRetry(t, unknownRetry(true)); f.env.link = "offline";
+    const key = `read:${JSON.stringify(input)}`;
+    const remembered = { read: { data: ["remembered"], complete: true, fresh: true, cut: null, next: "remembered-cursor" }, at: 50, nextExpiry: deadline, tables: new Set(["posts"]) };
+    f.env.serverAnswers.set(key, remembered);
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    if (deadline === 200) {
+      assert.deepEqual(result.read, observing ? { loading: true } : { denied: f.env.offline() });
+      assert.equal(f.env.serverAnswers.size, 0);
+    } else {
+      assert.deepEqual(result.read.data, ["remembered"]);
+      assert.equal(result.read.fresh, false); assert.equal(result.read.since, 50);
+      assert.equal(result.read.next, "remembered-cursor"); assert.equal(result.nextExpiry, deadline);
+      assert.equal(f.env.serverAnswers.get(key), remembered, "local expiry must not retire independent unexpired memory");
+    }
+    assert.equal(calls(), 2); assert.equal(f.requests.length, 0);
+  });
+}
+for (const state of ["offline", "prediction", "held", "transport failure"]) {
+  test(`rules 3/4: expiry retry respects ${state}`, async t => {
+    const { f, calls } = expiryRetry(t, { ...unknownRetry(), nextExpiry: 300 });
+    if (state === "offline") f.env.link = "offline";
+    if (state === "prediction") f.entries = [prediction];
+    if (state === "held") f.program.held = true;
+    let posts = 0;
+    if (state === "transport failure") f.env.post = async () => { posts++; f.env.link = "offline"; return { ok: false }; };
+    const result = await evaluateLocal(f.env, op, input, 0, 0);
+    assert.deepEqual(result.read.data, ["retry"]); assert.equal(result.read.complete, false);
+    assert.equal(result.read.fresh, state === "prediction" || state === "held");
+    assert.equal(result.nextExpiry, 300); assert.equal(calls(), 2);
+    assert.equal(posts, state === "transport failure" ? 1 : 0); assert.equal(f.requests.length, 0);
+  });
+}
+test("rules 4/5: expiry retry composes retained rows with its server answer", async t => {
+  const localData = { left: ["retained"], right: [] };
+  const { f, calls } = expiryRetry(t, { ...unknownRetry(), data: localData,
+    components: { left: { retained: true, unknown: false, complete: false, speculative: false }, right: { unknown: true, speculative: false } } });
+  let posts = 0;
+  f.env.post = async (path, body) => {
+    assert.equal(path, "/q/read"); assert.deepEqual(body.args, input); posts++;
+    return { ok: true, obsoleteAuth: false, json: { data: { left: [], right: ["server"] }, complete: true } };
+  };
+  const result = await evaluateLocal(f.env, op, input, 0, 0);
+  assert.deepEqual(result.read.data, { left: ["retained"], right: ["server"] });
+  assert.equal(result.read.complete, false); assert.equal(result.read.fresh, false);
+  assert.equal(posts, 1); assert.equal(calls(), 3, "one expiry retry plus the ordinary post-server composition observation");
+  assert.equal(f.env.serverAnswers.size, 0);
+});
+for (const speculative of [false, true]) {
+  test(`rule 5: expiry fallback rechecks predictions at final publication (speculative=${speculative})`, async t => {
+    const { f } = expiryRetry(t, { ...unknownRetry(speculative), nextExpiry: 300 });
+    let delivered = false, checks = 0;
+    const post = f.env.post;
+    f.env.post = async (...args) => { const reply = await post(...args); delivered = true; return reply; };
+    f.env.queued = async () => delivered && ++checks === 2 ? [prediction] : [];
+    const result = await evaluateLocal(f.env, op, input, 0, 0);
+    if (speculative) assert.deepEqual(result.read, { loading: true });
+    else assert.deepEqual(result.read.data, ["retry"]);
+    assert.equal(f.requests.length, 1); assert.equal(checks, 2);
+    assert.equal(result.nextExpiry, 300); assert.equal(f.env.serverAnswers.size, 0);
+  });
+}
+test("rule 5: an expired retry server answer dirties the watch without retiring valid memory", async t => {
+  const { f, calls } = expiryRetry(t, unknownRetry());
+  const key = `read:${JSON.stringify(input)}`;
+  const remembered = { read: { data: ["still valid"] }, at: 50, nextExpiry: null, tables: new Set(["posts"]) };
+  f.env.serverAnswers.set(key, remembered);
+  f.env.post = async () => ({ ok: true, obsoleteAuth: false, json: { data: ["expired server"], complete: true, nextExpiry: 200 } });
+  const watch = retryWatch();
+  const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+  assert.deepEqual(result.read, { loading: true }); assert.equal(result.nextExpiry, null);
+  assert.equal(watch.dirty, true); assert.equal(calls(), 2);
+  assert.equal(f.env.serverAnswers.get(key), remembered);
+});
