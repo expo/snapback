@@ -84,6 +84,38 @@ fn covered_memory() {
 fn covered_sqlite() {
     covered(&mut Sqlite::new("b3-covered"));
 }
+
+fn member_horizon_prefix<H: Host>(host: &mut H, horizon: usize) {
+    let source = SOURCE.replace("  expire at .until\n", "")
+        .replacen("  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public", "  read <- .principal = viewer\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync to .principal last 1 by .id", 1)
+        + "\nquery mine():\n  return unread where .principal = viewer first 100\n";
+    let source = source.replace("last 1 by .id", &format!("last {horizon} by .id"));
+    let (mut server, mut backend) = compile(&source);
+    seed(&mut server, 1);
+    server.seed([("members".into(), object([
+        ("id", id("older")), ("conversationId", id("other")),
+        ("principal", id("bob")), ("readUpTo", Value::Int(0)), ("joinedAt", Value::Int(0)),
+    ]))]).unwrap();
+    let full = server.query("mine", Context::new("bob", Default::default()).at(1)).unwrap();
+    assert!(full.complete);
+    assert_eq!(full.data.as_array().unwrap().len(), 2);
+    backend.schema = backend.schema.public_projection();
+    let mut device = host.open("member-prefix", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() {
+        device.apply(page, i == 0).unwrap();
+    }
+    let local = device.query("mine", "bob", &json!({}), 1).unwrap();
+    assert_eq!(local.data.as_array().unwrap().len(), horizon.min(2));
+    assert_eq!(local.complete, horizon > 2, "{local:?}");
+    let held = device.query("unreadFor", "bob", &json!({"member":"older"}), 1).unwrap();
+    assert!(held.complete, "{held:?}");
+    let missing = device.query("unreadFor", "bob", &json!({"member":"member"}), 1).unwrap();
+    assert_eq!(missing.complete, horizon > 2, "{missing:?}");
+}
+#[test]
+fn member_horizon_prefix_memory() { for horizon in [1, 3] { member_horizon_prefix(&mut Memory::new(), horizon); } }
+#[test]
+fn member_horizon_prefix_sqlite() { for horizon in [1, 3] { member_horizon_prefix(&mut Sqlite::new("b3-member-prefix"), horizon); } }
 fn uncovered<H: Host>(host: &mut H) {
     let source = SOURCE
         .replace("  expire at .until\n", "")

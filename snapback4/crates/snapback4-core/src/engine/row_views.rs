@@ -48,10 +48,25 @@ impl Runner<'_> {
                 }
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
-                    self.row_view_member(&m, old, new)?;
+                    self.reserve_row_view(&m, 1)?;
+                    // Reserve the same bounded scan even if the private predicate is unchanged.
+                    // Execute against its original allowance, then retain only the public charge.
+                    let scan = self.meter.clone();
+                    let limit = self.scan_room(&m).min(WRITER_RECOUNT) as u64;
+                    self.meter.charge(MeterKind::Examined, limit)?;
+                    self.meter.step(limit * (key.predicate.steps() * 2 + 4))?;
+                    let heap = self.meter.ceilings.heap_bytes.saturating_sub(self.meter.used.heap_bytes);
+                    self.meter.heap(heap)?;
+                    self.meter.used.heap_bytes -= heap;
+                    let reserved = std::mem::replace(&mut self.meter, scan);
+                    self.maintain_prepaid = true;
+                    let result = self.row_view_member(&m, old, new);
+                    self.meter = reserved;
+                    self.maintain_prepaid = false;
+                    result?;
                 } else {
                     // Reserve before inspecting any recipient, including its hidden mark or work.
-                    self.reserve_row_view(&m)?;
+                    self.reserve_row_view(&m, key.fanout.saturating_mul(2))?;
                     self.maintain_prepaid = true;
                     self.row_view_source(&m, old, new)?;
                     self.maintain_prepaid = false;
@@ -64,10 +79,9 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.015#3 — two parent groups, each bounded by the declared live cap.
-    fn reserve_row_view(&mut self, m: &Maintain) -> Result<(), RuntimeError> {
+    fn reserve_row_view(&mut self, m: &Maintain, recipients: u64) -> Result<(), RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
         let target = &self.schema.tables[&m.target];
-        let recipients = k.fanout.saturating_mul(2);
         let image = super::write_target::row_copy_ceiling(target);
         for (kind, amount) in [
             (MeterKind::Examined, recipients.saturating_mul(4) + 4),
@@ -284,7 +298,7 @@ impl Runner<'_> {
                     let selected = (!live
                         || !self.expired(&self.schema.tables[&m.source], &source))
                         && k.matches(&source, u);
-                    if live && selected {
+                    if live {
                         self.note_expiry(&self.schema.tables[&m.source], &source);
                     }
                     let before = old.is_some_and(|old| k.matches(&source, old));
@@ -376,7 +390,7 @@ impl Runner<'_> {
                 if fields.len() == 1 {
                     let f = fields.into_iter().next().unwrap();
                     let (a, b) = (old.field(&changed[0])?, u.field(&changed[0])?);
-                    if !matches!(a, Value::Null) && !matches!(b, Value::Null) {
+                    if f != k.source_key && !matches!(a, Value::Null) && !matches!(b, Value::Null) {
                         index = k.range_index(&f);
                         let (lo, hi) = if a.total_cmp(b).is_gt() {
                             (b, a)
@@ -477,12 +491,14 @@ impl Runner<'_> {
                         if !r.device {
                             let name=m.work_table();
                             if let Some(work)=r.view_get(&name,id)? {
+                                let mut next=work.as_object()?.clone();
+                                next.insert("parked".into(),Value::Bool(false));
                                 if let Ok(Value::Id(cursor))=work.field("cursor") {
                                     let counted=|row:&Option<Value>|row.as_ref().is_some_and(|v|v.field("id").ok().and_then(|v|v.as_str().ok()).is_some_and(|id|id<=cursor.as_str()) && k.matches(v,&member));
                                     let change=i64::from(counted(&new))-i64::from(counted(&old));
-                                    let mut next=work.as_object()?.clone();next.insert("total".into(),Value::Int(number(&work,"total")+change));next.insert("parked".into(),Value::Bool(false));
-                                    r.view_put(&name,&Value::Row(next.into()),Some(&work),true)?;
+                                    next.insert("total".into(),Value::Int(number(&work,"total")+change));
                                 }
+                                r.view_put(&name,&Value::Row(next.into()),Some(&work),true)?;
                             }
                         }
                     } else if delta!=0 || existing.is_none() {
@@ -544,8 +560,10 @@ impl Runner<'_> {
             return Ok(Some(row));
         }
         // Expiry is a live fact even before the physical sweep reaches the source.
-        if self.schema.tables[&m.source].expire.is_some() {
-            let (index, bounds) = k.live_range(&member);
+        if let Some(expiry) = &self.schema.tables[&m.source].expire {
+            let index = k.range_index(expiry);
+            let now = self.context.now.unwrap_or(0);
+            let bounds = Bounds { gt: Some(Value::Null), lte: Some(Value::Int(now)), ..Default::default() };
             if !self.covered_view_source(m, &member, &index, &bounds)? {
                 self.pending_view_read()?;
                 return Ok(Some(row));
@@ -555,12 +573,18 @@ impl Runner<'_> {
             } else {
                 self.scan_room(m)
             };
-            let (n, complete, _) = self.view_scan(m, &member, None, &index, bounds, limit, true)?;
+            let (n, complete, _) = self.view_scan(m, &member, None, &index, bounds, limit, false)?;
             if !complete {
                 self.pending_view_read()?;
             } else if let Value::Row(fields) = &mut row {
-                fields.insert("value".into(), Value::Int(n));
+                let total = fields.get("value").unwrap().as_int()? - n;
+                fields.insert("value".into(), Value::Int(total));
             }
+            // One future-expiry head supplies a conservative reactive deadline;
+            // null/future rows never participate in the subtraction scan.
+            let bounds = Bounds { gt: Some(Value::Int(now)), ..Default::default() };
+            let (_, end, head) = self.view_scan(m, &member, None, &index, bounds, 1, true)?;
+            if !end && head.is_none() { self.pending_view_read()?; }
         }
         Ok(Some(row))
     }

@@ -49422,3 +49422,75 @@ Report: `/home/ccheever/sb5/lane-b3.r1.final.md`. No push, publication or
 deployment. Round-0 non-claims remain: count only, integer positions pending
 B2, bounded device recounts, reserved member/value/recountPending names,
 and the explicit Postgres refusal until that adapter has a recount runner.
+
+## 2026-09-25 — Lane B3 round 2: close the second blind reviews
+
+Read the supplied Astra and Grok round-2 reports and kept this last fix round
+within their findings. Member-triggered maintenance now prepays the possible
+view/work writes and a bounded scan before comparing private old fields. The
+scan executes inside its original remaining allowance; the observable meter
+retains the fixed reservation, including the available transient heap high-water
+allowance. Member events invalidate the view even when its hidden delta is zero.
+The paired-world regression compares the serialized whole mutation outcome and
+`/changes` backing result for old marks 0 and 10, both with no preceding writes
+and after 1,023 public updates. Small indexed mark changes still settle in their
+writer; their examined meter now includes the prepaid 1,024-row scan allowance.
+
+Expiring-source reads retain the maintained value and subtract matching unswept
+expired rows through `(parent, expiry, id)`, excluding null/future expiries from
+that correction scan. A single future-expiry head retains a conservative reactive
+deadline. A correction that cannot fit stays pending; physical sweeping makes
+its subtraction zero. The 1,200- and 10,000-message regression requires complete
+unexpired reads and successful count-dependent mutations, then tests expiry at
+the exact deadline, a bounded expired subset, and settlement after sweeping.
+The large-mark test keeps `expire at .until` declared through its 10,000-message
+background recount.
+
+A member comparison against the source parent keeps the parent index and its
+residual predicate. Device prefix scans exempt only full unique keys; other
+scans need whole-domain acquisition evidence. Both memory and SQLite tests
+exercise two private memberships under `last 1`, the held and absent point
+lookups, and the complete `last 3` control. Source edits now clear a pending
+member's parked recount even with no cursor. The oversized-row regression
+shrinks the payload and requires settlement after the retry, while still proving
+that another member can settle first. The maintains card and E_VIEW_KEY explain
+that a source edit permits one retry chunk without a cursor, and that changing a
+member field used by the predicate to a different value retries its recount.
+
+All 26 language/engine and 19 device focused tests pass. Seven deliberate defect
+mutations each fail their regression: remove member reservation, restore live
+expiry rescanning, select the missing parent comparison index, exempt nonempty
+prefixes, remove unpark, implement `<` as `<=`, and return the stored value as
+complete without expiry correction. Production sources were restored byte-for-byte
+after each experiment. Comparison coverage includes all six admitted scalar
+operators and messages exactly at the mark. Ref-check reports 507 LLP documents,
+9,238 references, zero errors and zero unchecked references.
+
+The final wasm build measures **1,790,586 B raw / 499,948 B gzip** with Rust
+1.97.0 and wasm-bindgen 0.2.127, without wasm-opt. Against round 1's recorded
+1,788,576 / 499,274, this is **+2,010 raw / +674 gzip** for the combined member
+reservation, expiry correction and member-horizon completeness fixes. These are
+whole-artifact differences, not independent component attribution. Keep the
+**500,000 B** ratchet unchanged, leaving **52 B**; no runtime ceiling changed.
+
+Three independent final-tree `transport-http.test.mjs` runs with FORCE_COLOR
+unset each pass all 10 tests, with zero failures or skips (51.040 s, 56.062 s,
+53.303 s). The previously timed-out native maximum-pending-256 case passes in
+all three (3.330 s, 5.240 s, 3.890 s). Logs are
+`/tmp/lane-b3-r2-http-{1,2,3}.log`.
+
+The first full parallel suite reports `== 1 failure(s) in 188 s`: the wasm
+population-growth replay test observes an E_GENERATION from observe_store
+because a mutation send overlaps sync, where its assertion expects no refusal.
+The immediate isolated rerun passes both wasm and native. No assertion or
+timeout was changed. The complete follow-up uses the existing
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 option, with FORCE_COLOR unset.
+
+Final complete suite: **`== 0 failure(s) in 709 s`**, from
+`env -u FORCE_COLOR SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash snapback4/scripts/test.sh`.
+Client tests: 1,089 passed, zero failed, 10 existing skips. The Rust stage passed
+in 80 s; the full-suite wasm rebuild repeats 1,790,586 raw / 499,948 gzip.
+No B3 assertion or check was skipped or weakened. Final log:
+`/tmp/lane-b3-r2-test-final.log`. Report:
+`/home/ccheever/sb5/lane-b3.r2.final.md`. Work remained on
+`sb5/b3-row-keyed-view`; no push, publication or deployment.

@@ -175,8 +175,7 @@ fn lifecycle_sqlite() {
 }
 #[test]
 fn large_mark_commits_pending_then_settles() {
-    let source = SOURCE.replace("  expire at .until\n", "");
-    let b = bound(&source);
+    let b = bound(SOURCE);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     join(&mut e, "b", "bob", 0, 0);
     e.seed((1..=10000).map(|n| {
@@ -242,7 +241,7 @@ fn small_mark_uses_the_changed_range_in_a_large_chat() {
         )
         .unwrap();
     assert!(matches!(r.state, WriteState::Sent { .. }), "{r:?}");
-    assert!(r.metered.examined < 25, "{r:?}");
+    assert!(r.metered.examined < 1050, "{r:?}"); // Includes the fixed 1,024-row private scan reservation.
     count(&mut e, "b", 1);
     assert!(e.run_view_chunk(1).unwrap().is_none());
 }
@@ -583,15 +582,6 @@ fn incomplete_counts_cannot_authorize_writes_or_numeric_probes() {
         .unwrap();
     assert!(settled.complete, "{settled:?}");
     assert_eq!(settled.data, Value::Int(1200));
-    // The live expiry scan exceeds the writer slice even before stored pending is set.
-    let r = e.mutate("depend", None, ctx(&[("member", id("b"))], 1));
-    let outcome = r.unwrap();
-    let WriteState::Failed { why, .. } = outcome.state else {
-        panic!("{outcome:?}")
-    };
-    assert_eq!(why.code, "E_VIEW_KEY");
-    assert_eq!(why.guide.as_deref(), Some("maintains"));
-    assert!(why.rewrite.is_some());
     write(
         &mut e,
         "mark",
@@ -691,6 +681,103 @@ fn hidden_marks_have_identical_meters_bounds_and_changes() {
             worlds.push(serde_json::to_vec(&(out, e.changes(from, 100).unwrap())).unwrap());
         }
         assert_eq!(worlds[0], worlds[1], "bounded={bounded}");
+    }
+}
+
+#[test]
+fn blind_member_marks_have_identical_meters_bounds_and_changes() {
+    for writes in [0, 1023] {
+        let mut worlds = Vec::new();
+        for mark in [0, 10] {
+            let source = private_members(SOURCE) + &format!(
+                "\ntable publicRows:\n  n: int\n  read <- allow\n  update <- allow\nmutation blind(member: members):\n{}  update members[member] {{ readUpTo: 10 }}\n",
+                "  update publicRows['p'] { n: 1 }\n".repeat(writes));
+            let b = bound(&source);
+            let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+            join(&mut e, "b", "bob", mark, 0);
+            e.seed([("publicRows".into(), object([("id", id("p")), ("n", Value::Int(0))]))]).unwrap();
+            for n in 1..=5 { send(&mut e, &format!("m{n}"), n, "alice", Value::Null); }
+            let from = e.seq().unwrap();
+            let out = e.mutate("blind", None, ctx(&[("member", id("b"))], 1)).unwrap();
+            if writes == 0 {
+                assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+                assert!(out.tables.contains(&"unread".into()));
+            } else {
+                assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"), "{out:?}");
+            }
+            worlds.push(serde_json::to_vec(&(out, e.changes(from, 100).unwrap())).unwrap());
+        }
+        assert_eq!(worlds[0], worlds[1], "prior writes={writes}");
+    }
+}
+
+#[test]
+fn parent_reference_comparison_keeps_parent_scan_and_residual() {
+    let source = SOURCE.replace("  joinedAt: int default 0", "  joinedAt: int default 0\n  excludedConversation: conversations default 'other'")
+        .replace("and not .tombstone", "and not .tombstone and .conversationId != m.excludedConversation")
+        + "\nmutation exclude(member: members, conversation: conversations):\n  update members[member] { excludedConversation: conversation }\n";
+    let b = bound(&source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    join(&mut e, "b", "bob", 0, 0);
+    send(&mut e, "m1", 1, "alice", Value::Null);
+    count(&mut e, "b", 1);
+    for (parent, expected) in [("c", 0), ("other", 1)] {
+        write(&mut e, "exclude", &[("member", id("b")), ("conversation", id(parent))]);
+        count(&mut e, "b", expected);
+    }
+}
+
+#[test]
+fn comparison_boundaries_exclude_or_include_the_exact_mark() {
+    for op in ["<", "<=", ">", ">=", "=", "!="] {
+        let b = bound(&SOURCE.replace(".ordinal > m.readUpTo", &format!(".ordinal {op} m.readUpTo")));
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        join(&mut e, "b", "bob", 2, 0);
+        for n in 1..=3 { send(&mut e, &format!("m{n}"), n, "alice", Value::Null); }
+        for mark in [2, 3, 1, 2] {
+            write(&mut e, "mark", &[("member", id("b")), ("readUpTo", Value::Int(mark))]);
+            let expected = (1..=3).filter(|&n| match op {
+                "<" => n < mark, "<=" => n <= mark, ">" => n > mark,
+                ">=" => n >= mark, "=" => n == mark, _ => n != mark,
+            }).count() as i64;
+            count(&mut e, "b", expected);
+        }
+    }
+}
+
+#[test]
+fn settled_expiring_counts_use_only_the_expired_subset() {
+    for size in [1200, 10000] {
+        let b = bound(&(SOURCE.to_owned() + "\nmutation useCount(member: members):\n  n = unread[member]\n  return n\n"));
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        join(&mut e, "b", "bob", 0, 0);
+        e.seed((1..=size).map(|n| {
+            let mut row = message_row(&format!("m{n:05}"), "c", n).as_object().unwrap().clone();
+            row.insert("until".into(), if n % 2 == 0 || size == 10000 && n > 1 { Value::Int(10) } else { Value::Null });
+            ("messages".into(), Value::Row(row.into()))
+        })).unwrap();
+        count(&mut e, "b", size);
+        let out = e.mutate("useCount", None, ctx(&[("member", id("b"))], 1)).unwrap();
+        assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+        assert!(matches!(&out.state, WriteState::Sent { result, .. } if result == &Value::Int(size)));
+        assert!(out.metered.examined < 20, "{out:?}");
+        let remaining = if size == 10000 { 1 } else { size / 2 };
+        let expired = e.query("unreadFor", ctx(&[("member", id("b"))], 10)).unwrap();
+        assert_eq!(expired.complete, size == 1200, "{expired:?}");
+        assert_eq!(expired.data, Value::Int(if expired.complete { remaining } else { size }));
+        let out = e.mutate("useCount", None, ctx(&[("member", id("b"))], 10)).unwrap();
+        if size == 10000 {
+            assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_VIEW_KEY"), "{out:?}");
+        } else {
+            assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+        }
+        while e.sweep_expired(10, 100).unwrap() > 0 {}
+        let swept = e.query("unreadFor", ctx(&[("member", id("b"))], 10)).unwrap();
+        assert!(swept.complete, "{swept:?}");
+        assert_eq!(swept.data, Value::Int(remaining));
+        let out = e.mutate("useCount", None, ctx(&[("member", id("b"))], 10)).unwrap();
+        assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+        assert!(out.metered.examined < 20, "{out:?}");
     }
 }
 #[test]
@@ -852,7 +939,7 @@ fn oversized_recount_parks_without_starving_another_member() {
     let source = SOURCE.replace("  expire at .until\n", "").replace(
         "  ordinal: int",
         "  payload: text <=20000000 default ''\n  ordinal: int",
-    );
+    ) + "\nmutation shrink(message: messages):\n  update messages[message] { payload: 'small' }\n";
     let b = bound(&source);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     join(&mut e, "a-stuck", "bob", 0, 0);
@@ -898,4 +985,13 @@ fn oversized_recount_parks_without_starving_another_member() {
     assert_eq!(work.len(), 1);
     assert_eq!(work[0].field("id"), Ok(&id("a-stuck")));
     assert_eq!(work[0].field("parked"), Ok(&Value::Bool(true)));
+    assert_eq!(work[0].field("cursor"), Ok(&Value::Null));
+    // The declared payload width needs the system's repair allowance for this edit.
+    e.set_ceilings(snapback4_core::Ceilings::unbounded());
+    write(&mut e, "shrink", &[("message", id("huge"))]);
+    e.set_ceilings(Default::default());
+    assert!(e.run_view_chunk(1).unwrap().is_some());
+    assert!(e.run_view_chunk(1).unwrap().is_none());
+    count(&mut e, "a-stuck", 0);
+    assert!(e.store().rows("$recount:unread").unwrap().is_empty());
 }

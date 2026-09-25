@@ -523,6 +523,9 @@ impl Runner<'_> {
         if old.is_some() && new.is_none() { self.timeline_purge_charge(table_name)?; }
         if self.schema.visible(table_name) { self.written_tables.insert(table_name.to_owned()); }
         if origin == Origin::Source {
+            for m in self.schema.maintains.iter().filter(|m|m.row_key.as_ref().is_some_and(|k|k.table == table_name)) {
+                self.written_tables.insert(m.target.clone());
+            }
             for m in self.schema.maintains.iter().filter(|m|m.source == table_name) {
                 if let Some(owner) = &m.private { self.written_tables.insert(owner.table.clone()); }
                 if m.row_key.is_some() { self.written_tables.insert(m.target.clone()); }

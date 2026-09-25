@@ -104,7 +104,21 @@ impl Runner<'_> {
             if self.schema.tables[&k.table].sync.as_ref().is_none_or(|s| s.horizon.is_some()) {
                 self.read_tables.insert(k.table.clone());
                 // A held point value is checked against the member by live_row_view.
-                if key.is_empty() { self.unknown_fact(table, index, key, site); }
+                let index_def = &self.schema.tables[table].indexes[index];
+                if !index_def.unique || key.len() != index_def.components.len() {
+                    let whole = self.schema.tables[&k.table].sync.as_ref().is_some_and(|sync| {
+                        let Some(horizon) = &sync.horizon else { return false; };
+                        let group = match &sync.audience {
+                            crate::schema::Audience::Public => Some(vec![]),
+                            crate::schema::Audience::Column(field) => index_def.columns().iter()
+                                .position(|f| f == field).and_then(|i| key.get(i)).map(|v| vec![v.clone()]),
+                            _ => None,
+                        };
+                        group.is_some_and(|group| matches!(self.tx.acquired_boundary(&k.table, &horizon.by, &group),
+                            Ok(Some(crate::rows::AcquiredBoundary::Whole))))
+                    });
+                    if !whole { self.unknown_fact(table, index, key, site); }
+                }
             }
             return;
         }

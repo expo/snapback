@@ -117,6 +117,12 @@ impl crate::schema::Schema {
                 );
             }
             if let Some(t) = self.tables.get_mut(&m.source) {
+                if let Some(expiry) = &t.expire {
+                    t.indexes.insert(
+                        key.range_index(expiry),
+                        Index::of(&[&key.source_key, expiry, "id"], false),
+                    );
+                }
                 t.indexes.insert(
                     key.source_index(),
                     Index::of(&[&key.source_key, "id"], false),

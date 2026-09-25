@@ -623,7 +623,10 @@ This is LLP 3000.015's unread expression. If members also have a `joinedAt`
 position, add `and .ordinal > m.joinedAt` to exclude pre-join history. This
 lane uses integer positions until `sequence by conversationId` is available.
 Own sends and tombstones are excluded explicitly. Expiring messages stop
-contributing to live reads and their sweep applies the physical deletion delta.
+contributing to live reads: reads subtract matching unswept expired rows from
+the stored count using the parent/expiry index. Only an expired subset too large
+for the read allowance makes that correction pending. The sweep applies the
+physical deletion delta, after which the subtraction is zero.
 
 A small mark change scans the changed interval in the generated parent/ordinal
 index and updates the count in that transaction. A larger change commits the
@@ -633,7 +636,10 @@ source edits and deletes during the recount adjust its already-counted prefix.
 The writer examines at most 1,024 source rows, further limited by its remaining
 meter. Recounts restart for a changed member predicate and resume after a server
 restart. A single source row too large for a chunk parks that member's recount
-so other members can settle; changing the member retries its recount.
+so other members can settle. Changing a member field used by the predicate to a
+different value retries its recount. Any source edit in that member's parent
+group, including shrinking the oversized row, allows one retry chunk even when
+the recount has not yet acquired a cursor.
 A covered device predicts; without source coverage it keeps the settled
 value and queues the mark without prediction. An acquired horizon suffix can
 cover the changed interval; a device recount that exceeds its allowance also
