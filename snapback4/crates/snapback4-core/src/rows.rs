@@ -7,6 +7,7 @@
 
 #[path = "engine/word_heap.rs"]
 pub mod word_heap;
+pub mod disclosed;
 
 use crate::assets::Asset;
 use crate::error::RuntimeError;

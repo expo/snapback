@@ -464,9 +464,9 @@ fn group_and_sort_use_null_for_projected_private_keys() {
 
 #[test]
 fn projection_heap_does_not_charge_omitted_private_payload() {
-    let source = "table records:\n  owner: principal\n  secret: text <=10000000 default '' written by .owner\n  public\n  sync public\nquery existsRow(id: records):\n  return exists records[id]\n";
+    let source = "table records:\n  owner: principal\n  secret: text <=1000000 default '' written by .owner\n  public\n  sync public\nquery existsRow(id: records):\n  return exists records[id]\n";
     let mut costs = Vec::new();
-    for bytes in [0, 10_000_000] {
+    for bytes in [0, 1_000_000] {
         let (mut e, _) = compile(source);
         let row = json!({"id":"row","owner":"bob","secret":"s".repeat(bytes)});
         e.seed([("records".into(), wire::row_from_json(&e.schema().tables["records"], &row).unwrap())]).unwrap();
@@ -474,14 +474,16 @@ fn projection_heap_does_not_charge_omitted_private_payload() {
         let out = e.query("existsRow", ctx()).unwrap();
         assert_eq!(out.data, Value::Bool(true));
         costs.push(out.metered.heap_bytes);
-        if bytes > 0 {
-            e.set_ceilings(snapback4_core::meter::Ceilings { heap_bytes: 2048, ..Default::default() });
-            let cut = e.query("existsRow", ctx()).unwrap();
-            assert!(cut.complete);
-            assert_eq!(cut.data, Value::Bool(true));
-        }
+        // The declared decoder reservation applies even to the empty world.
+        // Removing the reservation makes this control spuriously complete.
+        let reserved = snapback4_core::rows::disclosed::decode_reservation(&e.schema().tables["records"]);
+        e.set_ceilings(snapback4_core::meter::Ceilings { heap_bytes: reserved - 1, ..Default::default() });
+        let cut = e.query("existsRow", ctx()).unwrap();
+        assert!(!cut.complete);
+        assert_eq!(cut.data, Value::Null);
+        costs.push(cut.metered.heap_bytes);
     }
-    assert_eq!(costs[0], costs[1], "private size is hidden");
+    assert_eq!(&costs[..2], &costs[2..], "private size is hidden before and after exhaustion");
 }
 
 #[test]
@@ -492,14 +494,14 @@ fn projecting_an_already_absent_field_keeps_the_shared_map() {
             ("id".into(), id("row")), ("owner".into(), id("bob")), ("label".into(), Value::String("x".repeat(100_000)))
         ]).into();
         let value = row(fields);
-        let projected = backend.schema.tables["records"].project_fields(value.clone(), Some("alice"));
+        let projected = backend.schema.tables["records"].project_fields(value.clone(), Some("alice")).into_value();
         let (Value::Row(original) | Value::Map(original), Value::Row(projected) | Value::Map(projected)) = (&value, &projected) else { panic!() };
         assert!(original.shares_image(projected));
     }
 }
 
 #[test]
-fn device_projection_charges_present_payload_but_skips_omitted_fields() {
+fn device_projection_hides_physical_private_field_presence() {
     use snapback4_core::{Ceilings, engine::local, rows::Rows};
     use snapback4_device::store::{DeviceStore, DeviceTx};
     fn run<S: DeviceStore>(mut store: S) {
@@ -519,14 +521,11 @@ fn device_projection_charges_present_payload_but_skips_omitted_fields() {
             assert_eq!(out.data, Value::Bool(true));
             costs.push(out.metered.heap_bytes);
             let limited = local::query(&tx, &backend.schema, &backend.programs[0], ctx(), Ceilings { heap_bytes: 2048, ..Default::default() });
-            if present {
-                let cut = limited.unwrap();
-                assert!(!cut.complete && cut.data == Value::Null);
-                assert_eq!(cut.capped_at.unwrap().0, snapback4_core::error::MeterKind::HeapBytes);
-            }
-            else { assert_eq!(limited.unwrap().data, Value::Bool(true)); }
+            let cut = limited.unwrap();
+            assert!(!cut.complete && cut.data == Value::Null);
+            assert_eq!(cut.capped_at.unwrap().0, snapback4_core::error::MeterKind::HeapBytes);
         }
-        assert!(costs[1] >= costs[0] + 100_000, "{costs:?}");
+        assert_eq!(costs[0],costs[1],"physical presence of an omitted private field is hidden");
         tx.rollback().unwrap();
     }
     run(snapback4_device::memory::MemoryStore::new());

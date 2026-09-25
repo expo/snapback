@@ -188,18 +188,24 @@ impl Value {
         }
     }
 
-    pub fn heap_bytes(&self) -> u64 {
+    /// Raw storage pricing is reserved for a system ledger, never a viewer read.
+    pub fn heap_bytes(&self, _: &crate::engine::SystemAccess) -> u64 { self.retained_heap() }
+
+    pub(crate) fn expression_heap(&self, _: crate::engine::runner::ExpressionAccess) -> u64 { self.retained_heap() }
+    pub(crate) fn write_heap(&self, _: crate::engine::write::WriteAccess) -> u64 { self.retained_heap() }
+
+    fn retained_heap(&self) -> u64 {
         match self {
             Value::String(s) | Value::Id(s) => s.capacity() as u64,
             Value::Bytes(b) => b.capacity() as u64,
             Value::Array(a) => {
                 a.capacity() as u64 * std::mem::size_of::<Value>() as u64
-                    + a.iter().map(Value::heap_bytes).sum::<u64>()
+                    + a.iter().map(Value::retained_heap).sum::<u64>()
             }
             Value::Row(m) | Value::Map(m) => {
                 40 + m
                     .iter()
-                    .map(|(k, v)| 80 + k.capacity() as u64 + v.heap_bytes())
+                    .map(|(k, v)| 80 + k.capacity() as u64 + v.retained_heap())
                     .sum::<u64>()
             }
             _ => 0,
@@ -366,3 +372,7 @@ pub fn validate_identities(value: &Value) -> Result<(), ValueError> {
         _ => Ok(()),
     }
 }
+
+#[path = "value/disclosed.rs"]
+mod disclosed;
+pub use disclosed::Disclosed;

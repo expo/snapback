@@ -38,7 +38,7 @@ impl Rows for Counted<'_> {
         if t=="posts" {
             self.source_rows.set(self.source_rows.get()+rows.len());
             self.max_buffer_rows.set(self.max_buffer_rows.get().max(rows.len()));
-            self.buffer_bytes.set(self.buffer_bytes.get().max(rows.iter().map(|(r,k)|r.heap_bytes()+k.len() as u64).sum()));
+            self.buffer_bytes.set(self.buffer_bytes.get().max(rows.iter().map(|(r,k)|r.heap_bytes(&snapback4_core::Context::system().system_access().unwrap())+k.len() as u64).sum()));
         }
         Ok(rows)
     }

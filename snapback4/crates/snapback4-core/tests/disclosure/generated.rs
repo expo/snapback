@@ -363,6 +363,7 @@ pub fn visit(mut emit: impl FnMut(Case)) -> usize {
     }
     // The read rule names the witness schema; enumerate the owner principals.
     memberships(&mut send);
+    populations(&mut send);
     count
 }
 
@@ -504,5 +505,42 @@ fn memberships(send: &mut impl FnMut(String, Pair, bool)) {
         let mut p = membership_pair();
         p.seeds[1][1].1["principal"] = json!("carol");
         send(format!("membership/{owner}/other-owner"), p, true);
+    }
+}
+
+/// Cross omitted ordinary fields with private payload and population. All read
+/// programs are observed by Pair, including views/search/streaming/Following.
+fn populations(send: &mut impl FnMut(String, Pair, bool)) {
+    for ordinary in ["extra: int ?", "extra: text <=20 ?"] {
+        for present in [false, true] {
+            for population in [1, 20, 32] {
+                let source = program("text <=1000000 default ''").replacen("  label: int", &format!("  {ordinary}\n  label: int"), 1);
+                let b = compile(&source);
+                let endpoint = values(&b.schema.tables["records"].columns["secret"]).pop().unwrap();
+                let seeds = [0,1].map(|world| (0..population).map(|n| {
+                    let mut row = json!({"id":if n==0 {"target".into()} else {format!("row-{n:03}")},"owner":"bob","other":"carol","secret":if world==0 {json!("")}else{endpoint.clone()}});
+                    if present { row["extra"] = Json::Null; }
+                    ("records".into(),row)
+                }).collect());
+                send(format!("population/{ordinary}/{present}/{population}/reads"),pair(&source,seeds,"noop","target"),false);
+                for compat in [false,true] {
+                    let mut following = crate::cases::safe_following_for(compat);
+                    following.source = following.source.replace("secret: int default 0", &format!("{ordinary}\n  secret: text <=1000000 default ''"));
+                    for (world, seed) in following.seeds.iter_mut().enumerate() {
+                        let original = seed.remove(0).1;
+                        for n in 0..population {
+                            let mut row = original.clone();
+                            row["id"] = json!(if n==0 {"p".into()}else{format!("post-{n:03}")});
+                            row["at"] = json!(n+5);
+                            row["secret"] = if world==0 {json!("")}else{endpoint.clone()};
+                            if present { row["extra"] = Json::Null; }
+                            seed.push(("posts".into(),row));
+                        }
+                    }
+                    following.operations.truncate(1);
+                    send(format!("population/{ordinary}/{present}/{population}/following/{compat}"),following,false);
+                }
+            }
+        }
     }
 }

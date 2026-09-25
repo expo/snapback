@@ -14,39 +14,6 @@ impl Table {
         self.written_by.get(field).is_some_and(|authority| !authority.audience)
     }
 
-    /// A missing viewer denotes a shared audience image. No defaults are
-    /// materialized here: callers project only after interpreting the row.
-    pub fn project_fields(&self, row: Value, viewer: Option<&str>) -> Value {
-        if self.written_by.is_empty() { return row; }
-        let hidden: Vec<_> = self.written_by.iter().filter(|(field, authority)| row.field(field).is_ok() && !authority.audience
-            && !viewer.is_some_and(|viewer| row.field(&authority.owner).is_ok_and(|value| value == &Value::Id(viewer.into()))))
-            .map(|(field, _)| field.clone()).collect();
-        if hidden.is_empty() { return row; }
-        // Build only the disclosed image. Removing from a shared map first
-        // would clone every hidden payload and expose its size through meters.
-        match row {
-            Value::Row(fields) => Value::Row(fields.iter().filter(|(key,_)| !hidden.contains(key)).map(|(key,value)|(key.clone(),value.clone())).collect()),
-            Value::Map(fields) => Value::Map(fields.iter().filter(|(key,_)| !hidden.contains(key)).map(|(key,value)|(key.clone(),value.clone())).collect()),
-            other => other,
-        }
-    }
-
-    /// The retained image's heap without allocating or visiting hidden payloads.
-    pub fn disclosed_heap(&self, row: &Value, viewer: &str) -> u64 {
-        let Ok(fields) = row.as_object() else { return row.heap_bytes(); };
-        40 + fields.iter().filter(|(field, _)| !self.written_by.get(*field).is_some_and(|a|
-            !a.audience && row.field(&a.owner).ok() != Some(&Value::Id(viewer.into()))))
-            .map(|(field, value)| 80 + field.capacity() as u64 + value.heap_bytes()).sum::<u64>()
-    }
-
-    pub fn projection_heap(&self, row: &Value, viewer: &str) -> u64 {
-        let hidden = |field: &str| self.written_by.get(field).is_some_and(|a| !a.audience
-            && row.field(&a.owner).ok() != Some(&Value::Id(viewer.into())));
-        let Ok(fields)=row.as_object() else { return 0; };
-        if !fields.keys().any(|field|hidden(field)) { return 0; }
-        40 + fields.iter().filter(|(field,_)| !hidden(field)).map(|(field,value)|80 + field.len() as u64 + value.clone_heap_bytes()).sum::<u64>()
-    }
-
     pub fn field_owners(&self, row: &Value) -> BTreeSet<String> {
         self.written_by.values().filter(|a| !a.audience).filter_map(|a|
             row.field(&a.owner).ok().and_then(|v| v.as_str().ok()).map(str::to_owned)).collect()
@@ -173,6 +140,17 @@ impl RuleExpr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ordered_optional_types_require_private_values() {
+        for kind in [ColumnType::Int, ColumnType::Time, ColumnType::Decimal { scale: 2 },
+            ColumnType::Money { currency: "USD".into(), scale: 2 }, ColumnType::Text { max: 20 }] {
+            for op in [crate::ir::BinaryOp::Gte,crate::ir::BinaryOp::Gt,crate::ir::BinaryOp::Lte,crate::ir::BinaryOp::Lt] {
+                let rule = RuleExpr::Compare(op,RuleTerm::NextField("secret".into()),RuleTerm::OldField("secret".into()));
+                assert!(rule.needs_field_value("secret",&ColumnType::Optional(Box::new(kind.clone()))),"{kind:?}: {op:?}");
+            }
+        }
+    }
+
     #[test]
     fn created_and_exists_terms_require_private_values() {
         for field in ["secret", "otherSecret"] {

@@ -431,12 +431,13 @@ impl<'a> Tx<'a> {
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
         let mut statement = self.tx.prepare_cached(scan_sql(dir))?;
-        let rows = statement.query_map(params![t, ti, lo, hi, limit as i64], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?)))?;
-        rows.map(|row| {
-            let (data, k) = row?;
-            Ok((serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?, k))
-        })
-        .collect()
+        let mut rows = statement.query(params![t, ti, lo, hi, limit as i64])?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next()? {
+            let data = row.get_ref(0)?.as_str().map_err(|e| RuntimeError::Store(e.to_string()))?;
+            out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, row.get(1)?));
+        }
+        Ok(out)
     }
 
     /// How many entries sit under `prefix`, counting at most `limit`.

@@ -86,7 +86,8 @@ fn dropping_count_results_does_not_remove_sqlite_decode_allocations() {
             assert_eq!(run.chunks, 1);
             // Pin this fixture's envelope tightly enough that doubling the
             // per-row key scratch fails, even when the scratch is released.
-            assert!(run.heap_peak <= 370_500, "transient scratch envelope: {run:?}");
+            let projection_slot = snapback4_core::rows::word_heap::slots::<(snapback4_core::value::Disclosed<'_>, Vec<u8>)>(1);
+            assert!(run.heap_peak <= 370_500 + 2 * projection_slot, "transient scratch envelope plus outer/inner typed projection slots: {run:?}");
             let effects = engine.effects(None, 10).unwrap();
             assert_eq!(effects.len(), 1);
             assert_eq!(effects[0].payload.field("n").unwrap(), &Value::Int(4900));
@@ -107,7 +108,7 @@ fn dropping_count_results_does_not_remove_sqlite_decode_allocations() {
                     let fetched = tx.scan("messages", "byConversation", &[Value::Id(chat.into())], &bounds, Dir::Asc, batch).unwrap();
                     let n = fetched.len();
                     for (row, key) in fetched {
-                        heap += row.heap_bytes();
+                        heap += row.heap_bytes(&snapback4_core::Context::system().system_access().unwrap());
                         count += 1;
                         eligible += usize::from(row.field("senderId").unwrap().as_str().unwrap() != principal);
                         bounds.after = Some(snapback4_core::key::decode(&key).unwrap().into_iter().skip(1).collect());

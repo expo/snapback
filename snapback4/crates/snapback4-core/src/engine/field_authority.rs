@@ -22,7 +22,7 @@ impl Probe for DeliveryProbe<'_, '_> {
     fn created(&mut self, _table: &str, _index: &str, _key: &[Value]) -> bool { false }
 }
 
-impl Runner<'_> {
+impl<'r> Runner<'r> {
     pub(crate) fn field_owner_can_read(&mut self, rule: &RuleExpr, owner: &str, row: &Value) -> Result<bool, RuntimeError> {
         // Recipient witnesses are exact but are not the caller's observations.
         // Partition accounting prepays their schema-derived probe/step bound.
@@ -91,29 +91,29 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<Value, RuntimeError> {
-        let definition = &self.schema.tables[table];
-        // @ref LLP 3000.015#1 — private payload size is not an observable meter input.
-        let row = if self.context.is_system() { row } else {
-            self.meter.heap(definition.projection_heap(&row, &self.context.viewer))?;
-            definition.project_fields(row, Some(&self.context.viewer))
-        };
-        Ok(super::recorded::public_image(definition, row))
+    pub(crate) fn disclosed_row<'a>(&self, definition: &'a crate::schema::Table, row: Value) -> crate::value::Disclosed<'a> {
+        match self.context.system_access() {
+            Some(system) => definition.system_fields(row, &system),
+            None => definition.project_fields(row, Some(&self.context.viewer)),
+        }
     }
 
-    /// Serialized store payloads are unsuitable as a private-field read price:
-    /// SQLite and Postgres use different multipliers, both before projection.
-    /// Reserve fixed fetch slots, then charge the disclosed retained image.
-    pub(super) fn scan_disclosed(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<crate::value::Disclosed<'r>, RuntimeError> {
         let definition = &self.schema.tables[table];
-        if !definition.written_by.values().any(|a| !a.audience) {
-            return self.tx.scan_metered(table,index,prefix,bounds,dir,limit,&mut self.meter);
+        let disclosed = self.disclosed_row(definition, row).for_query();
+        self.meter.heap(disclosed.projection_heap())?;
+        Ok(disclosed)
+    }
+
+    /// Store decode and row pricing meet only at the projection boundary.
+    pub(super) fn scan_disclosed(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize) -> Result<Vec<(crate::value::Disclosed<'r>, Vec<u8>)>, RuntimeError> {
+        let definition = &self.schema.tables[table];
+        if let Some(system) = self.context.system_access() {
+            self.meter.heap(crate::rows::word_heap::slots::<(crate::value::Disclosed<'_>, Vec<u8>)>(limit))?;
+            return self.tx.scan_metered(table,index,prefix,bounds,dir,limit,&mut self.meter)
+                .map(|rows| rows.into_iter().map(|(row,key)|(definition.system_fields(row,&system),key)).collect());
         }
-        // @ref LLP 3000.015#1 — visibility, not stored length, determines heap.
-        self.meter.heap(256 * limit as u64)?;
-        let rows = self.tx.scan(table,index,prefix,bounds,dir,limit)?;
-        for (row, _) in &rows { self.meter.heap(definition.disclosed_heap(row,&self.context.viewer))?; }
-        Ok(rows)
+        crate::rows::disclosed::scan(self.tx,table,definition,&self.context.viewer,index,prefix,bounds,dir,limit,&mut self.meter)
     }
 
     pub(super) fn private_scan_authority(&self, table: &str, uniform: bool, admitted: bool) -> Result<(), RuntimeError> {

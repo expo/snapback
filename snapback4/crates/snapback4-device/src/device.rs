@@ -252,7 +252,7 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, meter)?;
         for (row, _) in &mut rows {
-            meter.heap(snapback4_core::rows::word_heap::object_copy(row))?;
+            meter.heap(snapback4_core::rows::word_heap::object_copy(&self.schema.tables[table].project_fields(row.clone(), None)))?;
             *row = predictions::without_pending(std::mem::replace(row, Value::Null));
         }
         Ok(rows)

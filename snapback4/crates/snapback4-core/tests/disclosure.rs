@@ -340,3 +340,30 @@ fn generated_private_rule_admission() {
     assert!(!b.diagnostics.is_empty());
     eprintln!("generated admission cases: {count}; float field unsupported");
 }
+
+#[test]
+fn following_repost_timestamp_requires_audience_visibility() {
+    for compat in [false,true] {
+        let pair = cases::safe_following_for(compat);
+        let source = pair.source.replace("  postId: posts\n  at: time", "  postId: posts\n  at: time default 0 written by .actorId");
+        assert_ne!(source,pair.source);
+        let b = snapback4_lang::compile(&[("reposts.q".into(),source.clone())]);
+        assert!(b.diagnostics.iter().any(|d|d.code=="E_FIELD_AUTHORITY" && d.message.contains("timeline")),"{compat}: {:?}",b.diagnostics);
+        let source = source.replace("written by .actorId","written by .actorId readable by audience");
+        assert!(snapback4_lang::compile(&[("reposts.q".into(),source)]).diagnostics.is_empty());
+    }
+}
+
+#[path = "disclosure/materialization.rs"]
+mod materialization;
+
+#[test]
+fn non_integer_ordered_transition_spellings_are_refused() {
+    for declaration in ["decimal 2 default 0", "decimal 2 ? default null", "money USD 2 default 0", "money USD 2 ? default null", "text <=20 default ''", "text <=20 ? default null"] {
+        for op in [">=", ">", "<=", "<"] {
+            let source = generated::program(declaration).replace("update <- allow",&format!("update (old, next) <- next.secret {op} old.secret"));
+            let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
+            assert!(b.diagnostics.iter().any(|d|d.code=="E_QUARRY_TYPE" && d.message.contains("ordered transition")),"{declaration}/{op}: {:?}",b.diagnostics);
+        }
+    }
+}

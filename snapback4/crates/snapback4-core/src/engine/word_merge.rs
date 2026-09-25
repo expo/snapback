@@ -106,7 +106,7 @@ impl Runner<'_> {
                         // Borrow the IR but retain per-lane evaluation of arbitrary
                         // bounds expressions (including their nested read costs).
                         let bounds = self.word_bounds(scan, definition, index, None, true)?;
-                        self.meter.heap(word_heap::slots::<Value>(scope.len() + 1) + scope.iter().map(word_heap::value).sum::<u64>())?;
+                        self.meter.heap(word_heap::slots::<Value>(scope.len() + 1) + scope.iter().map(word_heap::scalar).sum::<u64>())?;
                         let mut prefix = Vec::with_capacity(scope.len() + 1);
                         prefix.extend(scope.iter().cloned());
                         prefix.push(Value::String(token));
@@ -122,11 +122,11 @@ impl Runner<'_> {
                         // Keep the previous range/list descriptor allowance. Exact
                         // word accounting must not change ordinary merges' costs.
                         let positions = [&bounds.after, &bounds.at_or_after, &bounds.before].into_iter().flatten().map(|values| {
-                            values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>()
+                            values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::clone_heap_bytes).sum::<u64>()
                         }).sum::<u64>();
-                        let seeks = [&bounds.gt, &bounds.gte, &bounds.lt, &bounds.lte].into_iter().flatten().map(Value::heap_bytes).sum::<u64>();
+                        let seeks = [&bounds.gt, &bounds.gte, &bounds.lt, &bounds.lte].into_iter().flatten().map(Value::clone_heap_bytes).sum::<u64>();
                         self.meter.heap(2 * std::mem::size_of::<(std::borrow::Cow<'_, Scan>, Vec<Value>, Bounds, VecDeque<Value>, bool, Option<WordRead>)>() as u64
-                            + prefix.capacity() as u64 * std::mem::size_of::<Value>() as u64 + prefix.iter().map(Value::heap_bytes).sum::<u64>()
+                            + prefix.capacity() as u64 * std::mem::size_of::<Value>() as u64 + prefix.iter().map(Value::clone_heap_bytes).sum::<u64>()
                             + positions + seeks + bounds.word.as_ref().map_or(0, |word| word.capacity() as u64))?;
                     }
                     lanes.push((scan, prefix, bounds, VecDeque::new(), false, None));
@@ -206,8 +206,8 @@ impl Runner<'_> {
                     let mut max_key = 0;
                     let mut shape_bytes = if shaped { word_heap::vec_growth::<Vec<Value>>(page.len()) } else { 0 };
                     for row in &page {
-                        let payload = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).filter_map(|name| row.field(name).ok()).map(word_heap::value).sum::<u64>()
-                            + if index.components.last().and_then(|c| c.column()).map(String::as_str) != Some("id") { row.field("id").map_or(0, word_heap::value) } else { 0 };
+                        let payload = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).filter_map(|name| row.field(name).ok()).map(word_heap::scalar).sum::<u64>()
+                            + if index.components.last().and_then(|c| c.column()).map(String::as_str) != Some("id") { row.field("id").map_or(0, word_heap::scalar) } else { 0 };
                         let bytes = word_heap::slots::<Value>(suffix_len) + payload;
                         max_key = max_key.max(bytes);
                         if shaped { shape_bytes += word_heap::vec_growth::<Value>(suffix_len) + payload; }

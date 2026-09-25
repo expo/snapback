@@ -79,7 +79,7 @@ impl Tx<'_> {
             let mut added = Cache::default();
             let mut insert = |call: Call, text: Option<&str>| -> Result<(), RuntimeError> {
                 let value: Option<Value> = text.map(decode).transpose()?;
-                let bytes = call.bytes() + value.as_ref().map_or(0, |v| v.heap_bytes() as usize) + std::mem::size_of::<(Call, Option<Value>)>();
+                let bytes = call.bytes() + value.as_ref().map_or(0, |v| v.heap_bytes(&crate::Context::system().system_access().expect("internal cache ledger")) as usize) + std::mem::size_of::<(Call, Option<Value>)>();
                 added.bytes = added.bytes.saturating_add(bytes);
                 if added.bytes > available { return Err(RuntimeError::Store("prefetch byte budget".into())); }
                 added.answers.insert(call, (value, bytes));

@@ -142,14 +142,19 @@ writer's meter or exhaustion boundary.
 Private fields cannot supply indexes/cursors, expiry, recorded attribution,
 other rules' probes, aggregate inputs, or Following mappings and predicates; make the field readable by audience
 before using it there. This applies to both `view` and `maintain … timeline`.
-For a fixed program and unchanged public inputs, point reads, range/cursor
-pages, planned views, word search, streaming counts/sums and scalar reductions
-charge disclosed images plus fixed fetch reservations. Recording a public
-column does not charge its private siblings. The generated paired-world tests
-vary omitted private values and compare results, all seven meter fields,
-refusals, snapshots and streams; they are regression coverage, not a proof for
-every Quarry program. Raw storage decoding is outside this disclosed-image
-ledger. Owner delivery prepays the declared recipient/probe bound; hidden
+For a fixed schema, program and unchanged public inputs, another owner's
+private value cannot change your result, meter or heap cut. Point reads,
+range/cursor pages, planned views, word search, streaming counts/sums and
+scalar reductions price the disclosed image, including omitted ordinary-field
+defaults. Recording a public column does not price its private siblings.
+Before decoding a private-field row the engine reserves its declared row
+bound, then releases that scratch after projection. A large declared maximum
+can therefore exhaust the heap even when the actual private value is empty;
+changing that value cannot move the boundary. Runtime ceilings are unchanged.
+The generated paired-world tests compare results, all seven meter fields,
+refusals, snapshots and streams, including omitted ordinary fields with many
+large private payloads; they are regression coverage, not a universal proof.
+Owner delivery prepays the declared recipient/probe bound; hidden
 membership outcomes cannot change the writer's meter. Mutation event counts
 count each changed private row once, independently of owner fanout. A scan of a table
 with private fields must establish a uniformly readable scope before visiting

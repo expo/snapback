@@ -95,7 +95,7 @@ fn allocating_builtins_charge_the_result_and_keep_their_values() {
         let result = engine.query("read", context()).unwrap();
         assert!(result.complete, "{function:?}");
         assert_eq!(result.data, expected, "{function:?}");
-        assert!(result.metered.heap_bytes >= copies + result.data.heap_bytes(), "{function:?}: {result:?}");
+        assert!(result.metered.heap_bytes >= copies + result.data.heap_bytes(&snapback4_core::Context::system().system_access().unwrap()), "{function:?}: {result:?}");
         engine.set_ceilings(Ceilings { heap_bytes: result.metered.heap_bytes - 1, ..Ceilings::default() });
         let capped = engine.query("read", context()).unwrap();
         assert!(!capped.complete, "{function:?}");
@@ -111,7 +111,7 @@ fn share_charges_its_recipient_workspace() {
     let result = engine.query("read", context()).unwrap();
     assert!(result.complete);
     assert_eq!(result.data, Value::Int(4));
-    assert!(result.metered.heap_bytes >= recipients.clone_heap_bytes() + recipients.heap_bytes());
+    assert!(result.metered.heap_bytes >= recipients.clone_heap_bytes() + recipients.heap_bytes(&snapback4_core::Context::system().system_access().unwrap()));
     engine.set_ceilings(Ceilings { heap_bytes: result.metered.heap_bytes - 1, ..Ceilings::default() });
     assert!(!engine.query("read", context()).unwrap().complete);
 }
@@ -134,7 +134,7 @@ fn bindings_and_owned_variable_reads_charge_without_aliasing() {
         let result = engine.query("read", context()).unwrap();
         assert!(result.complete);
         assert_eq!(result.data, value);
-        assert!(result.metered.heap_bytes >= 2 * value.heap_bytes() + 3 * value.clone_heap_bytes());
+        assert!(result.metered.heap_bytes >= 2 * value.heap_bytes(&snapback4_core::Context::system().system_access().unwrap()) + 3 * value.clone_heap_bytes());
     }
 }
 

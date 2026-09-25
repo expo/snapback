@@ -31,9 +31,9 @@ impl Runner<'_> {
         row.as_object()?;
         // A source image can share its map with a literal or stored image;
         // stamping fields may copy it. Account for that copy and each read.
-        self.meter.heap(row.heap_bytes())?;
+        self.meter.heap(self.disclosed_row(table, row.clone()).heap_bytes())?;
         let source_image = crate::schema::row_image(&row, table).into_owned();
-        self.meter.heap(source_image.heap_bytes())?;
+        self.meter.heap(self.disclosed_row(table, source_image.clone()).heap_bytes())?;
         for path in paths {
             let field = &table.recorded[path];
             let target = &self.schema.tables[&field.table];
@@ -46,7 +46,7 @@ impl Runner<'_> {
                     let imported = self.import_targets.and_then(|rows| rows.get(&(field.table.clone(), id.clone()))).cloned();
                     #[cfg(not(feature = "sqlite"))]
                     let imported: Option<Value> = None;
-                    match imported { Some(row) => Some(row), None => self.tx.get(&field.table, id)? }
+                    match imported { Some(row) => Some(row), None => self.lookup_live(&field.table, "byId", target.index("byId").expect("id index"), &[Value::Id(id.clone())], false)? }
                 },
                 _ => None,
             };
@@ -60,11 +60,10 @@ impl Runner<'_> {
             // Unknown coverage queues before a target-size resource refusal.
             // @ref LLP 3000.015#1 — a public capture cannot price a private sibling.
             if let Some(value) = &found {
-                self.meter.heap(if self.context.is_system() { value.heap_bytes() }
-                    else { target.disclosed_heap(value, &self.context.viewer) })?;
+                self.meter.heap(self.disclosed_row(target, value.clone()).heap_bytes())?;
             }
-            let value = live.map(|value| crate::schema::row_image(value, target).field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
-            self.meter.heap(80 + path.len() as u64 + value.heap_bytes())?;
+            let value = live.map(|value| self.disclosed_row(target,value.clone()).into_value().field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
+            self.meter.heap(80 + path.len() as u64 + self.disclosed_row(target, live.cloned().unwrap_or(Value::Null)).field_heap(&field.column))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }
         }
         Ok(row)
@@ -243,7 +242,9 @@ mod tests {
         fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64, _: &mut Meter) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
         fn get(&self, _: &str, _: &str) -> Result<Option<Value>,RuntimeError> {Ok(Some(self.row.clone()))}
         fn lookup(&self, _: &str, _: &str, _: &crate::schema::Index, _: &[Value]) -> Result<Option<Value>,RuntimeError> {unreachable!()}
-        fn scan(&self, _: &str, _: &str, _: &[Value], _: &crate::rows::Bounds, _: crate::rows::Dir, _: usize) -> Result<Vec<(Value,Vec<u8>)>,RuntimeError> {unreachable!()}
+        fn scan(&self, _: &str, _: &str, _: &[Value], bounds: &crate::rows::Bounds, _: crate::rows::Dir, _: usize) -> Result<Vec<(Value,Vec<u8>)>,RuntimeError> {
+            Ok(if bounds.after.is_some() { vec![] } else { vec![(self.row.clone(),crate::key::encode(&[self.row.field("id")?.clone()]))] })
+        }
         fn count_prefix(&self, _: &str, _: &str, _: &[Value], _: u64) -> Result<u64,RuntimeError> {unreachable!()}
         fn put(&self, _: &str, _: &Table, _: &Value, _: Option<&Value>) -> Result<u64,RuntimeError> {unreachable!()}
         fn delete(&self, _: &str, _: &Table, _: &Value) -> Result<u64,RuntimeError> {unreachable!()}

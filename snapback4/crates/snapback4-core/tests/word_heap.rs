@@ -67,6 +67,27 @@ fn stored_row_bound_covers_decoder_growth_and_btree_splits() {
 }
 
 #[test]
+fn declared_private_decode_reservation_covers_utf8_and_escaping() {
+    use snapback4_core::{Engine, Value, wire};
+    configure_sqlite_probe();
+    for (label, text) in [("empty", String::new()), ("ascii", "x".repeat(1_000_000)),
+        ("escaped", "\n".repeat(1_000_000)), ("utf8", "𐐨".repeat(1_000_000))] {
+        let b = snapback4_lang::compile(&[("schema.q".into(), "table records:\n  owner: principal\n  secret: text <=1000000 default '' written by .owner\n  extra: int ?\n  public\n  sync public\n".into())]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        let reservation = rows::disclosed::decode_reservation(&b.schema.tables["records"]);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let row = wire::row_from_json(&e.schema().tables["records"], &serde_json::json!({"id":"row","owner":"bob","secret":text})).unwrap();
+        e.seed([("records".into(), row)]).unwrap();
+        let tx = e.store_mut().read_transaction().unwrap();
+        let json_bytes = value::canonical_json(&tx.get("records", "row").unwrap().unwrap()).len();
+        let (found, rust, native, _) = measured_sqlite(json_bytes, || tx.scan("records", "byId", &[Value::Id("row".into())], &rows::Bounds::default(), rows::Dir::Asc, 1).unwrap());
+        assert_eq!(found.len(), 1);
+        assert!(rust + native as u64 <= reservation, "{label}: rust={rust}, native={native}, reservation={reservation}");
+        eprintln!("private decoder {label}: rust={rust}, native={native}, reservation={reservation}");
+    }
+}
+
+#[test]
 fn dedup_node_and_split_measurements_fit_the_preinsert_bound() {
     let mut tree = std::collections::BTreeSet::<String>::new();
     let mut maximum = 0;

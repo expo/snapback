@@ -137,7 +137,7 @@ impl Runner<'_> {
                 self.read_tables.insert(maintain.source.clone());
                 if self.device_work_active {
                     let group_bytes = word_heap::slots::<Value>(maintain.by.len())
-                        + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
+                        + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::scalar)).sum::<u64>();
                     self.meter.heap(2 * group_bytes + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
                 }
                 let group = crate::schema::maintained_key(row, &maintain.by);
@@ -154,7 +154,7 @@ impl Runner<'_> {
                         if self.device_work_active {
                             self.meter.step(maintain.evaluation_steps())?;
                             self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
-                                + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::value)).sum::<u64>())?;
+                                + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::scalar)).sum::<u64>())?;
                         }
                         if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
                             if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
@@ -184,7 +184,10 @@ impl Runner<'_> {
     pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if table.expire.is_none() && !self.device_work_active {
-            return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
+            if table.written_by.values().any(|a| !a.audience) && !self.context.is_system() {
+                return Ok(self.scan_disclosed(table_name,name,key,&Bounds::default(),Dir::Asc,1)?.pop().map(|(row,_)|row.into_value()));
+            }
+            return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|row| self.disclosed_row(table,row).into_value()));
         }
         let mut bounds = Bounds::default();
         loop {
@@ -203,17 +206,26 @@ impl Runner<'_> {
     // Physical witness work is additional device authorization work. Queries
     // and server rules keep their existing one-probe accounting.
     fn witness_scan(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
-        if !self.device_work_active { return Ok((self.tx.scan(table, index, prefix, bounds, Dir::Asc, batch)?, batch)); }
+        if !self.device_work_active {
+            let rows = if self.schema.tables[table].written_by.values().any(|a| !a.audience) && !self.context.is_system() {
+                self.scan_disclosed(table,index,prefix,bounds,Dir::Asc,batch)?.into_iter().map(|(r,k)|(r.into_value(),k)).collect()
+            } else { self.tx.scan(table,index,prefix,bounds,Dir::Asc,batch)? };
+            return Ok((rows,batch));
+        }
         let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;
         if limit == 0 { self.meter.charge(MeterKind::Examined, 1)?; }
-        let rows = self.scan_disclosed(table, index, prefix, bounds, Dir::Asc, limit)?;
+        let definition = &self.schema.tables[table];
+        let rows = self.scan_disclosed(table, index, prefix, bounds, Dir::Asc, limit)?.into_iter().map(|(row,key)| {
+            self.meter.heap(word_heap::materialize(&row, definition))?;
+            Ok((row.into_value(),key))
+        }).collect::<Result<Vec<_>,RuntimeError>>()?;
         self.meter.charge(MeterKind::Examined, rows.len().max(1) as u64)?;
         Ok((rows, limit))
     }
 
     fn witness_materialize(&mut self, row: &mut Value, table: &Table) -> Result<(), RuntimeError> {
-        if self.device_work_active { self.meter.heap(word_heap::materialize(row, table))?; }
-        materialize_optional_fields(row, table);
+        if self.device_work_active { self.meter.heap(word_heap::materialize(&self.disclosed_row(table, row.clone()), table))?; }
+        *row = self.disclosed_row(table, std::mem::replace(row,Value::Null)).into_value();
         Ok(())
     }
 
@@ -400,6 +412,12 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
+            // Match the hidden-hit rollback below: a private point miss must
+            // not retain the fetch slot that a denied candidate releases.
+            if table.written_by.values().any(|a| !a.audience) && !self.read_capped() {
+                self.meter.restore(mark);
+                self.read_charge(MeterKind::Examined, 1)?;
+            }
             if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
             return Ok(Value::Null);
         };
@@ -420,7 +438,7 @@ impl Runner<'_> {
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
             let row = self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null);
-            self.project_row(&read.table, row)
+            self.project_row(&read.table, row).map(|row| super::recorded::public_image(table, row.into_value()))
         } else {
             self.next_expiry = expiry_mark;
             if !provisional {
@@ -559,7 +577,7 @@ impl Runner<'_> {
             if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
             }
-            let found = if metered_words { self.scan_disclosed(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)? }
+            let found = if metered_words { self.scan_disclosed(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?.into_iter().map(|(r,k)|(r.into_value(),k)).collect() }
                 else { self.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)? };
             let Some((_, key)) = found.into_iter().next() else { break };
             if metered_words {
@@ -796,8 +814,8 @@ impl Runner<'_> {
 
     fn charge_word_key(&mut self, index: &Index, prefix_len: usize, suffix_len: usize, row: &Value) -> Result<(), RuntimeError> {
         // Exact suffix slots plus copied column bodies (computed time keys are scalars).
-        let copied = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).filter_map(|c| row.field(c).ok()).map(word_heap::value).sum::<u64>();
-        let appended = if index.components.len() - prefix_len < suffix_len { word_heap::value(row.field("id")?) } else { 0 };
+        let copied = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).filter_map(|c| row.field(c).ok()).map(word_heap::scalar).sum::<u64>();
+        let appended = if index.components.len() - prefix_len < suffix_len { word_heap::scalar(row.field("id")?) } else { 0 };
         self.meter.heap(word_heap::slots::<Value>(suffix_len) + copied + appended)
     }
 
@@ -905,8 +923,8 @@ impl Runner<'_> {
         // Ordinary jobs may hold an empty Purge grant; that is not a transition.
         let metered_payload = word.is_some_and(|w| w.metered) || self.view_scan_active
             || matches!(&self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_)));
-        // @ref LLP 3000.015#1 — stored private bytes are outside caller accounting.
-        // Both store adapters must bypass their serialized-payload preflight.
+        // @ref LLP 3000.015#1 — reserve declared decode scratch, never actual private bytes.
+        // Both adapters use the typed projection boundary before retention.
         let private_payload = table.written_by.values().any(|a| !a.audience);
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
@@ -931,8 +949,8 @@ impl Runner<'_> {
             let fetch_heap = self.meter.used.heap_bytes;
             // No adaptive lookahead, even for non-uniform rules. A later chunk
             // establishes exhaustion; every new candidate must first fit.
-            let fetched = if metered_payload || transient || job_page { self.scan_disclosed(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? }
-                else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
+            let fetched = if metered_payload || transient || job_page || private_payload { self.scan_disclosed(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? }
+                else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)?.into_iter().map(|(r,k)|(self.disclosed_row(table,r),k)).collect() };
             if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
             // A planned view retains the disclosed source image. Store-private
             // fetches already paid it; ordinary store ledgers retain their price.
@@ -941,7 +959,7 @@ impl Runner<'_> {
                 break;
             }
             let fetched_len = fetched.len();
-            for (mut row, key) in fetched {
+            for (row, key) in fetched {
                 if let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
                     if &key < floor { crossed = true; break 'outer; }
                 }
@@ -963,7 +981,7 @@ impl Runner<'_> {
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
                 let materialized = if metered_payload || transient || job_page { word_heap::materialize(&row, table) } else { 0 };
                 if materialized > 0 { self.meter.heap(materialized)?; }
-                materialize_optional_fields(&mut row, table);
+                let row = row.into_value();
                 if transient { row_bytes += materialized; }
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
@@ -1003,7 +1021,9 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     let Some(row) = live_row else { continue; };
-                    let row = self.project_row(&scan.table, row)?;
+                    let disclosed = self.project_row(&scan.table, row)?;
+                    let disclosed_bytes = disclosed.heap_bytes();
+                    let row = super::recorded::public_image(table, disclosed.into_value());
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;
@@ -1061,7 +1081,7 @@ impl Runner<'_> {
                         drop(key);
                         if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
                         row_bytes = 0;
-                        self.meter.heap(row.heap_bytes())?;
+                        self.meter.heap(disclosed_bytes)?;
                         word_heap::push(&mut self.meter, &mut visible, row)?;
                     } else if metered_payload {
                         // Charge retention of a store-provided row and the emitted raw key
@@ -1332,7 +1352,7 @@ impl Runner<'_> {
             if key == Value::Null { continue; }
             let key = canonical_json(&key);
             self.meter.heap(key.len() as u64 + 64)?;
-            if seen.insert(key) { self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?; unique.push(value); }
+            if seen.insert(key) { self.meter.heap(self.environment_value_heap(&lane.binding) + std::mem::size_of::<Value>() as u64)?; unique.push(value); }
         }
         if let Some(prior) = prior { self.env.insert(lane.binding.clone(), prior); } else { self.env.remove(&lane.binding); }
         Ok(Box::new(unique.into_iter()))

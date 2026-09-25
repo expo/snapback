@@ -205,7 +205,7 @@ impl Runner<'_> {
         let row = object([("viewerId", viewer), ("epoch", epoch), ("remaining", Value::Int(remaining as i64)), ("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
             ("cursor", cursor.map(|c| Value::String(crate::value::encode_bytes_hex(&c))).unwrap_or(Value::Null)),
             ("admitted", self.timeline_admission()), ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
-        self.meter.heap(row.heap_bytes())?;
+        self.meter.heap(self.disclosed_row(&self.schema.tables[&t.table("Work")], row.clone()).heap_bytes())?;
         // Resetting an existing natural-key task is safe and costs the same one
         // write as insertion. No task existence is disclosed to the application.
         self.upsert(&t.table("Work"), &id, row)
@@ -247,7 +247,7 @@ impl Runner<'_> {
         // F3's foreign owned rows alone are skipped instead of queuing the
         // whole mutation. Evaluation errors still abort the prediction.
         if self.device && !self.evaluate_read_rule(&t.table(suffix), &row)? { return Ok(TimelineInsert::Skipped); }
-        self.meter.heap(row.heap_bytes())?;
+        self.meter.heap(self.disclosed_row(&self.schema.tables[&t.table(suffix)], row.clone()).heap_bytes())?;
         if suffix == "Feed" && !self.device
             && self.timeline_get(&t.table(suffix), "byReaderEvent", key.to_vec())?.is_some() { return Ok(TimelineInsert::Skipped); }
         self.insert(&t.table(suffix), row)?;

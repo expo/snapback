@@ -18,6 +18,13 @@ pub(crate) enum Origin {
     Maintained,
 }
 
+#[path = "write_target.rs"]
+pub(super) mod target;
+
+/// Raw caller-payload pricing is confined to the write implementation.
+pub(crate) struct WriteAccess(());
+fn supplied_heap(value: &Value) -> u64 { value.write_heap(WriteAccess(())) }
+
 impl Runner<'_> {
     pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
         self.insert_mode(table, row, false).map(|_| ())
@@ -51,7 +58,7 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
+                if let Some(existing) = self.lookup_stored(table_name, name, index, &key, true)? {
                     self.visible_collision(table_name, &existing, Effect::Insert)?;
                     return Ok(false);
                 }
@@ -222,7 +229,7 @@ impl Runner<'_> {
             }
         }
         let row = Value::Row(fields.into());
-        self.meter.heap(row.heap_bytes())?;
+        self.meter.heap(supplied_heap(&row))?;
         Ok(row)
     }
 
@@ -341,7 +348,7 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
+                if let Some(existing) = self.lookup_stored(table_name, name, index, &key, true)?
                     && existing.field("id")?.as_str()? != id
                 {
                     if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
@@ -459,7 +466,7 @@ impl Runner<'_> {
                 self.read_tables.insert(target.clone());
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
                 let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = match self.live_lookup(target, index, target_index, &key)? {
+                let found = match self.lookup_stored(target, index, target_index, &key, true)? {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };

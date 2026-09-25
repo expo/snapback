@@ -305,11 +305,11 @@ fn private_scans_bypass_postgres_payload_factor() {
         fn put(&self,t:&str,d:&Table,r:&Value,o:Option<&Value>)->Result<u64,RuntimeError>{self.0.put(t,d,r,o)}
         fn delete(&self,t:&str,d:&Table,r:&Value)->Result<u64,RuntimeError>{self.0.delete(t,d,r)}
     }
-    let bound=snapback4_lang::compile(&[("schema.q".into(),"table records:\n  owner: principal\n  secret: text <=10000000 default '' written by .owner\n  public\n  online only\n".into())]);
+    let bound=snapback4_lang::compile(&[("schema.q".into(),"table records:\n  owner: principal\n  secret: text <=1000000 default '' written by .owner\n  public\n  online only\n".into())]);
     assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
     let mut schema:Schema=serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
     let mut receipts=Vec::new();
-    for bytes in [0,10_000_000] {
+    for bytes in [0,1_000_000] {
         let rows=Priced(MemoryRows::new());
         let row=crate::wire::row_from_json(&schema.tables["records"],&serde_json::json!({"id":"r","owner":"bob","secret":"x".repeat(bytes)})).unwrap();
         rows.put("records",&schema.tables["records"],&row,None).unwrap();
@@ -322,7 +322,7 @@ fn private_scans_bypass_postgres_payload_factor() {
     // A non-private table still uses the real Postgres 256x preflight.
     schema.tables.get_mut("records").unwrap().written_by.get_mut("secret").unwrap().audience=true;
     let rows=Priced(MemoryRows::new());
-    let row=crate::wire::row_from_json(&schema.tables["records"],&serde_json::json!({"id":"r","owner":"bob","secret":"x".repeat(10_000_000)})).unwrap();
+    let row=crate::wire::row_from_json(&schema.tables["records"],&serde_json::json!({"id":"r","owner":"bob","secret":"x".repeat(1_000_000)})).unwrap();
     rows.put("records",&schema.tables["records"],&row,None).unwrap();
     let mut runner=Runner::new(&rows,&schema,Context::new("alice",BTreeMap::new()),Meter::new(Ceilings::default(),Cut::Abort),1);
     assert!(matches!(runner.scan_disclosed("records","byId",&[],&Bounds::default(),Dir::Asc,1),Err(RuntimeError::Bound{..})));

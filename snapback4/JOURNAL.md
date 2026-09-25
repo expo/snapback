@@ -49638,3 +49638,89 @@ mutation logs: target/r4-mutations.log and target/r4-mutant-*.log;
 Postgres feature checks: target/r4-postgres-unit.log. git diff --check passes.
 Exact command and per-item evidence: /home/ccheever/sb5/lane-b1.r4.final.md.
 Committed on sb5/b1-written-by; no push, publication or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 5: typed disclosure accounting
+
+Replaced raw row pricing on observer paths with an opaque `Disclosed`
+projection plan. Only the table's viewer projection or an explicit system
+projection constructs it; read/capture/row-view/timeline/delivery materialization
+can no longer pass a raw Value to word_heap's row-copy helpers. Raw retained
+Value pricing requires a system token. Expression pricing has a private evaluator
+token; caller-payload pricing is private to the writer and its target child module.
+Five compile-fail doctests pin these boundaries. System maintenance/rebuild/sweep
+Runners, recipient authorization/delivery and PostgreSQL's prefetch cache keep
+separate ledgers that are not copied into caller receipts.
+
+Private-table scans now reserve a declared-column decoder allowance before
+fetching one stored row, project it, drop the undisclosed allocations and release
+that transient allowance. SQLite borrows JSON instead of allocating an extra
+Rust String. The reservation includes bounded text/bytes/lists/JSON, admitted
+identities, asset facts and fetch scratch; all retained row prices use disclosed
+fields and missing visible defaults. Private defaults are never reinstated.
+Projection-copy reservations depend on schema visibility, not on whether a
+private key happens to be physically present. Large declarations can cut even
+empty rows, but changing actual private values cannot move that cut. No runtime
+ceiling was raised. The old raw-decoding residual is removed from LLP 3000.015
+and the rules card; ordinary shared database/cache/statement-storage exclusions
+remain unchanged.
+
+Astra's omitted-ordinary-field reproduction now uses twenty ordinary authorized
+Bob inserts and Alice's planned view/search/count on memory and disk SQLite.
+All return complete, equal outcomes for empty versus one-million-byte secrets.
+The generator adds 36 pairs: optional int/text x omitted/present-null x 1/20/32
+rows x ordinary reads/Following view/compatibility timeline. Generated pairs
+increase from 2,433 to 2,469 per host/store; the previous core accounting increases
+from 2,445 to 2,481 plus two standalone reproduction pairs, and each device store
+from 2,434 to 2,470. Admission refusal variants increase from 476 to 502; twenty
+additional core ordered-type dependency checks cover int/time/decimal/money/text.
+The current binder refuses decimal/money/text ordered transitions, so those are
+explicit E_QUARRY_TYPE tests rather than claimed executable runtime cases.
+
+All five deliberate mutations fail their intended assertions: raw materialization,
+removing timeline.reposts from the dependency walk, narrowing optional comparison
+dependencies to int/time, removing the decoder reservation, and making copy cost
+depend on physical private-field presence. Both Following spellings reject a
+private repost timestamp and accept the audience-readable control. Grok's review
+arrived with EXIT=0; its mutation gap is covered and its no-product-finding verdict,
+internal log ordinal and existing physical-cap observations are recorded in the
+report. PostgreSQL-feature payload-factor stand-in passes; no live PostgreSQL
+server was exercised.
+
+The expanded matrix also exposed 576 point-absence differences during development:
+a miss retained a fetch slot while a hidden hit rolled it back. Both paths now
+restore the same mark. The first full suite found a witness-materialization
+undercharge introduced by early rendering, a capture double that needed the
+new scan boundary, and three narrow scratch/cut expectations affected by pricing
+projection slots. Witness materialization is now charged before rendering; both
+device witness-budget tests pass. The wide memory search now heap-cuts first;
+its terminal page and smaller positive examined-cut control remain. Streaming
+scratch-envelope checks account for outer/inner projection slots and retain the
+unchanged runtime ceiling. Deeply nested maximum-sized list declarations also
+saturate their fixed reservation rather than overflowing; a unit test pins this.
+
+Allocator instrumentation validates the fixed 16,018,464-byte decoder reservation:
+Rust plus SQLite allocations total 2,246 bytes for empty text, 3,004,318 for one
+million ASCII characters, 7,103,414 for escaped newlines, and 12,010,182 for one
+million four-byte UTF-8 characters. The full charge audit lists 230 sites (201 in
+the engine including forwarding APIs; 29 store/device/projection boundaries),
+each classified constant/disclosed/caller-supplied/system-only with source and
+last-change commit. The base's literal heap/heap_bytes search finds 128 lines;
+the report expands the brief's 47-site scope rather than truncating the audit.
+
+Final wasm: 1,785,460 B raw / 496,397 B gzip, Rust 1.97.0 / wasm-bindgen 0.2.127,
+without wasm-opt. Round 4 was 1,774,832 / 492,462: +10,628 raw / +3,935 gzip for
+the complete artifact. The shared projection capability, visible-default
+materialization and declared decoder-reservation paths require these bytes;
+no per-component attribution is claimed. Raise the 493,000-byte ratchet to
+497,000, leaving 603 bytes. Runtime meter ceilings are unchanged. SHA-256:
+2cb15d2a9fb24327742b58b0700425de915a1c5622ecfede06c02ce1cc3f9b05.
+
+Final blocking result: `== 0 failure(s) in 483 s`. Command:
+`env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=8 bash snapback4/scripts/test.sh`.
+Node 24.13.1, eight Rust processes/build jobs and normal parallel client mode.
+Evidence: target/r5-test-final.log, target/r5-named-final.log,
+target/r5-restored-checks.log, target/r5-allocation-restored.log,
+target/r5-mutations.json and target/r5-mutant-*.log. The first full suite had
+one failing suite (five Rust targets); the final run includes all corrections.
+Report: /home/ccheever/sb5/lane-b1.r5.final.md. Committed on sb5/b1-written-by;
+no push, publication or deployment.

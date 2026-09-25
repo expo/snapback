@@ -1,6 +1,6 @@
 //! Read authorization of provisional images, over raw combined-state witnesses.
 use super::{rules::{self, Probe}, runner::Runner};
-use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, RuleExpr, materialize_optional_fields}, value::Value};
+use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, RuleExpr}, value::Value};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Verdict { Readable, Denied, Unknown }
@@ -34,9 +34,8 @@ impl Runner<'_> {
     fn authorize_read_inner(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
-        if self.device_work_active { self.meter.heap(crate::rows::word_heap::materialize(row, definition))?; }
-        let mut row = row.clone();
-        materialize_optional_fields(&mut row, definition);
+        if self.device_work_active { self.meter.heap(crate::rows::word_heap::materialize(&self.disclosed_row(definition, row.clone()), definition))?; }
+        let row = self.disclosed_row(definition, row.clone()).into_value();
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
         let verdict = evaluate(&rule, &viewer, &row, &mut ReadProbe { runner: self, prepaid, unknown: false })?;

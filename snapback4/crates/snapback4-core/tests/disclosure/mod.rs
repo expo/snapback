@@ -78,30 +78,31 @@ impl Pair {
             .map(|p| p.program)
             .collect::<Vec<_>>();
         // Timeline history must be established by operations, never imported.
-        let body = rows
+        let body: Vec<_> = rows
             .into_iter()
             .map(|(table, row)| snapback4_core::ir::Stmt::Insert {
                 table,
                 row: snapback4_core::ir::Expr::Literal(row),
             })
             .collect();
-        programs.push(snapback4_core::ir::Program {
-            name: "pairSeed".into(),
-            kind: ProgramKind::Mutation,
-            args: Default::default(),
-            read_time_granularity_ms: None,
-            body,
-            native: false,
-            returned_shapes: Default::default(),
-        });
+        // Population cases seed in ordinary-sized transactions. The reads and
+        // observed operations always retain the unchanged default ceilings.
+        let chunks = if body.len() > 10 { body.chunks(1).map(|chunk|chunk.to_vec()).collect::<Vec<_>>() } else { vec![body] };
+        let mut seed_names = Vec::new();
+        for (n, body) in chunks.into_iter().enumerate() {
+            let name = format!("pairSeed{n}");
+            seed_names.push(name.clone());
+            programs.push(snapback4_core::ir::Program {
+                name, kind: ProgramKind::Mutation, args: Default::default(),
+                read_time_granularity_ms: None, body, native: false,
+                returned_shapes: Default::default(),
+            });
+        }
         let mut e = Engine::memory(b.schema, programs).unwrap();
-        let seed = e
-            .mutate("pairSeed", None, Context::system().at(NOW))
-            .unwrap();
-        assert!(
-            matches!(seed.state, snapback4_core::WriteState::Sent { .. }),
-            "{seed:?}"
-        );
+        for name in seed_names {
+            let seed = e.mutate(&name,None,Context::system().at(NOW)).unwrap();
+            assert!(matches!(seed.state,snapback4_core::WriteState::Sent { .. }),"{seed:?}");
+        }
         e
     }
     pub fn assert_equal(&self) {

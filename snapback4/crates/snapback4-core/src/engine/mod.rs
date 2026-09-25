@@ -44,7 +44,7 @@ pub(crate) mod columns;
 mod column_activation;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
-mod write_target;
+use write::target as write_target;
 mod receipt;
 pub(crate) mod presence;
 #[cfg(feature = "postgres")]
@@ -117,6 +117,10 @@ pub struct Context {
     pub presence: Option<std::sync::Arc<dyn Presence>>,
 }
 
+/// Capability for a system-only ledger. Its constructor checks the principal.
+#[derive(Clone, Copy)]
+pub struct SystemAccess(());
+
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
         Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
@@ -161,6 +165,8 @@ impl Context {
         self.entropy = entropy;
         self
     }
+
+    pub fn system_access(&self) -> Option<SystemAccess> { self.is_system().then_some(SystemAccess(())) }
 
     pub fn is_system(&self) -> bool {
         self.viewer == crate::SYSTEM_PRINCIPAL

@@ -11,9 +11,9 @@
 //! unlike those payload copies it is measured and pinned, not charged, by
 //! sqlite_empty_scan_statement_storage_is_pinned_and_transient in tests/word_heap.rs.
 //! Tables with non-audience `written by` fields use `scan_disclosed` instead
-//! of serialized-payload preflight: a fixed 256-byte fetch-slot reservation plus
-//! the disclosed image. Raw private storage decoding is outside that caller
-//! ledger (LLP 3000.015 §1), so these blob multipliers never price hidden bytes.
+//! of serialized-payload preflight: fixed fetch slots, a declared-row transient
+//! decode reservation and the typed Disclosed image (LLP 3000.015 §1). Raw
+//! blob lengths never enter that caller ledger; the reservation precedes decode.
 //! Existing general expression evaluation and rule-probe engines
 //! retain their own accounting; this ledger prices the expansion's added storage.
 //!
@@ -73,8 +73,9 @@
 //!
 //! Ordinary range/list lanes keep their previous descriptor allowance in merge_lazy; they are outside this word ledger.
 //!
-//! Unbounded Id/Principal/Ref payloads make a finite schema-max-row multiplier
-//! impossible. The store exception is narrow: inspect borrowed stored bytes, charge,
+//! Public-table preflights retain their existing encoding-sensitive bound.
+//! Private tables use the declared bound, including the 144-byte identity gate.
+//! The public-store exception is narrow: inspect borrowed stored bytes, charge,
 //! then materialize; an exhausted heap never starts the typed decode/key copy. SQLite borrows
 //! its JSON text instead of first allocating a String. PostgreSQL preflights byte
 //! lengths in its existing repeatable-read/serializable transaction. The measured
@@ -87,7 +88,7 @@ pub fn allocation(bytes: usize) -> u64 { if bytes == 0 { 0 } else { bytes.max(si
 pub fn slots<T>(len: usize) -> u64 { allocation(len.saturating_mul(size_of::<T>())) }
 pub fn text(s: &str) -> u64 { allocation(s.len()) }
 pub fn values(v: &[Value]) -> u64 { slots::<Value>(v.len()) + v.iter().map(value).sum::<u64>() }
-pub fn value(v: &Value) -> u64 {
+fn value(v: &Value) -> u64 {
     match v {
         Value::String(s) | Value::Id(s) => text(s),
         Value::Bytes(b) => allocation(b.len()),
@@ -249,27 +250,14 @@ pub fn cursor_decode(token: &str) -> u64 {
 /// Optional/default materialisation may copy a shared map once and insert
 /// missing fields. The original row image is already paid by the store (or
 /// shared from the device); only the copy and inserted values are new here.
-pub fn materialize(row: &Value, table: &crate::schema::Table) -> u64 {
-    let Ok(fields) = row.as_object() else { return 0 };
-    if table.columns.keys().all(|name| fields.contains_key(name)) { return 0; }
-    let mut bytes = slots::<usize>(2) + node::<String, Value>() * fields.len() as u64
-        + fields.iter().map(|(k,v)| text(k) + value(v)).sum::<u64>();
-    let mut len = fields.len();
-    for (name, kind) in &table.columns {
-        if fields.contains_key(name) { continue; }
-        if kind.is_optional() || table.defaults.contains_key(name) {
-            bytes += insertion::<String, Value>(len) + text(name);
-            if let Some(crate::schema::ColumnDefault::Literal(v)) = table.defaults.get(name) { bytes += value(v); }
-            len += 1;
-        }
-    }
-    bytes
+pub fn materialize(row: &crate::value::Disclosed<'_>, _table: &crate::schema::Table) -> u64 {
+    row.materialization_heap()
 }
 
-pub fn object_copy(row: &Value) -> u64 {
-    row.as_object().map_or(0, |fields| slots::<usize>(2) + node::<String, Value>() * fields.len() as u64
-        + fields.iter().map(|(k,v)| text(k) + value(v)).sum::<u64>())
-}
+/// Scalar/key copies never traverse a Row/Map image. Whole rows require Disclosed.
+pub fn scalar(v: &Value) -> u64 { value(v) }
+
+pub fn object_copy(row: &crate::value::Disclosed<'_>) -> u64 { row.copy_heap() }
 
 pub fn cursor_build(table: &crate::schema::Table, index: &crate::schema::Index, prefix: usize, key_bytes: u64, names: u64) -> u64 {
     if key_bytes == 0 { return 0; }

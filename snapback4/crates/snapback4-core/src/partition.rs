@@ -151,7 +151,7 @@ mod log_events {
     use super::*;
     pub(super) fn put(events: &mut PendingEvents, table: &str, definition: &Table, id: &str, new: &Value, after: &BTreeSet<String>) {
         for partition in after {
-            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(definition.project_fields(new.clone(), partition.strip_prefix("p:"))) });
+            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(definition.project_fields(new.clone(), partition.strip_prefix("p:")).into_value()) });
         }
     }
     pub(super) fn del(events: &mut PendingEvents, table: &str, id: &str, before: &BTreeSet<String>, after: &BTreeSet<String>) {
@@ -575,16 +575,22 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let mut bounds = Bounds { after: after.map(<[Value]>::to_vec), ..Bounds::default() };
     let mut live = Vec::new();
     let mut exhausted = false;
+    // Delivery's physical scratch is an internal ledger, separate from every
+    // caller receipt. The same fixed reservation drops raw rows one at a time.
+    let mut delivery_meter = crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort);
     let mut reader = viewer.map(|(schema, principal)| Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0));
     let mut aggregate = viewer.map(|(schema, _)| Runner::new(tx, schema, crate::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
     // One extra readable row decides pagination, never selection past N.
     let target = remaining.min(room.saturating_add(1));
     loop {
         let batch = target.saturating_sub(live.len()).min(256).max(1);
-        let rows = tx.scan(table_name, &index_name, group, &bounds, dir, batch)?;
+        let principal = viewer.map(|(_,p)|p).unwrap_or(crate::SYSTEM_PRINCIPAL);
+        let rows = if table.written_by.values().any(|a| !a.audience) {
+            crate::rows::disclosed::scan(tx,table_name,table,principal,&index_name,group,&bounds,dir,batch,&mut delivery_meter)?
+        } else { tx.scan(table_name,&index_name,group,&bounds,dir,batch)?.into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)),k)).collect() };
         let count = rows.len();
         for (row, key) in rows {
-            let mut row = row_image(&row, table).into_owned();
+            let mut row = row.into_value();
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
             if let Some(runner) = &mut aggregate {
@@ -596,7 +602,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             }
             // Transport retains recorded attribution for device aggregates;
             // only authored private fields are stripped from sync images.
-            let row = table.project_fields(row, viewer.map(|(_, principal)| principal));
+            let row = table.project_fields(row, viewer.map(|(_, principal)| principal)).into_value();
             live.push((row, key));
             if live.len() == target { break; }
         }
@@ -889,7 +895,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                 if let Some(row) = reader.fetch(&event.table, &event.id)? {
                     if reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)? {
                         event.kind = "put".into();
-                        event.data = Some(schema.tables[&event.table].project_fields(row, Some(principal)));
+                        event.data = Some(schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
                     }
                 }
                 out.push(event);
@@ -899,7 +905,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                 event.data = if schema.table(&event.table).is_some() { reader.fetch(&event.table, &event.id)? } else { None };
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
-                    event.data = event.data.take().map(|row| schema.tables[&event.table].project_fields(row, Some(principal)));
+                    event.data = event.data.take().map(|row| schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
                 } else { event.kind = "del".into(); }
             }
             out.push(event);

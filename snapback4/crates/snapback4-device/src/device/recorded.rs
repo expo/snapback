@@ -3,11 +3,11 @@ use super::*;
 use snapback4_core::{error::MeterKind, meter::Meter, rows::word_heap};
 
 pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut Meter) -> Result<bool, RuntimeError> {
-    use snapback4_core::schema::{Audience, audience_binding, row_image};
+    use snapback4_core::schema::{Audience, audience_binding};
     let Some(table) = rows.schema.table(name) else { return Ok(false) };
     let Some(sync) = &table.sync else { return Ok(false) };
-    meter.heap(word_heap::materialize(row, table))?;
-    let row = row_image(row, table);
+    meter.heap(word_heap::materialize(&table.project_fields(row.clone(), Some(viewer)), table))?;
+    let row = table.project_fields(row.clone(),Some(viewer)).into_value();
     if row.field("id").ok().and_then(|id| id.as_str().ok()).is_none() { return Ok(false); }
     if table.expired(&row, now) { return Ok(false); }
     // Held describes acquisition, not the lifetime of its audience witness.
@@ -22,7 +22,7 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
             let mut key = Vec::with_capacity(prefix.len() + 1);
             for column in prefix {
                 let value = row.field(column)?;
-                meter.heap(word_heap::value(value))?;
+                meter.heap(word_heap::scalar(value))?;
                 key.push(value.clone());
             }
             key.push(Value::Id(viewer.into()));
@@ -33,17 +33,18 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
             loop {
                 let limit = meter.ceilings.examined.saturating_sub(meter.used.examined).min(32) as usize;
                 if limit == 0 { meter.charge(MeterKind::Examined, 1)?; break false; }
-                let members = rows.tx.scan_metered(target, &binding.group_index, &key, &bounds, Dir::Asc, limit, meter)?;
+                let members = snapback4_core::rows::disclosed::scan(rows.tx, target, target_table, viewer, &binding.group_index, &key, &bounds, Dir::Asc, limit, meter)?;
                 let count = members.len();
                 if !meter.charge(MeterKind::Examined, count.max(1) as u64)? { break false; }
                 let mut live = false;
-                for (member, _) in &members {
-                    meter.heap(word_heap::materialize(member, target_table))?;
-                    if !target_table.expired(&row_image(member, target_table), now) { live = true; break; }
+                let stored = members.last().map(|(_,key)|key.clone());
+                for (member, _) in members {
+                    meter.heap(word_heap::materialize(&member, target_table))?;
+                    if !target_table.expired(&member.into_value(), now) { live = true; break; }
                 }
                 if live { break true; }
                 if count < limit { break false; }
-                let stored = &members.last().expect("full page").1;
+                let stored = stored.as_ref().expect("full page");
                 meter.heap(word_heap::key_decode(index.components.len() + 1, stored.len()))?;
                 bounds.after = Some(snapback4_core::key::decode(stored).ok_or_else(|| RuntimeError::Store("invalid membership index key".into()))?.into_iter().skip(key.len()).collect());
             }

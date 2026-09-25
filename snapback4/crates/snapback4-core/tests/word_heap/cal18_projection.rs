@@ -70,7 +70,7 @@ fn result(rows: Vec<(Value,Vec<u8>)>) -> (usize,u64) {
     let eligible = rows.iter().filter(|(r,_)|r.field("senderId").unwrap().as_str().unwrap() != own
         && r.field("at").unwrap().as_int().unwrap() > 0 && r.field("tombstone").unwrap() == &Value::Bool(false)
         && r.field("expiresAt").unwrap() == &Value::Null).count();
-    (eligible,rows.iter().map(|(r,_)|r.heap_bytes()).sum())
+    (eligible,rows.iter().map(|(r,_)|r.heap_bytes(&snapback4_core::Context::system().system_access().unwrap())).sum())
 }
 
 #[test]

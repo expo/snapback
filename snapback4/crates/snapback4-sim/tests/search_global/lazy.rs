@@ -140,12 +140,11 @@ fn w13f_flattened_opening_cut_stays_terminal() {
     with_fixture(&source(20, 3000), drain_rows(3000, 3, 1), |q| {
         let page = q("wide", None, "cof");
         // Both stores exhaust heap at this width and clear the entire page.
-        // SQLite's decoder hits heap first; memory first hits examined and
-        // then heap while completing opening bookkeeping. capped_at preserves
-        // the first reason, so assert both the null page and exceeded heap.
+        // Typed projection-plan vectors also reserve their slots, so both
+        // stores hit heap before examined while opening this many lanes.
         assert_eq!(page.data, Value::Null);
         assert!(page.metered.heap_bytes > snapback4_core::Ceilings::default().heap_bytes);
-        assert_eq!(page.capped_at.as_ref().unwrap().0, if DECODED_STORE { snapback4_core::error::MeterKind::HeapBytes } else { snapback4_core::error::MeterKind::Examined });
+        assert_eq!(page.capped_at.as_ref().unwrap().0, snapback4_core::error::MeterKind::HeapBytes, "decoded_store={DECODED_STORE}");
         assert_eq!((page.complete, page.cut, page.next.as_ref()), (false, Some(ReadCut::Meter), None));
     });
     // Preserve the positive partial-opening case below the heap boundary:
