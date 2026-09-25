@@ -58545,3 +58545,61 @@ format, authorization rule, server physical-child protection, guide syntax or
 refusal code changed. No deviation, open problem, deferred request, push or
 publication. Implementation commit: `67117a9b9`. File map, examples, mutation
 proofs and qualification: [round-12 report](reports/20260925-intent-lane-t-round12.md).
+
+
+## 2026-09-25 — Intent integration round 9: U/Z/V/Y/X/T for 0.4.2
+
+Created `sb4-intent/integration-042b` from fetched main `88d5bfca4` and
+merged the six requested heads, each without fast-forward, in U/Z/V/Y/X/T
+order. U's numbered publication router remains singular; V's synchronous
+admission, durable session authority and store binding remain on every
+delivery path. Y's issued clock supplies device evaluation and T's local
+expiry, separately from the estimated server-answer deadline. T's retained
+composition stays inside the common publication fences. Q's indexed expired
+backlog path serves inherited-expiry aggregates on the server; devices retain
+the authorized recount. X's compact guide cards retain T/Z examples with
+refusal details on dedicated why pages below 4 KB. All source files remain
+at or below 1,500 lines.
+
+Added five combined routing/clock/provenance tests and an inherited-expiry
+aggregate regression covering 100 versus 10,000 live children, an expired
+backlog of zero versus 50, exact meters and hidden-account behavior. Repaired
+cross-lane guide pins, obsolete recount cost expectations, partial-kind
+speculative projection fixtures, remembered-answer fixtures and colliding
+browser bootstrap imports. The retained-history deadline witnesses now
+control and calibrate the actual client clock fork; a deliberate +5 ms
+sample covers the formerly intermittent failure, and removing its calibration
+fails the witness. No production clock, authorization or expiry policy was
+relaxed.
+
+Final full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 647 s`**.
+Rust target summaries: 3,194 passed, 19 ignored, zero failed. Clients:
+1,934 passed, ten declared skips, zero failures/cancellations. All 78 model
+tests passed with the three sequence counts at **5,000 / 5,000 / 3,000**.
+The two earlier full runs ended `== 2 failure(s) in 2382 s` and
+`== 1 failure(s) in 727 s`; all failures were ours and are fixed, including
+the isolated intermittent clock-fixture reproduction. None was waived as
+baseline or environmental. The 83 guide tests, `ref-check`, optional
+PostgreSQL feature compilation and supplied target Clique check passed.
+The root diagnostics registry/generated guide artifacts did not change, so
+the conditional root inventory gate does not apply inside this fence.
+
+Combined wasm measured **1,849,726 B raw / 521,532 B gzip**; the ratchet is
+**522,000 B**, rounded from the measurement, with the reason committed in
+the metrics file. Runtime ceilings did not change. Ran Z's scale inventory
+once per treatment with the same 2.632 GB fixture, posts/reposts floored at
+1,000, and V's persisted format-2 row buckets verified outside the timed
+interval. Fully synced follows: **49,315 rows / 7,386,725 logical row bytes /
+7.355 s cold acquisition**. Online-only follows: **41,383 / 6,312,824 /
+8.352 s**. View-only controls: **9,484 / 1,855,714 / 1.759 s** and
+**3,563 / 1,003,090 / 0.834 s**, respectively. Rows and bytes exactly match
+Z's round 0; the report records its times and U's round-1 controls alongside
+these results. Timings are single samples on the shared host, not a causal
+estimate of packing's speedup; logical row bytes are not physical disk usage.
+
+No push, publication, version bump, live PostgreSQL qualification, Kani run
+or macOS/Expo witness was performed. No requested design change was stopped
+and no open integration defect remains. Code qualification tree is unchanged at final head
+`891841323`; the report maps message-only footer corrections. File-by-file integration decisions, exhaustive changed-path
+manifest, forms, failure reproductions, compressed logs and raw inventory:
+[round-9 report](reports/20260925-intent-integration-r9/REPORT.md).
