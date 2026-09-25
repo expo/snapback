@@ -186,3 +186,60 @@ test('retained asset homes and expiry use the same estimated time as device read
   assert.equal(core.meta.get('media:bytes:asset'), '');
   await cache.close();
 });
+
+for (const first of ['stream', 'slow']) test(`a 20s response cannot latch a midpoint error (${first} arrives first)`, async () => {
+  let wall = 1_000_000;
+  const clock = new ServerClock(() => wall), device = store();
+  clock.sample(wall, wall, wall, 'host:0', 1);
+  const sent = wall; wall += 20_000;
+  const actual = wall + 120_000, issued = [];
+  clock.subscribe(() => issued.push(clock.issuedDeviceNow()));
+  const stream = () => clock.sampleStream(actual, 'host:1', 2);
+  const slow = () => clock.sample(actual, sent, wall, 'host:1', 3);
+  if (first === 'stream') { stream(); slow(); } else { slow(); stream(); }
+  assert.ok(issued.every(now => now <= actual + 100), JSON.stringify(issued));
+  assert.equal(clock.issuedDeviceNow(), actual);
+  assert.equal(clock.estimatedServerNow(), actual, 'a slow real sample cannot outrank a receipt stamp');
+  assert.equal(clock.fork().issuedDeviceNow(), actual);
+  const shortSent = wall; wall += 40;
+  clock.sample(shortSent + 20 + 120_000, shortSent, wall, 'host:1', 4);
+  assert.equal(clock.estimatedServerNow(), wall + 120_000);
+  assert.equal(clock.issuedDeviceNow(), wall + 120_000, 'the short response leaves no frozen overshoot');
+  await clock.attach(device); await clock.detach();
+});
+
+test('a lone slow sample refines only estimated time, even across a fork and offline restart', async () => {
+  const wall = 1_020_000, clock = new ServerClock(() => wall), device = store();
+  await clock.attach(device);
+  clock.sample(wall + 120_000, wall - 20_000, wall, 'host:1');
+  assert.equal(clock.estimatedServerNow(), wall + 130_000);
+  assert.equal(clock.issuedDeviceNow(), wall);
+  assert.equal(clock.serverDelay(wall + 140_000), 10_000);
+  assert.equal(clock.deviceDelay(wall + 140_000), 140_000);
+  assert.equal(clock.fork().issuedDeviceNow(), wall);
+  await clock.persist();
+  const reopened = new ServerClock(() => wall); await reopened.attach(device);
+  assert.equal(reopened.estimatedServerNow(), wall + 130_000);
+  assert.equal(reopened.issuedDeviceNow(), wall, 'persisted slow estimates cannot become issued offsets');
+  await clock.detach(); await reopened.detach();
+});
+
+test('the durable admission floor survives retirement of every queued entry', async () => {
+  const device = store();
+  device.meta.set('server-clock', JSON.stringify({ offset: 0, last: 0 }));
+  device.meta.set('server-clock-floor', '1004000');
+  const reopened = new ServerClock(() => 1_000_000); await reopened.attach(device);
+  assert.equal(reopened.issuedDeviceNow(), 1_004_000);
+  await reopened.detach();
+});
+
+test('a short confirmation notifies watches when only the issued offset changes', () => {
+  const wall = 1_020_000, clock = new ServerClock(() => wall), changes = [];
+  clock.sample(wall + 110_000, wall - 20_000, wall, 'host:1'); // midpoint estimate +120s
+  assert.equal(clock.estimatedServerNow(), wall + 120_000);
+  assert.equal(clock.issuedDeviceNow(), wall);
+  clock.subscribe((shift, revised) => { if (revised || Math.abs(shift) >= 10) changes.push(clock.issuedDeviceNow()); });
+  clock.sample(wall + 120_000, wall, wall, 'host:1');
+  assert.equal(clock.estimatedServerNow(), wall + 120_000, 'the estimate did not change');
+  assert.deepEqual(changes, [wall + 120_000], 'the device watch still learns the correction');
+});

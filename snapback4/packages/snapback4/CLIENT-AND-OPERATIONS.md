@@ -1488,17 +1488,22 @@ trip among the latest 32 samples received within 60 seconds; ties use the newest
 A server restart or deliberate clock advance begins a new window. Older revisions cannot
 undo an advance. On a new epoch, requests already issued cannot switch the clock to another
 epoch; a newly issued request can. Streaming final stamps are provisional receipt-time
-samples, avoiding half-poll-wait error. Any real round-trip sample in that window takes
-precedence over a provisional stamp. The offset is zero before a first estimate and
-persists as device metadata beside store identity, with the issued floor. Before issuing
-time after a restart, the device also restores that floor from durable pending admissions;
-synchronous web journal capture remains unchanged.
+samples, avoiding half-poll-wait error. Only measured round trips of at most one second
+outrank a provisional stamp. Longer samples can supply estimated server time when no
+short or provisional sample remains, but never change the offset used to issue device
+time. Both offsets start at zero and persist beside store identity, with the issued floor.
+Each admission atomically commits its issued floor with its outbox entry; the floor
+outlives settlement. Startup restores it and any older pending admission times before
+issuing time. Synchronous web journal capture remains unchanged.
 
 Estimated server time is **unfloored** and schedules refetches of server answers, including
 local fallbacks. Issued device time (`client.now()`) rounds to integer milliseconds and is
 **monotonic**: local execution, predictions, expiry, asset homes and rendering use it.
 Mixed reads retain a deadline from each clock and wake at the earlier delay. `since` and
 `syncedAt` are **wall time**, independent of either server clock, for freshness labels.
+Wall-time freshness is versioned (`syncedAt:wall:1`); ambiguous legacy `syncedAt` is
+omitted until resync. Publication clamps future freshness stamps to `Date.now()` after
+wall-clock rollback.
 A confirmed row always carries the server's settlement time; the server never adopts a
 submitted client clock.
 

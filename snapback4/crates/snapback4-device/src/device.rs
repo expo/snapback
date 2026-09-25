@@ -183,6 +183,7 @@ const ACQUIRED: &str = "device:acquired-generation";
 const BACKEND: &str = "device:backend";
 const SEND_REVISION: &str = "device:send_revision";
 const SUBMISSION: &str = "device:submission";
+const ISSUED_FLOOR: &str = "client:server-clock-floor";
 const SNAPSHOT_OWNER: &str = "device:snapshot:owner";
 const SNAPSHOT_OWNERS: &str = "device:snapshot:owners";
 const SNAPSHOT_WATERMARK: &str = "device:snapshot:watermark";
@@ -949,6 +950,9 @@ impl<S: DeviceStore> Device<S> {
         }
         tx.outbox_insert(entry.seq, &entry.id, &encoded(&entry)?)?;
         tx.set_meta(SUBMISSION, &entry.seq.to_string())?;
+        // Admission's time survives settlement in the same durable commit as
+        // its outbox entry, including synchronous web journal recovery.
+        tx.set_meta(ISSUED_FLOOR, &meta_u64(&tx, ISSUED_FLOOR)?.max(entry.now.max(0) as u64).to_string())?;
         tx.commit()?;
         Ok(entry)
     }

@@ -276,7 +276,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const answers = new LocalReads();
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
-  let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
+  // Unversioned syncedAt may be server time; omit it until a wall-time resync.
+  let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt:wall:1" })).ok ?? 0);
   let caughtUp = false;
   let identityChecked = false;
   let partitionCurrent = true;
@@ -693,7 +694,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const observedState = observedRead.ok as { store_id?: string | null } | undefined;
             publishedStore = observedState?.store_id;
             storeIdentity = publishedStore ?? undefined;
-            await call({ op: "set_meta", key: "syncedAt", value: "0" });
+            await call({ op: "set_meta", key: "syncedAt:wall:1", value: "0" });
             for (const [id, sentSeq] of Object.entries(observation.retired)) {
               const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
               settled.get(id)?.resolve(receipt); settled.delete(id);
@@ -785,7 +786,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await refreshAcquired();
       seq = watermark;
       lastSyncAt = Date.now(); // Freshness labels use wall time, not either server clock.
-      await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
+      await call({ op: "set_meta", key: "syncedAt:wall:1", value: String(lastSyncAt) });
       return true;
     } finally {
       if (!closed && adoptedGeneration) {
@@ -920,7 +921,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (watch) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
       const last = serverAnswers.get(key);
       if (last) for (const table of last.tables) tables.add(table);
-      return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: !last };
+      return { read: last ? { ...last.read, fresh: false, since: Math.min(last.at, Date.now()) } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: !last };
     };
     const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; transportOffline?: boolean } = remembered, remember = true, retain = false) => {
       const fetch = async () => {
@@ -978,7 +979,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const fresh = link === "online" && caughtUp && identityChecked;
       const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
       const denied = unavailableWhy ?? answer.denied ?? outcome.denied;
-      const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true } : { data: outcome.data as R, complete: outcome.complete !== false, cut: outcome.cut ?? null, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) };
+      const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true } : { data: outcome.data as R, complete: outcome.complete !== false, cut: outcome.cut ?? null, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: Math.min(lastSyncAt, Date.now()) }) };
       return { outcome, result: { read, tables, nextExpiry }, terminal: !!(unavailableWhy || answer.denied) };
     };
     const first = await local();
@@ -1008,7 +1009,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const kept = coverage.filter(([, c]) => !wantsServer(c));
       const data = { ...remote.read.data as Record<string, unknown> };
       for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.serverExpiry ?? null };
+      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.serverExpiry ?? null };
     }
     if (wantsServer(outcome) && link === "online" && !await pending()) return server(remembered, true, true);
     return first.result;  }

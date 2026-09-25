@@ -183,3 +183,49 @@ test('web crash recovery restores admission time before issuing time after wall-
   assert.equal(restored.read.data[0].pending, true);
   await page.evaluate(() => window.client.close());
 });
+
+test('web crash after settlement keeps the admission floor after its outbox entry is retired', { timeout: 60_000 }, async t => {
+  const f = await launch({ extraSource, seed: [
+    { table: 'conversations', row: { id: 'room', title: 'Clock', creatorId: 'dev:alice' } },
+    { table: 'memberships', row: { id: 'member', conversationId: 'room', principal: 'dev:alice', role: 'admin', joinedAt: 1 } },
+  ] });
+  t.after(() => f.close());
+  const { page, api } = f;
+  const admitted = await page.evaluate(async api => {
+    window.wall = Date.now(); Date.now = () => window.wall;
+    const opener = window.webDevice();
+    window.client = await window.createLocalClient({ url: api, persona: 'alice', device: { async open(...args) {
+      window.core = await opener.open(...args); return window.core;
+    } }, fetch: async (input, init) => {
+      if (new URL(input).pathname === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true }));
+      const response = await fetch(input, init);
+      // Stable offset: settlement must not accidentally persist the floor via
+      // a new clock estimate. Wire data and the real server stamp are unchanged.
+      const headers = new Headers(response.headers);
+      headers.set('x-snapback-time', String(window.wall)); headers.set('x-snapback-clock', 'stable:0');
+      return new Response(await response.arrayBuffer(), { status: response.status, headers });
+    } });
+    const originalWall = window.wall; window.wall += 4000;
+    const write = window.client.mutate({ kind: 'mutation', name: 'media.sendClock' }, { conversationId: 'room', body: 'crash settled' });
+    const journal = Object.values(localStorage).flatMap(value => { try { const entry = JSON.parse(value).entry; return entry?.op === 'media.sendClock' ? [entry] : []; } catch { return []; } });
+    const settled = await write; await window.client.sync();
+    const queue = (await window.core.call({ op: 'queued' })).ok;
+    const saved = JSON.parse((await window.core.call({ op: 'meta', key: 'server-clock' })).ok);
+    const floor = Number((await window.core.call({ op: 'meta', key: 'server-clock-floor' })).ok);
+    return { originalWall, settled, journal, queue, saved, floor };
+  }, api);
+  assert.equal(admitted.settled.state, 'sent');
+  assert.equal(admitted.journal.length, 1, 'admission custody remains synchronous');
+  assert.deepEqual(admitted.queue, [], 'settlement and catchup retired the admission');
+  assert.ok(admitted.saved.last < admitted.journal[0].now, 'no later query, offset change or close flushed clock metadata');
+  assert.equal(admitted.floor, admitted.journal[0].now, 'a separate durable record outlives the admission');
+  await page.context().route(api + '/**', route => route.abort('internetdisconnected'));
+  await page.addInitScript(wall => { window.wall = wall; Date.now = () => window.wall; }, admitted.originalWall);
+  await f.reload(); // Abrupt JS lifetime end, with no client.close() or later query.
+  const issued = await page.evaluate(async api => {
+    window.client = await window.createLocalClient({ url: api, persona: 'alice' });
+    return window.client.now();
+  }, api);
+  assert.ok(issued >= admitted.journal[0].now, JSON.stringify({ admitted, issued }));
+  await page.evaluate(() => window.client.close());
+});

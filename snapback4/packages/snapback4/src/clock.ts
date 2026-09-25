@@ -3,6 +3,7 @@ import type { DeviceCore } from "./local.ts";
 
 const WINDOW_MS = 60_000;
 const MAX_SAMPLES = 32;
+const SHORT_RTT_MS = 1000;
 const clocks = new WeakMap<typeof fetch, ServerClock>();
 const readers = new WeakMap<() => number, ServerClock>();
 const responses = new WeakMap<Response, { clock: ServerClock; order: number }>();
@@ -12,6 +13,7 @@ interface Sample { offset: number; roundTrip: number; received: number; provisio
  * A clock advance must not compete with faster samples from before the jump. */
 export class ServerClock {
   private offset = 0;
+  private issuedOffset: number | undefined;
   private last = 0;
   private samples: Sample[] = [];
   private revision: string | undefined;
@@ -23,15 +25,16 @@ export class ServerClock {
   constructor(private wall: () => number = Date.now) { readers.set(this.issuedDeviceNow, this); }
   fork(): ServerClock {
     const copy = new ServerClock(this.wall);
-    copy.offset = this.offset; copy.last = this.last;
+    copy.offset = this.offset; copy.issuedOffset = this.issuedOffset; copy.last = this.last;
     copy.samples = this.samples.slice(); copy.revision = this.revision;
     copy.order = this.order; copy.epochBarrier = this.epochBarrier;
     return copy;
   }
   /** Unfloored estimated server time: samples and server-answer refetches. */
   estimatedServerNow = (): number => Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.round(this.wall() + this.offset)));
+  private deviceCandidate = (): number => Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.round(this.wall() + (this.issuedOffset ?? 0))));
   /** Monotonic issued device time: execution, prediction, expiry and rendering. */
-  issuedDeviceNow = (): number => this.last = Math.max(this.last, this.estimatedServerNow());
+  issuedDeviceNow = (): number => this.last = Math.max(this.last, this.deviceCandidate());
   subscribe = (listener: (shift: number, revisionChanged: boolean) => void): (() => void) => {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
@@ -50,14 +53,22 @@ export class ServerClock {
       // Every request already issued may still have reached the old process.
       if (epoch !== priorEpoch) this.epochBarrier = this.order;
     }
-    const before = this.offset;
+    const before = this.offset, issuedBefore = this.issuedOffset;
     this.samples = this.samples.filter(s => received >= s.received && received - s.received <= WINDOW_MS).slice(-(MAX_SAMPLES - 1));
     this.samples.push({ offset: serverNow - (sent + received) / 2, roundTrip: received - sent, received, provisional });
-    // A held stamp has no measured RTT. Any real sample beats it; ties prefer newest.
-    this.offset = this.samples.reduce((best, s) => s.provisional !== best.provisional ? (best.provisional ? s : best) : s.roundTrip <= best.roundTrip ? s : best).offset;
-    if (before !== this.offset) {
+    // Only short RTTs outrank receipt stamps. A slow/held response may estimate
+    // server time, but its midpoint error must never enter the issued floor.
+    const rank = (s: Sample) => s.provisional ? 1 : s.roundTrip <= SHORT_RTT_MS ? 0 : 2;
+    const best = this.samples.reduce((best, s) => rank(s) !== rank(best) ? (rank(s) < rank(best) ? s : best) : s.roundTrip <= best.roundTrip ? s : best);
+    this.offset = best.offset;
+    if (rank(best) < 2) this.issuedOffset = best.offset;
+    if (before !== this.offset || issuedBefore !== this.issuedOffset) {
       void this.persist().catch(() => {}); // Device calls/close await the same durable save.
-      for (const listener of this.listeners) listener(this.offset - before, revisionChanged);
+      // Watchers ignore sub-frame noise. A newly eligible issued offset can
+      // move even when a short sample merely confirms the server estimate.
+      const estimateShift = this.offset - before, issuedShift = (this.issuedOffset ?? 0) - (issuedBefore ?? 0);
+      const shift = Math.abs(issuedShift) > Math.abs(estimateShift) ? issuedShift : estimateShift;
+      for (const listener of this.listeners) listener(shift, revisionChanged);
     }
   }
   wrap(fetcher: typeof fetch): typeof fetch {
@@ -76,7 +87,7 @@ export class ServerClock {
   }
   serverDelay(deadline: number): number { return Math.max(0, deadline - this.estimatedServerNow()); }
   deviceDelay(deadline: number): number {
-    return this.issuedDeviceNow() >= deadline ? 0 : this.serverDelay(deadline);
+    return this.issuedDeviceNow() >= deadline ? 0 : Math.max(0, deadline - this.deviceCandidate());
   }
   sampleStream(serverNow: number, revision: string | undefined, order: number) {
     const received = this.wall();
@@ -87,14 +98,20 @@ export class ServerClock {
     const kept = await core.call({ op: "meta", key: "server-clock" });
     if (kept.denied) throw new Error(JSON.stringify(kept.denied));
     try {
-      const state = JSON.parse(String(kept.ok)) as { offset: number; last: number } | null;
-      if (state && Number.isFinite(state.offset) && Math.abs(state.offset) <= Number.MAX_SAFE_INTEGER && Number.isSafeInteger(state.last) && state.last >= 0) {
+      const state = JSON.parse(String(kept.ok)) as { offset: number; issuedOffset?: number; last: number } | null;
+      const issuedOffset = state?.issuedOffset ?? state?.offset;
+      if (state && Number.isFinite(state.offset) && Math.abs(state.offset) <= Number.MAX_SAFE_INTEGER && typeof issuedOffset === "number" && Number.isFinite(issuedOffset) && Math.abs(issuedOffset) <= Number.MAX_SAFE_INTEGER && Number.isSafeInteger(state.last) && state.last >= 0) {
         if (!this.samples.length) this.offset = state.offset;
+        this.issuedOffset ??= issuedOffset;
         this.last = Math.max(this.last, state.last);
       }
     } catch { /* Missing or malformed clock metadata starts at offset zero. */ }
-    // Admission already keeps its issued time in the durable outbox/journal.
-    // Restore it before issuing time, without delaying synchronous web capture.
+    // The device commits this floor atomically with admission, and retains it
+    // after settlement. Pending entries also recover older stores/journals.
+    const floor = await core.call({ op: "meta", key: "server-clock-floor" });
+    if (floor.denied) throw new Error(JSON.stringify(floor.denied));
+    const issued = Number(floor.ok);
+    if (Number.isSafeInteger(issued) && issued >= 0) this.last = Math.max(this.last, issued);
     const pending = await core.call({ op: "queued" });
     if (pending.denied) throw new Error(JSON.stringify(pending.denied));
     for (const entry of (pending.ok ?? []) as { now?: number }[]) {
@@ -108,7 +125,7 @@ export class ServerClock {
   }
   persist(): Promise<void> {
     if (!this.save) return Promise.resolve();
-    const save = this.save, value = JSON.stringify({ offset: this.offset, last: this.last });
+    const save = this.save, value = JSON.stringify({ offset: this.offset, issuedOffset: this.issuedOffset ?? 0, last: this.last });
     this.saving = this.saving.catch(() => {}).then(() => save(value));
     return this.saving;
   }
