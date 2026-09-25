@@ -130,6 +130,12 @@ for(const tier of ["wasm","process"]) test(`${tier}: four-level capture, covered
   await host.core.call({op:"withdraw",predicted:["comments/c"]});
   assert.equal((await host.post("/m/post",{id:"post",args:{id:"c",task:"t",body:"confirmed"}})).state,"sent");await client.sync();
   assert.equal((await client.query({kind:"query",name:"countFor"},{task:"t"})).data,1);
+  // Advance only the applied clock: every physical parent/child is still held.
+  const state=(await host.core.call({op:"state"})).ok;
+  const clock=await host.core.call({op:"apply",page:{snapshot:false,events:[],watermark:state.watermark,generation:state.generation,more:false,now:until+1}});
+  assert.equal(clock.denied,undefined,JSON.stringify(clock));
+  const beforeSweep=await host.core.call({op:"query",name:"page",viewer:"dev:bob",args:{task:"t"},now:until-1});
+  assert.deepEqual(beforeSweep.ok.data,[]);assert.equal(beforeSweep.ok.complete,true);assert.equal(beforeSweep.ok.unknown,false);assert.equal(beforeSweep.ok.nextExpiry,null);
   await host.post("/dev/clock/advance",{duration:"+61m"});await client.sync();
   const expired=await host.core.call({op:"query",name:"page",viewer:"dev:bob",args:{task:"t"},now:until-1});
   assert.deepEqual(expired.ok.data,[]);
