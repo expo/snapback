@@ -759,7 +759,7 @@ fn every_guide_keyword_a_diagnostic_names_is_a_card() {
         for marker in ["guide(\"", "guide = Some(\"", "guide: \""] {
             for (at, _) in text.match_indices(marker) {
                 let rest = &text[at + marker.len()..];
-                let keyword: String = rest.chars().take_while(|c| c.is_ascii_lowercase()).collect();
+                let keyword: String = rest.chars().take_while(|c| c.is_ascii_lowercase() || *c == '-').collect();
                 if !keyword.is_empty() && rest[keyword.len()..].starts_with('"') {
                     named.push((keyword, file.display().to_string()));
                 }

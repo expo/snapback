@@ -56080,3 +56080,48 @@ gzip against the unchanged 496,000 B budget. No new authoring form, refusal,
 runtime fix, package version, push or publication. File map, concrete
 counterexample, development-test corrections, before/after histograms and
 reproduction commands: [Lane W report](reports/20260925-lane-w.md).
+
+
+## 2026-09-25 — Lane X: SQL/Convex Rosetta, familiar guesses and shorter first reads
+
+Implemented LLP 3000.013’s Lane X: `guide from-sql` with `sql`, `convex`
+and `rosetta` aliases and first-screen entry points; repeated `where` combines
+with `and`; a helper in `m.q` accepts `m.helper(...)` with checked ownership.
+A filtered row compared with itself receives E_QUARRY_SELF_EQUALITY and a
+named-key nested-read repair. Nullable helper arguments, aggregate declarations,
+`.length`, `count(*)`, `limit` and duplicate sync have concrete repairs; `len`
+remains refused with its existing mechanical `check --fix` behavior.
+
+The six core cards now open with paved examples and short limits. Their word
+count falls from 18,300 to 10,417 (43.1%); opening reductions range from 78.5%
+to 96.8%. All 17 original compiled Quarry blocks are preserved byte-for-byte.
+All 133 original prose fragments have tested homes: 79 in dedicated why pages,
+54 in Details. Facts stay reachable under every diagnostic guide context.
+All 207 why pages fit 4,096 bytes; the largest default authored page is 4,039
+bytes. No source file added or enlarged by this lane exceeds 1,500 lines.
+
+Native engine, wasm/memory and native/SQLite witnesses check nested keys, predicate ordering,
+short-circuiting, helper placement and recursion, same-result metering, and
+an explicit foreign-owner read through a qualified helper that returns null
+before projection. Eleven guesses were replayed through the exact baseline
+`f5efae87f` CLI and this lane; every repaired fixture compiles. Evidence lanes
+were read-only; missing failed source text is labelled as reconstructed.
+The external target-clique.q checks with zero problems and the same six notes
+as baseline. The guide authorization census gained the new/reordered examples;
+no normalized prior authorization fact was removed.
+
+Final default-concurrency `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 443 s`**. Regular clients: 1,509 passed, 10 existing skips;
+all three models retain 5,000 / 5,000 / 3,000 sequences. The first serial run
+was `== 2 failure(s) in 1442 s`: nine introduced test failures in the Rust and
+client phases, all corrected and listed in the report. No failure was waived.
+Ref-check: zero errors/unchecked. Wasm: 1,775,799 B raw / 495,258 B gzip against
+the unchanged 496,000 B budget. A damaged Cargo registry extraction was repaired
+from its cached archive before testing; no dependency version changed.
+
+No authorization, disclosure, durability or meter redesign; no client-source,
+Following, package-version, publication or push work. No new calibration or
+suite-speed claim. The supervisor retains integration and release ownership.
+File-by-file changes, word counts, all fact destinations, guess provenance,
+reproduction commands and exact verification receipts:
+[Lane X report](reports/lane-x-report.md).
