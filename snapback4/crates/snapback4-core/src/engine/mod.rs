@@ -439,7 +439,7 @@ impl Engine {
 
     /// Counts shortened by the last schema activation, committed with its generation.
     pub fn read_through_shortened(&self) -> Result<BTreeMap<String,u64>,RuntimeError> {
-        self.store.meta("read_through_shortened")?.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose().map(Option::unwrap_or_default)
+        self.store.meta("read_through_shortened")?.map(|s|crate::json_codec::from_text(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose().map(Option::unwrap_or_default)
     }
 
     /// Replace the schema and programs in place (a successor generation);

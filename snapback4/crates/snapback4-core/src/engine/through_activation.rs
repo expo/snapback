@@ -57,6 +57,9 @@ fn correspondence(
     child: &RuleExpr,
     parent: &RuleExpr,
 ) -> Option<std::collections::BTreeMap<String, String>> {
+    if child.is_uniformly_readable() && parent.is_uniformly_readable() {
+        return Some(Default::default());
+    }
     fn walk(
         a: &serde_json::Value,
         b: &serde_json::Value,
@@ -168,7 +171,7 @@ pub fn activate(
             }
             Ok(())
         })?;
-        if invalid > 0 {
+        if invalid > 0 || map.is_none() {
             return Err(refusal(
                 name,
                 invalid,
