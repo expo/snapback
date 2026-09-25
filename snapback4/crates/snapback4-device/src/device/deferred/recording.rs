@@ -22,6 +22,7 @@ impl<T: DeviceTx> Rows for Recording<'_, T> {
     fn get(&self, t: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.tx.get(t, id) }
     fn lookup(&self, t: &str, n: &str, i: &Index, k: &[Value]) -> Result<Option<Value>, RuntimeError> { self.tx.lookup(t, n, i, k) }
     fn scan(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, l: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.tx.scan(t, i, p, b, d, l) }
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> { self.tx.index_head(table,index,prefix,bounds) }
     fn scan_metered(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, l: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.tx.scan_metered(t, i, p, b, d, l, meter) }
     fn count_prefix(&self, t: &str, i: &str, p: &[Value], l: u64) -> Result<u64, RuntimeError> { self.tx.count_prefix(t, i, p, l) }
     fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {

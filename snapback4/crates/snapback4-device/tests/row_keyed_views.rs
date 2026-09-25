@@ -543,3 +543,22 @@ fn member_horizon_never_persists_excluded_note_or_attribution_in_view() {
                 .is_some_and(|v| v.contains("excluded-note-secret")))
     );
 }
+
+fn metadata_witness<H: Host>(host: &mut H) {
+    let source=SOURCE.replace("  expire at .until\n", "")
+        .replace("  joinedAt: int default 0", "  joinedAt: int default 0\n  note: text <=20000000 default ''")
+        + "\ntable gates:\n  member: members\n  read <- allow\n  insert <- exists unread[member = .member]\n  sync public\nmutation witness():\n  insert gates { id: 'gate', member: 'member' }\n";
+    let (mut server,backend)=compile(&source);
+    seed(&mut server,0);
+    let mut device=host.open("metadata-witness",Some(backend)).unwrap();
+    for (i,page) in snapshot_pages(&mut server,"bob",100).iter().enumerate() {device.apply(page,i==0).unwrap();}
+    // The 20 MB declaration cannot fit a member materialization reservation.
+    // A raw authorization witness needs only its indexed lifetime, including
+    // on the device's separate physical authority ledger.
+    let prediction=device.predict("witness","bob",&json!({}),1,vec![],1).unwrap();
+    assert!(!prediction.predicted.is_empty(),"{prediction:?}");
+}
+#[test]
+fn metadata_witness_memory() {metadata_witness(&mut Memory::new());}
+#[test]
+fn metadata_witness_sqlite() {metadata_witness(&mut Sqlite::new("b3-witness"));}

@@ -143,6 +143,20 @@ impl Runner<'_> {
 
     /// Existence witnesses are raw data, never recursively authorized rows.
     pub(super) fn probe_witness(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        // B1's witness boundary: reserve before presence, and export only a
+        // successful verdict's lifetime. The B3 reservation covers the view's
+        // declared image plus the member's index metadata, never its payload.
+        if self.schema.maintain_for(table).is_some_and(|m|m.row_key.is_some()) {
+            let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[table])
+                + crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4;
+            let expiry=self.next_expiry;
+            let result=self.authorized_scratch(bytes,&[(MeterKind::Examined,1)],|runner,_|runner.probe_witness_inner(table,index,key,equalities,current));
+            if !matches!(result,Ok((true,true))) {self.next_expiry=expiry;}
+            return result;
+        }
+        self.probe_witness_inner(table,index,key,equalities,current)
+    }
+    fn probe_witness_inner(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool,bool),RuntimeError> {
         self.schema.refuse_private(table)?;
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
@@ -151,10 +165,7 @@ impl Runner<'_> {
         if let Some(maintain) = self.schema.maintain_for(table).filter(|m|m.row_key.is_some()) {
             self.read_tables.insert(maintain.row_key.as_ref().unwrap().table.clone());
             if let Some(row) = &found {
-                let mark = self.meter.mark();
-                let present = self.row_view_member_image(maintain, row).map(|member| member.is_some());
-                self.meter.release_heap(mark);
-                if !present? { found = None; }
+                if !self.row_view_member_exists(maintain, row)? { found = None; }
             }
             if equalities.iter().any(|(field,_)|field=="value") && let Some(row)=found.take() {
                 let prior = self.timeline_pending;
@@ -162,7 +173,7 @@ impl Runner<'_> {
                 found = self.live_row_view(maintain,row)?;
                 let pending = self.timeline_pending;
                 self.timeline_pending |= prior;
-                if pending { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or retry after recount settlement and expiry sweeping (guide maintains)".into() }); }
+                if pending { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or retry after recount settlement (guide maintains)".into() }); }
             }
         }
         let mut live = found.is_some();

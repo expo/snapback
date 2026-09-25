@@ -710,6 +710,11 @@ fn blind_member_marks_have_identical_meters_bounds_and_changes() {
             let out = e.mutate("blind", None, ctx(&[("member", id("b"))], 1)).unwrap();
             if writes == 0 {
                 assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_VIEW_KEY"), "{out:?}");
+                let refusal=serde_json::to_string(&out).unwrap();
+                assert!(refusal.contains("before marking") && !refusal.contains("through a server mutation"),"{refusal}");
+                let card=snapback4_lang::guide::card("maintains").unwrap();
+                assert!(card.contains("ordinary server mutation retains its caller"));
+                assert!(!card.contains("through a server mutation"));
             } else {
                 assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"), "{out:?}");
             }
@@ -758,7 +763,7 @@ fn comparison_boundaries_exclude_or_include_the_exact_mark() {
 }
 
 #[test]
-fn settled_expiring_counts_use_only_the_expired_subset() {
+fn settled_expiring_counts_certify_only_the_live_basis() {
     for size in [1200, 10000] {
         let b = bound(&(SOURCE.to_owned() + "\nmutation useCount(member: members):\n  n = unread[member]\n  return n\n"));
         let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
@@ -775,16 +780,12 @@ fn settled_expiring_counts_use_only_the_expired_subset() {
         assert!(out.metered.examined < 20, "{out:?}");
         let remaining = if size == 10000 { 1 } else { size / 2 };
         let expired = e.query("unreadFor", ctx(&[("member", id("b"))], 10)).unwrap();
-        assert_eq!(expired.complete, size == 1200, "{expired:?}");
+        assert_eq!(expired.complete, true, "{expired:?}");
         assert!(expired.metered.examined < 20, "subtraction leaked its population: {expired:?}");
         assert!(expired.metered.steps < 100, "subtraction leaked its work: {expired:?}");
         assert_eq!(expired.data, Value::Int(if expired.complete { remaining } else { 0 }));
         let out = e.mutate("useCount", None, ctx(&[("member", id("b"))], 10)).unwrap();
-        if size == 10000 {
-            assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_VIEW_KEY"), "{out:?}");
-        } else {
-            assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
-        }
+        assert!(matches!(&out.state, WriteState::Sent { result,.. } if result==&Value::Int(remaining)), "{out:?}");
         while e.sweep_expired(10, 100).unwrap() > 0 {}
         let swept = e.query("unreadFor", ctx(&[("member", id("b"))], 10)).unwrap();
         assert!(swept.complete, "{swept:?}");
@@ -1064,7 +1065,7 @@ fn completed_expiry_correction_has_one_constant_public_meter_charge() {
 }
 
 #[test]
-fn pending_expiring_count_never_bypasses_the_live_correction() {
+fn expired_population_never_selects_a_pending_mark() {
     let b = bound(SOURCE);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
     join(&mut e, "b", "bob", 0, 0);
@@ -1080,12 +1081,12 @@ fn pending_expiring_count_never_bypasses_the_live_correction() {
     let out = e.mutate("mark",None,ctx(&[("member",id("b")),("readUpTo",Value::Int(6))],10)).unwrap();
     assert!(matches!(out.state,WriteState::Sent {..}));
     let pending = e.query("unreadFor",ctx(&[("member",id("b"))],10)).unwrap();
-    assert!(!pending.complete);
+    assert!(pending.complete);
     assert_eq!(pending.data,Value::Int(0));
     let stream = e.stream_at("alice",from,100,10).unwrap();
     for event in stream.events.iter().filter(|e|e.table == "unread" && e.kind == "put") {
         assert_eq!(event.data.as_ref().unwrap().field("value").unwrap(),&Value::Int(0));
     }
-    while e.run_view_chunk(10).unwrap().is_some() {}
+    assert!(e.run_view_chunk(10).unwrap().is_none());
     assert_eq!(e.query("unreadFor",ctx(&[("member",id("b"))],10)).unwrap().data,Value::Int(0));
 }

@@ -179,7 +179,7 @@ fn generated_pairs_admission_outbox_and_settlement_on_both_devices() {
         let sqlite = pair_devices(&mut Sqlite::new("row-view-generated"), &pair);
         assert_eq!(memory, sqlite, "device stores differ: {name}");
     });
-    assert_eq!((count, admitted), (540, 270));
+    assert_eq!((count, admitted), (546, 276));
     for pair in [generated::astra_move(), generated::astra_schedule(), generated::aligned_access_hidden_mark(), generated::blind_private_parent()] {
         pair_devices(&mut Memory::new(), &pair);
         pair_devices(&mut Sqlite::new("row-view-astra"), &pair);
@@ -235,4 +235,12 @@ fn public_source_blind_private_parent_replays_every_device_lifecycle_channel() {
     let memory = pair_devices(&mut Memory::new(), &pair);
     let sqlite = pair_devices(&mut Sqlite::new("row-view-private-parent"), &pair);
     assert_eq!(memory, sqlite);
+}
+
+#[test]
+fn formerly_live_populations_replay_both_insertion_orders_on_both_devices() {
+    assert_eq!(generated::visit_formerly_live(|name,pair| {
+        pair_devices(&mut Memory::new(),&pair);
+        pair_devices(&mut Sqlite::new(&format!("b3-r6-{}",name.replace('/',"-"))),&pair);
+    }),6);
 }

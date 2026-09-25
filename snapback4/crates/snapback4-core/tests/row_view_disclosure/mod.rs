@@ -35,6 +35,7 @@ pub struct Pair {
     pub page_size: usize,
     pub file_store: bool,
     pub examined: Option<u64>,
+    pub observed_at: i64,
     pub write_refusal: Option<&'static str>,
 }
 impl Pair {
@@ -54,6 +55,7 @@ impl Pair {
             page_size: 2,
             file_store: false,
             examined: None,
+            observed_at: NOW,
             write_refusal: None,
         }
     }
@@ -161,7 +163,7 @@ impl Pair {
         let worlds = [0, 1].map(|world| {
             let mut e = self.engine(world);
             let mut transcript = Transcript::new();
-            let mut now = NOW;
+            let mut now = self.observed_at;
             let base = e.seq().unwrap();
             let mut watermark = base;
             let pages = snapshot(&mut e, &self.principal, now, self.page_size);

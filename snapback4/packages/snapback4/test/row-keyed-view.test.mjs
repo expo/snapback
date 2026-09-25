@@ -45,6 +45,11 @@ test('row-key check JSON and rebuilt wasm carry the actual E_VIEW_KEY envelope',
     events: [
       { table: 'members', id: 'b', kind: 'put', data: { id: 'b', conversationId: 'c', principal: 'dev:bob', readUpTo: 10000, joinedAt: 0 } },
       { table: 'unread', id: 'b', kind: 'put', data: { id: 'b', member: 'b', value: 10000, recountPending: true } },
+      // An empty covered live basis is now certifiable despite stale pending
+      // metadata. Exercise a real physical live-range cut for this refusal.
+      ...Array.from({ length: 10000 }, (_, n) => ({ table: 'messages', id: `live-${n}`, kind: 'put', data: {
+        id: `live-${n}`, conversationId: 'c', senderId: 'dev:alice', ordinal: 1, tombstone: false, until: null,
+      } })),
     ],
   } });
   assert.ok(Object.hasOwn(applied, 'ok'), JSON.stringify(applied));
@@ -53,7 +58,7 @@ test('row-key check JSON and rebuilt wasm carry the actual E_VIEW_KEY envelope',
   const prediction = call({ op: 'predict', name: 'depend', viewer: 'dev:bob', args: { member: 'b' }, now: 1 });
   assert.equal(prediction.ok?.denied?.code, 'E_VIEW_KEY', JSON.stringify(prediction));
   assert.equal(prediction.ok.denied.guide, 'maintains');
-  assert.match(prediction.ok.denied.rewrite, /retry after recount settlement and expiry sweeping/);
+  assert.match(prediction.ok.denied.rewrite, /retry after recount settlement/);
 
   const member = { id: 'b', conversationId: 'c', principal: 'dev:bob', readUpTo: 0, joinedAt: 0 };
   const message = (id, until) => ({ id, conversationId: 'c', senderId: 'dev:alice', ordinal: 1, tombstone: false, until });

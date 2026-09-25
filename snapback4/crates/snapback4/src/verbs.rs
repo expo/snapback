@@ -211,7 +211,7 @@ pub fn check(options: &Options) -> i32 {
     let scale_summary = crate::scale::summary(&certificates);
     let row_views = bound.schema.maintains.iter().filter_map(|m| m.row_key.as_ref().map(|k| json!({
         "view": m.target, "source": m.source, "sourceKey": k.source_key, "member": k.table,
-        "memberKey": k.member_key, "fanout": k.fanout, "writerRecount": 1024, "recountChunk": 256
+        "memberKey": k.member_key, "fanout": k.fanout, "writerRecount": snapback4_core::engine::row_views::WRITER_RECOUNT, "recountChunk": snapback4_core::engine::row_views::RECOUNT_CHUNK
     }))).collect::<Vec<_>>();
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
@@ -236,7 +236,7 @@ pub fn check(options: &Options) -> i32 {
         println!("residency (measurements): not measured — no dev store; use check --residency --fixture <fixture-directory> --as <principal>");
     }
     if !options.json { for m in &bound.schema.maintains { if let Some(k)=&m.row_key {
-        println!("  view {}: key {}.{} = {}.{}; one value per {} row; source fanout <= {}; writer recount <= 1024 examined source rows within remaining meter, then pending/background chunks <= 256",m.target,m.source,k.source_key,k.table,k.member_key,k.table,k.fanout);
+        println!("  view {}: key {}.{} = {}.{}; one value per {} row; source fanout <= {}; writer recount <= {} examined source rows within remaining meter, then pending/background chunks <= {}",m.target,m.source,k.source_key,k.table,k.member_key,k.table,k.fanout,snapback4_core::engine::row_views::WRITER_RECOUNT,snapback4_core::engine::row_views::RECOUNT_CHUNK);
     } } }
     if !options.json && !options.flags.contains_key("residency") {
         for (name, fact) in bound.schema.operations.iter().filter(|(_, fact)| fact.held) {

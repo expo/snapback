@@ -1432,3 +1432,31 @@ fn maintained_column_inspection_is_public_and_missing_storage_reads_zero() {
     assert_eq!(parsed(&check)["tables"],2);
     assert!(parsed(&doctor)["lines"].as_array().unwrap().iter().any(|s|s.as_str().unwrap().starts_with("schema    ok: 2 tables")));
 }
+
+#[test]
+fn row_view_check_matches_engine_chunk_size_and_commit_count() {
+    use snapback4_core::{Context, value::{Value as V, object}, engine::row_views::{RECOUNT_CHUNK,WRITER_RECOUNT}};
+    let p=Project::new();
+    let source=include_str!("../../snapback4-lang/tests/fixtures/row-keyed-view.q").replace("  expire at .until\n", "");
+    p.source(&source);
+    let checked=p.run(&["check","--json"]);
+    assert!(checked.status.success(),"{checked:?}");
+    let row=parsed(&checked)["rowViews"][0].clone();
+    assert_eq!(row["recountChunk"],RECOUNT_CHUNK);
+    assert_eq!(row["writerRecount"],WRITER_RECOUNT);
+    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let id=|s:&str|V::Id(s.into());
+    let mut seed=vec![("members".into(),object([("id",id("b")),("conversationId",id("c")),("principal",id("bob")),("readUpTo",V::Int(0)),("joinedAt",V::Int(0))]))];
+    const POPULATION:usize=1200;
+    seed.extend((1..=POPULATION).map(|n|("messages".into(),object([("id",id(&format!("m{n:05}"))),("conversationId",id("c")),("senderId",id("alice")),("ordinal",V::Int(n as i64)),("tombstone",V::Bool(false)),("until",V::Null)]))));
+    e.seed_at(seed,1).unwrap();
+    let marked=e.mutate("mark",None,Context::new("bob",[("member".into(),id("b")),("readUpTo".into(),V::Int(POPULATION as i64))].into()).at(1)).unwrap();
+    assert!(matches!(marked.state,snapback4_core::WriteState::Sent{..}));
+    let start=e.seq().unwrap();
+    let mut commits=0;
+    while e.run_view_chunk(1).unwrap().is_some() { commits+=1; assert!(commits<100); }
+    assert_eq!(commits,POPULATION.div_ceil(RECOUNT_CHUNK));
+    assert_eq!(e.seq().unwrap()-start,commits as u64);
+    assert_eq!(e.changes(start,100).unwrap().len(),commits);
+}

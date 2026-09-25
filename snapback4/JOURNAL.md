@@ -49848,3 +49848,82 @@ measured toolchain is Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt; Node is
 remains EXIT=0; all named findings are dispositioned above. Report:
 `/home/ccheever/sb5/lane-b3.r5.final.md`. Commit only on sb5/b3-row-keyed-view;
 no push, publication, deployment, or runtime ceiling change.
+
+### 2026-09-25 — B3 round 6: witnesses under the accounting law, recount from the live basis
+
+Read B1 db3af09cc and its LLP 3000.015 §1 accounting law before changing this
+lane. Copied `authorized_scan`, `authorized_scratch`, their sealed
+`Authorization` capability, and `rows/disclosed.rs::decode_reservation`/`column`.
+Applied B1's reservation-before-presence witness wrapper and sealed
+`AuthorizedRow::charge` ordering to B3's member read. B3's current query-field
+projection omits recorded fields; B1's `Disclosed` owner-field projection is
+the combined baseline's implementation, not a claim that written-by was added
+on this branch. Actual internal charges never enter the caller's receipt.
+
+Pure row-view existence now reads only the member id/expiry index through
+`Rows::index_head`. Full member decoding/default materialization and rule
+checking run on the internal ledger; only the authorized projected result is
+priced afterward. Regressions compare empty/17 MiB private notes, hidden member
+absence/presence, permitted versus denied witnesses, and both device stores.
+The permitted control prevents accidentally making witnesses recursive reads.
+
+Marks, chunks and count certification seek only the null and future ranges of
+the parent/expiry index. Reads use the same fixed source decoder/one-examined/
+one-step reservation for queries, count-dependent writers and pending values.
+Old pending work is recertified from the current live range. A stored basis time
+commits atomically with the count; a later physical sweep subtracts only inputs
+included in that basis. Expiry-index cursors reconcile edits to the counted
+prefix and restart when a contributing expiry passes. Tests cover an exact
+live count surviving a 1,200-row later sweep and edits/time advance during a
+recount. Non-expiring interval deltas retain their existing path.
+
+The generator grows from **540 to 546 pairs per store/host**, with admission
+refusals unchanged at 270 and runtime cases 270 → 276. The six additions cross
+0/1,200 formerly-live counted rows, tombstones and own sends with both insertion
+orders. Query bytes/meters, watermarks, snapshots, changes, useCount and every
+recount commit are compared. The 24 scalar configurations remain. Nine former
+expiry scenarios now require zero recount commits and successful useCount,
+instead of allowing their old differences. Core disclosure/accounting/witness
+suite counts are 14/6/3 (previously 13/4/0); device row-keyed/disclosure suites
+are 21/6 (19/5); language cases remain 29. The new CLI regression compares
+check JSON to the engine constants and observes ceil(1200 / RECOUNT_CHUNK)
+commits: five with the unchanged 256-row constant.
+
+Removed the expired-input residual and the ineffective ordinary-server-mutation
+escape hatch from the spec/guide/runtime help. A server mutation keeps its
+caller. The only remaining protocol residual is other activity visible through
+the shared global sequence/log. Eight mutations fail at assertions: payload
+witness, expired mark scan, expired chunk scan, omitted basis reconciliation,
+omitted public step, omitted authorized-result price, restored bad hint, and
+1024 engine chunks paired with stale JSON 256. Each was restored before the
+final run; evidence is in target/b3-r6-mutations.log and its individual logs.
+
+The first diagnostic full run was **`== 2 failure(s) in 799 s`**: wasm exceeded
+the inherited ratchet, and a wasm fixture expected an empty covered live basis
+to remain pending. That fixture now supplies 10,000 live rows to exercise an
+actual incomplete-count E_VIEW_KEY envelope. Its focused rebuilt-wasm test
+passes. That initial run is not qualification.
+
+Final qualification: **`== 0 failure(s) in 750 s`**, using exactly:
+`env -u FORCE_COLOR CARGO_HOME=/home/ccheever/sb5/lane-b3/target/r6-cargo CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash snapback4/scripts/test.sh`.
+The local Cargo home avoids the already-damaged shared cc cache. All three
+requested rebuild settings remain set; FORCE_COLOR is unset. Rust passed in
+525 s; client tests report **1089 passed, zero failed, 10 existing skips**.
+The build, fixtures, types, docs budget and release guard also passed. Source
+and tests did not change during this final run; 30 changed-source hashes were
+checked again afterward. Evidence: target/b3-r6-suite-final.log.
+
+Final wasm: **1,802,844 B raw / 504,555 B gzip**, Rust 1.97.0 /
+wasm-bindgen 0.2.127, no wasm-opt. Artifact SHA-256:
+68367239fc0c5b480645dc5f817a0a5d3aab5200d246f90fc6363c95491c72f3.
+Compared with the recorded round-5 final 1,793,145 / 500,847 (not rebuilt here),
+the whole-artifact delta is **+9,699 raw / +3,708 gzip**. Shared accounting
+boundaries, key-only lifetime probes and live-basis traversal need the bytes;
+no independent per-component attribution is claimed. Raise the ratchet from
+**501,000 to 505,000 B**, leaving **445 B**; runtime meter ceilings are unchanged.
+The budget's why and commit message record this reason. Report:
+`/home/ccheever/sb5/lane-b3.r6.final.md`. Commit only on
+sb5/b3-row-keyed-view; no push, publication or deployment.
+
+Post-qualification cleanup trims one trailing blank line from the copied
+decoder helper. No executable logic or test changed after the passing run.

@@ -54,7 +54,7 @@ fn generated_populations_transitions_and_expiry() {
         pair.assert_equal();
         if !pair.refused { pair.file_store = true; pair.assert_equal(); }
     });
-    assert_eq!(count, 540);
+    assert_eq!(count, 546);
 }
 #[test]
 fn astra_scratch_regressions_refuse_unsupported_audiences() {
@@ -106,4 +106,12 @@ fn public_source_blind_private_parent_refuses_without_recount_work() {
         }
         pair.assert_equal();
     }
+}
+
+#[test]
+fn formerly_live_populations_and_insertion_orders_have_identical_transcripts() {
+    assert_eq!(generated::visit_formerly_live(|name,mut pair| {
+        for file in [false,true] {pair.file_store=file;pair.assert_equal();}
+        eprintln!("{name}: equal");
+    }),6);
 }

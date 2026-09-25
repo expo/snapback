@@ -105,6 +105,9 @@ impl crate::schema::Schema {
         for m in &self.maintains {
             let Some(key) = &m.row_key else { continue };
             if let Some(t) = self.tables.get_mut(&key.table) {
+                let mut lifetime = vec!["id"];
+                if let Some(expiry) = &t.expire { lifetime.push(expiry); }
+                t.indexes.insert("$viewLifetime".into(), Index::of(&lifetime, false));
                 if let Some(expiry) = &t.expire {
                     t.indexes.insert(
                         key.live_member_index(),
@@ -139,9 +142,11 @@ impl crate::schema::Schema {
             let mut work = public_table(
                 BTreeMap::from([
                     ("id".into(), C::Id),
-                    ("cursor".into(), C::Optional(Box::new(C::Id))),
+                    ("cursor".into(), C::Optional(Box::new(C::Json { max_bytes: 8192 }))),
                     ("total".into(), C::Int),
                     ("parked".into(), C::Bool),
+                    ("at".into(), C::Time),
+                    ("deadline".into(), C::Optional(Box::new(C::Time))),
                 ]),
                 BTreeMap::from([
                     ("byId".into(), Index::of(&["id"], true)),
@@ -150,6 +155,9 @@ impl crate::schema::Schema {
             );
             work.rules = Rules::deny();
             self.tables.insert(m.work_table(), work);
+            let mut basis = public_table(BTreeMap::from([("id".into(), C::Id), ("at".into(), C::Time)]), BTreeMap::from([("byId".into(), Index::of(&["id"], true))]));
+            basis.rules = Rules::deny();
+            self.tables.insert(format!("$basis:{}", m.target), basis);
         }
     }
     pub fn check_row_view_audiences(&self) -> Result<(), crate::RuntimeError> {
@@ -161,7 +169,7 @@ impl crate::schema::Schema {
     pub fn is_recount_work(&self, name: &str) -> bool {
         self.maintains
             .iter()
-            .any(|m| m.row_key.is_some() && m.work_table() == name)
+            .any(|m| m.row_key.is_some() && (m.work_table() == name || format!("$basis:{}", m.target) == name))
     }
 }
 

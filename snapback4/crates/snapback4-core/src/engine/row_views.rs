@@ -8,6 +8,8 @@ use crate::{
     value::{Value, object},
 };
 
+mod live;
+
 pub const WRITER_RECOUNT: usize = 1024;
 #[cfg(feature = "sqlite")]
 pub const RECOUNT_CHUNK: usize = 256;
@@ -302,14 +304,16 @@ impl Runner<'_> {
                     let selected = (!live
                         || !self.expired(&self.schema.tables[&m.source], &source))
                         && k.matches(&source, u);
-                    if live {
+                    if live && selected {
                         self.note_expiry(&self.schema.tables[&m.source], &source);
                     }
                     let before = old.is_some_and(|old| k.matches(&source, old));
                     self.meter.step(k.predicate.steps() * 2 + 4)?;
                     Ok(Some((
                         i64::from(selected) - i64::from(before),
-                        source.field("id")?.clone(),
+                        if live && self.schema.tables[&m.source].expire.is_some() {
+                            Value::Array(crate::key::decode(&position).unwrap().into_iter().skip(prefix.len()).collect())
+                        } else { source.field("id")?.clone() },
                         position,
                     )))
                 })();
@@ -352,6 +356,9 @@ impl Runner<'_> {
         let existing = self.view_get(&m.target, id)?;
         let work_name = m.work_table();
         if new.is_none() {
+            if !self.device && let Some(basis) = self.view_get(&format!("$basis:{}",m.target),id)? {
+                self.view_delete(&format!("$basis:{}",m.target),&basis,true)?;
+            }
             if let Some(row) = existing {
                 self.view_delete(&m.target, &row, false)?;
             }
@@ -371,7 +378,7 @@ impl Runner<'_> {
             && (!self.check_rule(&k.table, crate::schema::Effect::Read, None, &u)?
                 || !self.row_view_source_readable(m, &u)?)
         {
-            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "member recounts require a readable member and destination source group; make the member row readable to its writers or mark through a server mutation (guide maintains)".into() });
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "member recounts require a readable member and destination source group; make the member row readable to its writers before marking (guide maintains)".into() });
         }
         // A newly readable image never inherits an unreadable old mark's schedule.
         let old = match old {
@@ -380,7 +387,7 @@ impl Runner<'_> {
             }
             _ => None,
         };
-        let live = self.device && self.schema.tables[&m.source].expire.is_some();
+        let live = self.schema.tables[&m.source].expire.is_some();
         let changed = k.fields().iter().any(|name| {
             old.as_ref()
                 .is_none_or(|old| old.field(name).ok() != u.field(name).ok())
@@ -441,7 +448,9 @@ impl Runner<'_> {
             return Err(RuntimeError::Prediction("row-keyed view recount needs the covered source range; queued without a predicted row".into()));
         }
         let limit = self.scan_room(m).min(WRITER_RECOUNT);
-        let (n, complete, _) = self.view_scan(m, &u, delta, &index, bounds, limit, live)?;
+        let (n, complete, _) = if live {
+            self.live_basis_scan(m, &u, None, limit)?
+        } else { self.view_scan(m, &u, delta, &index, bounds, limit, false)? };
         if self.device && !complete {
             return Err(RuntimeError::Prediction("row-keyed recount exceeds this device writer's allowance; queued without a predicted value".into()));
         }
@@ -456,7 +465,8 @@ impl Runner<'_> {
         } else {
             0
         };
-        let row = self.view_image(m, &u, total, !complete)?;
+        let row = self.view_image(m, &u, if live && !complete { 0 } else { total }, !complete)?;
+        if !self.device && complete { self.set_view_basis(m, id)?; }
         self.view_put(&m.target, &row, existing.as_ref(), false)?;
         if !self.device {
             let work = self.view_get(&work_name, id)?;
@@ -470,6 +480,8 @@ impl Runner<'_> {
                     ("cursor", Value::Null),
                     ("total", Value::Int(0)),
                     ("parked", Value::Bool(false)),
+                    ("at", Value::Int(self.context.now.unwrap_or(0))),
+                    ("deadline", Value::Null),
                 ]);
                 self.view_put(&work_name, &next, work.as_ref(), true)?;
             }
@@ -522,7 +534,9 @@ impl Runner<'_> {
                     }
                     let id=member.field("id")?.as_str()?;
                     let existing=r.view_get(&m.target,id)?;
-                    let delta=i64::from(new.as_ref().is_some_and(|v|k.matches(v,&member)))-i64::from(old.as_ref().is_some_and(|v|k.matches(v,&member)));
+                    let at = r.view_basis(m, id)?;
+                    let contributes = |v: &Value| live::live_at(t,v,at) && k.matches(v,&member);
+                    let delta=i64::from(new.as_ref().is_some_and(contributes))-i64::from(old.as_ref().is_some_and(contributes));
                     r.charge_maintain(MeterKind::Steps,k.predicate.steps()*2)?;
                     if existing.as_ref().is_some_and(pending) {
                         if !r.device {
@@ -530,10 +544,16 @@ impl Runner<'_> {
                             if let Some(work)=r.view_get(&name,id)? {
                                 let mut next=work.as_object()?.clone();
                                 next.insert("parked".into(),Value::Bool(false));
-                                if let Ok(Value::Id(cursor))=work.field("cursor") {
-                                    let counted=|row:&Option<Value>|row.as_ref().is_some_and(|v|v.field("id").ok().and_then(|v|v.as_str().ok()).is_some_and(|id|id<=cursor.as_str()) && k.matches(v,&member));
+                                if let Ok(cursor)=work.field("cursor") {
+                                    let at = number(&work,"at");
+                                    let counted=|row:&Option<Value>| row.as_ref().is_some_and(|v| live::live_at(t,v,at) && live::before_cursor(k,t,v,cursor) && k.matches(v,&member));
                                     let change=i64::from(counted(&new))-i64::from(counted(&old));
                                     next.insert("total".into(),Value::Int(number(&work,"total")+change));
+                                    // A newly inserted prefix contributor participates in the restart deadline.
+                                    if let Some(v)=&new && counted(&new) && let Some(until)=live::expiry(t,v) {
+                                        let deadline=work.field("deadline").ok().and_then(|v|v.as_int().ok()).map_or(until,|old|old.min(until));
+                                        next.insert("deadline".into(),Value::Int(deadline));
+                                    }
                                 }
                                 r.view_put(&name,&Value::Row(next.into()),Some(&work),true)?;
                             }
@@ -545,7 +565,7 @@ impl Runner<'_> {
                             // value through bounded work, never an unreserved hidden source scan.
                             let row=r.view_image(m,&member,0,true)?;
                             r.view_put(&m.target,&row,None,false)?;
-                            let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false))]);
+                            let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false)),("at",Value::Int(r.context.now.unwrap_or(0))),("deadline",Value::Null)]);
                             r.view_put(&m.work_table(),&work,None,true)?;
                         }
                         else {
@@ -562,7 +582,7 @@ impl Runner<'_> {
     }
     fn pending_view_read(&mut self) -> Result<(), RuntimeError> {
         if self.meter.cut == crate::meter::Cut::Abort {
-            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "an incomplete row-keyed count cannot decide a writer; use the member row or retry after recount settlement and expiry sweeping (guide maintains)".into() });
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "an incomplete row-keyed count cannot decide a writer; use the member row or retry after recount settlement (guide maintains)".into() });
         }
         self.timeline_pending = true;
         self.components.note(|f| f.pending = true);
@@ -573,25 +593,22 @@ impl Runner<'_> {
         m: &Maintain,
         row: &Value,
     ) -> Result<Option<Value>, RuntimeError> {
-        let k = m.row_key.as_ref().unwrap();
-        self.charge_maintain(MeterKind::Examined, 1)?;
-        // Use the read path's store-decode / materialization boundary. The caller
-        // owns a transient scope; writer maintenance keeps its prepaid fetches.
-        let Some((member, _)) = self.tx.scan_metered(
-            &k.table, "byId", std::slice::from_ref(row.field("member")?),
-            &Bounds::default(), Dir::Asc, 1, &mut self.meter,
-        )?.pop() else {
-            return Ok(None);
-        };
-        self.meter.heap(crate::rows::word_heap::materialize(
-            &member, &self.schema.tables[&k.table],
-        ))?;
-        let member = row_image(&member, &self.schema.tables[&k.table]).into_owned();
-        if self.expired(&self.schema.tables[&k.table], &member) {
-            return Ok(None);
-        }
-        self.note_expiry(&self.schema.tables[&k.table], &member);
-        Ok(Some(member))
+        self.authorized_member(&m.row_key.as_ref().unwrap().table, row.field("member")?.as_str()?)
+    }
+    // A pure witness has no row payload. Reserve the key's admitted width,
+    // then expose only existence/lifetime from the internal ledger.
+    pub(super) fn row_view_member_exists(&mut self, m: &Maintain, row: &Value) -> Result<bool, RuntimeError> {
+        let table = &m.row_key.as_ref().unwrap().table;
+        self.authorized_scratch(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4, &[(MeterKind::Examined,1)], |runner,_| {
+            runner.meter.heap(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4)?;
+            runner.meter.charge(MeterKind::Examined,1)?;
+            let Some(key) = runner.tx.index_head(table,"$viewLifetime",std::slice::from_ref(row.field("member")?),&Bounds::default())? else { return Ok(false); };
+            if runner.schema.tables[table].expire.is_some() && let Some(Value::Int(until)) = key.get(1) {
+                if *until <= runner.context.now.unwrap_or(0) { return Ok(false); }
+                runner.next_expiry = Some(runner.next_expiry.map_or(*until, |old|old.min(*until)));
+            }
+            Ok(true)
+        })
     }
     // @ref LLP 3000.015#3 — a readable member does not authorize hidden source contributions.
     fn row_view_source_readable(
@@ -642,7 +659,7 @@ impl Runner<'_> {
         } else {
             self.scan_room(m)
         };
-        let (n, complete, _) = self.view_scan(m, member, None, &index, bounds, limit, true)?;
+        let (n, complete, _) = self.live_basis_scan(m, member, None, limit)?;
         Ok(complete.then_some(n))
     }
     pub(super) fn live_row_view(
@@ -659,7 +676,7 @@ impl Runner<'_> {
     fn live_row_view_inner(
         &mut self,
         m: &Maintain,
-        #[allow(unused_mut)] mut row: Value,
+        row: Value,
     ) -> Result<Option<Value>, RuntimeError> {
         self.read_tables
             .insert(m.row_key.as_ref().unwrap().table.clone());
@@ -671,73 +688,25 @@ impl Runner<'_> {
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
         }
-        if pending(&row) {
-            self.pending_view_read()?;
-            // An expiring fallback has no certified live basis while recounting.
-            // Do not bypass expiry correction by exposing its historical raw total.
-            if self.schema.tables[&m.source].expire.is_some() {
-                return Ok(Some(self.view_image(m, &member, 0, true)?));
-            }
-            return Ok(Some(row));
-        }
-        // Expiry is a live fact even before the physical sweep reaches the source.
         if self.schema.tables[&m.source].expire.is_some() {
             #[cfg(feature = "sqlite")]
             if !self.device {
-                let k = m.row_key.as_ref().unwrap();
-                let index = k.range_index(self.schema.tables[&m.source].expire.as_ref().unwrap());
-                let now = self.context.now.unwrap_or(0);
-                let bounds = Bounds {
-                    gt: Some(Value::Null),
-                    lte: Some(Value::Int(now)),
-                    ..Default::default()
-                };
-                let limit = if self.meter.cut == crate::meter::Cut::Abort {
-                    self.scan_room(m).min(WRITER_RECOUNT)
-                } else {
-                    self.scan_room(m)
-                };
-                // Bound the private correction internally, then expose one constant unit.
-                let mark = self.meter.mark();
-                let correction = self.view_scan(m, &member, None, &index, bounds, limit, false);
-                self.meter.restore(mark);
-                self.meter.charge(MeterKind::Examined, 1)?;
-                self.meter.step(1)?;
-                let (n, complete, _) = correction?;
-                // Both completed and pending corrections pay this live head lookup.
-                // Otherwise the examined count discloses correction overflow. It also
-                // supplies the same conservative reactive deadline on both paths;
-                // null/future rows never participate in the subtraction scan.
-                let bounds = Bounds {
-                    gt: Some(Value::Int(now)),
-                    ..Default::default()
-                };
-                let (_, end, head) = self.view_scan(m, &member, None, &index, bounds, 1, true)?;
-                if !end && head.is_none() {
-                    self.pending_view_read()?;
-                }
-                if !complete {
-                    self.pending_view_read()?;
-                    return Ok(Some(self.view_image(m, &member, 0, true)?));
-                } else if let Value::Row(fields) = &mut row {
-                    let total = fields.get("value").unwrap().as_int()? - n;
-                    fields.insert("value".into(), Value::Int(total));
-                }
-                return Ok(Some(row));
+                let bytes=crate::rows::disclosed::decode_reservation(&self.schema.tables[&m.source]);
+                let result = self.authorized_scratch(bytes,&[(MeterKind::Examined,1),(MeterKind::Steps,1)], |runner,_| {
+                    // Old pending work is not evidence of a large live basis:
+                    // expiry may have removed every input since it was scheduled.
+                    let limit = if pending(&row) { WRITER_RECOUNT } else { usize::MAX };
+                    let (n, complete, _) = runner.live_basis_scan(m,&member,None,limit)?;
+                    Ok(complete.then_some(n))
+                })?;
+                if result.is_none() { self.pending_view_read()?; }
+                return Ok(Some(self.view_image(m,&member,result.unwrap_or(0),result.is_none())?));
             }
-            // Wire images are live at serve time. Devices never subtract from them:
-            // pages can straddle expiry or omit rows that expired before catch-up.
             let total = self.device_live_count(m, &member)?;
-            if total.is_none() {
-                self.pending_view_read()?;
-            }
-            return Ok(Some(self.view_image(
-                m,
-                &member,
-                total.unwrap_or(0),
-                total.is_none(),
-            )?));
+            if total.is_none() { self.pending_view_read()?; }
+            return Ok(Some(self.view_image(m,&member,total.unwrap_or(0),total.is_none())?));
         }
+        if pending(&row) { self.pending_view_read()?; }
         Ok(Some(row))
     }
 }
@@ -745,7 +714,7 @@ impl Runner<'_> {
 #[cfg(feature = "sqlite")]
 impl Runner<'_> {
     pub(super) fn rebuild_row_view(&mut self, m: &Maintain) -> Result<(), RuntimeError> {
-        for table in [&m.target, &m.work_table()] {
+        for table in [&m.target, &m.work_table(), &format!("$basis:{}",m.target)] {
             loop {
                 let rows = self
                     .tx
@@ -782,21 +751,26 @@ impl Runner<'_> {
         };
         let member = row_image(&member, &self.schema.tables[&k.table]).into_owned();
         let existing = self.view_get(&m.target, id)?;
-        let bounds = match work.field("cursor")? {
-            Value::Id(id) => Bounds {
-                after: Some(vec![Value::Id(id.clone()), Value::Id(id.clone())]),
-                ..Default::default()
-            },
+        let now = self.context.now.unwrap_or(0);
+        let restart = work.field("deadline").ok().and_then(|v|v.as_int().ok()).is_some_and(|until|until<=now);
+        let cursor = if restart { &Value::Null } else { work.field("cursor")? };
+        let bounds = match cursor {
+            Value::Id(id) => Bounds { after: Some(vec![Value::Id(id.clone()),Value::Id(id.clone())]), ..Default::default() },
             _ => Bounds::default(),
         };
         let limit = self.scan_room(m).min(RECOUNT_CHUNK);
-        let (n, complete, last) =
-            self.view_scan(m, &member, None, &k.source_index(), bounds, limit, false)?;
+        let saved_expiry = self.next_expiry.take();
+        let (n, complete, last) = if self.schema.tables[&m.source].expire.is_some() {
+            self.live_basis_scan(m,&member,Some(cursor),limit)?
+        } else { self.view_scan(m,&member,None,&k.source_index(),bounds,limit,false)? };
+        let deadline = self.next_expiry.take().into_iter().chain(if restart { None } else { work.field("deadline").ok().and_then(|v|v.as_int().ok()) }).min();
+        self.next_expiry = saved_expiry;
         if !complete && last.is_none() {
             return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "one source row does not fit a recount chunk; reduce its payload, then retry the pending view (guide maintains)".into() });
         }
-        let total = number(work, "total") + n;
+        let total = if restart { n } else { number(work, "total") + n };
         if complete {
+            self.set_view_basis(m, id)?;
             let row = self.view_image(m, &member, total, false)?;
             self.view_put(&m.target, &row, existing.as_ref(), false)?;
             self.view_delete(&m.work_table(), work, true)
@@ -809,6 +783,8 @@ impl Runner<'_> {
                 ),
                 ("total", Value::Int(total)),
                 ("parked", Value::Bool(false)),
+                    ("at", Value::Int(self.context.now.unwrap_or(0))),
+                    ("deadline", deadline.map(Value::Int).unwrap_or(Value::Null)),
             ]);
             self.view_put(&m.work_table(), &next, Some(work), true)
         }

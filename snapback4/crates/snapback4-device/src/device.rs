@@ -249,6 +249,9 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         self.tx.scan(table, index_name, prefix, bounds, dir, limit).map(|rows| rows.into_iter().map(|(row, key)| (predictions::without_pending(row), key)).collect())
     }
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.tx.index_head(table,index,prefix,bounds)
+    }
     fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, meter)?;
         for (row, _) in &mut rows {

@@ -115,7 +115,8 @@ pub fn visit(mut run: impl FnMut(String, Pair)) -> usize {
             }
         }
     }
-    count + visit_blind_parents(run)
+    count += visit_blind_parents(&mut run);
+    count + visit_formerly_live(run)
 }
 
 /// Public source × blind non-owner writer × private parent × unequal groups.
@@ -208,4 +209,34 @@ pub fn blind_private_parent() -> Pair {
     });
     Pair::new(source(Rule::Inherited), seeds, "alice", Operation::new("mark",json!({"member":"b","readUpTo":1}),"alice"))
         .query("unreadFor",json!({"member":"b"}))
+}
+
+/// Unswept inputs were live at insertion and are absent at the observation clock.
+/// Include payloads that never contributed, so the pending/traffic oracle cannot
+/// mistake this for a permissible difference in the disclosed count.
+pub fn visit_formerly_live(mut run: impl FnMut(String, Pair)) -> usize {
+    for excluded in ["counted", "tombstone", "own-send"] {
+      for member_first in [true,false] {
+        let seeds = [0,1200].map(|population| {
+            let mut rows = vec![cases::member("a","alice",0),cases::message("live",100,false)];
+            for i in 0..population {
+                let mut row=cases::message(&format!("expired{i:05}"),5,excluded=="tombstone");
+                row.1["until"]=json!(NOW+1);
+                if excluded=="own-send" {row.1["senderId"]=json!("alice");}
+                rows.push(row);
+            }
+            if !member_first { let member=rows.remove(0); rows.push(member); }
+            rows
+        });
+        let source=cases::SOURCE.to_owned()+"\nmutation useCount(member: members):\n  return unread[member]\n";
+        let mut pair=Pair::new(source,seeds,"alice",Operation::new("mark",json!({"member":"a","readUpTo":100}),"alice"))
+            .then(Operation::new("useCount",json!({"member":"a"}),"alice"))
+            .query("unreadFor",json!({"member":"a"}));
+        pair.observed_at=NOW+2;
+        for op in &mut pair.operations {op.now=NOW+2;}
+        pair.page_size=256;
+        run(format!("formerly-live/{excluded}/0-1200/member-first-{member_first}"),pair);
+      }
+    }
+    6
 }
