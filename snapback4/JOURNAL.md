@@ -56406,3 +56406,38 @@ filtered home record has no component plan under the current conservative
 compiler; an independent homePage control proves the actual composition path.
 Historical acquisition remains 2.387x faster, below the 5x target, with fully
 synced owned events dominant.
+
+
+### 2026-09-25 — Lane U round 9: reobserve local replies that expire in flight
+
+Re-evaluate an expired local candidate once at the current time, with the
+original arguments and session/incarnation checks. Publish the valid retry;
+if it also expires in flight, withhold it and mark the watch dirty so the
+existing rerun path cannot leave it idle. A withheld retry retains its raw
+expiry fact and its next future deadline. The numbered procedure and client
+reference describe this behavior. Implementation commits: 9e3b1cc76 and
+59e57c47f. No engine or local.ts timer changes were needed.
+
+Measured: 186 affected client tests passed, zero failed. On both wasm and the
+native process device, a watch first evaluated at T-1 and delivered at T
+publishes the 24 remaining retained rows, or the post-permit composition with
+secret null. The expired snapshot never publishes. Query controls, bounded
+second-expiry retries, future timers, sign-out, close and incarnation changes
+pass. All five mutations are rejected: watch-only expiry bypass (4 failures),
+removed retry (8), missing dirty flag (3), unbounded retries (6), and dropped
+future deadline (1). Mutated modules were restored before the full suite.
+Final scripts/test.sh: **== 0 failure(s) in 1549 s**, exit 0. Rust passed in
+188 s; 1,686 client tests passed, zero failed, ten existing skips, in 1,115 s;
+all 78 model tests passed in 231 s, including both 5,000-sequence I1–I13 sweeps.
+The existing serial-client mode preserved all tests, counts and timeouts.
+The first full run was intentionally interrupted to preserve a withheld
+retry's future deadline; no test failure had been reported. Command errors,
+mutation evidence and complete results are in the
+[round-9 report](reports/20260925-bounded-following-r9/REPORT.md).
+
+Not done: no new language form, refusal code, public contract, schema,
+acquisition, storage, ceiling, package-version, push or publication change.
+Left the whole-page remembered row-expiry issue unchanged as requested;
+it is tracked on origin/main at
+issues/20260925-snapback4-remembered-answer-row-expiry.md. No acquisition
+remeasurement: the historical 2.387x speedup and unmet 5x target remain.
