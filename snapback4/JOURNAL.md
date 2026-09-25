@@ -55245,3 +55245,40 @@ references, zero errors and zero unchecked. Logs are
 No deviations or new open issues. The prior conservative local-slot and
 arithmetic proof boundaries are unchanged. Did not push, publish or bump package
 versions; the supervisor owns release integration.
+
+## 2026-09-24 — publication fix lane 2: session-model clock custody
+
+On the black M5 Max, Node 24.18.0, from `b1edaa05cff`, the exact saved
+local seed-11 sequence passed 200 repetitions alone (3.07 s) and 1,000 with
+36 CPU worker threads (80.07 s). Another 1,000 instrumented repetitions
+alongside the suite's build also passed, as did 100 repetitions of the
+seed-1-through-11 prefix. CPU load alone did not reproduce the local failure.
+
+A controlled preceding online-test timeout did: Node rejects the test but
+leaves its async body running. The unchanged helper continued generating online
+sequences while the local test enabled/reset process-global mock timers.
+The exact seed-11 replay failed on repetition 8 with the original 100-step
+fair-recovery assertion. A second traced reproduction caught online
+`scheduleRefresh` handles created in one local clock generation being cleared
+by online `close`/`signOut` in a later one. Node 24's mock timer reset leaves
+those handles with queue positions; a late clear can remove a current timer.
+The exhausted model had no held response or pending command and no real
+Timeout resource left to make close progress. This is cross-test timer
+contamination after the online timeout, not a client session transition bug
+or evidence that 100 fair steps are insufficient.
+
+`execute` now waits for the previous sequence's real work and cleanup before
+starting another sequence or enabling its local clock. The seeded test also
+checks its abort signal before starting another sequence and before failure
+minimization. The 5,000 counts, 240-second limits, 100-step recovery bound and
+I1–I13 assertions are unchanged. The exact saved sequence is retained in a
+regression that overlaps online and local invocations, including two local
+clock owners, for 20 repetitions. It passes. In the same deliberately timed-out
+online negative control, all 100 local replays now pass and the cross-generation
+clear trace is empty; the deliberately failed online test still fails.
+
+The online model alone completed its full 5,000 sequences in 66.33 s.
+The default-schedule suite measurement and the two final publisher-equivalent
+qualifications follow in this lane's next journal entry. Evidence is under
+`~/sb4-intent/fix-041b/`. No client production code, version, credential or
+keychain setting changed; nothing was published.

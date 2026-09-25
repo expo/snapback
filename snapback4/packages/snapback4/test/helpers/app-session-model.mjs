@@ -27,7 +27,16 @@ export function generate(seed, length = 24) {
     ? [command, { op: "handleWrite", app: command.app, account: command.account }] : [command])];
 }
 let sequenceSerial = 0;
-export async function execute(commands, coverage = {}, tier = "online", audit = {}) {
+let running = Promise.resolve();
+export function execute(...args) {
+  // A node:test timeout rejects the test, not its in-flight async body. Wait
+  // for that sequence's real work before another sequence owns global timers.
+  // Otherwise a late online close can clear a timer from a later local clock.
+  const result = running.then(() => run(...args));
+  running = result.catch(() => {});
+  return result;
+}
+async function run(commands, coverage = {}, tier = "online", audit = {}) {
   if (tier === "local") await modelReady();
   const devices = tier === "local" ? Array.from({ length: 3 }, () => {
     const device = modelDevice();
