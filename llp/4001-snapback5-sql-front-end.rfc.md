@@ -440,6 +440,8 @@ The instruments are LLP 4000 §9.3–9.5, with these substitutions:
 
 ## 11. Questions for the author
 
+**Author ruling, 2026-09-25 ("recs all ok"):** Postgres dialect only; the §7 pre-test gates the compiler work; a separate `snapback5` package for the comparison. Recorded before the round-1 reviews returned.
+
 1. Postgres dialect only, or also the SQLite flavor? (Recommendation:
    Postgres, because that is the prior the grader and Supabase builders
    hold.)
