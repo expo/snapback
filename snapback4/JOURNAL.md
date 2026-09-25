@@ -56116,3 +56116,36 @@ shell qualification, package version bump, push or publication. Supervisor owns
 integration and blind review. Implementation revision: `1d0960c07`; full file map,
 engineering decisions, test meanings, every failed first-run case and reproduction
 commands: [Lane Y report](reports/20260925-lane-y.md).
+
+
+## 2026-09-25 — Lane Y round 1: separate estimated, issued and wall time
+
+Fixed all findings from the two round-0 blind reviews. Unfloored estimated
+server time schedules server-answer refetches, including local fallback and mixed
+reads. Monotonic issued device time drives execution, predictions, expiry and
+rendering. Freshness `since` / `syncedAt` is wall time. Clock forks preserve
+request-order restart barriers; streaming final stamps use provisional receipt
+time and yield to real RTT samples. Startup restores the floor from pending
+admissions before issuing time, preserving synchronous web journal capture.
+`useNow` catches deadlines and corrections between render and effect installation.
+The clock card and wire reference name these distinct responsibilities.
+
+Added deterministic request-count, freshness, frame-bound, effect-gap, restart/fork
+and streaming-error regressions. A deliberate +500 ms scheduling mutation failed
+the frame assertion and was removed. Real Chromium/IndexedDB crash-style reload
+with wall-clock rollback passed without `close()` or a post-admission query; the
+synchronous journal and pending timestamp survived. The real 25-second poll now
+checks upper bounds before and after a short response. The mutation wire test
+reads back the row and rejects the submitted `now: 1`. Held browser removals in
+the full run were 2, 1, 1, 1 and 2 ms late. Existing journal/navigation tests pass
+unchanged; native +25h and -31d cold starts still pass.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 407 s`**.
+Regular clients: 1,535 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No full-suite failure or waived baseline issue.
+Wasm remains 1,775,799 B raw / 495,258 B gzip against the 496,000 B budget.
+No server implementation, authorization, disclosure, meter, admission bridge,
+public API or Quarry form changed. No push, package publication or iOS simulator
+qualification. Implementation commits: `834f2f377`, `c5471def0`.
+Finding-by-finding fixes, complete file map, fixture corrections and reproductions:
+[Lane Y round-1 report](reports/20260925-lane-y-r1.md).
