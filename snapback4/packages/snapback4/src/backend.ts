@@ -27,6 +27,7 @@ export interface TableJson {
 export interface SchemaJson {
   tables: Record<string, TableJson>;
   maintains?: unknown[];
+  timelines?: { posts: [string, ...string[]]; reposts: [string, ...string[]] }[];
   operations?: Record<string, { held?: boolean; runs?: "device" | "server"; predicts?: "eligible" | "never" }>;
 }
 

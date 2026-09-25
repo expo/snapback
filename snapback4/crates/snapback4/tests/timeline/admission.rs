@@ -52,7 +52,12 @@ fn admission_refuses_every_unsupported_bridge_shape() {
             };
             let changed=format!("{}{}{}",&source[..start],section,&source[end..]);
             let b=snapback4_lang::compile(&[("schema.q".into(),changed)]);
-            assert!(b.diagnostics.iter().any(|d|d.code=="E_TIMELINE_SHAPE"),"{table}/{change}: {:?}",b.diagnostics);
+            if change == 0 && table != "follows" {
+                // LLP 3000.016 admits online-only cards, including the legacy declaration.
+                assert!(b.diagnostics.is_empty(), "{table}: {:?}", b.diagnostics);
+            } else {
+                assert!(b.diagnostics.iter().any(|d|d.code=="E_TIMELINE_SHAPE"),"{table}/{change}: {:?}",b.diagnostics);
+            }
         }
     }
 }
