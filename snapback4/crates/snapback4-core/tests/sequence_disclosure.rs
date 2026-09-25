@@ -309,7 +309,7 @@ fn denied_compound_insert_reserves_whole_rule_before_any_witness() {
 #[test]
 fn generated_compound_write_rules_at_probe_boundaries() {
     let cases = generated::compound_write_cases();
-    assert_eq!(cases.len(), 288);
+    assert_eq!(cases.len(), 504);
     let mut failed = vec![];
     for case in cases {
         if std::panic::catch_unwind(|| case.pair.assert_equal()).is_err() { failed.push(case.label); }
@@ -361,6 +361,66 @@ fn grok_allowed_compound_insert_does_not_reserve_paid_probes_again() {
             let WriteState::Sent { result, .. } = out.state else { panic!("{}: {out:?}", case.label) };
             assert_eq!(result.field("ordinal"), Ok(&snapback4_core::Value::Int(1)));
             assert_eq!(out.metered.rule_probes, reads as u64 + 2, "both witnesses are prepaid exactly once");
+        }
+    }
+}
+
+#[path = "paired_worlds/sequence_round7.rs"]
+mod round7;
+#[test]
+fn generated_expiring_witness_predicates_compare_next_expiry() {
+    for (label, pair) in round7::expiry_cases() {
+        assert!(std::panic::catch_unwind(|| pair.assert_equal()).is_ok(), "{label}");
+    }
+}
+
+#[test]
+fn succeeded_authorization_keeps_only_a_decisive_expiry() {
+    use snapback4_core::{Context, Value};
+    let second = "exists otherGrants[parent = .parent, who = viewer]";
+    for (rule, owner, expected) in [
+        (round7::ADMIN.to_string(), "bob", Some(2000)),
+        (format!("{} and {second}", round7::ADMIN), "bob", Some(2000)),
+        (format!("{} or {second}", round7::ADMIN), "bob", Some(8000)),
+        (format!("{} or .owner = viewer", round7::ADMIN), "alice", None),
+        (format!("not not {}", round7::ADMIN), "bob", Some(2000)),
+    ] {
+        let pair = round7::expiry_pair(&rule, false, "admin", [Some(2000); 2], owner);
+        let mut e = pair.engine(0);
+        for query in ["one", "page", "reverse"] {
+            let out = e.query(query, Context::new("alice", Default::default()).at(1000)).unwrap();
+            assert_eq!(out.next_expiry, expected, "{rule}/{query}");
+            if let Some(deadline) = expected {
+                let out = e.query(query, Context::new("alice", Default::default()).at(deadline)).unwrap();
+                assert!(out.data == Value::Null || out.data == Value::Array(vec![]), "{rule}/{query}: {out:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn generated_expiring_cap_populations_compare_refusals_and_meters() {
+    for pair in round7::cap_cases() { pair.assert_equal(); }
+}
+
+#[test]
+fn walk_limit_is_exactly_8192_candidates_in_both_directions() {
+    use paired_worlds::*;
+    use generated::{Principal, ReadRule};
+    use serde_json::json;
+    use snapback4_core::Context;
+    for descending in [false, true] {
+        for count in [8191, 8192, 8193] {
+            let source = generated::schema(Principal::SelfReadable, ReadRule::Owner, false, false)
+                .replace("first 1 by .ordinal", if descending { "last 1 by .ordinal" } else { "first 1 by .ordinal" });
+            let own = generated::row("own", "alice", if descending { 1 } else { 9000 }, "own");
+            let seed: Seed = (2..=count + 1).map(|n| generated::row(&format!("h{n}"), "bob", n, &format!("h{n}"))).chain([own]).collect();
+            let mut pair = Pair::new(source, [seed.clone(), seed], "alice", Operation::new("unused", json!({}), "alice"));
+            pair.trusted = true;
+            let mut e = pair.engine(0);
+            let page = e.query("page", Context::new("alice", inputs(&e, "page", &json!({"parent":"p","c":null}))).at(NOW)).unwrap();
+            assert_eq!(page.data.as_array().unwrap().len(), usize::from(count == 8191), "descending={descending} hidden={count}");
+            if count >= 8192 { assert!(page.next.is_none()); }
         }
     }
 }

@@ -63,10 +63,10 @@ impl Runner<'_> {
         let Some(position) = index.columns().iter().position(|field| table.sequences.contains_key(field)) else { return Ok(()); };
         let arity = index.components.len() + 1;
         let stable = &prefix[..prefix.len().min(position)];
-        let dependent = self.authorized_scan(&[], |runner, _| runner.device_work(|runner| {
+        let dependent = self.authorized_scan(&[], |runner, allowance| runner.device_work(|runner| {
             let mut bounds = Bounds::default();
             loop {
-                let rows = runner.tx.scan_metered(name, index_name, stable, &bounds, Dir::Asc, 1, &mut runner.meter)?;
+                let rows = runner.tx.scan_metered(allowance, name, index_name, stable, &bounds, Dir::Asc, 1, &mut runner.meter)?;
                 let Some((row, key)) = rows.first() else { return Ok(false); };
                 runner.meter.charge(MeterKind::Examined, 1)?;
                 if runner.is_provisional(name, row)? { return Ok(true); }
@@ -148,7 +148,8 @@ impl Runner<'_> {
                 return Err(RuntimeError::Input("restored sequences must be positive ints".into()));
             }
             let id = row.field(reference)?.as_str()?;
-            self.tx.set_sequence(parent, id, self.tx.sequence_value(parent, id)?.max(value))?;
+            let previous = self.metered_scan(|runner, allowance| runner.tx.sequence_value(allowance, parent, id))?;
+            self.tx.set_sequence(parent, id, previous.max(value))?;
         }
         Ok(row)
     }
@@ -174,9 +175,9 @@ impl Runner<'_> {
             let previous = if let Some(value) = values.get(&key) {
                 *value
             } else if self.device {
-                self.authorized_scan(&[], |runner, _| runner.device_work(|runner| runner.sequence_floor(parent, &id)))?
+                self.authorized_scan(&[], |runner, allowance| runner.device_work(|runner| runner.sequence_floor(allowance, parent, &id)))?
             } else {
-                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner, _| runner.tx.sequence_value(parent, &id))?
+                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner, allowance| runner.tx.sequence_value(allowance, parent, &id))?
             };
             let next = if previous >= crate::value::I53_MAX {
                 if self.device {
@@ -203,8 +204,8 @@ impl Runner<'_> {
 
     /// One indexed suffix per declaring column, including pending rows. Never
     /// consult server counters on a device or claim these local values settled.
-    fn sequence_floor(&mut self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
-        let mut floor = self.tx.provisional_sequence_floor(parent, id)?;
+    fn sequence_floor(&mut self, allowance: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        let mut floor = self.tx.provisional_sequence_floor(allowance, parent, id)?;
         for (name, table) in &self.schema.tables {
             for (column, reference) in &table.sequences {
                 if table.columns.get(reference) != Some(&ColumnType::Ref { table: parent.into() }) {
@@ -212,7 +213,7 @@ impl Runner<'_> {
                 }
                 self.meter.charge(MeterKind::IndexEntries, 1)?;
                 let rows = self.tx.scan_metered(
-                    name,
+                    allowance, name,
                     &crate::schema::sequence_index(column),
                     &[Value::Id(id.into())],
                     &Bounds::default(),
@@ -252,7 +253,7 @@ impl Runner<'_> {
         if table.sequences.is_empty() {
             return Ok(row);
         }
-        let stored = self.tx.get(name, row.field("id")?.as_str()?)?.expect("just inserted");
+        let stored = self.metered_scan(|runner, allowance| runner.tx.get(allowance, name, row.field("id")?.as_str()?))?.expect("just inserted");
         self.meter.heap(stored.heap_bytes())?;
         if let Value::Row(fields) | Value::Map(fields) = &mut row {
             for column in table.sequences.keys() {
@@ -275,6 +276,7 @@ struct SequenceProbe<'a, 'b> {
     next: bool,
 }
 impl super::rules::Probe for SequenceProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn field(&mut self, field: &str, old: bool) {
         self.runner.provisional_sequence_read |= (if old { self.old } else { self.next })
             && self.runner.schema.tables[self.table].sequences.contains_key(field);

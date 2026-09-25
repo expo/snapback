@@ -49895,3 +49895,112 @@ ratchet unchanged, with 1,487 B headroom. Runtime meter ceilings are unchanged.
 SHA-256: b367f384d21c9bf8c0ecb385351c252a4f6f1c3dbf49e7a48803ef9cb9058c3b.
 Report: /home/ccheever/sb5/lane-b2.r6.final.md. Local branch commit only;
 no push, live PostgreSQL qualification, publication or new blind-review claim.
+
+## 2026-09-25 — B2 round 7: bounded cap occupancy and successful-predicate expiry
+
+Work is confined to `/home/ccheever/sb5/lane-b2`, branch
+`sb5/b2-sequence-by`, starting at `d22b4e275`; local commit only, no push.
+Read both round-7 reviews, including `b2-d7.grok.exit` (`EXIT=0`). The
+round-6 whole-rule reservation and restored page walk limit remain in force.
+
+- **Astra A1, expiring cap traversal:** cap scans now consume a separate
+  8,192-candidate physical allowance, including expired candidates, in batches
+  no larger than the remaining allowance. A scan that cannot establish live
+  occupancy within it refuses with the same generic `E_RULE` in every world.
+  The paid logical meter is restored on that refusal; no hidden-row logical
+  charging returns. `review_walk::expired_cap_population_stops_at_the_physical_bound`
+  counts actual fetched rows for populations 8,191, 8,192, 8,193 and 20,000.
+  The generated cap pairs compare complete write envelopes and all meter fields.
+- **Astra A2 / Grok G1, inherited expiry disclosure closed here:** this was
+  inherited from Snapback 4, not introduced by the sequence allocator. A total
+  unique-key witness now tests all remaining equalities before retaining its
+  expiry. Rule evaluation scopes dependencies to predicates: failed branches
+  discard their deadlines; a successful conjunction needs the earliest
+  lifetime, while a successful disjunction lasts through its latest successful
+  alternative. Stable ownership contributes no deadline and absorbs a redundant
+  expiring witness. Necessary authorization deadlines and a returned row's own
+  expiry still invalidate reads. The same composition applies to provisional
+  device authorization with its three-valued coverage verdicts.
+- **Astra A3 / Grok G2, guide and exact boundary:** the bounds card now names
+  the separate physical limit and its paging consequence. The writes card,
+  LLP 3000 and LLP 3000.015 say **at least 8,192**, rather than more than that
+  number. Both paging directions are tested at 8,191, 8,192 and 8,193, so
+  changing the constant to 8,193 no longer survives. Expiring cap refusals and
+  `next_expiry` / `nextExpiry` are part of the documented observation contract.
+- **Astra A4, parent identity mutation:** imported and expanded the review's
+  `review_parent_floor` regression. Both memory and SQLite devices cross
+  two parent-table orderings with unrelated ordinals 2, 17 and `I53_MAX`;
+  the target parent's held ordinal 1 must predict 2, despite equal parent IDs.
+  The production parent-table filter was already correct and remains intact.
+- **Astra A5 / Grok structural observation:** `Runner.tx` is now a
+  `GuardedRows` facade, not a raw `Rows` transaction. Its raw field is private
+  to `authorized_scan`; it implements neither `Rows` nor `Deref` and exposes
+  no raw accessor. Get, lookup, scan, metered scan, count and counter reads
+  require the module's unforgeable borrowed token. Authorization paths carry
+  the prepaid scope's token through to storage. Ordinary metered data work
+  uses a token scope without disabling/restoring its existing charges. The
+  mechanical boundary requires an explicit scope; choosing the appropriate
+  allowance remains a semantic review obligation. The partition reference
+  fixture and Postgres prefetch interface use the same facade.
+- **Astra A6 / Grok generator observation:** added 36 generated expiry pairs
+  crossing ordinary/sequence columns, guest/admin witnesses, hidden timestamp
+  changes or presence, complete unique keys plus extra equalities, witness-first
+  disjunctions, failed conjunctions and negation with unchanged authority.
+  Twelve cap pairs cross caps 1/4, ordinary/sequence columns and expired
+  populations below/at/above the physical limit. Existing compound-write
+  generation now includes the public disjunct and two `not` forms, bringing
+  that matrix from 288 to 504 pairs. The existing recorder compares the entire
+  serialized `QueryOutcome`, including `next_expiry`; three release HTTP tests
+  compare `nextExpiry` and the rest of the envelope (apart from the known
+  mutation sequence), with dev meters absent.
+
+Controls check that necessary sole-witness/conjunction/disjunction deadlines
+are retained and that authorization ends at the reported time. A provisional
+read test checks the device evaluator and preservation of a prior dependency.
+The supplied cap and parent probes were turned into regressions rather than
+retained as demonstrations of the old behavior.
+
+Six deliberate mutations were rejected, then restored: unbounded cap scan,
+removed parent-table filter (both stores fail), walk limit 8,193, witness
+expiry before extra equalities, old short-circuit expiry accumulation, and
+raw reads bypassing the token. The last produces `E0061` for get/lookup/scan
+and `E0616` for the facade's private raw field. Evidence is under
+`target/b2-r7-mutant-*.log`, summarized in `target/b2-r7-mutations.log`.
+The LLP audit reports 507 documents, 9,244 refs, 0 errors, 0 unchecked.
+Full-suite and final wasm qualification follow below.
+
+The first complete qualification printed `== 1 failure(s) in 842 s`
+(`cargo test`). Its only failed Rust test was the compound generator's old
+`cases.len() == 288` assertion after expanding to 504 cases. Updating that
+assertion exposed a fixture omission on the newly crossed public-disjunct
+update/delete cases: their trusted seed lacked the required owner. Both
+fixture corrections are in the tests; all 504 pairs then passed in 14.25 s.
+The complete first run's client tests passed. Log: `target/b2-r7-suite.log`.
+A fresh complete run on the corrected tree follows; no earlier green subset
+is substituted for its result.
+
+Final qualification, Node v24.13.1, from `snapback4/`:
+```sh
+env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh
+```
+printed exactly `== 0 failure(s) in 774 s`, exit 0. Every step passed;
+client summary: 1,109 passed, 0 failed, 10 existing skips. The complete Rust
+phase passed, including 23 core disclosure tests, the physical cap probe,
+both parent-floor store tests, four device disclosure tests, the expanded
+504-pair write matrix and the provisional-expiry unit control. Log:
+`target/b2-r7-suite-final.log`. Optional PostgreSQL feature compilation also
+passed (`target/b2-r7-postgres-check.log`); no live PostgreSQL run is claimed.
+
+Final wasm: **1,782,148 B raw / 497,956 B gzip**, Rust 1.97.0 /
+wasm-bindgen 0.2.127, without wasm-opt. The full-suite build and direct gzip
+measurement agree. Relative to round 6: **+1,403 B raw / +1,443 B gzip** for
+the combined successful-predicate lifetime composition, bounded cap scan and
+storage-token facade. This is a whole-artifact delta, not independent
+per-component attribution. Keep the **498,000 B ratchet unchanged**, with
+44 B headroom. Runtime meter ceilings are unchanged.
+SHA-256: `d17232f08568409b3662a88f09641f2d074b749fab0daf7f352245781c7abbe4`.
+Measurement: `target/b2-r7-wasm-measurement.json`.
+
+Report: `/home/ccheever/sb5/lane-b2.r7.final.md`. Both completed round-7 reviews
+are folded in as named items; no new blind-review verdict, publication or
+push is claimed. Local commit on `sb5/b2-sequence-by` only.

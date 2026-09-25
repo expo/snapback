@@ -134,8 +134,8 @@ impl Runner<'_> {
             } else { "byId" };
             self.prove_upsert_insert(table_name, index, &row)?;
         }
-        let existing = self.authorized_scan(&[(MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, _| {
-            let existing = runner.tx.get(table_name, &id)?;
+        let existing = self.authorized_scan(&[(MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, allowance| {
+            let existing = runner.tx.get(allowance, table_name, &id)?;
             if let Some(row) = &existing && !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
             Ok(existing)
         })?;
@@ -166,7 +166,7 @@ impl Runner<'_> {
         }
         let id = key.as_str()?;
         self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &patch, false)?;
-        let Some(old) = self.fetch(table_name, id)? else {
+        let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
@@ -189,7 +189,7 @@ impl Runner<'_> {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
         }
         self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &row, true)?;
-        match self.fetch(table_name, id)? {
+        match self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? {
             Some(old) => {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
@@ -250,7 +250,7 @@ impl Runner<'_> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, &table)?;
-        let Some(old) = self.fetch(table_name, id)? else {
+        let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
@@ -464,15 +464,22 @@ impl Runner<'_> {
                         (MeterKind::IndexEntries, 1),
                         (MeterKind::Examined, if private_cap { *max as u64 } else { 0 }),
                         (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 }),
-                    ], |runner, _| {
+                    ], |runner, allowance| {
                         if table.expire.is_none() && !private_cap {
-                            return runner.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1);
+                            return runner.tx.count_prefix(allowance, table_name, &index_name, &group, *max as u64 + 1);
                         }
                         let mut count = 0;
+                        let mut remaining = super::read::AUTHORIZATION_WALK_LIMIT;
                         let mut bounds = Bounds::default();
                         loop {
-                            let rows = runner.tx.scan(table_name, &index_name, &group, &bounds, Dir::Asc, 32)?;
+                            // Expired occupants consume physical work, never
+                            // hidden-dependent logical charges. Exhaustion
+                            // cannot establish occupancy and reveals no detail.
+                            if remaining == 0 { return Err(RuntimeError::Rule { table: table_name.into(), effect }); }
+                            let batch = remaining.min(32);
+                            let rows = runner.tx.scan(allowance, table_name, &index_name, &group, &bounds, Dir::Asc, batch)?;
                             let fetched = rows.len();
+                            remaining -= fetched;
                             for (row, key) in rows {
                                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
                                 if !runner.expired(&table, &row) {
@@ -481,7 +488,7 @@ impl Runner<'_> {
                                 }
                                 if count >= *max as u64 { break; }
                             }
-                            if count >= *max as u64 || fetched < 32 { break; }
+                            if count >= *max as u64 || fetched < batch { break; }
                         }
                         Ok(count)
                     })?;

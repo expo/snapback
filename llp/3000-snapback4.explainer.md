@@ -1504,8 +1504,8 @@ time-ordered 128-bit form.
   hidden-candidate ceiling was incorrect and is reversed. Every request's
   physical work remains bounded by declared ceilings. The prepaid allowance
   helper stays; private pages have a separate 8,192-candidate walk ceiling,
-  constant per page. A caller's row behind more unreadable siblings than that
-  bound is unreachable by paging in that direction: an empty page has no
+  constant per page. A caller's row behind at least that many unreadable
+  siblings is unreachable by paging in that direction: an empty page has no
   cursor, identically in every world beyond the bound. Together with shared-cap
   unreadable occupancy, this is the sequence contract's accepted residual.
   The device's separate prediction-work budget remains in force.

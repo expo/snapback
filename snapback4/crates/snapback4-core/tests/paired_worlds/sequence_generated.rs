@@ -173,6 +173,8 @@ pub fn compound_write_case(shape: &str, effect: &str, sequence: bool, readable: 
     let stable = "exists grants[parent = .parent, who = viewer, kind = 'stable']";
     let missing = "exists grants[parent = .parent, who = viewer, kind = 'missing']";
     let rule = match shape {
+        "not-allowed" => format!("not ({first} and {missing})"),
+        "not-denied" => format!("not ({first} or {stable})"),
         "and-denied" => format!("{first} and {missing}"),
         "or-allowed" => format!("{first} or {stable}"),
         "or-public-allowed" => format!("{first} or exists grants[parent = .parent, who = .owner, kind = 'first'] or viewer = 'alice'"),
@@ -219,7 +221,11 @@ mutation probe(parent: parents):
         ("burnRows".into(), json!({"id":"burn","parent":"p"})),
         ("grants".into(), json!({"id":"stable","parent":"p","who":"alice","kind":"stable"})),
     ];
-    if effect != "insert" { common.push(("messages".into(), json!({"id":"own","parent":"p","ordinal":1,"body":"old"}))); }
+    if effect != "insert" {
+        let mut own = json!({"id":"own","parent":"p","ordinal":1,"body":"old"});
+        if shape == "or-public-allowed" { own["owner"] = json!("bob"); }
+        common.push(("messages".into(), own));
+    }
     let mut hidden = common.clone();
     hidden.push(("grants".into(), json!({"id":"secret","parent":"p","who":"alice","kind":"first"})));
     let mut pair = Pair::new(source, [common, hidden], "alice", Operation::new("probe", json!({"parent":"p"}), "alice"));
@@ -230,7 +236,7 @@ mutation probe(parent: parents):
 
 pub fn compound_write_cases() -> Vec<Case> {
     let mut cases = vec![];
-    for shape in ["and-denied", "or-denied", "and-allowed", "or-allowed"] {
+    for shape in ["and-denied", "or-denied", "and-allowed", "or-allowed", "or-public-allowed", "not-allowed", "not-denied"] {
         for effect in ["insert", "update", "delete"] {
             for sequence in [false, true] {
                 for readable in [false, true] {

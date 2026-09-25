@@ -214,6 +214,8 @@ pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
 
 /// Something that can answer an `exists`/`created` probe while a rule runs.
 pub trait Probe {
+    /// Exchange the private expiry accumulator; ordinary probes have none.
+    fn replace_expiry(&mut self, _expiry: Option<i64>) -> Option<i64> { None }
     /// Called only when evaluation loads a field, after short-circuit decisions.
     fn field(&mut self, _field: &str, _old: bool) {}
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, crate::error::RuntimeError>;
@@ -222,28 +224,55 @@ pub trait Probe {
 
 /// Evaluate a rule over a row image (and its old image, for update rules).
 pub fn evaluate(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<bool, crate::error::RuntimeError> {
+    let prior = probe.replace_expiry(None);
+    let result = evaluate_until(rule, viewer, old, next, created_allowed, probe);
+    let expiry = match &result { Ok((true, expiry)) => earliest(prior, *expiry), _ => prior };
+    probe.replace_expiry(expiry);
+    result.map(|(allowed, _)| allowed)
+}
+
+pub(super) fn earliest(a: Option<i64>, b: Option<i64>) -> Option<i64> {
+    match (a, b) { (Some(a), Some(b)) => Some(a.min(b)), (a, b) => a.or(b) }
+}
+
+// None is an unbounded lifetime. A disjunction stays authorized as long as
+// any successful alternative; a conjunction needs every successful term.
+// @ref LLP 3000.015#2 — failed predicates and redundant witnesses publish no deadline.
+fn evaluate_until(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<(bool, Option<i64>), crate::error::RuntimeError> {
+    match rule {
+        RuleExpr::And(terms) | RuleExpr::Or(terms) => {
+            let conjunction = matches!(rule, RuleExpr::And(_));
+            let mut answer = conjunction;
+            let mut expiry = None;
+            for term in terms {
+                let (value, until) = evaluate_until(term, viewer, old, next, created_allowed, probe)?;
+                if value != conjunction {
+                    expiry = if answer == conjunction { until } else {
+                        expiry.zip(until).map(|(a, b)| a.max(b))
+                    };
+                    answer = value;
+                    if expiry.is_none() { break; }
+                } else if answer == conjunction {
+                    expiry = earliest(expiry, until);
+                }
+            }
+            return Ok((answer, expiry));
+        }
+        RuleExpr::Not(inner) => return evaluate_until(inner, viewer, old, next, created_allowed, probe).map(|(value, expiry)| (!value, expiry)),
+        _ => {}
+    }
+    let result = evaluate_leaf(rule, viewer, old, next, created_allowed, probe);
+    let expiry = probe.replace_expiry(None);
+    result.map(|value| (value, expiry))
+}
+
+fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<bool, crate::error::RuntimeError> {
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
         RuleExpr::Deny => Ok(false),
         RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next, probe)? == term(right, viewer, old, next, probe)?),
         RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next, probe)? != term(right, viewer, old, next, probe)?),
-        RuleExpr::And(rules) => {
-            for rule in rules {
-                if !evaluate(rule, viewer, old, next, created_allowed, probe)? {
-                    return Ok(false);
-                }
-            }
-            Ok(true)
-        }
-        RuleExpr::Or(rules) => {
-            for rule in rules {
-                if evaluate(rule, viewer, old, next, created_allowed, probe)? {
-                    return Ok(true);
-                }
-            }
-            Ok(false)
-        }
-        RuleExpr::Not(rule) => Ok(!evaluate(rule, viewer, old, next, created_allowed, probe)?),
+        RuleExpr::And(_) | RuleExpr::Or(_) | RuleExpr::Not(_) => unreachable!("compound rule"),
         RuleExpr::Exists { table, index, key, equalities, .. } => {
             let key = key.iter().map(|term| self::term(term, viewer, old, next, probe)).collect::<Result<Vec<_>, _>>()?;
             let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;

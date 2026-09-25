@@ -1,15 +1,52 @@
 //! One logical allowance for work whose shape can depend on unreadable rows.
 use super::runner::Runner;
-use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut}};
+use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, rows::{Rows, Bounds, Dir, AcquiredBoundary, PrefetchRequest}, schema::{Table, Index}, value::Value, assets::Asset};
 
 // Only this module mints the capability; it cannot be constructed or cloned
 // by callers, and the borrowed token cannot escape the guarded closure.
-pub(super) struct Authorization { _private: () }
+pub(crate) struct Authorization { _private: () }
+
+// No Rows implementation, Deref or raw accessor: row reads require the
+// unforgeable token even when a caller has access to Runner's store facade.
+pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows }
+impl<'a> GuardedRows<'a> {
+    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw } }
+    pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.raw.get(table, id) }
+    pub(crate) fn lookup(&self, _authorization: &Authorization, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.raw.lookup(table, name, index, key) }
+    pub(crate) fn scan(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.raw.scan(table, name, prefix, bounds, dir, limit) }
+    pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.raw.scan_metered(table, name, prefix, bounds, dir, limit, meter) }
+    pub(crate) fn count_prefix(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.raw.count_prefix(table, name, prefix, limit) }
+    pub(crate) fn sequence_value(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.sequence_value(parent, id) }
+    pub(crate) fn provisional_sequence_floor(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.provisional_sequence_floor(parent, id) }
+    pub(crate) fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> { self.raw.set_sequence(parent, id, value) }
+    pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.raw.put(name, table, row, old) }
+    pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.raw.delete(name, table, old) }
+    pub(crate) fn holds_assets(&self) -> bool { self.raw.holds_assets() }
+    pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
+    pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
+    pub(crate) fn release_asset(&self, id: &str, now: i64) -> Result<(), RuntimeError> { self.raw.release_asset(id, now) }
+    pub(crate) fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> { self.raw.effect_once(effect, key) }
+    pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
+    pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }
+    pub(crate) fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.retained_group(table, index, prefix) }
+    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, meter: &mut Meter) -> Result<bool, RuntimeError> { self.raw.recording_covered(table, row, viewer, now, meter) }
+    pub(crate) fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { self.raw.acquired_boundary(table, index, prefix) }
+    pub(crate) fn prefetch_enabled(&self) -> bool { self.raw.prefetch_enabled() }
+    #[allow(dead_code)] // Used by the native prefetch planner; absent on web.
+    pub(crate) fn prefetch(&self, requests: &[PrefetchRequest]) { self.raw.prefetch(requests) }
+}
 
 impl Runner<'_> {
+    /// Ordinary data reads keep their existing meter and cut semantics. This
+    /// scope grants storage access without disabling or restoring any charge.
+    /// Hidden authorization must use authorized_scan's prepaid reservation.
+    pub(crate) fn metered_scan<T>(&mut self, scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        scan(self, &Authorization { _private: () })
+    }
+
     // @ref LLP 3000.015#2 — admission depends on declared bounds, never on
     // occupants. Private scratch cannot cut the caller's prepaid scan.
-    pub(super) fn authorized_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+    pub(crate) fn authorized_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         // This meter is the device's separate physical-work budget. Its
         // caller maps exhaustion to uncertainty, never a logical E_BOUND.
         if self.device_work_active { return scan(self, &Authorization { _private: () }); }

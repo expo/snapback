@@ -45,7 +45,7 @@ pub(crate) struct PagePosition {
 }
 
 pub struct Runner<'a> {
-    pub(crate) tx: &'a dyn Rows,
+    pub(crate) tx: super::authorized_scan::GuardedRows<'a>,
     pub(crate) schema: &'a Schema,
     pub(crate) context: Context,
     pub(crate) meter: Meter,
@@ -173,7 +173,7 @@ impl<'a> Runner<'a> {
             env.insert(name.clone(), value.clone());
         }
         Self {
-            tx,
+            tx: super::authorized_scan::GuardedRows::new(tx),
             schema,
             context,
             meter,
@@ -500,7 +500,7 @@ impl<'a> Runner<'a> {
                     && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)));
                 let values = if prepaid { self.metered_domain(scan)? } else { self.scan(scan)? };
                 #[cfg(feature = "postgres")]
-                self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, self.tx);
+                self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, &self.tx);
                 if !prepaid { self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?; }
                 Ok(values)
             }
@@ -530,7 +530,7 @@ impl<'a> Runner<'a> {
                     return Err(RuntimeError::Fanout);
                 }
                 #[cfg(feature = "postgres")]
-                self.page_plan.prefetch.fill(&site, &values, &self.context, self.schema, self.tx);
+                self.page_plan.prefetch.fill(&site, &values, &self.context, self.schema, &self.tx);
                 Ok(values)
             }
             LoopDomain::Recurse(recurse) => self.recurse(recurse),

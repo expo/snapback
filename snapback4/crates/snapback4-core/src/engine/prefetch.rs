@@ -1,7 +1,7 @@
 //! Total-key page planning. This side table is never serialized. It evaluates
 //! no Quarry expression: the interpreter remains the only semantic executor.
 //! @ref LLP 3000.009#4.2 — speculative access must preserve every observation.
-use crate::{ir::*, rows::{PrefetchRequest, Rows}, schema::{RuleExpr, RuleTerm, Schema}, Value};
+use crate::{ir::*, rows::PrefetchRequest, schema::{RuleExpr, RuleTerm, Schema}, Value};
 use super::super::Context;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -248,7 +248,7 @@ impl Plan {
         self.sites.retain(|_, marks| !marks.is_empty());
         self
     }
-    pub(in crate::engine) fn fill(&self, site: &str, rows: &[Value], ctx: &Context, schema: &Schema, tx: &dyn Rows) {
+    pub(in crate::engine) fn fill(&self, site: &str, rows: &[Value], ctx: &Context, schema: &Schema, tx: &crate::engine::authorized_scan::GuardedRows<'_>) {
         let Some(marks) = self.sites.get(site) else { return };
         let mut requests = Vec::new();
         for mark in marks {

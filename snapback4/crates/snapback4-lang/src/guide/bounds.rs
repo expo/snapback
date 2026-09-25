@@ -17,7 +17,11 @@ mutation aborts with E_BOUND naming the meter, the ceiling and the site
 Authorization-dependent scans prepay a fixed logical allowance before row
 discovery. Hidden candidates do not consume the caller's remaining allowance;
 readable rows, filters and output still do. These logical meters exclude private
-scan work: denied rows are visited in bounded batches without a hidden-row cut.
+scan work: denied or expired candidates have a separate physical limit of 8,192
+per page. A row behind at least 8,192 such candidates is unreachable by paging
+in that direction; an empty page has no cursor into the hidden range. Expiring
+cap checks inspect at most 8,192 candidates and return generic E_RULE if they
+cannot establish live occupancy within that bound.
 The device's separate prediction-work budget can instead queue an operation.
 `snapback4 check --cost` prints each site's structural class;
 `snapback4 test` prints the numbers on your data and names query/persona reads

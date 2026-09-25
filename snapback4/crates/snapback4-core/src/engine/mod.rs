@@ -27,7 +27,7 @@ mod shaping;
 pub use pages::returned_page_sites;
 pub mod read;
 mod read_auth;
-mod authorized_scan;
+pub(crate) mod authorized_scan;
 pub mod rules;
 pub mod runner;
 pub mod validate;

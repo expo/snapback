@@ -18,7 +18,7 @@ use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 use crate::rows::word_heap;
 
 // @ref LLP 3000.015#2 — unreadable traversal has a separate physical ceiling, prepaid per page.
-const AUTHORIZATION_WALK_LIMIT: usize = 8192;
+pub(super) const AUTHORIZATION_WALK_LIMIT: usize = 8192;
 #[path = "word_merge.rs"]
 mod word_merge;
 #[path = "view_merge.rs"]
@@ -63,6 +63,7 @@ pub(super) struct RuleProbe<'a, 'b> {
     pub(super) allowance: &'a Authorization,
 }
 impl Probe for RuleProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
         self.runner.rule_probe_exists(self.allowance, table, index, key, equalities)
@@ -138,6 +139,12 @@ impl Runner<'_> {
                 None => self.authorization_absence_covered(allowance, table, index, key)?,
             }
         } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
+        // A complete unique key only selects a candidate. Extra equalities
+        // must hold before its lifetime can be an authorization dependency.
+        if found.as_ref().is_some_and(|row| !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)) {
+            return Ok((false, known));
+        }
+        let expiry = self.next_expiry;
         if let Some(row) = &found {
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table)
@@ -154,7 +161,7 @@ impl Runner<'_> {
                 let mut bounds = Bounds::default();
                 live = false;
                 'sources: loop {
-                    let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, 32)?;
+                    let (rows, limit) = self.witness_scan(allowance, &maintain.source, name, &prefix, &bounds, 32)?;
                     let count = rows.len();
                     for (mut candidate, stored) in rows {
                         self.witness_materialize(&mut candidate, source)?;
@@ -180,19 +187,20 @@ impl Runner<'_> {
         }
         if self.device && self.schema.maintain_subset_unknown(table) { known = false; }
         // @ref LLP 3000.007#10 — the total unique probe reads once, then tests the remaining named equalities.
-        Ok((live && found.as_ref().is_some_and(|row| equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)), known))
+        if !live { self.next_expiry = expiry; }
+        Ok((live, known))
     }
 
     /// Point lookups must pass expired siblings, even on an index whose
     /// logical uniqueness no longer counts those rows.
-    pub(super) fn live_lookup(&mut self, _allowance: &Authorization, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+    pub(super) fn live_lookup(&mut self, allowance: &Authorization, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if table.expire.is_none() && !self.device_work_active {
-            return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
+            return self.tx.lookup(allowance, table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
         }
         let mut bounds = Bounds::default();
         loop {
-            let (rows, limit) = self.witness_scan(table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
+            let (rows, limit) = self.witness_scan(allowance, table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
             let count = rows.len();
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, table)?;
@@ -205,11 +213,11 @@ impl Runner<'_> {
 
     // Physical witness work is additional device authorization work. Queries
     // and server rules keep their existing one-probe accounting.
-    fn witness_scan(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
-        if !self.device_work_active { return Ok((self.tx.scan(table, index, prefix, bounds, Dir::Asc, batch)?, batch)); }
+    fn witness_scan(&mut self, allowance: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
+        if !self.device_work_active { return Ok((self.tx.scan(allowance, table, index, prefix, bounds, Dir::Asc, batch)?, batch)); }
         let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;
         if limit == 0 { self.meter.charge(MeterKind::Examined, 1)?; }
-        let rows = self.tx.scan_metered(table, index, prefix, bounds, Dir::Asc, limit, &mut self.meter)?;
+        let rows = self.tx.scan_metered(allowance, table, index, prefix, bounds, Dir::Asc, limit, &mut self.meter)?;
         self.meter.charge(MeterKind::Examined, rows.len().max(1) as u64)?;
         Ok((rows, limit))
     }
@@ -249,7 +257,7 @@ impl Runner<'_> {
         let mut total = 0_i128;
         let mut any = false;
         'sources: loop {
-            let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 32)?;
+            let rows = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, index, &prefix, &bounds, Dir::Asc, 32))?;
             let count = rows.len();
             for (mut candidate, key) in rows {
                 materialize_optional_fields(&mut candidate, source);
@@ -341,10 +349,10 @@ impl Runner<'_> {
     }
 
     /// A row by id, materialized, without a rule check.
-    pub(crate) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+    pub(crate) fn fetch(&mut self, allowance: &Authorization, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.schema.refuse_private(table_name)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        let found = self.tx.get(table_name, id)?;
+        let found = self.tx.get(allowance, table_name, id)?;
         if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table_name, "byId", &[Value::Id(id.to_owned())], "write target"); }
         Ok(found.filter(|row| !self.expired(table, row)).map(|mut row| {
             materialize_optional_fields(&mut row, table);
@@ -536,12 +544,12 @@ impl Runner<'_> {
             self.authorized_scan(&[
                 (MeterKind::IndexEntries, (MAX_WORD_LANES + 1) as u64),
                 (MeterKind::RuleProbes, if admitted { 0 } else { rules::rule_probes(&table.rules.read).saturating_mul((MAX_WORD_LANES + 1) as u64) }),
-            ], |runner, _| {
+            ], |runner, allowance| {
                 let mut words = Vec::new();
                 let mut walk_remaining = AUTHORIZATION_WALK_LIMIT;
                 let mut bounds = Bounds { word: Some(terms[0].clone()), ..Bounds::default() };
                 while walk_remaining > 0 {
-                    let found = runner.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?;
+                    let found = runner.tx.scan(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?;
                     let Some((_, key)) = found.first() else { break };
                     let Some(Value::String(token)) = crate::key::decode(key).and_then(|values| values.into_iter().nth(position)) else {
                         return Err(RuntimeError::Store("word index holds a non-text word".into()));
@@ -565,8 +573,8 @@ impl Runner<'_> {
             if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
             }
-            let found = if metered_words { self.tx.scan_metered(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1, &mut self.meter)? }
-                else { self.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)? };
+            let found = if metered_words { self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1, &mut runner.meter))? }
+                else { self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1))? };
             let Some((_, key)) = found.into_iter().next() else { break };
             if metered_words {
                 // Decoder vector and string scratch before decoding; the store's fetched
@@ -743,7 +751,7 @@ impl Runner<'_> {
         let table = &self.schema.tables[&scan.table];
         let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
         self.read_charge(MeterKind::Examined, 1)?;
-        Ok(self.tx.scan_metered(&scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1, &mut self.meter)?.pop().map(|(_, key)| key))
+        Ok(self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1, &mut runner.meter))?.pop().map(|(_, key)| key))
     }
 
     /// A bounded page. Returns the visible rows, at most `take`, and records
@@ -858,13 +866,13 @@ impl Runner<'_> {
     /// The caller prepays the page before entering. Hidden candidates never
     /// reach the page's payload ledger, filter, lookahead or continuation.
     fn authorized_candidate(&mut self, scan: &Scan, prefix: &[Value], bounds: &Bounds, dir: Dir, remaining: &mut usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        self.authorized_scan(&[], |runner, _| {
+        self.authorized_scan(&[], |runner, allowance| {
             let table = &runner.schema.tables[&scan.table];
             let mut cursor = bounds.clone();
             loop {
                 let batch = (*remaining).min(32);
                 if batch == 0 { return Ok(Vec::new()); }
-                let rows = runner.tx.scan(&scan.table, &scan.index, prefix, &cursor, dir, batch)?;
+                let rows = runner.tx.scan(allowance, &scan.table, &scan.index, prefix, &cursor, dir, batch)?;
                 let count = rows.len();
                 for (mut row, key) in rows {
                     cursor.after = crate::key::decode(&key).map(|key| key.into_iter().skip(prefix.len()).collect());
@@ -965,8 +973,8 @@ impl Runner<'_> {
             // establishes exhaustion; every new candidate must first fit.
             let fetched = if private_page {
                 self.authorized_candidate(scan, &prefix, &cursor, dir, &mut walk_remaining)?
-            } else if metered_payload || transient || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
-                else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
+            } else if metered_payload || transient || job_page { self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut runner.meter))? }
+                else { self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &scan.table, &scan.index, &prefix, &cursor, dir, batch))? };
             if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
             // The store ledger prices allocation (shared memory row handles
             // are cheap). A view also retains the full source payload while
@@ -1399,6 +1407,7 @@ impl Runner<'_> {
 
 struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b>, allowance: &'a Authorization }
 impl Probe for PrefixProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         self.runner.rule_probe_exists(self.allowance, table, index, key, equalities)
     }

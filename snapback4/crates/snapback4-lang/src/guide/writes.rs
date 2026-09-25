@@ -283,17 +283,23 @@ an owned target keeps its ordinary update diagnostic. A directly supplied
 ordinal in an insert or patch is E_SEQUENCE_SUPPLIED before lookup.
 A successful readable insert exposes its assigned ordinal, which reflects the
 shared counter. A hidden grant may establish read authority and permit success;
-an independently denied insert cannot use it as a witness oracle.
+an independently denied insert cannot use it as a witness oracle. Expiry
+metadata depends on complete, successful witness predicates. Failed branches
+and witnesses made redundant by stable ownership contribute no nextExpiry;
+a lifetime that can actually end the returned row's authority still does.
 
 Two limits are accepted: (a) a cap group containing an unreadable occupant returns
 generic E_RULE before cap constraint text. Compared with an empty group, this
 can disclose “someone unreadable is here”, but no occupant identity, ordinal,
 count or values. Ignoring those occupants would let a caller bypass the cap.
-(b) A caller's row behind more than the separate 8,192-candidate walk bound
+Expiring cap checks inspect at most 8,192 physical candidates, including expired
+rows, and return generic E_RULE if live occupancy cannot be established. That
+bound never adds hidden-dependent logical charges.
+(b) A caller's row behind at least the separate 8,192-candidate walk bound
 of unreadable siblings is unreachable by paging in that direction. The page
 is empty with no cursor, identically in every world beyond that bound.
 The generated harness compares hidden siblings, witnesses and counter history
-across refusals, logical meters, pages/cursors, sync images and watermarks, and
+across refusals, logical meters, expiry deadlines, pages/cursors, sync images and watermarks, and
 device prediction, admission, reopened outboxes and settlement. It separately
 checks successful assignments and these limits; it does not promise identical
 outcomes when the caller's actual authority changes. Authorization-dependent
