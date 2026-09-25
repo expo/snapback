@@ -55917,3 +55917,53 @@ No new syntax, refusal code, guide rewrite, push or publication; no requested
 fix is deferred. Implementation commits: `97b181fec`, `ea2b2df7c`. File map,
 examples, decisions and full evidence:
 [round-11 report](reports/20260925-intent-lane-t-round11.md).
+
+## 2026-09-25 — Lane T, LLP 3000.014 round 12: anonymous retained projections
+
+Fixed Grok's remaining anonymous-array overlap and added Astra's object-source
+mismatch witness. An unpaired element without a source now appends only its
+retained projection, excluding nested table-qualified sources already present
+anywhere in the server array. Current rows and unrelated current wrapper fields
+are removed; containers without surviving history disappear. Retained rows
+preserve their own scalar/JSON contents, while nested source rows decide
+retention independently. Identified unpaired elements remain whole, missing
+server provenance still keeps the local subtree, and object-source mismatches
+still preserve the unmatched local object. LLP 3000.014 §5 records these
+projection details; no pairing uses position or projected fields.
+
+Added four regressions with real wasm/native device masks under
+`return [{rows}]`: a partial rejoin holding current `c` beside retained `old`,
+and an in-place edit whose retained copy has the same source as the server's
+current row. The answer contains current `c` plus only retained `old`, or just
+the current edited row, respectively. Three helper witnesses cover Astra's
+parent-A versus parent-B mismatch, nested table-qualified identities and
+identified leftovers, and retained JSON preservation without nested current
+rows. Before the fix, the four device cases and projection helper failed on
+stale/duplicate data. Astra's guard passed its new witness before mutation.
+
+Both requested mutations fail: a wholesale append fails all four wasm/native
+overlap cases, and removing `source !== identity(currentMask) ||` fails the
+object mismatch case by attaching A's history to B. Both mutations were
+restored before qualification. Final focused checks: **34 client tests passed**,
+plus package build and typecheck. No Rust implementation changed this round.
+
+Required full run, exit 0, exact summary: **`== 0 failure(s) in 1207 s`**.
+Rust target runner: **3,048 passed, 16 ignored, zero failed**; docs budget
+separately rechecked one guide case. Clients: **1,615 passed, 10 skipped, zero
+failed (1,625 total)**. Every blocking phase passed on the first full run.
+No failure was waived as baseline or environmental; the baseline tail was
+read and its historical Cargo failure did not recur. Only intentional pre-fix
+and mutation probes failed. The run used CPU affinity 32–47, eight build jobs,
+eight Rust target processes, four Rust test threads and serial client files,
+with `TMPDIR=/dev/shm/sb4-intent-lane-t-tests`. Full log:
+`~/sb4-intent/lane-t-r12-test.log`.
+
+Final wasm unchanged: **1,834,177 bytes raw / 515,152 bytes gzip**, Rust 1.97.0
+and wasm-bindgen 0.2.127 without wasm-opt. The **516,000-byte budget is unchanged**
+(848 bytes headroom); runtime ceilings are unchanged. `ref-check --verbose`
+and `git diff --check` passed. All changed source/test files are below 1,500
+lines (115, 229 and 247 lines). No clock site, public Read contract, stored row
+format, authorization rule, server physical-child protection, guide syntax or
+refusal code changed. No deviation, open problem, deferred request, push or
+publication. Implementation commit: `67117a9b9`. File map, examples, mutation
+proofs and qualification: [round-12 report](reports/20260925-intent-lane-t-round12.md).
