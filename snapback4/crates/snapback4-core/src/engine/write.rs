@@ -134,7 +134,7 @@ impl Runner<'_> {
         // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
         let supplied = row.clone();
         let row = self.with_defaults(table_name, row)?;
-        self.authorize_fields(table_name, &row, &supplied).map_err(|_| self.no_write_target())?;
+        self.authorize_fields(table_name, &row, &supplied)?;
         if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
         // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
         if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }

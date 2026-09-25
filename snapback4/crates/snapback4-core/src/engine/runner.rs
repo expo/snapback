@@ -750,14 +750,14 @@ impl<'a> Runner<'a> {
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
-            Builtin::Group { field } => {
+            Builtin::Group { field, optional } => {
                 // @ref LLP 3000.007#5.3 — groups retain first-seen order; keys and the result are heap charged.
                 let values = into_array(args.remove(0))?;
                 let mut positions = BTreeMap::<String, usize>::new();
                 let mut groups: Vec<(Value, Vec<Value>)> = Vec::new();
                 for value in values {
                     self.meter.step(1)?;
-                    let key = value.field(field)?.clone();
+                    let key = if *optional { value.field(field).unwrap_or(&Value::Null) } else { value.field(field)? }.clone();
                     let encoded = canonical_json(&key);
                     self.meter.heap(encoded.len() as u64 + key.clone_heap_bytes())?;
                     let next = groups.len();
@@ -833,14 +833,14 @@ impl<'a> Runner<'a> {
                 let mut values = into_array(args.remove(0))?;
                 for value in &values {
                     for key in keys {
-                        value.field(&key.field)?;
+                        if !key.optional { value.field(&key.field)?; }
                     }
                 }
                 self.meter.step(values.len() as u64)?;
                 values.sort_by(|left, right| {
                     keys.iter()
                         .find_map(|key| {
-                            let mut order = left.field(&key.field).expect("validated").total_cmp(right.field(&key.field).expect("validated"));
+                            let mut order = left.field(&key.field).unwrap_or(&Value::Null).total_cmp(right.field(&key.field).unwrap_or(&Value::Null));
                             if key.order == Order::Desc {
                                 order = order.reverse();
                             }

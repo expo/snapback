@@ -220,7 +220,7 @@ pub enum Builtin {
     Trim,
     Sha256,
     Join,
-    Group { field: String },
+    Group { field: String, #[serde(default, skip_serializing_if = "std::ops::Not::not")] optional: bool },
     First,
     Last,
     At,
@@ -252,6 +252,9 @@ impl Builtin {
 pub struct SortKey {
     pub field: String,
     pub order: Order,
+    /// The declared private field can be omitted by row projection.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optional: bool,
 }
 
 /// A point read: one indexed key, all components bound.

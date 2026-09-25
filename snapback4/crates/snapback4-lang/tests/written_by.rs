@@ -46,6 +46,33 @@ fn ordered_named_transition_is_admitted_but_read_rules_stay_equalities() {
 }
 
 #[test]
+fn ordinary_update_rules_cannot_guess_private_values() {
+    let source = "table records:\n  owner: principal\n  secret: int default 0 written by .owner\n  label: int default 0\n  read <- public\n  update <- .secret = .label\nmutation guess(id: records, label: int):\n  update records[id] { label }\n";
+    let b = compile(&[("guess.q".into(), source.into())]);
+    let d = b.diagnostics.iter().find(|d| d.code == "E_FIELD_AUTHORITY").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
+    assert!(d.message.contains("named update (old, next)"), "{d:?}");
+    assert!(!d.rewrite.is_empty());
+    bound(&source.replace("update <- .secret = .label", "update (old, next) <- next.secret = next.label"));
+    bound(&source.replace("written by .owner", "written by .owner readable by audience"));
+}
+
+#[test]
+fn private_equality_term_refuses_in_a_read_rule() {
+    let source = SOURCE.replace("read <- exists members[.conversationId, viewer]", "read <- .readUpTo = 0");
+    let b = compile(&[("private-read.q".into(), source)]);
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && !d.rewrite.is_empty()), "{:?}", b.diagnostics);
+}
+
+#[test]
+fn writes_card_splits_the_read_mark_section() {
+    let card = guide::card("writes").unwrap();
+    assert!(card.contains("behavior.\n\n## Writing a member's read mark\n"));
+    let section = snapback4_lang::diag::Diagnostic::new(&Default::default(), "E_FIELD_AUTHORITY", "private field", "omit it")
+        .guide("writes").explanation_section().unwrap();
+    assert!(section.contains("## Writing a member's read mark"), "{section}");
+}
+
+#[test]
 fn private_derivations_and_rule_probes_refuse_and_visibility_changes_reacquire() {
     for extra in ["view leaked: sum members of .readUpTo by .conversationId\n  read <- allow\n  online only\n", "table leaks:\n  key: members\n  read <- exists members[id = .key, readUpTo = 13]\n"] {
         let b=compile(&[("bad.q".into(),format!("{SOURCE}\n{extra}"))]);

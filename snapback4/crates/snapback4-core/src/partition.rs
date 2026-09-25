@@ -184,10 +184,18 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         let mut before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
         let mut after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
         // Shared images omit private fields; each owner's own partition also
-        // carries a full projected image. A lost owner gets a tombstone; serve
-        // time replaces it with a redacted put only if the row is still theirs to read.
-        if let Some(row) = old { before.extend(table.field_owners(row).iter().map(|p| partition_of(p))); }
-        if let Some(row) = new { after.extend(table.field_owners(row).iter().map(|p| partition_of(p))); }
+        // carries an image only when that owner may read the row. Use the old
+        // image for revocations, so losing read authority still withdraws it.
+        // Evaluate for the recipient explicitly: the writer may be the system.
+        for (row, recipients) in [(old, &mut before), (new, &mut after)] {
+            if let Some(row) = row {
+                for owner in table.field_owners(row) {
+                    if crate::engine::rules::evaluate(&table.rules.read, &owner, None, row, false, runner)? {
+                        recipients.insert(partition_of(&owner));
+                    }
+                }
+            }
+        }
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
         #[cfg(feature = "sqlite")]
         let id = if LOG { id.to_owned() } else { String::new() };

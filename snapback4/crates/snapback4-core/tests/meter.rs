@@ -84,7 +84,7 @@ fn allocating_builtins_charge_the_result_and_keep_their_values() {
         (Builtin::Concat, vec![list.clone(), list.clone()], Value::Array(vec![Value::String("one".into()), Value::String("two".into()), Value::String("one".into()), Value::String("two".into())])),
         (Builtin::Slice, vec![Value::String("a🙂z".into()), Value::Int(1), Value::Int(2)], Value::String("🙂".into())),
         (Builtin::Slice, vec![list.clone(), Value::Int(1), Value::Int(2)], Value::Array(vec![Value::String("two".into())])),
-        (Builtin::Sort { keys: vec![SortKey { field: "n".into(), order: Order::Asc }] }, vec![Value::Array(vec![object([("n", Value::Int(2))]), object([("n", Value::Int(1))])])], sorted),
+        (Builtin::Sort { keys: vec![SortKey { field: "n".into(), order: Order::Asc, optional: false }] }, vec![Value::Array(vec![object([("n", Value::Int(2))]), object([("n", Value::Int(1))])])], sorted),
         (Builtin::MentionTokens, vec![Value::String("@alice, @bob @alice".into())], Value::Array(vec![Value::String("alice".into()), Value::String("bob".into())])),
         (Builtin::Divmod { remainder_sink: "rest".into() }, vec![Value::Int(7), Value::Int(3)], object([("quotient", Value::Int(2)), ("remainder", Value::Int(1)), ("sink", Value::String("rest".into()))])),
     ];

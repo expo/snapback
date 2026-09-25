@@ -169,8 +169,8 @@ fn owner_transfer_revokes_or_redacts_on_both_stores() {
             let hidden=call(&mut e,"secret","alice",json!({"id":"row"}),"hidden");
             let absent=call(&mut e,"secret","alice",json!({"id":"absent"}),"absent");
             refused(&hidden,"NOT_FOUND");refused(&absent,"NOT_FOUND");
-            for id in ["row", "absent"] {
-                refused(&call(&mut e,"put","alice",json!({"id":id}),&format!("upsert-{id}")),"NOT_FOUND");
+            for (id, code) in [("row", "NOT_FOUND"), ("absent", "E_FIELD_AUTHORITY")] {
+                refused(&call(&mut e,"put","alice",json!({"id":id}),&format!("upsert-{id}")),code);
             }
         }
         host.close("a",a);host.close("b",b);
@@ -274,4 +274,190 @@ fn audience_readable_fields_keep_the_ordinary_projection_heap_cost() {
         costs.push(out.metered.heap_bytes);
     }
     assert_eq!(costs[0],costs[1]);
+}
+
+#[test]
+fn unreadable_field_owner_receives_no_images_or_tombstones() {
+    fn run<H: Host>(host: &mut H) {
+        let source = TRANSFER.replace("  owner: principal", "  owner: principal\n  reader: principal default viewer")
+            .replace("read <- .owner = viewer", "read <- .reader = viewer")
+            .replace("sync to .owner", "sync to .reader");
+        let source = format!("{source}\nmutation readership(id: records, reader: principal):\n  update records[id] {{ reader }}\nmutation remove(id: records):\n  delete records[id]\n").replace("  update <- allow", "  update <- allow\n  delete <- .reader = viewer");
+        let (mut e, backend) = compile(&source);
+        let mut bob = host.open("bob", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut e, "bob", 100).iter().enumerate() { bob.apply(page, n == 0).unwrap(); }
+        // System seeding must not grant its own read bypass to Bob.
+        for id in ["never-readable", "revoked"] {
+            let row = json!({"id":id,"owner":"bob","reader":"alice","secret":73,"label":0});
+            e.seed([("records".into(), wire::row_from_json(&e.schema().tables["records"], &row).unwrap())]).unwrap();
+        }
+        assert_eq!(query(&mut e, "one", "bob", json!({"id":"never-readable"})), Json::Null);
+        let page = stream_page(&mut e, "bob", bob.state().unwrap().0);
+        assert!(page.events.is_empty(), "{}", page_json(&page));
+        bob.apply(&page, false).unwrap();
+        for page in snapshot_pages(&mut e, "bob", 100) { assert!(page.events.is_empty()); }
+        sent(&call(&mut e, "edit", "alice", json!({"id":"never-readable","label":1}), "edit"));
+        sent(&call(&mut e, "remove", "alice", json!({"id":"never-readable"}), "delete"));
+        let page = stream_page(&mut e, "bob", bob.state().unwrap().0);
+        assert!(page.events.is_empty(), "{}", page_json(&page));
+        bob.apply(&page, false).unwrap();
+        sent(&call(&mut e, "readership", "alice", json!({"id":"revoked","reader":"bob"}), "grant"));
+        let page = stream_page(&mut e, "bob", bob.state().unwrap().0);
+        bob.apply(&page, false).unwrap();
+        assert_eq!(wire::to_json(&bob.query("one", "bob", &json!({"id":"revoked"}), 1000).unwrap().data)["secret"], 73);
+        sent(&call(&mut e, "readership", "bob", json!({"id":"revoked","reader":"alice"}), "revoke"));
+        let page = stream_page(&mut e, "bob", bob.state().unwrap().0);
+        assert!(page_json(&page)["events"].as_array().unwrap().iter().any(|event| event["kind"] == "del" && event["id"] == "revoked"));
+        bob.apply(&page, false).unwrap();
+        assert_eq!(wire::to_json(&bob.query("one", "bob", &json!({"id":"revoked"}), 1000).unwrap().data), Json::Null);
+        sent(&call(&mut e, "remove", "alice", json!({"id":"revoked"}), "delete-revoked"));
+        assert!(stream_page(&mut e, "bob", bob.state().unwrap().0).events.is_empty());
+        let tx = e.store_mut().read_transaction().unwrap();
+        assert!(tx.read_log("p:bob", 0, 1000).unwrap().iter().all(|event| event.id != "never-readable"));
+        tx.rollback().unwrap();
+        host.close("bob", bob);
+    }
+    run(&mut Memory::new()); run(&mut Sqlite::new("unreadable-owner"));
+}
+
+#[test]
+fn combined_transfer_and_private_patch_uses_the_old_owner() {
+    let source = TRANSFER.replace("read <- .owner = viewer", "public 'shared rows'").replace("sync to .owner", "sync public");
+    let source = format!("{source}\nmutation transferSecret(id: records, owner: principal, secret: int):\n  update records[id] {{ owner, secret }}\n");
+    for disk in [false, true] {
+        let (memory, backend) = compile(&source);
+        let host = Sqlite::new("combined-transfer");
+        let mut e = if disk { Engine::new(snapback4_core::store::Store::open(&host.path("server")).unwrap(), backend.schema, backend.programs).unwrap() } else { memory };
+        sent(&call(&mut e, "make", "alice", json!({}), "row"));
+        refused(&call(&mut e, "transferSecret", "bob", json!({"id":"row","owner":"bob","secret":19}), "steal"), "E_FIELD_AUTHORITY");
+        assert_eq!(query(&mut e, "one", "alice", json!({"id":"row"}))["secret"], 73);
+        assert_eq!(query(&mut e, "one", "alice", json!({"id":"row"}))["owner"], "alice");
+        sent(&call(&mut e, "transferSecret", "alice", json!({"id":"row","owner":"bob","secret":29}), "give"));
+        assert_eq!(query(&mut e, "one", "bob", json!({"id":"row"}))["secret"], 29);
+        assert!(query(&mut e, "one", "alice", json!({"id":"row"})).get("secret").is_none());
+    }
+}
+
+#[test]
+fn absent_upsert_reports_field_authority_but_hidden_target_stays_not_found() {
+    for disk in [false, true] {
+        let (memory, backend) = compile(&TRANSFER.replace("insert <- .owner = viewer", "insert <- allow"));
+        let host = Sqlite::new("upsert-authority");
+        let mut e = if disk { Engine::new(snapback4_core::store::Store::open(&host.path("server")).unwrap(), backend.schema, backend.programs).unwrap() } else { memory };
+        sent(&call(&mut e, "make", "bob", json!({}), "hidden"));
+        for (id, code) in [("fresh", "E_FIELD_AUTHORITY"), ("hidden", "NOT_FOUND")] {
+            refused(&call(&mut e, "put", "alice", json!({"id":id}), &format!("put-{id}")), code);
+        }
+        assert_eq!(query(&mut e, "one", "bob", json!({"id":"hidden"}))["secret"], 73);
+        assert_eq!(query(&mut e, "one", "bob", json!({"id":"fresh"})), Json::Null);
+    }
+}
+
+#[test]
+fn group_and_sort_use_null_for_projected_private_keys() {
+    fn run<H: Host>(host: &mut H) {
+        let source = TRANSFER.replace("read <- .owner = viewer", "public 'shared rows'").replace("sync to .owner", "sync public");
+        let source = format!("{source}\nquery grouped():\n  rows = records first 10\n  return group(rows, 'secret')\nquery sorted():\n  rows = records first 10\n  return sort(rows, 'secret', '-id')\nquery missing():\n  rows = records first 10\n  return sort(rows, 'nonexistent')\n");
+        let (mut e, backend) = compile(&source);
+        // The owner's secret order differs from the non-owner's null-key
+        // tie-break order, so ignoring the private sort key cannot pass.
+        for (id, secret) in [("a", 3), ("b", 7)] {
+            let row = json!({"id":id,"owner":"bob","secret":secret,"label":0});
+            e.seed([("records".into(), wire::row_from_json(&e.schema().tables["records"], &row).unwrap())]).unwrap();
+        }
+        for viewer in ["alice", "bob"] {
+            let mut device = host.open(viewer, Some(backend.clone())).unwrap();
+            for (n, page) in snapshot_pages(&mut e, viewer, 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+            for op in ["grouped", "sorted"] {
+                let result = query(&mut e, op, viewer, json!({}));
+                assert_eq!(wire::to_json(&device.query(op, viewer, &json!({}), 1000).unwrap().data), result);
+                if op == "grouped" {
+                    assert_eq!(result.as_array().unwrap().len(), if viewer == "bob" { 2 } else { 1 });
+                    assert_eq!(result[0]["key"], if viewer == "bob" { json!(3) } else { Json::Null });
+                } else {
+                    assert_eq!(result[0]["id"], if viewer == "bob" { "a" } else { "b" });
+                    assert_eq!(result[1]["id"], if viewer == "bob" { "b" } else { "a" });
+                    assert_eq!(result[0].get("secret").cloned(), (viewer == "bob").then_some(json!(3)));
+                }
+            }
+            assert_eq!(e.query("missing", context(viewer, &[])).unwrap_err().code, "E_FIELD");
+            assert_eq!(device.query("missing", viewer, &json!({}), 1000).unwrap_err().code, "E_FIELD");
+            host.close(viewer, device);
+        }
+        let bad = source.replace("group(rows, 'secret')", "group(rows, 'nonexistent')");
+        let b = snapback4_lang::compile(&[("bad.q".into(), bad)]);
+        assert!(b.diagnostics.iter().any(|d| d.message.contains("no column nonexistent")));
+    }
+    run(&mut Memory::new()); run(&mut Sqlite::new("private-operators"));
+}
+
+#[test]
+fn projection_heap_charge_grows_with_private_payload() {
+    let source = "table records:\n  owner: principal\n  secret: text <=10000000 default '' written by .owner\n  public\n  sync public\nquery existsRow(id: records):\n  return exists records[id]\n";
+    let mut costs = Vec::new();
+    for bytes in [0, 100_000] {
+        let (mut e, _) = compile(source);
+        let row = json!({"id":"row","owner":"bob","secret":"s".repeat(bytes)});
+        e.seed([("records".into(), wire::row_from_json(&e.schema().tables["records"], &row).unwrap())]).unwrap();
+        let ctx = || context("alice", &[("id", id("row"))]);
+        let out = e.query("existsRow", ctx()).unwrap();
+        assert_eq!(out.data, Value::Bool(true));
+        costs.push(out.metered.heap_bytes);
+        if bytes > 0 {
+            e.set_ceilings(snapback4_core::meter::Ceilings { heap_bytes: 2048, ..Default::default() });
+            let cut = e.query("existsRow", ctx()).unwrap();
+            assert!(!cut.complete && cut.data == Value::Null);
+            assert_eq!(cut.capped_at.unwrap().0, snapback4_core::error::MeterKind::HeapBytes);
+        }
+    }
+    assert!(costs[1] >= costs[0] + 100_000, "{costs:?}");
+}
+
+#[test]
+fn projecting_an_already_absent_field_keeps_the_shared_map() {
+    let (_, backend) = compile(TRANSFER);
+    for row in [Value::Row, Value::Map] {
+        let fields = std::collections::BTreeMap::from([
+            ("id".into(), id("row")), ("owner".into(), id("bob")), ("label".into(), Value::String("x".repeat(100_000)))
+        ]).into();
+        let value = row(fields);
+        let projected = backend.schema.tables["records"].project_fields(value.clone(), Some("alice"));
+        let (Value::Row(original) | Value::Map(original), Value::Row(projected) | Value::Map(projected)) = (&value, &projected) else { panic!() };
+        assert!(original.shares_image(projected));
+    }
+}
+
+#[test]
+fn device_projection_charges_present_payload_but_skips_omitted_fields() {
+    use snapback4_core::{Ceilings, engine::local, rows::Rows};
+    use snapback4_device::store::{DeviceStore, DeviceTx};
+    fn run<S: DeviceStore>(mut store: S) {
+        let source = "table records:\n  owner: principal\n  secret: time default now written by .owner\n  body: text <=200000\n  public\n  sync public\nquery existsRow(id: records):\n  return exists records[id]\n";
+        let (_, backend) = compile(source);
+        store.install(&backend.schema, &Default::default(), false).unwrap();
+        let tx = store.transaction().unwrap();
+        let ctx = || context("alice", &[("id", id("row"))]);
+        let mut costs = Vec::new();
+        for present in [false, true] {
+            let mut row = json!({"id":"row","owner":"bob","body":"x".repeat(100_000)});
+            if present { row["secret"] = json!(1000); }
+            let row = wire::row_from_json(&backend.schema.tables["records"], &row).unwrap();
+            let old = tx.get("records", "row").unwrap();
+            tx.put("records", &backend.schema.tables["records"], &row, old.as_ref()).unwrap();
+            let out = local::query(&tx, &backend.schema, &backend.programs[0], ctx(), Ceilings::default()).unwrap();
+            assert_eq!(out.data, Value::Bool(true));
+            costs.push(out.metered.heap_bytes);
+            let limited = local::query(&tx, &backend.schema, &backend.programs[0], ctx(), Ceilings { heap_bytes: 2048, ..Default::default() });
+            if present {
+                let cut = limited.unwrap();
+                assert!(!cut.complete && cut.data == Value::Null);
+                assert_eq!(cut.capped_at.unwrap().0, snapback4_core::error::MeterKind::HeapBytes);
+            }
+            else { assert_eq!(limited.unwrap().data, Value::Bool(true)); }
+        }
+        assert!(costs[1] >= costs[0] + 100_000, "{costs:?}");
+        tx.rollback().unwrap();
+    }
+    run(snapback4_device::memory::MemoryStore::new());
+    run(snapback4_core::store::Store::memory().unwrap());
 }

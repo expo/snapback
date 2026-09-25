@@ -117,13 +117,16 @@ The field is private to its owner unless declared `readable by audience`.
 Group/public log images omit private fields; the owner's principal partition
 carries their image, and every owner's device receives it while the row is
 readable. Queries, shapes, write results and snapshots apply the same
-projection. Selecting an omitted field returns null; generated row types
+projection. Selecting an omitted field returns null, including as a `group`
+or `sort` key; generated row types
 mark the field optional. Asset downloads apply the same field visibility.
 Field ownership does not grant read access to the row. Ownership changes
 redact the former owner's copy, or remove it if the row also becomes unreadable.
 A device queues a transition that needs another owner's omitted value or
 would acquire ownership of that value; an independent owned-field patch
 still predicts. Ordinary row grants do not add dependencies to such a patch.
+Only a named `update (old, next)` transition may use a private field as a
+rule input; ordinary update rules cannot test guesses against it.
 Private fields cannot supply indexes/cursors, expiry, recorded attribution,
 other rules' probes or aggregate inputs; make the field readable by audience
 before using it there. `check` prints each field's owner and visibility.

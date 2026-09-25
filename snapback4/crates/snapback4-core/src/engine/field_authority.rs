@@ -41,9 +41,12 @@ impl Runner<'_> {
 
     pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<Value, RuntimeError> {
         let definition = &self.schema.tables[table];
-        if !self.context.is_system() && definition.written_by.values().any(|authority| !authority.audience
+        if !self.context.is_system() && definition.written_by.iter().any(|(field, authority)| row.field(field).is_ok() && !authority.audience
             && row.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone()))) {
-            self.meter.heap(row.clone_heap_bytes())?;
+            // Charge the unprojected payload and reserve the map's copy before
+            // removal invokes Arc::make_mut. A shared row's Clone costs zero,
+            // but mutating its map can copy every field, including private text.
+            self.meter.heap(row.heap_bytes())?;
         }
         let row = super::recorded::public_image(definition, row);
         Ok(if self.context.is_system() { row } else { definition.project_fields(row, Some(&self.context.viewer)) })

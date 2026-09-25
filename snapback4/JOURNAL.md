@@ -49374,3 +49374,63 @@ second local build; no per-component byte attribution is claimed. The old
 489,000 B, leaving 30 B. metrics/wasm-budget.json and the commit message carry
 this measured reason. Final report: /home/ccheever/sb5/lane-b1.r0.final.md.
 No push, publication or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 1: blind-review corrections
+
+Continued the recovered worktree after the host ran out of disk space; retained
+its correct implementation and regression tests, without cleaning or deleting
+the cargo target. Read Astra's NOT READY and Grok's READY WITH CHANGES reviews
+in full. Additional owner partitions now require row-read authority evaluated
+for the recipient, including on system writes. Old/new images determine the
+before/after recipients so read revocation still sends a tombstone. The wire
+regression reproduces Alice as reader and Bob as an unreadable owner, then
+checks that inserts, updates and deletion disclose no row or id to Bob; it
+also checks grant, revocation and subsequent silent deletion on both stores.
+
+Private rule terms now require a named update (old, next) transition; ordinary
+update guessing and private read equality have bind-time E_FIELD_AUTHORITY
+regressions. Projection charges the real unstripped row heap before map
+copy-on-write and skips already-absent fields. The tests compare private
+payload sizes, cut a 100 KB projection at a 2 KB ceiling, and preserve shared
+map identity when the field is already omitted. Group and sort use null for
+omitted declared private keys, with nonexistent-field diagnostics preserved;
+the owner and non-owner tests now require different sort orders. An absent
+upsert reports E_FIELD_AUTHORITY while a hidden existing target remains
+NOT_FOUND. Combined ownership-transfer/private-field patches prove that both
+write checks must use the old owner. The writes-card heading is repaired and
+tested through the diagnostic card splitter; the rules card records the
+transition restriction and null-key semantics.
+
+The recovered session's deliberate combined mutation run failed nine
+engine/device and three language tests on these regressions. All mutations
+were restored. The resumed focused tests passed 22/22. With FORCE_COLOR unset
+and Node 24.18.0, the entire app.test.mjs file then passed three times, 34/34
+each run, including all four shared-logout/rotation variants. The reported
+socket flake at line 437 was not reproduced; no client code, timing, timeout,
+or test assertion was changed. These runs do not rule out an intermittent
+race. The requested Volta path is absent, so the existing worktree-local Node
+24.18.0 installation is used after that path on PATH. Test-process PIDs are
+recorded under target/b1-r1-resumed-*-processes.jsonl; harnesses own cleanup.
+
+The resumed scripts/build-wasm.sh measurement is 1,765,480 B raw / 489,547 B
+gzip (Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt). Versus round 0's
+1,763,871 / 488,970 this is +1,609 raw / +577 gzip for the whole artifact:
+recipient read checks in shared partition accounting, real projection heap
+charges and absent-field avoidance, named-transition validation, and optional
+group/sort keys in the IR and interpreter. Server log emission and compiler
+lowering are outside the web artifact; no per-component attribution is
+claimed. The old 489,000 B ratchet is exceeded by 547 B; raise it to 490,000 B,
+leaving 453 B. metrics/wasm-budget.json and the commit message record the same
+reason. Runtime ceilings are unchanged.
+
+Final blocking result: `== 0 failure(s) in 825 s`. All Rust targets and
+doctests passed; client tests: 1,088 passed, 0 failed, 10 existing skips.
+The full suite also passed the shared-logout variants and all 22 field-authority
+tests, including the strengthened sort assertions. Qualification used the
+existing serial-client-file mode, eight Rust test processes and eight build
+jobs. `git diff --check` passes. Final log:
+`target/b1-r1-resumed-suite.log`; the interrupted predecessor's disk-exhaustion
+log is retained and is not counted as a passing run. Final report:
+`/home/ccheever/sb5/lane-b1.r1.final.md`. No design-of-record deviation or
+new diagnostic code. PostgreSQL was not runtime-tested; no adapter-specific
+code changed. No push, publication or deployment.

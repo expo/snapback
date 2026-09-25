@@ -316,7 +316,9 @@ messages and no `result` or `current`. Replay returns
 execution identity only, with `replayed: true`; historical `result` and
 `current` are withheld, including after revocation or a dropped response.
 The same operation id under another principal has no access to that receipt.
-`delete` keeps its own existing rule and behavior.## Writing a member's read mark
+`delete` keeps its own existing rule and behavior.
+
+## Writing a member's read mark
 
 Declare `readUpTo: int default 0 written by .principal` on the membership
 row. `markRead` patches just that field; it needs no row update grant, but a

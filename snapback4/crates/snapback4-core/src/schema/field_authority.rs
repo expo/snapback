@@ -18,7 +18,7 @@ impl Table {
     /// materialized here: callers project only after interpreting the row.
     pub fn project_fields(&self, mut row: Value, viewer: Option<&str>) -> Value {
         if self.written_by.is_empty() { return row; }
-        let hidden: Vec<_> = self.written_by.iter().filter(|(_, authority)| !authority.audience
+        let hidden: Vec<_> = self.written_by.iter().filter(|(field, authority)| row.field(field).is_ok() && !authority.audience
             && !viewer.is_some_and(|viewer| row.field(&authority.owner).is_ok_and(|value| value == &Value::Id(viewer.into()))))
             .map(|(field, _)| field.clone()).collect();
         if let Value::Row(fields) | Value::Map(fields) = &mut row {
@@ -65,7 +65,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             }
         }
         for (effect, rule) in [("read", &table.rules.read), ("insert", &table.rules.insert), ("update", &table.rules.update), ("delete", &table.rules.delete)] {
-            private_rule(schema, name, rule, effect == "update", &mut issue);
+            private_rule(schema, name, rule, effect == "update" && table.update_transition, &mut issue);
         }
     }
     issues
@@ -75,7 +75,7 @@ fn private_rule(schema: &Schema, name: &str, rule: &RuleExpr, update: bool, issu
     let term = |term: &RuleTerm, issue: &mut dyn FnMut(&str, &str, String)| {
         if !update && let RuleTerm::Field(field) | RuleTerm::OldField(field) | RuleTerm::NextField(field) = term
             && schema.tables[name].private_field(field) {
-            issue(name, field, "is private; only an update transition may use it as a rule input".into());
+            issue(name, field, "is private; only a named update (old, next) transition may use it as a rule input; declare readable by audience for other rules".into());
         }
     };
     match rule {
