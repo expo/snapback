@@ -4,6 +4,43 @@ pub const CHAIN: &str = include_str!("chain.q");
 pub const CLIQUE: &str = include_str!("clique.q");
 pub const ISSUES: &str = include_str!("issue_tracker.q");
 
+pub fn recursive_expiry(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
+    let source=include_str!("lifetime.q").split("query page").next().unwrap()
+        .replace("table children:","table middle:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\ntable children:")
+        .replace("parent: parents\n  body:","parent: middle\n  body:")
+        .replace("mutation child(id: id, parent: parents,","mutation child(id: id, parent: middle,");
+    let source = format!(
+        "{source}\nmutation setup():\n  insert parents {{ id: 'p', owner: viewer, until: 200 }}\n  insert middle {{ id: 'm', parent: 'p' }}\n  insert children {{ id: 'c', parent: 'm', body: 'hello', until: null }}\n"
+    );
+    let mut e = factory(&source);
+    e.run("setup", context("alice", 100, &[])).unwrap();
+    e.run(
+        "extend",
+        context(
+            "alice",
+            100,
+            &[("id", Value::Id("c".into())), ("until", Value::Int(999))],
+        ),
+    )
+    .unwrap();
+    assert_ne!(
+        e.run(
+            "childRow",
+            context("alice", 199, &[("id", Value::Id("c".into()))])
+        )
+        .unwrap(),
+        Value::Null
+    );
+    assert_eq!(
+        e.run(
+            "childRow",
+            context("alice", 200, &[("id", Value::Id("c".into()))])
+        )
+        .unwrap(),
+        Value::Null
+    );
+}
+
 pub trait Backend {
     fn run(&mut self, operation: &str, context: Context) -> Result<Value, String>;
 }

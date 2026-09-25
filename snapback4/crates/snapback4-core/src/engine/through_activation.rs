@@ -7,6 +7,25 @@ use crate::{
     value::Value,
 };
 
+/// Only inherited batches need staging. Preserve the streaming path for
+/// existing schemas, including large fixture imports.
+pub(crate) fn ancestor_order<'a, I>(
+    schema: &Schema,
+    rows: I,
+) -> Box<dyn Iterator<Item = (String, Value)> + 'a>
+where
+    I: IntoIterator<Item = (String, Value)>,
+    I::IntoIter: 'a,
+{
+    if schema.tables.values().all(|t| t.through.is_none()) {
+        return Box::new(rows.into_iter());
+    }
+    let order = schema.through_order();
+    let mut rows: Vec<_> = rows.into_iter().collect();
+    rows.sort_by_key(|(name, _)| order.iter().position(|n| n == name).unwrap_or(usize::MAX));
+    Box::new(rows.into_iter())
+}
+
 fn refusal(name: &str, count: usize, reason: &str) -> RuntimeError {
     RuntimeError::Structural {
         code: "E_READ_THROUGH_ADOPT",

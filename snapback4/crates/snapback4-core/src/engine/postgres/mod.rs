@@ -329,10 +329,7 @@ impl PostgresEngine {
 
     /// Fixture loading still uses the real validation, maintains and sync paths.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
-        let mut rows: Vec<_> = rows.into_iter().collect();
-        if self.schema.tables.values().any(|t|t.through.is_some()) {
-            let order=self.schema.through_order(); rows.sort_by_key(|(n,_)| order.iter().position(|x|x==n));
-        }
+        let rows = super::through_activation::ancestor_order(&self.schema,rows);
         let tx = self.store.transaction(Some(WriteMode::Serialized))?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);

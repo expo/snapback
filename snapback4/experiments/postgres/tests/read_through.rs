@@ -67,6 +67,12 @@ fn issue_tracker() {
     scenarios::issues(factory);
 }
 
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn recursive_expiry() {
+    scenarios::recursive_expiry(factory);
+}
+
 const MODEL: &str = include_str!("../../../crates/snapback4-lang/tests/read_through/lifetime.q");
 fn compile(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);

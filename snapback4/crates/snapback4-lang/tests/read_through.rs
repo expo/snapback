@@ -113,6 +113,13 @@ fn issue_tracker_sqlite_and_memory() {
     }
 }
 
+#[test]
+fn recursive_expiry_sqlite_and_memory() {
+    for factory in [sqlite, memory] {
+        read_through_support::recursive_expiry(factory);
+    }
+}
+
 const MODEL: &str = include_str!("read_through/lifetime.q");
 
 fn bound(source: &str) -> snapback4_lang::Bound {

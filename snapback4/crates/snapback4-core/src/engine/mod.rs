@@ -1020,9 +1020,7 @@ impl Engine {
 
     /// Development hosts supply their clock so seed commits share operation and stream time.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
-        let order = self.schema.through_order();
-        let mut rows: Vec<_> = rows.into_iter().collect();
-        if self.schema.tables.values().any(|t|t.through.is_some()) { rows.sort_by_key(|(name,_)| order.iter().position(|n| n == name).unwrap_or(usize::MAX)); }
+        let rows = through_activation::ancestor_order(&self.schema, rows);
         let targets: std::collections::BTreeSet<_> = self.schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
         let tx = self.store.transaction()?;
         let mut imports = BTreeMap::<(String, String), Value>::new();
@@ -1160,9 +1158,6 @@ impl Engine {
         let mut seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
-        let order = self.schema.through_order();
-        let mut rows: Vec<_> = rows.into_iter().collect();
-        if self.schema.tables.values().any(|t|t.through.is_some()) { rows.sort_by_key(|(name,_)| order.iter().position(|n| n == name).unwrap_or(usize::MAX)); }
         for (table_name, mut row) in rows {
             if let Some(table) = self.schema.table(&table_name) { table.recompute_deadline(&mut row)?; }
             if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }

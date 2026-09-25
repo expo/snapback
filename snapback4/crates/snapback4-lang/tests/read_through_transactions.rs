@@ -501,6 +501,14 @@ fn memory_seed_sweep_and_reuse_use_the_same_lifetime_rules() {
     let mut store = MemoryStore::new();
     store.activate_server_at(b.schema, 100).unwrap();
     store.seed_server_at(rows(Value::Int(200)), 100).unwrap();
+    let mut changed = rows(Value::Int(200));
+    changed.remove(0);
+    if let Value::Row(f) | Value::Map(f) = &mut changed[0].1 {
+        f.insert("owner".into(), id("bob"));
+    }
+    let before = store.export();
+    assert!(store.seed_server_at(changed, 100).is_err());
+    assert_eq!(store.export(), before);
     let parent = vec![rows(Value::Null).pop().unwrap()];
     assert!(store.seed_server_at(parent.clone(), 200).is_err());
     assert_eq!(store.sweep_server_at(200, 1).unwrap(), 1);
