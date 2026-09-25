@@ -101,6 +101,7 @@ query total():
   // Record the actual retry callback and entry into sync, without changing either.
   const localPath = path('local.ts');
   sourceOverrides[localPath] = (sourceOverrides[localPath] ?? readFileSync(localPath, 'utf8'))
+    .replace('const settling = new Set<string>();', 'const settling = (globalThis as any).settlementOwners = new Set<string>();')
     .replace('retry = undefined; void flush();', 'retry = undefined; (globalThis as any).retryTicks++; void flush();')
     .replace('function syncOnce(): Promise<boolean> {', 'function syncOnce(): Promise<boolean> { (globalThis as any).syncAttempts?.push({ pending: history.hasUnpersisted((globalThis as any).capturedId), tick: (globalThis as any).retryTicks });');
   // Observe completion after the callback without timing sleeps or changing
@@ -108,6 +109,9 @@ query total():
   const exitPath = path('local-exit.ts');
   sourceOverrides[exitPath] = (sourceOverrides[exitPath] ?? readFileSync(exitPath, 'utf8'))
     .replace('active = undefined; });', 'active = undefined; (globalThis as any).exitCompleted?.push(entry.id); });');
+  const settlementPath = path('local-exit-settlement.ts');
+  sourceOverrides[settlementPath] = (sourceOverrides[settlementPath] ?? readFileSync(settlementPath, 'utf8'))
+    .replace('if (options.closed() || options.owners.has(entry.id)) return;', 'if (options.closed() || options.owners.has(entry.id)) { (globalThis as any).exitBlocked?.push(entry.id); return; }');
   const witness = await launch({ sourceDir, seed: [{ table: 'removals', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
@@ -117,7 +121,7 @@ window.ops = { remove: { kind: 'mutation', name: 'removeMember' }, roster: { kin
 window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, wrappedDevice = false, holdProbe = false, probeMode = 'accept', backendUrl = url, unavailable = false, holdOrdinaryResponse = false, holdExitResponse = false }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
   window.sessionLocks = 0; window.exitLocks = []; window.sent = []; window.enqueued = []; window.syncHeld = false; window.openingDone = false; window.probeHeld = false; window.exitRegistrations = 0;
-  window.backendUrl = backendUrl; window.exitCompleted = []; window.outcomes = []; window.receiptBatches = []; window.retryTicks = 0; window.syncAttempts = []; window.syncRequests = 0;
+  window.backendUrl = backendUrl; window.exitCompleted = []; window.exitBlocked = []; window.outcomes = []; window.receiptBatches = []; window.retryTicks = 0; window.syncAttempts = []; window.syncRequests = 0;
   window.holdOrdinaryResponse = holdOrdinaryResponse; window.holdExitResponse = holdExitResponse;
   const request = navigator.locks.request.bind(navigator.locks);
   navigator.locks.request = (name, ...args) => {
@@ -723,6 +727,18 @@ window.abortReceipts = (store, limit = Infinity) => {
   await check('an aborted keepalive receipt transaction retains custody until receipt and retirement commit together', async () => {
     const { session } = await fresh(), before = await total(session);
     const replacement = await replacementFor(session);
+    const hideForSettlement = async id => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const prior = await page.evaluate(() => ({ done: exitCompleted.length, blocked: exitBlocked.length }));
+        await hide();
+        await page.waitForFunction(done => exitCompleted.length > done, prior.done);
+        if (await page.evaluate(blocked => exitBlocked.length === blocked, prior.blocked)) return;
+        // A declined callback did not attempt persistence. Wait for the
+        // ordinary owner to finish before requesting this receipt attempt.
+        await page.waitForFunction(id => !window.settlementOwners.has(id), id);
+      }
+      assert.fail('ordinary delivery kept owning all exit settlement attempts');
+    };
     await page.evaluate(options => boot(options), { url, session, holdPoll: true, blockMutations: true });
     try {
       const captured = await page.evaluate(() => captureClick());
@@ -730,12 +746,12 @@ window.abortReceipts = (store, limit = Infinity) => {
       await page.evaluate(({ destination, store }) => {
         window.backendUrl = destination; abortReceipts(store);
       }, { destination: replacement.api, store: captured.store });
-      await hide();
-      await page.waitForFunction(id => exitCompleted.includes(id), captured.id);
+      await hideForSettlement(captured.id);
       assert.equal(await page.evaluate(() => receiptAborts), 1, 'the real strict IndexedDB transaction aborted');
       assert.deepEqual(await page.evaluate(() => outcomes), [], 'an uncommitted refusal is never published');
       await page.evaluate(() => app.close());
       await navigate('receipt-abort');
+      await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }));
       // Keep ordinary replay offline while inspecting exactly what survived.
       await page.evaluate(options => boot(options), { url, blockMutations: true, holdPoll: true });
       const kept = await page.evaluate(async ({ id, store }) => ({
@@ -747,10 +763,9 @@ window.abortReceipts = (store, limit = Infinity) => {
       assert.ok(kept.queue.some(entry => entry.id === captured.id)); assert.ok(kept.disk);
       assert.ok(!JSON.parse(kept.receipt ?? '[]').some(write => write.id === captured.id));
       await page.evaluate(destination => { window.backendUrl = destination; }, replacement.api);
-      await hide();
-      await page.waitForFunction(id => exitCompleted.includes(id), captured.id);
+      await hideForSettlement(captured.id);
       const failed = await page.evaluate(id => app.client.write(id), captured.id);
-      assert.equal(failed.state, 'failed'); assert.equal(failed.why.code, 'E_STORE_REPLACED');
+      assert.equal(failed.state, 'failed', JSON.stringify(await page.evaluate(() => ({ exitBlocked, sent, receiptBatches, outcomes })))); assert.equal(failed.why.code, 'E_STORE_REPLACED');
       assert.equal(await page.evaluate(async ({ id, store }) => indexedDbPersistence().read(store, 'o', id), captured), null);
       assert.deepEqual(await page.evaluate(() => outcomes.map(write => write.state)), ['failed']);
       await page.evaluate(() => app.close());
