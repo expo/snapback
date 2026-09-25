@@ -414,13 +414,15 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
         }
         // An early live witness with an oversized, unindexed payload must
         // exhaust allocation before authorizing; a small image still fits.
+        // Use the earliest live deadline at an earlier pinned clock: expiry
+        // ordering puts null after the expired backlog, no longer first by id.
         let old = tx.get("members", "m00000").unwrap().unwrap();
         for payload in [Value::Null, Value::String("x".repeat(40000))] {
             tx.savepoint("heap").unwrap();
             let mut row = old.clone();
-            if let Value::Row(fields) = &mut row { fields.insert("until".into(), Value::Null); fields.insert("payload".into(), payload.clone()); }
+            if let Value::Row(fields) = &mut row { fields.insert("until".into(), Value::Int(199)); fields.insert("payload".into(), payload.clone()); }
             tx.put("members", &backend.schema.tables["members"], &row, Some(&old)).unwrap();
-            let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(300),
+            let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(198),
                 Ceilings { examined: 1 + u64::from(aggregate), heap_bytes: 32768, ..Ceilings::unbounded() });
             if payload == Value::Null { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
             else { assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}: {result:?}"); }

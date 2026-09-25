@@ -119,7 +119,8 @@ impl crate::schema::Schema {
         for maintain in &self.maintains {
             if let Some(source) = self.tables.get_mut(&maintain.source).filter(|source| source.expire.is_some()) {
                 source.indexes.insert(maintain.contribution_index(), crate::schema::Index {
-                    components: vec![crate::schema::IndexComponent::Contribution(Box::new(maintain.clone()))], unique: false,
+                    components: vec![crate::schema::IndexComponent::Contribution(Box::new(maintain.clone())),
+                        crate::schema::IndexComponent::Column(source.expire.clone().expect("expiring source"))], unique: false,
                 });
             }
         }

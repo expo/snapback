@@ -533,17 +533,17 @@ fn a_capped_maintained_point_is_unavailable() {
     seed(&mut e, "items", serde_json::json!((0..5).map(|n| serde_json::json!({
         "id": format!("item-{n}"),
         "group": "g",
-        "until": null
+        "until": 1000
     })).collect::<Vec<_>>()));
-    let whole = e.query("count", ctx()).unwrap();
+    let whole = e.query("count", ctx().at(0)).unwrap();
     assert!(whole.complete);
     assert_eq!(whole.data, Value::Int(5));
     let mut ceilings = e.ceilings();
     ceilings.examined = 3;
     e.set_ceilings(ceilings);
 
-    let outcome = e.query("count", ctx()).unwrap();
-    assert_eq!(outcome.data, Value::Null, "two observed contributions cannot stand for the whole count: {outcome:?}");
+    let outcome = e.query("count", ctx().at(1000)).unwrap();
+    assert_eq!(outcome.data, Value::Null, "two expired contributions cannot settle the whole backlog: {outcome:?}");
     assert!(!outcome.complete, "{outcome:?}");
     assert!(matches!(outcome.capped_at, Some((snapback4_core::error::MeterKind::Examined, _))), "{outcome:?}");
 }
@@ -554,9 +554,9 @@ fn a_capped_maintained_scan_is_unavailable_without_a_cursor() {
     seed(&mut e, "items", serde_json::json!((0..5).map(|n| serde_json::json!({
         "id": format!("item-{n}"),
         "group": "g",
-        "until": null
+        "until": 1000
     })).collect::<Vec<_>>()));
-    let whole = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(1000)).unwrap();
+    let whole = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(0)).unwrap();
     assert!(whole.complete);
     assert_eq!(whole.data.as_array().unwrap()[0].field("value"), Ok(&Value::Int(5)));
     let mut ceilings = e.ceilings();

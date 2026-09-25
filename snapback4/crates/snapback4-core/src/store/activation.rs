@@ -105,7 +105,11 @@ impl Store {
             for (name, table) in &schema.tables {
                 let t = catalog[name];
                 for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
+                let mut contribution_meter = crate::meter::Meter::new(crate::meter::Ceilings::job(), crate::meter::Cut::Abort);
+                let mut contribution_rows = 0;
                 walk(&tx, t, |id, mut row| {
+                    if contribution_rows % 256 == 0 { contribution_meter = crate::meter::Meter::new(crate::meter::Ceilings::job(), crate::meter::Cut::Abort); }
+                    contribution_rows += 1;
                     let original = row.clone();
                     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
                     // Persist only a destructive projection. Defaults and
@@ -120,9 +124,19 @@ impl Store {
                     // Maintained rows are replaced by the candidate builder.
                     if schema.maintain_for(name).is_none() { crate::engine::validate::validate_row(schema, name, &row)?; }
                     for (index_name, index) in &table.indexes {
+                        let scratch = contribution_meter.mark();
+                        let contribution = match index.components.first() { Some(crate::schema::IndexComponent::Contribution(m)) => Some(m), _ => None };
+                        if let Some(m) = contribution {
+                            contribution_meter.at(&format!("adopt {name}.{index_name}"));
+                            contribution_meter.charge(crate::error::MeterKind::Examined, 1)?;
+                            contribution_meter.step(m.evaluation_steps())?;
+                            contribution_meter.heap(row.heap_bytes().saturating_mul(4).saturating_add(4096))?;
+                        }
                         for key in index_keys(index, &row, id) {
+                            if contribution.is_some() { contribution_meter.charge(crate::error::MeterKind::IndexEntries, 1)?; }
                             tx.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![catalog[&format!("{name}.{index_name}")], key, id])?;
                         }
+                        contribution_meter.release_heap(scratch);
                     }
                     Ok(())
                 })?;

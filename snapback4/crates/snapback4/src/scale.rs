@@ -370,8 +370,8 @@ impl Analysis<'_> {
         }
         if let Some(m) = self.schema.maintain_for(name)
             && self.schema.table(&m.source).is_some_and(|t| t.expire.is_some()) {
-            self.growth(site, format!("live {} rows in the group behind `{name}`", m.source),
-                "use a view over non-expiring contributions, or cap the source domain");
+            self.growth(site, format!("server: constant aggregate lookup plus unswept expired {} contributions in the group behind `{name}`; server expiry sweep: 1-second tick, at most 2,000 rows per pass; the examined meter bounds the backlog; device: live source recomputation still scans the held group", m.source),
+                "allow the server expiry sweep to drain the group backlog; live group size adds no server read work; use server fallback when the device cannot complete");
             self.rows(self.result.bounds.meters.examined);
         }
     }

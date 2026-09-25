@@ -178,7 +178,14 @@ pub fn stored_index_keys(table: &Table, index: &Index, row: &Value, id: &str) ->
 /// The index's column values from a row image, in component order, the
 /// word component skipped; absent optionals are null.
 pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
-    if let Some(crate::schema::IndexComponent::Contribution(maintain)) = index.components.first() { return maintain.source_key(row); }
+    if let Some(crate::schema::IndexComponent::Contribution(maintain)) = index.components.first() {
+        let mut values = maintain.source_key(row);
+        // @ref LLP 3000.007#20.9.3 — expiry follows the group; a string sentinel sorts after every integer instant.
+        if let Some(expiry) = index.components.get(1).and_then(|part| part.column()) {
+            values.push(match row.field(expiry) { Ok(Value::Int(at)) => Value::Int(*at), _ => Value::String(String::new()) });
+        }
+        return values;
+    }
     index.components.iter().filter_map(|component| component.value(row)).collect()
 }
 

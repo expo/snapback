@@ -255,15 +255,17 @@ answer or unmounting. This short-lived-row example uses the client's clock
 and timer scheduling; `null` never expires.
 
 A row past the time in the column is absent — to every reader, on every
-host, before any rule — from that moment; the server's sweep deletes it
-within a second, and the deletion streams to each device holding it, so it
+host, before any rule — from that moment; the server's sweep schedules physical deletion
+on its one-second tick (backlog and work slices can delay it), and the deletion streams to each device holding it, so it
 leaves local stores on the next sync. In development, `snapback4 clock advance 185s`
 runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync, without changing the device clock (guide clock).
 Disappearing messages are one field on
 insert; there is no purge job to write. A maintained `view` over an expiring table
-reads its live source group under the read meter through an internal selected
-contribution index. Physical zero-sum occupancy reads at most one index entry. A rule may probe whether that live group
+reads its physical total minus unswept expired contributions under the read
+meter through an internal group/expiry/source-id index. Live rows add no server
+read work. Devices still recompute live source contributions under their meter;
+partial source coverage or a cut cannot supply an exact aggregate. Physical zero-sum occupancy reads at most one index entry. A rule may probe whether that live group
 exists at one rule-probe unit, regardless of expired sources. A rule equality
 on its `value` is refused at `check` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the
 view in the program; its live value cannot be probed at one unit. Value

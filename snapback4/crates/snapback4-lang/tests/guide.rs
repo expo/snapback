@@ -520,7 +520,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 4, "one running core, server extension, Following view and compatibility block");
+    assert_eq!(quarry(LANGUAGE).len(), 5, "core, server extension, Following view, compatibility and expiring receipts blocks");
 }
 
 #[test]
@@ -971,7 +971,7 @@ fn direct_and_merged_cursor_generation_contracts_are_distinct() {
 
 #[test]
 fn language_following_uses_the_declaration() {
-    let compatibility = quarry(LANGUAGE).pop().unwrap();
+    let compatibility = quarry(LANGUAGE).into_iter().find(|block| block.contains("maintain timeline: timeline")).unwrap();
     let bound = clean("older timeline spelling", &compatibility);
     assert_eq!(bound.schema.timelines.len(), 1);
     assert_eq!(bound.schema.operations["timelineHome"].runs.as_deref(), Some("device"));

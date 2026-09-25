@@ -244,7 +244,7 @@ query leaseKey(room: id):
     let c = |name: &str| analyze(&b.schema, &b.programs.iter().find(|p| p.program.name == name).unwrap().program);
     assert!(c("hidden").line().contains("per-row read rule"));
     assert!(c("authorized").line().contains("expired leases rows"));
-    assert!(c("countLive").line().contains("live leases rows in the group"));
+    assert!(c("countLive").line().contains("unswept expired leases contributions in the group"));
     assert_eq!(c("mine").bounds.probes, 0);
 }
 

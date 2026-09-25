@@ -475,7 +475,8 @@ impl Index {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IndexComponent {
-    /// Internal selected physical source rows, ordered by computed group then source id.
+    /// Internal selected physical source rows; an optional following expiry component
+    /// orders the group by deadline (null last), then the appended source id.
     Contribution(Box<Maintain>),
     Column(String),
     Calendar(crate::maintain::CalendarKey),
@@ -825,7 +826,9 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                         if let Err(message) = key.validate(table) { issue(&mut issues, ipath.clone(), message); }
                     }
                     IndexComponent::Contribution(maintain) => {
-                        if index.unique || index.components.len() != 1 || maintain.source != *table_name || name != &maintain.contribution_index() {
+                        let format_valid = index.components.len() == 1 || (index.components.len() == 2
+                            && table.expire.as_ref().is_some_and(|expiry| index.components[1].column() == Some(expiry)));
+                        if index.unique || !format_valid || maintain.source != *table_name || name != &maintain.contribution_index() {
                             issue(&mut issues, ipath.clone(), "invalid internal contribution index".into());
                         }
                         if let Err(message) = maintain.validate_keys(table) { issue(&mut issues, ipath.clone(), message); }

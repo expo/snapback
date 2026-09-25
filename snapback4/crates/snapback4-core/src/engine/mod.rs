@@ -30,6 +30,7 @@ mod shaping;
 pub use pages::returned_page_sites;
 pub mod read;
 mod read_auth;
+mod aggregate_expiry;
 pub mod rules;
 pub mod runner;
 pub mod validate;
@@ -338,6 +339,8 @@ impl Engine {
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;
+        let mut schema: Schema = schema;
+        schema.prepare_contribution_indexes();
         // Upgrade derived candidates from older binaries using the stored
         // backend, never a caller's source. The repair logs its row changes.
         let generation = if store.meta("live_sum_candidates")?.as_deref() == Some("1") && store.meta("cap_counts_schema")?.as_deref() == Some(&Schema::hash(&schema)) { generation }

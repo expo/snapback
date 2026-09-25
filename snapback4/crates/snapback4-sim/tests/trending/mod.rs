@@ -122,15 +122,18 @@ fn w12r1a_exhausted_count_projection_is_unavailable() {
     engine.seed([post("winner", now)]).unwrap();
     engine.seed((0..8192).map(|n| ("likes".into(), row(&[
         ("id", id(&format!("like-{n}"))), ("postId", id("winner")), ("principal", id(&format!("viewer-{n}"))),
-        ("at", Value::Int(now)), ("expiresAt", Value::Int(now + DAY)),
+        ("at", Value::Int(now)), ("expiresAt", Value::Int(now + 1)),
     ])))).unwrap();
     for op in ["trending", "rollingLikes"] {
-        let cut = engine.query(op, Context::new("bob", args(&[])).at(now)).unwrap();
+        let live = engine.query(op, Context::new("bob", args(&[])).at(now)).unwrap();
+        assert!(live.complete, "live population does not spend backlog examinations: {live:?}");
+        assert_eq!(live.data.as_array().unwrap()[0].field("score").unwrap(), &Value::Int(8192));
+        let cut = engine.query(op, Context::new("bob", args(&[])).at(now + 1)).unwrap();
         assert!(!cut.complete);
         assert_eq!(cut.data, Value::Null, "an unfinished count is unavailable, never a score: {cut:?}");
         assert_eq!(cut.next, None);
         assert_eq!(cut.metered.examined, 8193);
-        println!("W12R1a {op}: candidates=1; likes=8192; examined={}; data=null; complete=false", cut.metered.examined);
+        println!("W12R1a {op}: candidates=1; expired_backlog=8192; examined={}; data=null; complete=false", cut.metered.examined);
     }
     // The scan fits, but even the first count lookup has no examined unit left.
     engine.set_ceilings(snapback4_core::meter::Ceilings { examined: 1, ..engine.ceilings() });

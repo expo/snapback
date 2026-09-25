@@ -204,9 +204,13 @@ query. Zero-like posts participate. A value-order index over an expiring
 source remains refused: live values change before physical sweeping, so
 stored top-N can miss a winner. Use live counts within the runtime meter or
 an explicitly delayed job-written ranking for that different product.
-Unranked expiring aggregates recompute live contributions before the sweep;
-every expiring aggregate view uses an internal selected-group/source-id index.
-Zero-sum occupancy uses one entry. If the meter interrupts a live group or a
+Unranked expiring aggregates keep a physical total. A server read subtracts
+only the group's unswept expired contributions, using an internal index ordered
+by selected group, expiry (null last), and source id. Work is constant plus
+that backlog, never the live group size. The backlog is what the server expiry
+sweep has not reached: one tick per second, at most 2,000 rows per pass, with
+short cooperative time slices. This is no maximum lag guarantee.
+Zero-sum occupancy uses one entry. If the meter interrupts a backlog scan or a
 maintained point lookup, the Quarry query returns `data: null, complete: false`
 without a continuation; an unfinished count is neither zero nor a partial total.
 A missing group still reads as zero when its lookup completes.
@@ -219,8 +223,10 @@ An online-only side effect does not prevent source-write prediction; reading
 that aggregate does. An unknown local aggregate base is never assumed zero.
 When a zero sum needs an occupancy decision, a held source witness keeps the
 candidate; local absence needs complete source coverage (held, no horizon).
-Otherwise the write queues without a predicted row. Live scalar misses and
-empty pages remain incomplete when source coverage is incomplete. An inherited
+Otherwise the write queues without a predicted row. Devices still recompute
+live contributions under the read meter; a large group can be unavailable.
+Live scalar misses and empty pages remain incomplete when source coverage is
+incomplete. An inherited
 aggregate over a public source with subset delivery runs on the server;
 its local scalar and page coverage is unknown, including for the viewer.
 
