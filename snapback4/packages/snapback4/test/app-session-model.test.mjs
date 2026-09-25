@@ -5,9 +5,11 @@ import { execute, generate, minimize, operations } from "./helpers/app-session-m
 for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences`, { timeout: 240_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
   for (let seed = 1; seed <= count; seed++) {
+    t.signal.throwIfAborted();
     const sequence = generate(seed);
     try { await execute(sequence, coverage, tier); }
     catch (error) {
+      if (t.signal.aborted) throw error;
       const minimal = await minimize(sequence, error, tier);
       assert.fail(`tier=${tier} seed=${seed}: ${error.message}\nminimal sequence=${JSON.stringify(minimal)}`);
     }
@@ -218,4 +220,42 @@ for (const [tier, commands] of [
     if (ended && result.state === "failed") { result.why.message = "corrupted fenced refusal"; mutated = true; }
   } }), /I12.*corrupted fenced refusal/);
   assert.equal(mutated, true, "the control corrupted a terminal outcome only after the fence");
+});
+
+// Exact minimized sequence from the second 0.4.1 publication dry run. A timed
+// out online test can still be executing when node:test starts the local test.
+const publicationSeed11 = [
+  {"op": "guest", "app": 0},
+  {"op": "reopen", "app": 1},
+  {"op": "logoutEverywhere", "app": 2, "account": 0, "hold": false, "fault": null, "holdDispatch": false},
+  {"op": "retireOffline", "app": 0, "account": 1, "hold": false, "fault": null, "holdDispatch": false},
+  {"op": "sibling", "app": 0, "account": 0, "hold": false, "fault": {"kind": "get", "at": 2}, "holdDispatch": false},
+  {"op": "query", "app": 0, "account": 0, "hold": false, "fault": {"kind": "get", "at": 9}, "holdDispatch": false},
+  {"op": "retireOnline", "app": 0, "account": 0, "hold": true, "fault": null, "holdDispatch": false},
+  {"op": "logoutEverywhere", "app": 1, "account": 1, "hold": false, "fault": null, "holdDispatch": false},
+  {"op": "holdStore", "app": 1, "account": 0, "hold": true, "fault": {"kind": "delete", "at": 9}, "holdDispatch": false},
+  {"op": "reopen", "app": 1, "account": 1, "hold": false, "fault": null, "holdDispatch": true},
+  {"op": "holdStore", "app": 0, "account": 1, "hold": false, "fault": {"kind": "delete", "at": 9}, "holdDispatch": false},
+  {"op": "capture", "app": 0, "account": 1, "hold": false, "fault": {"kind": "get", "at": 1}, "holdDispatch": false},
+  {"op": "login", "app": 1, "account": 1, "hold": false, "fault": {"kind": "get", "at": 2}, "holdDispatch": false},
+  {"op": "refresh", "app": 0, "account": 0, "hold": false, "fault": null, "holdDispatch": false},
+  {"op": "query", "app": 0, "account": 1, "hold": false, "fault": null, "holdDispatch": false},
+  {"op": "handleRefresh", "app": 1, "account": 1, "hold": false, "fault": {"kind": "delete", "at": 1}, "holdDispatch": false},
+  {"op": "release", "app": 0, "account": 1, "hold": false, "fault": {"kind": "set", "at": 7}, "holdDispatch": false},
+  {"op": "capture", "app": 0, "account": 0, "hold": true, "fault": null, "holdDispatch": false},
+  {"op": "logoutEverywhere", "app": 1, "account": 0, "hold": false, "fault": null, "holdDispatch": false},
+  {"op": "sibling", "app": 0, "account": 1, "hold": false, "fault": {"kind": "set", "at": 2}, "holdDispatch": false},
+  {"op": "handleQuery", "app": 0, "account": 1, "hold": false, "fault": null, "holdDispatch": false},
+  {"op": "reopenOffline", "app": 0, "account": 1, "hold": true, "fault": {"kind": "delete", "at": 9}, "holdDispatch": false},
+  {"op": "capture", "app": 1, "account": 1, "hold": false, "fault": {"kind": "get", "at": 3}, "holdDispatch": true},
+];
+
+test("publication seed 11: fair recovery waits for overlapping model work before owning its clock", { timeout: 30_000 }, async () => {
+  for (let replay = 0; replay < 20; replay++) {
+    await Promise.all([
+      execute(generate(11), {}, "online"),
+      execute(publicationSeed11, {}, "local"),
+      execute(publicationSeed11, {}, "local"),
+    ]);
+  }
 });
