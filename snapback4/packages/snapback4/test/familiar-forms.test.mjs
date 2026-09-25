@@ -56,6 +56,8 @@ const source = `use personas alice
   sync public
  query present(c: cursor ?):
   return tasks where .due >= .due first 20 by .title after c { title }
+ query presentLte(c: cursor ?):
+  return tasks where .due <= .due first 20 by .title after c { title }
  query presentOrTitle(title: text <=80, c: cursor ?):
   return tasks where .due <= .due or .title = title first 20 by .title after c { title }
  query presenceKey(c: cursor ?):
@@ -168,6 +170,7 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
     assert.equal(missing.denied?.code, 'NOT_FOUND');
     for (const [name, args, titles] of [
       ['present', {c: null}, ['dated']],
+      ['presentLte', {c: null}, ['dated']],
       ['presentOrTitle', {title: 'undated', c: null}, ['dated', 'undated']],
       ['presenceKey', {c: null}, ['dated']],
     ]) {
