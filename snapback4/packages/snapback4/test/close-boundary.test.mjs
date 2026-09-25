@@ -50,9 +50,9 @@ async function fixture(t, tier, cleanupAt = "device") {
   return { app, replies, cleanup, arm() { armed = true; }, cleaning: () => cleaning };
 }
 
-for (const tier of ["wasm", "native"]) for (const kind of ["mutation", "action"]) for (const different of [false, true]) {
+for (const tier of ["online", "wasm", "native"]) for (const kind of ["mutation", "action"]) for (const different of [false, true]) {
   test(`${tier} ${kind}: concurrent same-id calls with ${different ? "different" : "identical"} arguments keep their own cleanup outcomes`, { timeout: 20_000 }, async t => {
-    const f = await fixture(t, tier), id = mintId(), args = { body: "first" };
+    const f = await fixture(t, tier, tier === "online" ? "session" : "device"), id = mintId(), args = { body: "first" };
     const call = args => kind === "mutation" ? f.app.mutate(mutation, args, { id }) : f.app.client.act(action, args, { id });
     const first = call(args); await until(() => f.replies.length === 1);
     const second = call(different ? { body: "second" } : args);

@@ -194,3 +194,28 @@ for (const tier of ["online", "local"]) test(`I12 ${tier}: the full terminal ora
   } }), /I12.*corrupted refusal message/);
   assert.equal(mutated, true);
 });
+
+// These schedules retain a received refusal across a credential fence. The
+// oracle must compare full outcomes even after its caller has been hidden.
+for (const [tier, commands] of [
+  ["online", [
+    { op: "guest", app: 0 }, { op: "reopen", app: 1 },
+    { op: "handleMutate", app: 0, account: 1, hold: true },
+    { op: "holdStore", app: 0 }, { op: "release", app: 0 },
+    { op: "refresh", app: 1 }, { op: "refreshFault", app: 0 },
+  ]],
+  ["local", [
+    { op: "guest", app: 0 }, { op: "reopen", app: 1 },
+    { op: "release", app: 2 }, { op: "login", app: 2 },
+    { op: "holdStore", app: 1 }, { op: "release", app: 2 },
+    { op: "handleMutate", app: 0, account: 1, hold: true },
+    { op: "logoutEverywhere", app: 1 }, { op: "handleRefresh", app: 0 },
+  ]],
+]) test(`I12 ${tier}: full refusal equality also holds after the caller is fenced`, async () => {
+  await execute(commands, {}, tier);
+  let mutated = false;
+  await assert.rejects(execute(commands, {}, tier, { mutateOutcome(result, ended) {
+    if (ended && result.state === "failed") { result.why.message = "corrupted fenced refusal"; mutated = true; }
+  } }), /I12.*corrupted fenced refusal/);
+  assert.equal(mutated, true, "the control corrupted a terminal outcome only after the fence");
+});

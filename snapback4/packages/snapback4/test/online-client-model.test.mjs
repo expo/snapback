@@ -15,6 +15,9 @@ test('expanded model replay seed 1615: a poll awaiting refresh stops at terminal
 
 test('expanded model replay seed 16: overlapping callers keep paused durable intent pending', () => execute(generate(16, 32, round12Operations), 'app'));
 
+test('model replay seed 1278: store refusal during discovery cannot admit intent after retirement', () =>
+  execute(generate(1278), 'app', {}, { journalSize: 255 }));
+
 test('R5 scheduled replay: a signed-out refresh still revokes its committed successor', () => execute([
   { op: 'refresh' }, { op: 'signOut' }, { op: 'release' },
 ], 'client'));

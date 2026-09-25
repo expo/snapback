@@ -7,7 +7,7 @@ import { MutationIds, WriteHistory } from "./writes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { bindIntentStore, journalReader, keepReceipts, observeJournalStore, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
-import { dispatchIdentity, ownDispatch } from "./online-dispatch.ts";
+import { dispatchIdentity, identifyDispatch, ownDispatch } from "./online-dispatch.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true) {
@@ -77,6 +77,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     }
   });
   const initial = await locked(key, read);
+  const restoredIds = new Set(initial.pending.map(intent => intent.id));
   ownDispatch(raw, {
     observe: identity => { void change(journal => observeJournalStore(journal, identity)).catch(report); },
     before: (id, identity) => change(journal => {
@@ -113,7 +114,14 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // intent expired. Every overlapping caller still owns that intent.
         return !active || raw.viewer() !== viewer ? { state: "pending", id } : write;
       }, async snapshot => {
-        const identity = dispatchIdentity(raw);
+        // Identify before admitting new intent. A reopened journal can name A
+        // while this runtime first connects to B; only recovered unbound
+        // intent belongs to that earlier history. Existing entries keep their
+        // recorded ownership and still pass the strict dispatch guard below.
+        const identity = dispatchIdentity(raw) ?? (restoredIds.has(id) ? undefined : await identifyDispatch(raw));
+        // Discovery can fence this runtime and retire its queue. Do not add
+        // a later admission behind that completed retirement transaction.
+        if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         const refusal = await change(journal => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {

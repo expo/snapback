@@ -474,7 +474,7 @@ export async function execute(commands, coverage = {}, tier = "online", audit = 
               if (writeReceipts.has(id)) {
                 count("write.outcome"); count(`write.outcome.${writeReceipts.get(id).state}`);
                 if (ended) { count("write.outcomeAfterFence"); count(`write.outcomeAfterFence.${writeReceipts.get(id).state}`); }
-                audit.mutateOutcome?.(result);
+                audit.mutateOutcome?.(result, ended);
                 const known = (closedDeliveries.get(h.runtime) ?? delivered).has(`${h.runtime}/${id}`);
                 if (result.state === "pending") {
                   invariant("I12", ended && !known, `known/live ${id} outcome replaced by pending (ended=${ended}, known=${known})`);

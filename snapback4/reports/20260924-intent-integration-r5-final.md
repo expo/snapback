@@ -786,3 +786,140 @@ historical result values and refusal details. The existing receipt, storage,
 process-loss and permanently lost refresh-response limits above remain. Seeded
 models and process-device tests are regression evidence, not an exhaustive proof
 or an iOS simulator qualification. No version bump, push or publication was done.
+
+## Integration round 7 — current-store admission and review regressions (2026-09-25 UTC)
+
+Release context: the supervisor corrected round 6's release label. Round 6 is
+on main, but 0.4.1 has not been published; this round also targets 0.4.1. The
+separate M5 lane owns the macOS dry-run blockers. This round starts at
+`557bb76f2`, makes no further merges, and does not bump a version, push or
+publish. Implementation commit: `20bde3d2a`.
+
+### Review dispositions and implementation
+
+Astra's `~/sb4-intent/reviews/i-r6.astra.md` found one Medium and one Low.
+The Medium is fixed: after a completed A write leaves no pending intent,
+reopening against B and immediately submitting a fresh mutation now probes B,
+saves B with that fresh intent, and executes it on B. The earlier A receipt
+remains recoverable without reposting it. Both same-runtime and reopened retries
+of the fresh ID return its receipt without another execution. Recovered unbound
+intents, including `dispatched: false`, keep the strict first-store guard.
+
+The Low is fixed: the close-boundary matrix now includes online clients, holding
+app session cleanup. Different-input actions sharing an ID keep their own full
+outcomes when their responses arrive in reverse order. Identical actions and
+both mutation cases are also covered.
+
+Grok's `~/sb4-intent/reviews/i-r6.grok.md` completed before the final suite and
+was checked again at 2026-09-25T00:25:25Z. It says **READY**, with **"None"** under "New defects", and adds no High or Medium finding. Its two test gaps are both closed:
+the online-action matrix above, and full terminal-refusal equality after a
+caller fence. The latter now corrupts a received refusal only when `ended` is
+true and requires I12 to reject it on online and real-wasm local tiers. The
+oracle and its exception for an unknown response at close are unchanged.
+
+The first implementation also exposed J model seed 1278: discovery could fence
+the runtime, retire its queue, and then admit a delayed fresh intent behind
+that retirement. The fix rechecks the terminal store fence immediately after
+discovery, before admission. The named seed test requires receipt custody; no
+model assertion or coverage requirement was relaxed.
+
+### File map and tests
+
+- `packages/snapback4/src/online-dispatch.ts`: add a private store-discovery
+  callback and helper; the public Client contract is unchanged.
+- `packages/snapback4/src/client.ts`: connect discovery to the existing shared,
+  authenticated probe, with a close-cancellable caller wait. Effect requests
+  retain their existing non-aborting transport.
+- `packages/snapback4/src/app-online.ts`: distinguish the initial recovered IDs
+  from fresh submissions; identify a fresh unbound runtime before admission,
+  save its returned identity with the intent, and reject admission after store
+  retirement. Existing bindings and all journal dispatch checks survive.
+- `packages/snapback4/test/online-intent-store.test.mjs`: add empty-pending A→B
+  replacement with its probe held (no intent exists before discovery), retry
+  and reopen of the first fresh ID, and close during a held first-store probe
+  (prompt close, durable pending intent and one execution after reopen).
+  Strengthen the identity-persistence-failure test by removing its preparatory
+  query. The existing recovered-unbound matrix and endpoint race remain.
+- `packages/snapback4/test/close-boundary.test.mjs`: add the four online cases,
+  bringing this file to 41 tests. The native/wasm cases remain unchanged.
+- `packages/snapback4/test/online-client-model.test.mjs`: add named seed 1278
+  with its 255-receipt journal; all R1–R6 assertions remain.
+- `packages/snapback4/test/helpers/app-session-model.mjs`: pass the already
+  computed `ended` flag to the optional test audit hook; no oracle change.
+- `packages/snapback4/test/app-session-model.test.mjs`: add two post-fence
+  refusal-corruption controls, alongside the original two live-caller controls.
+- `packages/snapback4/CLIENT-AND-OPERATIONS.md` and
+  `llp/3000.013-quarry-states-intent.rfc.md` §6: explain fresh store discovery
+  before admission and the distinct recovered-intent guard.
+- `packages/snapback4/test/react.test.mjs`: wait for actual dispatch/admission
+  before mounting the receipt-recovery witness, keeping its response held and
+  every pending, failed-save, remount and single-send assertion. Fixture commit:
+  `b82845f11`.
+- `JOURNAL.md`: append one dated round-7 entry. This report: append this section.
+
+No Quarry form, diagnostic code, engine behavior, adapter, device artifact or
+runtime ceiling changes. The requested executable forms remain `app.mutate(op,
+args, { id })` and `app.client.act(action, args, { id })`; callers need no query
+or store-reset workaround before a fresh mutation.
+
+### Qualification
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 345 s`**.
+
+All blocking stages pass. The main client process reports 1,532 tests, 1,522
+passed, zero failures and ten existing explicit skips; the separate acquisition
+and server shards pass. E online **5,000**, E real-wasm local **5,000** and J
+**3,000** sequences pass on the final implementation, with unchanged full-count
+coverage assertions. Guide blocks: **80/80**; Clique Following/digest fixture:
+**3/3**; issue tracker on server/devices: **4/4**. README: **300/300** lines.
+Rebuilt wasm remains **1,765,796 B raw / 491,640 B gzip**, inside the **492,000 B**
+ratchet with **360 B** headroom. No device code or ratchet change is needed.
+`./ref-check`: **507 LLP documents, 9,269 references, zero errors and zero
+unchecked**. Evidence: `~/sb4-intent/integration-r7-suite-clean.log` and
+`~/sb4-intent/integration-r7-ref-check.log`.
+
+Targeted final checks pass: all 21 React tests; 64 tests across online-intent-store, close-boundary
+and app-retirement; 26 J-model tests including all 3,000 sequences; and all four
+live/fenced refusal-corruption controls. E's initial full run passed 5,000 online
+and 5,000 real-wasm local sequences; the final complete suite repeats all counts
+on the final implementation.
+
+Negative controls ran in isolated Node module-load hooks, without editing
+committed production files. Removing discovery fails both fresh replacement
+regressions; caching online action tickets by ID fails the different-input case;
+removing the post-discovery fence fails seed 1278; reducing equality to
+`outcomeKey` only after the fence makes both new oracle controls fail with
+"Missing expected rejection". These are intentional test-sensitivity failures.
+
+Two failures in the first targeted run were mine: the saturated-journal test
+exposed an unnecessary asynchronous step in recovered admission, fixed by
+preserving that path; J seed 1278 exposed the late-admission retirement race,
+fixed above. J reproduced seed 1278 alone before that fix and passed all 3,000
+sequences afterward. Neither was an intermittent or baseline failure.
+
+The first complete suite reported **`== 1 failure(s) in 345 s`**, the `client
+tests` stage. Its single failed subtest was **"failed receipt saves settle
+pending-write hooks and stay settled after remount"** in `react.test.mjs`; Node
+also marked its parent **"React hooks and reference-app lifetimes"** failed
+(1,532 tests, 1,520 pass, two failed counts, ten existing skips). It reproduced
+alone with "hook observed the admitted intent: undefined". Classification: my
+integration changed admission timing, exposing a stale fixture precondition.
+The fixture now waits until the held mutation reaches dispatch, proving durable
+admission, before mounting its receipt lookup. All 21 React tests then pass
+alone. No hook assertion, refusal, timeout or production behavior was weakened.
+The first full run's Rust tests and all 13,000 model sequences passed; there were
+no environmental or baseline failures and no intermittent failure to waive.
+Evidence logs are `~/sb4-intent/integration-r7-*.log`.
+
+### Decisions and remaining limits
+
+Use the existing private transport/journal bridge and probe rather than adding
+an author-facing operation. Preserve the prior offline/identityless first-store
+fallback and strict recovery fencing: when no identity is learned, intent never
+gains permission to cross a known store boundary. Close still does not wait for
+a held network reply. No authorization, disclosure, durability or meter rule was
+weakened, and no design part was stopped. Existing process-loss, completely
+unavailable storage, permanently lost refresh-response and bounded receipt
+history limits from the preceding sections remain. The models are seeded
+regression evidence, not an exhaustive proof. No iOS simulator or macOS package
+publication claim is made by this Linux lane.

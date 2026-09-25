@@ -116,7 +116,9 @@ export function createClient(options: ClientOptions): Client {
   let seq = 0;
   let minimumReadSeq = 0, queryEpoch = 0;
   let storeIdentity: string | undefined;
-  const dispatch: DispatchState = {};
+  const dispatch: DispatchState = { identify: async () => {
+    if (!storeIdentity && !probed) await waitForCaller(probe(), aborter.signal);
+  } };
   let probed = false;
   let storeRefusal: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();

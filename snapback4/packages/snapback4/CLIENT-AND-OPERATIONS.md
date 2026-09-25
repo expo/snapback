@@ -268,7 +268,10 @@ Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments
 before dispatch, retains uncertain writes through restart and sign-out, and
 recovers them only under their original backend/account and dispatch store.
-The intent's store identity is saved before dispatch; the server checks that
+Fresh online intent probes for the current store before admission when this
+runtime has not identified it, so a `dev --fresh` replacement does not retire a
+new write as an old unbound intent. The returned identity is saved with the intent;
+recovered intents keep their original binding. The server checks that
 identity before execution or idempotency lookup. If storage cannot write the
 durable intent together with its store identity, the intent is not admitted at all.
 On reopen, a different store retires the intent with an unknown-outcome refusal.
