@@ -20,6 +20,14 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 // Only this evaluator can manufacture expression-pricing authority. Store
 // rows must pass project_row before entering its environment or result values.
 pub(crate) struct ExpressionAccess(());
+
+/// Minted only at the runner boundary; Context is data, never pricing authority.
+pub(crate) struct SystemAccess(());
+impl Runner<'_> {
+    pub(super) fn system_access(&self) -> Option<SystemAccess> {
+        self.context.is_system().then_some(SystemAccess(()))
+    }
+}
 fn expression_heap(value: &Value) -> u64 { value.expression_heap(ExpressionAccess(())) }
 
 #[derive(Clone, Debug)]

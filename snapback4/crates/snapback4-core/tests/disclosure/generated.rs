@@ -364,6 +364,7 @@ pub fn visit(mut emit: impl FnMut(Case)) -> usize {
     // The read rule names the witness schema; enumerate the owner principals.
     memberships(&mut send);
     populations(&mut send);
+    crate::disclosure::authorization::visit(&mut send);
     count
 }
 

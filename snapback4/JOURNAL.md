@@ -49724,3 +49724,94 @@ target/r5-mutations.json and target/r5-mutant-*.log. The first full suite had
 one failing suite (five Rust targets); the final run includes all corrections.
 Report: /home/ccheever/sb5/lane-b1.r5.final.md. Committed on sb5/b1-written-by;
 no push, publication or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 6: authorization before caller accounting
+
+Point candidates, witness probes and write-target decoding now enter the same
+`authorized_scan` ledger boundary as B2's round-5 commit `87c4d4a06`. B1 adds
+transient scratch derived from declared columns and witness schemas, including
+expiring maintained-witness sources. Static admission precedes storage access;
+internal work cannot change the caller's meter or cut. A sealed `AuthorizedRow`
+is created after the row-read verdict, projects fields and drops hidden storage
+inside the scope, then permits result charging outside it. Live aggregate result
+computation retains its ordinary budget after authorization. Witness probes keep
+raw facts internally and export verdict/coverage; failed extra predicates export
+no expiry. Both write-target raw fetches use the decoder boundary. Target
+resolution preflights its rule scratch. Redundant byId and unchanged unique-key
+collision lookups are removed: they cannot discover a different row, and their
+second decoder reservation needlessly prevented existing large-payload writes.
+
+`Context::system_access` and `Value::heap_bytes` are gone. System projection's
+token has a private constructor in the runner; PostgreSQL cache accounting uses
+an opaque internal ledger that returns admission, never a raw price. Three new
+compile-fail cases cover a fabricated context, fabricated system token, and
+fabricated row authority. The shared ledger has tests for both cut policies,
+fixed scratch, internal errors, and reservation before an absent write target.
+
+Grok's round-6 review arrived with `EXIT=0`. Its spread finding is fixed:
+`{ * }` uses the same optional private-field access as explicit selection, so
+non-owners receive null. Positive owner/non-owner shape assertions accompany
+paired successful deletes, group/sort, private-token searches, loop predicates,
+and equal-length quote-escaping variants. Astra's point and witness reproductions
+are paired on memory and disk SQLite with reopen. The generator now crosses
+three observers, compound rules, unreadable private witness tables, hidden
+presence/payload/ownership, expiry, and 1/400/8192/8193 reads. Generated pairs
+increase from 2,469 to 2,715 per host/store (+246); compile-fail cases from five
+to eight. This remains regression evidence, not universal proof. No live
+PostgreSQL service was exercised; its feature build and payload-factor stand-in
+passed.
+
+Five deliberate mutations fail: retained internal charges, removed decoder
+admission, restored fabricated-context pricing, raw wildcard lowering, and a
+private-size charge after successful delete. The latter now fails for Alice,
+Bob and Carol. All mutations were restored. Existing tests now distinguish a
+fixed transient reservation from the final retained heap counter; confirmed
+and provisional point reads reserve the same rule witness count. Heap cuts
+still unwind expressions and cannot turn an unfinished exists into false.
+
+Wasm is 1,787,618 B raw / 497,689 B gzip on Rust 1.97.0 and wasm-bindgen 0.2.127,
+without wasm-opt. Against round 5 (1,785,460 / 496,397), +2,158 raw / +1,292 gzip
+covers the whole artifact's authorization ledger, sealed point-result boundary,
+and candidate/witness reservations; no per-component attribution is claimed.
+The compiler-only wildcard repair and tests are outside the web artifact.
+Raise the 497,000-byte ratchet to 498,000, leaving 311 B. Runtime ceilings are
+unchanged. SHA-256: 4f5d1eb18c232ba70260c60a702350b8c13c956cfea242be28ae4f46e00e4308.
+
+Round-6 final audit continuation: an allowed update to an unreadable row still
+copied an ordinary retained field at its actual length. The new focused probe
+reproduced identical sent outcomes with 594 versus 100,594 heap bytes for empty
+versus 100 KB text (`target/r6-write-boundary-before.log`). `merge_patch` now
+requires both row and field read authority before using a retained value's
+actual copy size; otherwise it charges the declared column bound. The positive
+regression covers ordinary text and writer-owned private text on an unreadable
+row. Twelve generated cases cross three observers, both ownership forms and
+expiry. The final matrix is therefore 2,727 pairs per host/store (+258 over
+round 5), or 8,181 across core and both device stores; disclosure functions are
+23 core and 11 device. The separate admission matrix remains 468. The guide
+also states this retained-copy rule. Its diagnostic excerpt was shortened so
+both dedicated-code excerpt checks still include E_FIELD_AUTHORITY.
+
+This last runtime change adds 26 raw / 9 gzip bytes to the earlier measurement:
+final wasm 1,787,644 B raw / 497,698 B gzip, +2,184 / +1,301 versus round 5.
+Keep the newly raised 498,000-byte ratchet, now with 302 B headroom. This final
+measurement supersedes the earlier round-6 artifact above; runtime ceilings
+remain unchanged. SHA-256:
+64fe730c4144de3ea0f61a49f9c836942f599cd38104368120c5c377fc4576bf.
+The focused write regression and all 12 added generated write cases pass.
+
+Final blocking result: `== 0 failure(s) in 673 s`. Command, from the worktree
+root, with FORCE_COLOR unset:
+`env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=8 bash snapback4/scripts/test.sh`.
+Node 24.13.1; normal parallel client mode, eight Rust processes/build jobs.
+The complete run includes all 23 core and 11 device disclosure tests and
+all eight compile-fail cases. Client tests report 1,055 passed, zero failed
+and ten existing skips. Earlier runs exposed the corrected guide excerpt and
+write-copy defects; two HTTP connection resets passed the 22-test focused
+recheck and the final complete client run. Source and runtime artifacts were
+held fixed during final qualification. Evidence: target/r6-test-final.log,
+target/r6-write-boundary-before.log, target/r6-write-boundary-after.log,
+target/r6-write-matrix.log, target/r6-client-recheck.log,
+target/r6-mutations.json and target/r6-mutant-*.log. Reference and whitespace
+checks pass. Grok's b1-d6.grok.exit was rechecked as EXIT=0.
+Report: /home/ccheever/sb5/lane-b1.r6.final.md. Commit on sb5/b1-written-by only;
+no push, publication or deployment.

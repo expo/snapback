@@ -23,7 +23,9 @@ impl Runner<'_> {
     pub(super) fn authorize_read(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         self.device_work(|runner| {
             let scratch = runner.meter.mark();
-            let result = runner.authorize_read_inner(table, row, prepaid);
+            let rule = &runner.schema.tables[table].rules.read;
+            let probes = if prepaid { 0 } else { rules::rule_probes(rule) };
+            let result = runner.authorized_scratch(runner.rule_scratch(rule), &[(MeterKind::RuleProbes, probes)], |runner, _| runner.authorize_read_inner(table, row, true));
             // Only a verdict escapes; all fetched witnesses and cursors have
             // been dropped. Keep physical work charged across authorizations.
             if runner.device_work_active { runner.meter.release_heap(scratch); }

@@ -95,7 +95,7 @@ fn allocating_builtins_charge_the_result_and_keep_their_values() {
         let result = engine.query("read", context()).unwrap();
         assert!(result.complete, "{function:?}");
         assert_eq!(result.data, expected, "{function:?}");
-        assert!(result.metered.heap_bytes >= copies + result.data.heap_bytes(&snapback4_core::Context::system().system_access().unwrap()), "{function:?}: {result:?}");
+        assert!(result.metered.heap_bytes >= copies + fixture_heap(&result.data), "{function:?}: {result:?}");
         engine.set_ceilings(Ceilings { heap_bytes: result.metered.heap_bytes - 1, ..Ceilings::default() });
         let capped = engine.query("read", context()).unwrap();
         assert!(!capped.complete, "{function:?}");
@@ -111,7 +111,7 @@ fn share_charges_its_recipient_workspace() {
     let result = engine.query("read", context()).unwrap();
     assert!(result.complete);
     assert_eq!(result.data, Value::Int(4));
-    assert!(result.metered.heap_bytes >= recipients.clone_heap_bytes() + recipients.heap_bytes(&snapback4_core::Context::system().system_access().unwrap()));
+    assert!(result.metered.heap_bytes >= recipients.clone_heap_bytes() + fixture_heap(&recipients));
     engine.set_ceilings(Ceilings { heap_bytes: result.metered.heap_bytes - 1, ..Ceilings::default() });
     assert!(!engine.query("read", context()).unwrap().complete);
 }
@@ -134,7 +134,7 @@ fn bindings_and_owned_variable_reads_charge_without_aliasing() {
         let result = engine.query("read", context()).unwrap();
         assert!(result.complete);
         assert_eq!(result.data, value);
-        assert!(result.metered.heap_bytes >= 2 * value.heap_bytes(&snapback4_core::Context::system().system_access().unwrap()) + 3 * value.clone_heap_bytes());
+        assert!(result.metered.heap_bytes >= 2 * fixture_heap(&value) + 3 * value.clone_heap_bytes());
     }
 }
 
@@ -206,4 +206,16 @@ fn sha256_charges_utf8_work_before_its_fixed_result_and_rolls_back() {
     assert_eq!(success.metered.heap_bytes, failed.metered.heap_bytes + 64, "step refusal precedes digest allocation");
     assert_eq!(failed.events, 0);
     assert_eq!(cut.query("written", context()).unwrap().data, Value::Bool(false), "the preceding insert rolls back with the mutation");
+}
+
+// Test-only sizing of public fixture/expression results; no raw pricing API is
+// available to interpreter callers.
+fn fixture_heap(value: &Value) -> u64 {
+    match value {
+        Value::String(s) | Value::Id(s) => s.capacity() as u64,
+        Value::Bytes(b) => b.capacity() as u64,
+        Value::Array(a) => a.capacity() as u64 * std::mem::size_of::<Value>() as u64 + a.iter().map(fixture_heap).sum::<u64>(),
+        Value::Row(m) | Value::Map(m) => 40 + m.iter().map(|(k,v)| 80 + k.capacity() as u64 + fixture_heap(v)).sum::<u64>(),
+        _ => 0,
+    }
 }

@@ -107,7 +107,7 @@ impl Runner<'_> {
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
         let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
         let patch = self.ignore_hidden_immutable_patch(table_name, patch, readable)?;
-        let new = self.merge_patch(table_name, &old, &patch)?;
+        let new = self.merge_patch(table_name, &old, &patch, readable)?;
         self.replace(table_name, old, new, readable, &patch)
     }
 
@@ -128,7 +128,7 @@ impl Runner<'_> {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
-                let new = self.merge_patch(table_name, &old, &row)?;
+                let new = self.merge_patch(table_name, &old, &row, readable)?;
                 self.replace(table_name, old, new, readable, &row)
             }
             None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
@@ -344,7 +344,11 @@ impl Runner<'_> {
         let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+                // byId can only return this id (already checked on insert).
+                // An unchanged admitted unique key cannot acquire a collision.
+                if name == "byId" { continue; }
                 let key = index_values(index, new);
+                if old.is_some_and(|old| index_values(index, old) == key) { continue; }
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }

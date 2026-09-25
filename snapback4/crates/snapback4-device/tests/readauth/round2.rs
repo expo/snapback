@@ -412,8 +412,8 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
             assert_eq!(counted.fetched.get(), if budget == 9002 {9001 + usize::from(aggregate)} else {budget as usize});
             tx.rollback_to("attempt").unwrap();
         }
-        // An early live witness with an oversized, unindexed payload must
-        // exhaust allocation before authorizing; a small image still fits.
+        // Logical decoder admission depends on the declaration, not the witness
+        // payload. Both small and large worlds cut before device physical work.
         let old = tx.get("members", "m00000").unwrap().unwrap();
         for payload in [Value::Null, Value::String("x".repeat(40000))] {
             tx.savepoint("heap").unwrap();
@@ -422,8 +422,7 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
             tx.put("members", &backend.schema.tables["members"], &row, Some(&old)).unwrap();
             let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(300),
                 Ceilings { examined: 1 + u64::from(aggregate), heap_bytes: 32768, ..Ceilings::unbounded() });
-            if payload == Value::Null { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
-            else { assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}: {result:?}"); }
+            assert!(matches!(result, Err(RuntimeError::Bound {kind:snapback4_core::error::MeterKind::HeapBytes,..})), "aggregate={aggregate}: {result:?}");
             tx.rollback_to("heap").unwrap();
         }
         tx.rollback().unwrap();

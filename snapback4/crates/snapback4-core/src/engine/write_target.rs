@@ -4,31 +4,12 @@ use crate::engine::rules::rule_probes;
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::{Builtin, Expr, IndexKeyExpr, Input, KeyProvenance, LoopDomain, Read, Scan, Stmt, WriteCondition};
 use crate::schema::{ColumnType, Constraint, Effect, Index, Table, materialize_optional_fields};
-use crate::rows::{index_values, Bounds};
+use crate::rows::index_values;
 use crate::value::Value;
 
 impl Runner<'_> {
     pub(in crate::engine) fn lookup_stored(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
-        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        if table.expire.is_none() && !self.device_work_active {
-            return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
-        }
-        let mut bounds = Bounds::default();
-        loop {
-            let (rows, limit) = self.stored_witness_scan(table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
-            let count = rows.len();
-            for (mut row, stored) in rows {
-                materialize_optional_fields(&mut row, table);
-                if charge && !self.device_work_active && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
-                if !self.expired(table, &row) { return Ok(Some(row)); }
-                bounds.after = crate::key::decode(&stored).map(|v|v.into_iter().skip(key.len()).collect());
-            }
-            if count < limit { return Ok(None); }
-        }
-    }
-
-    fn stored_witness_scan(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, batch: usize) -> Result<(Vec<(Value,Vec<u8>)>,usize),RuntimeError> {
-        Ok((self.tx.scan(table,index,prefix,bounds,crate::rows::Dir::Asc,batch)?,batch))
+        self.lookup_live(table_name, name, index, key, charge)
     }
 
     // @ref LLP 3000.007#17 — absent and hidden-refused targets restore every logical meter field.
@@ -56,7 +37,10 @@ impl Runner<'_> {
         // Covers the largest cloned row allowed by the schema, the caller's patch
         // (including ill-typed fields), and the miss arm's image/default materialization.
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
-        let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(super::supplied_heap(patch).saturating_mul(2));
+        let witness = self.rule_scratch(&table.rules.read).max(self.rule_scratch(&table.rules.update))
+            .max(if upsert { self.rule_scratch(&table.rules.insert) } else { 0 });
+        let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(super::supplied_heap(patch).saturating_mul(2))
+            .max(crate::rows::disclosed::decode_reservation(table)).saturating_add(witness);
         for (kind, amount, used, ceiling) in [(MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
             (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes)] {
             if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
@@ -65,14 +49,14 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(in crate::engine) fn merge_patch(&mut self, table: &str, old: &Value, patch: &Value) -> Result<Value, RuntimeError> {
+    pub(in crate::engine) fn merge_patch(&mut self, table: &str, old: &Value, patch: &Value, readable: bool) -> Result<Value, RuntimeError> {
         let mut bytes = 40_u64;
         for (key, value) in old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter()) {
-            // Retaining another owner's field copies it, but its actual size
-            // must not become the ordinary writer's heap receipt or cut.
+            // @ref LLP 3000.015#1 — a retained field's actual size is disclosed
+            // only after both row and field read authority succeed.
             let definition = &self.schema.tables[table];
             let hidden = !self.context.is_system() && !patch.as_object()?.contains_key(key)
-                && definition.written_by.get(key).is_some_and(|a| !a.audience && old.field(&a.owner).ok() != Some(&Value::Id(self.context.viewer.clone())));
+                && (!readable || definition.written_by.get(key).is_some_and(|a| !a.audience && old.field(&a.owner).ok() != Some(&Value::Id(self.context.viewer.clone()))));
             let copy = if hidden { column_copy_ceiling(&definition.columns[key]) } else { value.clone_heap_bytes() };
             bytes = bytes.saturating_add(80 + key.len() as u64 + copy);
         }
@@ -171,7 +155,7 @@ impl Runner<'_> {
             let readable = self.check_rule(&target.table, Effect::Read, None, &old)?;
             let patch = self.ignore_hidden_immutable_patch(&target.table, patch, readable)?;
             let id = old.field("id")?.clone();
-            let new = self.merge_patch(&target.table, &old, &patch)?;
+            let new = self.merge_patch(&target.table, &old, &patch, readable)?;
             // The old image is used only in this isolated condition scope, after update authority.
             self.authorize_update_fields(&target.table, &old, &new, &patch, readable)?;
             if let Some(condition) = condition {

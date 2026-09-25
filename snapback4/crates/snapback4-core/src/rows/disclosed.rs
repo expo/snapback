@@ -59,6 +59,19 @@ pub fn scan<'a>(rows: &dyn Rows, name: &str, table: &'a Table, viewer: &str, ind
     Ok(out)
 }
 
+// Raw storage access requires proof that the caller is inside the internal
+// ledger. No projection or actual raw price is exposed to the caller meter.
+pub(crate) fn get(rows: &dyn Rows, name: &str, id: &str, _: &crate::engine::authorized_scan::Authorization) -> Result<Option<Value>, RuntimeError> {
+    rows.get(name, id)
+}
+pub(crate) fn lookup(rows: &dyn Rows, name: &str, index_name: &str, index: &crate::schema::Index, key: &[Value], _: &crate::engine::authorized_scan::Authorization) -> Result<Option<Value>, RuntimeError> {
+    rows.lookup(name, index_name, index, key)
+}
+pub(crate) fn candidates(rows: &dyn Rows, name: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter, _: &crate::engine::authorized_scan::Authorization) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    let _ = meter;
+    rows.scan(name, index, prefix, bounds, dir, limit)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

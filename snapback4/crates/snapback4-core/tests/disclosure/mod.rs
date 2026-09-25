@@ -53,6 +53,9 @@ impl Pair {
         self
     }
     pub fn engine(&self, world: usize) -> Engine {
+        self.engine_in(world, snapback4_core::Store::memory().unwrap())
+    }
+    pub fn engine_in(&self, world: usize, store: snapback4_core::Store) -> Engine {
         let source = format!(
             "{}\ntable pairAnchor:\n  public\n  online only\n",
             self.source
@@ -98,7 +101,7 @@ impl Pair {
                 returned_shapes: Default::default(),
             });
         }
-        let mut e = Engine::memory(b.schema, programs).unwrap();
+        let mut e = Engine::new(store, b.schema, programs).unwrap();
         for name in seed_names {
             let seed = e.mutate(&name,None,Context::system().at(NOW)).unwrap();
             assert!(matches!(seed.state,snapback4_core::WriteState::Sent { .. }),"{seed:?}");
@@ -294,3 +297,5 @@ pub fn stream(e: &mut Engine, who: &str, watermark: &mut u64) -> Vec<Json> {
     }
     pages
 }
+
+pub mod authorization;

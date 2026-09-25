@@ -206,7 +206,7 @@ fn malformed_target_fields_are_errors_not_null_captures() {
 }
 
 #[test]
-fn uncovered_large_target_returns_prediction_before_heap_refusal() {
+fn uncovered_large_target_reserves_before_fetch_then_requires_coverage() {
     let source = SOURCE.replacen("table posts:","table posts:\n  body: text <=100000 default ''",1);
     let mut e = engine(&source);
     let (table,mut row) = post("p","alice",Value::Null);
@@ -220,8 +220,10 @@ fn uncovered_large_target_returns_prediction_before_heap_refusal() {
     let tx = e.store_mut().read_transaction().unwrap();
     // A server Rows view supplies no device coverage witness.
     let context = Context::new("alice",BTreeMap::from([("postId".into(),id("p")),("at".into(),Value::Int(100)),("until".into(),Value::Null)])).at(1000).with_ids(["l".into()]);
-    let error = snapback4_core::engine::local::predict(&tx,&b.schema,program,context,snapback4_core::meter::Ceilings {heap_bytes:32_768,..Default::default()}).unwrap_err();
-    assert_eq!(error.refusal().code,"E_PREDICT","{error}");
+    let error = snapback4_core::engine::local::predict(&tx,&b.schema,program,context.clone(),snapback4_core::meter::Ceilings {heap_bytes:32_768,..Default::default()}).unwrap_err();
+    assert_eq!(error.refusal().code,"E_BOUND","fixed decoder admission precedes storage: {error}");
+    let error = snapback4_core::engine::local::predict(&tx,&b.schema,program,context,Default::default()).unwrap_err();
+    assert_eq!(error.refusal().code,"E_PREDICT","admitted storage still requires coverage: {error}");
 }
 
 #[test]

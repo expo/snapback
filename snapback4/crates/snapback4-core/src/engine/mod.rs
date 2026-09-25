@@ -27,6 +27,8 @@ mod shaping;
 pub use pages::returned_page_sites;
 pub mod read;
 mod read_auth;
+pub(crate) mod authorized_scan;
+mod authorized_point;
 pub mod rules;
 pub mod runner;
 pub mod validate;
@@ -117,9 +119,6 @@ pub struct Context {
     pub presence: Option<std::sync::Arc<dyn Presence>>,
 }
 
-/// Capability for a system-only ledger. Its constructor checks the principal.
-#[derive(Clone, Copy)]
-pub struct SystemAccess(());
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
@@ -165,8 +164,6 @@ impl Context {
         self.entropy = entropy;
         self
     }
-
-    pub fn system_access(&self) -> Option<SystemAccess> { self.is_system().then_some(SystemAccess(())) }
 
     pub fn is_system(&self) -> bool {
         self.viewer == crate::SYSTEM_PRINCIPAL

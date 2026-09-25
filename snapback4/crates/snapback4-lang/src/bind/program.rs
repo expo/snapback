@@ -714,9 +714,12 @@ impl<'a> Binder<'a> {
             for field in fields {
                 match field {
                     ShapeField::Spread { site } => {
-                        for (name, ty) in self.row_fields(&row_ty, site)? {
+                        for (name, _) in self.row_fields(&row_ty, site)? {
                             if matches!(row_ty, Ty::RowShape(_)) && fields.iter().any(|field| matches!(field, ShapeField::Field { name: explicit, .. } if explicit == &name)) { continue; }
-                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, site, setup::Body::default(), out)?;
+                            // @ref LLP 3000.015#1 — wildcard selection has the same
+                            // optional private-field semantics as explicit selection.
+                            let (value, ty) = self.member(ir::var(row_var), row_ty.clone(), &name, site)?;
+                            add(self, name, value, ty, site, setup::Body::default(), out)?;
                         }
                     }
                     ShapeField::NamedSpread { name, site } => {

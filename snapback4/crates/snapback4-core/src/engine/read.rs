@@ -86,7 +86,9 @@ impl Runner<'_> {
         let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
         let viewer = self.context.viewer.clone();
         let expiry = self.next_expiry;
-        let verdict = rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner: self });
+        let verdict = self.authorized_scratch(self.rule_scratch(rule), &[], |runner, _| {
+            rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner })
+        });
         // Partial admission says nothing about any returned row's lifetime.
         if !uniform || !matches!(verdict, Ok(true)) { self.next_expiry = expiry; }
         let verdict = verdict?;
@@ -119,6 +121,14 @@ impl Runner<'_> {
 
     /// Existence witnesses are raw data, never recursively authorized rows.
     pub(super) fn probe_witness(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        let bytes = self.witness_scratch(table);
+        let expiry = self.next_expiry;
+        let result = self.authorized_scratch(bytes, &[], |runner, _| runner.probe_witness_inner(table, index, key, equalities, current));
+        if !matches!(result, Ok((true, true))) { self.next_expiry = expiry; }
+        result
+    }
+
+    fn probe_witness_inner(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
@@ -181,51 +191,48 @@ impl Runner<'_> {
         self.lookup_live(table_name, name, index, key, true)
     }
 
-    pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
+    pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], _charge: bool) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        if table.expire.is_none() && !self.device_work_active {
-            if table.written_by.values().any(|a| !a.audience) && !self.context.is_system() {
-                return Ok(self.scan_disclosed(table_name,name,key,&Bounds::default(),Dir::Asc,1)?.pop().map(|(row,_)|row.into_value()));
+        self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, authority| {
+            if table.expire.is_none() && !runner.device_work_active {
+                return crate::rows::disclosed::lookup(runner.tx, table_name, name, index, key, authority)
+                    .map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
             }
-            return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|row| self.disclosed_row(table,row).into_value()));
-        }
-        let mut bounds = Bounds::default();
-        loop {
-            let (rows, limit) = self.witness_scan(table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
-            let count = rows.len();
-            for (mut row, stored) in rows {
-                self.witness_materialize(&mut row, table)?;
-                if charge && !self.device_work_active && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
-                if !self.expired(table, &row) { return Ok(Some(row)); }
-                bounds.after = self.witness_position(&stored, index.components.len() + 1, key.len())?;
+            let mut bounds = Bounds::default();
+            loop {
+                let (rows, limit) = runner.witness_scan(table_name, name, key, &bounds, 1)?;
+                let count = rows.len();
+                for (mut row, stored) in rows {
+                    runner.witness_materialize(&mut row, table)?;
+                    if !runner.expired(table, &row) { return Ok(Some(row)); }
+                    bounds.after = runner.witness_position(&stored, index.components.len() + 1, key.len())?;
+                }
+                if count < limit { return Ok(None); }
             }
-            if count < limit { return Ok(None); }
-        }
+        })
     }
 
-    // Physical witness work is additional device authorization work. Queries
-    // and server rules keep their existing one-probe accounting.
+    // Witnesses are internal raw facts, not recursively field/row-authorized
+    // results. Only their verdict crosses back into the application.
     fn witness_scan(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
-        if !self.device_work_active {
-            let rows = if self.schema.tables[table].written_by.values().any(|a| !a.audience) && !self.context.is_system() {
-                self.scan_disclosed(table,index,prefix,bounds,Dir::Asc,batch)?.into_iter().map(|(r,k)|(r.into_value(),k)).collect()
-            } else { self.tx.scan(table,index,prefix,bounds,Dir::Asc,batch)? };
-            return Ok((rows,batch));
-        }
-        let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;
-        if limit == 0 { self.meter.charge(MeterKind::Examined, 1)?; }
         let definition = &self.schema.tables[table];
-        let rows = self.scan_disclosed(table, index, prefix, bounds, Dir::Asc, limit)?.into_iter().map(|(row,key)| {
-            self.meter.heap(word_heap::materialize(&row, definition))?;
-            Ok((row.into_value(),key))
-        }).collect::<Result<Vec<_>,RuntimeError>>()?;
-        self.meter.charge(MeterKind::Examined, rows.len().max(1) as u64)?;
-        Ok((rows, limit))
+        self.authorized_scratch(crate::rows::disclosed::decode_reservation(definition), &[], |runner, authority| {
+            let limit = if runner.device_work_active { runner.meter.ceilings.examined.saturating_sub(runner.meter.used.examined).min(batch as u64) as usize } else { 1 };
+            if limit == 0 { runner.meter.charge(MeterKind::Examined, 1)?; }
+            let rows = if runner.device_work_active {
+                runner.tx.scan_metered(table, index, prefix, bounds, Dir::Asc, limit, &mut runner.meter)?
+            } else {
+                crate::rows::disclosed::candidates(runner.tx, table, index, prefix, bounds, Dir::Asc, limit, &mut runner.meter, authority)?
+            };
+            if runner.device_work_active { runner.meter.charge(MeterKind::Examined, rows.len().max(1) as u64)?; }
+            Ok((rows, limit))
+        })
     }
 
     fn witness_materialize(&mut self, row: &mut Value, table: &Table) -> Result<(), RuntimeError> {
+        // Physical device-work accounting stays separate from the logical meter.
         if self.device_work_active { self.meter.heap(word_heap::materialize(&self.disclosed_row(table, row.clone()), table))?; }
-        *row = self.disclosed_row(table, std::mem::replace(row,Value::Null)).into_value();
+        materialize_optional_fields(row, table);
         Ok(())
     }
 
@@ -298,7 +305,7 @@ impl Runner<'_> {
         self.context.now.is_some_and(|now| table.expired(row, now))
     }
 
-    fn note_expiry(&mut self, table: &Table, row: &Value) {
+    pub(super) fn note_expiry(&mut self, table: &Table, row: &Value) {
         if let Some(column) = &table.expire
             && let Ok(Value::Int(at)) = row.field(column)
             && self.context.now.is_some_and(|now| *at > now)
@@ -344,27 +351,32 @@ impl Runner<'_> {
             }
         }
         if effect == Effect::Read { self.rule_dependencies(&rule); }
-        let mut next = next.clone();
-        materialize_optional_fields(&mut next, table);
-        let old = old.map(|old| {
-            let mut old = old.clone();
-            materialize_optional_fields(&mut old, table);
-            old
-        });
         let viewer = self.context.viewer.clone();
-        rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self)
+        let bytes = self.rule_scratch(&rule);
+        self.authorized_scratch(bytes, &[(MeterKind::RuleProbes, rules::rule_probes(&rule))], |runner, _| {
+            let mut next = next.clone();
+            materialize_optional_fields(&mut next, table);
+            let old = old.map(|old| {
+                let mut old = old.clone();
+                materialize_optional_fields(&mut old, table);
+                old
+            });
+            rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, runner)
+        })
     }
 
     /// A row by id, materialized, without a rule check.
     pub(crate) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.schema.refuse_private(table_name)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        let found = self.tx.get(table_name, id)?;
+        let found = self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, authority| {
+            crate::rows::disclosed::get(runner.tx, table_name, id, authority).map(|found| found.map(|mut row| {
+                materialize_optional_fields(&mut row, table);
+                row
+            }))
+        })?;
         if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table_name, "byId", &[Value::Id(id.to_owned())], "write target"); }
-        Ok(found.filter(|row| !self.expired(table, row)).map(|mut row| {
-            materialize_optional_fields(&mut row, table);
-            row
-        }))
+        Ok(found.filter(|row| !self.expired(table, row)))
     }
 
     /// A point read: the row when it exists and the viewer may read it, else
@@ -399,53 +411,11 @@ impl Runner<'_> {
         let trusted = self.context.is_system() || self.trust_synced_read(table);
         // Prediction keeps the server's reservation even for delivered rows.
         // Only the additional physical authority work uses the device allowance.
-        let prepaid = !trusted || (self.device_allowance.is_some() && !self.context.is_system());
+        let prepaid = !self.context.is_system();
         if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
-        // Hidden and absent cost one examined row and the same static probe
-        // allowance, including probes that a rule would short-circuit.
-        let mark = self.meter.mark();
-        let expiry_mark = self.next_expiry;
-        let found = self.live_lookup(&read.table, &read.index, index, &key)?;
-        // An expiring lookup already charged its live candidate while
-        // passing expired siblings. A miss still costs one point read.
-        if (table.expire.is_none() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
-            return Ok(Value::Null);
-        }
-        let Some(mut row) = found else {
-            // Match the hidden-hit rollback below: a private point miss must
-            // not retain the fetch slot that a denied candidate releases.
-            if table.written_by.values().any(|a| !a.audience) && !self.read_capped() {
-                self.meter.restore(mark);
-                self.read_charge(MeterKind::Examined, 1)?;
-            }
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
-            return Ok(Value::Null);
-        };
-        if self.expired(table, &row) {
-            return Ok(Value::Null);
-        }
-        materialize_optional_fields(&mut row, table);
-        let provisional = self.is_provisional(&read.table, &row)?;
-        let viewer = self.context.viewer.clone();
-        let allowed = if provisional && !self.context.is_system() {
-            self.authorize_read(&read.table, &row, prepaid)?
-        } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })? };
-        // A failed authorization owns its charges and its cut. Hidden-candidate
-        // rollback must never erase exhaustion or convert it into coverage.
-        if self.read_capped() { return Ok(Value::Null); }
-        if allowed {
-            // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
-            if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
-            self.note_expiry(table, &row);
-            let row = self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null);
-            self.project_row(&read.table, row).map(|row| super::recorded::public_image(table, row.into_value()))
-        } else {
-            self.next_expiry = expiry_mark;
-            if !provisional {
-                self.meter.restore(mark);
-                self.read_charge(MeterKind::Examined, 1)?;
-            }
-            Ok(Value::Null)
+        match self.authorized_point(read, index, &key, prepaid, trusted)? {
+            Some(row) => row.charge(&mut self.meter),
+            None => Ok(Value::Null),
         }
     }
 

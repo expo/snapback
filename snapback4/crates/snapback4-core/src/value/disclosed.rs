@@ -1,7 +1,7 @@
 //! The sole row-pricing capability on principal-visible ledgers.
 // @ref LLP 3000.015#1 — projection precedes pricing, copying and defaults.
 use super::Value;
-use crate::{engine::SystemAccess, schema::{ColumnDefault, Table}};
+use crate::{engine::runner::SystemAccess, schema::{ColumnDefault, Table}};
 
 /// A projection plan. The stored image is private, cannot be dereferenced and
 /// cannot enter a row allocation helper. Only visible fields can be inspected.
@@ -27,6 +27,25 @@ use crate::{engine::SystemAccess, schema::{ColumnDefault, Table}};
 /// use snapback4_core::{Value, engine::write};
 /// fn raw(row: &Value) -> u64 { write::supplied_heap(row) }
 /// ```
+/// A fabricated context cannot mint raw pricing authority.
+/// ```compile_fail
+/// use snapback4_core::{Context, Value, meter::{Meter, Cut}, Ceilings};
+/// let raw = Value::String("private".into());
+/// let token = Context::system().system_access().unwrap();
+/// let mut caller = Meter::new(Ceilings::default(), Cut::Abort);
+/// caller.heap(raw.heap_bytes(&token)).unwrap();
+/// ```
+/// ```compile_fail
+/// use snapback4_core::engine::runner::SystemAccess;
+/// let fabricated = SystemAccess(());
+/// ```
+/// ```compile_fail
+/// use snapback4_core::engine::authorized_point::AuthorizedRow;
+/// use snapback4_core::{Value, schema::Table};
+/// fn fabricate(table: &Table, raw: Value) {
+///     let authorized = AuthorizedRow(table.project_fields(raw, Some("alice")));
+/// }
+/// ```
 pub struct Disclosed<'a> {
     row: Value,
     table: &'a Table,
@@ -41,7 +60,7 @@ impl Table {
     }
 
     /// Maintenance runs on its own Runner/Meter, never on a reader's receipt.
-    pub fn system_fields(&self, row: Value, _: &SystemAccess) -> Disclosed<'_> {
+    pub(crate) fn system_fields(&self, row: Value, _: &SystemAccess) -> Disclosed<'_> {
         Disclosed { row, table: self, viewer: None, system: true, public: false }
     }
 }

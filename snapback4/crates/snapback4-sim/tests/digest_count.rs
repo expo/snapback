@@ -108,7 +108,7 @@ fn dropping_count_results_does_not_remove_sqlite_decode_allocations() {
                     let fetched = tx.scan("messages", "byConversation", &[Value::Id(chat.into())], &bounds, Dir::Asc, batch).unwrap();
                     let n = fetched.len();
                     for (row, key) in fetched {
-                        heap += row.heap_bytes(&snapback4_core::Context::system().system_access().unwrap());
+                        heap += fixture_heap(&row);
                         count += 1;
                         eligible += usize::from(row.field("senderId").unwrap().as_str().unwrap() != principal);
                         bounds.after = Some(snapback4_core::key::decode(&key).unwrap().into_iter().skip(1).collect());
@@ -126,5 +126,17 @@ fn dropping_count_results_does_not_remove_sqlite_decode_allocations() {
             println!("count decode-only quiet={quiet} rows={rows} eligible={eligible} body={body} recipients={recipients} batch={batch} decoded_heap={decoded_heap} rust_allocated={allocated} us={elapsed}");
         }
         tx.rollback().unwrap();
+    }
+}
+
+// Test-only sizing of public fixture/expression results; no raw pricing API is
+// available to interpreter callers.
+fn fixture_heap(value: &Value) -> u64 {
+    match value {
+        Value::String(s) | Value::Id(s) => s.capacity() as u64,
+        Value::Bytes(b) => b.capacity() as u64,
+        Value::Array(a) => a.capacity() as u64 * std::mem::size_of::<Value>() as u64 + a.iter().map(fixture_heap).sum::<u64>(),
+        Value::Row(m) | Value::Map(m) => 40 + m.iter().map(|(k,v)| 80 + k.capacity() as u64 + fixture_heap(v)).sum::<u64>(),
+        _ => 0,
     }
 }

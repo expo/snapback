@@ -92,7 +92,7 @@ impl<'r> Runner<'r> {
     }
 
     pub(crate) fn disclosed_row<'a>(&self, definition: &'a crate::schema::Table, row: Value) -> crate::value::Disclosed<'a> {
-        match self.context.system_access() {
+        match self.system_access() {
             Some(system) => definition.system_fields(row, &system),
             None => definition.project_fields(row, Some(&self.context.viewer)),
         }
@@ -108,7 +108,7 @@ impl<'r> Runner<'r> {
     /// Store decode and row pricing meet only at the projection boundary.
     pub(super) fn scan_disclosed(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize) -> Result<Vec<(crate::value::Disclosed<'r>, Vec<u8>)>, RuntimeError> {
         let definition = &self.schema.tables[table];
-        if let Some(system) = self.context.system_access() {
+        if let Some(system) = self.system_access() {
             self.meter.heap(crate::rows::word_heap::slots::<(crate::value::Disclosed<'_>, Vec<u8>)>(limit))?;
             return self.tx.scan_metered(table,index,prefix,bounds,dir,limit,&mut self.meter)
                 .map(|rows| rows.into_iter().map(|(row,key)|(definition.system_fields(row,&system),key)).collect());

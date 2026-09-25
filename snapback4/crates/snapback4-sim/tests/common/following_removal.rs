@@ -161,15 +161,15 @@ pub fn check_cut(host: &str, followers: usize, mut query: impl FnMut(snapback4_c
     assert!(uncut.data.as_array().unwrap().iter().all(|row| *row != Value::Null));
 }
 
-// Exercise the allocation of the next tombstone key inside the predicate,
-// with examination and probe budgets still open. Exists itself allocates no row.
+// A fixed decoder reservation cuts before probing a tombstone; no unchecked
+// event can survive even though examination and probe budgets remain open.
 pub fn check_heap_cut(host: &str, mut query: impl FnMut(snapback4_core::Ceilings) -> snapback4_core::QueryOutcome) {
     let heap_bytes = 20;
     let page = query(snapback4_core::Ceilings { heap_bytes, ..Default::default() });
     assert_eq!(page.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::HeapBytes));
     assert_eq!(page.metered.rule_probes, 1);
-    assert_eq!(page.metered.examined, 3, "one completed tombstone probe; the second candidate is allocating its key");
-    assert_eq!(page.metered.heap_bytes, 26);
+    assert_eq!(page.metered.examined, 1, "the decoder reservation precedes the tombstone candidate");
+    assert!(page.metered.heap_bytes > heap_bytes);
     assert!(!page.complete);
     assert!(page.next.is_none());
     assert_eq!(page.data, Value::Null, "no unchecked event survives heap unwind");

@@ -188,9 +188,6 @@ impl Value {
         }
     }
 
-    /// Raw storage pricing is reserved for a system ledger, never a viewer read.
-    pub fn heap_bytes(&self, _: &crate::engine::SystemAccess) -> u64 { self.retained_heap() }
-
     pub(crate) fn expression_heap(&self, _: crate::engine::runner::ExpressionAccess) -> u64 { self.retained_heap() }
     pub(crate) fn write_heap(&self, _: crate::engine::write::WriteAccess) -> u64 { self.retained_heap() }
 
@@ -376,3 +373,16 @@ pub fn validate_identities(value: &Value) -> Result<(), ValueError> {
 #[path = "value/disclosed.rs"]
 mod disclosed;
 pub use disclosed::Disclosed;
+
+/// Raw prices never escape into a caller meter. This cache-owned ledger can
+/// admit a retained raw image, but exports neither a price nor its counter.
+#[cfg(feature = "postgres")]
+pub(crate) struct InternalLedger { used: u64, limit: u64 }
+#[cfg(feature = "postgres")]
+impl InternalLedger {
+    pub(crate) fn new(limit: u64) -> Self { Self { used: 0, limit } }
+    pub(crate) fn retain(&mut self, value: Option<&Value>, fixed: u64) -> bool {
+        self.used = self.used.saturating_add(fixed).saturating_add(value.map_or(0, Value::retained_heap));
+        self.used <= self.limit
+    }
+}

@@ -117,7 +117,7 @@ The field is private to its owner unless declared `readable by audience`.
 Group/public log images omit private fields; the owner's principal partition
 carries their image, and every owner's device receives it while the row is
 readable. Queries, shapes, write results and snapshots apply the same
-projection. Selecting an omitted field returns null, including as a `group`
+projection. Selecting an omitted field returns null, including in `{ * }` and as a `group`
 or `sort` key; generated row types
 mark the field optional. Asset downloads apply the same field visibility.
 Field ownership does not grant read access to the row. Ownership changes
@@ -136,24 +136,21 @@ Comparing an untouched private field with itself, such as
 `next.readUpTo = old.readUpTo`, remains available without knowing its value.
 Ordered self-comparisons require visibility when the field is nullable: null
 is not ordered, so even `next.secret >= old.secret` can reveal nullness.
-When an ordinary patch retains another owner's private payload, its copy is
-charged at the column's declared bound, so its actual length cannot change the
-writer's meter or exhaustion boundary.
+When a patch retains an unreadable row's fields or another owner's private
+payload, copies are charged at declared column bounds, so hidden lengths
+cannot change the writer's meter or exhaustion boundary.
 Private fields cannot supply indexes/cursors, expiry, recorded attribution,
 other rules' probes, aggregate inputs, or Following mappings and predicates; make the field readable by audience
 before using it there. This applies to both `view` and `maintain … timeline`.
-For a fixed schema, program and unchanged public inputs, another owner's
-private value cannot change your result, meter or heap cut. Point reads,
-range/cursor pages, planned views, word search, streaming counts/sums and
-scalar reductions price the disclosed image, including omitted ordinary-field
-defaults. Recording a public column does not price its private siblings.
-Before decoding a private-field row the engine reserves its declared row
-bound, then releases that scratch after projection. A large declared maximum
-can therefore exhaust the heap even when the actual private value is empty;
-changing that value cannot move the boundary. Runtime ceilings are unchanged.
-The generated paired-world tests compare results, all seven meter fields,
-refusals, snapshots and streams, including omitted ordinary fields with many
-large private payloads; they are regression coverage, not a universal proof.
+Your meter charges only fixed reservations from declared bounds and results
+that pass both row-read and field authorization; hidden candidates and rule
+witnesses cannot change its charges or exhaustion boundary.
+This includes point reads, range/cursor pages, planned views, word search,
+streaming counts/sums, scalar reductions and recorded public columns.
+A large declared maximum can exhaust the heap even when the stored value is
+empty; changing that value cannot move that boundary. Authorization witnesses
+expose only their verdict, even when their table is unreadable or has private
+fields. Candidate decoding and rule evaluation use an internal ledger.
 Owner delivery prepays the declared recipient/probe bound; hidden
 membership outcomes cannot change the writer's meter. Mutation event counts
 count each changed private row once, independently of owner fanout. A scan of a table
