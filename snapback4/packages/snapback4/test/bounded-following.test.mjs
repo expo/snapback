@@ -229,7 +229,7 @@ query conditionalEvents():
 query filteredEvents():
   return feedPosts last 10 by .at where exists eventSwitch['gate']
 query speculativePage():
-  return feedPosts last 10 by .at { post: .postId, online: exists connected[.authorId] }
+  return posts last 10 by .at { post: .id, online: exists connected[.authorId] }
 `);
     await f.seed([
       { table: "notes", row: { id: "n2", body: "held" } },
@@ -256,6 +256,8 @@ query speculativePage():
         assert.equal(raw.unknown, true); assert.equal(raw.speculative, true);
         if (name === "guarded") assert.equal(raw.denied.code, "NOT_FOUND");
         else if (name === "speculativePage") {
+          // Z removes partial-kind owned rows; use the held source images to
+          // retain U's distinct nonempty speculative-projection witness.
           assert.ok(raw.data.length > 0, "a nonempty page can still contain placeholder values");
           assert.ok(raw.data.some(row => row.post === "own-gated"), "even a prediction cannot validate speculative presence");
           assert.ok(raw.data.every(row => row.online === true));
