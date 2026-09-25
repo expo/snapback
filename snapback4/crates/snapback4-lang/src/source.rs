@@ -61,3 +61,24 @@ impl SourceMap {
         crate::print::with_source_at(expr, 5, &|expr| self.get(expr))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn explicit_index_search_sites_retain_authored_spelling() {
+        let bound = crate::compile(&[("schema.q".into(), "table posts:\n  body: text <=40\n  at: time\n  by byWords: words(body), at, id\n  public\n  sync public\nquery posts(q: text <=40):\n  return posts matching q first 10 by byWords\n".into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let sites = &bound.schema.operations["posts"].sites;
+        assert_eq!(sites.len(), 2, "search and browse alternatives");
+        assert!(sites.iter().all(|site| site.site == "schema.q:8:10 (posts matching q first 10 by byWords)"), "{sites:?}");
+    }
+
+    #[test]
+    fn canonical_backend_sites_do_not_replace_authored_diagnostic_spelling() {
+        let bound = crate::compile(&[("schema.q".into(), "table posts:\n  public\n  sync public\nquery posts():\n  return posts first 10\n".into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let program = &bound.programs[0];
+        assert_eq!(program.sources["programs.posts.0"].1, "posts first 10");
+        assert_eq!(bound.schema.operations["posts"].sites[0].site, "schema.q:5:10 (posts[] first 10)");
+    }
+}

@@ -1,3 +1,4 @@
+import { defaultFetch } from "#fetch";
 // Sign-in (H0): a guest session, or a password account. Each returns a
 // bearer token the client sends as `authorization`; the token is the
 // device's to keep (in memory, or wherever the app keeps secrets). A
@@ -27,22 +28,22 @@ async function post(url: string, path: string, body: unknown, doFetch: typeof fe
 }
 
 /** A guest principal, when the schema says `use identity guests`. */
-export function guest(url: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SignIn> {
+export function guest(url: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
   return post(url, "/auth/guest", {}, doFetch);
 }
 
 /** A new password account, when the schema says `use identity password`. */
-export function signup(url: string, email: string, password: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SignIn> {
+export function signup(url: string, email: string, password: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
   return post(url, "/auth/signup", { email, password }, doFetch);
 }
 
-export function login(url: string, email: string, password: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SignIn> {
+export function login(url: string, email: string, password: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
   return post(url, "/auth/login", { email, password }, doFetch);
 }
 
 /** Replace one live bearer token. The server invalidates `token` before it
  * returns the replacement, so callers must adopt or revoke the returned session. */
-export async function refreshSession(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SignIn> {
+export async function refreshSession(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
     const json = (await response.json()) as { session?: Session; denied?: Refusal };
@@ -54,7 +55,7 @@ export async function refreshSession(url: string, token: string, doFetch: typeof
 }
 
 /** End every live session for the bearer token's principal. */
-export async function logoutAll(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SessionRevocation> {
+export async function logoutAll(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SessionRevocation> {
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/logout-all`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
     const json = (await response.json()) as { ok?: boolean; revoked?: number; denied?: Refusal };
@@ -125,7 +126,7 @@ export async function forgetSession(url: string, store: SessionStore = defaultSe
 
 /** Best-effort server logout. A network failure or timeout cannot confirm
  * revocation; callers must clear their local credentials independently. */
-export async function logout(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<void> {
+export async function logout(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<void> {
   let timer!: ReturnType<typeof setTimeout>;
   const deadline = new Promise<void>(resolve => {
     timer = setTimeout(resolve, 5_000);

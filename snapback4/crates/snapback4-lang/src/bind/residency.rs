@@ -118,9 +118,11 @@ pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fac
         }
         let mut locations = BTreeSet::new();
         if let Some((location, name)) = program.sources.get(&site.site) {
+            let name = program.canonical_sources.get(&site.site).unwrap_or(name);
             locations.insert(format!("{location} ({name})"));
         } else if let Some(read) = site.site.strip_suffix(" temporary audience") {
             if let Some((location, name)) = program.sources.get(read) {
+                let name = program.canonical_sources.get(read).unwrap_or(name);
                 locations.insert(format!("{location} ({name}; temporary audience rule: {} by {})", site.table, site.index));
             }
         } else if let Some(path) = site.site.strip_prefix("after insert ") {

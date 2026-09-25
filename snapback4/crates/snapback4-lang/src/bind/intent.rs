@@ -23,6 +23,7 @@ pub(super) fn table_order(catalog: &mut Catalog) {
             && let Some(id) = read.order_keys.iter().position(|column| column == "id")
             && id + 1 < read.order_keys.len() {
             catalog.read_origins.entry(read.site.to_string()).or_insert_with(|| catalog.source.expression(&Expr::Read(read.clone())));
+            catalog.canonical_read_origins.entry(read.site.to_string()).or_insert_with(|| if read.index.is_none() { crate::print::read_expr(read) } else { catalog.source.expression(&Expr::Read(read.clone())) });
             read.order_keys.truncate(id + 1);
         }
     };

@@ -56,6 +56,13 @@
       "import": "./dist/app.js"
     }
   },
+  "imports": {
+    "#fetch": {
+      "types": "./dist/default-fetch.d.ts",
+      "node": "./dist/node-fetch.js",
+      "default": "./dist/default-fetch.js"
+    }
+  },
   "files": [
     "dist",
     "bin",
@@ -67,7 +74,8 @@
     "snapback4-darwin-arm64": "0.4.0"
   },
   "dependencies": {
-    "openid-client": "6.8.8"
+    "openid-client": "6.8.8",
+    "undici": "8.8.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/",

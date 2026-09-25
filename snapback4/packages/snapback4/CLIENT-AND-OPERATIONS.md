@@ -647,6 +647,11 @@ Cancellation ends the caller's wait, never an effectful request: refresh,
 login, guest, mutations, actions and uploads still consume their replies;
 unkept bearers are revoked and cancelled uploads remain unplaced.
 Only queries, polls and asset fetches may abort their network requests.
+A rejected transport or response body after mutation/action dispatch is an
+unknown outcome (`pending` with the same id), never proof of failure. Node
+clients use a private pinned Undici dispatcher to contain the macOS socket QoS
+bug in Node 24.18's bundled transport. Browsers and native hosts use their host
+fetch; an explicit `fetch` option remains caller-owned on every host.
 Retirement pins newly failed receipts in the 256-body window, compacting older
 store-failure receipts to ids before evicting the oldest sent receipts. Every
 id displaced by retirement, including a sent id, enters the compact set. Those
