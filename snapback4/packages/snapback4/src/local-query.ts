@@ -10,7 +10,8 @@
 // 5. Recheck session and P ∩ S before any external answer lands. S is static
 //    (opaque programs read everything), narrowed only by a known COMPLETE L.
 //    Remembered answers share this fence; all data rechecks expiry, and local
-//    expiry retries locally once (then dirties a watch if still expired).
+//    expiry retries locally once through rules 2–5 (then dirties a watch if
+//    still expired). Only expired memory is retired by the expiry decision.
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
@@ -68,7 +69,10 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // Rule 4: retained siblings cannot validate a speculative component. The
   // atomic Read<T> contract has no per-component loading word; withhold it all.
   const fallback = () => placeholder() ? loading : latest?.result ?? loading;
-  const localCandidate = (): Candidate<R> => ({ result: fallback(), origin: "local" });
+  const localCandidate = (): Candidate<R> => ({
+    // Rule 4 can withhold a value without removing its next expiry wakeup.
+    result: { ...fallback(), nextExpiry: latest?.result.nextExpiry ?? null }, origin: "local",
+  });
   // Rule 1. This check also preserves the local-commit invalidation fence.
   const checkpoint = () => {
     const denied = env.unavailable() ?? env.partitionDenied;
@@ -157,18 +161,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   // @ref LLP 3000.007#20.22.1 — known meter cuts and retained history do not ask the server for the same work.
   const wantsServer = (coverage: Coverage) => !!coverage.unknown && !coverage.retained;
-  const route = async (): Promise<Candidate<R>> => {
-    checkpoint();
-    // Rule 2: run every query locally when possible, even `runs: server`.
-    if (env.partitionCurrent && program?.native && !env.nativeReady && env.link === "online") {
-      const installed = await env.installNative(env.signal); checkpoint();
-      env.nativeReady = installed;
-    }
-    if (!program || !env.partitionCurrent || (program.native && !env.nativeReady)) {
-      possible = null; // No local execution can certify this partition/guest.
-      const result = await server(); checkpoint(); return result; // Rule 3.
-    }
-    const first = await local(); checkpoint();
+  // Rules 2–4 apply to every local observation, including an expiry retry.
+  const routeLocal = async (first: { outcome: Outcome; result: Result<R> }): Promise<Candidate<R>> => {
     if (!first.outcome.unknown && first.outcome.complete === true) return localCandidate(); // Rule 2.
     const withheld = "loading" in first.result.read;
     const components = Object.values(first.outcome.components ?? {});
@@ -208,32 +202,55 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
     return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null } };
   };
+  const route = async (): Promise<Candidate<R>> => {
+    checkpoint();
+    // Rule 2: run every query locally when possible, even `runs: server`.
+    if (env.partitionCurrent && program?.native && !env.nativeReady && env.link === "online") {
+      const installed = await env.installNative(env.signal); checkpoint();
+      env.nativeReady = installed;
+    }
+    if (!program || !env.partitionCurrent || (program.native && !env.nativeReady)) {
+      possible = null; // No local execution can certify this partition/guest.
+      const result = await server(); checkpoint(); return result; // Rule 3.
+    }
+    const first = await local(); checkpoint();
+    const result = await routeLocal(first); checkpoint(); return result;
+  };
   const publish = async (initial: Candidate<R>): Promise<Result<R>> => {
     let candidate = initial;
-    let snapshot = initial.result;
     for (let attempt = 0; ; attempt++) {
-      checkpoint(); // Rules 1/5: no await between this check and publication.
+      checkpoint();
+      // Rules 1/5: the same delivery fence applies after retry routing, including
+      // server, composed and remembered answers (and E_OFFLINE).
+      if (candidate.origin !== "local") {
+        const stopped = await blocked(candidate.origin === "remembered"); checkpoint();
+        if (stopped) candidate = localCandidate();
+      }
       const { result, origin } = candidate;
-      // Rules 1/5: an authorization deadline may pass during the final fence.
-      if ((attempt > 0 || "data" in result.read) && ((snapshot.nextExpiry !== null && snapshot.nextExpiry <= env.deviceNow())
-        || (snapshot.serverExpiry != null && snapshot.serverExpiry <= env.serverNow()))) {
-        env.serverAnswers.delete(key);
-        if (origin === "local") {
-          if (attempt === 0) {
-            // Rule 5: note_expiry only records deadlines after the evaluation's
-            // now. Reobserve once; never publish the expired snapshot in between.
-            const refreshed = await local(); checkpoint();
-            // Rule 4 may withhold the retry's value, but not its expiry fact.
-            snapshot = refreshed.result;
-            candidate = localCandidate();
-            candidate.result = { ...candidate.result, nextExpiry: snapshot.nextExpiry };
-            continue;
-          }
-          // A second deadline crossed in flight: keep the watch runnable when
-          // its expired timer is cleared by the loading publication.
-          if (watch) watch.dirty = true;
+      // Rules 1/5: no await between this deadline check and publication.
+      if ((attempt > 0 || "data" in result.read) && ((result.nextExpiry !== null && result.nextExpiry <= env.deviceNow())
+        || (result.serverExpiry != null && result.serverExpiry <= env.serverNow()))) {
+        if (origin === "local" && attempt === 0) {
+          // note_expiry records only deadlines after the evaluation's now.
+          // Reobserve once, then run the same fallback/composition/recovery.
+          const refreshed = await local(); checkpoint();
+          candidate = await routeLocal(refreshed); checkpoint();
+          continue;
+        }
+        // A second deadline crossed in flight: keep the watch runnable when
+        // its expired timer is cleared by the loading publication.
+        if (attempt > 0 && watch) watch.dirty = true;
+        if (origin === "remembered") {
+          const last = env.serverAnswers.get(key);
+          if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) env.serverAnswers.delete(key);
         }
         return origin === "remembered" && !watch ? { read: { denied: env.offline() }, tables, nextExpiry: null } : loading;
+      }
+      // Rule 5: only accepted server answers enter the lifetime cache. Expiry
+      // of a local/server candidate does not invalidate independent memory.
+      if (origin === "server") {
+        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) });
+        else env.serverAnswers.delete(key);
       }
       if (origin !== "local" || !("data" in result.read)) return result;
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
@@ -241,17 +258,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     }
   };
   try {
-    let candidate = await route(); checkpoint();
-    // Rules 1/5: all external answers, including memory and E_OFFLINE, pass
-    // the final fence. Only accepted server answers enter the lifetime cache.
-    if (candidate.origin !== "local") {
-      const stopped = await blocked(candidate.origin === "remembered"); checkpoint();
-      if (stopped) candidate = localCandidate();
-      else if (candidate.origin === "server") {
-        if (remember && "data" in candidate.result.read) env.serverAnswers.set(key, { read: candidate.result.read, at: Date.now(), nextExpiry: candidate.result.serverExpiry ?? null, tables: new Set(tables) });
-        else env.serverAnswers.delete(key);
-      }
-    }
+    const candidate = await route(); checkpoint();
     const result = await publish(candidate); checkpoint();
     return result;
   } catch (error) {
