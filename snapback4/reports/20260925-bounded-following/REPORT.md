@@ -1,5 +1,9 @@
 # Lane U: Following on a bounded device
 
+Historical revision-2 implementation and measurement. Superseded by the
+[revision-5 correction](../20260925-bounded-following-r1/REPORT.md), which keeps
+owned events fully synced and specifies the withheld routing precedence.
+
 2026-09-25 · LLP 3000.016 revision 2 · `sb4-intent/u-bounded-following`
 Base: `a6bfd07ab`. Implementation commits: `ee4981e5b`, `70b4893a0`,
 `aee7cc508`. No push or publication.

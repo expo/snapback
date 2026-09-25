@@ -56083,3 +56083,50 @@ delivery/window redesign, in-place trimming, contract change, package version
 bump, iOS simulator qualification, push, or publication. File map, all failures,
 inventory, fingerprints, and reproduction:
 [Lane U report](reports/20260925-bounded-following/REPORT.md).
+
+### 2026-09-25 — Lane U round 1: accepted revision 5
+
+Applied LLP 3000.016 revision 5, read from main at `f5efae87f` with its review
+record. Owned events now stay fully synced for every posts/reposts residency,
+preserving known event absence and `FEED_POST_NOT_FOUND`. The inbox floor stays
+private and per reader. Crossing it withholds the whole query, while an
+examined-meter stop above it uses the actual cut position and remains partial
+data with a cursor. Unavailable device replies omit both data and next.
+
+The client now uses one withheld routing order before server-run or remembered
+answers: offline, predictable/unobserved outbox entry, held query, then server
+with original arguments. Transport failure stays loading. Online-only point
+cards use this path; ordinary server scans preserve their existing behavior.
+Local-commit invalidation still discards responses racing prediction admission.
+Source/event/removal inputs classify from their own sync; follow/unfollow stay
+server sites and `check` still prints `predicts: never` despite synced Work.
+The feeds card and cost certificate describe the corrected behavior.
+
+All 13 focused Rust cases and all 18 actual wasm/native client cases pass,
+including inbox-floor routing, full boundary pages, resumable meter prefixes,
+known event absence, transport failures, held queries, acknowledged but
+unobserved predictions, and the local-commit race. All 80 guide tests pass.
+The only complete suite invocation this round exits 0:
+**`== 0 failure(s) in 481 s`**. One initial focused TypeScript inference error
+was ours and corrected; the repeated typecheck/build and final client run pass.
+No baseline/environmental waiver. Ref-check passed with 509 LLP docs, 9,291
+refs, zero errors/unchecked. Wasm is **1,776,336 B raw / 495,355 B gzip**, below
+the unchanged 496,000 B ceiling.
+
+Re-measured the same whole authorized Clique scale partition for `u0500` in
+real Chromium/IndexedDB. Before/after: **171,330 → 98,543 rows**,
+**35,901,571 → 15,092,169 row bytes**, **48,521,623 → 22,236,578 wire bytes**,
+and **281.26 → 117.81 seconds** of cold authenticated acquisition. These are
+1.739×, 2.379×, 2.182×, and 2.387× reductions. Owned events dominate afterward:
+49,228 rows / 7,796,444 row bytes. The **5× target is unmet**: even removing
+every row of posts, reposts, and inbox leaves 95,543 rows / 14,304,711 bytes,
+above the required 34,266 rows / 7,180,314.2 bytes. No other residency was changed.
+
+Lane V's packed IndexedDB format was not on main at measurement start or the
+final check (`f5efae87f`), so no packed-format result is claimed. This remains
+a single paired acquisition measurement on the shared host, using packaged
+0.4.1 before and the corrected production server after, with the same current
+client in both. No delivery/window change, new syntax, ceiling increase,
+package version bump, push, or publication. The earlier report is marked
+historical. File map, complete inventory, fingerprints, failures, and reproduction:
+[Lane U round-1 report](reports/20260925-bounded-following-r1/REPORT.md).
