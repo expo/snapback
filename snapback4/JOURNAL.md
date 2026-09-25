@@ -56188,3 +56188,44 @@ changed. The four-line device transaction extension is required by the atomic
 admission-floor instruction. No push, publication or iOS simulator qualification.
 File map, forms, tests, development fixture corrections and final qualification:
 [Lane Y round-2 report](reports/20260925-lane-y-r2.md).
+
+
+## 2026-09-25 — Lane Y round 3: slow responses keep server time
+
+Implemented the round-2 delta review fixes in `438bfb032`. Responses with RTT
+above 1,000 ms now use `serverNow - received` as a provisional sample for both
+estimated server time and issued device time. Any measured sample within the
+threshold outranks them. This replaces round 2's policy of leaving issued time
+unchanged for slow responses; midpoint error cannot enter either clock from a
+long hold. The monotonic floor, bounded sample window, durable admission record,
+freshness metadata and server settlement semantics are unchanged.
+
+Audited every requested response path. Sync, queries, mutations, session
+endpoints, schema and buffered changes stamp their headers after execution/wait
+and JSON serialization. Streaming changes now omit early clock headers and use
+the existing final JSON end stamp; bounded overflow refusals retain it too.
+This is the brief's explicit end-stamp option. The clock card and wire reference
+state the rule and the distinction between buffered and streaming responses.
+
+The actual native client/SQLite bridge opens successfully under `-31d` with
+1,500 ms refresh and schema responses, retaining its valid thirty-day session
+without credential deletion. The real `changeFeed` in controlled no-stream mode
+learns +120 seconds from three buffered two-second polls, keeping device/server
+delays aligned. New 1,000/1,001/2,000 ms boundary cases check issuance and short
+refinement; threshold mutations to 5,000 and 10,000 each fail two assertions and
+were restored. The contradictory lone-slow test now proves receipt-time offset
+persistence and fork/reopen behavior. All earlier crash, composition, frame,
+wall-freshness and epoch-ordering regressions remain covered.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 418 s`**.
+Regular clients: 1,550 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Full-run held browser expiry lateness was 1, 1, 2, 1 and 2 ms.
+Wasm is unchanged at 1,776,076 B raw / 495,314 B gzip, within the 496,000 B limit.
+Reference audit has zero errors and zero unchecked references.
+
+No new public form, API or refusal code, no authorization/disclosure/meter
+weakening, and no changes to the device admission transaction. No push, package
+publication, iOS simulator claim or ceiling increase. Endpoint-by-endpoint stamp
+audit, file map, tests, examples and final qualification:
+[Lane Y round-3 report](reports/20260925-lane-y-r3.md).
