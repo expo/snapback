@@ -87,6 +87,9 @@ table children:
   sync
 query page(parent: parents):
   children where .parent = parent first 10 by .id { id, body }
+query nested(parent: parents):
+  rows = children where .parent = parent first 10 by .id { id, body }
+  return [{ rows }]
 mutation replace(old: children, parent: parents):
   delete children[old]
   insert children {id: 'new', parent, body: 'current'}
@@ -108,11 +111,20 @@ for(const tier of ["wasm","process"]) test(`${tier}: an unheld parent falls back
   const state=(await host.core.call({op:"state"})).ok;
   const applied=await host.core.call({op:"apply",first:false,page:{snapshot:false,watermark:state.watermark,generation:state.generation,more:false,events:[{table:"children",kind:"scope",id:"left",data:["dev:bob"]}]}});
   assert.equal(applied.denied,undefined,JSON.stringify(applied));
+  // A partial rejoin still retains the old image, while the server has its
+  // current row. The server row wins the ID collision, without a duplicate.
+  const rejoined=await host.core.call({op:"apply",page:{snapshot:false,watermark:state.watermark,generation:state.generation,more:false,events:[],joined:{children:[["dev:bob"]]}}});
+  assert.equal(rejoined.denied,undefined,JSON.stringify(rejoined));
+  assert.deepEqual((await read()).data,[{id:"old",body:"delivered"}]);
   const replaced=await host.post("/m/replace",{id:"replace",args:{old:"old",parent:"a"}});assert.equal(replaced.state,"sent",JSON.stringify(replaced));
   // Reading immediately uses the current server page and the still-held history.
   const result=await read();
   assert.deepEqual(result.data,[{id:"new",body:"current"},{id:"old",body:"delivered",retained:true}],JSON.stringify(result));
   assert.equal(result.fresh,false);assert.equal(result.complete,false);
+  const nested=await client.query({kind:"query",name:"nested"},{parent:"a"});
+  assert.deepEqual(nested.data,[{rows:result.data}]);
+  const nestedLocal=host.answers.findLast(a=>a.name==="nested");
+  assert.deepEqual(nestedLocal.retainedRows,[{rows:[true]}]);
 });
 
 const chain=readFileSync(join(root,"crates/snapback4-lang/tests/fixtures/read-through-device.q"),"utf8");
@@ -152,4 +164,42 @@ test("retained fallback uses device provenance, not an application field", () =>
   assert.deepEqual(keepRetainedRows({ rows: [{ id: "server" }] }, { rows: [ordinary, history] }, mask),
     { rows: [{ id: "server" }, history] });
   assert.deepEqual(keepRetainedRows([], [ordinary], undefined), []);
+});
+
+
+test("retained fallback recursively merges masks and prefers server IDs", () => {
+  const old={id:"old",body:"history",retained:true};
+  const duplicate={id:"live",body:"stale",retained:true};
+  const current={id:"live",body:"current"};
+  assert.deepEqual(keepRetainedRows([current],[duplicate,old],[true,true]),[current,old]);
+  assert.deepEqual(keepRetainedRows([{rows:[current]}],[{rows:[duplicate,old]}],[{rows:[true,true]}]),[{rows:[current,old]}]);
+  assert.deepEqual(keepRetainedRows({pages:[[{rows:[]}]]},{pages:[[{rows:[old]}]]},{pages:[[{rows:[true]}]]}),{pages:[[{rows:[old]}]]});
+});
+
+
+for(const tier of ["wasm","process"]) test(`${tier}: retained children do not terminally refuse a reused parent delete`,{timeout:60000},async t=>{
+  const source=chain.replace("table comments:","table comments:\n  retain delivered-history")+`
+mutation reuse():
+  delete comments['old']
+  delete tasks['t']
+  insert tasks {id: 't', project: 'p2'}
+`;
+  const host=await server(t,tier,source);
+  for(const [org,project,task] of [["o","p","t"],["o2","p2","other"]])
+    assert.equal((await host.post("/m/setup",{id:"setup-"+org,args:{org,project,task,until:null}})).state,"sent");
+  assert.equal((await host.post("/m/post",{id:"post",args:{id:"old",task:"t",body:"old"}})).state,"sent");
+  await host.open();host.pauseSync();
+  const state=(await host.core.call({op:"state"})).ok;
+  const apply=events=>host.core.call({op:"apply",page:{snapshot:false,watermark:state.watermark,generation:state.generation,events,more:false}});
+  assert.equal((await apply([{table:"comments",kind:"scope",id:"left",data:["o"]}])).denied,undefined);
+  assert.equal((await host.post("/m/reuse",{id:"reuse",args:{}})).state,"sent");
+  const snapshot=await host.post("/sync",{from:0,limit:100});
+  const parent=snapshot.events.find(e=>e.table==="tasks"&&e.id==="t");assert.ok(parent);
+  assert.equal((await apply([parent])).denied,undefined);
+  const retained=(await host.core.call({op:"query",name:"page",viewer:"dev:bob",args:{task:"t"},now:Date.now()})).ok;
+  assert.equal(retained.data[0].id,"old");assert.equal(retained.data[0].retained,true);
+  const deletion=await host.core.call({op:"admit",entry:{id:"delete-reused",seq:0,op:"dropTask",args:{id:"t"},viewer:"dev:bob",now:Date.now(),predictable:true}});
+  assert.equal(deletion.denied,undefined,JSON.stringify(deletion));
+  assert.equal(deletion.ok.predictable,true);assert.deepEqual(deletion.ok.predicted,["tasks/t"]);
+  assert.equal((await host.post("/m/dropTask",{id:"delete-server",args:{id:"t"}})).state,"sent");
 });

@@ -8,7 +8,12 @@ export function hasRetainedRows(value: unknown): boolean {
 }
 export function keepRetainedRows(current: unknown, local: unknown, mask: unknown): unknown {
   if (Array.isArray(current) && Array.isArray(local)) {
-    return [...current, ...local.filter((_, index) => Array.isArray(mask) && mask[index] === true)];
+    const masks: unknown[] = Array.isArray(mask) ? mask : [];
+    const ids = new Set(current.filter(object).map(row => row.id).filter(id => id !== undefined));
+    return [
+      ...current.map((value, index) => keepRetainedRows(value, local[index], masks[index])),
+      ...local.filter((row, index) => masks[index] === true && !(object(row) && row.id !== undefined && ids.has(row.id))),
+    ];
   }
   if (object(current) && object(local)) {
     return Object.fromEntries(Object.entries(current).map(([field, value]) => [field, keepRetainedRows(value, local[field], object(mask) ? mask[field] : undefined)]));
