@@ -1,12 +1,12 @@
 # LLP 4000: Snapback 5 — the bridge is invisible
 
 **Type:** RFC
-**Status:** Accepted (in direction, author ruling 2026-09-24: §9.6 steps 2–6 commissioned and the §9.2 comparison judged worthwhile; the three round-3 reviews remain NOT READY on contracts the first slice will now produce as sub-LLPs — see §11)
+**Status:** Shelved (author ruling 2026-09-25, on the lead's recommendation: the bet this document tests — the residency spelling — is the smallest item the learning-cost record names; steps 5–7 of §9.6 are stopped; the three additions of §3.3 continue as Snapback 4 work under LLP 3000.015; the reference lanes complete; the derived-horizon idea is filed as a Snapback 4 ticket; a different Snapback 5 bet is proposed in LLP 4001 — see §13)
 **Role:** Root of a proposed Snapback 5 corpus (LLPs 4000 and up), if commissioned
 **Systems:** A Snapback 5 authoring surface over the Snapback 4 engine; derived residency; the device acquisition policy; the client contract; `check`; the calibration protocol
 **Author:** Claude Fable 5.1, at Charlie Cheever's request
 **Date:** 2026-09-24
-**Revised:** 2026-09-24 (revision 4, after the round-3 delta reviews — [Astra](./reviews/4000-snapback5.astra.md) NOT READY, [Grok](./reviews/4000-snapback5.grok.md) NOT READY "the next edit is local", [Opus](./reviews/4000-snapback5.opus.md) NOT READY "READY WITH CHANGES for the first slice with seven changes": joins defined; the tombstone-only subscription withdrawn and retained history frozen at removal; the receipt table kept in both arms and engine-derived delivery moved to its own future LLP; engine-assigned ordinals; Snapback 4's predictor restored verbatim with the rate computed from a pinned program; coverage as key ranges with floors and an acquisition record; carried results withdrawn; the depth cap and pinning made exact; the control defined by build graph and behavioral equivalence; a loss margin, non-inferiority floors with a stated correction, the mechanism as a gate stated once, the load gate scoped to external processes, and every round-3 movable choice fixed; a differential page invariant; §12 extended; **this is the bounded stop: the document goes to the author with these verdicts**); 2026-09-24 (revision 3); 2026-09-24 (revision 2); 2026-09-24 (initial)
+**Revised:** 2026-09-25 (shelved; §13 records why and what continues); 2026-09-24 (revision 4, after the round-3 delta reviews — [Astra](./reviews/4000-snapback5.astra.md) NOT READY, [Grok](./reviews/4000-snapback5.grok.md) NOT READY "the next edit is local", [Opus](./reviews/4000-snapback5.opus.md) NOT READY "READY WITH CHANGES for the first slice with seven changes": joins defined; the tombstone-only subscription withdrawn and retained history frozen at removal; the receipt table kept in both arms and engine-derived delivery moved to its own future LLP; engine-assigned ordinals; Snapback 4's predictor restored verbatim with the rate computed from a pinned program; coverage as key ranges with floors and an acquisition record; carried results withdrawn; the depth cap and pinning made exact; the control defined by build graph and behavioral equivalence; a loss margin, non-inferiority floors with a stated correction, the mechanism as a gate stated once, the load gate scoped to external processes, and every round-3 movable choice fixed; a differential page invariant; §12 extended; **this is the bounded stop: the document goes to the author with these verdicts**); 2026-09-24 (revision 3); 2026-09-24 (revision 2); 2026-09-24 (initial)
 **Related:** [LLP 3000](./3000-snapback4.explainer.md) (Snapback 4, the engine this proposal keeps and the control it is judged against), [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md) (explicit residency, whose spelling this proposal removes and whose mechanism it keeps), [LLP 3000.012](./3000.012-application-still-owns-derived-data.research.md) (the plateau and the charge ledger), [LLP 3000.013](./3000.013-quarry-states-intent.rfc.md) (the planner and `view`, kept), [LLP 3000.014](./3000.014-a-child-reads-through-its-parent.rfc.md) (inherited audiences; its revision 2, not yet written, is the design of record for `through`), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the brief Snapback 4 built), [calibration #19](../benchmarks/runs/2026-09-24-snapback4-clique-astra-0.4.0/README.md), [`benchmarks/protocol.md`](../benchmarks/protocol.md), the [September 5 three-backend run](../benchmarks/runs/2026-09-05-clique-full-3x3/README.md)
 
 ## Summary
@@ -947,6 +947,43 @@ decision rule.
 This is the bounded stop of the refine loop. The document goes to the
 author with these verdicts; a fourth review round is the author's call,
 and §11 item 6 records the lead's recommendation against one.
+
+## 13. Shelved, 2026-09-25
+
+After the author commissioned §9.6 steps 2–6 on 2026-09-24, the lead
+recommended against continuing the sibling and the author agreed
+("let's try it" for a different bet; "do your plan" for this one). The
+reasons, as put to the author:
+
+- Three review rounds (nine blind reviews, all NOT READY) left the
+  direction settled and the bet small. As written in revision 4, Snapback 5
+  delivers the same stream Snapback 4 delivers to a device holding the same
+  public pages; what it removes is the authored `sync` spelling and the
+  horizon.
+- The record names the learning-cost charge as bounds 11 times, the
+  language itself 8, completeness 5, residency 2–3 (§1). The sibling
+  targeted the smallest item at the cost of a fenced crate, a delivery
+  harness, a differential simulator and six full-brief runs.
+- The work that answered calibration #19's actual charges — the additions
+  of §3.3 and LLP 3000.014's `through` — is Snapback 4 work and stands on
+  its own.
+- The one idea the sibling still owned, a derived horizon when `sync` is
+  omitted, can be tried as a Snapback 4 option behind a flag
+  (`issues/20260925-snapback4-derived-horizon-when-sync-omitted.md`).
+
+What continues: LLP 3000.015's three additions (lanes B1–B3, in review as
+this is written) land in Snapback 4, rebased onto 0.4.1, to be measured by
+the calibration series; the 2026-09-24 reference lanes complete and are
+recorded under `benchmarks/runs/`; the `snapback5/` fence and its concept
+counter stay, pointed at the next bet. What stops: §9.6 steps 5–7.
+
+The next bet is [LLP 4001](./4001-snapback5-sql-front-end.rfc.md): the same
+engine under a language builders already know (Postgres DDL, RLS-shaped
+policies, SQL views and queries, a small mutation subset), which targets the
+item the record names most and the only surface this grader has scored at 94.
+Everything in this document's §4–§5 about the engine, `complete`, prediction
+and the log remains the design of record for that bet's runtime; its §9
+instruments are reused with the language as the treatment.
 
 ## Non-claims
 

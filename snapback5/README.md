@@ -5,3 +5,13 @@ Snapback 5 tests whether removing authored residency reduces the learning cost o
 It builds over the existing `snapback4-*` crates. Shared additions land in Snapback 4 first; Snapback 5's treatment belongs in feature-gated modules, with a control build that excludes it. Snapback 4 remains the sibling control, and the web device inherits its measured wasm budget.
 
 Nothing in the Snapback 5 runtime is implemented yet. This directory contains only the fence, the [concept-count tool and its guide](./tools/README.md), and the [commission measurement](./reports/20260924-concept-count.md). Read [AGENTS.md](./AGENTS.md) before working here and append implementation decisions to [JOURNAL.md](./JOURNAL.md).
+
+## Status, 2026-09-25
+
+The first bet, [LLP 4000](../llp/4000-snapback5.rfc.md) (derived residency
+over the same engine), is **Shelved** after three review rounds; its §13
+says why. Its three authoring additions continue as Snapback 4 work under
+[LLP 3000.015](../llp/3000.015-shared-baseline-for-snapback5.spec.md). The
+second bet, [LLP 4001](../llp/4001-snapback5-sql-front-end.rfc.md), keeps
+the engine and replaces the authoring language with SQL forms builders
+already know. Nothing under this directory is a runtime yet.
