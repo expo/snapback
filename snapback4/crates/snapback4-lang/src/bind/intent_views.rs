@@ -26,6 +26,7 @@ pub(super) fn expand(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         walk::document(doc, &mut |value| {
             if let Expr::Read(read) | Expr::Exists { read, .. } = value {
                 catalog.read_origins.entry(read.site.to_string()).or_insert_with(|| catalog.source.expression(&Expr::Read(read.clone())));
+                catalog.canonical_read_origins.entry(read.site.to_string()).or_insert_with(|| crate::print::read_expr(read));
             }
         });
         walk::document(doc, &mut |value| {
