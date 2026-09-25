@@ -813,18 +813,20 @@ impl<S: DeviceStore> Device<S> {
     /// The query, and whether it touched something the device does not
     /// hold (an online-only table, a row past the horizon).
     pub fn query_with_coverage(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool, bool) {
-        let (result, unknown, retained, _) = self.query_observation(name, viewer, args, now, false);
+        let (result, unknown, retained, _, _) = self.query_observation(name, viewer, args, now, false);
         (result, unknown, retained)
     }
 
     pub fn query_with_components(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>) {
-        self.query_observation(name, viewer, args, now, true)
+        let (result, unknown, retained, components, _) = self.query_observation(name, viewer, args, now, true);
+        (result, unknown, retained, components)
     }
 
-    fn query_observation(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, observe_components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>) {
+    pub(crate) fn query_observation(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, observe_components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>, snapback4_core::engine::components::Provenance) {
         let mut unknown = false;
         let mut retained = false;
         let mut components = Default::default();
+        let mut provenance = Default::default();
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
             let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
@@ -838,31 +840,30 @@ impl<S: DeviceStore> Device<S> {
                 return Err(error.refusal());
             }
             let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
-            let (result, coverage, history_only) = if program.native {
+            let (result, coverage, history_only, facts) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
                 // the module the device does not know, and the host asks the
                 // server.
                 #[cfg(feature = "wasm-host")]
                 match &self.native {
-                    Some(module) => local::native_query(&reading, &self.schema, module, &program, context, Ceilings::default()),
-                    None => (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device has no module yet") }.refusal()), true, false),
+                    Some(module) => local::native_observation(&reading, &self.schema, module, &program, context, Ceilings::default()),
+                    None => (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device has no module yet") }.refusal()), true, false, Default::default()),
                 }
                 #[cfg(not(feature = "wasm-host"))]
-                (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true, false)
-            } else if !observe_components {
-                local::query_with_coverage(&reading, &self.schema, &program, context, Ceilings::default())
+                (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true, false, Default::default())
             } else {
-                let (result, unknown, retained, coverage) = local::query_with_components(&reading, &self.schema, &program, context, Ceilings::default());
+                let (result, unknown, retained, coverage, facts) = local::observe_query(&reading, &self.schema, &program, context, Ceilings::default(), observe_components);
                 components = coverage;
-                (result, unknown, retained)
+                (result, unknown, retained, facts)
             };
             unknown = coverage;
+            provenance = facts;
             retained = reading.retained.get() && history_only;
             drop(reading);
             tx.rollback()?;
             result
         })();
-        (result, unknown, retained, components)
+        (result, unknown, retained, components, provenance)
     }
 
     /// Predict a mutation: its rows land in the store marked `pending`, in

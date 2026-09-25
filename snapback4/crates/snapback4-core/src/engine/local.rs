@@ -23,17 +23,18 @@ pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, context: Conte
 
 /// Unknown means the server can establish a missing fact or presence; preserve it, and whether incompleteness is exclusively retained history, even after a require/unwrap refusal.
 pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
-    let (result, unknown, retained, _) = observe_query(rows, schema, program, context, ceilings, false);
+    let (result, unknown, retained, _, _) = observe_query(rows, schema, program, context, ceilings, false);
     (result, unknown, retained)
 }
 
 pub fn query_with_components(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>) {
-    observe_query(rows, schema, program, context, ceilings, true)
+    let (result, unknown, retained, components, _) = observe_query(rows, schema, program, context, ceilings, true);
+    (result, unknown, retained, components)
 }
 
-fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings, components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>) {
-    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false, Default::default()); }
-    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default()); }    let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
+pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings, components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>, super::components::Provenance) {
+    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false, Default::default(), Default::default()); }
+    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default(), Default::default()); }    let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
     runner.device = true;
     runner.component_observation = components;
     let result = (|| {
@@ -66,7 +67,7 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
     })();
     let components = if result.as_ref().is_ok_and(|outcome| matches!(outcome.data, Value::Row(_))) { runner.component_coverage() } else { Default::default() };
     // @ref LLP 3000.007#20.22.1 — presence is server knowledge too; a resource or structural cut is not.
-    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), components)}
+    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), components, runner.components.provenance())}
 
 /// What a mutation predicts on the device: its result, and the tables it
 /// wrote through the store. A refusal is the caller's to show; the host
@@ -122,9 +123,15 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
 /// device's words — a page at the horizon or an online-only table is
 /// `complete: false`; unknown coverage is what the host falls back on.
 #[cfg(feature = "wasm-host")]
-pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
+pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
+    let (result, unknown, retained, _) = native_observation(rows, schema, module, program, context, ceilings);
+    (result, unknown, retained)
+}
+
+#[cfg(feature = "wasm-host")]
+pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool, super::components::Provenance) {
     if let Err(error) = validate_inputs(schema, program, &mut context.args) {
-        return (Err(error.refusal()), false, false);
+        return (Err(error.refusal()), false, false, Default::default());
     }
     let args = context.args.clone();
     let now = context.now.unwrap_or(0);
@@ -153,7 +160,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
             next_expiry: runner.next_expiry,
         })
     })();
-    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete())
+    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), runner.components.provenance())
 }
 
 

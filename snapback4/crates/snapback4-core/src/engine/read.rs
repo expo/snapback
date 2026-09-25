@@ -115,7 +115,7 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
     fn rule_probe_exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         let (present, known) = self.probe_witness(table, index, key, equalities, false)?;
-        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); }
+        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); self.components.note(|frame| frame.speculative = true); }
         Ok(present)
     }
 
@@ -335,6 +335,7 @@ impl Runner<'_> {
         if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
+            self.components.note(|frame| frame.speculative = true);
             self.withhold_unheld_card(&read.table);
         }
         if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(&key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
@@ -355,6 +356,7 @@ impl Runner<'_> {
         // @ref LLP 3000.016#2.2 — a known horizon miss still withholds when charging the point read exhausts examination.
         if found.is_none() && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
+            self.components.note(|frame| frame.speculative = true);
             self.withhold_unheld_card(&read.table);
         }
         // An expiring lookup already charged its live candidate while
@@ -381,7 +383,9 @@ impl Runner<'_> {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
-            Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
+            let live = self.live_aggregate(&read.table, row)?;
+            if self.device && live.is_some() { self.components.note(|frame| frame.held = true); }
+            Ok(super::recorded::public_image(table, live.unwrap_or(Value::Null)))
         } else {
             self.next_expiry = expiry_mark;
             if !provisional {
@@ -482,7 +486,7 @@ impl Runner<'_> {
                 self.device_work(|runner| runner.meter.heap(256 * (192 + word_heap::values(&scope) + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site))))?;
             }
             retained = self.retained_group(&scan.table, &scan.index, &scope)?;
-            if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); }
+            if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); self.components.note(|frame| frame.speculative = true); }
             else if !scan.existence && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
                 self.horizon_coverage(scan, &scope, retained);
             }
@@ -825,7 +829,7 @@ impl Runner<'_> {
             self.read_tables.insert(scan.table.clone());
             self.rule_dependencies(&table.rules.read);
             self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site);
-            if self.device && table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site); }
+            if self.device && table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site); self.components.note(|frame| frame.speculative = true); }
         }
         if word.is_some_and(|w| w.metered) { self.meter.heap(word_heap::text(&scan.site))?; }
         self.meter.at(&scan.site);
@@ -964,6 +968,7 @@ impl Runner<'_> {
                     }
                     let Some(row) = live_row else { continue; };
                     let row = super::recorded::public_image(table, row);
+                    if self.device { self.components.note(|frame| frame.held = true); }
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;
