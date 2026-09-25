@@ -255,6 +255,10 @@ impl RuntimeError {
                 refusal.guide = Some("maintains".into());
                 refusal.rewrite = Some("omit the column; write the source rows or read the parent row".into());
             }
+            Self::Structural { code: "E_VIEW_KEY", message } => {
+                refusal.guide = Some("maintains".into());
+                refusal.rewrite = Some(message.clone());
+            }
             Self::Structural { code: "E_RECORDED_FIELD", .. } => {
                 refusal.guide = Some("maintains".into());
                 refusal.rewrite = Some("omit engine-recorded fields from the payload; write only application columns".into());

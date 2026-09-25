@@ -226,6 +226,7 @@ pub struct MutationOutcome {
     pub state: WriteState,
     pub metered: Metered,
     pub tables: Vec<String>,
+    /// Source/ordinary events only; private row-keyed recipient changes are not observable.
     pub events: usize,
     /// Whether this call applied the write, or found it already applied.
     pub replayed: bool,
@@ -935,7 +936,8 @@ impl Engine {
                 tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
                 partition::append(&tx, seq, &events)?;
                 effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
+                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables,
+                    events: events.iter().filter(|e| self.schema.maintain_for(&e.table).is_none_or(|m| m.row_key.is_none())).count(), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_to("program")?;

@@ -13,6 +13,9 @@ impl RowKey {
     pub fn member_index(&self) -> String {
         format!("$view:{}", self.member_key)
     }
+    pub fn live_member_index(&self) -> String {
+        format!("$view:{}:live", self.member_key)
+    }
     pub fn source_index(&self) -> String {
         format!("$view:{}", self.source_key)
     }
@@ -102,6 +105,12 @@ impl crate::schema::Schema {
         for m in &self.maintains {
             let Some(key) = &m.row_key else { continue };
             if let Some(t) = self.tables.get_mut(&key.table) {
+                if let Some(expiry) = &t.expire {
+                    t.indexes.insert(
+                        key.live_member_index(),
+                        Index::of(&[&key.member_key, expiry, "id"], false),
+                    );
+                }
                 t.indexes.insert(
                     key.member_index(),
                     Index::of(&[&key.member_key, "id"], false),
@@ -126,8 +135,12 @@ impl crate::schema::Schema {
                     ("id".into(), C::Id),
                     ("cursor".into(), C::Optional(Box::new(C::Id))),
                     ("total".into(), C::Int),
+                    ("parked".into(), C::Bool),
                 ]),
-                BTreeMap::from([("byId".into(), Index::of(&["id"], true))]),
+                BTreeMap::from([
+                    ("byId".into(), Index::of(&["id"], true)),
+                    ("byReady".into(), Index::of(&["parked", "id"], false)),
+                ]),
             );
             work.rules = Rules::deny();
             self.tables.insert(m.work_table(), work);
@@ -153,6 +166,16 @@ impl RowKey {
         ) else {
             return Err(fail());
         };
+        let mut projected = BTreeSet::from([
+            "id".to_owned(),
+            "member".into(),
+            "value".into(),
+            "recountPending".into(),
+        ]);
+        u.rules.read.fields(&mut projected);
+        if target.columns.keys().cloned().collect::<BTreeSet<_>>() != projected {
+            return Err(fail());
+        }
         if ["member","value","recountPending"].iter().any(|f|u.columns.contains_key(*f)) || !u.maintained.is_empty()
             || m.source==self.table || schema.maintain_for(&self.table).is_some() || m.private.is_some() || m.kind!=MaintainKind::Count
             || m.by!=["member"] || m.filter.is_some() || !m.computed.is_empty() || target.rules.read!=u.rules.read
@@ -160,7 +183,7 @@ impl RowKey {
             || !matches!((t.columns.get(&self.source_key),u.columns.get(&self.member_key)),(Some(C::Ref {table:a}),Some(C::Ref {table:b})) if a==b)
             || target.columns.get("member")!=Some(&C::Ref {table:self.table.clone()}) || target.columns.get("value")!=Some(&C::Int)
             || target.columns.get("recountPending")!=Some(&C::Bool)
-            || u.columns.iter().any(|(f,c)|target.columns.get(f)!=Some(c))
+            || target.columns.iter().any(|(f,c)| !["member", "value", "recountPending"].contains(&f.as_str()) && u.columns.get(f)!=Some(c))
             || !target.indexes.get("byGroup").is_some_and(|i|i.unique && i.columns()==["member"])
             || target.sync.as_ref().is_some_and(|s|u.sync.as_ref().is_none_or(|us|s.audience!=us.audience) || s.horizon.is_some()) {return Err(fail());}
         if target

@@ -190,7 +190,31 @@ pub(super) fn target(
             "row-keyed view reserves member, value and recountPending; the keyed row must have ordinary fields",
         ));
     }
+    // Only focal fields used by the member's read rule belong to its authority image.
+    fn fields(e: &Expr, out: &mut std::collections::BTreeSet<String>) {
+        match e {
+            Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => {
+                out.insert(name.clone());
+            }
+            Expr::Binary { left, right, .. } => {
+                fields(left, out);
+                fields(right, out);
+            }
+            Expr::Unary { value, .. } => fields(value, out),
+            Expr::Exists { read, .. } | Expr::Created { read, .. } => {
+                for key in &read.keys {
+                    fields(&key.value, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut keep = std::collections::BTreeSet::new();
+    for rule in u.decl.rules.iter().filter(|r| r.effect == Effect::Read) {
+        fields(&rule.value, &mut keep);
+    }
     let mut decl = u.decl.clone();
+    decl.columns.retain(|c| keep.contains(&c.name));
     decl.name = m.name.clone();
     decl.site = m.site.clone();
     decl.columns.extend(

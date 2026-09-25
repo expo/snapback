@@ -188,8 +188,8 @@ fn member_horizon<H: Host>(host: &mut H) {
     let r = device
         .query("unreadFor", "bob", &json!({"member":"member"}), 1)
         .unwrap();
-    assert!(r.complete, "{r:?}");
-    assert_eq!(r.data, Value::Int(2));
+    assert!(!r.complete, "{r:?}");
+    assert_eq!(r.data, Value::Int(0));
 }
 #[test]
 fn member_horizon_memory() {
@@ -356,7 +356,7 @@ fn source_prediction<H: Host>(host: &mut H, horizon: bool) {
         .seed([(
             "members".into(),
             object([
-                ("id", id("z-last")),
+                ("id", id("a-carol-outside")),
                 ("conversationId", id("c")),
                 ("principal", id("carol")),
                 ("readUpTo", Value::Int(0)),
@@ -379,12 +379,12 @@ fn source_prediction<H: Host>(host: &mut H, horizon: bool) {
         device.apply(page, i == 0).unwrap();
     }
     let queued=device.admit(Queued {id:"send".into(),seq:1,op:"send".into(),args:json!({"id":"predicted","conversationId":"c","ordinal":2,"senderId":"alice","until":null}),viewer:"bob".into(),now:1,new_ids:vec!["predicted".into()],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None}).unwrap();
-    assert_eq!(queued.predictable, !horizon, "{queued:?}");
+    assert!(queued.predictable, "{queued:?}");
     let r = device
         .query("unreadFor", "bob", &json!({"member":"member"}), 1)
         .unwrap();
     assert!(r.complete, "{r:?}");
-    assert_eq!(r.data, Value::Int(if horizon { 1 } else { 2 }));
+    assert_eq!(r.data, Value::Int(2));
 }
 #[test]
 fn private_member_source_prediction_memory() {
@@ -395,10 +395,119 @@ fn private_member_source_prediction_sqlite() {
     source_prediction(&mut Sqlite::new("b3-private-predict"), false);
 }
 #[test]
-fn member_horizon_source_queues_memory() {
+fn held_member_source_predicts_past_other_member_horizon_memory() {
     source_prediction(&mut Memory::new(), true);
 }
 #[test]
-fn member_horizon_source_queues_sqlite() {
+fn held_member_source_predicts_past_other_member_horizon_sqlite() {
     source_prediction(&mut Sqlite::new("b3-horizon-predict"), true);
+}
+
+#[test]
+fn member_horizon_never_persists_excluded_note_or_attribution_in_view() {
+    let source = SOURCE
+        .replace("  expire at .until\n", "")
+        .replace(
+            "  joinedAt: int default 0",
+            "  joinedAt: int default 0\n  note: text <=100 default 'excluded-note-secret'",
+        )
+        .replacen(
+            "  sync public\ntable messages:",
+            "  sync public last 1 by .joinedAt\ntable messages:",
+            1,
+        );
+    let source = source.replace("  title: text", "  immutable title\n  title: text")
+        .replace("  conversationId: conversations", "  immutable conversationId\n  conversationId: conversations")
+        + "\nview memberTitles: count members by .conversationId.title\n";
+    let (mut server, mut backend) = compile(&source);
+    server.seed([("conversations".into(), object([("id", id("c")), ("title", Value::String("captured-title".into()))]))]).unwrap();
+    seed(&mut server, 2);
+    // The member with the smaller id is newest by the actual horizon column.
+    server
+        .seed([(
+            "members".into(),
+            object([
+                ("id", id("a-newest")),
+                ("conversationId", id("c")),
+                ("principal", id("carol")),
+                ("readUpTo", Value::Int(0)),
+                ("joinedAt", Value::Int(1)),
+                ("note", Value::String("allowed".into())),
+            ]),
+        )])
+        .unwrap();
+    assert!(server.store().rows("members").unwrap().iter().all(|row| row.field("conversationId.title").is_ok()));
+    assert_eq!(
+        backend.schema.tables["unread"]
+            .columns
+            .keys()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        ["id", "member", "recountPending", "value"]
+    );
+    for row in server.store().rows("unread").unwrap() {
+        assert!(row.field("note").is_err());
+        assert_eq!(row.as_object().unwrap().len(), 4);
+    }
+    backend.schema = backend.schema.public_projection();
+    let mut host = Memory::new();
+    let mut device = host.open("projected-horizon", Some(backend)).unwrap();
+    let pages = snapshot_pages(&mut server, "bob", 1);
+    let views = pages
+        .iter()
+        .flat_map(|p| &p.events)
+        .filter(|e| e.table == "unread")
+        .collect::<Vec<_>>();
+    assert_eq!(views.len(), 1);
+    assert_eq!(views[0].id, "a-newest");
+    for (i, page) in pages.iter().enumerate() {
+        device.apply(page, i == 0).unwrap();
+    }
+    let persisted = device.store().drain();
+    for change in persisted.iter().filter(|c| c.s != 'm') {
+        assert!(
+            !change
+                .v
+                .as_ref()
+                .is_some_and(|v| v.contains("excluded-note-secret")),
+            "{change:?}"
+        );
+    }
+    let from = server.seq().unwrap();
+    server
+        .mutate(
+            "send",
+            None,
+            Context::new(
+                "bob",
+                args(&[
+                    ("id", id("later")),
+                    ("conversationId", id("c")),
+                    ("ordinal", Value::Int(3)),
+                    ("senderId", id("alice")),
+                    ("until", Value::Null),
+                ]),
+            )
+            .at(1),
+        )
+        .unwrap();
+    let page = stream_page(&mut server, "bob", from);
+    assert!(
+        page.events
+            .iter()
+            .filter(|e| e.table == "unread" && e.id == "member")
+            .all(|e| e.kind == "del" && e.data.is_none())
+    );
+    device.apply(&page, false).unwrap();
+    assert!(
+        device
+            .store()
+            .drain()
+            .iter()
+            .filter(|c| c.s != 'm')
+            .all(|c| !c
+                .v
+                .as_ref()
+                .is_some_and(|v| v.contains("excluded-note-secret")))
+    );
 }

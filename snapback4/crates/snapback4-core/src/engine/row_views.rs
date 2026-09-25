@@ -50,7 +50,11 @@ impl Runner<'_> {
                 if key.table == table {
                     self.row_view_member(&m, old, new)?;
                 } else {
+                    // Reserve before inspecting any recipient, including its hidden mark or work.
+                    self.reserve_row_view(&m)?;
+                    self.maintain_prepaid = true;
                     self.row_view_source(&m, old, new)?;
+                    self.maintain_prepaid = false;
                 }
             }
             Ok(())
@@ -59,8 +63,41 @@ impl Runner<'_> {
         result
     }
 
+    // @ref LLP 3000.015#3 — two parent groups, each bounded by the declared live cap.
+    fn reserve_row_view(&mut self, m: &Maintain) -> Result<(), RuntimeError> {
+        let k = m.row_key.as_ref().unwrap();
+        let target = &self.schema.tables[&m.target];
+        let recipients = k.fanout.saturating_mul(2);
+        let image = super::write_target::row_copy_ceiling(target);
+        for (kind, amount) in [
+            (MeterKind::Examined, recipients.saturating_mul(4) + 4),
+            (
+                MeterKind::Steps,
+                recipients.saturating_mul(k.predicate.steps() * 4 + 8),
+            ),
+            (MeterKind::RowsWritten, recipients.saturating_mul(2)),
+            (
+                MeterKind::IndexEntries,
+                recipients.saturating_mul(2 * target.indexes.len() as u64 + 4),
+            ),
+            (
+                MeterKind::OutputBytes,
+                recipients.saturating_mul(image.saturating_mul(2)),
+            ),
+        ] {
+            self.meter.charge(kind, amount)?;
+        }
+        // Member/target/work images are transient; reserve the schema bound, not their contents.
+        let heap = super::write_target::row_copy_ceiling(&self.schema.tables[&k.table])
+            .saturating_mul(4)
+            .saturating_add(image.saturating_mul(16));
+        self.meter.heap(heap)?;
+        self.maintain_heap = self.maintain_heap.saturating_add(heap);
+        Ok(())
+    }
+
     fn view_get(&mut self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
-        self.meter.charge(MeterKind::Examined, 1)?;
+        self.charge_maintain(MeterKind::Examined, 1)?;
         self.tx.get(table, id)
     }
     fn view_put(
@@ -74,9 +111,9 @@ impl Runner<'_> {
             return Ok(());
         }
         let entries = self.tx.put(table, &self.schema.tables[table], row, old)?;
-        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        self.charge_maintain(MeterKind::IndexEntries, entries)?;
         if work {
-            self.meter.charge(MeterKind::RowsWritten, 1)?;
+            self.charge_maintain(MeterKind::RowsWritten, 1)?;
         } else {
             self.row_changed(table, old, Some(row), Origin::Maintained)?;
         }
@@ -84,22 +121,33 @@ impl Runner<'_> {
     }
     fn view_delete(&mut self, table: &str, old: &Value, work: bool) -> Result<(), RuntimeError> {
         let entries = self.tx.delete(table, &self.schema.tables[table], old)?;
-        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        self.charge_maintain(MeterKind::IndexEntries, entries)?;
         if work {
-            self.meter.charge(MeterKind::RowsWritten, 1)?;
+            self.charge_maintain(MeterKind::RowsWritten, 1)?;
         } else {
             self.row_changed(table, Some(old), None, Origin::Maintained)?;
         }
         Ok(())
     }
-    fn view_image(&self, member: &Value, total: i64, pending: bool) -> Result<Value, RuntimeError> {
+    fn view_image(
+        &self,
+        m: &Maintain,
+        member: &Value,
+        total: i64,
+        pending: bool,
+    ) -> Result<Value, RuntimeError> {
         if !(0..=crate::value::I53_MAX).contains(&total) {
             return Err(RuntimeError::AggregateOverflow {
                 maintain: "row-keyed view".into(),
                 column: "value".into(),
             });
         }
-        let mut fields = member.as_object()?.clone();
+        let mut fields = member
+            .as_object()?
+            .iter()
+            .filter(|(name, _)| self.schema.tables[&m.target].columns.contains_key(*name))
+            .map(|(name, value)| (name.clone(), value.clone()))
+            .collect::<std::collections::BTreeMap<_, _>>();
         fields.insert("member".into(), member.field("id")?.clone());
         fields.insert("value".into(), Value::Int(total));
         fields.insert("recountPending".into(), Value::Bool(pending));
@@ -303,7 +351,7 @@ impl Runner<'_> {
                 .is_none_or(|old| old.field(name).ok() != u.field(name).ok())
         });
         if !changed && let Some(existing) = &existing {
-            let row = self.view_image(&u, number(existing, "value"), pending(existing))?;
+            let row = self.view_image(m, &u, number(existing, "value"), pending(existing))?;
             return self.view_put(&m.target, &row, Some(existing), false);
         }
         let mut index = k.source_index();
@@ -362,7 +410,7 @@ impl Runner<'_> {
         } else {
             base
         };
-        let row = self.view_image(&u, total, !complete)?;
+        let row = self.view_image(m, &u, total, !complete)?;
         self.view_put(&m.target, &row, existing.as_ref(), false)?;
         if !self.device {
             let work = self.view_get(&work_name, id)?;
@@ -375,6 +423,7 @@ impl Runner<'_> {
                     ("id", Value::Id(id.into())),
                     ("cursor", Value::Null),
                     ("total", Value::Int(0)),
+                    ("parked", Value::Bool(false)),
                 ]);
                 self.view_put(&work_name, &next, work.as_ref(), true)?;
             }
@@ -400,36 +449,30 @@ impl Runner<'_> {
         }
         for parent in keys {
             let prefix = vec![parent.clone()];
-            // Without a U horizon every delivered view has its member image.
-            // Private, unreadable recipients require no predicted local write.
-            if self.device
-                && self.schema.tables[&k.table]
-                    .sync
-                    .as_ref()
-                    .is_none_or(|s| s.horizon.is_some())
-                && (!self.upsert_absence_proven(&k.table, &k.member_index(), &prefix)?
-                    || self.retained_group(&k.table, &k.member_index(), &prefix)?)
-            {
-                return Err(RuntimeError::Prediction(
-                    "row-keyed view needs the complete member group; queued without prediction"
-                        .into(),
-                ));
-            }
+            // Predict only held current members; absent recipients do not invalidate
+            // the deltas for members this device does hold.
             let bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&k.table])
                 .saturating_mul(4);
             self.maintain_scratch(bytes,|r| {
-                let mut bounds=Bounds::default();let mut live=0;
+                let table = &r.schema.tables[&k.table];
+                let index = if table.expire.is_some() { k.live_member_index() } else { k.member_index() };
+                let ranges = if table.expire.is_some() {
+                    vec![Bounds { lte: Some(Value::Null), ..Bounds::default() },
+                         Bounds { gt: Some(Value::Int(r.context.now.unwrap_or(0))), ..Bounds::default() }]
+                } else { vec![Bounds::default()] };
+                let mut live = 0;
+                for mut bounds in ranges {
                 loop {
-                    r.meter.charge(MeterKind::Examined,1)?;
-                    let Some((member,position))=r.tx.scan(&k.table,&k.member_index(),&prefix,&bounds,Dir::Asc,1)?.pop() else {break;};
+                    r.charge_maintain(MeterKind::Examined,1)?;
+                    let Some((member,position))=r.tx.scan(&k.table,&index,&prefix,&bounds,Dir::Asc,1)?.pop() else {break;};
                     bounds.after=crate::key::decode(&position).map(|v|v.into_iter().skip(1).collect());
-                    if r.expired(&r.schema.tables[&k.table],&member) || (r.device && r.retained_row(&k.table,&member)?) {continue;}
-                    live+=1;if live>k.fanout {return Err(RuntimeError::Schema("E_VIEW_KEY: recipient cap exceeded; repair the member group (guide maintains)".into()));}
+                    if r.device && r.retained_row(&k.table,&member)? {continue;}
+                    live+=1;if live>k.fanout {return Err(RuntimeError::Structural {code:"E_VIEW_KEY", message:"recipient cap exceeded; repair the member group (guide maintains)".into()});}
                     let member=row_image(&member,&r.schema.tables[&k.table]).into_owned();
                     let id=member.field("id")?.as_str()?;
                     let existing=r.view_get(&m.target,id)?;
                     let delta=i64::from(new.as_ref().is_some_and(|v|k.matches(v,&member)))-i64::from(old.as_ref().is_some_and(|v|k.matches(v,&member)));
-                    r.meter.step(k.predicate.steps()*2)?;
+                    r.charge_maintain(MeterKind::Steps,k.predicate.steps()*2)?;
                     if existing.as_ref().is_some_and(pending) {
                         if !r.device {
                             let name=m.work_table();
@@ -437,15 +480,24 @@ impl Runner<'_> {
                                 if let Ok(Value::Id(cursor))=work.field("cursor") {
                                     let counted=|row:&Option<Value>|row.as_ref().is_some_and(|v|v.field("id").ok().and_then(|v|v.as_str().ok()).is_some_and(|id|id<=cursor.as_str()) && k.matches(v,&member));
                                     let change=i64::from(counted(&new))-i64::from(counted(&old));
-                                    let mut next=work.as_object()?.clone();next.insert("total".into(),Value::Int(number(&work,"total")+change));
+                                    let mut next=work.as_object()?.clone();next.insert("total".into(),Value::Int(number(&work,"total")+change));next.insert("parked".into(),Value::Bool(false));
                                     r.view_put(&name,&Value::Row(next.into()),Some(&work),true)?;
                                 }
                             }
                         }
                     } else if delta!=0 || existing.is_none() {
-                        if existing.is_none() {r.row_view_member(m,None,Some(&member))?;}
-                        else {let row=r.view_image(&member,number(existing.as_ref().unwrap(),"value")+delta,false)?;r.view_put(&m.target,&row,existing.as_ref(),false)?;}
+                        if existing.is_none() {
+                            if r.device { return Err(RuntimeError::Prediction("the held member needs a settled view before predicting its delta".into())); }
+                            // Adoption and ordinary member writes create the value. Repair a missing
+                            // value through bounded work, never an unreserved hidden source scan.
+                            let row=r.view_image(m,&member,0,true)?;
+                            r.view_put(&m.target,&row,None,false)?;
+                            let work=object([("id",Value::Id(id.into())),("cursor",Value::Null),("total",Value::Int(0)),("parked",Value::Bool(false))]);
+                            r.view_put(&m.work_table(),&work,None,true)?;
+                        }
+                        else {let row=r.view_image(m, &member,number(existing.as_ref().unwrap(),"value")+delta,false)?;r.view_put(&m.target,&row,existing.as_ref(),false)?;}
                     }
+                }
                 }
                 Ok(())
             })?;
@@ -454,11 +506,27 @@ impl Runner<'_> {
     }
     fn pending_view_read(&mut self) -> Result<(), RuntimeError> {
         if self.meter.cut == crate::meter::Cut::Abort {
-            return Err(RuntimeError::Schema("E_VIEW_KEY: an incomplete row-keyed count cannot decide a writer; use the member row or wait for complete before submitting this count-dependent write (guide maintains)".into()));
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "an incomplete row-keyed count cannot decide a writer; use the member row or wait for complete before submitting this count-dependent write (guide maintains)".into() });
         }
         self.timeline_pending = true;
         self.components.note(|f| f.pending = true);
         Ok(())
+    }
+    pub(crate) fn row_view_member_image(
+        &mut self,
+        m: &Maintain,
+        row: &Value,
+    ) -> Result<Option<Value>, RuntimeError> {
+        let k = m.row_key.as_ref().unwrap();
+        let Some(member) = self.view_get(&k.table, row.field("member")?.as_str()?)? else {
+            return Ok(None);
+        };
+        let member = row_image(&member, &self.schema.tables[&k.table]).into_owned();
+        if self.expired(&self.schema.tables[&k.table], &member) {
+            return Ok(None);
+        }
+        self.note_expiry(&self.schema.tables[&k.table], &member);
+        Ok(Some(member))
     }
     pub(super) fn live_row_view(
         &mut self,
@@ -468,15 +536,9 @@ impl Runner<'_> {
         let k = m.row_key.as_ref().unwrap();
         self.read_tables.insert(k.table.clone());
         self.read_tables.insert(m.source.clone());
-        let member = self
-            .view_get(&k.table, row.field("member")?.as_str()?)?
-            .or_else(|| self.device.then(|| row.clone()));
-        let Some(member) = member.filter(|u| !self.expired(&self.schema.tables[&k.table], u))
-        else {
+        let Some(member) = self.row_view_member_image(m, &row)? else {
             return Ok(None);
         };
-        let member = row_image(&member, &self.schema.tables[&k.table]).into_owned();
-        self.note_expiry(&self.schema.tables[&k.table], &member);
         if pending(&row) {
             self.pending_view_read()?;
             return Ok(Some(row));
@@ -555,11 +617,11 @@ impl Runner<'_> {
         let (n, complete, last) =
             self.view_scan(m, &member, None, &k.source_index(), bounds, limit, false)?;
         if !complete && last.is_none() {
-            return Err(RuntimeError::Schema("E_VIEW_KEY: one source row does not fit a recount chunk; reduce its payload, then retry the pending view (guide maintains)".into()));
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "one source row does not fit a recount chunk; reduce its payload, then retry the pending view (guide maintains)".into() });
         }
         let total = number(work, "total") + n;
         if complete {
-            let row = self.view_image(&member, total, false)?;
+            let row = self.view_image(m, &member, total, false)?;
             self.view_put(&m.target, &row, existing.as_ref(), false)?;
             self.view_delete(&m.work_table(), work, true)
         } else {
@@ -570,6 +632,7 @@ impl Runner<'_> {
                     last.unwrap_or_else(|| work.field("cursor").unwrap().clone()),
                 ),
                 ("total", Value::Int(total)),
+                ("parked", Value::Bool(false)),
             ]);
             self.view_put(&m.work_table(), &next, Some(work), true)
         }
@@ -600,8 +663,8 @@ impl super::Engine {
             let Some((work, _)) = tx
                 .scan(
                     &m.work_table(),
-                    "byId",
-                    &[],
+                    "byReady",
+                    &[Value::Bool(false)],
                     &Bounds::default(),
                     Dir::Asc,
                     1,
@@ -618,7 +681,27 @@ impl super::Engine {
                 Meter::new(Ceilings::job(), Cut::Abort),
                 seq,
             );
-            runner.recount_chunk(&m, &work)?;
+            if let Err(error) = runner.recount_chunk(&m, &work) {
+                if !matches!(
+                    error,
+                    RuntimeError::Structural {
+                        code: "E_VIEW_KEY",
+                        ..
+                    }
+                ) {
+                    return Err(error);
+                }
+                // A no-progress chunk has made no writes. Park it durably so the
+                // next tick can settle another member; a member edit retries it.
+                let mut parked = work.as_object()?.clone();
+                parked.insert("parked".into(), Value::Bool(true));
+                runner.view_put(
+                    &m.work_table(),
+                    &Value::Row(parked.into()),
+                    Some(&work),
+                    true,
+                )?;
+            }
             let events = runner.events.take();
             let tables = runner.written_tables.iter().cloned().collect::<Vec<_>>();
             let metered = runner.meter.used;

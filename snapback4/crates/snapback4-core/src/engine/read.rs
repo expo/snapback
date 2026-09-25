@@ -98,7 +98,16 @@ impl Runner<'_> {
     fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
         if !self.device { return; }
         let Some(maintain) = self.schema.maintain_for(table) else { return };
-        if maintain.row_key.is_some() { return; } // live_row_view proves the particular member range.
+        if let Some(k) = &maintain.row_key {
+            // A projected view uses its member's acquisition; absence beyond that
+            // horizon is unknown even though the projection has no order columns.
+            if self.schema.tables[&k.table].sync.as_ref().is_none_or(|s| s.horizon.is_some()) {
+                self.read_tables.insert(k.table.clone());
+                // A held point value is checked against the member by live_row_view.
+                if key.is_empty() { self.unknown_fact(table, index, key, site); }
+            }
+            return;
+        }
         let source = &self.schema.tables[&maintain.source];
         if self.schema.maintain_subset_unknown(table) || (source.expire.is_some() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
             self.read_tables.insert(maintain.source.clone());
@@ -126,11 +135,9 @@ impl Runner<'_> {
         self.read_tables.insert(table.to_owned());
         let mut found = self.lookup_live(table, index, index_def, key, false)?;
         if let Some(maintain) = self.schema.maintain_for(table).filter(|m|m.row_key.is_some()) {
-            let member = &self.schema.tables[&maintain.row_key.as_ref().unwrap().table];
             self.read_tables.insert(maintain.row_key.as_ref().unwrap().table.clone());
             if let Some(row) = &found {
-                self.note_expiry(member,row);
-                if self.expired(member,row) { found = None; }
+                if self.row_view_member_image(maintain, row)?.is_none() { found = None; }
             }
             if equalities.iter().any(|(field,_)|field=="value") && let Some(row)=found.take() {
                 let prior = self.timeline_pending;
@@ -138,7 +145,7 @@ impl Runner<'_> {
                 found = self.live_row_view(maintain,row)?;
                 let pending = self.timeline_pending;
                 self.timeline_pending |= prior;
-                if pending { return Err(RuntimeError::Schema("E_VIEW_KEY: a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or wait for complete (guide maintains)".into())); }
+                if pending { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or wait for complete (guide maintains)".into() }); }
             }
         }
         let mut live = found.is_some();
@@ -148,6 +155,10 @@ impl Runner<'_> {
                 None => self.authorization_absence_covered(table, index, key)?,
             }
         } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
+        if self.device && !live && self.schema.maintain_for(table).and_then(|m| m.row_key.as_ref())
+            .is_some_and(|k| self.schema.tables[&k.table].sync.as_ref().is_none_or(|s| s.horizon.is_some())) {
+            known = false;
+        }
         if let Some(row) = &found {
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table).filter(|m|m.row_key.is_none())
@@ -412,7 +423,11 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
+            if self.device && (table.sync.as_ref().is_some_and(|s| s.horizon.is_some())
+                || self.schema.maintain_for(&read.table).and_then(|m| m.row_key.as_ref())
+                    .is_some_and(|k| self.schema.tables[&k.table].sync.as_ref().is_none_or(|s| s.horizon.is_some()))) {
+                self.unknown_fact(&read.table, &read.index, &key, &read.site);
+            }
             return Ok(Value::Null);
         };
         if self.expired(table, &row) {

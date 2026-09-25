@@ -49349,3 +49349,76 @@ Volta Node 24.18.0 path is absent; it was prepended to PATH and available
 Node v24.13.1 ran the client tests. Blind Astra and Grok-4.6 reviews returned
 READY after fixes, including the final private-member delta. No push,
 publication or deployment. Report: `/home/ccheever/sb5/lane-b3.r0.final.md`.
+
+## 2026-09-25 — Lane B3 round 1: close the supplied Astra and Grok reviews
+
+Continued the uncommitted work left by the disk-full interruption, preserving
+the existing Cargo target. Both supplied blind reviews were read in full.
+Source events now reserve both possible parent groups at the declared live
+recipient cap before reading any member. Rows, examined rows, steps, index
+entries, output bytes and transient heap are reserved independently of member
+contents; per-recipient maintenance uses the prepaid path. The view table is
+always invalidated, and the mutation's public event count excludes private
+row-keyed deltas. The paired-world test compares the serialized whole mutation
+outcome and `/changes` backing result at both ample and refusing budgets.
+
+View images contain only read-rule columns, id, member (the same id), value
+and recountPending. Member notes and recorded-attribution keys stay out.
+Snapshots select through the member's actual horizon index, and streamed puts
+check both member liveness and current horizon membership. Expired members
+produce deletions before the sweep. The view does not copy order columns or
+install a separate horizon; it uses the requested alternative of emitting no
+view rows for members outside the member horizon. Device absence past that
+horizon stays unknown. Source prediction updates every held, non-retained
+member even if another recipient is outside the horizon.
+
+Recipient selection uses `(parent, expiry, id)`, with separate null-expiry and
+future-expiry ranges. A regression installs 9,000 expired unswept members and
+two live members and verifies bounded selection and both live deltas. Runtime
+view refusals carry structured E_VIEW_KEY with the maintains guide and a
+rewrite; the new JavaScript regression checks the rebuilt wasm's actual
+refusal envelope and the new `check --json` rowViews facts. Oversized recount
+work parks durably behind a readiness index, allowing other members to settle;
+a relevant member-field change retries that recount.
+
+Regression coverage includes two-parent source moves, tombstoning the exact
+m00256 recount cursor (final count 9,899), hidden-mark rowsWritten equality,
+private-member expiry catch-up, held-member prediction on both device stores,
+and absence of an excluded note or recorded attribution from persisted device
+images. The recovered mutation logs demonstrate that taking only the new
+parent and changing `<= cursor` to `< cursor` each fail their regression.
+Recovery found and corrected the attribution fixture's missing immutable
+title declaration; the final focused run passes all 22 language/engine and
+17 device tests. Production behavior from the recovered patch was retained.
+
+The full-suite wasm rebuild measures **1,788,576 B raw / 499,274 B gzip**
+with Rust 1.97.0 and wasm-bindgen 0.2.127, without wasm-opt. Compared with
+round 0's 1,780,941 / 497,651, the whole-artifact delta is **+7,635 raw /
++1,623 gzip** for cap-reserved recipient maintenance, indexed live selection,
+minimal authority images, member liveness/coverage, held-member prediction
+and structured refusals. No independent component attribution is claimed.
+The inherited 498,000 B ratchet is exceeded by 1,274 B; raise to **500,000 B**,
+leaving 726 B. Stream horizon selection and recount parking are server-only;
+runtime meter ceilings remain unchanged. The same reason is in the budget
+and commit message.
+
+Both plain Cargo reruns passed on the final code/test tree with
+`RUST_TEST_THREADS=1` (as the full suite serializes the HTTP binary):
+`cargo test final run 1: exit 0; 22 targets; 338 passed; 0 failed; 0 ignored`
+and `cargo test final run 2: exit 0; 22 targets; 338 passed; 0 failed; 0 ignored`.
+The blocking suite separately tests the complete workspace inventory.
+Final blocking suite: **`== 0 failure(s) in 821 s`**. The full workspace
+Rust stage passed in 201 s; client tests reported 1,089 passed, zero failed,
+and 10 existing skips in 740 s. The loaded-host harness selected serial
+client files; no skip or relaxed assertion was added. The rebuilt wasm
+refusal/JSON regression passed in that run.
+FORCE_COLOR was unset. The requested Volta Node 24.18.0 path is absent;
+it was prepended to PATH and available Node v24.13.1 ran client checks.
+Ref-check: 507 LLP docs, 9,238 references, zero errors or unchecked refs.
+The prior session's failed HTTP timeout and StorageFull logs are preserved
+as historical evidence; neither is counted as a successful final run.
+
+Report: `/home/ccheever/sb5/lane-b3.r1.final.md`. No push, publication or
+deployment. Round-0 non-claims remain: count only, integer positions pending
+B2, bounded device recounts, reserved member/value/recountPending names,
+and the explicit Postgres refusal until that adapter has a recount runner.

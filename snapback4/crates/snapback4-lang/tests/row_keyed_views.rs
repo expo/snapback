@@ -550,9 +550,10 @@ fn defaulted_member_fields_are_materialized_in_durable_recounts() {
     );
     while e.run_view_chunk(1).unwrap().is_some() {}
     count(&mut e, "b", 5000);
-    assert_eq!(
-        e.store().rows("unread").unwrap()[0].field("readUpTo"),
-        Ok(&Value::Int(5000))
+    assert!(
+        e.store().rows("unread").unwrap()[0]
+            .field("readUpTo")
+            .is_err()
     );
 }
 
@@ -584,16 +585,30 @@ fn incomplete_counts_cannot_authorize_writes_or_numeric_probes() {
     assert_eq!(settled.data, Value::Int(1200));
     // The live expiry scan exceeds the writer slice even before stored pending is set.
     let r = e.mutate("depend", None, ctx(&[("member", id("b"))], 1));
-    assert!(format!("{r:?}").contains("E_VIEW_KEY"), "{r:?}");
+    let outcome = r.unwrap();
+    let WriteState::Failed { why, .. } = outcome.state else {
+        panic!("{outcome:?}")
+    };
+    assert_eq!(why.code, "E_VIEW_KEY");
+    assert_eq!(why.guide.as_deref(), Some("maintains"));
+    assert!(why.rewrite.is_some());
     write(
         &mut e,
         "mark",
         &[("member", id("b")), ("readUpTo", Value::Int(1200))],
     );
-    let r = e.query("valueExists", ctx(&[("member", id("b"))], 1)).unwrap();
+    let r = e
+        .query("valueExists", ctx(&[("member", id("b"))], 1))
+        .unwrap();
     assert!(!r.complete, "{r:?}"); // A query's scalar existence result carries the same pending fact.
     let r = e.mutate("depend", None, ctx(&[("member", id("b"))], 1));
-    assert!(format!("{r:?}").contains("E_VIEW_KEY"), "{r:?}");
+    let outcome = r.unwrap();
+    let WriteState::Failed { why, .. } = outcome.state else {
+        panic!("{outcome:?}")
+    };
+    assert_eq!(why.code, "E_VIEW_KEY");
+    assert_eq!(why.guide.as_deref(), Some("maintains"));
+    assert!(why.rewrite.is_some());
     while e.run_view_chunk(1).unwrap().is_some() {}
     count(&mut e, "b", 0);
 }
@@ -604,7 +619,10 @@ fn counts_cannot_be_indexed_for_rules_or_ranking() {
         "\ntable secrets:\n  read <- exists unread[value = 1]\n",
         "\nquery ranked():\n  return unread last 1 by .value\n",
     ] {
-        let b = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("  expire at .until\n", "") + extra)]);
+        let b = snapback4_lang::compile(&[(
+            "schema.q".into(),
+            SOURCE.replace("  expire at .until\n", "") + extra,
+        )]);
         assert!(
             b.diagnostics
                 .iter()
@@ -613,4 +631,271 @@ fn counts_cannot_be_indexed_for_rules_or_ranking() {
             b.diagnostics
         );
     }
+}
+
+fn private_members(source: &str) -> String {
+    source.replacen("  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public", "  read <- .principal = viewer\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync to .principal", 1)
+}
+fn message_row(name: &str, parent: &str, n: i64) -> Value {
+    object([
+        ("id", id(name)),
+        ("conversationId", id(parent)),
+        ("ordinal", Value::Int(n)),
+        ("senderId", id("alice")),
+        ("tombstone", Value::Bool(false)),
+        ("until", Value::Null),
+    ])
+}
+#[test]
+fn hidden_marks_have_identical_meters_bounds_and_changes() {
+    for bounded in [false, true] {
+        let mut worlds = Vec::new();
+        for mark in [0, 10] {
+            let b = bound(&private_members(SOURCE));
+            let mut e =
+                Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+            join(&mut e, "b", "bob", mark, 0);
+            let from = e.seq().unwrap();
+            if bounded {
+                e.set_ceilings(snapback4_core::Ceilings {
+                    rows_written: 1,
+                    ..Default::default()
+                });
+            }
+            let out = e
+                .mutate(
+                    "send",
+                    None,
+                    ctx(
+                        &[
+                            ("id", id("probe")),
+                            ("conversationId", id("c")),
+                            ("ordinal", Value::Int(5)),
+                            ("senderId", id("alice")),
+                            ("until", Value::Null),
+                        ],
+                        1,
+                    ),
+                )
+                .unwrap();
+            if bounded {
+                assert!(
+                    matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_BOUND")
+                );
+                assert!(e.store().rows("messages").unwrap().is_empty());
+            } else {
+                assert!(matches!(&out.state, WriteState::Sent { .. }));
+                assert!(out.tables.contains(&"unread".into()));
+                assert!(out.metered.rows_written > 1);
+            }
+            worlds.push(serde_json::to_vec(&(out, e.changes(from, 100).unwrap())).unwrap());
+        }
+        assert_eq!(worlds[0], worlds[1], "bounded={bounded}");
+    }
+}
+#[test]
+fn expired_private_member_catchup_deletes_view_before_sweep() {
+    let source = private_members(SOURCE).replace(
+        "  cap 100 by conversationId",
+        "  cap 100 by conversationId\n  until: time default 10\n  expire at .until",
+    );
+    let b = bound(&source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    join(&mut e, "b", "bob", 0, 0);
+    let from = e.seq().unwrap();
+    send(&mut e, "m1", 1, "alice", Value::Null);
+    assert!(
+        e.stream_at("bob", from, 100, 9)
+            .unwrap()
+            .events
+            .iter()
+            .any(|v| v.table == "unread" && v.kind == "put")
+    );
+    let page = e.stream_at("bob", from, 100, 11).unwrap();
+    assert!(
+        page.events
+            .iter()
+            .any(|v| v.table == "unread" && v.kind == "del" && v.data.is_none())
+    );
+    assert!(
+        !page
+            .events
+            .iter()
+            .any(|v| v.table == "unread" && v.data.is_some())
+    );
+    assert_eq!(e.store().rows("members").unwrap().len(), 1, "still unswept");
+}
+#[test]
+fn expired_unswept_recipients_do_not_consume_the_live_cap_scan() {
+    let source = SOURCE.replace(
+        "  cap 100 by conversationId",
+        "  cap 100 by conversationId\n  expiresAt: time ?\n  expire at .expiresAt",
+    );
+    let b = bound(&source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    join(&mut e, "live-null", "bob", 0, 0);
+    e.seed_at(
+        [(
+            "members".into(),
+            object([
+                ("id", id("live-future")),
+                ("conversationId", id("c")),
+                ("principal", id("carol")),
+                ("readUpTo", Value::Int(0)),
+                ("joinedAt", Value::Int(0)),
+                ("expiresAt", Value::Int(100)),
+            ]),
+        )],
+        1,
+    )
+    .unwrap();
+    // Install an unswept backlog through the store: no O(n²) fixture cap checks.
+    // Expired rows need no view values; the assertion measures source-event selection.
+    let table = e.schema().tables["members"].clone();
+    let tx = e.store_mut().transaction().unwrap();
+    for n in 0..9000 {
+        let row = object([
+            ("id", id(&format!("expired{n:05}"))),
+            ("conversationId", id("c")),
+            ("principal", id(&format!("p{n}"))),
+            ("readUpTo", Value::Int(0)),
+            ("joinedAt", Value::Int(0)),
+            ("expiresAt", Value::Int(0)),
+        ]);
+        tx.put("members", &table, &row, None).unwrap();
+    }
+    tx.commit().unwrap();
+    let out = e
+        .mutate(
+            "send",
+            None,
+            ctx(
+                &[
+                    ("id", id("probe")),
+                    ("conversationId", id("c")),
+                    ("ordinal", Value::Int(5)),
+                    ("senderId", id("alice")),
+                    ("until", Value::Null),
+                ],
+                1,
+            ),
+        )
+        .unwrap();
+    assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+    assert!(out.metered.examined < 1000, "{out:?}");
+    count(&mut e, "live-null", 1);
+    count(&mut e, "live-future", 1);
+}
+#[test]
+fn moving_source_between_two_parents_updates_both_groups() {
+    let b = bound(
+        &(SOURCE.replace("  expire at .until\n", "")
+            + "\nmutation move(message: messages, conversationId: conversations):\n  update messages[message] { conversationId }\n"),
+    );
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    join(&mut e, "b", "bob", 0, 0);
+    write(
+        &mut e,
+        "join",
+        &[
+            ("id", id("other")),
+            ("conversationId", id("other-parent")),
+            ("principal", id("bob")),
+            ("readUpTo", Value::Int(0)),
+            ("joinedAt", Value::Int(0)),
+        ],
+    );
+    send(&mut e, "message", 1, "alice", Value::Null);
+    count(&mut e, "b", 1);
+    count(&mut e, "other", 0);
+    write(
+        &mut e,
+        "move",
+        &[
+            ("message", id("message")),
+            ("conversationId", id("other-parent")),
+        ],
+    );
+    count(&mut e, "b", 0);
+    count(&mut e, "other", 1);
+}
+#[test]
+fn tombstoning_exact_recount_cursor_removes_its_already_counted_contribution() {
+    let b = bound(&SOURCE.replace("  expire at .until\n", ""));
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    join(&mut e, "b", "bob", 0, 0);
+    e.seed((1..=10000).map(|n| ("messages".into(), message_row(&format!("m{n:05}"), "c", n))))
+        .unwrap();
+    // The changed interval is small by default; lower this writer's remaining
+    // examined allowance to exercise the specified pending cursor boundary.
+    e.set_ceilings(snapback4_core::Ceilings {
+        examined: 80,
+        ..Default::default()
+    });
+    write(
+        &mut e,
+        "mark",
+        &[("member", id("b")), ("readUpTo", Value::Int(100))],
+    );
+    e.set_ceilings(Default::default());
+    assert!(e.run_view_chunk(1).unwrap().is_some());
+    assert_eq!(
+        e.store().rows("$recount:unread").unwrap()[0].field("cursor"),
+        Ok(&id("m00256"))
+    );
+    write(&mut e, "tombstone", &[("message", id("m00256"))]);
+    while e.run_view_chunk(1).unwrap().is_some() {}
+    count(&mut e, "b", 9899);
+}
+#[test]
+fn oversized_recount_parks_without_starving_another_member() {
+    let source = SOURCE.replace("  expire at .until\n", "").replace(
+        "  ordinal: int",
+        "  payload: text <=20000000 default ''\n  ordinal: int",
+    );
+    let b = bound(&source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    join(&mut e, "a-stuck", "bob", 0, 0);
+    write(
+        &mut e,
+        "join",
+        &[
+            ("id", id("b-ready")),
+            ("conversationId", id("other")),
+            ("principal", id("bob")),
+            ("readUpTo", Value::Int(0)),
+            ("joinedAt", Value::Int(0)),
+        ],
+    );
+    let mut huge = message_row("huge", "c", 1).as_object().unwrap().clone();
+    huge.insert("payload".into(), Value::String("x".repeat(17 << 20)));
+    e.seed(
+        std::iter::once(("messages".into(), Value::Row(huge.into()))).chain((1..=1100).map(|n| {
+            (
+                "messages".into(),
+                message_row(&format!("m{n:05}"), "other", n),
+            )
+        })),
+    )
+    .unwrap();
+    write(
+        &mut e,
+        "mark",
+        &[("member", id("a-stuck")), ("readUpTo", Value::Int(1))],
+    );
+    write(
+        &mut e,
+        "mark",
+        &[("member", id("b-ready")), ("readUpTo", Value::Int(1100))],
+    );
+    let mut chunks = 0;
+    while e.run_view_chunk(1).unwrap().is_some() {
+        chunks += 1;
+        assert!(chunks < 20);
+    }
+    count(&mut e, "b-ready", 0);
+    let work = e.store().rows("$recount:unread").unwrap();
+    assert_eq!(work.len(), 1);
+    assert_eq!(work[0].field("id"), Ok(&id("a-stuck")));
+    assert_eq!(work[0].field("parked"), Ok(&Value::Bool(true)));
 }

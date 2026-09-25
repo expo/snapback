@@ -610,6 +610,15 @@ query myUnread(member: members):
   return unread[member]
 ```
 
+The view carries only the member's read-rule columns, `id`, `member` (the
+same member id), `value` and `recountPending`. It never copies unrelated
+member columns or engine-recorded attribution keys. Delivery keeps the member
+horizon: snapshots select members within that horizon before fetching their
+view values, and catch-up emits no view put for a member outside it. The
+horizon order columns remain on the member table. A device predicts source
+deltas for every held, current member even if other members are outside its
+horizon; retained members are not updated by prediction.
+
 This is LLP 3000.015's unread expression. If members also have a `joinedAt`
 position, add `and .ordinal > m.joinedAt` to exclude pre-join history. This
 lane uses integer positions until `sequence by conversationId` is available.
@@ -623,7 +632,9 @@ The server settles a durable recount in chunks of at most 256 source rows;
 source edits and deletes during the recount adjust its already-counted prefix.
 The writer examines at most 1,024 source rows, further limited by its remaining
 meter. Recounts restart for a changed member predicate and resume after a server
-restart. A covered device predicts; without source coverage it keeps the settled
+restart. A single source row too large for a chunk parks that member's recount
+so other members can settle; changing the member retries its recount.
+A covered device predicts; without source coverage it keeps the settled
 value and queues the mark without prediction. An acquired horizon suffix can
 cover the changed interval; a device recount that exceeds its allowance also
 queues without prediction. Expiring sources need covered live input to certify

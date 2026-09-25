@@ -533,6 +533,23 @@ pub fn snapshot(tx: &dyn PartitionRows, schema: &Schema, principal: &str, now: i
 /// keys and whether the group is done.
 #[cfg(feature = "sqlite")]
 fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize, now: i64, viewer: Option<(&Schema, &str)>) -> Result<(Vec<(Value, Vec<u8>)>, bool), RuntimeError> {
+    // Select through U's horizon, then fetch only the projected count image.
+    // The horizon's order columns stay on U; they never become view payload.
+    if let Some((schema, _)) = viewer
+        && let Some(m) = schema.maintain_for(table_name).filter(|m| m.row_key.is_some()) {
+        let k = m.row_key.as_ref().unwrap();
+        let member = &schema.tables[&k.table];
+        if let Some(member_sync) = member.sync.as_ref().filter(|s| s.horizon.is_some()) {
+            let (members, exhausted) = group_rows_from(tx, &k.table, member, member_sync, group, after, taken, room, now, viewer)?;
+            let mut rows = Vec::new();
+            let mut aggregate = Runner::new(tx, schema, crate::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
+            for (member, key) in members {
+                if let Some(row) = tx.get(table_name, member.field("id")?.as_str()?)?
+                    && let Some(row) = aggregate.live_aggregate(table_name, row)? { rows.push((row, key)); }
+            }
+            return Ok((rows, exhausted));
+        }
+    }
     let (index_name, remaining, dir) = match &sync.horizon {
         Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc),
         None => (audience_index(table_name, table, sync)?, usize::MAX, Dir::Desc),
@@ -853,6 +870,24 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         if event.kind != "join" {
             if event.kind == "put" {
                 event.data = if schema.table(&event.table).is_some() { reader.fetch(&event.table, &event.id)? } else { None };
+                if let Some(row) = &event.data
+                    && let Some(m) = schema.maintain_for(&event.table).filter(|m| m.row_key.is_some()) {
+                    let member = reader.row_view_member_image(m, row)?;
+                    let mut live = member.is_some();
+                    let k = m.row_key.as_ref().unwrap();
+                    let table = &schema.tables[&k.table];
+                    if let Some(member) = member
+                        && let Some(sync) = table.sync.as_ref().filter(|s| s.horizon.is_some()) {
+                        let group = match &sync.audience {
+                            Audience::Public => vec![],
+                            Audience::Column(c) => vec![member.field(c)?.clone()],
+                            Audience::Target { prefix, .. } => prefix.iter().map(|c| member.field(c).cloned()).collect::<Result<Vec<_>, _>>()?,
+                        };
+                        let (selected, _) = group_rows_from(tx, &k.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
+                        live = selected.iter().any(|(u, _)| u.field("id") == row.field("member"));
+                    }
+                    if !live { event.data = None; }
+                }
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
                 } else { event.kind = "del".into(); }

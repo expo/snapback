@@ -525,6 +525,7 @@ impl Runner<'_> {
         if origin == Origin::Source {
             for m in self.schema.maintains.iter().filter(|m|m.source == table_name) {
                 if let Some(owner) = &m.private { self.written_tables.insert(owner.table.clone()); }
+                if m.row_key.is_some() { self.written_tables.insert(m.target.clone()); }
             }
         }
         self.rows_written += 1;
