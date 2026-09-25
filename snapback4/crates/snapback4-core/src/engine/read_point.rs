@@ -153,7 +153,9 @@ impl Runner<'_> {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? {
                 self.components.note(|frame| frame.retained = true);
-                if self.context.row_provenance && let Value::Row(fields) = &mut row { fields.mark_retained(); }
+                // Ordinary retained point reads keep their established component
+                // composition. The row-level fallback belongs to read-through.
+                if table.through.is_some() && self.context.row_provenance && let Value::Row(fields) = &mut row { fields.mark_retained(); }
             }
             self.note_expiry(table, &row);
             let value = if stored_authorization { if group_exists { row } else { Value::Null } }
