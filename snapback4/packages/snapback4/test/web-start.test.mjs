@@ -51,11 +51,12 @@ test('web startup: immediate admin navigation, synchronous refusals and acquisit
 import { createApp } from '${join(root, 'packages/snapback4/src/app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${join(root, 'packages/snapback4/src/auth.ts')}';
 import { mintId, createClient } from '${join(root, 'packages/snapback4/src/client.ts')}';
+import { memoryPersistence } from '${join(root, 'packages/snapback4/src/web.ts')}';
 import { api } from '${join(sourceDir, 'generated/api.ts')}';
 import { AppProvider, useAcquisition, useAcquired, useQuery } from '${join(root, 'packages/snapback4/src/react.tsx')}';
 import { createElement as h } from '${require.resolve('react')}';
 import { createRoot } from '${require.resolve('react-dom/client')}';
-Object.assign(window, { createApp, keepSession, localStorageSessionStore, mintId, createClient, api, sessionKey });
+Object.assign(window, { createApp, keepSession, localStorageSessionStore, mintId, createClient, memoryPersistence, api, sessionKey });
 window.mountProgress = (app) => {
   const target = document.createElement('div'); document.body.append(target);
   window.progress = [];
@@ -159,12 +160,12 @@ window.mountProgress = (app) => {
     assert.ok(sent.some(write => write.id === click.id));
     await page.evaluate(() => app.close());
   });
-  for (const phase of ['restoring', 'no-device', 'no-claim', 'storage-full', 'before-first-sync']) await t.test(`synchronous refusal: ${phase}`, async () => {
+  for (const phase of ['restoring', 'no-device', 'no-claim', 'ephemeral-device', 'storage-full', 'before-first-sync']) await t.test(`synchronous refusal: ${phase}`, async () => {
     await witness.reload();
     const result = await page.evaluate(async ({ api, phase, session }) => {
       const storage = localStorageSessionStore(); await keepSession(api, session, storage);
       let release; const gate = new Promise(resolve => release = resolve);
-      const persist = indexedDbPersistence();
+      const persist = phase === 'ephemeral-device' ? memoryPersistence() : indexedDbPersistence();
       if (phase === 'no-claim') persist.claim = async () => null;
       const opener = webDevice({ persist });
       // A genuinely empty device has no durable backend identity.

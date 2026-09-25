@@ -525,6 +525,8 @@ cannot synchronously acquire custody refuses with `E_ADMISSION`, a site and a
 rewrite. This includes unavailable, throwing or full localStorage, exceeded
 journal limits, an unidentified backend store, an unrestored session, and a
 `createApp` without a durable device or with an asynchronous-only session store.
+The test-only `memoryPersistence()` provider also refuses browser mutations:
+transferring custody to memory cannot preserve a write across page restarts.
 No new intent is admitted in those cases. The returned promise is already
 fulfilled with a failed write and exposes `state: "failed"`, `id` and `why`
 in the calling stack. Awaiting it still uses the ordinary Write API:
@@ -550,7 +552,10 @@ else {
 entering web admission; its network paths retain their locked epoch checks.
 Restoration does not queue an intent for whichever account might sign in later.
 Before the first store identification the caller retries after readiness, using
-the same id. Clearing browser storage after admission can still erase its bytes.
+the same id. A bare `createClient()` in a browser has no synchronous journal
+and refuses mutations with `E_ADMISSION`; use the app with a web device for
+browser writes. Node and native online clients retain their existing behavior.
+Clearing browser storage after admission can still erase its bytes.
 A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
 best-effort and sends only admitted writes.
@@ -748,8 +753,10 @@ confirmed carries `pending: true`. A write is `pending` while the link is
 down, while the server has not answered within four seconds, or when the
 client closes before its response arrives. It is `sent` with the server's
 sequence, or `failed` with the refusal and its predicted rows withdrawn.
-`createApp` and local devices keep uncertain intent for restart; the raw online
-client returns `pending` too, but its caller must keep the id for retry. `onWrite` emits that later terminal result once for
+`createApp` and local devices keep admitted uncertain intent for restart; the raw
+online client on nonbrowser hosts returns `pending` too, but its caller must keep
+the id for retry. Public browser online mutations refuse before dispatch as
+described above. `onWrite` emits that later terminal result once for
 the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `auth`, `rule`
 (your `require` codes, with `rule` naming the code), `constraint`,
 `bound`, `op`, `asset`, `prediction`, `generation` or `store` from the

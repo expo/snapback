@@ -1,5 +1,5 @@
 import { indexedDbStore } from "./web-idb.ts";
-import { admissionHost } from "./admission.ts";
+import { admissionHost, admissionRefusal, browserAdmission } from "./admission.ts";
 // The device on the web: the same device, as wasm, over memory (the
 // interpreter's store boundary is synchronous and IndexedDB is not), with
 // the host persisting each call's changes behind it. A cold start with no
@@ -59,6 +59,7 @@ export interface WebDeviceOptions {
 
 let ready: Promise<unknown> | null = null;
 let runtime: { identity: string | WebAssembly.Module; initialized: unknown } | undefined;
+const ephemeral = new WeakSet<Persistence>();
 
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
@@ -75,6 +76,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       const admissions = new Set<string>();
       const prepared = new WeakMap<Record<string, unknown>, ReturnType<AdmissionJournal["capture"]>>();
       const capture = (request: Record<string, unknown>) => {
+        if (browserAdmission() && ephemeral.has(persist)) return admissionRefusal(
+          "memoryPersistence() cannot keep admitted writes across page restarts", "client.mutate",
+          "use webDevice() with its default IndexedDB persistence on the web");
         try { prepared.set(request, journal.capture(request)); }
         catch (error) { if (error instanceof AdmissionError) return error.why; throw error; }
         return undefined;
@@ -549,7 +553,7 @@ export function memoryPersistence(): Persistence & { readonly stores: Map<string
   const stores = new Map<string, Map<string, Change>>();
   const held = new Set<string>();
   let alternate = 0;
-  return {
+  const provider: Persistence & { readonly stores: Map<string, Map<string, Change>> } = {
     stores,
     async has(name) { return stores.has(name); },
     async claim(name, allowAlternate) {
@@ -580,4 +584,6 @@ export function memoryPersistence(): Persistence & { readonly stores: Map<string
       stores.delete(name);
     },
   };
+  ephemeral.add(provider);
+  return provider;
 }
