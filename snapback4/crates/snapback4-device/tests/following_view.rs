@@ -119,3 +119,48 @@ fn refollow_before_cleanup<H: Host>(mut host: H) {
 
 #[test]fn refollow_view_before_cleanup_memory(){refollow_before_cleanup(Memory::new());}
 #[test]fn refollow_view_before_cleanup_sqlite(){refollow_before_cleanup(Sqlite::new("following-view-epochs"));}
+
+fn repeated_unfollow<H: Host>(mut host: H) {
+    let (mut server, backend) = common::compile(SOURCE);
+    let mut device = host.open("bob", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "bob", 1000).iter().enumerate() {
+        device.apply(page, i == 0).unwrap();
+    }
+    let mut submission = 0;
+    for cycle in 0..3 {
+        let post = format!("original-{cycle}");
+        let from = server.seq().unwrap();
+        write(&mut server, "post", "alice", &[("postId", id(&post)), ("parentId", Value::Null)], 10 + cycle * 10);
+        device.apply(&stream_page(&mut server, "bob", from), false).unwrap();
+        for (op, arguments) in [
+            ("follow", json!({"actor":"alice"})),
+            ("unfollow", json!({"actor":"alice"})),
+            ("repost", json!({"postId":post})),
+        ] {
+            submission += 1;
+            let now = 100 + submission;
+            let queued = device.admit(serde_json::from_value(json!({
+                "id":format!("write-{submission}"), "seq":submission, "op":op,
+                "viewer":"bob", "args":arguments, "now":now, "predictable":true,
+            })).unwrap()).unwrap();
+            assert_eq!(queued.predictable, op == "repost", "{queued:?}");
+            let predicted = device.query("cards", "bob", &json!({"c":null}), now).unwrap();
+            if op == "repost" {
+                assert!(predicted.data.as_array().unwrap().iter().all(|r| r.field("repost") == Ok(&Value::Bool(true))), "cycle {cycle}: {predicted:?}");
+            }
+            let from = server.seq().unwrap();
+            let outcome = server.mutate(op, Some(&queued.id), Context::new("bob", arguments.as_object().unwrap().iter().map(|(k,v)| (k.clone(), id(v.as_str().unwrap()))).collect())
+                .at(now).with_ids(queued.new_ids)).unwrap();
+            assert!(matches!(outcome.state, WriteState::Sent { .. }), "{outcome:?}");
+            if cycle % 2 == 0 { device.settle(&queued.id, Some(server.seq().unwrap())).unwrap(); }
+            device.apply(&stream_page(&mut server, "bob", from), false).unwrap();
+            if cycle % 2 == 1 { device.settle(&queued.id, Some(server.seq().unwrap())).unwrap(); }
+            let local = device.query("cards", "bob", &json!({"c":null}), now).unwrap();
+            let online = server.query("cards", Context::new("bob", common::args(&[("c", Value::Null)])).at(now)).unwrap();
+            assert_eq!(local.data, online.data, "cycle {cycle}, {op}");
+        }
+    }
+}
+
+#[test] fn repeated_unfollow_memory() { repeated_unfollow(Memory::new()); }
+#[test] fn repeated_unfollow_sqlite() { repeated_unfollow(Sqlite::new("unfollow-cycles")); }
