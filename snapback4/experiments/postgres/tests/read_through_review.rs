@@ -84,3 +84,8 @@ scenario!(aggregate_denied_gate_expiry);
 scenario!(ordinary_expiring_page_recounts);
 scenario!(authorized_expiring_sum_overflow);
 scenario!(authorized_expired_backlog_stays_metered);
+
+scenario!(aggregate_page_cut_expiry);
+scenario!(aggregate_inherited_only_dependencies);
+scenario!(aggregate_live_recount_cut_expiry);
+scenario!(aggregate_authorized_shortcut_cut);

@@ -1034,6 +1034,8 @@ impl Runner<'_> {
                     }
                 };
                 if self.read_capped() {
+                    // @ref LLP 3000.014#5 — a cut cannot disclose a private probe's deadline.
+                    self.next_expiry = row_expiry_mark;
                     capped = true;
                     break 'outer;
                 }

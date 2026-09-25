@@ -7,6 +7,9 @@ use snapback4_core::{
 #[path = "review_metadata.rs"]
 mod metadata;
 pub use metadata::*;
+#[path = "review_cuts.rs"]
+mod cuts;
+pub use cuts::*;
 
 pub type Outcome = (Result<Value, Refusal>, Metered);
 pub trait Backend {

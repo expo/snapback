@@ -159,3 +159,68 @@ fn memory_denied_aggregate_restores_probe_expiry() {
         }
     }
 }
+
+#[test]
+fn memory_inherited_only_aggregate_dependencies() {
+    let (schema, program) = compile(include_str!(
+        "../../../snapback4-lang/tests/read_through/inherited_deadline.q"
+    ));
+    for name in ["middles", "children"] {
+        assert!(schema.tables[name].expire.is_none());
+        assert!(schema.tables[name].is_expiring());
+    }
+    let index = schema.tables["totals"]
+        .indexes
+        .iter()
+        .find(|(_, i)| i.columns() == vec!["middle"])
+        .unwrap()
+        .0;
+    for deadline in [150, 300] {
+        for occupied in [false, true] {
+            let rows = MemoryRows::new();
+            let mut seed = Runner::new(
+                &rows,
+                &schema,
+                Context::system().at(100),
+                Meter::new(Ceilings::default(), Cut::Abort),
+                0,
+            );
+            seed.insert(
+                "roots",
+                object([
+                    ("id", id("r")),
+                    ("owner", id("alice")),
+                    ("until", Value::Int(deadline)),
+                ]),
+            )
+            .unwrap();
+            seed.insert("middles", object([("id", id("m")), ("root", id("r"))]))
+                .unwrap();
+            if occupied {
+                seed.insert("children", object([("id", id("c")), ("middle", id("m"))]))
+                    .unwrap();
+            }
+            drop(seed);
+            let mut r = reader(&rows, &schema);
+            assert_eq!(
+                r.run(&program).unwrap(),
+                Value::Int(i64::from(occupied && deadline > 200))
+            );
+            assert!(!r.query_unavailable && r.meter.capped_at.is_none());
+            assert_eq!(
+                r.read_tables.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["children", "totals"]
+            );
+            let mut r = reader(&rows, &schema);
+            assert_eq!(
+                r.probe_witness("totals", index, &[id("m")], &[], false)
+                    .unwrap(),
+                (occupied && deadline > 200, true)
+            );
+            assert_eq!(
+                r.read_tables.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["children", "totals"]
+            );
+        }
+    }
+}

@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 mod round2;
 mod round3;
 mod merge_continuation;
+mod aggregate_cuts;
 
 fn table() -> Table {
     Table { through: None, maintained: BTreeMap::new(), recorded: BTreeMap::new(), residency: Default::default(), defaults: BTreeMap::new(),
