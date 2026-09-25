@@ -295,7 +295,7 @@ impl RuntimeError {
             }
             Self::Rule { table, effect } => {
                 // @ref LLP 3000.007#8 — explain the hidden-collision idiom without disclosing a row
-                refusal.message = format!("{table}'s {effect} rule does not admit this viewer, or a unique key collided with a row you cannot read; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
+                refusal.message = format!("{table}'s {effect} rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
                 refusal.guide = Some("rules".into());
             }
             Self::Constraint(message) => {

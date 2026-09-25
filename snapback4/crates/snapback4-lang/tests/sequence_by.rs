@@ -76,3 +76,10 @@ fn maintained_target_ordinal_needs_no_explicit_immutable() {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.schema.tables["receipts"].recorded.contains_key("messageId.ordinal"));
 }
+
+#[test]
+fn sequence_read_prerequisite_is_in_the_generic_rule_explanation() {
+    let explanation = explain_code("E_RULE").unwrap();
+    assert!(explanation.contains("sequence insert requires read authority independent of its ordinal"));
+    assert!(explanation.contains("unique key or cap group"));
+}

@@ -28,14 +28,40 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
-        self.target_attempt(table_name, |runner|runner.insert_attempt(table_name, row, if_absent, None))
+        self.target_attempt(table_name, |runner| {
+            let mark = runner.meter.mark();
+            let result = runner.insert_attempt(table_name, row, if_absent, None);
+            // @ref LLP 3000.015#2 — denied direct allocations hide deferred
+            // read witnesses and counter work just as NOT_FOUND hides targets.
+            if matches!(&result, Err(RuntimeError::Rule { effect: Effect::Insert, .. }))
+                && runner.schema.tables.get(table_name).is_some_and(|table| !table.sequences.is_empty()) {
+                runner.meter.restore(mark);
+            }
+            result
+        })
     }
 
     fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool, upsert_index: Option<&str>) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
         let supplied_sequence = super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row);
+        // A directly supplied field is a payload error before any lookup;
+        // only an upsert's copied address waits for insert authority.
+        if upsert_index.is_none() && supplied_sequence.is_err() { return supplied_sequence.map(|_| false); }
         let row = self.with_defaults(table_name, row)?;
+        let table = &self.schema.tables[table_name];
+        let independent = !table.sequences.is_empty() && !super::rules::deciding_fields(table_name, table, &table.rules.insert)
+            .iter().any(|field| table.sequences.contains_key(field));
+        // An independent denial must never consult a hidden read witness.
+        let authorized = independent && self.check_rule(table_name, Effect::Insert, None, &row)?;
+        if independent && !authorized {
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+        }
+        if !table.sequences.is_empty() {
+            // Admission reserves the worst case before either read verdict;
+            // restoring a refusal alone cannot hide a boundary abort.
+            self.reserve_sequence_authorization(table, &row)?;
+        }
         // @ref LLP 3000.015#2 — an unreadable allocation cannot expose counter,
         // uniqueness or cap state, even to a principal allowed to insert.
         if !self.sequence_insert_readable(table_name, &row)? {
@@ -47,20 +73,20 @@ impl Runner<'_> {
             if !self.check_rule(table_name, Effect::Insert, None, &row)? {
                 return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
             }
-            return Err(error);
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { error });
         }
         let (row, sequence_full) = self.sequence_fields(table_name, row)?;
         if let Some(index) = upsert_index {
             if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
             // Preserve upsert's target preflight before the ordinary insert checks;
             // only this first authority refusal is an undisclosed target miss.
-            if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
+            if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
             if sequence_full { return Err(super::sequences::exhausted()); }
             if let Err(error) = validate_row(self.schema, table_name, &row) {
                 return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
             }
         }
-        if !self.check_rule(table_name, Effect::Insert, None, &row)? {
+        if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
         // Retry keys independent of engine allocation still identify a no-op
@@ -429,7 +455,8 @@ impl Runner<'_> {
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
                     self.meter.charge(MeterKind::IndexEntries, 1)?;
-                    let count = if table.expire.is_none() {
+                    let private_sequence = !table.sequences.is_empty() && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
+                    let count = if table.expire.is_none() && !private_sequence {
                         self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
                     } else {
                         let mut count = 0;
@@ -440,7 +467,12 @@ impl Runner<'_> {
                             for (row, key) in rows {
                                 self.meter.charge(MeterKind::Examined, 1)?;
                                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
-                                if !self.expired(&table, &row) { count += 1; }
+                                if !self.expired(&table, &row) {
+                                    // @ref LLP 3000.015#2 — cap enforcement may disclose
+                                    // unreadable occupancy, never its values or constraint text.
+                                    if private_sequence { self.visible_collision(table_name, &row, effect)?; }
+                                    count += 1;
+                                }
                                 if count >= *max as u64 { break; }
                             }
                             if count >= *max as u64 || fetched < 256 { break; }
@@ -500,6 +532,7 @@ impl Runner<'_> {
                     })
                     .collect();
                 self.read_tables.insert(target.clone());
+                self.observe_sequence_selection(target, index, &key)?;
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
                 let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
                 let found = match self.live_lookup(target, index, target_index, &key)? {

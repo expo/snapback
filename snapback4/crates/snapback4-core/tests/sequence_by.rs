@@ -491,13 +491,13 @@ fn denied_sequence_targets_have_identical_refusals_and_meters() {
             let args = if op == "position" { vec![("conversationId", id("c")), ("n", Value::Int(1))] } else { vec![("conversationId", id("c"))] };
             let out = e.mutate(op, None, ctx(&args).with_ids(["candidate".into()])).unwrap();
             let WriteState::Failed { why, current } = out.state else { panic!("{out:?}"); };
-            assert_eq!(why.code, if op == "position" { "NOT_FOUND" } else { "E_RULE" }, "{op}: {why:?}");
+            assert_eq!(why.code, if op == "position" { "NOT_FOUND" } else if op == "supplied_retry" { "E_SEQUENCE_SUPPLIED" } else { "E_RULE" }, "{op}: {why:?}");
             assert!(current.is_none());
             worlds.push(serde_json::to_vec(&(why, out.metered)).unwrap());
             if !hidden && op != "retry" {
                 let authorized = e.mutate(op, None, Context::new("writer", args.into_iter().map(|(k,v)| (k.into(),v)).collect()).with_ids(["authorized".into()])).unwrap();
                 let WriteState::Failed { why, .. } = authorized.state else { panic!("{authorized:?}"); };
-                assert_eq!(why.code, "E_SEQUENCE_SUPPLIED");
+                assert_eq!(why.code, if op == "position" { "NOT_FOUND" } else { "E_SEQUENCE_SUPPLIED" });
             }
         }
         assert_eq!(worlds[0], worlds[1], "{op}: code, message, detail and every meter field must be byte-identical");

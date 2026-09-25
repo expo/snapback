@@ -30,6 +30,21 @@ pub(super) fn refuse_fields(table: &Table, name: &str, row: &Value) -> Result<()
 }
 
 impl Runner<'_> {
+    /// The insert image is supplied, unlike a write target's hidden old row.
+    /// Reserve its exact copy and static authorization/counter allowance before
+    /// learning a read witness; do not reserve schema-maximum hidden payloads.
+    pub(super) fn reserve_sequence_authorization(&mut self, table: &Table, row: &Value) -> Result<(), RuntimeError> {
+        let probes = super::rules::rule_probes(&table.rules.read).saturating_add(super::rules::rule_probes(&table.rules.insert).saturating_mul(2));
+        for (kind, amount, used, ceiling) in [
+            (MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
+            (MeterKind::IndexEntries, table.sequences.len() as u64, self.meter.used.index_entries, self.meter.ceilings.index_entries),
+            (MeterKind::HeapBytes, row.heap_bytes(), self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes),
+        ] {
+            if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
+        }
+        Ok(())
+    }
+
     pub(super) fn sequence_insert_readable(&mut self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
         let table = &self.schema.tables[name];
         if table.sequences.is_empty() || self.context.is_system() || table.rules.read.is_uniformly_readable() { return Ok(true); }

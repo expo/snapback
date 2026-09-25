@@ -272,10 +272,32 @@ engine-assigned ordinals in maintained reference paths even when the referring
 row comes first. Different conversations have independent counters. Multiple
 sequence columns in one inserted row allocate in column-name
 order. Sequence inserts require read authority established independently of
-the assigned ordinal. An insert-only principal whose new row is unreadable
-gets the ordinary insert refusal (NOT_FOUND for an upsert insert arm), before
-counter allocation, uniqueness or cap checks; no hidden counter or occupancy
-is exposed by a write result or refusal. Ordinals and their parent reference are immutable; listing the ordinal
+the assigned ordinal. A blind or insert-only principal whose new row is
+unreadable gets generic E_RULE (NOT_FOUND for an upsert insert arm). An
+independent insert denial runs before hidden read-witness lookups; a deferred
+allocation denial normalizes its authorization work, including at meter
+boundaries. A read rule that depends on the ordinal cannot authorize insertion.
+For a self-readable candidate, a sequence-key upsert returns the same NOT_FOUND
+and logical meters whether the target is absent or unreadable and refused;
+an owned target keeps its ordinary update diagnostic. A directly supplied
+ordinal in an insert or patch is E_SEQUENCE_SUPPLIED before lookup.
+A successful readable insert exposes its assigned ordinal, which reflects the
+shared counter. A hidden grant may establish read authority and permit success;
+an independently denied insert cannot use it as a witness oracle.
+
+One limit is accepted: a cap group containing an unreadable occupant returns
+generic E_RULE before cap constraint text. Compared with an empty group, this
+can disclose “someone unreadable is here”, but no occupant identity, ordinal,
+count or values. Ignoring those occupants would let a caller bypass the cap.
+The generated harness compares hidden siblings, witnesses and counter history
+across refusals, logical meters, pages/cursors, sync images and watermarks, and
+device prediction, admission, reopened outboxes and settlement. It separately
+checks successful assignments and this cap limit; it does not promise identical
+outcomes when the caller's actual authority changes. A denied sibling following
+a readable row in `first 1 by .ordinal` adds no examined charge or visible meter
+cut; a separate internal walk limit bounds long hidden prefixes without a
+hidden continuation key.
+Ordinals and their parent reference are immutable; listing the ordinal
 in `immutable` is accepted and redundant.
 
 `first N by .ordinal` and `last N by .ordinal` give a total order within a
@@ -293,7 +315,10 @@ A refusal after actually reading a provisional ordinal also queues without a
 predicted row, including a rule, `require`, `check`, unique constraint or
 `after insert` postcondition: the server's assigned value may satisfy it.
 An indexed read consumes provisional ordinals when settlement could move a
-pending row into or out of the selected range, including an empty result.
+pending row into or out of the selected range, including an empty result,
+an upsert's sequence-key target, or an `after insert` lookup at a literal
+ordinal. These dependent refusals keep their intent in the durable outbox
+until the server accepts or refuses it.
 A unique lookup that finds no collision, or a cap that passes, does not make
 an unrelated later refusal provisional. A short-circuited rule arm does not
 read its ordinal. Provisional ordinals in

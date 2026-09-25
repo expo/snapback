@@ -887,8 +887,16 @@ impl Runner<'_> {
             if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
             if visibility.uniform { uniform_verdict = Some(true); }
         }
-        // Non-uniform hidden runs cost examined rows, never a materialized
-        // table. A uniform page already has its verdict before fetching.
+        // @ref LLP 3000.015#2 — a hidden sibling costs the same one-unit
+        // page miss as an empty range. Physical walks have their own limit.
+        let private_page = !table.sequences.is_empty() && index.columns().iter().any(|column| table.sequences.contains_key(column))
+            && !visibility.uniform && !always_visible && word.is_none() && !job_page && !metered_domain && aggregate.is_none();
+        let mut page_examined = false;
+        if private_page && !aborting {
+            if !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
+            page_examined = true;
+        }
+        let mut walked = 0_u64;
         let horizon = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref());
         let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
@@ -937,7 +945,15 @@ impl Runner<'_> {
                 if let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
                     if &key < floor { crossed = true; break 'outer; }
                 }
-                if !self.read_charge(MeterKind::Examined, 1)? {
+                walked += 1;
+                // This limit is independent of the visible ledger, so restoring
+                // denied candidates cannot make a hidden prefix unbounded.
+                if private_page && walked > self.meter.ceilings.examined.max(8192) {
+                    capped = true;
+                    break 'outer;
+                }
+                let candidate_mark = private_page.then(|| self.meter.mark());
+                if !private_page && !self.read_charge(MeterKind::Examined, 1)? {
                     capped = true;
                     break 'outer;
                 }
@@ -984,6 +1000,10 @@ impl Runner<'_> {
                     break 'outer;
                 }
                 if allowed {
+                    if private_page {
+                        if !page_examined && !self.read_charge(MeterKind::Examined, 1)? { capped = true; break 'outer; }
+                        page_examined = false;
+                    }
                     self.note_expiry(table, &row);
                     let live_row = self.live_aggregate(&scan.table, row)?;
                     // @ref LLP 3000.007#20.21 — a cut aggregate is unavailable, not a
@@ -1069,6 +1089,7 @@ impl Runner<'_> {
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 } else {
                     self.next_expiry = row_expiry_mark;
+                    if let Some(mark) = candidate_mark { self.meter.restore(mark); }
                 }
             }
             if fetched_len < batch {

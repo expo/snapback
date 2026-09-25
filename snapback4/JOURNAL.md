@@ -49618,3 +49618,88 @@ servers were managed by their test harnesses. Whitespace and changed-source
 size checks pass. No store adapter changes or optional live PostgreSQL run.
 Full per-finding report: /home/ccheever/sb5/lane-b2.r3.final.md. Local branch
 commit only, no push, publication or deployment; no claim of a new blind review.
+
+## 2026-09-25 — Lane B2 round 4: generated principals and witnesses
+
+Read both NOT READY reviews and their saved reproductions before changing the
+instrument. The paired-world builder and exact channel comparison remain;
+scenario generation now crosses principal profiles (distinct blind, inserter,
+self-readable, witness-dependent and writer identities), four read-rule forms,
+hidden siblings/witnesses/counters/cap occupants/following siblings, all six
+write forms, and owned/hidden/fresh addresses. Semantically duplicate owned-key
+cases without an owned address were removed. Main set: 120 retained pairs plus
+538 generated principal/rule/witness pairs and 30 address/ceiling pairs = 688,
+versus 120 before this round. The final 538-case generator finds 224 failing
+pairs against 89033efbd; all pass with the fixes. The initial 844-tuple version
+found 288, before duplicate tuples were removed.
+
+Additional coverage: 12 generated 512-scratch-insert × 32-index pairs at default
+ceilings (alongside five existing boundary pairs), five examined-ceiling-1 page
+pairs, four pairs holding the cap's unreadable-occupancy bit fixed while varying
+the occupant, 12 ordinary-integer control pairs, and six generated
+upsert/postcondition/require × fresh/historical-counter cases on both device
+stores. Positive controls check 96 server outcomes and 64 device executions;
+a separate 8,193-hidden-row prefix test checks the physical walk bound. The
+device adapter now records admission and durable outboxes, closes/reopens the
+store, settles the actual server outcome and compares the resulting images and
+empty outbox, as well as prediction. The two literal-ordinal lookup regressions
+also run through built wasm in acquisition.test.mjs.
+
+Independent sequence insert denials now precede the read guard. Deferred
+read/insert authorization reserves static probe/counter work and the actual
+insert-image copy before the witness verdict; direct sequence E_RULE refusals
+restore the meter. An absent sequence-key upsert returns NOT_FOUND after insert
+authority, matching a hidden refused target even for an owner-default-viewer
+candidate. Explicit ordinals on direct inserts and patches remain
+E_SEQUENCE_SUPPLIED before lookup. Write-target and final-exists lookups now
+observe provisional sequence selection; implicit unique/cap checks remain
+collision-only. Private sequence cap groups check occupant readability and
+refuse generically before cap constraint text. Non-uniform sequence-index pages
+use a one-examined-unit miss allowance and restore denied candidate work;
+a separate internal walk limit bounds hidden prefixes. Non-sequence scan
+accounting retains its existing contract. Generic E_RULE text and its guide
+explanation now include the ordinal-independent sequence-read prerequisite.
+
+LLP 3000.015 §2 and the writes card describe each principal class separately.
+Readable successful allocation intentionally reveals its assigned ordinal;
+a grant which confers actual authority may permit success. The one accepted
+cap limit is “someone unreadable is here”, without identity, count, ordinal or
+values. Ignoring those occupants would make the cap bypassable. The harness
+asserts the residual separately and compares differing hidden occupants.
+
+Eleven deliberate removals failed executed regressions, including both
+previously surviving mutations (ordinal-dependent read rejection and the
+readable-candidate upsert diagnostic). They cover independent denial order,
+deferred reservation, meter restoration, the upsert refusal, both provisional
+lookups, cap visibility, ordinal-page accounting, its walk bound and refusal
+text. All restored. Evidence: target/b2-r4-mutations.log and the per-mutation
+logs; target/b2-r4-generator-baseline.log records the original-runtime red.
+
+Verification caught and corrected an overly broad initial heap reservation
+(device-only floor exhaustion must queue as E_PREDICT, not become E_BOUND),
+scan accounting inadvertently applied to ordinary non-sequence indexes, and a
+cleanup lookup panic after an early refusal of an unregistered internal target.
+The first complete suite reported two failed steps in 271 s; its log is retained
+as target/b2-r4-suite-initial.log. Existing tests remain intact for those cases.
+The final affected run passed all 84 core unit tests, 15 core sequence tests
+and 10 core disclosure tests. Language: six sequence tests and all 57 guide tests.
+The full suite also passes the four device disclosure tests on both stores,
+all nine existing device sequence tests and the two new wasm lookup cases.
+
+Final qualification, Node v24.13.1, from snapback4/:
+`env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0
+CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_RUST_TEST_PROCESSES=8 bash scripts/test.sh`
+printed exactly `== 0 failure(s) in 254 s`. Log: target/b2-r4-suite.log.
+The final client-runner summary is 1,054 passed, 0 failed, 10 existing skips;
+all suite steps passed. No store-adapter change or optional live PostgreSQL run.
+
+Final wasm: 1,771,762 B raw / 493,186 B gzip, Rust 1.97.0 / wasm-bindgen 0.2.127,
+without wasm-opt. Compared with round 3: +2,032 raw / +1,034 gzip. The combined
+shared-interpreter authorization, provisional-lookup, cap and sequence-scan
+fixes exceed the 493,000 B ratchet by 186 B; raise it to 494,000 B, leaving 814 B.
+This is a whole-artifact delta; runtime meter ceilings are unchanged. The reason
+is also in metrics/wasm-budget.json and the commit message. Measurement and
+full-suite builds agree. SHA-256:
+38e418260ca8f8cb22faf90a38323ebc11464959d8b1eb9908d7374f131bd6a5.
+Final report: /home/ccheever/sb5/lane-b2.r4.final.md. Local branch commit only;
+no push, publication, deployment or new blind-review claim.

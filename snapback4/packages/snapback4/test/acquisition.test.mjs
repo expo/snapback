@@ -538,7 +538,7 @@ for (const tier of ["wasm", "process"]) {
   });
 }
 
-for (const form of ["rule", "require", "constraint", "named constraint", "postcondition", "sequence key", "old", "empty index", "cap group"]) {
+for (const form of ["rule", "require", "constraint", "named constraint", "postcondition", "sequence key", "old", "empty index", "cap group", "upsert index", "postcondition index"]) {
   test(`sequence by wasm: provisional ${form} refusal queues for the server`, { timeout: 30000 }, async t => {
     let sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
     if (form === "rule") sequence = sequence.replace("public 'sequence test messages'\n  insert <- allow", "public 'sequence test messages'\n  insert <- .ordinal != 1");
@@ -553,6 +553,11 @@ for (const form of ["rule", "require", "constraint", "named constraint", "postco
     if (form === "sequence key") sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  unique ordinal").replaceAll("messages[messageId]", "messages[id = messageId]");
     if (form === "old") sequence = sequence.replace("update <- allow", "update (old, next) <- old.ordinal != 1").replace("  return row\nmutation join", "  update messages[row.id] { body: 'updated' }\n  return row\nmutation join");
     if (form === "empty index") sequence = sequence.replace("  return row\nmutation join", "  require exists messages[conversationId = conversationId, ordinal = 6] else NO_SIX\n  return row\nmutation join");
+    if (form === "upsert index") sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  unique conversationId, ordinal").replace("  return row\nmutation join", "  upsert messages[conversationId = conversationId, ordinal = 6] { body: 'updated' }\n  return row\nmutation join");
+    if (form === "postcondition index") {
+      sequence += "\ntable gates:\n  parent: conversations\n  public\n  insert <- allow\n  sync public\n  after insert <- exists messages[conversationId = .parent, ordinal = 6]\n";
+      sequence = sequence.replace("  return row\nmutation join", "  insert gates { parent: conversationId }\n  return row\nmutation join");
+    }
     if (form === "cap group") sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  cap 1 by ordinal\n  by byOrdinal: ordinal, id");
     const f = await fixture(t, "wasm", true, `use personas alice\n${sequence}`);
     if (form === "postcondition") assert.equal((await f.post("/seed", Array.from({ length: 6 }, (_, n) => ({ table: "tickets", row: { id: `ticket${n+1}`, number: n+1 } })))).seeded, 6);
