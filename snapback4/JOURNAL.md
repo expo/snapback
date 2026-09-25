@@ -56229,3 +56229,39 @@ weakening, and no changes to the device admission transaction. No push, package
 publication, iOS simulator claim or ceiling increase. Endpoint-by-endpoint stamp
 audit, file map, tests, examples and final qualification:
 [Lane Y round-3 report](reports/20260925-lane-y-r3.md).
+
+
+## 2026-09-25 — Lane Y round 4: only admissions restore the floor
+
+Implemented all round-3 delta review findings in `8a64ffaf8`. Clock attachment
+unconditionally ignores the old offset metadata's non-admission `last`, and
+persistence stops writing that field. Only the atomic `server-clock-floor`
+record and queued `entry.now` restore an issued floor across reopening. Live
+issuance remains monotonic. The clock card and client operations reference now
+state this distinction. No migration of unpublished round-2 metadata is needed.
+
+Two unit regressions exercise a nonzero wall-time `last` with stored issued
+offsets of zero and -31 days, attached after a slow negative-offset sample.
+The actual native JSON/SQLite bridge retains its valid thirty-day session with
+that metadata after 1,500 ms refresh/schema responses, without deleting
+credentials or relying on an admission floor. Both provisional arrival orders
+now distinguish a slow sample 500 ms behind the streaming stamp. Separate
+measured and streaming RTT-tie tests require the newest estimate even when the
+monotonic floor masks its correction. Deliberate mutations restoring nonzero
+`last`, preferring older RTT ties, and always preferring the newest provisional
+sample each fail; all were restored. Existing crash tests still prove pending
+and settled admission durability, and now require no serialized `last`.
+
+Focused checks: 38 clock/regression tests and 9 browser/wire/native tests pass.
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 408 s`**.
+Regular clients: 1,555 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Held browser expiry lateness was 2 ms in all five measurements.
+Wasm remains 1,776,076 B raw / 495,314 B gzip against the unchanged 496,000 B
+ceiling. Reference audit: zero errors, zero unchecked references.
+
+No new public form, API, refusal code, server implementation change,
+authorization/disclosure/meter weakening, admission transaction change, push,
+package publication or iOS simulator claim. File map, examples, intentional
+expectation changes and qualification:
+[Lane Y round-4 report](reports/20260925-lane-y-r4.md).
