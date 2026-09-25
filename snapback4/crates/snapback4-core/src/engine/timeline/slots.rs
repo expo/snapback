@@ -84,6 +84,7 @@ impl Runner<'_> {
     pub(in crate::engine) fn event_read_unknown(&mut self, table: &str, index: &str, key: &[Value], site: &str) -> bool {
         if self.device && crate::schema::timeline::partial_read(self.schema, table, index, key) {
             self.unknown_fact(table, index, key, site);
+            self.components.note(|frame| frame.speculative = true);
             self.query_unavailable = true;
             true
         } else { false }

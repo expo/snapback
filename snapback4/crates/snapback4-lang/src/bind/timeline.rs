@@ -1,4 +1,6 @@
 //! Materialized Following: no authored graph bounds; all source audiences stay public.
+mod prediction;
+pub(super) use prediction::aggregate_sites;
 use crate::{ast::*, diag::{Diagnostic, Fallible}};
 use snapback4_core::schema::{timeline::{Timeline, HISTORY_WINDOW}, Audience, ColumnDefault, ColumnType, Horizon, RuleExpr, RuleTerm, Schema, Table};
 use super::catalog::Catalog;
@@ -138,15 +140,6 @@ pub fn notes(catalog: &Catalog, _schema: &Schema) -> Vec<Diagnostic> {
 pub fn write_site(schema: &Schema, table: &str, kind: &str, fact: &mut snapback4_core::schema::Execution) {
     use snapback4_core::schema::{ResidencySite, SiteClass};
     for timeline in schema.timelines.iter().filter(|timeline| timeline.maps(table)) {
-        let repost = table == timeline.reposts[0];
-        if table != timeline.edges[0] && !timeline.fully_synced(schema, repost) {
-            for aggregate in timeline.synced_aggregates(schema) {
-                fact.sites.push(ResidencySite { site: format!("{kind} {table}: {aggregate}"), table: aggregate.into(), index: "byGroup".into(),
-                    kind: "timeline aggregate".into(), class: SiteClass::Server,
-                    reason: format!("Following {} cannot predict a partial event's change to synced aggregate {aggregate}", timeline.name),
-                    rewrite: format!("queue this mutation without predicted rows, or declare view {aggregate} online only") });
-            }
-        }
         for (input, index) in timeline.inputs(table, kind) {
             let sync = schema.tables[&input].sync.as_ref();
             let online = table == timeline.edges[0] || sync.is_none();

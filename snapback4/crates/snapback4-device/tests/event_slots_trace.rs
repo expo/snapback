@@ -11,6 +11,11 @@ fn source(posts: &str, reposts: &str) -> String {
         .replacen("sync public", posts, 1)
         .replace("sync public\n\ntable follows", &format!("{reposts}\n\ntable follows"))
         .replace("  removed: bool default false", "  body: text <=100 default 'first'\n  removed: bool default false") + r#"
+mutation conditionalPost(postId: id, parentId: posts ?):
+  if parentId = null:
+    insert posts { id: postId, authorId: viewer, parentId: null, at: now }
+  else:
+    insert posts { id: postId, authorId: viewer, parentId, at: now }
 mutation edit(postId: posts):
   update posts[postId] { body: 'edited' }
 mutation birthAndEdit(postId: id, at: time):
@@ -194,8 +199,11 @@ fn mixed(reposts: &str) -> Json {
     let mut t = Trace::new(&format!("ordinary event reads with {reposts}"),backend); t.acquire(&mut e);
     unavailable(&t.query("event",json!({"eventId":"E"})));
     unavailable(&t.query("events",json!({})));
+    for (name,input) in [("event",json!({"eventId":"E"})),("events",json!({}))] {
+        let out=t.query(name,input); assert_eq!(out["ok"]["speculative"],true,"{out}");
+    }
     assert_eq!(t.query("original",json!({"actor":"alice","postId":"missing"}))["ok"]["data"],Json::Null);
-    let hit=t.query("event",json!({"eventId":"p"})); assert_eq!(hit["ok"]["data"]["id"],"p");
+    let hit=t.query("event",json!({"eventId":"p"})); assert_eq!(hit["ok"]["data"]["id"],"p"); assert_eq!(hit["ok"]["held"],true); assert_eq!(hit["ok"]["speculative"],false);
     let out=t.admit("needsEvent",json!({"eventId":"E"})); assert_eq!(out["ok"]["predictable"],false,"{out}");
     for (name, input) in [("gated",json!({"eventId":"E"})),("gatedActor",json!({"actor":"unheld"}))] {
         let out=t.admit(name,input); assert_eq!(out["ok"]["predictable"],false,"{out}");
@@ -207,13 +215,53 @@ fn mixed(reposts: &str) -> Json {
 fn aggregates(online: bool) -> Json {
     let s = source("sync public last 10 by .at","sync public") + "\nview totals: count feedPosts by .actorId\n" + if online { "  online only\n" } else { "" };
     let (mut e,backend) = common::compile(&s); post(&mut e,"p");
+    // One operation accepts either a reply or an original: its filter cannot
+    // be decided statically, so both calls must reach the runtime guard.
+    assert_eq!(backend.schema.operations["post"].predicts.as_deref(),Some("eligible"));
     let mut t = Trace::new(&format!("aggregate fence online={online}"),backend); t.acquire(&mut e);
+    predicts(&t.predict("post",json!({"postId":"reply","parentId":"p"})));
+    assert_eq!(t.query("postRow",json!({"postId":"reply"}))["ok"]["data"]["parentId"],"p");
+    t.withdraw();
+    predicts(&t.predict("conditionalPost",json!({"postId":"branch-reply","parentId":"p"})));
+    t.withdraw();
+    let conditional=t.predict("conditionalPost",json!({"postId":"branch-post","parentId":null}));
+    if online { predicts(&conditional); } else { assert!(conditional["ok"]["denied"]["message"].as_str().is_some_and(|s|s.contains("totals")),"{conditional}"); }
+    t.withdraw();
+    predicts(&t.predict("edit",json!({"postId":"p"})));
+    assert_eq!(t.query("postRow",json!({"postId":"p"}))["ok"]["data"]["body"],"edited");
+    t.withdraw();
+    let out=t.predict("post",json!({"postId":"another","parentId":null}));
+    if online { predicts(&out); } else {
+        assert!(out["ok"]["denied"]["message"].as_str().is_some_and(|s|s.contains("totals")),"{out}");
+        assert!(out["ok"].get("predicted").is_none(),"{out}");
+        assert!(t.device.store().raw_rows("posts").iter().all(|r|r.field("id").unwrap()!=&id("another")));
+    }
+    t.withdraw();
     let out = t.admit("post",json!({"postId":"new","parentId":null}));
     assert_eq!(out["ok"]["predictable"],online,"{out}");
-    if !online {
-        // Direct prediction bypasses the client/static summary and must still queue.
-        let out=t.predict("post",json!({"postId":"another","parentId":null}));
+    if !online { assert_eq!(out["ok"]["predicted"],json!([])); }
+    t.finish()
+}
+
+fn aggregate_unrepost(online: bool) -> Json {
+    let s = source("sync public","sync public last 10 by .at") + "\nview totals: count feedPosts by .actorId\n" + if online { "  online only\n" } else { "" };
+    let (mut e,backend)=common::compile(&s); post(&mut e,"p"); repost(&mut e,"r","p","E");
+    assert_eq!(backend.schema.operations["unrepost"].predicts.as_deref(),Some("eligible"));
+    let mut t=Trace::new(&format!("held floored unrepost aggregate online={online}"),backend); t.acquire(&mut e);
+    let before=t.device.store().raw_rows("reposts");
+    assert_eq!(before[0].field("$timeline:feed:repost").unwrap(),&id("E"));
+    let out=t.predict("unrepost",json!({"postId":"p"}));
+    if online {
+        predicts(&out);
+        assert!(t.device.store().raw_rows("reposts").is_empty());
+        assert_eq!(t.query("tombstone",json!({"eventId":"E"}))["ok"]["data"],true);
+    } else {
         assert!(out["ok"]["denied"]["message"].as_str().is_some_and(|s|s.contains("totals")),"{out}");
+        assert!(out["ok"].get("predicted").is_none(),"{out}");
+        assert_eq!(t.device.store().raw_rows("reposts"),before,"the failed transition must roll back its source delete");
+        assert_eq!(t.query("tombstone",json!({"eventId":"E"}))["ok"]["data"],false);
+        let out=t.admit("unrepost",json!({"postId":"p"}));
+        assert_eq!(out["ok"]["predictable"],false); assert_eq!(out["ok"]["predicted"],json!([]));
     }
     t.finish()
 }
@@ -358,7 +406,7 @@ fn unheld() -> Json {
 
 #[test]
 fn emit_fault_schedules_for_wasm_and_native() {
-    let mut traces=vec![log_order(),snapshot_reincarnation(false),snapshot_reincarnation(true),mixed("sync public last 1 by .at"),mixed("online only"),aggregates(false),aggregates(true),shared(),activation(),deferred(),unheld()];
+    let mut traces=vec![log_order(),snapshot_reincarnation(false),snapshot_reincarnation(true),mixed("sync public last 1 by .at"),mixed("online only"),aggregates(false),aggregates(true),aggregate_unrepost(false),aggregate_unrepost(true),shared(),activation(),deferred(),unheld()];
     for full in [false,true] { for split in [false,true] { traces.push(reused_event(full,split)); } }
     for posts in ["sync public","sync public last 10 by .at"] {
         for reposts in ["sync public","sync public last 10 by .at"] { traces.push(transition_cases(posts,reposts)); }

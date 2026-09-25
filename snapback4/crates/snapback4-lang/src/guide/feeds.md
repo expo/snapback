@@ -193,8 +193,12 @@ Reposts need a held original, its event slot and a removal probe; otherwise the 
 mutation queues without a row. These conditions are necessary: a horizon on
 reposts can still make its unique-pair absence unknown. `check` classifies each
 transition by its source residency; follow/unfollow remain `predicts: never`.
-A synced aggregate over owned events stops prediction for transitions of a kind
-that is not fully synced; `check` names the aggregate. Other reads of owned events
+A synced aggregate over owned events stops prediction only when a transition
+inserts or removes an event of a kind that is not fully synced. Replies and body
+edits still predict. `check` names the aggregate; argument-dependent filters and
+source-slot lookups are decided at runtime. Slot schemas require an event-slot
+capability, so older devices refuse installation or adoption until upgraded.
+Other reads of owned events
 withhold on a missing row or a range that may contain an unheld kind. A key naming
 a fully synced kind keeps ordinary known absence.
 Use the normal pending-write, freshness and completeness state (`guide app`).

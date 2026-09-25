@@ -151,7 +151,7 @@ query conditionalEvents():
     const before = bob.queries.length;
     assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
     assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
-    assert.deepEqual((await bob.client.query(query("conditionalEvents"), {})).data, []);
+    assert.deepEqual(await bob.client.query(query("conditionalEvents"), {}), { loading: true });
     assert.equal(bob.queries.length, before, "executed and possible event reads depend on the predicted source slot");
     bob.holdWrites = false;
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "source prediction was not observed");

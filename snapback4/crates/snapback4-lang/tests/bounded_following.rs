@@ -119,17 +119,32 @@ query original(actor: principal, postId: id):
 }
 
 #[test]
-fn synced_event_aggregate_fences_only_its_partial_kinds() {
+fn synced_event_aggregate_fences_only_event_changing_writes() {
     for online in [false, true] {
-        let text = source("sync public last 2 by .at", "sync public")
-            + "\nview totals: count feedPosts by .actorId\n" + if online { "  online only\n" } else { "" };
+        let text = source("sync public last 2 by .at", "sync public last 2 by .at")
+            .replace("  removed: bool default false", "  body: text <=100 default ''\n  removed: bool default false")
+            + "\nview totals: count feedPosts by .actorId\n" + if online { "  online only\n" } else { "" } + r#"
+mutation original(postId: id):
+  insert posts { id: postId, authorId: viewer, parentId: null, at: now }
+mutation reply(postId: id):
+  insert posts { id: postId, authorId: viewer, parentId: 'p', at: now }
+mutation edit(postId: posts):
+  update posts[postId] { body: 'edited' }
+"#;
         let bound = compile(&text);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        for name in ["bounded.post", "bounded.remove"] {
+        for name in ["bounded.original", "bounded.remove"] {
             let fact = &bound.schema.operations[name];
             assert_eq!(fact.predicts.as_deref(), Some(if online { "eligible" } else { "never" }), "{fact:?}");
             if !online { assert!(fact.sites.iter().any(|s| s.class == SiteClass::Server && s.reason.contains("totals")), "{fact:?}"); }
         }
-        assert_eq!(bound.schema.operations["bounded.unrepost"].predicts.as_deref(), Some("eligible"));
+        for name in ["post", "reply", "edit", "unrepost"] {
+            let fact=&bound.schema.operations[&format!("bounded.{name}")];
+            assert_eq!(fact.predicts.as_deref(), Some("eligible"),"{name}: {fact:?}");
+            let aggregate=fact.sites.iter().find(|s|s.kind=="timeline aggregate");
+            if !online && matches!(name,"post"|"unrepost") {
+                assert!(aggregate.is_some_and(|s|s.class==SiteClass::Horizon && s.reason.contains("totals")),"{fact:?}");
+            } else { assert!(aggregate.is_none(),"{fact:?}"); }
+        }
     }
 }
