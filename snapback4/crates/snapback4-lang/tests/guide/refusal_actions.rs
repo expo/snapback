@@ -3,6 +3,10 @@
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_SELF_EQUALITY", &["members[conversation = .conversation]", "the named key reads the enclosing row"]),
+    ("E_READ_THROUGH", &["read through .ref"]),
+    ("E_READ_THROUGH_ADOPT", &["Reconcile the named table before adoption."]),
+    ("E_PARENT_HAS_CHILDREN", &["deleting live children and sweeping expired children", "does not identify an occupied child table"]),
+    ("E_READ_THROUGH_SCAN", &["complete key"]),
     ("E_QUARRY_DUPLICATE_FIELD", &["Rename or remove the second field"]),
     ("E_QUARRY_SPREAD", &["Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`"]),
     ("E_QUARRY_SHAPE_JOIN", &["Spread both row arms before joining, or build both arms with the same shape and kind"]),
@@ -70,6 +74,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_MAINTAINED_COLUMN_PRIVATE", &["not even as the system", "Read the parent row or write the source rows instead"]),
     ("E_MAINTAINED_COLUMN_REFERENCE", &["declare a reference if needed, then select it with `likeCount: count likes by .postId`"]),
     ("E_MAINTAINED_COLUMN_RESULT", &["Read the row under its read rule to see the aggregate", "the generated `PostsWrite` type contains the ordinary fields and id"]),
+    ("E_MAINTAIN_READ_EXPIRE", &["Use `read <- deny`", "omit `read` to inherit", "Neither a source cap nor `online only` permits a value-dependent rule"]),
     ("E_MAINTAIN_READ_RULE", &["state an explicit `read <-` when the aggregate needs its own audience", "Calendar keys and reference paths do not preserve rule fields"]),
     ("E_NATIVE", &["Run `snapback4 check` to build and validate the module", "A native query cannot call a write host function"]),
     ("E_NATIVE_BUILD", &["Fix the Rust source using the generated names and rerun `snapback4 check`", "declare `crate-type = [\"cdylib\"]`"]),

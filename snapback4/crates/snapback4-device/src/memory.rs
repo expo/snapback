@@ -28,7 +28,7 @@ pub struct Change {
     pub v: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct State {
     rows: BTreeMap<(String, String), Value>,
     entries: BTreeMap<(String, Vec<u8>), String>,
@@ -225,6 +225,10 @@ impl MemoryStore {
         }
     }
 }
+
+#[cfg(feature = "native")]
+#[path = "memory_server.rs"]
+mod server;
 
 /// A row projected onto its table: columns the schema no longer has go,
 /// columns it gained are materialized by the runner. `pending` is the device's own mark on

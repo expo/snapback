@@ -50,6 +50,21 @@ use identity                          -- guests and password accounts; `use iden
 use personas alice, bob, carol        -- a development cast: `--as alice` and the persona header act as dev:alice
 effect notify                         -- a name a mutation or job may `emit` under; a worker with a service token performs it (guide effects)
 
+table folders:
+  owner: principal
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync last 500 by .id
+
+table documents:
+  folder: folders
+  body: text
+  immutable folder
+  read through .folder             -- the whole read rule; captures its immutable parent's audience and lifetime
+  insert <- allow
+  sync last 500 by .id              -- infers the captured owner audience
+
 table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
   ownerId: principal                  -- principal | id | <table> (a reference to its row) | int | time (milliseconds) | bool

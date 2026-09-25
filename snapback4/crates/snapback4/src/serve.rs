@@ -986,6 +986,8 @@ fn handle(mut request: Request, shared: &Shared) {
             let viewer = principal.clone();
             let mut context = Context::new(principal, args).at(shared.now());
             if path.starts_with("/q/") {
+                let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
+                if provenance { context = context.with_row_provenance(); }
                 if kind != ProgramKind::Query {
                     operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}")));
                     return;
@@ -1028,6 +1030,8 @@ fn handle(mut request: Request, shared: &Shared) {
                             viewer: &'a str,
                             #[serde(skip_serializing_if = "Option::is_none")]
                             meter: Option<Json>,
+                            #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
+                            row_provenance: Option<wire::Plain<'a>>,
                         }
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
                         let meter = shared.personas.then(|| {
@@ -1041,7 +1045,8 @@ fn handle(mut request: Request, shared: &Shared) {
                             if let Some(meter) = meter { reply["meter"] = meter; }
                             respond_timed(request, shared, 200, reply);
                         } else {
-                            respond_timed(request, shared, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
+                            let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
+                            respond_timed(request, shared, 200, QueryReply { row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
                         }
                     }
                     Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),

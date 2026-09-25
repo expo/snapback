@@ -127,11 +127,19 @@ impl<T: DeviceTx> Rows for Reading<'_, T> {
     fn provisional_row(&self, _table: &str, row: &Value) -> Result<bool, RuntimeError> {
         Ok(row.field("pending") == Ok(&Value::Bool(true)))
     }
+    fn current_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
+        Ok(history::coverage_state(self.schema, &self.groups, name, history::Coverage::Row(row))? == history::CoverageState::Held)
+    }
+    fn current_group(&self, name: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
+        Ok(history::coverage_state(self.schema, &self.groups, name, history::Coverage::Range(index, prefix))? == history::CoverageState::Held)
+    }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
     }
     fn retained_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
-        retained(self.schema, &self.groups, name, Coverage::Row(row))
+        let kept = retained(self.schema, &self.groups, name, Coverage::Row(row))?;
+        if kept { self.retained.set(true); }
+        Ok(kept)
     }
     fn retained_group(&self, name: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
         let retained = retained(self.schema, &self.groups, name, Coverage::Range(index, prefix))?;

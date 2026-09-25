@@ -27,7 +27,7 @@ fn observe(rule: RuleExpr, hidden: bool, author: &str, scan: Scan, cut: Cut, exa
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
     json!({"data":data,"error":error,"complete":runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.beyond_horizon,
-        "next":runner.next_cursor().unwrap(),"capped_at":runner.meter.capped_at,"metered":runner.meter.used,"tables":runner.read_tables,"nextExpiry":runner.next_expiry})
+        "next":runner.next_cursor().unwrap(),"capped_at":runner.meter.capped_at,"metered":runner.meter.used,"tables":runner.read_tables,"nextExpiry":runner.next_expiry.get()})
 }
 
 fn principal() -> RuleExpr { RuleExpr::Eq(RuleTerm::Field("principal".into()), RuleTerm::Viewer) }

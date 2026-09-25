@@ -113,6 +113,10 @@ fn w11_every_registered_code_quotes_its_definition() {
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_SELF_EQUALITY", "E_QUARRY_SELF_EQUALITY refuses comparisons of a filtered row column with itself"),
+    ("E_READ_THROUGH", "read through .ref"),
+    ("E_READ_THROUGH_ADOPT", "Reconcile the named table before adoption."),
+    ("E_PARENT_HAS_CHILDREN", "deleting live children and sweeping expired children"),
+    ("E_READ_THROUGH_SCAN", "complete key"),
     ("E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name"),
     ("E_QUARRY_SPREAD", "E_QUARRY_SPREAD refuses nullable operands and values without statically known fields"),
     ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses joining different row kinds"),
@@ -178,6 +182,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_MAINTAINED_COLUMN_PRIVATE", "E_MAINTAINED_COLUMN_PRIVATE refuses addressing the column's private storage."),
     ("E_MAINTAINED_COLUMN_REFERENCE", "With no reference or several, E_MAINTAINED_COLUMN_REFERENCE lists the candidates: declare a reference if needed, then select it with `likeCount: count likes by .postId`."),
     ("E_MAINTAINED_COLUMN_RESULT", "Read the row under its read rule to see the aggregate; selecting the field from a write result refuses with E_MAINTAINED_COLUMN_RESULT."),
+    ("E_MAINTAIN_READ_EXPIRE", "E_MAINTAIN_READ_EXPIRE means an aggregate over an expiring source has a read rule that uses fields its group keys do not determine."),
     ("E_MAINTAIN_READ_RULE", "E_MAINTAIN_READ_RULE names missing fields; state an explicit `read <-` when the aggregate needs its own audience."),
     ("E_NATIVE", "E_NATIVE means a native declaration or loaded module cannot perform the requested operation."),
     ("E_NATIVE_BUILD", "E_NATIVE_BUILD means the native crate could not be built or its generated files could not be written or loaded."),

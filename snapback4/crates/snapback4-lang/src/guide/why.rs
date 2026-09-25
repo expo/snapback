@@ -1,6 +1,10 @@
 //! Detailed explanations moved out of the first-read cards.
 pub(super) fn detail(code: &str) -> Option<&'static str> {
     Some(match code {
+        "E_READ_THROUGH_SCAN" => include_str!("why/E_READ_THROUGH_SCAN.md"),
+        "E_READ_THROUGH_ADOPT" => include_str!("why/E_READ_THROUGH_ADOPT.md"),
+        "E_PARENT_HAS_CHILDREN" => include_str!("why/E_PARENT_HAS_CHILDREN.md"),
+        "E_READ_THROUGH" => include_str!("why/E_READ_THROUGH.md"),
         "E_ADOPT" => include_str!("why/E_ADOPT.md"),
         "E_CONFLICT" => include_str!("why/E_CONFLICT.md"),
         "E_CONSTRAINT" => include_str!("why/E_CONSTRAINT.md"),

@@ -395,7 +395,7 @@ fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
     let table = schema.table(&scan.table)?;
     if !table.index(&scan.index)?.is_plain() || scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
         Some("matching word scans expand hidden words before deciding visibility; read it in a query, or use a plain prefix scan".into())
-    } else if table.expire.is_some() {
+    } else if table.is_expiring() {
         Some("a mutation page cannot scan a table with expiry; read it in a query, or use a job chunk".into())
     } else if scan.merge_site.is_some() {
         Some("a merge is not a plain prefix scan; read it in a query, or use a job chunk".into())
@@ -432,7 +432,7 @@ fn uniform_rewrite(schema: &Schema, scan: &Scan) -> String {
     // from principal types alone. actorId/eventId are example bindings.
     if fields.len() == 1 && fields.contains("readerId") && table.columns.contains_key("eventId")
         && let Some(follows) = schema.tables.get("follows")
-        && follows.columns.contains_key("followerId") && follows.expire.is_none()
+        && follows.columns.contains_key("followerId") && !follows.is_expiring()
         && { let mut deciding = BTreeSet::new(); follows.rules.read.fields(&mut deciding); deciding.iter().all(|field| field == "followedId") }
         && table.indexes.values().any(|index| index.unique && index.columns() == ["readerId", "eventId"])
         && follows.cap(&["followedId".into()]).is_some()

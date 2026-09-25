@@ -39,10 +39,16 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         fact.sites.push(site(schema, &read.site, &read.table, &read.index, read.kind));
         if let Some(table) = schema.tables.get(&read.table)
             && table.leave != snapback4_core::schema::LeavePolicy::DeliveredHistory
-            && table.sync.as_ref().is_some_and(|sync| match &sync.audience { Audience::Target { table, .. } => schema.tables[table].expire.is_some(), _ => false }) {
+            && table.sync.as_ref().is_some_and(|sync| match &sync.audience { Audience::Target { table, .. } => schema.tables[table].is_expiring(), _ => false }) {
             rule_sites(schema, &table.rules.read, &format!("{} temporary audience", read.site), &mut fact.sites, &mut BTreeSet::new());
         }
         aggregate_source_site(schema, &read.table, &read.site, &mut fact.sites);
+        let parent = schema.tables.get(&read.table).and_then(|t|t.through.as_ref())
+            .or_else(||schema.maintain_for(&read.table).and_then(|m|m.parent_key.as_ref()));
+        if let Some(parent) = parent {
+            fact.sites.push(site(schema,&read.site,&parent.parent,"byId","read through parent"));
+            rule_sites(schema,&schema.tables[&parent.parent].rules.read,&read.site,&mut fact.sites,&mut BTreeSet::new());
+        }
         if matches!(read.index.as_str(), "byReaderTime" | "byReaderPage") {
             if let Some(t) = schema.timelines.iter().find(|t| read.table == t.table("Feed")) {
                 fact.sites.push(site(schema, &read.site, &t.table("Work"), "byReader", "timeline pending work"));
@@ -78,6 +84,14 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         if schema.tables.get(&table).is_none_or(|t| t.sync.is_none()) { fact.sites.push(site(schema, &format!("{kind} {table}"), &table, "byId", "write")); }
         if let Some(definition) = schema.tables.get(&table) {
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
+                if let Some(parent) = &definition.through {
+                    if kind != "insert" {
+                        fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: kind.into(), class: SiteClass::Server,
+                            reason: format!("{kind} on a read-through child queues without a row"), rewrite: "use a plain insert with a new id when prediction is needed".into() });
+                    }
+                    fact.sites.push(site(schema,&format!("{kind} {table}"),&parent.parent,"byId","read through capture"));
+                    rule_sites(schema,&schema.tables[&parent.parent].rules.read,&format!("{kind} {table} parent rule"),&mut fact.sites,&mut BTreeSet::new());
+                }
                 for (path, recorded) in &definition.recorded {
                     let mut dependency = site(schema, &format!("{kind} {table}"), &recorded.table, "byId", "recorded attribution");
                     dependency.reason = format!("{table}.{path} implicitly reads {}.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted", recorded.table);
@@ -176,6 +190,11 @@ pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fac
 }
 
 fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -> ResidencySite {
+    if let Some(maintain) = schema.maintain_for(table).filter(|m| m.parent_key.is_some()) {
+        let mut dependency = site(schema, location, &maintain.source, index, "parent-key aggregate source");
+        dependency.reason = format!("{table}: counts current held {} rows after resolving its parent; {}", maintain.source, dependency.reason);
+        return dependency;
+    }
     let sync = schema.tables.get(table).and_then(|table| table.sync.as_ref());
     let (class, reason, rewrite) = match sync {
         _ if snapback4_core::schema::timeline::partial_read(schema, table, index, &[]) =>
@@ -192,7 +211,7 @@ fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -
 // @ref LLP 3000.007#6.2 — rule probes and explicit reads both need the expiring source to establish a live aggregate on a device.
 fn aggregate_source_site(schema: &Schema, table: &str, location: &str, sites: &mut Vec<ResidencySite>) {
     if let Some(maintain) = schema.maintain_for(table)
-        && schema.tables[&maintain.source].expire.is_some() {
+        && schema.tables[&maintain.source].is_expiring() {
         let index = schema.tables[&maintain.source].indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&maintain.by)).map(|(name, _)| name.as_str()).unwrap_or("byId");
         sites.push(site(schema, location, &maintain.source, index, "aggregate source"));
     }
@@ -365,6 +384,10 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
         // Same read predicate over the grouped fields cannot give a hidden writer this aggregate.
         let mut fields = BTreeSet::new();
         source.rules.read.fields(&mut fields);
+        if source.through.is_some() && fields.iter().all(|field| maintain.bare_key(field) || maintain.aliases.values().any(|c| c == field)) {
+            let derived = source.rules.read.map_fields(&|field| maintain.aliases.iter().find(|(_,capture)| capture.as_str() == field).map_or_else(|| field.into(),|(output,_)| output.clone()));
+            if derived == target.rules.read { continue; }
+        }
         if target.rules.read == source.rules.read && !fields.contains("id") && fields.iter().all(|field| maintain.bare_key(field)) { continue; }
         // An old-image guard that entails the source read rule does not widen write authority.
         if implies(&source.rules.insert, &source.rules.read) && implies(&source.rules.delete, &source.rules.read) && implies(&source.rules.update, &old_read(&source.rules.read)) { continue; }

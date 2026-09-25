@@ -640,7 +640,13 @@ impl Parser {
         };
         let mut bindings = Vec::new();
         let value;
-        if self.at("(") {
+        if self.maybe("through") {
+            let fail = || Diagnostic::new(&effect_token.site, "E_READ_THROUGH", "read through .ref is the whole read rule of an application table", "read through .parent  -- put additional write conditions on insert/update/delete").guide("rules");
+            if effect != Effect::Read || !self.maybe(".") { return Err(fail()); }
+            let reference = self.word()?;
+            if !self.at("<newline>") { return Err(fail()); }
+            value = Expr::Call { name: "$readThrough".into(), args: vec![Expr::Name { name: reference.value, site: reference.site }], site: effect_token.site.clone() };
+        } else if self.at("(") {
             self.take("(")?;
             bindings.push(self.binding_name()?);
             while self.maybe(",") {

@@ -30,7 +30,7 @@ fn replacing_fields_determine_the_inferred_and_generated_types() {
     let ts = snapback4_lang::emit::typescript(&bound);
     for name in ["page", "named", "spreadShape", "replaced"] {
         let line = ts.lines().find(|line| line.contains(&format!("{name}: Query<"))).unwrap_or_else(|| panic!("{ts}"));
-        assert!(line.contains("listing: { city: string; title: string; pending?: boolean } | null"), "{line}");
+        assert!(line.contains("listing: { city: string; title: string; pending?: boolean; retained?: boolean } | null"), "{line}");
         if name == "replaced" {
             assert!(line.contains("start: string") && line.contains("id: { value: string }"), "{line}");
         }

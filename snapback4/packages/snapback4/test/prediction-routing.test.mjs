@@ -15,6 +15,7 @@ function routing() {
     backend, partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0, sessionDead: false,
     refreshing: null, link: "online", caughtUp: true, identityChecked: true, lastSyncAt: 1, principal: "alice",
     partitionCurrent: true, nativeReady: true, signal: new AbortController().signal,
+    deviceNow: () => Date.now(), serverNow: () => Date.now(),
     unavailable: () => null, queued: async () => entries,
     call: async request => { assert.equal(request.op, "query"); return { ok: outcome }; },
     post: async (path, body) => { requests.push({ path, body }); return { ok: true, json: { data: ["server"], tables: ["switches"], complete: true }, obsoleteAuth: false }; },
@@ -349,10 +350,10 @@ for (const when of ["recovery", "publication"]) {
     const f = routing(); f.entries = [];
     f.env.post = async () => ({ ok: true, json: { data: ["private"], complete: true, nextExpiry: 200 }, obsoleteAuth: false });
     const initial = await evaluateLocal(f.env, op, input, 0, 0);
-    assert.equal(initial.nextExpiry, 200);
+    assert.equal(initial.serverExpiry, 200);
     f.env.link = "offline"; now = 150;
     const remembered = await evaluateLocal(f.env, op, input, 0, 0);
-    assert.equal(remembered.nextExpiry, 200, "watch must schedule the remembered authorization deadline");
+    assert.equal(remembered.serverExpiry, 200, "watch must schedule the remembered authorization deadline");
     assert.equal(remembered.read.since, 100);
     let checks = 0;
     if (when === "recovery") now = 200;

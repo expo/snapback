@@ -121,6 +121,9 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let mut reply = match result {
                     Ok(outcome) => {
                         let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "tables": outcome.tables });
+                        if !outcome.unavailable && outcome.data.has_retained_rows() {
+                            reply["retainedRows"] = snapback4_core::wire::to_json(&outcome.data.retained_rows_mask());
+                        }
                         if outcome.unavailable {
                             reply["loading"] = Json::Bool(true);
                         } else {

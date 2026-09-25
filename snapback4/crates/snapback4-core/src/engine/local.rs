@@ -34,7 +34,9 @@ pub fn query_with_components(rows: &dyn Rows, schema: &Schema, program: &Program
 
 pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings, components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>, super::components::Provenance) {
     if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false, Default::default(), Default::default()); }
-    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default(), Default::default()); }    let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
+    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default(), Default::default()); }
+    context.row_provenance |= schema.tables.values().any(|t| t.leave == crate::schema::LeavePolicy::DeliveredHistory);
+    let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
     runner.device = true;
     runner.component_observation = components;
     let result = (|| {
@@ -62,7 +64,7 @@ pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut co
         seq: 0,
         metered: runner.meter.used,
         tables: runner.read_tables.iter().cloned().collect(),
-        next_expiry: runner.next_expiry,
+        next_expiry: runner.next_expiry.get(),
     })
     })();
     let components = if result.as_ref().is_ok_and(|outcome| matches!(outcome.data, Value::Row(_))) { runner.component_coverage() } else { Default::default() };
@@ -135,6 +137,7 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
     }
     let args = context.args.clone();
     let now = context.now.unwrap_or(0);
+    context.row_provenance |= schema.tables.values().any(|t| t.leave == crate::schema::LeavePolicy::DeliveredHistory);
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
     runner.device = true;
     let (value, mut runner) = super::native::run_read(module, runner, &program.name, &args, now);
@@ -157,7 +160,7 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
             seq: 0,
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
-            next_expiry: runner.next_expiry,
+            next_expiry: runner.next_expiry.get(),
         })
     })();
     (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), runner.components.provenance())

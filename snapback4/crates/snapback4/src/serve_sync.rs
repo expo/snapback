@@ -52,6 +52,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     // An old snapshot cursor belongs to its database, not merely its schema.
     if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
     let limit = limit.clamp(1, 10_000);
+    let now = shared.now();
     if from == 0 && !stream {
         // `after` is the previous snapshot page's opaque `next` token.
         let (outcome, generation) = {
@@ -59,12 +60,12 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
-                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
                 }
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
                 }
             }
         };
@@ -75,7 +76,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                 let overflow = json!({ "generation": generation, "store_id": store_id, "watermark": watermark });
                 respond_with_sync(request, 200, SnapshotReply {
                     acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
-                    held, more: next.is_some(), next, after, snapshot: true, watermark,
+                    held, more: next.is_some(), next, after, now, snapshot: true, watermark,
                 }, true, Some(overflow), Some(shared));
             }
             Ok(SyncOutcome::Generation(reply)) => respond_timed(request, shared, 200, reply),
@@ -87,12 +88,12 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
-                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), generation)
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.stream_at(&principal, from, limit, now).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), generation)
                 }
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), generation)
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.stream_at(&principal, from, limit, now).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), generation)
                 }
             }
         };
@@ -104,7 +105,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                 if limit == 1 { overflow["snapshot"] = json!(true); }
                 respond_with_sync(request, 200, StreamReply {
                     images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
-                    joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
+                    joined: page.joined, more: page.more, now, snapshot: false, watermark: page.watermark,
                 }, true, Some(overflow), Some(shared));
             }
             Ok(SyncOutcome::Generation(reply)) => respond_timed(request, shared, 200, reply),

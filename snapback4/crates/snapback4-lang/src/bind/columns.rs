@@ -36,7 +36,7 @@ pub fn resolve(tables: &mut BTreeMap<String,TableInfo>, diagnostics: &mut Vec<Di
             } else {
                 aggregate.by = aggregate.by.trim_start_matches('.').to_owned();
             }
-            if source.decl.expire.is_some() {
+            if source.decl.expire.is_some() || source.through.as_ref().is_some_and(|t| t.expiring) {
                 diagnostics.push(refusal(&column.site,format!("{name}.{} cannot use expiring source {}; use a separate maintain, which reads live contributions",column.name,aggregate.source)));
             }
             if !source.columns.get(&aggregate.by).is_some_and(|kind| kind.kind == TypeKind::Ref { table: name.clone() }) {
@@ -81,7 +81,7 @@ pub fn lower(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &mut Vec
             let Some(reference_type) = schema.table(&a.source).and_then(|t|t.columns.get(&a.by)).cloned() else { continue };
             let owner = ColumnOwner { table: name.clone(), column: column.name.clone() };
             let target = owner.target();
-            let m = core::Maintain { private: Some(owner), source: a.source.clone(), target: target.clone(), by: vec![a.by.clone()],
+            let m = core::Maintain { parent_key: None, aliases: Default::default(), private: Some(owner), source: a.source.clone(), target: target.clone(), by: vec![a.by.clone()],
                 kind: a.of.as_ref().map_or(core::MaintainKind::Count, |of|core::MaintainKind::Sum { of: of.clone() }),
                 filter, computed: BTreeMap::new(), residency: core::Residency { online_only: true, ..Default::default() }, readable: None };
             let parent = schema.tables.get_mut(name).expect("bound parent");
@@ -115,7 +115,7 @@ pub fn notes(catalog: &Catalog, schema: &core::Schema) -> Vec<Diagnostic> {
         let source = &schema.tables[&m.source];
         let parent = &schema.tables[&owner.table];
         // Source write authority is deliberately irrelevant to this proof.
-        if source.rules.read.is_uniformly_readable() || parent.rules.read == core::RuleExpr::Deny { continue }
+        if source.rules.read.is_uniformly_readable() || parent.rules.read == core::RuleExpr::Deny || source.through.as_ref().is_some_and(|t| t.parent == owner.table && m.by == [t.reference.clone()] && !source.is_expiring()) { continue }
         let indexed = parent.indexes.values().any(|i|i.columns().contains(&owner.column));
         notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{}.columns.{}",owner.table,owner.column)),"N_MAINTAINED_COLUMN_DISCLOSURE",
             format!("{} discloses the {} of {}{} rows to every parent reader{}; parent readers are not proven able to read those source rows; source writers can observe aggregate overflow",owner.label(),

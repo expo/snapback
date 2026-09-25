@@ -146,7 +146,7 @@ impl Runner<'_> {
     }
 
     fn live_sum(&self, maintain: &Maintain) -> bool {
-        matches!(maintain.kind, MaintainKind::Sum { .. }) && self.schema.table(&maintain.source).is_some_and(|source| source.expire.is_some())
+        matches!(maintain.kind, MaintainKind::Sum { .. }) && self.schema.table(&maintain.source).is_some_and(|source| source.is_expiring())
     }
 
     /// A zero sum is still a group while source rows remain: one signed
@@ -249,7 +249,7 @@ mod timeline_tests {
         let mut runner = Runner::new(&tx, &schema, crate::Context::system().at(1), crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort),0);
         let mut guard = runner.timeline_scope(crate::engine::timeline_authority::Authority::Transition("feed".into()));
         for suffix in crate::schema::timeline::OWNED_SUFFIXES {
-            let maintain = Maintain { target: format!("feed{suffix}"), source: "follows".into(), by: vec!["readerId".into()],
+            let maintain = Maintain { parent_key: None, aliases: Default::default(), target: format!("feed{suffix}"), source: "follows".into(), by: vec!["readerId".into()],
                 kind: MaintainKind::Count, filter: None, computed: Default::default(), residency: Default::default(), readable: None, private: None };
             let result = guard.apply_aggregate(&maintain, vec![Value::Id("reader".into())], 1, None);
             assert_eq!(result.unwrap_err().code(), "E_TIMELINE_OWNED");

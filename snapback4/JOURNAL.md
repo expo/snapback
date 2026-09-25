@@ -57824,3 +57824,724 @@ The existing shared-host wall-time target remains exceeded; no thresholds were
 reduced. Implementation: d56014670. File ledger, forms, tests, mutation evidence,
 limitations, counts/mappings and log digests:
 [Lane X round-five report](reports/lane-x-round5-report.md).
+## 2026-09-25 — LLP 3000.014 Lane T: server inheritance and keyed aggregates
+
+Implemented revision 8 increments 1 and 3 on `sb4-intent/t-read-through`:
+whole-rule `read through .ref`, immutable private captures, prepaid insert-arm
+reservations, authority-first parent deletion, recursive effective deadlines,
+physical-reference reuse guards and child-first sweeping. Parent-pinned pages
+and reference-keyed counts use the four-outcome parent resolver. Captured-path
+maintains such as Clique's `.message.chat, .principal` derive their rule from
+the captured inputs and keep live rule probes. Unsafe aggregate scans refuse.
+The shared expiry classification covers lookup, caps, maintains, grants and
+admission; engine fields are refused in authored payloads and hidden in reads.
+
+SQLite, PostgreSQL and native memory now stage inheritance activation at one
+pinned instant, retire affected rows under the predecessor schema, compare
+audience correspondence before projection, fill captures, validate and publish
+atomically. PostgreSQL gains generation fencing. Seeds/imports order ancestors
+first; restored captures are validated without recapture and their effective
+deadlines are recomputed. Non-inherited ingestion retains its streaming path.
+
+Qualification: 23 focused language/server tests, 80 guide tests, and seven
+additional tests against an isolated PostgreSQL 16 cluster passed. The issue
+tracker, both four-level chains, Clique receipts/reactions/unread, three-level
+expiry, restore/import rollback and reservation/meter worlds run across the
+adapters. Final full `scripts/test.sh`: **`== 0 failure(s) in 552 s`**, exit 0.
+Rust: 2,986 passed, zero failures, 16 ignores. Clients: 1,591 tests, 1,581 passed,
+zero failures/cancellations, ten skips. Fixture wrappers: 9/9. Both session
+models completed all 5,000 sequences under their unchanged limits. Command:
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=4 scripts/test.sh`.
+Reference audit: 508 LLP docs, 9,278 references, zero errors and zero unchecked.
+
+Fresh same-toolchain wasm builds of base `4a661aacb` and the lane measure
+1,767,624 / 492,339 bytes and 1,790,122 / 499,539 bytes (raw / gzip): +22,498
+raw and +7,200 gzip for the shared schema/capability, engine-field, expiry and
+interpreter paths. This is a whole-artifact delta, not per-component attribution.
+The documented size ratchet rises from 493,000 to 500,000 bytes, leaving 461
+bytes. Runtime meter ceilings are unchanged; native activation stays out of wasm.
+
+The first complete run had four failing categories, all accounted for in
+[the report](reports/20260925-intent-lane-t-server.md): the initial size ratchet,
+cold package declarations, two activation/fixture failures, and three assertions
+about a direct JSON decoder. The final run passes all four categories. Two
+optional pre-existing PostgreSQL conformance failures were reproduced on an
+untouched `4a661aacb` archive: the ambiguous positional wide-key fixture and
+word-search heap parity. Neither is waived into the full-suite result.
+
+Stopped the contradictory expired-but-unswept child deletion corner: section 6
+allows deletion without live children, while section 3.3 prohibits removal under
+any physical child. It fails closed until sweeping, with a regression and exact
+counterexample for the supervisor. Missing/ambiguous adoption correspondence
+also refuses; no unspecified explicit mapping API was invented. Inherited
+imports use normal immutable upserts, and the normative reference immutability
+must be authored explicitly. Full file map, individual tests, deviations and
+reproductions are in the report. Sync/devices remain increment 2 and inherited
+`sync` refuses `E_READ_THROUGH_SYNC`; the broader guide rewrite remains
+increment 4. Did not push, publish, bump package versions or redesign the RFC.
+
+## 2026-09-25 — LLP 3000.014 Lane T round 1: blind review fixes
+
+Closed all three High and two Medium findings from Astra and Grok. Aggregate
+point reads hoist authorization only when their key determines the rule inputs;
+otherwise the rule sees the live aggregate, including its logical zero. Denial
+stays null and aggregate existence is false for absent/unreadable parents.
+Capture identity now includes the parent expiry column's type and default,
+so changing a default recaptures descendants in ancestor order. Expired-id
+reuse checks read authority before child probes; every child table is probed
+under one fixed reservation, and an occupied result restores that charge and
+returns the ordinary live-collision constraint/meter. Parent deletion uses one
+message for every occupied table and for live or expired children.
+
+Six shared regression scenarios pass on SQLite, native memory and PostgreSQL.
+They cover value-dependent aggregate rules, stale stored totals and zero,
+time-100 adoption of defaults 300 then 150 through a grandchild, live/expired
+collision equivalence with two differently sized child tables, insufficient
+examined/heap reservations, aggregate existence, deletion disclosure, and real
+`exists`-probe meters in missing/unreadable worlds. All five High/Medium cases
+failed against the reviewed production code before the fixes. The cursor
+witness now follows all 25 tied-sort ids exactly once and checks exhaustion.
+Deliberately ignoring its continuation fails that test; deliberately charging
+the parent probe only after finding the row fails the meter test. Both temporary
+mutations were restored before qualification.
+
+The author confirmed that any physical child blocks parent removal until
+deleted or swept. This implementation decision, including the single refusal
+message and reuse disclosure boundary, is recorded in LLP 3000.014 §11 beside
+the design. The rules card and its definition/action pins match that decision.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 213 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 2,992 passed, zero failures, 16 ignores. Clients: 1,591 tests, 1,581 passed,
+zero failures/cancellations, ten skips. Fixture wrappers: 9/9. All 80 guide tests
+pass; both session models ran all 5,000 sequences under unchanged limits.
+The 13 additional PostgreSQL inheritance/review tests passed on an isolated
+PostgreSQL 16 cluster, which was stopped afterward. No failure waiver.
+
+The first full run was `== 1 failure(s) in 412 s`: ours, the guide definition
+test still pinned "deleting the named live children" after the required message
+change. Updated the two expectation tables to require deleting live children,
+sweeping expired children and naming no occupied table. The final run passes.
+
+Fresh same-toolchain wasm control `ea65b80a2`: 1,790,122 raw / 499,539 gzip
+bytes. Round 1: 1,793,057 / 500,855, a whole-artifact delta of +2,935 raw /
++1,316 gzip. Shared aggregate authorization/existence and collision/probe code
+exceeded the old 500,000-byte size ratchet by 855 bytes; raise it to 501,000,
+leaving 145 bytes. This is not independent component attribution. The compiler
+expiry-identity change stays outside wasm; runtime meter ceilings are unchanged.
+
+File map, negative controls and complete failure history:
+[round-1 report](reports/20260925-intent-lane-t-round1.md). Logs are
+`~/sb4-intent/lane-t-r1-*.log`. No new open review findings or design deviations.
+Sync/devices and the broader guide rewrite remain deferred. Did not push,
+publish or bump package versions.
+
+
+### 2026-09-25 — Lane T round 2: bounded aggregate authorization and due adoption
+
+Addressed both NOT READY delta reviews (`t-r1.astra.md`, `t-r1.grok.md`).
+Value-dependent reads of expiring read-through aggregates now reserve a uniform
+physical-cap-bounded recount allowance before discovering occupancy. Missing,
+occupied and expired physical groups pay the same heap, examined and steps;
+denial restores dependency tables and the next expiry. Unbounded declarations
+refuse with `E_MAINTAIN_READ_BOUND`, including raw-schema validation. Extracted
+live aggregate evaluation from `read.rs` to stay under the source-size limit.
+Extra-equality aggregate `exists` now checks presence before matching a nullable
+value. Activation recaptures a physically present parent's newly due deadline,
+then recomputes every descendant; actually missing parents still refuse.
+
+The shared regressions pass on memory, SQLite and PostgreSQL. They cover all
+reply metadata on SQL adapters, exact native refusals/meters, narrow and wide
+source rows, tight heap/examined/step ceilings, nullable existence operands,
+and the 300-to-150 default change adopted at time 200. A positive membership
+witness rejects an always-false exists probe. The round-1 implementation fails
+five new regression cases; the always-false probe mutation fails separately.
+Temporary mutations were restored. Targeted qualification: 33 read-through
+and 80 guide tests passed; PostgreSQL: 15 passed, isolated cluster stopped.
+Ref-check: 508 LLP docs, 9,284 refs, zero errors and zero unchecked references.
+
+`scripts/test.sh` ran once: **`== 0 failure(s) in 451 s`**, exit 0.
+There were no full-suite failures to classify as ours, baseline or environmental.
+Client tests: 1,557 total, 1,547 passed, 10 skipped, zero failed. Earlier test
+fixture/compiler-positive-control mistakes and new-code guide routing failures
+were ours and fixed; deliberate regression/mutation failures are recorded in
+`reports/20260925-intent-lane-t-round2.md`.
+
+Fresh Rust 1.97.0 / wasm-bindgen 0.2.127 control `7daaa51ae` measured
+1,793,057 raw / 500,855 gzip bytes; final measured 1,797,060 / 502,035:
++4,003 raw / +1,180 gzip. This is a whole-artifact comparison, not component
+attribution. The first build exceeded the old artifact ratchet by 1,035 bytes;
+raise 501,000 to 503,000 with 965 bytes headroom. Runtime ceilings are unchanged.
+LLP 3000.014 §11 records the conservative source-cap proof, uniform reservation
+and activation correction beside the existing physical-child deletion ruling.
+No syntax, cursor/store format, sync/device support, broad guide rewrite,
+unrelated baseline repair, push or publication was added. No requested review
+fix remains open. Full file map, choices and evidence are in the round-2 report.
+
+
+### 2026-09-25 — Lane T round 3: authorize expiring aggregates from group keys
+
+Addressed the Astra/Grok round-2 delta reviews by refusing the entire unsafe
+class. `E_MAINTAIN_READ_EXPIRE` rejects value-dependent authorization over any
+expiring source, including an inherited effective deadline, even with a source
+cap or `online only`. The rewrite names group-key authorization or inheritance.
+Compiler and raw-schema validation agree; LLP 3000.014 §5 records the requested
+implementation decision. Non-expiring value-dependent authorization remains.
+
+Removed the pre-authorization recount, cap proof and prepaid counters. A point
+read reserves uniform scratch and one examined lookup before discovering
+occupancy, authorizes before a live recount, then releases temporary scratch on
+hits, misses and denials while retaining returned images, work, heap peak and
+cuts. Denied dependency-table and expiry restoration remains. Explicit key rules
+also preserve the prohibition on scanning parent-group aggregates.
+
+The refusal matrix covers direct/inherited expiry, caps, `online only`, the
+reviewers' stored-total page and signed-overflow programs, raw schemas and
+compiling repairs. Sequential wide-row reads complete under the default heap
+ceiling on memory, SQLite and PostgreSQL. A 65-contribution witness proves
+multi-batch live recounts (65 before expiry, 32 afterward). Six updated tests
+fail against round 2; separate scratch-retention and first-batch-only mutations
+fail their witnesses and were restored. Targeted qualification: 38 read-through
+and 80 guide tests; after the compatibility correction, 125 affected tests.
+PostgreSQL: 17 passed on the isolated cluster, stopped afterward. Ref-check:
+508 LLP docs, 9,284 references, zero errors and zero unchecked references.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 258 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 3,001 passed, zero failed, 16 ignored. Clients: 1,557 total, 1,547 passed,
+zero failed, ten skipped. The first run was `== 1 failure(s) in 272 s`:
+five failures, all ours, in core `corpus`, two device `read_authority` cases and
+two language `derived_maintains` cases. Synthetic admission applied too broadly
+changed ordinary zero/raw-null outcomes. Restricting it to read-through groups
+restored those outcomes; all five pass. The report names every failure.
+No baseline or environmental failure was waived or repaired.
+
+Fresh Rust 1.97.0 / wasm-bindgen 0.2.127 control `5cba90e42` measured
+1,797,060 raw / 502,035 gzip bytes; final measured 1,795,777 / 501,638:
+−1,283 raw / −397 gzip, a whole-artifact comparison without component
+attribution. Keep the 503,000-byte artifact budget (1,362 bytes headroom) and
+all runtime ceilings unchanged. No source exceeds the lane's size limit.
+
+No requested fix remains open. No syntax, cursor/store format, sync/device
+feature, broad guide rewrite, push or publication was added. The requested
+restriction deliberately supersedes the round-2 cap exception and its old
+refusal code. File map, examples, negative controls and complete failure
+accounting: [round-3 report](reports/20260925-intent-lane-t-round3.md).
+
+
+### 2026-09-25 — Lane T round 4: constant aggregate dependencies and denied expiry
+
+Addressed the Astra/Grok round-3 delta reviews. Keyed reads and raw rule probes
+of aggregates over expiring sources now register the source table before
+occupancy or authorization is discovered. Empty, expired-only, live and denied
+groups share that dependency. The schema-derived helper also covers aggregate
+pages and the live-recount wrapper; removed the conditional insertion inside
+the recount. Existing denial expectations now include the source as required.
+
+The expiry snapshot precedes synthetic authorization. Every denial restores it,
+including the later stored-value path; failed or cut aggregate reads retain
+charges and cuts but discard deadlines learned within that read. A successful
+earlier read keeps its own deadline. No public inspection API was added:
+native MemoryRows unit tests inspect the server runner inside the core.
+
+The author accepted the cost channel from an authorized group's unswept expired
+backlog. Recounts still charge every visited row and step and can become
+unavailable at the examined ceiling. LLP 3000.014 §5 records that decision in
+one sentence, and the maintains card explains it alongside the metadata rule.
+A 40-row expired backlog costs 41 examined rows versus one for a miss and cuts
+at a ceiling of 16; denied readers have identical replies and meters.
+
+Five shared scenarios cover constant dependencies, the absent/300/500 private
+gate worlds, ordinary expiring pages, positive/negative I53 sum overflow, and
+backlog work. Two native MemoryRows tests cover metadata and direct raw probes.
+The shared cases pass on SQLite, native MemoryStore and PostgreSQL; SQL query
+adapters assert completeness and availability. Five current regressions fail
+against round 3. All six mutations fail: stale stored page, late expiry restore,
+conditional source insertion, missing raw-probe dependency, removed I53 check,
+and missing shortcut expiry restore. Every mutation was restored.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 428 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 3,008 passed, zero failed, 16 ignored. Clients: 1,557 total, 1,547 passed,
+zero failed, ten skipped. All 80 guide tests pass. Additional PostgreSQL:
+22 passed on the isolated cluster, stopped afterward. Ref-check: 508 LLP docs,
+9,285 references, zero errors and zero unchecked references.
+
+The first full run was `== 1 failure(s) in 481 s`: two client codec-census
+failures, both ours. The new native unit-test module lacked the neighboring
+native tests' SQLite feature gate, so the census classified its test-only
+cross-crate serde round trips as web-reachable. Added the same test/SQLite gates;
+all 26 census checks then passed, with no census changes or added allowance.
+The report names both failures and the earlier fixture compile correction.
+No baseline or environmental failure was waived or repaired.
+
+The preceding round-3 wasm artifact remeasured at 1,795,777 raw / 501,638 gzip
+bytes; final round 4 measures 1,795,984 / 501,788 on Rust 1.97.0 and
+wasm-bindgen 0.2.127: +207 raw / +150 gzip for the whole artifact, without
+individual component attribution. Keep the 503,000-byte size budget, with
+1,212 bytes headroom, and all runtime ceilings unchanged.
+
+No requested fix remains open. No syntax, refusal code, cursor/store format,
+sync/device feature, broad guide rewrite, push or publication was added.
+File map, examples, mutation controls and complete failure accounting:
+[round-4 report](reports/20260925-intent-lane-t-round4.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round-5 aggregate cut metadata
+
+Addressed the remaining Astra page-cut disclosure and all three mutation gaps
+from the round-4 reviews. `scan_consumed` restores the pre-row expiry mark
+before exiting on an authorization cut. The private probe's deadline cannot
+enter the empty capped reply; prior successful expiry marks, work charges and
+the cut survive. Implementation commit: `ce769c9dc`.
+
+Four shared scenarios cover gate deadlines 300/500 on a capped page, a source
+whose deadline comes only through a parent and middle without local expiry,
+an authorized two-probe shortcut cut, and a live recount cut after the first
+of two finite contributions. Native MemoryRows tests also inspect raw-probe
+dependencies and the shortcut boundary without adding a production API.
+Both shortcut guards are tested independently, because later restoration can
+otherwise mask their removal.
+
+The new page test fails against round 4. All five individual mutations fail:
+remove the page restore; use only declared source expiry; remove either
+shortcut cut guard; remove the failed/cut point-read restore. All mutations
+were restored before qualification. Targeted shared tests: 24 passed on
+SQLite/native MemoryStore. Selected native aggregate unit tests: four passed.
+PostgreSQL: 26 passed on the lane's isolated cluster, stopped afterward.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 1162 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust step: 3,014 passed, zero failed, 16 ignored. Clients: 1,591 total,
+1,581 passed, zero failed, ten skipped. All 80 guide tests passed. Ref-check:
+508 LLP documents, 9,286 references, zero errors and zero unchecked references.
+
+The first full run returned `== 1 failure(s) in 272 s`: two client HTTP
+`ECONNRESET` failures in the shared-logout and bounded-route-response tests.
+Classified as transient environmental connection resets: both affected files
+passed all 91 tests together without source changes, and both tests then
+passed in the final full run with client files serialized. The baseline tail
+was checked; its failure was the Rust step, not these client tests. The report
+names every failure. No product/test assertion was changed or waived.
+
+Round-4 wasm was 1,795,984 raw / 501,788 gzip bytes; round 5 is 1,796,003 /
+501,797 on Rust 1.97.0 and wasm-bindgen 0.2.127: +19 raw / +9 gzip for the
+whole artifact, with 1,203 bytes left under the unchanged 503,000-byte budget.
+Runtime ceilings and backlog charges are unchanged. The largest modified
+source is 1,435 lines. No syntax, refusal code, store/cursor format, sync/device
+feature, guide rewrite, push or publication was added. No requested fix
+remains open. File map, examples, mutation witnesses and full failure accounting:
+[round-5 report](reports/20260925-intent-lane-t-round5.md).
+
+
+## 2026-09-25 — LLP 3000.014 Lane T round-6 provisional read deadlines
+
+Addressed Grok's admitted aggregate-page recount cut and uniform-prefix cut,
+and Astra's two-group partial-page witness. Implementation commit: `5c2167257`.
+Deadlines now belong to nested provisional scopes. Point reads and page
+candidates commit on emission; all other exits discard their provisional
+metadata while preserving charges and cuts. Prefix decisions and candidate
+preparation return opaque pending deadlines and cannot publish them directly.
+Removed the redundant point, shortcut, page, prefix and parent-resolver expiry
+restores. Earlier emitted partial-page rows retain their own deadlines.
+
+Four shared scenarios cover admitted point/page recount cuts at private
+deadlines 300/500, uniform ordinary/matching pages with absent/300/500 gates,
+partial pages retaining the first group's 300 deadline, and filtered/lookahead
+candidates that emit nothing. Two native MemoryRows boundary tests prove that
+successful preparation alone cannot publish metadata. Existing shortcut tests
+now use the owning point-read boundary and still observe physical lookups.
+Both reported leaks fail against unchanged round-5 production. All four
+mutations fail independently: premature prefix publication, premature admitted
+candidate publication, missing page-row emission, and missing central emission
+join. Every mutation was restored before qualification.
+
+Targeted shared tests: 28 passed on SQLite/native MemoryStore. Core unit tests:
+91 passed. PostgreSQL: 30 passed (seven original read-through and 23 review
+scenarios), with ignored tests enabled on the lane's isolated cluster; stopped
+that cluster afterward. Ref-check: 508 LLP documents, 9,286 references across
+25,909 files, zero errors and zero unchecked references. The reviewer's
+throwaway `delta_probe.rs` was absent. Frozen Bun install changed nothing.
+
+Full `scripts/test.sh`: **`== 0 failure(s) in 1320 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust: 3,020 passed, zero failed, 16 ignored. Clients: 1,591 total, 1,581 passed,
+zero failed, ten existing skips. All 80 guide tests passed. No baseline or
+environmental failure was waived or repaired, and no assertion was weakened.
+
+Failed preflights, all ours: the first wasm build exceeded the old gzip ratchet
+by 13 bytes; the final scope fast path and a discarded no-inline experiment
+both exceeded it by 28 bytes. A command launched from the worktree root instead
+of `snapback4/` exited 127 before running any tests. The corrected full run
+above passed every step. The report records those attempts and all intentional
+negative controls separately from the successful qualification.
+
+Round 5 remeasured at 1,796,003 raw / 501,797 gzip bytes. Round 6 measures
+1,799,122 / 503,028 on Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt:
++3,119 raw / +1,231 gzip for the whole artifact, without independent component
+attribution. Following the explicit artifact ratchet policy, the implementation
+commit raises the gzip budget from 503,000 to 504,000 bytes, leaving 972 bytes;
+its message and budget `why` record the reason. Runtime ceilings and recount
+charges are unchanged. One fixed control allocation per runner owns stack-sized
+marks; nesting adds no row-dependent ledger. Deferred matching metadata uses
+the existing size-based heap charge. `engine/read.rs` remains 1,436 lines.
+
+LLP 3000.014 §5 and the maintains card record provisional ownership and emission.
+No requested fix remains open. No new form, refusal code, store/cursor/wire
+format, sync/device feature, broad guide rewrite, push or publication was added.
+File map, examples, mutation witnesses, decisions and complete failure accounting:
+[round-6 report](reports/20260925-intent-lane-t-round6.md).
+
+
+## 2026-09-25 — LLP 3000.014 Lane T round-7 predicate expiry dependencies
+
+Addressed the shared Astra/Grok finding that a rejected candidate discarded
+its filter's completed, authorized reads. Implementation commit: `a27d2b1f6`.
+Filters now use a separate provisional scope that commits to the page on both
+match and mismatch. Interrupted predicates still discard their scope. The
+candidate's pending private authorization deadline is inherited only after
+retention or scalar consumption; rejected and lookahead candidates keep it
+private. Charges and cuts are unchanged. This reuses the existing scope
+mechanism, with no new ad hoc restoration.
+
+Five shared scenarios cover intrinsic-ID and secondary-key existence predicates,
+matched-only/rejected-only/mixed rows reading one expiring point predicate,
+a rejected row with private authorization at 300/500 and a public predicate at
+700, and streaming `count(gates)` changing from one to zero at expiry. Every
+predicate case also covers `count(docs where ...)`. Denied witnesses publish
+no deadline. The earlier `unreturned_candidates_discard_expiry` remains green.
+
+All four predicate scenarios fail against round-6 production with a missing
+deadline. Three individual mutations fail: omit the filter emission, publish
+private candidate metadata with the filter, and omit the streaming scalar's
+emission. The last is Astra's surviving mutation. All mutations were restored
+before qualification. Shared review suite: 33 passed on SQLite/native MemoryStore.
+PostgreSQL: 35 passed (seven original and 28 review tests), with ignored tests
+enabled on the lane's isolated cluster; that cluster was stopped afterward.
+
+Full `scripts/test.sh`: **`== 0 failure(s) in 1149 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust: 3,025 passed, zero failed, 16 ignored. Clients: 1,591 total, 1,581 passed,
+zero failed, ten existing skips. All 80 guide tests passed. Ref-check: 508 LLP
+documents, 9,287 references across 25,911 files, zero errors and zero unchecked
+references. Frozen Bun install changed nothing. No baseline or environmental
+failure was waived or repaired; no assertion was weakened.
+
+The initial fixture run had four compile-time failures, all ours: an overly
+wide text argument, distinct intrinsic-ID reference types, an ambiguous
+positional key and an untyped literal rule key. Corrected only the fixtures.
+The intrinsic-ID reproduction uses `rawId(.id)` through the supported generic
+`id` type because the exact cross-table `.id` spelling is already refused by
+this checkout's binder with `E_QUARRY_TYPE`. The named `docId` reproduction is
+unchanged. No compiler or authorization restriction was relaxed. The report
+records this fixture deviation, the negative controls and every failed test
+attempt separately from the successful full qualification.
+
+Round 6 was 1,799,122 raw / 503,028 gzip bytes; round 7 is 1,799,206 / 503,057
+on Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt: +84 raw / +29 gzip for
+the whole artifact, without independent component attribution. The unchanged
+504,000-byte artifact ratchet has 943 bytes of headroom. All runtime ceilings
+and charges are unchanged. `engine/read.rs` is 1,440 lines and the new fixture
+module is 224 lines. LLP 3000.014 §5 records the predicate/candidate distinction.
+
+No requested engine fix remains open. Sync/devices and the guide remain for
+increments 2 and 4 as directed. No syntax, refusal code, store/cursor/wire
+format, publication or push was added. File map, examples, test purposes,
+mutation witnesses and full failure accounting:
+[round-7 report](reports/20260925-intent-lane-t-round7.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round 8: sync, devices and the guide
+
+Landed increments 2 and 4 on `sb4-intent/t-read-through`. Removed the temporary
+`E_READ_THROUGH_SYNC` refusal. Read-through children now infer exactly the
+service-stripped inherited audience, retaining the existing grant guard, and
+carry captures on their sync images. The shared four-outcome parent resolver
+checks live current captures on devices, separately from child coverage.
+Unknown parent or child coverage never becomes a complete zero count. Covered
+inserts and same-chain parents predict; unheld/expired/retained-only parents,
+child upserts and if-absent inserts queue. Parent deletion prediction requires
+whole child coverage. Parent-key counts derive from current held children,
+including a fixed source-scratch reservation for non-expiring sources.
+
+Authoritative sync time is pinned on the server, staged with private images,
+and published atomically before pending-write replay. The durable device clock
+uses the later supplied or authoritative instant; no `local.ts` clock site was
+changed, preserving Lane Y's integration boundary. Fallback replaces current
+pages while preserving retained history. Retention has transient engine
+provenance through shapes/spreads and a separately metered device transport
+mask, so an application field cannot forge it. Only syncing delivered-history
+read-through tables reserve the `retained` output name; existing server-only
+columns keep their meaning. LLP 3000.014 §5 records that implementation choice.
+The rules card leads with a compiled issue tracker and Clique receipts/reactions
+plus the implicit-read unread view; other card edits are limited to the short
+language example and the affected why entries.
+
+Both round-7 delta reviews returned READY. Added their two nonblocking expiry
+witnesses and killed the named mutations. Focused proof includes five compiler
+sync tests, nine memory/SQLite device tests, seven wasm/native client tests,
+four metadata/heap tests, 80 guide tests, 35 shared server review tests, nine
+original read-through tests and 37 PostgreSQL adapter checks. The new device
+cases cover four-level sync, pending chains, capture mismatch after ID reuse,
+retained fallback, inherited expiry before physical sweeping, and atomic clock
+publication. Clique's partitions and answers match the flattened program on
+wasm and native. The historical lowering census still passes with unchanged
+IR for existing forms.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 1130 s`**, exit 0. Rust: 3,042
+passed, zero failed, 16 existing ignored. Clients: 1,598 total, 1,588 passed,
+zero failed, ten existing skips. The final command used `taskset -c 32-47`,
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`, `CARGO_BUILD_JOBS=8`,
+`RUST_TEST_THREADS=4`, `SNAPBACK4_RUST_TEST_PROCESSES=8` and
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`. No test or assertion was waived.
+Earlier fixture compilation, public-clock comparison and generated-type
+expectation failures were ours and fixed. Two parallel-only client observations
+(page-ready loading and session restoration) each passed five isolated repeats
+and the final serial full suite without changing either assertion. They are
+recorded as provisionally environmental/timing-sensitive, not proven baseline,
+with exact reproductions in the report. The host baseline was read; its older
+cargo failure was not used to excuse any failure here.
+
+Final wasm: **1,824,505 bytes raw / 509,390 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Relative to the recorded round-7 artifact
+(1,799,206 / 503,057), the whole artifact adds 25,299 raw / 6,333 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+Per the artifact-budget procedure in AGENTS.md, raise that ratchet from 504,000
+to 510,000 bytes, leaving 610 bytes. Runtime meter ceilings are unchanged;
+retained-mask scratch/output and source recount work remain charged. Touched
+source files stay below 1,500 lines (`local.ts`: 1,499; `schema.rs`: 1,443;
+`engine/read.rs`: 1,297). No package, push, client clock rewrite or additional
+guide-card rewrite was performed. No requested increment is deferred.
+
+File-by-file changes, runnable forms, test purposes, all qualification attempts,
+decisions and unresolved environmental observations:
+[round-8 report](reports/20260925-intent-lane-t-round8.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round 9: device delta review fixes
+
+Fixed all round-8 Astra/Grok device findings on `sb4-intent/t-read-through`.
+Parent-delete prediction now scans only for a live, current, capture-matching
+child before issuing terminal `E_PARENT_HAS_CHILDREN`. Retained history is
+ignored; mismatched, expired or uncovered current witnesses queue with
+`E_PREDICT`. Device-only probing stays under the bounded authority allowance,
+with reusable scratch and queueing on exhaustion. Server physical-child
+protection and its fixed refusal remain unchanged. Reads and deletes share the
+capture comparator, including `$parentDeadline`.
+
+Fallback now follows nested array/object provenance masks and prefers a
+current server row when retained history has the same ID. Deleted history
+stays retained. Authoritative publication includes both restored and
+successfully replay-written tables in `touched`, so a clock-only page wakes
+watches for changed non-expiring predictions, new writes and withdrawals.
+This conservatively invalidates restored tables even when replay reproduces
+the same value. LLP 3000.014 §5 records these implementation clarifications.
+
+Added memory/SQLite regressions for deadline-only parent reuse and replay
+invalidations at times 100, 200 and 300. The actual wasm/native client tests
+cover reused-parent deletion, partial-rejoin ID deduplication and nested
+retained pages with the device's real mask. All ten focused client cases,
+nine existing device read-through cases, two prediction write-set cases and
+58 server read-through/review/transaction checks passed. Five mutation checks
+failed as required: removing the parent-deadline comparison, restoring plain
+concatenation, dropping array recursion, dropping restore invalidation and
+dropping replay-write invalidation. Every mutation was restored before final
+qualification.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 1220 s`**, exit 0. Rust: 3,044
+passed, zero failed, 16 existing ignored. Clients: 1,601 total, 1,591 passed,
+zero failed, ten existing skips. Used the passing round-8 configuration:
+`taskset -c 32-47`, `TMPDIR=/dev/shm/sb4-intent-lane-t-tests`,
+`CARGO_BUILD_JOBS=8`, `RUST_TEST_THREADS=4`,
+`SNAPBACK4_RUST_TEST_PROCESSES=8`, and
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`. No test or assertion was waived.
+The earlier optional device-wide run with default disk-backed temporary
+storage was interrupted during unrelated calibration/search cases; it was
+not counted as a pass, and the required full suite subsequently covered every
+case. Initial regression reds and two fixture/assertion mistakes were ours
+and fixed. A wrong-workspace cargo invocation was rerun inside `snapback4/`.
+The recorded host baseline was read and did not excuse any failure.
+
+Wasm measures **1,828,449 bytes raw / 511,215 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Against round 8's recorded
+1,824,505 / 509,390, the whole artifact adds 3,944 raw / 1,825 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+The inherited 510,000-byte artifact ratchet failed by 1,215 bytes. Following
+AGENTS.md's artifact-budget procedure, record 512,000, leaving 785 bytes.
+Every runtime meter ceiling remains unchanged. All touched source files stay
+below 1,500 lines; `local.ts` and its clock sites were not edited. No requested
+fix is deferred, and no known product problem remains in this round's scope.
+No push, publication, new syntax, new refusal code, wire-format change or
+additional guide-card rewrite was performed.
+
+Implementation commits: `93eb75576` (device) and `888e081b9` (fallback and
+wasm/native regressions). File-by-file changes, examples, test purposes,
+mutation reproductions and complete failure accounting:
+[round-9 report](reports/20260925-intent-lane-t-round9.md).
+
+
+## 2026-09-25 — LLP 3000.014, Lane T round 10: retained fallback uses source identity
+
+Addressed Astra and Grok's round-9 delta reviews. Authorized source rows now
+carry transient `(table, id)` provenance through shapes and agreeing spreads.
+The richer device mask and an explicitly requested server `rowProvenance`
+envelope let fallback pair each outer and inner row by source identity, keep
+table-scoped equal IDs distinct, and replace stale retained copies even when
+`id` is omitted or changed by projection. Identityless or ambiguous subtrees
+stay local and incomplete. Source metadata is metered before allocation and
+transport, ignored by application equality and absent from durable row
+serialization. Ordinary retained point reads keep their existing certified
+component composition; read-through points get the row-level history mark.
+LLP 3000.014 §5 records the identity rule and replaces round 9's projected-ID
+clarification.
+
+Added real-mask wasm/native regressions for reordered `[A,B]` / `[B,A]` pages,
+shifted `[A,B,C]` / `[A,C]` pages, equal IDs across children/reactions and
+projections without `id`. A retained child preceding a live child still
+terminally refuses deletion; an expired unswept matching child queues without
+prediction, on wasm/native and the memory/SQLite adapters. Compiled Rust tests
+cover source propagation, conflicting spreads, hidden rows, equality,
+serialization and heap/output ceilings. All three requested mutations failed:
+index zip (four cases), first-retained early return (native delete), and omitted
+expiry check (device admission). The final focused checks passed 62 Rust tests
+and 20 read-through client tests, plus both existing mixed-query point cases.
+
+Required full rerun, exit 0: **`== 0 failure(s) in 1153 s`**. Rust target runner:
+3,047 passed, 16 ignored; the docs budget separately rechecked one guide case.
+Client: 1,601 passed, 10 skipped, 0 failed (1,611 total). The first full run
+reported **`== 1 failure(s) in 1356 s`**, exclusively the client-tests phase:
+`MQ points wasm: retained history and independent held coverage` and its
+`process` counterpart. Both were ours: applying the read-through row mark to
+ordinary retained points diverted existing component composition and left an
+independent held page at 25 local rows instead of 26 server rows. Restricting
+the mark fixed both unchanged tests. No failure was attributed to or waived as
+baseline/environmental. The baseline tail was read; serial client files,
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`, CPU affinity 32–47, eight build jobs, eight Rust target
+processes and four Rust test threads bounded this lane's parallel work.
+
+`ref-check --verbose`: 508 LLP docs, 9,296 references in 25,927 files,
+zero errors and zero unchecked. `git diff --check` passed.
+
+Final wasm: **1,834,169 bytes raw / 515,083 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127 without wasm-opt. Against round 9's recorded
+1,828,449 / 511,215, the whole artifact adds 5,720 raw / 3,868 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+The initial artifact exceeded the 512,000-byte ratchet. Following AGENTS.md's
+artifact-budget procedure, record 516,000, leaving 917 bytes of final headroom.
+Runtime examined, steps, heap and write ceilings remain unchanged.
+
+All touched source files remain below 1,500 lines (`local.ts`: 1,499). No clock
+site, public Read contract, persisted row format, authorization rule or server
+physical-child protection changed. No new syntax, refusal code, guide-card
+rewrite, push or publication. No requested fix is deferred. Implementation
+commits: `04db26c43`, `7ba43b80b`, `88b13aae7`. File-by-file changes, examples,
+test purposes, intentional conservative fallback and failure accounting:
+[round-10 report](reports/20260925-intent-lane-t-round10.md).
+
+## 2026-09-25 — Lane T, LLP 3000.014 round 11: partial provenance and emitted masks
+
+Addressed Grok's round-10 Medium and Low, both requested mutation gaps, and
+Astra's nonblocking duplicate-source test gap. Fallback now pairs only source
+identities present and unique on both sides, without discarding identified
+siblings when another element has no unique source. Source-free object
+wrappers recurse through field masks. Unpaired local elements survive only
+when their own masks contain retained history; an unpaired current row cannot
+reappear after the server omits it. A missing server envelope still keeps the
+local subtree incomplete. Anonymous array elements remain unpaired: server
+elements stay, and retained local wrappers append without positional guesses.
+LLP 3000.014 §5 records this round's refinement of round 10.
+
+The output meter now charges mask construction and bytes only when the reply
+carries a mask: retained rows on devices, explicit provenance requests on the
+server. Source stamping still pays its existing charges. A device page with
+no retained rows now succeeds at its exact 46-byte data ceiling. The server
+provenance fixture asserts exactly 218 bytes: 73 data + 145 mask.
+
+Added four real-mask regressions across wasm and native: an identityless
+wrapper containing comments and retained reactions sharing `x`, and a parent
+page with an unidentified sibling plus an unpaired current parent omitted by
+the server. Added local-only, server-only and two-sided duplicate-source
+witnesses, each preserving unique siblings. Existing reordered/shifted pages,
+projected fields, missing envelopes, parent-delete and ordinary retained-point
+regressions remain green. Updated the anonymous array-wrapper expectation to
+round 11's per-element behavior; no history is attached by guessed identity.
+
+Before the fixes, the four new client cases returned stale local data and the
+device page refused with `E_BOUND`. Both requested source mutations failed:
+omitting the append's retained check failed on wasm and native; charging one
+byte failed the exact envelope assertion (74 versus 218). Removing duplicate
+rejection failed all three ambiguity cases. Every mutation was restored.
+Focused final checks: 27 client cases, three Rust provenance tests, package
+build and typecheck, all passing. Two initial fixture drafts hit
+`E_QUARRY_SHAPE_JOIN`; these were ours and were corrected to consistent spread
+row objects before the regression runs and full qualification.
+
+Required full run, exit 0, exact summary: **`== 0 failure(s) in 1161 s`**.
+Rust target runner: **3,048 passed, 16 ignored, zero failed**; docs budget
+separately rechecked one guide case. Client: **1,608 passed, 10 skipped, zero
+failed (1,618 total)**. Every blocking phase passed on this round's first full
+run. No failure was waived as baseline or environmental. Read the baseline
+log tail; bounded this lane with CPU affinity 32–47, eight build jobs, eight
+Rust target processes, four Rust test threads and serial client files, using
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`. Full log:
+`~/sb4-intent/lane-t-r11-test.log`.
+
+Final wasm: **1,834,177 bytes raw / 515,152 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127 without wasm-opt. The **516,000-byte budget is unchanged**
+(848 bytes headroom). Compared with round 10's recorded artifact: +8 raw /
++69 gzip bytes, a whole-artifact comparison, not independent component
+attribution. Runtime ceilings are unchanged. `ref-check --verbose` and
+`git diff --check` passed; all changed source files are below 1,500 lines
+(largest: `runner.rs`, 1,082). No clock site, public Read contract, persisted
+row format, authorization rule or server physical-child protection changed.
+No new syntax, refusal code, guide rewrite, push or publication; no requested
+fix is deferred. Implementation commits: `97b181fec`, `ea2b2df7c`. File map,
+examples, decisions and full evidence:
+[round-11 report](reports/20260925-intent-lane-t-round11.md).
+
+## 2026-09-25 — Lane T, LLP 3000.014 round 12: anonymous retained projections
+
+Fixed Grok's remaining anonymous-array overlap and added Astra's object-source
+mismatch witness. An unpaired element without a source now appends only its
+retained projection, excluding nested table-qualified sources already present
+anywhere in the server array. Current rows and unrelated current wrapper fields
+are removed; containers without surviving history disappear. Retained rows
+preserve their own scalar/JSON contents, while nested source rows decide
+retention independently. Identified unpaired elements remain whole, missing
+server provenance still keeps the local subtree, and object-source mismatches
+still preserve the unmatched local object. LLP 3000.014 §5 records these
+projection details; no pairing uses position or projected fields.
+
+Added four regressions with real wasm/native device masks under
+`return [{rows}]`: a partial rejoin holding current `c` beside retained `old`,
+and an in-place edit whose retained copy has the same source as the server's
+current row. The answer contains current `c` plus only retained `old`, or just
+the current edited row, respectively. Three helper witnesses cover Astra's
+parent-A versus parent-B mismatch, nested table-qualified identities and
+identified leftovers, and retained JSON preservation without nested current
+rows. Before the fix, the four device cases and projection helper failed on
+stale/duplicate data. Astra's guard passed its new witness before mutation.
+
+Both requested mutations fail: a wholesale append fails all four wasm/native
+overlap cases, and removing `source !== identity(currentMask) ||` fails the
+object mismatch case by attaching A's history to B. Both mutations were
+restored before qualification. Final focused checks: **34 client tests passed**,
+plus package build and typecheck. No Rust implementation changed this round.
+
+Required full run, exit 0, exact summary: **`== 0 failure(s) in 1207 s`**.
+Rust target runner: **3,048 passed, 16 ignored, zero failed**; docs budget
+separately rechecked one guide case. Clients: **1,615 passed, 10 skipped, zero
+failed (1,625 total)**. Every blocking phase passed on the first full run.
+No failure was waived as baseline or environmental; the baseline tail was
+read and its historical Cargo failure did not recur. Only intentional pre-fix
+and mutation probes failed. The run used CPU affinity 32–47, eight build jobs,
+eight Rust target processes, four Rust test threads and serial client files,
+with `TMPDIR=/dev/shm/sb4-intent-lane-t-tests`. Full log:
+`~/sb4-intent/lane-t-r12-test.log`.
+
+Final wasm unchanged: **1,834,177 bytes raw / 515,152 bytes gzip**, Rust 1.97.0
+and wasm-bindgen 0.2.127 without wasm-opt. The **516,000-byte budget is unchanged**
+(848 bytes headroom); runtime ceilings are unchanged. `ref-check --verbose`
+and `git diff --check` passed. All changed source/test files are below 1,500
+lines (115, 229 and 247 lines). No clock site, public Read contract, stored row
+format, authorization rule, server physical-child protection, guide syntax or
+refusal code changed. No deviation, open problem, deferred request, push or
+publication. Implementation commit: `67117a9b9`. File map, examples, mutation
+proofs and qualification: [round-12 report](reports/20260925-intent-lane-t-round12.md).

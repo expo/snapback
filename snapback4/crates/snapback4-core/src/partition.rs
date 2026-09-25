@@ -240,7 +240,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     for (content_name, sync) in dependents {
         let was = membership(old, &content_name, &sync);
         let is = membership(new, &content_name, &sync);
-        let expiry = |row: Option<&Value>| table.expire.as_ref().and_then(|column| row.and_then(|row| row.field(column).ok())).cloned().unwrap_or(Value::Null);
+        let expiry = |row: Option<&Value>| row.and_then(|row| table.deadline(row)).map(Value::Int).unwrap_or(Value::Null);
         if was == is && expiry(old) == expiry(new) {
             continue;
         }
@@ -696,7 +696,7 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
             let member = row_image(&member, schema.table(target).expect("validated audience target"));
             let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
             if group.contains(&Value::Null) { continue; }
-            let expiry = schema.table(target).and_then(|table| table.expire.as_ref()).and_then(|column| member.field(column).ok()).and_then(|value| value.as_int().ok());
+            let expiry = schema.table(target).and_then(|table| table.deadline(&member));
             current.entry((table_name.to_owned(), canonical_json(&group))).and_modify(|held: &mut Option<i64>| {
                 *held = match (*held, expiry) { (Some(a), Some(b)) => Some(a.max(b)), _ => None };
             }).or_insert(expiry);
@@ -711,7 +711,7 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
     let keys: BTreeSet<_> = current.keys().chain(transitions.keys()).cloned().collect();
     let mut out = BTreeMap::new();
     for key in keys {
-        let expiring = schema.table(&key.0).and_then(|table| table.sync.as_ref()).and_then(|sync| match &sync.audience { Audience::Target { table, .. } => schema.table(table), _ => None }).is_some_and(|table| table.expire.is_some());
+        let expiring = schema.table(&key.0).and_then(|table| table.sync.as_ref()).and_then(|sync| match &sync.audience { Audience::Target { table, .. } => schema.table(table), _ => None }).is_some_and(|table| table.is_expiring());
         // A legacy grant without its lifetime or surviving membership cannot
         // authorize historical reads of an expiring audience. Fail closed.
         let fallback_expiry = || expiring.then_some(i64::MIN);
@@ -756,7 +756,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     let limit = limit.max(1);
     let head = tx.next_seq()?.saturating_sub(1);
     let expiring_audience = schema.synced().any(|(_, _, sync)| match &sync.audience {
-        Audience::Target { table, .. } => schema.table(table).is_some_and(|target| target.expire.is_some()),
+        Audience::Target { table, .. } => schema.table(table).is_some_and(|target| target.is_expiring()),
         _ => false,
     });
     // A cursor from a replaced database is not evidence that this store reached it.

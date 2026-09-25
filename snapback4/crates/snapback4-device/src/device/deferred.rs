@@ -193,6 +193,9 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page
 }
 
 fn events_recording<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>, admissions: Option<&RecordedRows>) -> Result<(), RuntimeError> {
+    if expiry_clock::advance(tx, expiry_clock::KEY, page.now)? {
+        touched.extend(schema.tables.iter().filter(|(_, table)| table.is_expiring()).map(|(name, _)| name.clone()));
+    }
     let mut boundaries = boundary::Boundaries::editing(false);
     let mut markers = page.acquisitions.iter().peekable();
     boundary::validate_positions(page)?;

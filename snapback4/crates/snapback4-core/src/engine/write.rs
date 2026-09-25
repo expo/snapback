@@ -27,9 +27,14 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+        if self.device && if_absent && self.schema.tables[table_name].through.is_some() {
+            return Err(RuntimeError::Prediction("insert if absent on a read-through child queues without a row".into()));
+        }
         self.target_attempt(table_name, |runner| {
             runner.refuse_engine_owned(table_name, Effect::Insert)?;
             let table = runner.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+            runner.refuse_recorded(table_name, &row)?;
+            runner.reserve_capture(table)?;
             // @ref LLP 3000.013#11.1 — reserve once, before the target can select its write arm.
             // Reserve before collision lookups. Upserts enter insert_attempt
             // under their existing target-resolution reservation instead.
@@ -42,6 +47,7 @@ impl Runner<'_> {
         self.refuse_recorded(table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
         let table = self.schema.table(table_name).expect("defaults validated the table").clone();
+        let row = self.capture_insert(table_name,row)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
@@ -73,6 +79,25 @@ impl Runner<'_> {
             self.prove_upsert_insert(table_name, index, &row)?;
         }
         let predecessor = self.tx.get(table_name, &id)?;
+        if predecessor.as_ref().is_none_or(|old| self.expired(&table, old)) && self.schema.children(table_name).next().is_some() {
+            // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical children collides like a live birth, without exposing its descendants.
+            if let Some(old) = &predecessor {
+                // Check the old image's authority without treating expiry as
+                // denial. A non-reader never probes the child populations.
+                if !self.check_rule(table_name, Effect::Read, None, old)? {
+                    return Err(RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert });
+                }
+            }
+            let mark = self.meter.mark();
+            if self.physical_children(table_name, &Value::Id(id.clone()))? {
+                // The bounded probes have completed. Their occupancy is not
+                // disclosed by the collision's logical meter or heap peak.
+                self.meter.restore(mark);
+                return Err(if predecessor.is_some() {
+                    RuntimeError::Constraint(format!("{table_name} already has a row with id {id}"))
+                } else { RuntimeError::Rule {table:table_name.into(),effect:Effect::Insert} });
+            }
+        }
         if let Some(existing) = &predecessor {
             if !self.expired(&table, existing) {
                 self.visible_collision(table_name, existing, Effect::Insert)?;
@@ -141,6 +166,12 @@ impl Runner<'_> {
 
     pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value, expired_work: u64) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
+        if self.schema.tables[table_name].through.is_some() {
+            self.meter.charge(MeterKind::Examined,expired_work)?;
+            return self.insert_attempt(table_name,row,false).map(|_| ()).map_err(|e| match e {
+                RuntimeError::Rule {..} | RuntimeError::Input(_) => self.no_write_target(), other => other,
+            });
+        }
         // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
         let row = self.with_defaults(table_name, row)?;
         if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
@@ -173,11 +204,14 @@ impl Runner<'_> {
     pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, patch)?;
-        for path in self.schema.tables[table_name].recorded.keys() {
+        let definition = &self.schema.tables[table_name];
+        for path in definition.columns.keys().filter(|field| definition.engine_field(field) && field.as_str() != crate::schema::through::DEADLINE) {
             if old.field(path).ok() != new.field(path).ok() {
                 return Err(if readable { RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("engine replacement changed stored attribution at {table_name}.{path} (guide maintains)") } } else { self.no_write_target() });
             }
         }
+        let mut new = new;
+        self.schema.tables[table_name].recompute_deadline(&mut new)?;
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
         if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
@@ -202,6 +236,9 @@ impl Runner<'_> {
         let Some(old) = self.fetch(table_name, id)? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
+        if self.schema.children(table_name).next().is_some() && !self.check_rule(table_name,Effect::Read,None,&old)? {
+            return Err(self.no_write_target());
+        }
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete });
         }
@@ -210,6 +247,7 @@ impl Runner<'_> {
 
     pub(super) fn delete_authorized(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
         let table = self.schema.tables[table_name].clone();
+        self.refuse_live_children(table_name,old.field("id")?)?;
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, &old))?;
         self.charge_source_indexes(&table, Some(&old), None, entries)?;
@@ -240,18 +278,19 @@ impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     pub(crate) fn retire_expired_births(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
         let Some(now) = self.context.now else { return Ok(Default::default()) };
-        let mut born: Vec<(String, String)> = self.born_rows.keys().filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.expire.is_some())).cloned().collect();
+        let mut born: Vec<(String, String)> = self.born_rows.keys().filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.is_expiring())).cloned().collect();
         if born.is_empty() {
             return Ok(Default::default());
         }
         // The log's order must not depend on a map's iteration order.
-        born.sort();
+        let order = self.schema.through_order();
+        born.sort_by_key(|(name,id)| (std::cmp::Reverse(order.iter().position(|n| n == name)),id.clone()));
         let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
         self.retiring = Some(Default::default());
         let retired = born.iter().try_for_each(|(table_name, id)| {
             let Some(row) = self.tx.get(table_name, id)? else { return Ok(()) };
             let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-            if table.expired(&row, now) { self.remove(table_name, &row) } else { Ok(()) }
+            if table.expired(&row, now) && !self.physical_children(table_name,row.field("id")?)? { self.remove(table_name, &row) } else { Ok(()) }
         });
         let aggregates = self.retiring.take().map(|retiring| retiring.aggregates).unwrap_or_default();
         let retired = retired.and_then(|()| self.apply_retired_aggregates(aggregates));
@@ -449,13 +488,13 @@ impl Runner<'_> {
                     // its physical count cannot establish room on the server.
                     // A count at the last delivered watermark would also be
                     // stale after a sweep whose sync has not arrived yet.
-                    if self.device && table.expire.is_some() {
+                    if self.device && table.is_expiring() {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
                     self.meter.charge(MeterKind::IndexEntries, 1)?;
                     // @ref LLP 3000.013#11.1 — physical occupancy is conservative until sweep; never scan a cap group.
-                    let count = if table.expire.is_none() {
+                    let count = if !table.is_expiring() {
                         self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
                     } else {
                         self.tx.cap_count(table_name, by, &group)?
@@ -463,7 +502,7 @@ impl Runner<'_> {
                     if count >= *max as u64 {
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
                         let message = format!("{table_name} holds at most {max} rows per group by {}", by.join(", "));
-                        return Err(if table.expire.is_some() {
+                        return Err(if table.is_expiring() {
                             RuntimeError::ExpiringCap { message, site: self.statement_site.clone() }
                         } else { RuntimeError::Constraint(message) });
                     }

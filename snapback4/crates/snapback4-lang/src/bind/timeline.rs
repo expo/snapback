@@ -55,7 +55,7 @@ fn source<'a>(schema: &'a Schema, decl: &TimelineDecl, name: &str, actor: &str, 
     let fail = |message| refusal(decl, "E_TIMELINE_SHAPE", message,
         format!("declare {name} public with {acquisition}; require .{actor} = viewer for inserts and allowed deletes/updates; keep mapped fields immutable"));
     let t = schema.table(name).ok_or_else(|| fail(format!("missing timeline source {name}")))?;
-    if !t.rules.read.is_public() || t.expire.is_some() || schema.maintain_for(name).is_some() {
+    if !t.rules.read.is_public() || t.is_expiring() || schema.maintain_for(name).is_some() {
         return Err(fail(format!("{name} must be explicitly public, non-expiring application data")));
     }
     // @ref LLP 3000.016#2.1 — events have time floors; application follows admit any public residency.

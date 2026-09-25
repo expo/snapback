@@ -8,6 +8,8 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
 pub struct TableInfo {
+    pub through: Option<snapback4_core::schema::through::Through>,
+    pub captures: BTreeMap<String, ScalarType>,
     pub recorded: BTreeMap<String, ScalarType>,
     pub decl: TableDecl,
     pub columns: BTreeMap<String, ScalarType>,
@@ -115,12 +117,14 @@ impl Catalog {
                 let mut seen_effects = std::collections::BTreeSet::new();
                 for rule in &table.rules {
                     if !seen_effects.insert(rule.effect) {
-                        diagnostics.push(unknown(&rule.site, format!("duplicate {} rule on {}", rule.effect.word(), table.name), "keep one rule per effect"));
+                        if rule.effect == Effect::Read && table.rules.iter().any(|r| matches!(&r.value,Expr::Call{name,..} if name=="$readThrough")) {
+                            diagnostics.push(Diagnostic::new(&rule.site,"E_READ_THROUGH",format!("{} declares another read rule beside read through",table.name),"keep read through as the whole read rule; put service grants on the parent").guide("rules"));
+                        } else { diagnostics.push(unknown(&rule.site, format!("duplicate {} rule on {}", rule.effect.word(), table.name), "keep one rule per effect")); }
                         ok = false;
                     }
                 }
                 if ok {
-                    tables.insert(table.name.clone(), TableInfo { recorded: BTreeMap::new(), decl: table.clone(), columns, indexes, maintained: None });
+                    tables.insert(table.name.clone(), TableInfo { through: None, captures: BTreeMap::new(), recorded: BTreeMap::new(), decl: table.clone(), columns, indexes, maintained: None });
                 }
             }
             for maintain in &doc.maintains {
@@ -155,6 +159,8 @@ impl Catalog {
                 effects.insert(effect.name.clone(), effect.module.clone());
             }
         }
+        super::through::expand(&mut tables, diagnostics);
+        for maintain in maintains.values_mut() { if let Some(source)=tables.get(&maintain.source) { super::maintains::inherited_keys(source,maintain); } }
         super::columns::resolve(&mut tables, diagnostics);
         super::columns::recorded(&mut tables, diagnostics);
         // Resolve every path against application declarations before generating any target.
@@ -173,12 +179,13 @@ impl Catalog {
                 continue;
             };
             source.columns.extend(source.recorded.clone());
+            source.columns.extend(source.captures.clone());
             match super::schema::maintain_target(&source, &maintain) {
                 Ok(decl) => {
                     let columns: BTreeMap<String, ScalarType> = decl.columns.iter().map(|c| (c.name.clone(), c.type_.clone())).collect();
                     let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: decl.site.clone() }];
                     indexes.extend(decl.indexes.iter().cloned());
-                    tables.insert(name.clone(), TableInfo { recorded: BTreeMap::new(), decl, columns, indexes, maintained: Some(maintain) });
+                    tables.insert(name.clone(), TableInfo { through: None, captures: BTreeMap::new(), recorded: BTreeMap::new(), decl, columns, indexes, maintained: Some(maintain) });
                 }
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }

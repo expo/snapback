@@ -16,11 +16,12 @@ import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts"
 import { operationTables, type BackendJson } from "./backend.ts";
 import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
+import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 
-type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null };
+type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; rowProvenance?: unknown };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
-type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
+type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
@@ -126,14 +127,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     latest = { outcome, result: { read, tables, nextExpiry } };
     return latest;
   };
-  const server = async (): Promise<Candidate<R>> => {
+  const server = async (provenance = false): Promise<Candidate<R>> => {
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; }
     const fetch = async (): Promise<Candidate<R>> => {
       while (true) {
         checkpoint();
         const credentials = env.credentialRevision;
-        const response = await env.post(`/q/${op.name}`, { args }); checkpoint();
+        const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }); checkpoint();
         // Rule 5: admission can happen while the transport is in flight.
         const stopped = await blocked(); checkpoint();
         if (stopped || !response.ok) { const result = await recover(); checkpoint(); return result; }
@@ -146,7 +147,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null };
-        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry }, origin: "server" };
+        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
@@ -172,13 +173,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const withheld = "loading" in first.result.read;
     const components = Object.values(first.outcome.components ?? {});
     const composed = components.some(wantsServer) && components.some(c => c.retained);
-    if (composed) { remember = false; env.serverAnswers.delete(key); }
-    if (!withheld && !wantsServer(first.outcome) && !composed) return localCandidate(); // Rule 4: known prefixes/refusals.
+    const retainedRows = !!first.outcome.unknown && hasRetainedRows(first.outcome.retainedRows);
+    if (composed || retainedRows) { remember = false; env.serverAnswers.delete(key); }
+    if (!withheld && !wantsServer(first.outcome) && !composed && !retainedRows) return localCandidate(); // Rule 4: known prefixes/refusals.
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
     const composedSince = env.lastSyncAt;
-    const remote = await server(); checkpoint();
-    if (!composed || withheld) return remote;
+    const remote = await server(retainedRows); checkpoint();
+    if ((!composed && !retainedRows) || withheld) return remote;
     // Rule 5 applies to refusals and loading too. An authoritative refusal of
     // the original query must not be concealed by a second local observation.
     if (remote.origin === "server" && !("data" in remote.result.read)) return remote;
@@ -190,6 +192,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (stoppedAfterObservation) return localCandidate(); // Rules 3/5.
     if ("loading" in second.result.read) return remote; // Rule 3: successful original fallback.
     if (!("data" in second.result.read)) return localCandidate();
+    if (retainedRows) {
+      // @ref LLP 3000.014#5 — only engine source identities pair retained rows
+      // with the current server page; routing and publication use Rules 1–5.
+      return { origin: "composed", result: {
+        read: { ...remote.result.read, data: keepRetainedRows(remote.result.read.data, second.outcome.data, second.outcome.retainedRows, remote.result.rowProvenance) as R, fresh: false, complete: false },
+        tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null,
+      } };
+    }
     const coverage = Object.entries(second.outcome.components ?? {});
     if (!coverage.some(([, c]) => c.retained)) return remote;
     if (!coverage.some(([, c]) => wantsServer(c))) return localCandidate();

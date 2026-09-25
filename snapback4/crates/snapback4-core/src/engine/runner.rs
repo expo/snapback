@@ -82,7 +82,7 @@ pub struct Runner<'a> {
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
     pub(crate) rows_written: u64,
-    pub(crate) next_expiry: Option<i64>,
+    pub(crate) next_expiry: super::expiry::Expiry,
     /// Partition events, accumulated for the commit; a logless host builds none.
     #[cfg(feature = "sqlite")]
     pub(crate) events: PendingEvents,
@@ -170,6 +170,7 @@ pub struct Runner<'a> {
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
     pub(crate) maintain_prepaid: bool,
+    pub(crate) capture_prepaid: bool,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
     pub(crate) column_heap: u64,
@@ -206,7 +207,7 @@ impl<'a> Runner<'a> {
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,
-            next_expiry: None,
+            next_expiry: Default::default(),
             #[cfg(feature = "sqlite")]
             events: PendingEvents::default(),
             #[cfg(feature = "sqlite")]
@@ -257,6 +258,7 @@ impl<'a> Runner<'a> {
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
+            capture_prepaid: false,
             maintain_heap: 0,
             timeline_authority: None,
             column_heap: 0,
@@ -299,6 +301,9 @@ impl<'a> Runner<'a> {
             Err(error) => Err(error),
         }
     }
+
+    /// Logical work charged so far, including a refused transaction.
+    pub fn metered(&self) -> crate::meter::Metered { self.meter.used }
 
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
@@ -651,9 +656,17 @@ impl<'a> Runner<'a> {
             Expr::Shape { base, fields } => {
                 // @ref LLP 3000.007#5.3 — shaping a device row preserves its own pending metadata.
                 let base = self.expr(base)?;
-                let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
-                if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
-                let value = Value::Row(fields.into());
+                let mut fields: crate::value::ObjectFields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<_, RuntimeError>>()?;
+                // @ref LLP 3000.014#5 — retained history stays marked through projections.
+                // A spread can merge multiple row bases. Application fields named
+                // retained are ordinary data; only the reader creates provenance.
+                let bases = if let Value::Array(bases) = &base { bases.as_slice() } else { std::slice::from_ref(&base) };
+                fields.inherit_source(bases);
+                for base in bases {
+                    if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
+                    if matches!(base, Value::Row(base) | Value::Map(base) if base.is_retained()) { fields.mark_retained(); }
+                }
+                let value = Value::Row(fields);
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
@@ -722,7 +735,12 @@ impl<'a> Runner<'a> {
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
-            Expr::Exists(read) => Ok(Value::Bool(self.get(read)? != Value::Null)),
+            Expr::Exists(read) => {
+                let value = self.get(read)?;
+                // The private null-value aggregate result preserves scalar
+                // denial versus authorized zero; it is not an existing row.
+                Ok(Value::Bool(value != Value::Null && !(self.schema.maintain_for(&read.table).is_some() && value.field("value").ok() == Some(&Value::Null))))
+            }
             Expr::Scan(scan) => {
                 let values = self.scan(scan)?;
                 self.meter.heap(values.iter().map(Value::heap_bytes).sum::<u64>())?;
@@ -963,7 +981,17 @@ impl<'a> Runner<'a> {
         // Count the canonical tagged representation without allocating a
         // second result-sized string. A shaped/scalar result cannot be
         // truncated without changing its type or inventing a continuation.
-        let count = crate::json_codec::value_bytes(value).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        let mut count = crate::json_codec::value_bytes(value).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        // Devices stamp provenance even when no retained image needs transport.
+        let carries_mask = if self.device { value.has_retained_rows() } else { self.context.row_provenance };
+        if carries_mask {
+            // Reserve before constructing the mask and its transport image.
+            // Application data cannot forge which rows the fallback preserves.
+            let (heap, steps) = value.provenance_allowance();
+            self.meter.step(steps)?;
+            self.meter.heap(heap.saturating_mul(2))?;
+            count = count.saturating_add(crate::json_codec::value_bytes(&value.retained_rows_mask()).map_err(|e| RuntimeError::Store(e.to_string()))?);
+        }
         if !self.meter.charge(MeterKind::OutputBytes, count)? {
             return Err(RuntimeError::Bound { kind: MeterKind::OutputBytes, actual: count, ceiling: self.meter.ceilings.output_bytes, site: self.meter.site().to_owned() });
         }

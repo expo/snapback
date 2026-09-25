@@ -3,7 +3,7 @@
 use crate::{schema::{Constraint, Table}, value::Value};
 
 pub fn required(schema: &crate::schema::Schema) -> bool {
-    schema.tables.values().any(|table| table.expire.is_some()
+    schema.tables.values().any(|table| table.is_expiring()
         && table.constraints.iter().any(|constraint| matches!(constraint, Constraint::Cap { .. })))
 }
 
@@ -28,7 +28,7 @@ pub fn next(old: Option<&str>, delta: i64) -> Option<String> {
 }
 
 pub fn deltas(table: &Table, old: Option<&Value>, new: Option<&Value>) -> Vec<(Vec<u8>, i64)> {
-    if table.expire.is_none() { return Vec::new(); }
+    if !table.is_expiring() { return Vec::new(); }
     let mut changes = Vec::new();
     for (i, constraint) in table.constraints.iter().enumerate() {
         let Constraint::Cap { by, .. } = constraint else { continue };
