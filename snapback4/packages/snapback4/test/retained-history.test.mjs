@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
+import { ServerClock } from "../dist/clock.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
@@ -225,6 +226,8 @@ query wordBoth():
   const requests = [], deviceAnswers = [], allRequests = [], allAnswers = [];
   const directoryDevice = join(directory, "device"); mkdirSync(directoryDevice);
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: directoryDevice, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
+  let clockNow;
+  const clock = new ServerClock(() => clockNow ?? Date.now());
   const clientOptions = { url, persona: "bob", waitSeconds: 1,
     fetch: async (input, init) => {
       if (offline) throw new TypeError("test offline");
@@ -250,6 +253,7 @@ query wordBoth():
     },
     device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "set_meta" && request.key === "syncedAt:wall:1") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); if (interceptDevice) await interceptDevice(request, reply); return reply; } }; } },
   };
+  clientOptions.fetch = clock.wrap(clientOptions.fetch);
   if (session) { delete clientOptions.persona; clientOptions.session = session; }
   client = await createLocalClient(clientOptions);
   await client.sync();
@@ -274,8 +278,10 @@ query wordBoth():
     const observing = scenario.includes("watch");
     const op = { kind: "query", name: permitCase ? "permitBoth" : "both" };
     const deadline = permitCase ? permitDeadline : rows.find(item => item.row.id === "left-25").row.expiresAt;
-    let now = deadline - 1;
-    t.mock.method(Date, "now", () => now);
+    // Y captures its wall source at construction. Advance the actual shared
+    // issued clock instead of replacing Date.now after the client opened.
+    clockNow = deadline - 1;
+    clock.sample(clockNow, clockNow, clockNow);
     const before = await client.query(op, {});
     const beforeData = permitCase
       ? { left: expected("left", 1), right: expected("held", 1), secret: { id: "secret", room: "vault", body: "private" } }
@@ -315,7 +321,7 @@ query wordBoth():
       });
       t.after(() => { stop(); live.close(); });
     } else pending = client.query(op, {});
-    await waiting; now = deadline; releaseReply();
+    await waiting; clockNow = deadline; releaseReply();
     const result = await pending;
     const afterData = permitCase
       ? { ...beforeData, secret: null }
