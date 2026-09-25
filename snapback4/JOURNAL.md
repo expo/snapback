@@ -56042,3 +56042,44 @@ Q's accepted device fallback/disclosure boundary and documented PostgreSQL
 query-reservation limitation remain. No new authoring form, package version
 bump, simulator qualification, push or publication. Full file map, regressions,
 all suite attempts and evidence: [round-8 report](reports/20260925-intent-integration-r8.md).
+
+### 2026-09-25 — Lane U: bounded Following acquisition (LLP 3000.016 revision 2)
+
+Implemented time-bounded and online-only posts/reposts admission, the derived
+event acquisition setting, and the reader-private inbox's default 1,000-copy
+floor. Full follows/removal sync, owner rules, immutable attribution, delivery,
+meters, and the 1,000-event follow history window remain in force. A missing
+Following card withholds the whole device query and cursor; the client retries
+the original input online, stays loading offline, and fences fallback until
+predictable writes are observed. Repost prediction probes the held original
+and its removal record. Existing generation adoption clears acquisition and
+re-snapshots source/inbox sync changes in both directions. The feeds/language
+cards and `check --cost` describe the global, non-sliding floors.
+
+Added 3 admission tests, 8 memory/SQLite device tests, 8 actual wasm/native
+client tests, and a bounded target certificate test. The final complete
+`scripts/test.sh` exits 0: **`== 0 failure(s) in 476 s`**. The first full run
+had two failed sections containing six integration failures, all recorded and
+resolved before the final pass; no baseline/environmental waiver. The provided
+baseline's four Rust failures did not recur. Reference validation passed
+(509 LLP docs, 9,288 refs, zero errors/unchecked). Wasm measures
+**1,776,065 B raw / 495,264 B gzip**, below the unchanged 496,000 B ceiling.
+
+Measured the completed Clique scale replay's whole authorized partition for
+`u0500`, on Chromium with a fresh IndexedDB device in each mode. Full sync to
+1,000-row source/inbox floors changed **171,330 → 50,315 rows**, snapshot row
+bytes **35,901,571 → 7,462,731**, and cold authenticated acquisition
+**274.35 → 56.70 seconds** (3.405× / 4.811× / 4.839× respectively). This is a
+single paired acquisition measurement on the shared host, not the original
+multi-route UI timing. The before server is packaged 0.4.1; both modes use the
+same new client. The **5× whole-partition target is unmet**: even deleting every
+row from the four tables this RFC bounds leaves 46,315 rows, above the 34,266
+needed for 5×. `recipients` dominates afterward with 25,000 rows / 3,225,000
+row bytes. No other table's residency was changed to manufacture the target.
+
+Used the specified inbox default without inventing an M override syntax;
+kept the existing unique-pair absence requirement for repost prediction. No
+delivery/window redesign, in-place trimming, contract change, package version
+bump, iOS simulator qualification, push, or publication. File map, all failures,
+inventory, fingerprints, and reproduction:
+[Lane U report](reports/20260925-bounded-following/REPORT.md).
