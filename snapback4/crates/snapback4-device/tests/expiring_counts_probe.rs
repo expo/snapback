@@ -29,7 +29,7 @@ const SOURCE: &str = "table receipts:\n  group: id\n  principal: principal\n  se
 
 fn probe<S: DeviceStore>(mut store: S) {
     for backlog in [0,9000] {
-        for live in [None,Some(Value::Int(200)),Some(Value::Null)] {
+        for live in [None,Some(Value::Int(101)),Some(Value::Int(200)),Some(Value::Null)] {
             let (mut server,backend)=compile(SOURCE);
             let receipt=|name: String, principal: &str, selected: bool, expiry: Value|("receipts".into(),object([
                 ("id",id(&name)),("group",id("group")),("principal",id(principal)),("selected",Value::Bool(selected)),("expiresAt",expiry),
