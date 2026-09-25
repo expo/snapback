@@ -55797,3 +55797,62 @@ Implementation commits: `93eb75576` (device) and `888e081b9` (fallback and
 wasm/native regressions). File-by-file changes, examples, test purposes,
 mutation reproductions and complete failure accounting:
 [round-9 report](reports/20260925-intent-lane-t-round9.md).
+
+
+## 2026-09-25 — LLP 3000.014, Lane T round 10: retained fallback uses source identity
+
+Addressed Astra and Grok's round-9 delta reviews. Authorized source rows now
+carry transient `(table, id)` provenance through shapes and agreeing spreads.
+The richer device mask and an explicitly requested server `rowProvenance`
+envelope let fallback pair each outer and inner row by source identity, keep
+table-scoped equal IDs distinct, and replace stale retained copies even when
+`id` is omitted or changed by projection. Identityless or ambiguous subtrees
+stay local and incomplete. Source metadata is metered before allocation and
+transport, ignored by application equality and absent from durable row
+serialization. Ordinary retained point reads keep their existing certified
+component composition; read-through points get the row-level history mark.
+LLP 3000.014 §5 records the identity rule and replaces round 9's projected-ID
+clarification.
+
+Added real-mask wasm/native regressions for reordered `[A,B]` / `[B,A]` pages,
+shifted `[A,B,C]` / `[A,C]` pages, equal IDs across children/reactions and
+projections without `id`. A retained child preceding a live child still
+terminally refuses deletion; an expired unswept matching child queues without
+prediction, on wasm/native and the memory/SQLite adapters. Compiled Rust tests
+cover source propagation, conflicting spreads, hidden rows, equality,
+serialization and heap/output ceilings. All three requested mutations failed:
+index zip (four cases), first-retained early return (native delete), and omitted
+expiry check (device admission). The final focused checks passed 62 Rust tests
+and 20 read-through client tests, plus both existing mixed-query point cases.
+
+Required full rerun, exit 0: **`== 0 failure(s) in 1153 s`**. Rust target runner:
+3,047 passed, 16 ignored; the docs budget separately rechecked one guide case.
+Client: 1,601 passed, 10 skipped, 0 failed (1,611 total). The first full run
+reported **`== 1 failure(s) in 1356 s`**, exclusively the client-tests phase:
+`MQ points wasm: retained history and independent held coverage` and its
+`process` counterpart. Both were ours: applying the read-through row mark to
+ordinary retained points diverted existing component composition and left an
+independent held page at 25 local rows instead of 26 server rows. Restricting
+the mark fixed both unchanged tests. No failure was attributed to or waived as
+baseline/environmental. The baseline tail was read; serial client files,
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`, CPU affinity 32–47, eight build jobs, eight Rust target
+processes and four Rust test threads bounded this lane's parallel work.
+
+`ref-check --verbose`: 508 LLP docs, 9,296 references in 25,927 files,
+zero errors and zero unchecked. `git diff --check` passed.
+
+Final wasm: **1,834,169 bytes raw / 515,083 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127 without wasm-opt. Against round 9's recorded
+1,828,449 / 511,215, the whole artifact adds 5,720 raw / 3,868 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+The initial artifact exceeded the 512,000-byte ratchet. Following AGENTS.md's
+artifact-budget procedure, record 516,000, leaving 917 bytes of final headroom.
+Runtime examined, steps, heap and write ceilings remain unchanged.
+
+All touched source files remain below 1,500 lines (`local.ts`: 1,499). No clock
+site, public Read contract, persisted row format, authorization rule or server
+physical-child protection changed. No new syntax, refusal code, guide-card
+rewrite, push or publication. No requested fix is deferred. Implementation
+commits: `04db26c43`, `7ba43b80b`, `88b13aae7`. File-by-file changes, examples,
+test purposes, intentional conservative fallback and failure accounting:
+[round-10 report](reports/20260925-intent-lane-t-round10.md).
