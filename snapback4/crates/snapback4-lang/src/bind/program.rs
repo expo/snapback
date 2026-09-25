@@ -375,8 +375,9 @@ impl<'a> Binder<'a> {
         self.sources.insert(format!("domain/{scan_site}"), (read.site.clone(), domain));
         if filter.is_some() && let Some(text) = filter_text { self.filters.insert(scan_site.clone(), text); }
         self.record_selection(&scan_site, read, &index, if position == prefix::Position::Exists { "exists" } else { "page" }, &selection);
-        // Authored spelling serves diagnostics; persisted residency sites keep
-        // the canonical printer's bytes, including an empty positional key.
+        // Authored spelling serves diagnostics; inferred-index residency sites
+        // keep canonical bytes. Explicit-index search alternatives retain their
+        // authored origin even when presence planning synthesizes a browse index.
         if !read.order_keys.is_empty() && let Some(text) = self.catalog.canonical_read_origins.get(&read.site.to_string()) {
             self.canonical_sources.insert(scan_site.clone(), text.clone());
         }
