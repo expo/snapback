@@ -1,0 +1,4 @@
+expire-memory-by-local-wakeup: rejected
+forget-consumed-wakeup-rerun: rejected
+keep-consumed-wakeup-timer: rejected
+drop-watched-server-cursor: rejected
