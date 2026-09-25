@@ -58697,3 +58697,44 @@ retuning or cold-acquisition remeasurement in this receipt-only round. No push
 or publication. Implementation/test commits: 45a5825bd, 852aa4aea, cb967633b.
 The file map, examples and evidence are in `reports/20260925-lane-v-r10.md` and
 `reports/20260925-lane-v-r10-evidence/`.
+
+
+## 2026-09-25 — Intent integration round 10: final U/V review follow-ups
+
+On `sb4-intent/integration-042b`, merged U `e58b83c4e` and then V
+`54eca743a`, each without fast-forward, over round-9 candidate `22dd0c466`.
+Merge commits are `d0717cc30` and `b87ed10bb`. U's bounded expiry retry
+now uses the same fallback, retained composition and memory recovery as the
+initial observation, with the final delivery fence on each candidate and
+memory populated only after acceptance. Preserved round 9's issued-device
+and estimated-server deadline split and T's source-provenance composition.
+V's positive outbox acknowledgement now resolves an unknown-outcome
+replacement refusal, with the matching sequence verified in the device
+transaction; authored refusals and receipt-window position stay intact.
+
+Added three integration routing tests for expiry-retry read-through
+composition and independent local/server expiry. Adapted U's remembered
+server-deadline assertion and applied round 9's calibrated actual client-clock
+fork to the six new real-device branch/watch/cursor tests. All U/V tests and
+round-9 fixes remain. Focused checks: 140 routing tests, eight previous
+expiry/permit cases and six new device retry cases passed. V's receipt repair,
+rewind ordering and deterministic HTTP replay coverage pass in the full suite.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 647 s`**.
+Rust target summaries: 3,195 passed, 19 ignored, zero failed. Clients:
+1,964 passed, ten existing skips, zero failures/cancellations. All 78 model
+tests passed at the full **5,000 / 5,000 / 3,000** sequence counts. All 83
+guide tests and eight device write-authority tests passed. Reference check:
+**509 LLP documents, 9,337 references, zero errors and zero unchecked**.
+No integration test failed, no intermittent rerun was needed, and none was
+waived as baseline or environmental.
+
+The rebuilt wasm measures **1,850,576 B raw / 521,814 B gzip**, within the
+unchanged **522,000 B** ratchet (186 B headroom). Compared with round 9,
++850 raw / +282 gzip bytes for the whole artifact; runtime meter ceilings
+are unchanged. Changed source files remain below 1,500 lines (largest:
+`local.ts`, 1,423). No inventory remeasurement, new language/API, design
+change, push, publication or version bump. U's already deferred whole-page
+remembered-expiry limitation is unchanged. No new open integration defect.
+File-by-file resolutions, forms, constraints and compressed verification:
+[round-10 report](reports/20260925-intent-integration-r10/REPORT.md).
