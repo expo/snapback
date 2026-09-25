@@ -197,7 +197,8 @@ pub fn activate(
                     .map(|id| tx.get(&t.parent, id))
                     .transpose()?
                     .flatten();
-                let Some(parent_row) = parent_row.filter(|r| !parent.expired(r, now)) else {
+                // @ref LLP 3000.014#7-activation — previous-schema expiry was retired before projection; a newly due deadline must propagate, not veto adoption.
+                let Some(parent_row) = parent_row else {
                     invalid += 1;
                     return Ok(());
                 };
@@ -215,7 +216,7 @@ pub fn activate(
             Ok(())
         })?;
         if invalid > 0 {
-            return Err(refusal(&name, invalid, "missing or expired parent"));
+            return Err(refusal(&name, invalid, "missing parent"));
         }
     }
     Ok(shortened)

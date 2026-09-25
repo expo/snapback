@@ -104,7 +104,7 @@ pub fn aggregate_actual_row(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
 
 pub fn aggregate_existence(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
     let source = format!(
-        "{MODEL}\nview totals: count children by .parent\nquery total(p: parents):\n  return totals[p]\nquery present(p: parents):\n  return exists totals[parent = p]\n"
+        "{MODEL}\nview totals: count children by .parent\nquery total(p: parents):\n  return totals[p]\nquery present(p: parents):\n  return exists totals[parent = p]\nquery matching(p: parents, v: int ?):\n  return exists totals[parent = p, value = v]\n"
     );
     for world in ["absent", "hidden", "empty", "occupied", "expired"] {
         let mut e = factory(&source);
@@ -140,6 +140,21 @@ pub fn aggregate_existence(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
             Value::Bool(world == "occupied"),
             "{world}"
         );
+        for v in [Value::Null, Value::Int(1)] {
+            assert_eq!(
+                run(
+                    &mut *e,
+                    "matching",
+                    "alice",
+                    200,
+                    &[("p", id("p")), ("v", v.clone())]
+                )
+                .0
+                .unwrap(),
+                Value::Bool(world == "occupied" && v == Value::Int(1)),
+                "{world}/{v:?}"
+            );
+        }
         let scalar = match world {
             "empty" => Value::Int(0),
             "occupied" => Value::Int(1),
@@ -157,31 +172,33 @@ pub fn aggregate_existence(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
 
 pub fn expiry_default(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
     let original = "table parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- allow\ntable middle:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\ntable children:\n  parent: middle\n  immutable parent\n  read through .parent\n  insert <- allow\nmutation setup():\n  insert parents { id: 'p', owner: viewer }\n  insert middle { id: 'm', parent: 'p' }\n  insert children { id: 'c', parent: 'm' }\nquery parent():\n  return parents['p']\nquery middle():\n  return middle['m']\nquery child():\n  return children['c']\n";
-    let mut e = factory(original);
-    run(&mut *e, "setup", "alice", 50, &[]).0.unwrap();
-    let at300 = original.replace(
-        "immutable owner",
-        "immutable owner, until\n  until: time default 300\n  expire at .until",
-    );
-    e.adopt(&at300, 100);
-    assert_ne!(
-        run(&mut *e, "child", "alice", 200, &[]).0.unwrap(),
-        Value::Null
-    );
-    let at150 = at300.replace("default 300", "default 150");
-    e.adopt(&at150, 100);
-    for op in ["parent", "middle", "child"] {
-        assert_ne!(
-            run(&mut *e, op, "alice", 149, &[]).0.unwrap(),
-            Value::Null,
-            "{op} before expiry"
+    for adoption_time in [100, 200] {
+        let mut e = factory(original);
+        run(&mut *e, "setup", "alice", 50, &[]).0.unwrap();
+        let at300 = original.replace(
+            "immutable owner",
+            "immutable owner, until\n  until: time default 300\n  expire at .until",
         );
-        for now in [150, 200] {
-            assert_eq!(
-                run(&mut *e, op, "alice", now, &[]).0.unwrap(),
+        e.adopt(&at300, 100);
+        assert_ne!(
+            run(&mut *e, "child", "alice", 200, &[]).0.unwrap(),
+            Value::Null
+        );
+        let at150 = at300.replace("default 300", "default 150");
+        e.adopt(&at150, adoption_time);
+        for op in ["parent", "middle", "child"] {
+            assert_ne!(
+                run(&mut *e, op, "alice", 149, &[]).0.unwrap(),
                 Value::Null,
-                "{op} at {now}"
+                "{op} before expiry"
             );
+            for now in [150, 200] {
+                assert_eq!(
+                    run(&mut *e, op, "alice", now, &[]).0.unwrap(),
+                    Value::Null,
+                    "{op} at {now}"
+                );
+            }
         }
     }
 }
