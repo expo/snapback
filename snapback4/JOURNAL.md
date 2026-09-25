@@ -56149,3 +56149,42 @@ public API or Quarry form changed. No push, package publication or iOS simulator
 qualification. Implementation commits: `834f2f377`, `c5471def0`.
 Finding-by-finding fixes, complete file map, fixture corrections and reproductions:
 [Lane Y round-1 report](reports/20260925-lane-y-r1.md).
+
+
+## 2026-09-25 — Lane Y round 2: admission time survives settlement
+
+Implemented the round-1 delta review fixes in `7e871b545`. The device now commits
+an admission's maximum issued floor atomically with its outbox entry and retains
+that record after settlement. Startup restores it before issuing time, preserving
+synchronous web journal capture. Short RTTs (at most one second) outrank provisional
+streaming receipt stamps; long samples may refine estimated server time but never
+change the offset used to issue device time. Both offsets persist and fork.
+A short confirmation that changes only the issued offset still notifies watches.
+Freshness uses versioned wall-time metadata, omits ambiguous legacy values until
+resync, and clamps future stamps at publication. The clock card and wire reference
+state these policies.
+
+The real Chromium/IndexedDB regression admits, settles, catches up to an empty
+outbox, crashes without close or a query flush, rolls wall time back 4,000 ms,
+and reopens offline without losing the admission floor. Memory and SQLite tests
+prove retirement/reopen durability; an injected transaction failure proves the
+outbox and floor roll back together. Controlled composition tests give both
+answers distinct deadlines and publish at either earlier deadline. Deliberate
+mutations dropping the device deadline or preferring every real sample both fail
+the new regressions. Legacy offline upgrade and wall rollback tests pass.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 449 s`**.
+Regular clients: 1,546 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No full-suite failure or baseline/environmental
+waiver. An earlier run was deliberately interrupted before completion to include
+the issued-only notification correction; it is not counted as a pass. Full-run
+held browser expiry lateness was 1, 1, 1, 1 and 2 ms; deterministic coverage still
+enforces the 16.7 ms frame bound. Wasm is 1,776,076 B raw / 495,314 B gzip, 56 gzip
+bytes above round 1 and within the unchanged 496,000 B limit. Reference audit has
+zero errors and zero unchecked refs. `local.ts` remains below 1,500 lines (1,497).
+
+No public form, API, refusal code, server authorization, disclosure or meter policy
+changed. The four-line device transaction extension is required by the atomic
+admission-floor instruction. No push, publication or iOS simulator qualification.
+File map, forms, tests, development fixture corrections and final qualification:
+[Lane Y round-2 report](reports/20260925-lane-y-r2.md).
