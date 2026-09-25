@@ -1122,7 +1122,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
             const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }> } | undefined)?.receipt;
-            if (receipt) { await recoverReceipt(history, call, entry.id, receipt.state === "sent" ? receipt.seq : undefined); return { ok: true as const, json: { ...receipt }, obsoleteAuth: false }; }
+            if (receipt) { const known = await recoverReceipt(history, call, entry.id, receipt.state === "sent" ? receipt.seq : undefined); return { ok: true as const, json: { ...(known ?? receipt) }, obsoleteAuth: false }; }
             ordinarySending = entry.id;
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
             if (response.ok) {

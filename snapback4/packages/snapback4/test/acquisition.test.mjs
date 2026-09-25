@@ -437,6 +437,15 @@ test('acknowledgement drops an unsaved replacement refusal before any persistenc
 
 const keepReceipt = (core, receipt) => core.call({ op: "keep_write", value: JSON.stringify(receipt) }).then(ok);
 
+test('a legacy acknowledgement returns a known authored refusal without saving success', async () => {
+  const refused = { state: 'failed', id: 'refused', why: { code: 'NOT_ADMIN', family: 'rule', message: 'not admin' } };
+  const saves = [];
+  const history = new WriteHistory({ read: async () => JSON.stringify([refused]), save: async value => { saves.push(value); } });
+  assert.deepEqual(await history.acknowledged(refused.id, 7), refused);
+  assert.deepEqual(await history.read(refused.id), refused);
+  assert.deepEqual(saves, []);
+});
+
 function receiptLocks(t) {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator"), held = new Set();
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: { async request(name, options, body) {
