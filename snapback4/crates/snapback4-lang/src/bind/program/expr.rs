@@ -5,7 +5,7 @@ use super::*;
 impl Binder<'_> {
     /// Bare tables are domains only at an aggregate/loop consumer; ordinary
     /// names keep their lexical meaning and ordinary pages keep their bounds.
-    fn aggregate_domain(&self, value: &A) -> Option<ReadExpr> {
+    pub(super) fn aggregate_domain(&self, value: &A) -> Option<ReadExpr> {
         match value {
             A::Read(read) if read.range.is_none() && read.matching.is_none() => Some(read.clone()),
             A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) =>
@@ -634,7 +634,15 @@ impl Binder<'_> {
                 Ok((Expr::Builtin { builtin: Builtin::Slice, args: vec![e, s, n] }, ty))
             }
             "min" | "max" => {
-                arity(2, &format!("{name}(a, b)"))?;
+                if args.len() == 1 && matches!(&args[0], A::Read(_)) {
+                    let source = self.catalog.read_origins.get(&args[0].site().to_string()).cloned().unwrap_or_else(|| self.catalog.source.expression(&args[0]));
+                    if let Some((read, field)) = source.rsplit_once(", .") {
+                        return Err(ambiguous(site, format!("{name}: the comma after by continues the read's order, leaving only one argument"),
+                            format!("{name}(({read}), .{field})")).guide("reads"));
+                    }
+                }
+                arity(2, &format!("{name}(a, b), or {name}(rows, .column)"))?;
+                if let Some(result) = self.extremum(name, args, out)? { return Ok(result); }
                 let [(a, at), (b, bt)]: [(Expr, Ty); 2] = self.strict_args(args, out)?.try_into().expect("checked arity");
                 let joined = self.join(&at, &bt, &args[0], &args[1])?;
                 if at.is_optional() || bt.is_optional() || !at.comparable(&bt) {

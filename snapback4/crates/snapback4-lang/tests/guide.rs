@@ -294,7 +294,7 @@ fn the_language_card_compiles_and_runs() {
     let source = in_context(&quarry(LANGUAGE)[1]);
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).filter(|name| !name.starts_with("intent")).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "spreadProfile", "spreadObjects", "spreadChoice", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
+    assert_eq!(names, ["receiptStatus", "daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "spreadProfile", "spreadObjects", "spreadChoice", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest", "intentDigest"]);
     assert!(bound.server);
     assert_eq!(bound.schema.schedules.len(), 2);
@@ -383,6 +383,13 @@ fn the_language_card_compiles_and_runs() {
     let helper = engine.query("helperRows", Context::new(bob, args(&[("messageId", id("msg2"))])).at(2_200)).unwrap();
     assert_eq!(helper.data.field("body"), helper.data.field("byId"));
     assert_eq!(helper.data.field("body").unwrap(), &text("keep"));
+    let receipt = engine.query("receiptStatus", Context::new(bob, args(&[("messageId", id("msg2"))])).at(2_200)).unwrap();
+    assert_eq!(receipt.data.field("slowest").unwrap(), &Value::Int(2));
+    assert_eq!(receipt.data.field("fastest").unwrap(), &Value::Null);
+    engine.seed([("receipts".into(), snapback4_core::value::object([("id", id("receipt")), ("message", id("msg2")), ("state", Value::Int(1))]))]).unwrap();
+    let receipt = engine.query("receiptStatus", Context::new(bob, args(&[("messageId", id("msg2"))])).at(2_200)).unwrap();
+    assert_eq!(receipt.data.field("slowest").unwrap(), &Value::Int(1));
+    assert_eq!(receipt.data.field("fastest").unwrap(), &Value::Int(1));
     let roster = engine.query("wholeRoster", Context::new(bob, args(&[("roomId", id("r1"))])).at(2_200)).unwrap();
     assert!(roster.complete && roster.next.is_none());
     assert_eq!(roster.data.as_array().unwrap().len(), 2);
@@ -399,6 +406,9 @@ fn the_language_card_compiles_and_runs() {
     // digest: divmod, sorted, min, max, slice, sort, a helper with null.
     let digest = engine.query("digest", Context::new(alice, args(&[("roomId", id("r1"))])).at(2_200)).unwrap().data;
     assert_eq!(digest.field("total").unwrap(), &Value::Int(2));
+    assert_eq!(digest.field("earliest").unwrap(), &Value::Int(2_000));
+    assert_eq!(digest.field("latest").unwrap(), &Value::Int(2_100));
+    assert_eq!(digest.field("smallest").unwrap(), &Value::Int(1));
     assert_eq!(digest.field("grouped").unwrap().as_array().unwrap()[0].field("count").unwrap(), &Value::Int(2));
     assert_eq!(digest.field("first").unwrap().field("id").unwrap(), &id("msg2"));
     assert_eq!(digest.field("last").unwrap().field("id").unwrap(), &id("msg1"));

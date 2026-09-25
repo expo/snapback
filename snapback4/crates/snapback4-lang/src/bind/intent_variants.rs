@@ -183,7 +183,7 @@ fn rewrite(value: &mut Expr, inputs: &Inputs, functions: &BTreeMap<String, Funct
             let read = match value { Expr::Read(read) | Expr::Exists { read, .. } => read, _ => unreachable!() };
             if let Some(planned) = variants(read, exists, inputs, tables, functions, notes) { *value = planned; }
         }
-        Expr::Call { name, args, site } if matches!(name.as_str(), "count" | "sum") && !functions.contains_key(name)
+        Expr::Call { name, args, site } if super::intent_aggregates::is_consumer(name, args, tables) && !functions.contains_key(name)
             && args.first().is_some_and(|arg| matches!(arg, Expr::If { condition: test, .. } if condition(test).is_some())) => {
                 *value = lift(name, args, site, tables, &inputs.iter().filter(|(_, optional)| !**optional).map(|(name, _)| name.clone()).collect());
             }
@@ -199,7 +199,7 @@ fn lift(name: &str, args: &[Expr], site: &Site, tables: &BTreeMap<String, TableI
         Expr::If { then: Box::new(lift(name, &yes, site, tables, &present)), condition: condition.clone(), otherwise: Box::new(lift(name, &no, site, tables, required)), site: branch.clone() }
     } else {
         let mut args = args.to_vec();
-        if let Some(Expr::Read(read)) = args.first_mut() { super::intent_aggregates::choose(read, tables, required); }
+        super::intent_aggregates::choose_consumer(name, &mut args, tables, required);
         Expr::Call { name: name.into(), args, site: site.clone() }
     }
 }
