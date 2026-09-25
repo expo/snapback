@@ -1,0 +1,92 @@
+{
+  "label": "10%",
+  "pass": true,
+  "started": 1790313781590,
+  "ended": 1790313782622,
+  "settleAccountingCounts": {
+    "users": 1008,
+    "profiles": 1008,
+    "followEdges": 5921,
+    "posts": 5048,
+    "topLevelPosts": 4844,
+    "replies": 204,
+    "activeLikes": 508,
+    "activeReposts": 104,
+    "conversations": 1002,
+    "dms": 901,
+    "groups": 101,
+    "memberships": 2053,
+    "messages": 10015,
+    "textMessages": 10014,
+    "mediaMessages": 1,
+    "quotedReplies": 9,
+    "activeReactions": 200,
+    "disappearingSettingsEnabled": 0
+  },
+  "checks": [
+    "exact named O5 follows, celebrity posts, memberships, roster",
+    "full paging busy group plus deterministic and named chat sample",
+    "ten deterministic profiles and follow counts plus named profiles",
+    "sampled and named posts, variants, reply and reaction counts",
+    "sampled/named message manifest, quotes, reactions and media types"
+  ],
+  "actualSample": "Public deterministic builder sample; frozen secret grader probes remain grader-owned",
+  "timings": [
+    {
+      "name": "following-5",
+      "k": 20,
+      "warmups": 3,
+      "p50Ms": 0.4290000000037253,
+      "p95Ms": 1.2912500000093132,
+      "maxMs": 1.323541000005207
+    },
+    {
+      "name": "following-500",
+      "k": 20,
+      "warmups": 3,
+      "p50Ms": 0.7090420000022277,
+      "p95Ms": 1.9338340000103926,
+      "maxMs": 1.989291999998386
+    },
+    {
+      "name": "global",
+      "k": 20,
+      "warmups": 3,
+      "p50Ms": 1.0262079999956768,
+      "p95Ms": 3.9797079999989364,
+      "maxMs": 4.065875000000233
+    },
+    {
+      "name": "busy-latest",
+      "k": 20,
+      "warmups": 3,
+      "p50Ms": 6.385957999998936,
+      "p95Ms": 22.51037499999802,
+      "maxMs": 23.653667000005953
+    },
+    {
+      "name": "chat-list-100",
+      "k": 20,
+      "warmups": 3,
+      "p50Ms": 6.121207999996841,
+      "p95Ms": 22.786458999995375,
+      "maxMs": 37.40683399999398
+    },
+    {
+      "name": "busy-search",
+      "k": 20,
+      "warmups": 3,
+      "p50Ms": 0.8942499999975553,
+      "p95Ms": 4.730124999987311,
+      "maxMs": 5.027916000006371
+    },
+    {
+      "name": "all-chat-search",
+      "k": 20,
+      "warmups": 3,
+      "p50Ms": 4.5032910000009,
+      "p95Ms": 21.595750000007683,
+      "maxMs": 22.19650000000547
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "social-messenger.scale-status.v1",
+  "runId": "astra-clique-snapback4-full-20260913",
+  "pid": 62188,
+  "state": "succeeded",
+  "actions": {
+    "applied": 167157,
+    "total": 167157,
+    "failed": 0
+  },
+  "updatedAt": "2026-09-25T05:30:32.626Z",
+  "outcomeClass": null,
+  "receipt": "evidence/scale-receipt.json"
+}

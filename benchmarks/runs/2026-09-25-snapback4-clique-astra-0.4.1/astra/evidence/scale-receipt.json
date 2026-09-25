@@ -1,0 +1,344 @@
+{
+  "version": "snapback.full-journey-scale-replay-receipt.v1",
+  "pass": true,
+  "actionLog": {
+    "sha256": "sha256:b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+    "actionCount": 167157
+  },
+  "settledPrefix": 167157,
+  "failedActions": 0,
+  "checkpoints": [
+    {
+      "id": "10%",
+      "settledPrefix": 24777,
+      "prefixSha256": "sha256:f1f4abf9f2178b039c44db6b3acb17d4e0019faad81f8839339ad6b26467dbba"
+    },
+    {
+      "id": "50%",
+      "settledPrefix": 88057,
+      "prefixSha256": "sha256:f3ce58724cbd0570f909f95e7643b7f921408bc6750ad5eb6e6a80477d2fc41c"
+    }
+  ],
+  "verifications": [
+    {
+      "label": "10%",
+      "pass": true,
+      "started": 1790313781590,
+      "ended": 1790313782622,
+      "settleAccountingCounts": {
+        "users": 1008,
+        "profiles": 1008,
+        "followEdges": 5921,
+        "posts": 5048,
+        "topLevelPosts": 4844,
+        "replies": 204,
+        "activeLikes": 508,
+        "activeReposts": 104,
+        "conversations": 1002,
+        "dms": 901,
+        "groups": 101,
+        "memberships": 2053,
+        "messages": 10015,
+        "textMessages": 10014,
+        "mediaMessages": 1,
+        "quotedReplies": 9,
+        "activeReactions": 200,
+        "disappearingSettingsEnabled": 0
+      },
+      "checks": [
+        "exact named O5 follows, celebrity posts, memberships, roster",
+        "full paging busy group plus deterministic and named chat sample",
+        "ten deterministic profiles and follow counts plus named profiles",
+        "sampled and named posts, variants, reply and reaction counts",
+        "sampled/named message manifest, quotes, reactions and media types"
+      ],
+      "actualSample": "Public deterministic builder sample; frozen secret grader probes remain grader-owned",
+      "timings": [
+        {
+          "name": "following-5",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 0.4290000000037253,
+          "p95Ms": 1.2912500000093132,
+          "maxMs": 1.323541000005207
+        },
+        {
+          "name": "following-500",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 0.7090420000022277,
+          "p95Ms": 1.9338340000103926,
+          "maxMs": 1.989291999998386
+        },
+        {
+          "name": "global",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 1.0262079999956768,
+          "p95Ms": 3.9797079999989364,
+          "maxMs": 4.065875000000233
+        },
+        {
+          "name": "busy-latest",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 6.385957999998936,
+          "p95Ms": 22.51037499999802,
+          "maxMs": 23.653667000005953
+        },
+        {
+          "name": "chat-list-100",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 6.121207999996841,
+          "p95Ms": 22.786458999995375,
+          "maxMs": 37.40683399999398
+        },
+        {
+          "name": "busy-search",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 0.8942499999975553,
+          "p95Ms": 4.730124999987311,
+          "maxMs": 5.027916000006371
+        },
+        {
+          "name": "all-chat-search",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 4.5032910000009,
+          "p95Ms": 21.595750000007683,
+          "maxMs": 22.19650000000547
+        }
+      ]
+    },
+    {
+      "label": "50%",
+      "pass": true,
+      "started": 1790313951162,
+      "ended": 1790313953809,
+      "settleAccountingCounts": {
+        "users": 1008,
+        "profiles": 1008,
+        "followEdges": 5921,
+        "posts": 25128,
+        "topLevelPosts": 24124,
+        "replies": 1004,
+        "activeLikes": 2508,
+        "activeReposts": 504,
+        "conversations": 1002,
+        "dms": 901,
+        "groups": 101,
+        "memberships": 2053,
+        "messages": 50015,
+        "textMessages": 50010,
+        "mediaMessages": 5,
+        "quotedReplies": 1821,
+        "activeReactions": 1000,
+        "disappearingSettingsEnabled": 0
+      },
+      "checks": [
+        "exact named O5 follows, celebrity posts, memberships, roster",
+        "full paging busy group plus deterministic and named chat sample",
+        "ten deterministic profiles and follow counts plus named profiles",
+        "sampled and named posts, variants, reply and reaction counts",
+        "sampled/named message manifest, quotes, reactions and media types"
+      ],
+      "actualSample": "Public deterministic builder sample; frozen secret grader probes remain grader-owned",
+      "timings": [
+        {
+          "name": "following-5",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 3.522916999994777,
+          "p95Ms": 26.120125000015832,
+          "maxMs": 32.73649999999907
+        },
+        {
+          "name": "following-500",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 3.048624999995809,
+          "p95Ms": 5.408917000022484,
+          "maxMs": 27.465874999994412
+        },
+        {
+          "name": "global",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 3.643041000002995,
+          "p95Ms": 5.1169170000066515,
+          "maxMs": 27.216583000001265
+        },
+        {
+          "name": "busy-latest",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 3.4254170000203885,
+          "p95Ms": 5.486166999995476,
+          "maxMs": 27.50779100001091
+        },
+        {
+          "name": "chat-list-100",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 4.444749999995111,
+          "p95Ms": 27.09654200001387,
+          "maxMs": 30.66195899999002
+        },
+        {
+          "name": "busy-search",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 1.3075420000241138,
+          "p95Ms": 4.206541999999899,
+          "maxMs": 25.743625000002794
+        },
+        {
+          "name": "all-chat-search",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 3.234083000017563,
+          "p95Ms": 24.488374999986263,
+          "maxMs": 29.739375000004657
+        }
+      ]
+    },
+    {
+      "label": "final",
+      "pass": true,
+      "started": 1790314227588,
+      "ended": 1790314232616,
+      "settleAccountingCounts": {
+        "users": 1008,
+        "profiles": 1008,
+        "followEdges": 5921,
+        "posts": 50228,
+        "topLevelPosts": 48224,
+        "replies": 2004,
+        "activeLikes": 5008,
+        "activeReposts": 1004,
+        "conversations": 1002,
+        "dms": 901,
+        "groups": 101,
+        "memberships": 2053,
+        "messages": 100015,
+        "textMessages": 99105,
+        "mediaMessages": 910,
+        "quotedReplies": 2736,
+        "activeReactions": 2000,
+        "disappearingSettingsEnabled": 0
+      },
+      "checks": [
+        "exact named O5 follows, celebrity posts, memberships, roster",
+        "full paging busy group plus deterministic and named chat sample",
+        "ten deterministic profiles and follow counts plus named profiles",
+        "sampled and named posts, variants, reply and reaction counts",
+        "sampled/named message manifest, quotes, reactions and media types"
+      ],
+      "actualSample": "Public deterministic builder sample; frozen secret grader probes remain grader-owned",
+      "timings": [
+        {
+          "name": "following-5",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 2.002959000004921,
+          "p95Ms": 4.728166999993846,
+          "maxMs": 27.228375000006054
+        },
+        {
+          "name": "following-500",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 3.236709000018891,
+          "p95Ms": 28.530999999959022,
+          "maxMs": 31.65687499998603
+        },
+        {
+          "name": "global",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 3.1444999999948777,
+          "p95Ms": 29.65920900000492,
+          "maxMs": 29.890790999983437
+        },
+        {
+          "name": "busy-latest",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 3.4168749999953434,
+          "p95Ms": 27.336207999964245,
+          "maxMs": 27.341958000033628
+        },
+        {
+          "name": "chat-list-100",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 5.324541000009049,
+          "p95Ms": 29.90712500002701,
+          "maxMs": 30.424707999976818
+        },
+        {
+          "name": "busy-search",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 4.416333000001032,
+          "p95Ms": 27.90016600000672,
+          "maxMs": 29.774499999999534
+        },
+        {
+          "name": "all-chat-search",
+          "k": 20,
+          "warmups": 3,
+          "p50Ms": 4.711792000045534,
+          "p95Ms": 26.35745800001314,
+          "maxMs": 30.707416000019293
+        }
+      ]
+    }
+  ],
+  "start": 1790313713,
+  "end": 1790314232,
+  "starterActions": 86,
+  "starterCounts": {
+    "users": 8,
+    "profiles": 8,
+    "followEdges": 12,
+    "posts": 28,
+    "topLevelPosts": 24,
+    "replies": 4,
+    "activeLikes": 8,
+    "activeReposts": 4,
+    "conversations": 2,
+    "dms": 1,
+    "groups": 1,
+    "memberships": 5,
+    "messages": 15,
+    "textMessages": 15,
+    "mediaMessages": 0,
+    "quotedReplies": 6,
+    "activeReactions": 0,
+    "disappearingSettingsEnabled": 0
+  },
+  "finalCounts": {
+    "users": 1008,
+    "profiles": 1008,
+    "followEdges": 5921,
+    "posts": 50228,
+    "topLevelPosts": 48224,
+    "replies": 2004,
+    "activeLikes": 5008,
+    "activeReposts": 1004,
+    "conversations": 1002,
+    "dms": 901,
+    "groups": 101,
+    "memberships": 2053,
+    "messages": 100015,
+    "textMessages": 99105,
+    "mediaMessages": 910,
+    "quotedReplies": 2736,
+    "activeReactions": 2000,
+    "disappearingSettingsEnabled": 0
+  },
+  "probeWallSecondsExcluded": 8.706999999999999
+}

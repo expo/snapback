@@ -1,0 +1,3 @@
+Implemented Clique. M1–M6 and M8 pass suites and choreography; M7 was not attempted. All 167,157 scale actions verified, and seven iOS Hermes exports were produced. Servers are stopped.
+
+[Final report and gaps](/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/final-report.md) · [Essay](/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/essay.md) · [Run instructions](/Users/ccheever/clique-sb4-20260924-astra-cal20/lanes/astra-snapback4/README.md)

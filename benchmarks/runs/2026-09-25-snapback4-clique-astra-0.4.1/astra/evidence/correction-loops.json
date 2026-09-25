@@ -1,0 +1,117 @@
+[
+  {
+    "attribution": "environment",
+    "summary": "Default Node differed from the environment overlay; switched to absolute Node 24.",
+    "evidence": "run-log.md:17"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Profile navigation treated pending as terminal; await terminal receipt.",
+    "evidence": "evidence/acceptance-m1.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Profile edit sent extra fields and retained screens duplicated controls; narrow fields and use Slot.",
+    "evidence": "evidence/acceptance-m1.log"
+  },
+  {
+    "attribution": "environment",
+    "summary": "Metro served an older UI after edits; switched to explicit static exports.",
+    "evidence": "evidence/acceptance-m2.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Web document scrolling bypassed ScrollView paging; bound viewport.",
+    "evidence": "evidence/acceptance-m2.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Initial acquisition reset paged state; coordinate readiness and rendered-page tests.",
+    "evidence": "evidence/acceptance-m2-attempt-scroll.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Profile lacked direct feed navigation used by choreography; retain primary tabs.",
+    "evidence": "evidence/choreo-m2.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Test selected an image post sharing text; scope author and variant.",
+    "evidence": "evidence/acceptance-m2-attempt-link.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Suite groups shadowed the named fixture; use distinct names and ID routes.",
+    "evidence": "scripts/clean-suite-groups.mjs"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Transient parent reads unmounted a conversation; retain confirmed parent data.",
+    "evidence": "evidence/acceptance-m3-attempt1.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Seed baseline raced a pending quote, then matched repeated text; wait for a unique authoritative row.",
+    "evidence": "evidence/acceptance-m3-attempt-seed-race.log; evidence/acceptance-m3-attempt-seed-race2.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Typing backlog and deadline display; throttle writes and filter local expiry.",
+    "evidence": "evidence/choreo-m3-attempt1.log; docs/expire.txt"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Hard navigation beat admin mutation admission; retain stable synchronous intent and recover.",
+    "evidence": "evidence/remove-ui-probe.log; evidence/remove-ui-probe-fixed.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Quote target fell beyond first history page; load through target.",
+    "evidence": "evidence/acceptance-m3.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Pagination test clicked before rendered rows committed; wait for row count.",
+    "evidence": "scripts/suite-m3.mjs"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Suite confused imperative asset result with React state; use documented url-or-denied result.",
+    "evidence": "node_modules/snapback4/CLIENT-AND-OPERATIONS.md; run-log.md"
+  },
+  {
+    "attribution": "ambiguous",
+    "summary": "One view-once UI click missed; unchanged retry passed, no cause established.",
+    "evidence": "evidence/acceptance-m5.log; evidence/acceptance-m5-retry.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Retry re-upload changed arguments under a stable write ID; persist original store-bound upload references.",
+    "evidence": "evidence/acceptance-m6.log; docs/E_ID_REUSED.txt"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Full-screen acquisition gate delayed scale startup; removing it exposed readiness races. Iterations added roster readiness and an eight-second online fallback while preserving initial acquisition wait.",
+    "evidence": "evidence/scale-startup.log; evidence/same-account-live.log; evidence/choreo-m8-final.log; run-log.md"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Metro cached the main backend URL into a scale export; clear cache for each target and verify URL.",
+    "evidence": "evidence/scale-startup-current.log; evidence/scale-m8-insights-cleared.log"
+  },
+  {
+    "attribution": "ambiguous",
+    "summary": "One M6 rendered-order miss despite correct server order; four independent rounds and unchanged frozen rerun passed.",
+    "evidence": "evidence/choreo-m6-final.log; evidence/offline-order-probe.json; evidence/choreo-m6-final-retry.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Reused choreography output paths overwrote older receipts; freeze final evidence and archive before future reruns. Historical first-green attestation coverage is incomplete.",
+    "evidence": "evidence/final/; scripts/choreo.mjs; run-log.md"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "Final hash audit found M4/M5 suites newer than their choreography references; rerun segments to attest current suite bytes.",
+    "evidence": "evidence/choreo-m4-final.log; evidence/choreo-m5-final.log"
+  }
+]

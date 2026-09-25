@@ -1,0 +1,10 @@
+schema.q:91:1 — E_TIMELINE_SHAPE: posts must be explicitly public, fully synced, non-expiring application data
+  rewrite: declare posts public with full sync public; require .authorId = viewer for inserts and allowed deletes/updates; keep mapped fields immutable
+  guide: feeds
+
+schema.q:97:10 — E_QUARRY_UNKNOWN: unknown table following
+  rewrite: declared names: conversations, dailyLikes, dailyPosts, dmPairs, followerCounts, followingCounts, followingEdges, followingFeed, followingPosts, followingRemovedEvents, followingWork, follows, likes, memberships, messages, originalPostCounts, posts, profiles, reactionTotals, reactions, receivedLikes, receivedReplies, receivedReposts, reposts, typing
+  guide: language
+
+check: 2 problems
+1 mutation has insert arms that never predict: setReaction (reactions read rule `exists memberships[.conversationId, viewer]` is not decided by key index (messageId, principal), chosen by the planner (messageId, principal); unpinned: conversationId); 7 mutations eligible, but these reads queue without a row past a horizon: createPost (insert posts (schema.q:122:10), posts[parentId] (schema.q:115:20)), deleteMessage (messages by byId (schema.q:367:3), messages[messageId] (schema.q:363:9)), editMessage (messages by byId (schema.q:361:3), messages[messageId] (schema.q:352:9)), send (messages[replyTo] (schema.q:293:13)), setLike (insert likes (schema.q:126:5), posts[postId] (schema.q:124:18)), setReaction (messages[messageId] (schema.q:344:9)), setRepost (insert reposts (schema.q:133:5), posts[postId] (schema.q:130:7)) — snapback4 why <op>
