@@ -136,9 +136,8 @@ Comparing an untouched private field with itself, such as
 `next.readUpTo = old.readUpTo`, remains available without knowing its value.
 Ordered self-comparisons require visibility when the field is nullable: null
 is not ordered, so even `next.secret >= old.secret` can reveal nullness.
-When a patch retains an unreadable row's fields or another owner's private
-payload, copies are charged at declared column bounds, so hidden lengths
-cannot change the writer's meter or exhaustion boundary.
+Retained write-target copies are charged at declared column bounds, so hidden
+lengths cannot change the writer's meter or exhaustion boundary.
 Private fields cannot supply indexes/cursors, expiry, recorded attribution,
 other rules' probes, aggregate inputs, or Following mappings and predicates; make the field readable by audience
 before using it there. This applies to both `view` and `maintain … timeline`.
@@ -147,10 +146,16 @@ that pass both row-read and field authorization; hidden candidates and rule
 witnesses cannot change its charges or exhaustion boundary.
 This includes point reads, range/cursor pages, planned views, word search,
 streaming counts/sums, scalar reductions and recorded public columns.
-A large declared maximum can exhaust the heap even when the stored value is
-empty; changing that value cannot move that boundary. Authorization witnesses
-expose only their verdict, even when their table is unreadable or has private
-fields. Candidate decoding and rule evaluation use an internal ledger.
+Unreadable, private or expiring candidates reserve declared decoder bounds:
+a large declaration can exhaust the heap even for an empty value. Public,
+non-expiring rows without private fields or recorded captures establish authority before
+storage access and use actual-size decoder accounting. Expired scan candidates
+are discarded inside the internal ledger before any payload is priced.
+Authorization witnesses expose their verdict and only the deadline needed by
+a sufficient authorization proof. An independent non-expiring grant discards
+a redundant witness deadline; a necessary expiring grant keeps its deadline
+for invalidation. Failed branches export no dependency. Candidate decoding
+and rule evaluation use an internal ledger until row authority is established.
 Owner delivery prepays the declared recipient/probe bound; hidden
 membership outcomes cannot change the writer's meter. Mutation event counts
 count each changed private row once, independently of owner fanout. A scan of a table

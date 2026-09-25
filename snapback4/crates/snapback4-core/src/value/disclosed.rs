@@ -1,6 +1,7 @@
-//! The sole row-pricing capability on principal-visible ledgers.
+//! A field-projection plan; retained pricing additionally requires row authority.
 // @ref LLP 3000.015#1 — projection precedes pricing, copying and defaults.
 use super::Value;
+use crate::engine::authorized_point::RowAuthorization;
 use crate::{engine::runner::SystemAccess, schema::{ColumnDefault, Table}};
 
 /// A projection plan. The stored image is private, cannot be dereferenced and
@@ -46,6 +47,48 @@ use crate::{engine::runner::SystemAccess, schema::{ColumnDefault, Table}};
 ///     let authorized = AuthorizedRow(table.project_fields(raw, Some("alice")));
 /// }
 /// ```
+/// A field projection alone has no row-read evidence.
+/// ```compile_fail
+/// use snapback4_core::{Value, schema::Table, meter::Meter};
+/// fn unproven(table: &Table, raw: Value, caller: &mut Meter) {
+///     caller.heap(table.project_fields(raw, Some("alice")).heap_bytes()).unwrap();
+/// }
+/// ```
+/// Even with internal-scope evidence, a raw owned field produces an opaque
+/// internal price which the caller-ledger heap API cannot accept.
+/// ```compile_fail
+/// use snapback4_core::{Value, engine::Authorization, meter::Meter};
+/// fn raw_owned_field(raw: &Value, scope: &Authorization, caller: &mut Meter) {
+///     caller.heap(raw.field("secret").unwrap().clone_heap_bytes(scope)).unwrap();
+/// }
+/// ```
+/// An unscoped raw scalar price is unavailable too.
+/// ```compile_fail
+/// use snapback4_core::{Value, meter::Meter};
+/// fn raw_owned_field(raw: &Value, caller: &mut Meter) {
+///     caller.heap(raw.field("secret").unwrap().clone_heap_bytes()).unwrap();
+/// }
+/// ```
+/// Raw scalar/key helpers cannot bypass row authorization.
+/// ```compile_fail
+/// use snapback4_core::{Value, rows::word_heap, meter::Meter};
+/// fn raw(row: &Value, caller: &mut Meter) {
+///     caller.heap(word_heap::scalar(row.field("secret").unwrap())).unwrap();
+/// }
+/// ```
+/// ```compile_fail
+/// use snapback4_core::{Value, rows::word_heap, meter::Meter};
+/// fn raw(row: &Value, caller: &mut Meter) {
+///     caller.heap(word_heap::values(&[row.field("secret").unwrap().clone()])).unwrap();
+/// }
+/// ```
+/// Store decoder accounting requires real scope evidence before access.
+/// ```compile_fail
+/// use snapback4_core::{rows::{Rows,Bounds,Dir}, meter::Meter};
+/// fn raw_store(rows: &dyn Rows, caller: &mut Meter) {
+///     rows.scan_metered("records","byId",&[],&Bounds::default(),Dir::Asc,1,caller).unwrap();
+/// }
+/// ```
 pub struct Disclosed<'a> {
     row: Value,
     table: &'a Table,
@@ -69,7 +112,7 @@ impl Disclosed<'_> {
     /// Authored results omit engine-recorded attribution; delivery retains it.
     pub fn for_query(mut self) -> Self { self.public = true; self }
 
-    pub fn field_heap(&self, field: &str) -> u64 {
+    fn field_price(&self, field: &str) -> u64 {
         if !self.visible(field) { return 0; }
         self.row.field(field).ok().map_or_else(|| match self.table.defaults.get(field) {
             Some(ColumnDefault::Literal(value)) => value.retained_heap(), _ => 0,
@@ -84,45 +127,61 @@ impl Disclosed<'_> {
             }).and_then(|v|v.as_str().ok()) == Some(viewer.as_str())))
     }
 
-    pub fn heap_bytes(&self) -> u64 {
+    pub(crate) fn scalar_heap(&self, field: &str, _: &RowAuthorization) -> u64 {
+        if !self.visible(field) { return 0; }
+        self.row.field(field).ok().map_or(0, super::scalar_copy)
+    }
+
+    pub(crate) fn heap_bytes(&self, _: &RowAuthorization) -> u64 { self.heap_bytes_inner() }
+
+    pub(super) fn heap_bytes_inner(&self) -> u64 {
         let Ok(fields) = self.row.as_object() else { return self.row.retained_heap(); };
         40 + fields.iter().filter(|(name, _)| self.visible(name))
             .map(|(name, value)| 80 + name.capacity() as u64 + value.retained_heap()).sum::<u64>()
             + self.table.columns.iter().filter(|(name,kind)| self.visible(name) && !fields.contains_key(*name)
                 && (kind.is_optional() || self.table.defaults.contains_key(*name) || self.table.maintained.contains_key(*name)))
-                .map(|(name,_)|80 + name.len() as u64 + self.field_heap(name)).sum::<u64>()
+                .map(|(name,_)|80 + name.len() as u64 + self.field_price(name)).sum::<u64>()
     }
 
     /// Copy only the disclosed fields. No hidden value's length is inspected.
-    pub fn projection_heap(&self) -> u64 {
+    pub(crate) fn projection_heap(&self, _: &RowAuthorization) -> u64 { self.projection_heap_inner() }
+
+    pub(super) fn projection_heap_inner(&self) -> u64 {
         let Ok(fields) = self.row.as_object() else { return 0; };
         if self.table.written_by.keys().chain(self.table.recorded.keys()).all(|name| self.visible(name)) { return 0; }
         40 + fields.iter().filter(|(name, _)| self.visible(name))
-            .map(|(name, value)| 80 + name.len() as u64 + value.clone_heap_bytes()).sum::<u64>()
+            .map(|(name, value)| 80 + name.len() as u64 + value.clone_heap()).sum::<u64>()
     }
 
-    pub fn copy_heap(&self) -> u64 {
-        use crate::rows::word_heap as h;
-        self.row.as_object().map_or(0, |fields| h::slots::<usize>(2)
-            + fields.iter().filter(|(name,_)|self.visible(name)).map(|(name,value)|h::node::<String,Value>() + h::text(name) + h::scalar(value)).sum::<u64>())
-    }
+    pub(crate) fn materialization_heap(&self, _: &RowAuthorization) -> u64 { self.materialization_heap_inner() }
 
-    pub fn materialization_heap(&self) -> u64 {
+    pub(super) fn materialization_heap_inner(&self) -> u64 {
         use crate::rows::word_heap as h;
         let Ok(fields) = self.row.as_object() else { return 0; };
         let missing = self.table.columns.iter().filter(|(name, _)| self.visible(name) && !fields.contains_key(*name));
         if missing.clone().next().is_none() { return 0; }
         let mut len = fields.keys().filter(|name| self.visible(name)).count();
         let mut bytes = h::slots::<usize>(2) + h::node::<String, Value>() * len as u64
-            + fields.iter().filter(|(name, _)| self.visible(name)).map(|(name,v)| h::text(name) + h::scalar(v)).sum::<u64>();
+            + fields.iter().filter(|(name, _)| self.visible(name)).map(|(name,v)| h::text(name) + super::scalar_copy(v)).sum::<u64>();
         for (name, kind) in missing {
             if kind.is_optional() || self.table.defaults.contains_key(name) || self.table.maintained.contains_key(name) {
                 bytes += h::insertion::<String, Value>(len) + h::text(name);
-                if let Some(ColumnDefault::Literal(v)) = self.table.defaults.get(name) { bytes += h::scalar(v); }
+                if let Some(ColumnDefault::Literal(v)) = self.table.defaults.get(name) { bytes += super::scalar_copy(v); }
                 len += 1;
             }
         }
         bytes
+    }
+
+    pub fn charge_materialization_internal(&self, meter: &mut crate::meter::Meter, scope: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> {
+        super::InternalPrice(self.materialization_heap_inner()).charge(meter,scope)
+    }
+
+    pub fn charge_copy_internal(&self, meter: &mut crate::meter::Meter, scope: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> {
+        use crate::rows::word_heap as h;
+        let bytes = self.row.as_object().map_or(0, |fields| h::slots::<usize>(2)
+            + fields.iter().filter(|(name,_)|self.visible(name)).map(|(name,value)|h::node::<String,Value>() + h::text(name) + super::scalar_copy(value)).sum::<u64>());
+        super::InternalPrice(bytes).charge(meter,scope)
     }
 
     pub fn into_value(self) -> Value {
@@ -165,7 +224,7 @@ mod tests {
             if let Some(secret) = secret { fields.insert("secret".into(),Value::String(secret.into())); }
             let raw = Value::Row(fields.into());
             let disclosed = table.project_fields(raw.clone(),Some("alice"));
-            let price = (disclosed.heap_bytes(),disclosed.projection_heap(),disclosed.materialization_heap());
+            let price = (disclosed.heap_bytes_inner(),disclosed.projection_heap_inner(),disclosed.materialization_heap_inner());
             let value = disclosed.into_value();
             assert_eq!(value.field("extra").unwrap(),&Value::Null);
             assert!(value.field("secret").is_err());

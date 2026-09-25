@@ -295,10 +295,10 @@ fn private_scans_bypass_postgres_payload_factor() {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.0.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.0.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.0.scan(t,n,p,b,d,l)}
-        fn scan_metered(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+        fn scan_metered(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize, scope: &crate::engine::Authorization,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
             let rows=self.0.scan(t,n,p,b,d,l)?;
             let bytes=rows.iter().map(|(r,k)|serde_json::to_vec(r).unwrap().len() as u64+k.len() as u64).sum();
-            m.heap(store::payload_heap(bytes,l))?;
+            store::payload_heap(bytes,l,scope).charge(m,scope)?;
             Ok(rows)
         }
         fn count_prefix(&self,t:&str,n:&str,p:&[Value],l:u64)->Result<u64,RuntimeError>{self.0.count_prefix(t,n,p,l)}

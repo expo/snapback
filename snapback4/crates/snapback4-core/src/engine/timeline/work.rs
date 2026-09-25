@@ -90,13 +90,13 @@ impl Runner<'_> {
                 // distinguish old history from already-delivered newer events.
                 self.update(&t.table("Work"), &field(work, "id")?, object([
                     ("status", Value::String("done".into())), ("cursor", Value::Null),
-                ]))?;
+                ]).timeline_input(&super::TimelineInput(())))?;
             } else {
                 self.delete(&t.table("Work"), &text(work, "id")?)?;
             }
         } else {
             let cursor = last.ok_or_else(|| refusal("E_TIMELINE_SHAPE", "delivery made no progress; restore the complete timeline store"))?;
-            self.update(&t.table("Work"), &field(work, "id")?, object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(copied) as i64))]))?;
+            self.update(&t.table("Work"), &field(work, "id")?, object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(copied) as i64))]).timeline_input(&super::TimelineInput(())))?;
         }
         Ok(())
     }
@@ -132,7 +132,7 @@ impl Engine {
                     let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::job(), Cut::Abort), seq);
                     let mut guard = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
                     let message: String = error.to_string().chars().take(4000).collect();
-                    guard.update(&timeline.table("Work"), &field(&work, "id")?, object([("status", Value::String("parked".into())), ("error", Value::String(message))]))?;
+                    guard.update(&timeline.table("Work"), &field(&work, "id")?, object([("status", Value::String("parked".into())), ("error", Value::String(message))]).timeline_input(&super::TimelineInput(())))?;
                     let tables = guard.written_tables.iter().cloned().collect::<Vec<_>>();
                     let events = guard.events.take();
                     let metered = guard.meter.used;

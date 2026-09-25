@@ -419,9 +419,10 @@ impl Rows for MemoryTx<'_> {
             None => Vec::new(),
         })
     }
-    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use snapback4_core::rows::word_heap;
-        meter.heap(word_heap::range(prefix, bounds) + 2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
+        word_heap::range(prefix, bounds, scope).charge(meter,scope)?;
+        meter.heap(2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
         let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         meter.heap(word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
         let ti = format!("{table}.{index_name}");
@@ -430,7 +431,7 @@ impl Rows for MemoryTx<'_> {
         let mut out = Vec::new();
         let mut pick = |((_, key), id): (&(String, Vec<u8>), &String)| -> Result<(), RuntimeError> {
             meter.heap(word_heap::text(table) + word_heap::text(id))?;
-            if let Some(row) = state.rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key)?; }
+            if let Some(row) = state.rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key, scope)?; }
             Ok(())
         };
         match dir { Dir::Asc => { for entry in within.take(limit) { pick(entry)?; } }, Dir::Desc => { for entry in within.rev().take(limit) { pick(entry)?; } } }

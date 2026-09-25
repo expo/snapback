@@ -20,6 +20,63 @@ mod word_merge;
 #[path = "view_merge.rs"]
 mod view_merge;
 
+// Only the read evaluator mints key evidence, from evaluated inputs, validated
+// cursors, or authorized result positions. Storage images cannot call a raw
+// scalar/key pricing API; row fields use AuthorizedRow::scalar_heap instead.
+struct DisclosedKey<'a>(&'a Value);
+struct DisclosedKeys<'a>(&'a [Value]);
+struct DisclosedBounds<'a>(&'a Bounds);
+impl DisclosedKey<'_> {
+    fn heap(self) -> u64 {
+        match self.0 {
+            Value::String(s) | Value::Id(s) => word_heap::text(s),
+            Value::Bytes(b) => word_heap::allocation(b.len()),
+            Value::Array(a) => DisclosedKeys(a).heap(), _ => 0,
+        }
+    }
+    fn copy_heap(self) -> u64 {
+        match self.0 {
+            Value::String(s) | Value::Id(s) => s.len() as u64,
+            Value::Bytes(b) => b.len() as u64,
+            Value::Array(a) => word_heap::slots::<Value>(a.len()) + a.iter().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>(), _ => 0,
+        }
+    }
+}
+impl DisclosedKeys<'_> {
+    fn heap(self) -> u64 { word_heap::slots::<Value>(self.0.len()) + self.0.iter().map(|v|DisclosedKey(v).heap()).sum::<u64>() }
+}
+impl DisclosedBounds<'_> {
+    fn heap(self) -> u64 {
+        let b = self.0;
+        [&b.after, &b.at_or_after, &b.before].into_iter().flatten().map(|v|DisclosedKeys(v).heap()).sum::<u64>()
+            + [&b.gt, &b.gte, &b.lt, &b.lte].into_iter().flatten().map(|v|DisclosedKey(v).heap()).sum::<u64>()
+            + b.word.as_ref().map_or(0, |s| word_heap::text(s))
+    }
+}
+
+fn key_verdict_heap(index: &crate::schema::Index, prefix: &[Value], viewer: &str, rule: &crate::schema::RuleExpr) -> u64 {
+    // The prefix row's collect buffer, map, Arc, viewer and probe term clones.
+    let fields = index.components.iter().zip(prefix).filter_map(|(c,v)| c.column().map(|name| (name, v)));
+    let row = fields.map(|(name,v)| word_heap::node::<String, Value>() + word_heap::text(name) + DisclosedKey(v).heap()).sum::<u64>();
+    word_heap::vec_growth::<(String, Value)>(prefix.len()) + row + word_heap::slots::<usize>(2) + word_heap::text(viewer) + rule_values(rule, prefix, viewer)
+}
+fn rule_values(rule: &crate::schema::RuleExpr, prefix: &[Value], viewer: &str) -> u64 {
+    use crate::schema::{RuleExpr::*, RuleTerm};
+    let term = |t: &RuleTerm| match t {
+        RuleTerm::Viewer => word_heap::text(viewer), RuleTerm::Literal(v) => DisclosedKey(v).heap(),
+        RuleTerm::Field(_) | RuleTerm::OldField(_) | RuleTerm::NextField(_) => prefix.iter().map(|v|DisclosedKey(v).heap()).sum(),
+    };
+    match rule {
+        Eq(a,b) | Ne(a,b) => term(a) + term(b),
+        And(rs) | Or(rs) => rs.iter().map(|r| rule_values(r, prefix, viewer)).sum(), Not(r) => rule_values(r, prefix, viewer),
+        Exists { table, key, equalities, .. } | Created { table, key, equalities, .. } => word_heap::text(table)
+            + word_heap::vec_growth::<Value>(key.len()) + key.iter().map(term).sum::<u64>()
+            + word_heap::vec_growth::<(String, Value)>(equalities.len()) + equalities.iter().map(|(name,v)| word_heap::text(name)+term(v)).sum::<u64>(),
+        _ => 0,
+    }
+}
+
+
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
 #[derive(Clone)]
 struct WordRead {
@@ -55,6 +112,7 @@ impl PartialEq for MergeHead { fn eq(&self, other: &Self) -> bool { self.cmp(oth
 impl Eq for MergeHead {}
 
 impl Probe for Runner<'_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.read_charge(MeterKind::RuleProbes, 1)? {
             // Cut: no lookup and no verdict; the site stops on `capped_at`.
@@ -140,15 +198,26 @@ impl Runner<'_> {
                 None => self.authorization_absence_covered(table, index, key)?,
             }
         } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
+        // A complete unique key only selects a candidate. Extra equalities
+        // must hold before its lifetime can be an authorization dependency.
+        if found.as_ref().is_some_and(|row| !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)) {
+            return Ok((false, known));
+        }
+        let expiry = self.next_expiry;
         if let Some(row) = &found {
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table)
                 && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
                 self.read_tables.insert(maintain.source.clone());
                 if self.device_work_active {
-                    let group_bytes = word_heap::slots::<Value>(maintain.by.len())
-                        + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::scalar)).sum::<u64>();
-                    self.meter.heap(2 * group_bytes + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
+                    self.meter.heap(2 * word_heap::slots::<Value>(maintain.by.len()) + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
+                    self.authorized_scratch(0,&[],|runner,scope| {
+                        for field in &maintain.by { if let Ok(value) = row.field(field) {
+                            value.scalar_heap(scope).charge(&mut runner.meter,scope)?;
+                            value.scalar_heap(scope).charge(&mut runner.meter,scope)?;
+                        } }
+                        Ok(())
+                    })?;
                 }
                 let group = crate::schema::maintained_key(row, &maintain.by);
                 let (name, prefix) = maintain.source_scan(source, &group);
@@ -163,8 +232,11 @@ impl Runner<'_> {
                         bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 1), prefix.len())?;
                         if self.device_work_active {
                             self.meter.step(maintain.evaluation_steps())?;
-                            self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
-                                + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::scalar)).sum::<u64>())?;
+                            self.meter.heap(word_heap::slots::<Value>(maintain.by.len()))?;
+                            self.authorized_scratch(0,&[],|runner,scope| {
+                                for field in &maintain.by { if let Ok(value) = candidate.field(field) { value.scalar_heap(scope).charge(&mut runner.meter,scope)?; } }
+                                Ok(())
+                            })?;
                         }
                         if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
                             if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
@@ -182,7 +254,8 @@ impl Runner<'_> {
         }
         if self.device && self.schema.maintain_subset_unknown(table) { known = false; }
         // @ref LLP 3000.007#10 — the total unique probe reads once, then tests the remaining named equalities.
-        Ok((live && found.as_ref().is_some_and(|row| equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)), known))
+        if !live { self.next_expiry = expiry; }
+        Ok((live, known))
     }
 
     /// Point lookups must pass expired siblings, even on an index whose
@@ -220,7 +293,7 @@ impl Runner<'_> {
             let limit = if runner.device_work_active { runner.meter.ceilings.examined.saturating_sub(runner.meter.used.examined).min(batch as u64) as usize } else { 1 };
             if limit == 0 { runner.meter.charge(MeterKind::Examined, 1)?; }
             let rows = if runner.device_work_active {
-                runner.tx.scan_metered(table, index, prefix, bounds, Dir::Asc, limit, &mut runner.meter)?
+                runner.tx.scan_metered(table, index, prefix, bounds, Dir::Asc, limit, authority, &mut runner.meter)?
             } else {
                 crate::rows::disclosed::candidates(runner.tx, table, index, prefix, bounds, Dir::Asc, limit, &mut runner.meter, authority)?
             };
@@ -231,7 +304,9 @@ impl Runner<'_> {
 
     fn witness_materialize(&mut self, row: &mut Value, table: &Table) -> Result<(), RuntimeError> {
         // Physical device-work accounting stays separate from the logical meter.
-        if self.device_work_active { self.meter.heap(word_heap::materialize(&self.disclosed_row(table, row.clone()), table))?; }
+        if self.device_work_active {
+            self.authorized_scratch(0,&[],|runner, scope| runner.disclosed_row(table,row.clone()).charge_materialization_internal(&mut runner.meter,scope))?;
+        }
         materialize_optional_fields(row, table);
         Ok(())
     }
@@ -506,7 +581,7 @@ impl Runner<'_> {
             // are bounded before the lookup or unknown_fact formats/clones them.
             if visibility.uniform && (table.leave == crate::schema::LeavePolicy::DeliveredHistory || table.sync.is_none()
                 || (!scan.existence && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()))) {
-                self.device_work(|runner| runner.meter.heap(256 * (192 + word_heap::values(&scope) + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site))))?;
+                self.device_work(|runner| runner.meter.heap(256 * (192 + DisclosedKeys(&scope).heap() + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site))))?;
             }
             retained = self.retained_group(&scan.table, &scan.index, &scope)?;
             if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); }
@@ -526,7 +601,7 @@ impl Runner<'_> {
             // is needed only by the existing partial-conjunction traversal.
             let partial = if visibility.uniform { None } else { rules::prefix_decision(self.schema, scan) };
             if let Some(rule) = if visibility.uniform { Some(&table.rules.read) } else { partial.as_ref() } {
-            if visibility.uniform { self.meter.heap(word_heap::verdict(index, &scope, &self.context.viewer, rule))?; }
+            if visibility.uniform { self.meter.heap(key_verdict_heap(index, &scope, &self.context.viewer, rule))?; }
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
             if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
             if !self.prefix_verdict(table, index, &scope, rule, visibility.uniform)? {
@@ -547,7 +622,7 @@ impl Runner<'_> {
             if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
             }
-            let found = if metered_words { self.scan_disclosed(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?.into_iter().map(|(r,k)|(r.into_value(),k)).collect() }
+            let found = if metered_words { self.scan_disclosed(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?.into_iter().map(|(r,k)|(r.map(|r|r.into_value()).unwrap_or(Value::Null),k)).collect() }
                 else { self.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)? };
             let Some((_, key)) = found.into_iter().next() else { break };
             if metered_words {
@@ -651,7 +726,7 @@ impl Runner<'_> {
                 if metered {
                     self.validate_word_cursor(&token, &scan.table, &scan.index, scan.order, &suffix)?;
                     let position = &self.word_cursor.as_ref().unwrap().1;
-                    self.meter.heap(word_heap::values(&position.values))?;
+                    self.meter.heap(DisclosedKeys(&position.values).heap())?;
                     if position.inclusive { bounds.at_or_after = Some(position.values.clone()); }
                     else { bounds.after = Some(position.values.clone()); }
                     self.word_shape_cursor(&scan.site, token)?;
@@ -678,7 +753,7 @@ impl Runner<'_> {
             Some(_) => return Err(RuntimeError::Input("an opaque cursor is a string or null".into())),
         }
         if let Some((site, position)) = &self.view_seek && site == &scan.site {
-            self.meter.heap(word_heap::values(&position.values))?;
+            self.meter.heap(DisclosedKeys(&position.values).heap())?;
             if position.inclusive { bounds.at_or_after = Some(position.values.clone()); }
             else { bounds.after = Some(position.values.clone()); }
         }
@@ -777,15 +852,16 @@ impl Runner<'_> {
     fn word_scan_prepared(&mut self, scan: &Scan, prefix: &[Value], bounds: &Bounds, take: usize, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         if word.is_some_and(|w| w.metered) {
             // Scan arguments own their prefix and bounds; Vec -> VecDeque transfers its buffer.
-            self.meter.heap(word_heap::values(prefix) + word_heap::bounds(bounds))?;
+            self.meter.heap(DisclosedKeys(prefix).heap() + DisclosedBounds(bounds).heap())?;
         }
         self.scan_prepared(scan, prefix.to_vec(), bounds.clone(), take, word)
     }
 
-    fn charge_word_key(&mut self, index: &Index, prefix_len: usize, suffix_len: usize, row: &Value) -> Result<(), RuntimeError> {
+    fn charge_word_key(&mut self, table: &str, index: &Index, prefix_len: usize, suffix_len: usize, row: &Value) -> Result<(), RuntimeError> {
         // Exact suffix slots plus copied column bodies (computed time keys are scalars).
-        let copied = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).filter_map(|c| row.field(c).ok()).map(word_heap::scalar).sum::<u64>();
-        let appended = if index.components.len() - prefix_len < suffix_len { word_heap::scalar(row.field("id")?) } else { 0 };
+        let row = self.project_row(table,row.clone())?;
+        let copied = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).map(|c|row.scalar_heap(c)).sum::<u64>();
+        let appended = if index.components.len() - prefix_len < suffix_len { row.scalar_heap("id") } else { 0 };
         self.meter.heap(word_heap::slots::<Value>(suffix_len) + copied + appended)
     }
 
@@ -874,13 +950,13 @@ impl Runner<'_> {
         let mut has_more = false;
         let mut capped = false;
         let mut filter_interrupted = false;
-        let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
+        let mut uniform_verdict = always_visible;
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
-            if visibility.uniform { uniform_verdict = Some(true); }
+            uniform_verdict |= visibility.uniform;
         }
         // Non-uniform hidden runs cost examined rows, never a materialized
         // table. A uniform page already has its verdict before fetching.
@@ -898,7 +974,7 @@ impl Runner<'_> {
         let private_payload = table.written_by.values().any(|a| !a.audience);
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
-        if metered_payload || transient { self.meter.heap(word_heap::bounds(&bounds))?; }
+        if metered_payload || transient { self.meter.heap(DisclosedBounds(&bounds).heap())?; }
         let mut cursor = bounds.clone();
         // One retained cursor/key allowance, outside the transient row scope.
         // Key payload sizes vary: only grow this reservation when a
@@ -919,12 +995,9 @@ impl Runner<'_> {
             let fetch_heap = self.meter.used.heap_bytes;
             // No adaptive lookahead, even for non-uniform rules. A later chunk
             // establishes exhaustion; every new candidate must first fit.
-            let fetched = if metered_payload || transient || job_page || private_payload { self.scan_disclosed(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? }
-                else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)?.into_iter().map(|(r,k)|(self.disclosed_row(table,r),k)).collect() };
+            let fetched = self.scan_authorized(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict)?;
+            if self.view_scan_active && !private_payload { self.meter.heap(fetched.iter().filter_map(|(row,_)|row.as_ref()).map(|row|row.heap_bytes()).sum())?; }
             if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
-            // A planned view retains the disclosed source image. Store-private
-            // fetches already paid it; ordinary store ledgers retain their price.
-            if self.view_scan_active && !private_payload { self.meter.heap(fetched.iter().map(|(row, _)| row.heap_bytes()).sum())?; }
             if fetched.is_empty() {
                 break;
             }
@@ -937,6 +1010,14 @@ impl Runner<'_> {
                     capped = true;
                     break 'outer;
                 }
+                let Some(row) = row else {
+                    // A rejected candidate's continuation is internal scratch,
+                    // never an actual-size caller charge or a published cursor.
+                    cursor.after = self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |_, _| {
+                        Ok(crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect()))
+                    })?;
+                    continue;
+                };
                 // The previous cursor remains reserved while the new key is
                 // decoded. Transient consumers release scratch with this row.
                 if metered_payload || transient || job_page {
@@ -949,9 +1030,9 @@ impl Runner<'_> {
                     if transient { row_bytes += scratch; }
                 }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
-                let materialized = if metered_payload || transient || job_page { word_heap::materialize(&row, table) } else { 0 };
+                let materialized = if metered_payload || transient || job_page { row.materialization_heap() } else { 0 };
                 if materialized > 0 { self.meter.heap(materialized)?; }
-                let row = row.into_value();
+                let (row, authority) = row.into_parts();
                 if transient { row_bytes += materialized; }
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
@@ -967,19 +1048,11 @@ impl Runner<'_> {
                 if unmatched {
                     continue;
                 }
-                let row_expiry_mark = self.next_expiry;
-                let allowed = match uniform_verdict {
-                    Some(verdict) => verdict && self.provisional_readable(&scan.table, &row)?,
-                    None => {
-                        let verdict = self.check_rule(&scan.table, Effect::Read, None, &row)?;
-                        verdict
-                    }
-                };
                 if self.read_capped() {
                     capped = true;
                     break 'outer;
                 }
-                if allowed {
+                {
                     self.note_expiry(table, &row);
                     let live_row = self.live_aggregate(&scan.table, row)?;
                     // @ref LLP 3000.007#20.21 — a cut aggregate is unavailable, not a
@@ -991,7 +1064,7 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     let Some(row) = live_row else { continue; };
-                    let disclosed = self.project_row(&scan.table, row)?;
+                    let disclosed = authority.project(self.disclosed_row(table,row).for_query());
                     let disclosed_bytes = disclosed.heap_bytes();
                     let row = super::recorded::public_image(table, disclosed.into_value());
                     if metered_payload || transient || job_page {
@@ -1065,8 +1138,6 @@ impl Runner<'_> {
                     }
                     if (scan.existence || job_page) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
-                } else {
-                    self.next_expiry = row_expiry_mark;
                 }
             }
             if fetched_len < batch {
@@ -1351,6 +1422,7 @@ impl Runner<'_> {
 
 struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b> }
 impl Probe for PrefixProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         self.runner.rule_probe_exists(table, index, key, equalities)
     }
@@ -1360,3 +1432,10 @@ impl Probe for PrefixProbe<'_, '_> {
 #[cfg(all(test, feature = "sqlite"))]
 #[path = "../../tests/read_verdict/mod.rs"]
 mod read_verdict_tests;
+
+impl PagePosition {
+    pub(super) fn shape_keys_heap(&self) -> u64 {
+        self.shape_positions.capacity() as u64 * std::mem::size_of::<Vec<Value>>() as u64
+            + self.shape_positions.iter().map(|key| key.capacity() as u64 * std::mem::size_of::<Value>() as u64 + key.iter().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>()).sum::<u64>()
+    }
+}

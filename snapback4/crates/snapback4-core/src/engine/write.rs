@@ -10,7 +10,7 @@ use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
 use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
-use crate::value::{Value, canonical_json};
+use crate::value::{Value, Supplied, canonical_json};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Origin {
@@ -19,26 +19,22 @@ pub(crate) enum Origin {
 }
 
 #[path = "write_target.rs"]
-pub(super) mod target;
-
-/// Raw caller-payload pricing is confined to the write implementation.
-pub(crate) struct WriteAccess(());
-fn supplied_heap(value: &Value) -> u64 { value.write_heap(WriteAccess(())) }
+pub(crate) mod target;
 
 impl Runner<'_> {
-    pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn insert(&mut self, table: &str, row: Supplied) -> Result<(), RuntimeError> {
         self.insert_mode(table, row, false).map(|_| ())
     }
 
-    pub(super) fn insert_if_absent(&mut self, table: &str, row: Value) -> Result<bool, RuntimeError> {
+    pub(super) fn insert_if_absent(&mut self, table: &str, row: Supplied) -> Result<bool, RuntimeError> {
         self.insert_mode(table, row, true)
     }
 
-    fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+    fn insert_mode(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
         self.target_attempt(table_name, |runner|runner.insert_attempt(table_name, row, if_absent))
     }
 
-    fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+    fn insert_attempt(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
         let supplied = row.clone();
@@ -47,7 +43,7 @@ impl Runner<'_> {
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
-        let row = self.record_insert(table_name, row)?;
+        let row = self.record_insert(table_name, row.into_value())?;
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
         validate_row(self.schema, table_name, &row)?;
@@ -89,11 +85,11 @@ impl Runner<'_> {
         Ok(true)
     }
 
-    pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+    pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
         self.target_attempt(table_name, |runner| runner.update_attempt(table_name, key, patch))
     }
 
-    fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+    fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, &patch)?;
         if patch.as_object()?.contains_key("id") {
@@ -111,11 +107,11 @@ impl Runner<'_> {
         self.replace(table_name, old, new, readable, &patch)
     }
 
-    pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
         self.target_attempt(table_name, |runner| runner.upsert_attempt(table_name, key, row))
     }
 
-    fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+    fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         self.refuse_recorded(table_name, &row)?;
         let id = key.as_str()?;
@@ -136,7 +132,7 @@ impl Runner<'_> {
         }
     }
 
-    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
         let supplied = row.clone();
@@ -216,20 +212,13 @@ impl Runner<'_> {
     /// it out, before validation and before the asset facts, so the row the
     /// rules and the constraints see is the complete one.
     // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
-    pub(super) fn with_defaults(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+    pub(super) fn with_defaults(&mut self, table_name: &str, row: Supplied) -> Result<Supplied, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if !table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
             return Ok(row);
         }
-        let mut fields = row.as_object()?.clone();
-        for (name, default) in &table.defaults {
-            if !fields.contains_key(name) {
-                let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
-                fields.insert(name.clone(), value);
-            }
-        }
-        let row = Value::Row(fields.into());
-        self.meter.heap(supplied_heap(&row))?;
+        let row = row.defaults(table,self.context.now.ok_or_else(||RuntimeError::Input("write clock is not pinned".into()))?,&self.context.viewer)?;
+        self.meter.heap(row.heap_bytes())?;
         Ok(row)
     }
 

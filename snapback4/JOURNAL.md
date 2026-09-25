@@ -49815,3 +49815,90 @@ target/r6-mutations.json and target/r6-mutant-*.log. Reference and whitespace
 checks pass. Grok's b1-d6.grok.exit was rechecked as EXIT=0.
 Report: /home/ccheever/sb5/lane-b1.r6.final.md. Commit on sb5/b1-written-by only;
 no push, publication or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 7: scans and compulsory pricing evidence
+
+Scan candidates now decode, materialize, filter expiry and establish row read
+and field authority inside the internal scope. Only surviving `AuthorizedRow`
+projections may be priced afterward. Expired owner-visible private payloads
+therefore cannot turn an empty page or zero scalar into a heap cut. Rejected
+cursor decoding also stays internal: a final expired-id-length pair failed at
+2,560 versus 3,352 heap bytes before this repair and passes afterward
+(`target/r7-key-before.log`, `target/r7-key-after.log`). Candidate
+rule-probe admission is checked before authorization and committed back to the
+logical ledger; internal work cannot erase its limit. Device provisional rows
+retain their own read verdict. Preauthorized public non-expiring rows without
+private or recorded fields use actual decoder scratch, released after a point
+fetch, preserving small reads under large public column declarations.
+
+`Disclosed` is a projection plan, not a pricing capability. Raw scalar,
+serialized-row, range and Postgres payload estimates are opaque `InternalPrice`
+values, accepted with internal-scope evidence. Metered store scans and recording
+coverage require that evidence. Caller expressions carry sealed `Supplied`
+values through writes, defaults, natural-key completion and immutable-field
+removal; writer helpers no longer accept arbitrary raw values for exact prices.
+Old retained fields use declared copy bounds. Component packing and evaluated
+keys retain their own provenance; retained row keys require row authority.
+The exact reviewer expiring-delete mutation fails compilation with E0061 and
+E0308. A deliberate hand-written length charge fails the new successful-delete
+pair at 3 versus 100,003 heap bytes. Both mutations were restored.
+
+Ported the sufficient-proof expiry repair from B2 commit `30add33e7`:
+`rules.rs`'s central evaluator, `read_auth.rs`'s provisional evaluator and its
+regression, and the complete-witness-predicate-before-`note_expiry` block are
+verbatim. B1 keeps its ordered Compare leaf and outer scratch/coverage rollback,
+and adapts the expiry callback to its runner/prefix/delivery probes. The same
+proof policy now drops failed-branch and redundant witness dependencies while
+retaining necessary expiring grants. The port boundaries/hashes are in
+`target/r7-b2-port.json`; this is one shared B2 policy, not a parallel repair.
+
+Astra's expired scan and redundant successful witness cases failed against the
+original runtime. New positive controls require complete empty pages/zero
+scalars, successful expiring deletes, necessary-witness invalidation and a
+short public row under a 2 MB declaration. Grok's review arrived with EXIT=0;
+its raw metered-scan and expiring aggregate concerns also have coverage.
+Postgres feature qualification passes three non-service tests; nine tests
+explicitly require an isolated live service and remain ignored. No live
+Postgres claim is made. Memory, SQLite, disk reopen and acquired offline expiry
+are covered. The rules card and LLP 3000.015 state the remaining declaration
+bounds, necessary witness deadline and non-uniform private-scan qualifications.
+
+Generated cases increase 2,727 -> 2,835 per host/store: 72 elapsed-expiry cases,
+18 successful-witness cases and 18 successful-expiring-delete/shape cases.
+Across core and both device stores that is 8,181 -> 8,505. Core disclosure tests
+increase 23 -> 30, device disclosure tests 11 -> 19, and pricing compile-fail
+cases 8 -> 14. The separate 468 admission pairs remain. This is bounded
+regression evidence, not a universal proof. Single-candidate internal decoding
+adds empty lookahead fetches on singleton device lanes (the 1,000-lane case is
+2,001 calls, with one boundary namespace load and zero whole-map parses).
+Internal candidate admission stops after an earlier cut: the reduced-ceiling
+opening now records 11 attempts, retains exactly 10 rows and no cursor.
+
+Final wasm: 1,794,926 B raw / 500,842 B gzip / 381,288 B brotli; Rust 1.97.0,
+wasm-bindgen 0.2.127, no wasm-opt. Versus round 6, +7,282 raw / +3,144 gzip.
+Raise the 498,000 B ratchet to 501,000 B, leaving 158 B. The whole-artifact
+increase covers internal scan authorization, sealed row/input pricing, opaque
+storage prices and the B2 sufficient-proof evaluator; no per-component byte
+attribution is claimed. Runtime ceilings are unchanged. The final cursor audit adds 614 raw and 234 gzip bytes over the preceding
+round-7 measurement (1,794,312 raw / 500,608 gzip). The family and absent-symbol checks pass.
+SHA-256: 58e7430298638f562a0163ec19de30ab7d96015f2e5863d2b596d77b412c05e1.
+
+Qualification: `snapback4/scripts/test.sh`, FORCE_COLOR unset, exits 0:
+`== 0 failure(s) in 672 s`. Exact invocation from the repository root:
+
+```sh
+env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=8 bash snapback4/scripts/test.sh
+```
+
+All 862 Rust executions pass, including core disclosure 30, device disclosure
+19, device written_by 17 and language written_by 9. Pricing compile-fail
+qualification passes all 14 cases. Client tests: 1,089 passed across all eight
+processes (1,055 main + 34 sharded), 0 failed, 10 skipped. Postgres feature
+qualification: 3 passed, 9 explicit live-service ignores; no live service used.
+The reference audit passes with 507 LLP docs, 9,248 refs, zero errors and zero
+unchecked references. The preceding suite had one HTTP client socket-close
+failure; that named case and the complete final suite pass. No runtime source
+changed during the final run. Logs: `target/r7-qualified.log`,
+`target/r7-postgres-qualified.log`, `target/r7-ref-check-qualified.log`, and
+`target/r7-wasm-qualified.log`. Report: `/home/ccheever/sb5/lane-b1.r7.final.md`.
+Committed on `sb5/b1-written-by`; no push.

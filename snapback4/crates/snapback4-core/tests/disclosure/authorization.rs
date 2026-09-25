@@ -68,6 +68,7 @@ pub fn write_target(observer: &str, expires: bool, owned: bool) -> Pair {
 }
 
 pub fn visit(send: &mut impl FnMut(String, Pair, bool)) {
+    super::round7::visit(send);
     for observer in ["alice", "bob", "carol"] {
         for expires in [false,true] {
             for owned in [false,true] {

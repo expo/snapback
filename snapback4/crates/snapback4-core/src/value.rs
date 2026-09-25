@@ -3,6 +3,8 @@
 //! canonical JSON; one digest. The conformance corpus under `corpus/` is
 //! written against this exact serialization.
 
+mod supplied;
+pub(crate) use supplied::Supplied;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
@@ -179,17 +181,21 @@ impl Value {
     /// Approximate heap footprint, charged by the meter (LLP 2000.000 §6).
     /// Bytes copied by `Clone`: row/map images already share an Arc, while
     /// strings, bytes and array slots are owned copies (with tight capacity).
-    pub fn clone_heap_bytes(&self) -> u64 {
+    fn clone_heap(&self) -> u64 {
         match self {
             Self::String(s) | Self::Id(s) => s.len() as u64,
             Self::Bytes(bytes) => bytes.len() as u64,
-            Self::Array(values) => values.len() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Self::clone_heap_bytes).sum::<u64>(),
+            Self::Array(values) => values.len() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Self::clone_heap).sum::<u64>(),
             _ => 0,
         }
     }
 
+    /// Raw storage has an opaque price; the caller ledger cannot accept it.
+    pub fn clone_heap_bytes(&self, _: &crate::engine::Authorization) -> InternalPrice { InternalPrice(self.clone_heap()) }
+    pub fn scalar_heap(&self, _: &crate::engine::Authorization) -> InternalPrice { InternalPrice(scalar_copy(self)) }
+    pub(crate) fn expression_copy(&self, _: crate::engine::runner::ExpressionAccess) -> u64 { self.clone_heap() }
     pub(crate) fn expression_heap(&self, _: crate::engine::runner::ExpressionAccess) -> u64 { self.retained_heap() }
-    pub(crate) fn write_heap(&self, _: crate::engine::write::WriteAccess) -> u64 { self.retained_heap() }
+
 
     fn retained_heap(&self) -> u64 {
         match self {
@@ -384,5 +390,22 @@ impl InternalLedger {
     pub(crate) fn retain(&mut self, value: Option<&Value>, fixed: u64) -> bool {
         self.used = self.used.saturating_add(fixed).saturating_add(value.map_or(0, Value::retained_heap));
         self.used <= self.limit
+    }
+}
+
+/// A raw-storage price has no conversion to caller-ledger bytes.
+pub struct InternalPrice(u64);
+impl InternalPrice { pub fn from_storage(bytes: u64, _: &crate::engine::Authorization) -> Self { Self(bytes) } }
+impl InternalPrice {
+    pub fn charge(self, meter: &mut crate::meter::Meter, _: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> { meter.heap(self.0) }
+}
+
+fn scalar_copy(value: &Value) -> u64 {
+    use crate::rows::word_heap as h;
+    match value {
+        Value::String(s) | Value::Id(s) => h::text(s),
+        Value::Bytes(b) => h::allocation(b.len()),
+        Value::Array(a) => h::slots::<Value>(a.len()) + a.iter().map(scalar_copy).sum::<u64>(),
+        _ => 0,
     }
 }

@@ -83,6 +83,7 @@ fn column_mirror_requires_timeline_authority_even_when_validation_is_bypassed() 
     }
     // The ordinary source write also reaches the guarded mirror via apply_aggregate.
     let source = object([("id", Value::Id("s".into())), ("parentId", Value::Id("existing".into()))]);
+    let source = runner.expr_input(&crate::ir::Expr::Literal(source)).unwrap();
     assert_eq!(runner.insert("ordinarySources", source).unwrap_err().code(), "E_TIMELINE_OWNED");
     assert_eq!(tx.get("feedFeed", "existing").unwrap(), Some(row("existing")));
     drop(runner);
@@ -106,7 +107,8 @@ fn upsert_needs_insert_and_update_grants_on_both_addressing_paths() {
     assert!(!guard.timeline_may_write("feedFeed", Effect::Insert));
     for key in ["existing", "missing"] {
         let id = Value::Id(key.into());
-        assert_eq!(guard.upsert("feedFeed", &id, row(key)).unwrap_err().code(), "E_TIMELINE_OWNED");
+        let input = guard.expr_input(&crate::ir::Expr::Literal(row(key))).unwrap();
+        assert_eq!(guard.upsert("feedFeed", &id, input).unwrap_err().code(), "E_TIMELINE_OWNED");
         let target = Read { site: "test".into(), table: "feedFeed".into(), index: "byId".into(), key: vec![Expr::Literal(id)], provenance: KeyProvenance::Const };
         assert_eq!(guard.write_target(&target, &Expr::Literal(object([("value", Value::Int(2))])), true, None, false).unwrap_err().code(), "E_TIMELINE_OWNED");
     }
@@ -127,10 +129,14 @@ fn purge_gates_actual_writes_charges_deletes_and_never_refuses_reads() {
         for table in ["feedFeed", "feedRemovedEvents", "profiles"] {
             guard.refuse_timeline_purge_write(table, Effect::Read).unwrap();
             assert!(guard.check_rule(table, Effect::Read, None, &row("copy-0")).unwrap());
-            assert_eq!(guard.insert(table, row("new")).unwrap_err().code(), "E_TIMELINE_OWNED");
-            assert_eq!(guard.insert_if_absent(table, row("copy-0")).unwrap_err().code(), "E_TIMELINE_OWNED");
-            assert_eq!(guard.update(table, &Value::Id("copy-0".into()), object([("value", Value::Int(2))])).unwrap_err().code(), "E_TIMELINE_OWNED");
-            assert_eq!(guard.upsert(table, &Value::Id("copy-0".into()), row("copy-0")).unwrap_err().code(), "E_TIMELINE_OWNED");
+            let input = guard.expr_input(&crate::ir::Expr::Literal(row("new"))).unwrap();
+            assert_eq!(guard.insert(table, input).unwrap_err().code(), "E_TIMELINE_OWNED");
+            let input = guard.expr_input(&crate::ir::Expr::Literal(row("copy-0"))).unwrap();
+            assert_eq!(guard.insert_if_absent(table, input).unwrap_err().code(), "E_TIMELINE_OWNED");
+            let input = guard.expr_input(&crate::ir::Expr::Literal(object([("value", Value::Int(2))]))).unwrap();
+            assert_eq!(guard.update(table, &Value::Id("copy-0".into()), input).unwrap_err().code(), "E_TIMELINE_OWNED");
+            let input = guard.expr_input(&crate::ir::Expr::Literal(row("copy-0"))).unwrap();
+            assert_eq!(guard.upsert(table, &Value::Id("copy-0".into()), input).unwrap_err().code(), "E_TIMELINE_OWNED");
         }
         for n in 0..1001 { guard.delete("feedFeed", &format!("copy-{n}")).unwrap(); }
         guard.delete("feedRemovedEvents", "removed-0").unwrap();

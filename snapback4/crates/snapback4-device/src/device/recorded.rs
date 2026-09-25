@@ -2,11 +2,11 @@
 use super::*;
 use snapback4_core::{error::MeterKind, meter::Meter, rows::word_heap};
 
-pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut Meter) -> Result<bool, RuntimeError> {
+pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &Value, viewer: &str, now: i64, scope: &snapback4_core::engine::Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> {
     use snapback4_core::schema::{Audience, audience_binding};
     let Some(table) = rows.schema.table(name) else { return Ok(false) };
     let Some(sync) = &table.sync else { return Ok(false) };
-    meter.heap(word_heap::materialize(&table.project_fields(row.clone(), Some(viewer)), table))?;
+    table.project_fields(row.clone(),Some(viewer)).charge_materialization_internal(meter,scope)?;
     let row = table.project_fields(row.clone(),Some(viewer)).into_value();
     if row.field("id").ok().and_then(|id| id.as_str().ok()).is_none() { return Ok(false); }
     if table.expired(&row, now) { return Ok(false); }
@@ -22,7 +22,7 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
             let mut key = Vec::with_capacity(prefix.len() + 1);
             for column in prefix {
                 let value = row.field(column)?;
-                meter.heap(word_heap::scalar(value))?;
+                value.scalar_heap(scope).charge(meter,scope)?;
                 key.push(value.clone());
             }
             key.push(Value::Id(viewer.into()));
@@ -33,14 +33,14 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
             loop {
                 let limit = meter.ceilings.examined.saturating_sub(meter.used.examined).min(32) as usize;
                 if limit == 0 { meter.charge(MeterKind::Examined, 1)?; break false; }
-                let members = snapback4_core::rows::disclosed::scan(rows.tx, target, target_table, viewer, &binding.group_index, &key, &bounds, Dir::Asc, limit, meter)?;
+                let members = rows.tx.scan_metered(target, &binding.group_index, &key, &bounds, Dir::Asc, limit, scope, meter)?;
                 let count = members.len();
                 if !meter.charge(MeterKind::Examined, count.max(1) as u64)? { break false; }
                 let mut live = false;
                 let stored = members.last().map(|(_,key)|key.clone());
                 for (member, _) in members {
-                    meter.heap(word_heap::materialize(&member, target_table))?;
-                    if !target_table.expired(&member.into_value(), now) { live = true; break; }
+                    target_table.project_fields(member.clone(),Some(viewer)).charge_materialization_internal(meter,scope)?;
+                    if !target_table.expired(&member, now) { live = true; break; }
                 }
                 if live { break true; }
                 if count < limit { break false; }
@@ -74,7 +74,7 @@ mod tests {
             assert!(!history::is_left(&groups,"posts","[]"), "a new delivery is not departed history");
             let row = wire::row_from_json(schema.table("posts").unwrap(),put("p").data.as_ref().unwrap()).unwrap();
             let rows = Predicting { tx:&tx, schema:&schema, groups, boundaries:boundary::Boundaries::load(&tx,false).unwrap(), written:std::cell::RefCell::new(Vec::new()) };
-            assert!(!covered(&rows,"posts",&row,"alice",100,&mut Meter::new(Ceilings::unbounded(),Cut::Abort)).unwrap(), "one delivery cannot grant full capture coverage");
+            assert!(!covered_test(&rows,"posts",&row,"alice",100,&mut Meter::new(Ceilings::unbounded(),Cut::Abort)).unwrap(), "one delivery cannot grant full capture coverage");
         }
         tx.set_meta(history::GROUPS,r#"{"posts":{"[]":"Left"}}"#).unwrap();
         history::events(&tx,&schema,&[put("p")],&BTreeMap::new(),false).unwrap();
@@ -114,8 +114,8 @@ mod tests {
         assert!(!history::retained(&schema,&groups,"posts",history::Coverage::Row(&row("q"))).unwrap());
         assert!(!history::retained(&schema,&groups,"posts",history::Coverage::Range("byId",&[])).unwrap());
         let rows=Predicting {tx:&tx,schema:&schema,groups,boundaries:boundary::Boundaries::load(&tx,false).unwrap(),written:std::cell::RefCell::new(Vec::new())};
-        assert!(!covered(&rows,"posts",&row("p"),"alice",100,&mut Meter::new(Ceilings::unbounded(),Cut::Abort)).unwrap());
-        assert!(covered(&rows,"posts",&row("q"),"alice",100,&mut Meter::new(Ceilings::unbounded(),Cut::Abort)).unwrap());
+        assert!(!covered_test(&rows,"posts",&row("p"),"alice",100,&mut Meter::new(Ceilings::unbounded(),Cut::Abort)).unwrap());
+        assert!(covered_test(&rows,"posts",&row("q"),"alice",100,&mut Meter::new(Ceilings::unbounded(),Cut::Abort)).unwrap());
         // Only the replacement snapshot's held declaration grants full coverage.
         snapshot::retain(&tx,&schema,Some(&joined)).unwrap();
         assert!(matches!(history::load(&tx,history::STAGED_GROUPS).unwrap()["posts"]["[]"],history::Membership::Held));
@@ -135,6 +135,13 @@ mod tests {
             transitions(crate::sqlite::open(&dir.join("device.sqlite")).unwrap());
             std::fs::remove_dir_all(dir).unwrap();
         }
+    }
+
+    fn covered_test<T: DeviceTx>(rows: &Predicting<'_,T>, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut Meter) -> Result<bool,RuntimeError> {
+        let mut ledger = snapback4_core::meter::InternalLedger::new(meter.clone());
+        let result = ledger.run(|meter,scope| covered(rows,name,row,viewer,now,scope,meter));
+        *meter = ledger.into_meter();
+        result
     }
 
     fn membership_meter<S: DeviceStore>(mut store: S) {
@@ -169,15 +176,15 @@ table posts:
             boundaries: boundary::Boundaries::load(&tx, false).unwrap(), written: RefCell::new(Vec::new()) };
         let post = snapback4_core::value::object([("id", Value::Id("p".into())), ("owner", Value::Id("alice".into()))]);
         let mut meter = Meter::new(Ceilings { examined: 8192, ..Ceilings::unbounded() }, Cut::Abort);
-        assert!(matches!(covered(&rows, "posts", &post, "alice", 300, &mut meter),
+        assert!(matches!(covered_test(&rows, "posts", &post, "alice", 300, &mut meter),
             Err(RuntimeError::Bound { kind: MeterKind::Examined, actual: 8193, ceiling: 8192, .. })));
         assert_eq!(meter.used.examined, 8193);
         assert!(meter.used.heap_bytes > 0, "membership row/key allocation is charged");
         let mut heap = Meter::new(Ceilings { heap_bytes: 1024, ..Ceilings::unbounded() }, Cut::Abort);
-        assert!(matches!(covered(&rows, "posts", &post, "alice", 300, &mut heap),
+        assert!(matches!(covered_test(&rows, "posts", &post, "alice", 300, &mut heap),
             Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })));
         let mut enough = Meter::new(Ceilings { examined: 9001, ..Ceilings::unbounded() }, Cut::Abort);
-        assert!(covered(&rows, "posts", &post, "alice", 300, &mut enough).unwrap());
+        assert!(covered_test(&rows, "posts", &post, "alice", 300, &mut enough).unwrap());
         assert_eq!(enough.used.examined, 9001);
         tx.rollback().unwrap();
     }

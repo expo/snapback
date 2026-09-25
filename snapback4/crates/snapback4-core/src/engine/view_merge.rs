@@ -93,7 +93,7 @@ impl Runner<'_> {
                     if self.read_cuts != cut { break; }
                     let mut key = names.iter().map(|name| projected.field(name).cloned()).collect::<Result<Vec<_>, _>>()?;
                     key.push(Value::String(branch.into()));
-                    self.meter.heap(key.iter().map(Value::clone_heap_bytes).sum::<u64>() + projected_bytes + 64)?;
+                    self.meter.heap(key.iter().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>() + projected_bytes + 64)?;
                     candidates.push((key, projected));
                 }
             }
@@ -110,7 +110,7 @@ impl Runner<'_> {
         if outer_depth == 0 {
             if descriptor.after.is_some() {
                 let next = (has_more && !self.read_capped() && self.word_cut_at.is_none() && !self.beyond_horizon && !self.presence_unknown).then(|| candidates.last().unwrap().0.clone());
-                self.meter.heap(candidates.iter().map(|(key, _)| key.iter().map(Value::clone_heap_bytes).sum::<u64>() + 64).sum())?;
+                self.meter.heap(candidates.iter().map(|(key, _)| key.iter().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>() + 64).sum())?;
                 let cursor_rows: Vec<Value> = candidates.iter().map(|(key, _)| Value::Row(suffix.iter().zip(key).map(|(column, value)| (column.name.clone(), value.clone())).collect::<std::collections::BTreeMap<_, _>>().into())).collect();
                 self.record_page(merge.site.clone(), PagePosition { view_suffix: Some(suffix), table: view, index: view_index.into(), order,
                     prefix_len: 0, prefix: None, merge: true, interrupted: false, inclusive: false, next, shape_positions: Vec::new(), shape_resume: super::super::shaping::Resume::Never }, cursor_rows.iter())?;

@@ -42,7 +42,7 @@ fn pair_devices_expect<H: Host>(host: &mut H, pair: &Pair, predicts: bool) {
                 &op.name,
                 &op.principal,
                 &op.args,
-                NOW,
+                pair.now,
                 vec!["new-0".into()],
                 1,
             );
@@ -62,7 +62,7 @@ fn pair_devices_expect<H: Host>(host: &mut H, pair: &Pair, predicts: bool) {
         for p in e.programs().filter(|p| p.kind == ProgramKind::Query) {
             let mut args = pair.queries.get(&p.name).cloned().unwrap_or(json!({}));
             for page in 0..100 {
-                let result = d.query(&p.name, &pair.principal, &args, NOW);
+                let result = d.query(&p.name, &pair.principal, &args, pair.now);
                 observation.insert(format!("query/{}/{page}", p.name), json!(result));
                 if let Some(next) = result.ok().and_then(|r| r.next) {
                     args["c"] = json!(next);
@@ -96,6 +96,35 @@ fn paired_worlds_replay_every_channel_on_memory_and_sqlite() {
     });
     eprintln!("generated device pairs: {count} per store; differences: {}",failed.len());
     assert!(failed.is_empty(), "{} generated device pairs differ: {failed:?}",failed.len());
+}
+
+#[test]
+fn acquired_owner_payload_expires_offline_and_after_reopen() {
+    fn run<H: Host>(host: &mut H) {
+        for query in ["records first 20","count(records)"] {
+            let pair = disclosure::round7::elapsed("alice",query,false,2000);
+            let worlds = [0,1].map(|world| {
+                let name = format!("expired-{query}-{world}");
+                let mut e = pair.engine(world);
+                let mut d = host.open(&name,Some(Backend { generation:e.generation(),schema:e.schema().clone(),programs:e.programs().cloned().collect() })).unwrap();
+                for (n,page) in disclosure::snapshot_at(&mut e,"alice",1000).into_iter().enumerate() {
+                    d.apply(&serde_json::from_value(page).unwrap(),n==0).unwrap();
+                }
+                assert_eq!(d.store().raw_rows("records").len(),1,"the expired row remains physically held");
+                let before = d.query("observed","alice",&json!({}),2000).unwrap();
+                assert!(before.complete,"{before:?}");
+                host.close(&name,d);
+                let mut d = host.open(&name,None).unwrap();
+                let reopened = d.query("observed","alice",&json!({}),2000).unwrap();
+                assert_eq!(json!(before),json!(reopened));
+                host.close(&name,d);
+                json!(reopened)
+            });
+            assert_eq!(worlds[0],worlds[1],"{} {query}",host.label());
+        }
+    }
+    run(&mut Memory::new());
+    run(&mut Sqlite::new("r7-expired-owner"));
 }
 
 #[test]

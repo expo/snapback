@@ -317,7 +317,7 @@ impl PostgresEngine {
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table, row) in rows {
-            runner.upsert(&table, &row.field("id")?.clone(), row)?;
+            runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&crate::engine::ImportInput(())))?;
             count += 1;
         }
         runner.check_final_exists()?;

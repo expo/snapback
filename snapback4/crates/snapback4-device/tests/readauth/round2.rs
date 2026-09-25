@@ -74,7 +74,7 @@ fn nested_ladder<H:Host>(mut h:H,mut store:H::Store) {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,snapback4_core::RuntimeError>{self.0.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&snapback4_core::schema::Index,k:&[Value])->Result<Option<Value>,snapback4_core::RuntimeError>{self.0.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan(t,n,k,b,d,l)}
-        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize,m:&mut snapback4_core::meter::Meter)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan_metered(t,n,k,b,d,l,m)}
+        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize, scope: &snapback4_core::engine::Authorization,m:&mut snapback4_core::meter::Meter)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan_metered(t,n,k,b,d,l, scope,m)}
         fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,snapback4_core::RuntimeError>{self.0.count_prefix(t,n,k,l)}
         fn put(&self,t:&str,d:&snapback4_core::schema::Table,r:&Value,o:Option<&Value>)->Result<u64,snapback4_core::RuntimeError>{self.0.put(t,d,r,o)}
         fn delete(&self,t:&str,d:&snapback4_core::schema::Table,r:&Value)->Result<u64,snapback4_core::RuntimeError>{self.0.delete(t,d,r)}
@@ -368,9 +368,9 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.rows.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.rows.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.rows.scan(t,n,k,b,d,l)}
-        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize, scope: &snapback4_core::engine::Authorization,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
             assert!(l as u64 <= m.ceilings.examined.saturating_sub(m.used.examined));
-            let result=self.rows.scan_metered(t,n,k,b,d,l,m)?;
+            let result=self.rows.scan_metered(t,n,k,b,d,l, scope,m)?;
             self.fetched.set(self.fetched.get()+result.len()); Ok(result)
         }
         fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,RuntimeError>{self.rows.count_prefix(t,n,k,l)}

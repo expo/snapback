@@ -31,9 +31,9 @@ impl Runner<'_> {
         row.as_object()?;
         // A source image can share its map with a literal or stored image;
         // stamping fields may copy it. Account for that copy and each read.
-        self.meter.heap(self.disclosed_row(table, row.clone()).heap_bytes())?;
+        self.meter.heap(super::write_target::row_copy_ceiling(table))?;
         let source_image = crate::schema::row_image(&row, table).into_owned();
-        self.meter.heap(self.disclosed_row(table, source_image.clone()).heap_bytes())?;
+        self.meter.heap(super::write_target::row_copy_ceiling(table))?;
         for path in paths {
             let field = &table.recorded[path];
             let target = &self.schema.tables[&field.table];
@@ -53,17 +53,17 @@ impl Runner<'_> {
             let live = found.as_ref().filter(|value| !self.expired(target, value));
             if self.device && matches!(source_image.field(&field.reference), Ok(Value::Id(_)))
                 && (target.sync.is_none() || !live.zip(self.context.now).map(|(value, now)| {
-                    self.device_work(|runner| runner.tx.recording_covered(&field.table, value, &runner.context.viewer, now, &mut runner.meter))
+                    self.device_work(|runner| runner.authorized_scratch(0,&[],|runner,scope| runner.tx.recording_covered(&field.table, value, &runner.context.viewer, now, scope, &mut runner.meter)))
                 }).transpose()?.unwrap_or(false)) {
                 return Err(RuntimeError::Prediction(format!("recorded path {path} needs a live, covered {} row; reconnect to resolve attribution", field.table)));
             }
             // Unknown coverage queues before a target-size resource refusal.
             // @ref LLP 3000.015#1 — a public capture cannot price a private sibling.
-            if let Some(value) = &found {
-                self.meter.heap(self.disclosed_row(target, value.clone()).heap_bytes())?;
+            if found.is_some() {
+                self.meter.heap(super::write_target::row_copy_ceiling(target))?;
             }
             let value = live.map(|value| self.disclosed_row(target,value.clone()).into_value().field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
-            self.meter.heap(80 + path.len() as u64 + self.disclosed_row(target, live.cloned().unwrap_or(Value::Null)).field_heap(&field.column))?;
+            self.meter.heap(80 + path.len() as u64 + super::write_target::column_copy_ceiling(&target.columns[&field.column]))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }
         }
         Ok(row)
@@ -239,7 +239,7 @@ mod tests {
 
     struct Target { row: Value, covered: bool, calls: std::cell::Cell<usize> }
     impl crate::rows::Rows for Target {
-        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64, _: &mut Meter) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
+        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64, _scope: &crate::engine::Authorization, _: &mut Meter) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
         fn get(&self, _: &str, _: &str) -> Result<Option<Value>,RuntimeError> {Ok(Some(self.row.clone()))}
         fn lookup(&self, _: &str, _: &str, _: &crate::schema::Index, _: &[Value]) -> Result<Option<Value>,RuntimeError> {unreachable!()}
         fn scan(&self, _: &str, _: &str, _: &[Value], bounds: &crate::rows::Bounds, _: crate::rows::Dir, _: usize) -> Result<Vec<(Value,Vec<u8>)>,RuntimeError> {

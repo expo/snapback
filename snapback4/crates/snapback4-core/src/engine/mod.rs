@@ -24,11 +24,14 @@ pub mod prediction;
 pub mod admission;
 mod pages;
 mod shaping;
+#[cfg(feature = "sqlite")]
+pub(crate) struct ImportInput(());
 pub use pages::returned_page_sites;
 pub mod read;
 mod read_auth;
 pub(crate) mod authorized_scan;
-mod authorized_point;
+pub use authorized_scan::Authorization;
+pub(crate) mod authorized_point;
 pub mod rules;
 pub mod runner;
 pub mod validate;
@@ -1006,7 +1009,7 @@ impl Engine {
         let mut count = 0;
         for (table, row) in rows {
             timeline::check_import(&self.schema, &table)?;
-            runner.upsert(&table, &row.field("id")?.clone(), row)?;
+            runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&ImportInput(())))?;
             count += 1;
         }
         let events = runner.events.take();

@@ -174,10 +174,14 @@ impl<'a> Runner<'a> {
         let bytes = expression_heap(&value);
         Ok((value, bytes))
     }
+    pub(super) fn environment_value_copy_heap(&self, name: &str) -> u64 { self.env.get(name).map_or(0, |v| v.expression_copy(ExpressionAccess(()))) }
+    pub(super) fn expr_input(&mut self, expr: &Expr) -> Result<crate::value::Supplied,RuntimeError> {
+        Ok(self.expr(expr)?.expression_input(ExpressionAccess(())))
+    }
     pub(super) fn environment_heap(&self) -> u64 { self.env.values().map(expression_heap).sum() }
     pub(super) fn environment_value_heap(&self, name: &str) -> u64 { self.env.get(name).map_or(0, expression_heap) }
-    pub(super) fn component_object(&mut self, fields: BTreeMap<String, Value>) -> Result<Value, RuntimeError> {
-        let row = Value::Row(fields.into());
+    pub(super) fn component_object(&mut self, fields: super::components::EvaluatedFields) -> Result<Value, RuntimeError> {
+        let row = fields.into_value();
         self.meter.heap(expression_heap(&row))?;
         Ok(row)
     }
@@ -277,7 +281,7 @@ impl<'a> Runner<'a> {
         // with the private capped_at recorded by the meter (LLP 3000 §7).
         let result = (|| {
             self.prepare_effect_presence(program)?;
-            for value in self.context.args.values() { self.meter.heap(value.clone_heap_bytes())?; }
+            for value in self.context.args.values() { self.meter.heap(value.expression_copy(ExpressionAccess(())))?; }
             self.statements(&program.body, &program.name)
         })();
         match result {
@@ -412,25 +416,25 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::InsertIfAbsent { table, row, result } => {
                     let row = self.expr(row)?;
-                    let value = if self.insert_if_absent(table, row.clone())? { row } else { Value::Null };
+                    let value = if self.insert_if_absent(table, row.clone().expression_input(ExpressionAccess(())))? { row } else { Value::Null };
                     self.bind(result, value);
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {
                     let row = self.expr(row)?;
-                    self.insert(table, row)?;
+                    self.insert(table, row.expression_input(ExpressionAccess(())))?;
                     Flow::Next
                 }
                 Stmt::Update { table, key, patch } => {
                     let key = self.expr(key)?;
                     let patch = self.expr(patch)?;
-                    self.update(table, &key, patch)?;
+                    self.update(table, &key, patch.expression_input(ExpressionAccess(())))?;
                     Flow::Next
                 }
                 Stmt::Upsert { table, key, row } => {
                     let key = self.expr(key)?;
                     let row = self.expr(row)?;
-                    self.upsert(table, &key, row)?;
+                    self.upsert(table, &key, row.expression_input(ExpressionAccess(())))?;
                     Flow::Next
                 }
                 Stmt::WriteTarget { target, patch, upsert, condition, result } => {
@@ -527,7 +531,7 @@ impl<'a> Runner<'a> {
             }
             LoopDomain::ArgList { name, max } => {
                 let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
-                self.meter.heap(value.clone_heap_bytes())?;
+                self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                 let values = value.as_array()?.to_vec();
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
@@ -565,7 +569,7 @@ impl<'a> Runner<'a> {
                 continue;
             }
             let next = row.field(&recurse.next_field)?;
-            self.meter.heap(next.clone_heap_bytes() + expression_heap(&row) + std::mem::size_of::<Value>() as u64)?;
+            self.meter.heap(next.expression_copy(ExpressionAccess(())) + expression_heap(&row) + std::mem::size_of::<Value>() as u64)?;
             let next = next.clone();
             rows.push(row);
             match next {
@@ -600,14 +604,14 @@ impl<'a> Runner<'a> {
         self.read_presence_value(expression)?;
         match expression {
             Expr::Literal(value) => {
-                self.meter.heap(value.clone_heap_bytes())?;
+                self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 { self.effect_presence.absent = self.effect_presence.variables.get(name).and_then(|v| v.absent); }
                 let value = self.env.get(name).ok_or_else(|| missing_variable(name, &self.statement_site))?;
-                self.meter.heap(value.clone_heap_bytes())?;
+                self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                 Ok(value.clone())
             }
             Expr::Input(input) => self.input(*input),
@@ -616,7 +620,7 @@ impl<'a> Runner<'a> {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
                     let value = base.field(name)?;
-                    self.meter.heap(value.clone_heap_bytes())?;
+                    self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                     return Ok(value.clone());
                 }
                 let base = self.expr(base)?;
@@ -624,7 +628,7 @@ impl<'a> Runner<'a> {
                     Value::Null => Ok(Value::Null),
                     other => {
                         let value = other.field(name)?;
-                        self.meter.heap(value.clone_heap_bytes())?;
+                        self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                         Ok(value.clone())
                     }
                 }
@@ -746,7 +750,7 @@ impl<'a> Runner<'a> {
             Builtin::ProjectFields { table } => {
                 let row = args.remove(0);
                 if row == Value::Null { Ok(row) } else {
-                    let row = self.with_defaults(table, row)?;
+                    let row = self.with_defaults(table, row.expression_input(ExpressionAccess(())))?.into_value();
                     self.project_row(table, row).map(|row| super::recorded::public_image(&self.schema.tables[table], row.into_value()))
                 }
             }
@@ -785,7 +789,7 @@ impl<'a> Runner<'a> {
                     self.meter.step(1)?;
                     let key = if *optional { value.field(field).unwrap_or(&Value::Null) } else { value.field(field)? }.clone();
                     let encoded = canonical_json(&key);
-                    self.meter.heap(encoded.len() as u64 + key.clone_heap_bytes())?;
+                    self.meter.heap(encoded.len() as u64 + key.expression_copy(ExpressionAccess(())))?;
                     let next = groups.len();
                     let position = *positions.entry(encoded).or_insert(next);
                     if position == next { groups.push((key, Vec::new())); }

@@ -287,3 +287,5 @@ mod tests {
         }
     }
 }
+
+pub use crate::engine::authorized_scan::InternalLedger;

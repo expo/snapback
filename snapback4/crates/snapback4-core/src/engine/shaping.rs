@@ -29,9 +29,7 @@ impl Runner<'_> {
             }
             key
         }).collect();
-        let bytes = page.shape_positions.capacity() as u64 * std::mem::size_of::<Vec<Value>>() as u64
-            + page.shape_positions.iter().map(|key| key.capacity() as u64 * std::mem::size_of::<Value>() as u64 + key.iter().map(Value::clone_heap_bytes).sum::<u64>()).sum::<u64>();
-        self.meter.heap(bytes)
+        self.meter.heap(page.shape_keys_heap())
     }
 
     pub(super) fn shape_lengths(&self, shape: &Shape) -> Vec<usize> {

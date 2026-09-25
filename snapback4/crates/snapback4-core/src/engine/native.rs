@@ -6,6 +6,7 @@
 //! one function and nothing else: no clock, no randomness, no I/O, so a
 //! native job runs under the simulator like any other.
 
+pub(crate) struct NativeInput(());
 use super::runner::Runner;
 use crate::error::{MeterKind, Refusal, RuntimeError};
 use crate::ir::{Bound, Expr, IndexKeyExpr, KeyProvenance, Order, Read, Scan};
@@ -669,9 +670,9 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
             }
             let row = typed_row(table, table_name, &json)?;
             if op == "insert" {
-                runner.insert(table_name, row)?;
+                runner.insert(table_name, row.native_input(&NativeInput(())))?;
                 Ok(json)
-            } else if runner.insert_if_absent(table_name, row)? {
+            } else if runner.insert_if_absent(table_name, row.native_input(&NativeInput(())))? {
                 Ok(json)
             } else {
                 Ok(Json::Null)
@@ -687,7 +688,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
                 let kind = table.columns.get(name).ok_or_else(|| RuntimeError::Input(format!("{table_name}: undeclared column {name}")))?;
                 fields.insert(name.clone(), wire::column_from_json(kind, value).map_err(|why| RuntimeError::Input(format!("{table_name}.{name}: {why}")))?);
             }
-            runner.update(table_name, &Value::Id(id.to_owned()), Value::Row(fields.into()))?;
+            runner.update(table_name, &Value::Id(id.to_owned()), Value::Row(fields.into()).native_input(&NativeInput(())))?;
             Ok(Json::Null)
         }
         "upsert" => {
@@ -697,7 +698,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
             let mut json = request.get("row").cloned().ok_or_else(|| RuntimeError::Input("native upsert needs row".into()))?;
             json.as_object_mut().ok_or_else(|| RuntimeError::Input("a row is an object".into()))?.insert("id".into(), Json::String(id.to_owned()));
             let row = typed_row(table, table_name, &json)?;
-            runner.upsert(table_name, &Value::Id(id.to_owned()), row)?;
+            runner.upsert(table_name, &Value::Id(id.to_owned()), row.native_input(&NativeInput(())))?;
             Ok(json)
         }
         "delete" => {

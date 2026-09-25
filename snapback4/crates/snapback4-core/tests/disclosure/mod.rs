@@ -23,6 +23,7 @@ impl Operation {
     }
 }
 pub struct Pair {
+    pub now: i64,
     pub source: String,
     pub seeds: [Seed; 2],
     pub principal: String,
@@ -37,6 +38,7 @@ impl Pair {
         operation: Operation,
     ) -> Self {
         Self {
+            now: NOW,
             source: source.into(),
             seeds,
             principal: principal.into(),
@@ -44,6 +46,7 @@ impl Pair {
             queries: BTreeMap::new(),
         }
     }
+    pub fn at(mut self, now: i64) -> Self { self.now = now; self }
     pub fn query(mut self, name: &str, args: Json) -> Self {
         self.queries.insert(name.into(), args);
         self
@@ -118,18 +121,18 @@ impl Pair {
             let mut transcript = Transcript::new();
             let base = e.seq().unwrap();
             let mut watermark = base;
-            let pages = snapshot(&mut e, &self.principal);
+            let pages = snapshot_at(&mut e, &self.principal, self.now);
             transcript.insert("initial/snapshot".into(), json!(pages));
             transcript.insert(
                 "initial/device".into(),
                 device(world, &mut e, "initial", &pages),
             );
-            observe_queries(
+            observe_queries_at(
                 &mut e,
                 &self.principal,
                 &self.queries,
                 "initial",
-                &mut transcript,
+                &mut transcript, self.now,
             );
             for (n, op) in self.operations.iter().enumerate() {
                 let args = inputs(&e, &op.name, &op.args);
@@ -138,7 +141,7 @@ impl Pair {
                         &op.name,
                         Some(&format!("operation-{n}")),
                         Context::new(&op.principal, args)
-                            .at(NOW)
+                            .at(self.now)
                             .with_ids([format!("new-{n}")]),
                     )
                     .unwrap();
@@ -152,8 +155,8 @@ impl Pair {
                 }
                 let mut sequence = Vec::new();
                 for tick in 0..1000 {
-                    let timeline = e.run_timeline_chunk(NOW).unwrap();
-                    let aggregate = e.run_job_chunk(NOW).unwrap();
+                    let timeline = e.run_timeline_chunk(self.now).unwrap();
+                    let aggregate = e.run_job_chunk(self.now).unwrap();
                     sequence.push(e.seq().unwrap() - base);
                     if timeline.is_none() && aggregate.is_none() {
                         break;
@@ -165,25 +168,25 @@ impl Pair {
                     format!("{n}/changes"),
                     json!(e.changes(base, 10000).unwrap()),
                 );
-                let pages = stream(&mut e, &self.principal, &mut watermark);
+                let pages = stream_at(&mut e, &self.principal, &mut watermark, self.now);
                 transcript.insert(format!("{n}/stream"), json!(pages));
                 // Re-fetch older puts against the latest authorized row image.
                 transcript.insert(
                     format!("{n}/refreshed-stream"),
-                    json!(stream(&mut e, &self.principal, &mut base.clone())),
+                    json!(stream_at(&mut e, &self.principal, &mut base.clone(), self.now)),
                 );
                 transcript.insert(
                     format!("{n}/device"),
                     device(world, &mut e, "stream", &pages),
                 );
-                observe_queries(
+                observe_queries_at(
                     &mut e,
                     &self.principal,
                     &self.queries,
                     &format!("{n}"),
-                    &mut transcript,
+                    &mut transcript, self.now,
                 );
-                let pages = snapshot(&mut e, &self.principal);
+                let pages = snapshot_at(&mut e, &self.principal, self.now);
                 transcript.insert(format!("{n}/snapshot"), json!(pages));
                 transcript.insert(
                     format!("{n}/reacquired-device"),
@@ -238,6 +241,16 @@ pub fn observe_queries(
     phase: &str,
     out: &mut Transcript,
 ) {
+    observe_queries_at(e,who,args,phase,out,NOW);
+}
+pub fn observe_queries_at(
+    e: &mut Engine,
+    who: &str,
+    args: &BTreeMap<String, Json>,
+    phase: &str,
+    out: &mut Transcript,
+    now: i64,
+) {
     let names = e
         .programs()
         .filter(|p| p.kind == ProgramKind::Query)
@@ -246,7 +259,7 @@ pub fn observe_queries(
     for name in names {
         let mut input = args.get(&name).cloned().unwrap_or(json!({}));
         for page in 0..100 {
-            let context = Context::new(who, inputs(e, &name, &input)).at(NOW);
+            let context = Context::new(who, inputs(e, &name, &input)).at(now);
             let result = e.query(&name, context);
             out.insert(
                 format!("{phase}/query/{name}/{page}"),
@@ -263,12 +276,13 @@ pub fn observe_queries(
         }
     }
 }
-pub fn snapshot(e: &mut Engine, who: &str) -> Vec<Json> {
+pub fn snapshot(e: &mut Engine, who: &str) -> Vec<Json> { snapshot_at(e,who,NOW) }
+pub fn snapshot_at(e: &mut Engine, who: &str, now: i64) -> Vec<Json> {
     let mut pages = Vec::new();
     let mut after: Option<String> = None;
     loop {
         let p = e
-            .snapshot_acquisition_page_at(who, after.as_deref(), 2, NOW)
+            .snapshot_acquisition_page_at(who, after.as_deref(), 2, now)
             .unwrap();
         let next = p.next.map(|n| n.encode());
         pages.push(json!({"snapshot":true,"after":after,"held":p.held,"acquisitions":p.acquisitions,
@@ -282,10 +296,11 @@ pub fn snapshot(e: &mut Engine, who: &str) -> Vec<Json> {
     }
     pages
 }
-pub fn stream(e: &mut Engine, who: &str, watermark: &mut u64) -> Vec<Json> {
+pub fn stream(e: &mut Engine, who: &str, watermark: &mut u64) -> Vec<Json> { stream_at(e,who,watermark,NOW) }
+pub fn stream_at(e: &mut Engine, who: &str, watermark: &mut u64, now: i64) -> Vec<Json> {
     let mut pages = Vec::new();
     loop {
-        let p = e.stream_at(who, *watermark, 2, NOW).unwrap();
+        let p = e.stream_at(who, *watermark, 2, now).unwrap();
         pages.push(json!({"snapshot":false,"requested_watermark":*watermark,"images_at":p.images_at,"joined":p.joined,"acquisitions":p.acquisitions,
             "events":p.events.iter().map(|v|json!({"table":v.table,"kind":v.kind,"id":v.id,"data":v.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>(),
             "watermark":p.watermark,"more":p.more,"generation":e.generation()}));
@@ -299,3 +314,5 @@ pub fn stream(e: &mut Engine, who: &str, watermark: &mut u64) -> Vec<Json> {
 }
 
 pub mod authorization;
+
+pub mod round7;

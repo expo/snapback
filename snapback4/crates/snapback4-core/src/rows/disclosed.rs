@@ -26,39 +26,6 @@ fn column(ty: &ColumnType) -> u64 {
     }
 }
 
-/// A private table is fetched one row at a time. The fixed decode reservation
-/// stays live through projection; only then are raw payloads dropped and the
-/// reservation released. Errors keep their peak/cut, never restore the meter.
-pub fn scan<'a>(rows: &dyn Rows, name: &str, table: &'a Table, viewer: &str, index: &str,
-    prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter,
-) -> Result<Vec<(crate::value::Disclosed<'a>, Vec<u8>)>, RuntimeError> {
-    if !table.written_by.values().any(|a| !a.audience) {
-        meter.heap(word_heap::slots::<(crate::value::Disclosed<'_>, Vec<u8>)>(limit))?;
-        return rows.scan_metered(name, index, prefix, bounds, dir, limit, meter)
-            .map(|rows| rows.into_iter().map(|(row,key)|(table.project_fields(row,Some(viewer)),key)).collect());
-    }
-    meter.heap((256 + word_heap::text(viewer)) * limit as u64 + word_heap::bounds(bounds))?;
-    let mut cursor = bounds.clone();
-    let mut out = Vec::with_capacity(limit);
-    for _ in 0..limit {
-        let mark = meter.mark();
-        let reservation = decode_reservation(table);
-        meter.heap(reservation)?;
-        let fetched = rows.scan(name, index, prefix, &cursor, dir, 1)?;
-        let Some((raw, key)) = fetched.into_iter().next() else { meter.release_row_heap(mark,reservation); break; };
-        let disclosed = table.project_fields(raw,Some(viewer));
-        meter.heap(disclosed.heap_bytes() + disclosed.projection_heap() + word_heap::materialize(&disclosed,table))?;
-        let value = disclosed.into_value(); // drops every undisclosed allocation
-        meter.release_row_heap(mark,reservation);
-        // The suffix consists exclusively of public indexed fields. Its maximum
-        // admitted encoded size is reserved above; retaining it costs its size.
-        meter.heap(word_heap::key_decode(table.index(index).map_or(1,|i|i.components.len()+1),key.len()))?;
-        cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
-        out.push((table.project_fields(value,Some(viewer)),key));
-    }
-    Ok(out)
-}
-
 // Raw storage access requires proof that the caller is inside the internal
 // ledger. No projection or actual raw price is exposed to the caller meter.
 pub(crate) fn get(rows: &dyn Rows, name: &str, id: &str, _: &crate::engine::authorized_scan::Authorization) -> Result<Option<Value>, RuntimeError> {

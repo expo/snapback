@@ -821,9 +821,10 @@ impl crate::rows::Rows for Tx<'_> {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         Tx::scan(self, table, index_name, prefix, bounds, dir, limit)
     }
-    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
-        meter.heap(heap::range(prefix, bounds) + heap::allocation(table.len() + index_name.len() + 1))?;
+        heap::range(prefix, bounds, scope).charge(meter,scope)?;
+        meter.heap(heap::allocation(table.len() + index_name.len() + 1))?;
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
@@ -861,7 +862,8 @@ impl crate::rows::Rows for Tx<'_> {
             // until this allowance succeeds. Nominal IDs have no schema max.
             let data = row.get_ref(0)?.as_str().map_err(|e| RuntimeError::Store(e.to_string()))?;
             let key = row.get_ref(1)?.as_blob().map_err(|e| RuntimeError::Store(e.to_string()))?;
-            meter.heap(heap::stored_row(data) + heap::allocation(key.len()))?;
+            heap::stored_row(data,scope).charge(meter, scope)?;
+            meter.heap(heap::allocation(key.len()))?;
             let additional = heap::grow::<(Value, Vec<u8>)>(meter, out.len(), out.capacity())?;
             if additional != 0 { out.reserve_exact(additional); }
             out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, key.to_vec()));

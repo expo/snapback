@@ -64,7 +64,7 @@ fn reduced_on<S: snapback4_device::store::DeviceStore>(mut store: S) {
         ("heap", Ceilings { heap_bytes: 10_000, ..Default::default() }),
     ] {
         let context = Context::new("dev:alice", [("q".into(), Value::String("kx".into())), ("c".into(), Value::Null)].into()).at(100_000);
-        assert_cut(case, &local::query(&tx, &backend.schema, program, context, ceilings).unwrap());
+        assert_cut(if case == "opening-examined" { "opening-internal-examined" } else { case }, &local::query(&tx, &backend.schema, program, context, ceilings).unwrap());
     }
     for bytes in [8, 1_000_000] {
         let mut programs = backend.programs.clone();

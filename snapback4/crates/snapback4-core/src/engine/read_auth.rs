@@ -36,7 +36,7 @@ impl Runner<'_> {
     fn authorize_read_inner(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
-        if self.device_work_active { self.meter.heap(crate::rows::word_heap::materialize(&self.disclosed_row(definition, row.clone()), definition))?; }
+        if self.device_work_active { self.authorized_scratch(0,&[],|runner, scope| runner.disclosed_row(definition,row.clone()).charge_materialization_internal(&mut runner.meter,scope))?; }
         let row = self.disclosed_row(definition, row.clone()).into_value();
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
@@ -79,6 +79,7 @@ impl Runner<'_> {
 
 struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, prepaid: bool, unknown: bool }
 impl Probe for ReadProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.prepaid && !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
         let (present, known) = self.runner.probe_witness(table, index, key, equalities, true)?;
@@ -91,25 +92,73 @@ impl Probe for ReadProbe<'_, '_> {
 /// Three-valued logic keeps an unused unknown branch out of read coverage.
 /// Only the final Unknown verdict publishes a missing fact; cuts stay meters.
 fn evaluate(rule: &RuleExpr, viewer: &str, row: &Value, probe: &mut ReadProbe<'_, '_>) -> Result<Verdict, RuntimeError> {
+    let prior = probe.replace_expiry(None);
+    let result = evaluate_until(rule, viewer, row, probe);
+    probe.replace_expiry(match &result {
+        Ok((Verdict::Readable, expiry)) => rules::earliest(prior, *expiry),
+        _ => prior,
+    });
+    result.map(|(verdict, _)| verdict)
+}
+
+fn evaluate_until(rule: &RuleExpr, viewer: &str, row: &Value, probe: &mut ReadProbe<'_, '_>) -> Result<(Verdict, Option<i64>), RuntimeError> {
     use Verdict::*;
     match rule {
         RuleExpr::And(terms) | RuleExpr::Or(terms) => {
             let conjunction = matches!(rule, RuleExpr::And(_));
             let decisive = if conjunction { Denied } else { Readable };
+            let mut answer = if conjunction { Readable } else { Denied };
+            let mut expiry = None;
             let mut unknown = false;
             for term in terms {
-                let verdict = evaluate(term, viewer, row, probe)?;
-                if probe.runner.read_capped() { return Ok(Denied); }
-                if verdict == decisive { return Ok(decisive); }
+                let (verdict, until) = evaluate_until(term, viewer, row, probe)?;
+                if probe.runner.read_capped() { return Ok((Denied, None)); }
+                if verdict == decisive {
+                    expiry = if answer != decisive { until } else { expiry.zip(until).map(|(a, b)| a.max(b)) };
+                    answer = decisive;
+                    if expiry.is_none() { break; }
+                } else if answer != decisive { expiry = rules::earliest(expiry, until); }
                 unknown |= verdict == Unknown;
             }
-            Ok(if unknown { Unknown } else if conjunction { Readable } else { Denied })
+            Ok((if answer != decisive && unknown { Unknown } else { answer }, expiry))
         }
-        RuleExpr::Not(inner) => Ok(match evaluate(inner, viewer, row, probe)? { Readable => Denied, Denied => Readable, Unknown => Unknown }),
+        RuleExpr::Not(inner) => evaluate_until(inner, viewer, row, probe).map(|(verdict, expiry)| (match verdict { Readable => Denied, Denied => Readable, Unknown => Unknown }, expiry)),
         _ => {
             probe.unknown = false;
             let allowed = rules::evaluate(rule, viewer, None, row, false, probe)?;
-            Ok(if probe.unknown { Unknown } else if allowed { Readable } else { Denied })
+            let expiry = probe.replace_expiry(None);
+            Ok((if probe.unknown { Unknown } else if allowed { Readable } else { Denied }, expiry))
+        }
+    }
+}
+
+#[cfg(all(test, feature = "sqlite"))]
+mod tests {
+    use super::*;
+    use crate::{Context, meter::{Ceilings, Cut, Meter}, rows::{MemoryRows, Rows}, value::object};
+
+    #[test]
+    fn provisional_authorization_scopes_expiry_to_succeeded_predicates() {
+        let witness = "exists grants[parent = .parent, who = viewer, kind = 'admin']";
+        for kind in ["guest", "admin"] {
+            for rule in [format!("{witness} or .owner = viewer"), format!("({witness} and .owner != viewer) or .owner = viewer"), witness.into()] {
+                let source = format!("table grants:\n  parent: text <=10\n  who: principal\n  kind: text <=10\n  until: time ?\n  expire at .until\n  unique parent, who\n  public\n  sync public\ntable notes:\n  parent: text <=10\n  owner: principal\n  read <- {rule}\n  online only\n");
+                let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+                assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+                let schema: crate::schema::Schema = crate::json_codec::from_text(&crate::json_codec::to_text(&bound.schema).unwrap()).unwrap();
+                for until in [2000, 3000] {
+                    let rows = MemoryRows::default();
+                    let grant = object([("id", Value::Id("g".into())), ("parent", Value::String("p".into())), ("who", Value::Id("alice".into())), ("kind", Value::String(kind.into())), ("until", Value::Int(until))]);
+                    rows.put("grants", &schema.tables["grants"], &grant, None).unwrap();
+                    let candidate = object([("id", Value::Id("own".into())), ("parent", Value::String("p".into())), ("owner", Value::Id("alice".into()))]);
+                    let mut runner = Runner::new(&rows, &schema, Context::new("alice", Default::default()).at(1000), Meter::new(Ceilings::default(), Cut::Cap), 0);
+                    runner.device = true;
+                    runner.provisional_rows.insert(("notes".into(), "own".into()));
+                    runner.next_expiry = Some(9000); // A separate earlier read's dependency survives.
+                    assert_eq!(runner.authorize_read("notes", &candidate, false).unwrap(), rule != witness || kind == "admin");
+                    assert_eq!(runner.next_expiry, Some(if rule == witness && kind == "admin" { until } else { 9000 }), "{kind}/{rule}");
+                }
+            }
         }
     }
 }

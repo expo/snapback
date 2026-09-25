@@ -575,9 +575,6 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let mut bounds = Bounds { after: after.map(<[Value]>::to_vec), ..Bounds::default() };
     let mut live = Vec::new();
     let mut exhausted = false;
-    // Delivery's physical scratch is an internal ledger, separate from every
-    // caller receipt. The same fixed reservation drops raw rows one at a time.
-    let mut delivery_meter = crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort);
     let mut reader = viewer.map(|(schema, principal)| Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0));
     let mut aggregate = viewer.map(|(schema, _)| Runner::new(tx, schema, crate::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
     // One extra readable row decides pagination, never selection past N.
@@ -585,9 +582,10 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     loop {
         let batch = target.saturating_sub(live.len()).min(256).max(1);
         let principal = viewer.map(|(_,p)|p).unwrap_or(crate::SYSTEM_PRINCIPAL);
-        let rows = if table.written_by.values().any(|a| !a.audience) {
-            crate::rows::disclosed::scan(tx,table_name,table,principal,&index_name,group,&bounds,dir,batch,&mut delivery_meter)?
-        } else { tx.scan(table_name,&index_name,group,&bounds,dir,batch)?.into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)),k)).collect() };
+        // Delivery owns a separate, unbounded internal ledger. Projection is
+        // not a caller-price capability; its reader validates each live row.
+        let rows = tx.scan(table_name,&index_name,group,&bounds,dir,batch)?
+            .into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)),k)).collect::<Vec<_>>();
         let count = rows.len();
         for (row, key) in rows {
             let mut row = row.into_value();

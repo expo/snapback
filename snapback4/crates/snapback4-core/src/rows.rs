@@ -203,7 +203,7 @@ pub trait Rows {
     fn provisional_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     /// A predicted attribution may use only a currently covered target image.
     /// The supplied meter is the device allowance, not the mutation's meter.
-    fn recording_covered(&self, _table: &str, _row: &Value, _viewer: &str, _now: i64, _meter: &mut crate::meter::Meter) -> Result<bool, RuntimeError> { Ok(false) }
+    fn recording_covered(&self, _table: &str, _row: &Value, _viewer: &str, _now: i64, _scope: &crate::engine::Authorization, _meter: &mut crate::meter::Meter) -> Result<bool, RuntimeError> { Ok(false) }
     /// The server-selected suffix of a device partition, independent of holdings.
     fn acquired_boundary(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { Ok(None) }
     /// A device-only fact: this scan pins a delivered-history group it left.
@@ -226,7 +226,7 @@ pub trait Rows {
     /// Word expansion cannot bound nominal ID payloads from schema alone. A
     /// store must charge before decoding/cloning its fetched row/key and before
     /// result-vector growth. The default refuses before calling an unpriced store.
-    fn scan_metered(&self, _table: &str, _index_name: &str, _prefix: &[Value], _bounds: &Bounds, _dir: Dir, _limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn scan_metered(&self, _table: &str, _index_name: &str, _prefix: &[Value], _bounds: &Bounds, _dir: Dir, _limit: usize, _scope: &crate::engine::Authorization, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         meter.heap(u64::MAX)?;
         Err(RuntimeError::Store("word fetch requires a metered store adapter".into()))
     }
@@ -302,8 +302,9 @@ impl Rows for MemoryRows {
             None => Vec::new(),
         })
     }
-    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        meter.heap(word_heap::range(prefix, bounds) + 2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
+    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        word_heap::range(prefix, bounds, scope).charge(meter,scope)?;
+        meter.heap(2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
         let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         meter.heap(word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
         let ti = format!("{table}.{index_name}");
@@ -313,7 +314,7 @@ impl Rows for MemoryRows {
         let mut out = Vec::new();
         let mut pick = |((_, key), id): (&(String, Vec<u8>), &String)| -> Result<(), RuntimeError> {
             meter.heap(word_heap::text(table) + word_heap::text(id))?;
-            if let Some(row) = rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key)?; }
+            if let Some(row) = rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key, scope)?; }
             Ok(())
         };
         match dir { Dir::Asc => { for entry in within.take(limit) { pick(entry)?; } }, Dir::Desc => { for entry in within.rev().take(limit) { pick(entry)?; } } }

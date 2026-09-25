@@ -87,7 +87,7 @@ use std::mem::size_of;
 pub fn allocation(bytes: usize) -> u64 { if bytes == 0 { 0 } else { bytes.max(size_of::<usize>()) as u64 } }
 pub fn slots<T>(len: usize) -> u64 { allocation(len.saturating_mul(size_of::<T>())) }
 pub fn text(s: &str) -> u64 { allocation(s.len()) }
-pub fn values(v: &[Value]) -> u64 { slots::<Value>(v.len()) + v.iter().map(value).sum::<u64>() }
+fn values(v: &[Value]) -> u64 { slots::<Value>(v.len()) + v.iter().map(value).sum::<u64>() }
 fn value(v: &Value) -> u64 {
     match v {
         Value::String(s) | Value::Id(s) => text(s),
@@ -113,11 +113,6 @@ pub fn push<T>(meter: &mut Meter, out: &mut Vec<T>, item: T) -> Result<(), Runti
 }
 
 pub fn strings(v: &[String]) -> u64 { slots::<String>(v.len()) + v.iter().map(|s| text(s)).sum::<u64>() }
-pub fn bounds(b: &Bounds) -> u64 {
-    [&b.after, &b.at_or_after, &b.before].into_iter().flatten().map(|v| values(v)).sum::<u64>()
-        + [&b.gt, &b.gte, &b.lt, &b.lte].into_iter().flatten().map(value).sum::<u64>()
-        + b.word.as_ref().map_or(0, |s| text(s))
-}
 
 fn column(kind: &crate::schema::ColumnType) -> u64 {
     use crate::schema::ColumnType::*;
@@ -194,7 +189,7 @@ fn encoded(v: &Value) -> usize {
         _ => usize::MAX / 128, // not a legal index value: refuse allocation before the store
     }
 }
-pub fn range(prefix: &[Value], b: &Bounds) -> u64 {
+pub fn range(prefix: &[Value], b: &Bounds, scope: &crate::engine::Authorization) -> crate::value::InternalPrice {
     let base = prefix.iter().map(encoded).sum::<usize>();
     let mut bytes = 4 * allocation(base.max(prefix.len() * 12)) + 4 * allocation(base + 1);
     if let Some(word) = &b.word { bytes += 8 * allocation(base + 2 * word.len() + 2); }
@@ -204,7 +199,7 @@ pub fn range(prefix: &[Value], b: &Bounds) -> u64 {
     for vs in [&b.after, &b.at_or_after, &b.before].into_iter().flatten() {
         bytes += 2 * values(prefix) + 2 * values(vs) + 8 * allocation(base + vs.iter().map(encoded).sum::<usize>() + 1);
     }
-    bytes
+    crate::value::InternalPrice::from_storage(bytes, scope)
 }
 
 /// Bound SQLite's typed row decoder without allocating a JSON tree. Quoted
@@ -214,7 +209,7 @@ pub fn range(prefix: &[Value], b: &Bounds) -> u64 {
 /// growth at 4x slots with a four-slot minimum. Enum tags are borrowed by
 /// serde; only Row/Map tags introduce B-tree roots. After removing enum-tag
 /// colons, actual map fields bound splits. This is a bound, not RSS.
-pub fn stored_row(json: &str) -> u64 {
+pub fn stored_row(json: &str, _scope: &crate::engine::Authorization) -> crate::value::InternalPrice {
     let (mut quoted, mut escaped) = (false, false);
     let (mut objects, mut tags, mut arrays, mut fields, mut commas) = (0, 0, 0, 0, 0);
     for (i, b) in json.bytes().enumerate() {
@@ -226,13 +221,13 @@ pub fn stored_row(json: &str) -> u64 {
     // actual fields every map fits one root; above that, two nodes per five
     // fields also cover internal splits and minimum non-root occupancy.
     let fields = fields - (tags - objects);
-    4 * allocation(json.len()) + (objects + if fields > 11 { 2 * (fields / 5) } else { 0 }) * node::<String, Value>()
-        + if arrays == 0 { 0 } else { 4 * slots::<Value>((arrays * 4 + commas) as usize) } + objects * 2 * slots::<usize>(1)
+    crate::value::InternalPrice::from_storage(4 * allocation(json.len()) + (objects + if fields > 11 { 2 * (fields / 5) } else { 0 }) * node::<String, Value>()
+        + if arrays == 0 { 0 } else { 4 * slots::<Value>((arrays * 4 + commas) as usize) } + objects * 2 * slots::<usize>(1), _scope)
 }
 
 /// Copy a memory-store row handle/key into a precharged result vector. Row/Map
 /// images share their Arc; payloads of a non-row Value are priced recursively.
-pub fn memory_result(meter: &mut Meter, out: &mut Vec<(Value, Vec<u8>)>, row: &Value, key: &[u8]) -> Result<(), RuntimeError> {
+pub fn memory_result(meter: &mut Meter, out: &mut Vec<(Value, Vec<u8>)>, row: &Value, key: &[u8], _scope: &crate::engine::Authorization) -> Result<(), RuntimeError> {
     meter.heap(value(row) + allocation(key.len()))?;
     let additional = grow::<(Value, Vec<u8>)>(meter, out.len(), out.capacity())?;
     if additional != 0 { out.reserve_exact(additional); }
@@ -247,18 +242,6 @@ pub fn cursor_decode(token: &str) -> u64 {
     256 * allocation(token.len())
 }
 
-/// Optional/default materialisation may copy a shared map once and insert
-/// missing fields. The original row image is already paid by the store (or
-/// shared from the device); only the copy and inserted values are new here.
-pub fn materialize(row: &crate::value::Disclosed<'_>, _table: &crate::schema::Table) -> u64 {
-    row.materialization_heap()
-}
-
-/// Scalar/key copies never traverse a Row/Map image. Whole rows require Disclosed.
-pub fn scalar(v: &Value) -> u64 { value(v) }
-
-pub fn object_copy(row: &crate::value::Disclosed<'_>) -> u64 { row.copy_heap() }
-
 pub fn cursor_build(table: &crate::schema::Table, index: &crate::schema::Index, prefix: usize, key_bytes: u64, names: u64) -> u64 {
     if key_bytes == 0 { return 0; }
     // Typed descriptor names/types, escaped/tagged JSON (8x body + per-column
@@ -269,27 +252,6 @@ pub fn cursor_build(table: &crate::schema::Table, index: &crate::schema::Index, 
         + 8 * (256 + 8 * (names + descriptor + key_bytes)))
 }
 
-pub fn verdict(index: &crate::schema::Index, prefix: &[Value], viewer: &str, rule: &crate::schema::RuleExpr) -> u64 {
-    // The prefix row's collect buffer, map, Arc, viewer and probe term clones.
-    let fields = index.components.iter().zip(prefix).filter_map(|(c,v)| c.column().map(|name| (name, v)));
-    let row = fields.map(|(name,v)| node::<String, Value>() + text(name) + value(v)).sum::<u64>();
-    vec_growth::<(String, Value)>(prefix.len()) + row + slots::<usize>(2) + text(viewer) + rule_values(rule, prefix, viewer)
-}
-fn rule_values(rule: &crate::schema::RuleExpr, prefix: &[Value], viewer: &str) -> u64 {
-    use crate::schema::{RuleExpr::*, RuleTerm};
-    let term = |t: &RuleTerm| match t {
-        RuleTerm::Viewer => text(viewer), RuleTerm::Literal(v) => value(v),
-        RuleTerm::Field(_) | RuleTerm::OldField(_) | RuleTerm::NextField(_) => prefix.iter().map(value).sum(),
-    };
-    match rule {
-        Eq(a,b) | Ne(a,b) => term(a) + term(b),
-        And(rs) | Or(rs) => rs.iter().map(|r| rule_values(r, prefix, viewer)).sum(), Not(r) => rule_values(r, prefix, viewer),
-        Exists { table, key, equalities, .. } | Created { table, key, equalities, .. } => text(table)
-            + vec_growth::<Value>(key.len()) + key.iter().map(term).sum::<u64>()
-            + vec_growth::<(String, Value)>(equalities.len()) + equalities.iter().map(|(name,v)| text(name)+term(v)).sum::<u64>(),
-        _ => 0,
-    }
-}
 
 pub fn vec_growth<T>(n: usize) -> u64 {
     if n == 0 { 0 } else { slots::<T>(if n <= 4 { 4 } else { 2 * n.next_power_of_two() - 4 }) }

@@ -12,6 +12,7 @@ struct DeliveryProbe<'a, 'b> {
 }
 
 impl Probe for DeliveryProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
         let (present, known) = self.runner.probe_witness(table, index, key, equalities, false)?;
@@ -98,22 +99,15 @@ impl<'r> Runner<'r> {
         }
     }
 
-    pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<crate::value::Disclosed<'r>, RuntimeError> {
+    pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<super::authorized_point::AuthorizedRow<'r>, RuntimeError> {
         let definition = &self.schema.tables[table];
-        let disclosed = self.disclosed_row(definition, row).for_query();
-        self.meter.heap(disclosed.projection_heap())?;
-        Ok(disclosed)
-    }
-
-    /// Store decode and row pricing meet only at the projection boundary.
-    pub(super) fn scan_disclosed(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize) -> Result<Vec<(crate::value::Disclosed<'r>, Vec<u8>)>, RuntimeError> {
-        let definition = &self.schema.tables[table];
-        if let Some(system) = self.system_access() {
-            self.meter.heap(crate::rows::word_heap::slots::<(crate::value::Disclosed<'_>, Vec<u8>)>(limit))?;
-            return self.tx.scan_metered(table,index,prefix,bounds,dir,limit,&mut self.meter)
-                .map(|rows| rows.into_iter().map(|(row,key)|(definition.system_fields(row,&system),key)).collect());
-        }
-        crate::rows::disclosed::scan(self.tx,table,definition,&self.context.viewer,index,prefix,bounds,dir,limit,&mut self.meter)
+        // A merge may retain previously authorized results after its next lane
+        // cuts. Revalidate their authority internally without treating that
+        // existing logical cut as a denied row. Preserve the original cut.
+        let cap = self.meter.capped_at.take();
+        let result = self.authorized_scratch(self.rule_scratch(&definition.rules.read), &[], |runner, _| runner.authorize_image(table,row));
+        if cap.is_some() { self.meter.capped_at = cap; }
+        result?.ok_or_else(|| self.no_write_target())
     }
 
     pub(super) fn private_scan_authority(&self, table: &str, uniform: bool, admitted: bool) -> Result<(), RuntimeError> {

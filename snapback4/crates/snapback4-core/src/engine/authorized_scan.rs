@@ -4,13 +4,26 @@ use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut}};
 
 // Only this module mints the capability; it cannot be constructed or cloned
 // by callers, and the borrowed token cannot escape the guarded closure.
-pub(crate) struct Authorization { _private: () }
+pub struct Authorization { probes: std::cell::Cell<u64>, remaining_probes: u64 }
+
+impl Authorization {
+    fn internal() -> Self { Self { probes: std::cell::Cell::new(0), remaining_probes: u64::MAX } }
+    // The candidate's declared probe allowance is checked before authorization
+    // executes. The enclosing scope commits this logical count on every exit.
+    pub(super) fn admit_probes(&self, probes: u64) -> bool {
+        let total = self.probes.get().saturating_add(probes);
+        self.probes.set(total);
+        total <= self.remaining_probes
+    }
+    pub(crate) fn for_read(_: &super::authorized_point::RowAuthorization) -> Self { Self::internal() }
+
+}
 
 impl Runner<'_> {
     // @ref LLP 3000.015#1 — declaration-only scratch is admitted before any
     // candidate/witness access. The logical heap retains only disclosed output.
     pub(super) fn authorized_scratch<T: Default>(&mut self, bytes: u64, allowance: &[(MeterKind, u64)], work: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
-        if self.device_work_active { return work(self, &Authorization { _private: () }); }
+        if self.device_work_active { return work(self, &Authorization::internal()); }
         if self.context.is_system() { return self.authorized_scan(allowance, work); }
         let mark = self.meter.mark();
         self.meter.heap(bytes)?;
@@ -38,18 +51,20 @@ impl Runner<'_> {
     pub(super) fn authorized_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         // This meter is the device's separate physical-work budget. Its
         // caller maps exhaustion to uncertainty, never a logical E_BOUND.
-        if self.device_work_active { return scan(self, &Authorization { _private: () }); }
+        if self.device_work_active { return scan(self, &Authorization::internal()); }
         for &(kind, amount) in allowance {
             if !self.read_charge(kind, amount)? { return Ok(T::default()); }
         }
         if self.read_capped() { return Ok(T::default()); }
         let mark = self.meter.mark();
+        let scope = Authorization { probes: std::cell::Cell::new(0), remaining_probes: self.meter.ceilings.rule_probes.saturating_sub(self.meter.used.rule_probes) };
         let ceilings = std::mem::replace(&mut self.meter.ceilings, Ceilings::unbounded());
         let cut = std::mem::replace(&mut self.meter.cut, Cut::Abort);
-        let result = scan(self, &Authorization { _private: () });
+        let result = scan(self, &scope);
         self.meter.restore(mark);
         self.meter.ceilings = ceilings;
         self.meter.cut = cut;
+        if scope.probes.get() > 0 { self.read_charge(MeterKind::RuleProbes,scope.probes.get())?; }
         result
     }
 }
@@ -130,4 +145,15 @@ mod tests {
             }
         }
     }
+}
+
+/// Standalone physical accounting has its own meter. Its token is borrowed
+/// only for `run`, never constructible on a caller ledger or returned by it.
+pub struct InternalLedger(crate::meter::Meter);
+impl InternalLedger {
+    pub fn new(meter: crate::meter::Meter) -> Self { Self(meter) }
+    pub fn run<T>(&mut self, work: impl FnOnce(&mut crate::meter::Meter, &Authorization) -> T) -> T {
+        work(&mut self.0, &Authorization::internal())
+    }
+    pub fn into_meter(self) -> crate::meter::Meter { self.0 }
 }
