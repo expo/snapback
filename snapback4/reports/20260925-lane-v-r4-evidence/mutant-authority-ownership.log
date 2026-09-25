@@ -1,0 +1,41 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1029.677212ms)
+  ✔ a failed logout cannot commit after abort (870.36868ms)
+  ✔ a failed logout cannot commit after quota (872.883699ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (439.692912ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (1002.454571ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.645371ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (90.214093ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (796.478904ms)
+  ✖ a device adapter dropping ownership refuses before journal recovery (738.364052ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (6645.491944ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6731.833473
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:259:55
+✖ a device adapter dropping ownership refuses before journal recovery (738.364052ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:270:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:259:47)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

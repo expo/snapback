@@ -1,0 +1,156 @@
+✔ W5R1x: terminal history is bounded independently of unresolved writes (4.486615ms)
+ℹ terminal=256 unresolved=300 memory=556 evicted=344
+✔ W5R1x wasm: durable receipts evict beyond 256 without growing metadata (3689.865755ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x wasm: opener returns an offline unacquired client on network loss (1045.794607ms)
+✔ W5R1x wasm: replacement stays unacquired until the new catch-up completes (1054.061948ms)
+✔ W5R1x wasm: a restore halt keeps acquisition false across retries and reopen (1052.242301ms)
+✔ W5R1x process: durable receipts evict beyond 256 without growing metadata (3935.552418ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x process: opener returns an offline unacquired client on network loss (1072.782145ms)
+✔ W5R1x process: replacement stays unacquired until the new catch-up completes (1074.785898ms)
+✔ W5R1x process: a restore halt keeps acquisition false across retries and reopen (1084.941158ms)
+✔ wasm: schema alone is not acquisition; queued guarded writes survive offline reopen (2041.8451ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M3C9CY5APEX9EM2B4V8YRER5","reason":"queued without a row: not acquired yet"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M3C9CY5APEX9EM2B4V8YRER5","new_ids":["01M3C9CY5APEX9EM2B4V8YRER6","01M3C9CY5APEX9EM2B4V8YRER7","01M3C9CY5APEX9EM2B4V8YRER8","01M3C9CY5APEX9EM2B4V8YRER9","01M3C9CY5APEX9EM2B4V8YRERA","01M3C9CY5APEX9EM2B4V8YRERB","01M3C9CY5APEX9EM2B4V8YRERC","01M3C9CY5APEX9EM2B4V8YRERD"],"now":1790340135082,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6081.698677ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ wasm: a genuinely empty partition at sequence zero is acquired durably (1040.263537ms)
+✔ process: schema alone is not acquisition; queued guarded writes survive offline reopen (2075.992327ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M3C9D74CKVNS7SVBTKX66D25","reason":"queued without a row: not acquired yet"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M3C9D74CKVNS7SVBTKX66D25","new_ids":["01M3C9D74CKVNS7SVBTKX66D26","01M3C9D74CKVNS7SVBTKX66D27","01M3C9D74CKVNS7SVBTKX66D28","01M3C9D74CKVNS7SVBTKX66D29","01M3C9D74CKVNS7SVBTKX66D2A","01M3C9D74CKVNS7SVBTKX66D2B","01M3C9D74CKVNS7SVBTKX66D2C","01M3C9D74CKVNS7SVBTKX66D2D"],"now":1790340144268,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ process: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6690.792586ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ process: a genuinely empty partition at sequence zero is acquired durably (1797.971413ms)
+✔ W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts (5087.945966ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (5060.193862ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ W5c process: online reopen reports acquisition and a missing-row reason, then predicts (9288.465838ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (5107.958177ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ W5R2a: two native owners recover 600 completions without stale pending memory (4091.912217ms)
+ℹ observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+✔ W5R2a wasm: a sent queued id emits once beyond 256 other emissions (1250.796071ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a process: a sent queued id emits once beyond 256 other emissions (1093.582888ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5 confirmation N3: another owner's durable receipt still notifies this client once (1078.103678ms)
+ℹ first_completion_emissions=1
+✔ W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts (1438.400033ms)
+ℹ destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+✔ W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts (1257.914179ms)
+ℹ destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+▶ round 9-12 client head observations and startup installation
+  ✔ native: first-install-overlap head 15, snapshot false (59.332184ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: first-install-overlap head 19, snapshot true (51.377823ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: first-install-healthy head 20, snapshot false (49.027791ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: fresh head 25, snapshot false (34.47514ms)
+  ✔ native: startup-generation head 15, snapshot false (50.282731ms)
+  ✔ native: startup-generation head 19, snapshot false (57.82136ms)
+  ✔ native: startup-generation head 19, snapshot true (51.902138ms)
+  ✔ native: startup-generation-native head 15, snapshot false (50.046697ms)
+  ✔ native: startup-generation-native head 19, snapshot true (51.335449ms)
+  ✔ native: healthy-generation head 20, snapshot false (45.434936ms)
+  ✔ native: replacement-generation head 15, snapshot false (41.005477ms)
+  ✔ native: offline-generation head 0, snapshot false (30.617258ms)
+  ✔ native: startup head 7, snapshot false (49.76156ms)
+  ✔ native: startup head 15, snapshot false (45.520143ms)
+  ✔ native: startup head 15, snapshot true (42.760497ms)
+  ✔ native: probe head 15, snapshot false (2059.977016ms)
+  ✔ native: changes head 7, snapshot false (52.57692ms)
+  ✔ native: generation head 15, snapshot false (93.896948ms)
+  ✔ native: generation head 15, snapshot true (722.157986ms)
+  ✔ native: snapshot-restart head 20, snapshot true (36.086575ms)
+  ✔ native: stale-send head 7, snapshot false (33.281731ms)
+  ✔ native: stale-published head 7, snapshot false (35.964162ms)
+  ✔ native: healthy head 20, snapshot false (34.189702ms)
+  ✔ native: private-overlap head 7, snapshot false (50.625044ms)
+  ✔ native: private-overlap head 15, snapshot false (52.334316ms)
+  ✔ native: private-generation head 15, snapshot false (50.665044ms)
+  ✔ native: private-generation-declaration head 15, snapshot false (51.040107ms)
+  ✔ native: late-evidence head 20, snapshot false (34.761048ms)
+  ✔ native: image-only head 20, snapshot false (39.308734ms)
+  ✔ native: late-first-evidence head 7, snapshot false (39.80655ms)
+  ✔ native: schema-overlap head 20, snapshot false (41.693368ms)
+  ✔ native: schema-preflight-gap head 20, snapshot false (47.47927ms)
+  ✔ wasm: first-install-overlap head 15, snapshot false (424.156336ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: first-install-overlap head 19, snapshot true (8.029294ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: first-install-healthy head 20, snapshot false (9.710444ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: fresh head 25, snapshot false (3.017682ms)
+  ✔ wasm: startup-generation head 15, snapshot false (5.49775ms)
+  ✔ wasm: startup-generation head 19, snapshot false (5.723738ms)
+  ✔ wasm: startup-generation head 19, snapshot true (5.634304ms)
+  ✔ wasm: startup-generation-native head 15, snapshot false (5.380163ms)
+  ✔ wasm: startup-generation-native head 19, snapshot true (6.014274ms)
+  ✔ wasm: healthy-generation head 20, snapshot false (6.885239ms)
+  ✔ wasm: replacement-generation head 15, snapshot false (6.929075ms)
+  ✔ wasm: offline-generation head 0, snapshot false (3.872605ms)
+✔ round 9-12 client head observations and startup installation (4728.569966ms)
+✔ startup never treats another open failure as an empty store (1.035111ms)
+✔ native open preserves a refusal arriving after process exit (13.408265ms)
+(node:1569264) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (928.074604ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (806.352703ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1745.311791ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2146.618089ms)
+  ✔ a hide during the startup probe waits for its accepted decision (823.311981ms)
+  ✔ a hide during the startup probe waits for its refused decision (820.914317ms)
+  ✔ a hide during the startup probe waits for its restore decision (736.233392ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1264.477428ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1272.673823ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (711.332281ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (800.220332ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (744.736235ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (815.720002ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (770.372397ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (825.503415ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (839.461685ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (792.022254ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (851.38851ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (754.925156ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (887.647303ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (853.295298ms)
+  ✔ a successful reconnect enables exit after startup 503s (751.615565ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4800.658035ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4945.157644ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4999.158797ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5039.573288ms)
+  ✔ same-epoch logout tombstone refuses live admission (567.608123ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (568.988032ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (461.265783ms)
+✔ web admission review: recovery and transport respect the session boundary (43118.154595ms)
+ℹ {"mode":"held-sync","id":"01M3C9CJDDDGNMCWGZFM8TFPZ0","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C9CK5EMG6JBKJJZYB2R7SW","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C9CPZ36R5FR3GSDYBANWR1","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C9CQTEFZS113BM4NRRJSXV","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C9CRJAEX8T6563NZRXX3DG","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C9CSA6DJVJK8WXRKTMEMSN","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3C9CTM2WE8GQBWEYQ4V5AEM","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ tests 102
+ℹ suites 0
+ℹ pass 102
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68597.208301

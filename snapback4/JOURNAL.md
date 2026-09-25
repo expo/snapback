@@ -56260,3 +56260,60 @@ bucket caps or durability modes changed. Did not push or publish.
 Implementation commits: 546bb169c, 137704376. File map, examples, all failure
 classifications, exact suite outputs and the standalone counterexample:
 `reports/20260925-lane-v-r3.md` and `reports/20260925-lane-v-r3-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 4: coherent browser session authority
+
+Implemented the supervisor's ruling after the round-3 STOP: IndexedDB holds
+authoritative browser sessions; localStorage remains the synchronous mirror and
+mutation capture journal. Browser login, logout and principal replacement await
+a strict IDB commit under the session Web Lock. Locked admission/recovery reads
+IDB, never a renderer's localStorage cache. A stale mirror can capture an intent,
+but a committed peer logout makes that intent fail with E_AUTH before it enters
+the outbox or sends. A visible logout still refuses in the calling stack.
+Mirror quota failure aborts the authority write; IDB abort restores the previous
+mirror where possible. Default memory and native session stores remain unchanged.
+
+Also addressed both completed round-3 reviews. Enumerable device capabilities
+and copied session-reader function identity preserve `{ ...core }` and
+`{ ...localStorageSessionStore() }`. Browser devices dropping ownership refuse
+with E_ADMISSION before recovery. Unknown async-only session adapters still
+establish app ownership and refuse unverifiable unadmitted records. Committed
+outbox custody remains. Every established browser store validates startup even
+with an empty outbox or an observed receipt; ordinary and exit delivery wait.
+Exit registration precedes ordinary replay's wait. A successful later sync both
+installs the exit sender and wakes ordinary delivery that startup held back.
+
+Measured with real Chromium: peer app logout, then a deterministic stale-renderer
+read at mutate, produced a synchronous journal followed by failed/E_AUTH, no
+outbox entry, no request and unchanged server audit. Login/replacement and abort/
+quota cases confirm commits or rollbacks finish inside the lock. The authority
+file passes 10 checks; expanded admission review passes 30. The original app
+audit suite passed 20 consecutive qualified runs, 19 checks each (380 total);
+all 80 authority audit observations remained 3, never 4. Fourteen deliberate
+source faults fail their intended regressions, including the former observed-
+receipt/empty-queue survivors, transport under the lock, same-epoch tombstones,
+store identity, journal fencing and ordinary reconnect wake-up.
+
+First complete suite: **`== 1 failure(s) in 482 s`**, failed component client
+tests. All five failing leaves were ours: three wasm acquisition cases did not
+wake queued ordinary delivery after validation, and native/wasm offline-generation
+cases saw an early begin_send during opening. Corrected both causes without
+weakening their assertions; the acquisition, repair-b-round9 and browser files
+then passed 102/102. Final complete suite: **`== 0 failure(s) in 417 s`**, exit 0;
+1,572 client checks passed, 10 platform skips; 78 model checks passed, including
+all 13,000 seeded sequences. No final failures, baseline or environmental.
+Reference audit: 509 LLP documents, 9,283 references, zero errors or unchecked
+references. The 26 reference TypeScript blocks compile. local.ts is 1,477 lines.
+
+Compatibility choices: legacy mirror-only sessions require sign-in, and pre-IDB
+unadmitted stamps cannot be promoted; committed outbox entries are preserved.
+Custom-prefixed mirrors require a stable authority namespace, demonstrated by a
+compiled client-reference recipe. No unresolved problem remains in the requested
+scope. Did not change Quarry forms, engine meters, disclosure, bucket limits,
+acquisition page sizes or the wasm budget; did not push or publish. No new cold
+acquisition measurement this round: prior round-2 results remain 13.298 / 15.825 /
+18.703 s bounded versus 70.716 s per-row, 4.47x median, 65,180 rows retained.
+
+Implementation commits: 7e7192da4, ecad97f65, fabab414c. File map, examples,
+reproductions, compatibility decisions, every failure and exact suite outputs:
+`reports/20260925-lane-v-r4.md` and `reports/20260925-lane-v-r4-evidence/`.
