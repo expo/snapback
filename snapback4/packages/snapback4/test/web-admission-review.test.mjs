@@ -727,6 +727,7 @@ window.abortReceipts = (store, limit = Infinity) => {
   await check('an aborted keepalive receipt transaction retains custody until receipt and retirement commit together', async () => {
     const { session } = await fresh(), before = await total(session);
     const replacement = await replacementFor(session);
+    await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }));
     const hideForSettlement = async id => {
       for (let attempt = 0; attempt < 3; attempt++) {
         const prior = await page.evaluate(() => ({ done: exitCompleted.length, blocked: exitBlocked.length }));
