@@ -1,19 +1,21 @@
 // Query publication procedure (LLP 3000.016 §2.2):
 // 1. Check session/incarnation after every await and before publication.
 // 2. Run locally first; a known complete answer wins, regardless of `runs`.
-// 3. Only engine unavailability (or inability to run) withholds: offline,
+// 3. The engine decides unavailability (or the query could not run): offline,
 //    intersecting prediction, or held => loading; otherwise try original args.
-// 4. Available unknown results remain partial data, including predictions.
+// 4. Unknown non-speculative values remain partial data. Speculative values
+//    recover unexpired memory or loading/E_OFFLINE; when fenced, keep held data.
 // 5. Recheck session and P ∩ S before any external answer lands. S is static
-//    (opaque programs read everything), narrowed only by a known local outcome.
+//    (opaque programs read everything), narrowed only by a known COMPLETE L.
+//    Remembered answers share this fence; freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
-import { predictedTables, type LocalWatch as Watch } from "./local-reads.ts";
+import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
 
 type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null };
-type Candidate<R> = { result: Result<R>; external: boolean };
-type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; denied?: Refusal };
+type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
+type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; held?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
@@ -38,6 +40,8 @@ export interface QueryEnvironment {
   post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }>;
   installNative(signal?: AbortSignal): Promise<boolean>;
   notify(watch: Watch): void;
+  offline(): Refusal;
+  serverAnswers: Map<string, ServerAnswer>;
 }
 
 export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<Result<R>> {
@@ -48,9 +52,15 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.016#2.2 — unknown branches keep the static reads of expanded helpers; native dependencies remain opaque.
   let possible = program && !program.native ? new Set(staticTables) : null;
   const loading: Result<R> = { read: { loading: true }, tables, nextExpiry: null };
+  const key = `${op.name}:${JSON.stringify(args)}`;
+  let remember = true;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
-  const fallback = () => latest?.result ?? loading;
-  const localCandidate = (): Candidate<R> => ({ result: fallback(), external: false });
+  let fenced = false;
+  // Missing provenance from an older device is conservatively speculative.
+  const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
+    && latest.outcome.speculative !== false;
+  const fallback = () => placeholder() && !(fenced && latest?.outcome.held) ? loading : latest?.result ?? loading;
+  const localCandidate = (): Candidate<R> => ({ result: fallback(), origin: "local" });
   // Rule 1. This check also preserves the local-commit invalidation fence.
   const checkpoint = () => {
     const denied = env.unavailable() ?? env.partitionDenied;
@@ -59,27 +69,40 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   const pending = async () => {
     const entries = await env.queued(); checkpoint();
-    return entries.some(entry => {
+    return fenced = entries.some(entry => {
       if (entry.observed_seq != null || entry.predictable !== true) return false;
       if (!entry.predicted) return true; // Legacy missing footprints are unknown.
       return [...predictedTables(entry.predicted)].some(table => possible === null || possible.has(table));
     });
   };
   // Rules 3 and 5 share exactly one external-answer gate, at dispatch and delivery.
-  const blocked = async () => {
+  const blocked = async (remembered = false) => {
     checkpoint();
-    if (env.link !== "online") return true;
     const fenced = await pending(); checkpoint();
-    return env.link !== "online" || fenced || held;
+    return (!remembered && env.link !== "online") || fenced || held;
+  };
+  // @ref LLP 3000.007#6.5 — Rules 4/5: only placeholders recover an old answer.
+  // Withheld queries and composed observations never recover a whole page.
+  const recover = async (): Promise<Candidate<R>> => {
+    if (!placeholder() || !remember) return localCandidate();
+    const stopped = await blocked(true); checkpoint();
+    if (stopped) return localCandidate();
+    let last = env.serverAnswers.get(key);
+    if (last?.nextExpiry != null && last.nextExpiry <= Date.now()) {
+      env.serverAnswers.delete(key); last = undefined;
+    }
+    if (last) for (const table of last.tables) tables.add(table);
+    const read: Read<R> = last ? { ...last.read, fresh: false, since: last.at } as Read<R>
+      : watch ? { loading: true } : { denied: env.offline() };
+    return { origin: "remembered", result: { read, tables, nextExpiry: last?.nextExpiry ?? null } };
   };
   const local = async () => {
     checkpoint();
     const answer = await env.call({ op: "query", name: op.name, viewer: env.principal, args, now: Date.now() }); checkpoint();
     const outcome = (answer.ok ?? {}) as Outcome;
     for (const table of outcome.tables ?? []) tables.add(table);
-    if (program && !program.native) possible = outcome.unknown === false
+    if (program && !program.native) possible = outcome.unknown === false && outcome.complete === true
       ? new Set(outcome.tables ?? []) : new Set([...staticTables, ...outcome.tables ?? []]);
-    const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
     const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
     const denied = (answer.denied as Refusal | undefined) ?? outcome.denied;
     // Rule 3: these device preflight refusals mean execution never began.
@@ -89,15 +112,16 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       latest = { outcome: { loading: true, unknown: true }, result: loading };
       return latest;
     }
-    // Rules 3/4. `loading` is the engine's unavailable bit; unknown alone is data.
+    // Rules 3/4. `loading` is the engine's unavailable bit; placeholder values
+    // are filtered separately. Local freshness is assigned only at publication.
     const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true }
-      : { data: outcome.data as R, complete: !outcome.unknown && outcome.complete !== false, cut: outcome.cut ?? null, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !env.lastSyncAt ? {} : { since: env.lastSyncAt }) };
+      : { data: outcome.data as R, complete: !outcome.unknown && outcome.complete !== false, cut: outcome.cut ?? null, fresh: false, next: (outcome.next as Cursor | null | undefined) ?? null };
     latest = { outcome, result: { read, tables, nextExpiry } };
     return latest;
   };
   const server = async (): Promise<Candidate<R>> => {
     const stopped = await blocked(); checkpoint();
-    if (stopped) return localCandidate();
+    if (stopped) { const result = await recover(); checkpoint(); return result; }
     const fetch = async (): Promise<Candidate<R>> => {
       while (true) {
         checkpoint();
@@ -105,7 +129,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const response = await env.post(`/q/${op.name}`, { args }); checkpoint();
         // Rule 5: admission can happen while the transport is in flight.
         const stopped = await blocked(); checkpoint();
-        if (stopped || !response.ok) return localCandidate();
+        if (stopped || !response.ok) { const result = await recover(); checkpoint(); return result; }
         if (response.obsoleteAuth || credentials !== env.credentialRevision) {
           if (env.refreshing) { try { await env.refreshing; } catch {} checkpoint(); }
           continue;
@@ -115,7 +139,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null };
-        return { result: { read, tables, nextExpiry }, external: true };
+        return { result: { read, tables, nextExpiry }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
@@ -141,16 +165,20 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const withheld = "loading" in first.result.read;
     const components = Object.values(first.outcome.components ?? {});
     const composed = components.some(wantsServer) && components.some(c => c.retained);
+    if (composed) { remember = false; env.serverAnswers.delete(key); }
     if (!withheld && !wantsServer(first.outcome) && !composed) return localCandidate(); // Rule 4: known prefixes/refusals.
     const stopped = await blocked(); checkpoint();
-    if (stopped) return localCandidate(); // Rules 3/4: keep available data, otherwise loading.
+    if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
     const composedSince = env.lastSyncAt;
     const remote = await server(); checkpoint();
     if (!composed || withheld) return remote;
+    // Rule 5 applies to refusals and loading too. An authoritative refusal of
+    // the original query must not be concealed by a second local observation.
+    if (remote.origin === "server" && !("data" in remote.result.read)) return remote;
     // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — reobserve retained fields after the original server query, then publish once.
     const second = await local(); checkpoint();
     if (!second.outcome.unknown && second.outcome.complete === true) return localCandidate(); // Rule 2 again.
-    if (!remote.external || !("data" in remote.result.read)) return localCandidate();
+    if (remote.origin !== "server" || !("data" in remote.result.read)) return localCandidate();
     const stoppedAfterObservation = await blocked(); checkpoint();
     if (stoppedAfterObservation) return localCandidate(); // Rules 3/5.
     if ("loading" in second.result.read) return remote; // Rule 3: successful original fallback.
@@ -162,18 +190,33 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const data = { ...remote.result.read.data as Record<string, unknown> };
     for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
     const expiries = [remote.result.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
-    return { external: true, result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null } };
+    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null } };
+  };
+  const publish = (candidate: Candidate<R>): Result<R> => {
+    checkpoint(); // Rules 1/5: no await between this check and publication.
+    const { result, origin } = candidate;
+    // Rules 1/5: an authorization deadline may pass during the final fence.
+    if (origin !== "local" && result.nextExpiry !== null && result.nextExpiry <= Date.now()) {
+      env.serverAnswers.delete(key);
+      return origin === "remembered" && !watch ? { read: { denied: env.offline() }, tables, nextExpiry: null } : loading;
+    }
+    if (origin !== "local" || !("data" in result.read)) return result;
+    const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
+    return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: env.lastSyncAt }) } };
   };
   try {
     const candidate = await route(); checkpoint();
-    // Rules 1/5: the single publication point. No remembered whole-server
-    // answer can replace L: failed fallback keeps L (or loading if withheld).
-    if (candidate.external) {
-      const stopped = await blocked(); checkpoint();
-      if (stopped) return fallback();
+    // Rules 1/5: all external answers, including memory and E_OFFLINE, pass
+    // the final fence. Only accepted server answers enter the lifetime cache.
+    if (candidate.origin !== "local") {
+      const stopped = await blocked(candidate.origin === "remembered"); checkpoint();
+      if (stopped) return publish(localCandidate());
+      if (candidate.origin === "server") {
+        if (remember && "data" in candidate.result.read) env.serverAnswers.set(key, { read: candidate.result.read, at: Date.now(), nextExpiry: candidate.result.nextExpiry, tables: new Set(tables) });
+        else env.serverAnswers.delete(key);
+      }
     }
-    checkpoint();
-    return candidate.result;
+    return publish(candidate);
   } catch (error) {
     if (error instanceof Interrupted) return error.result;
     // An await that rejects still crosses a session/incarnation boundary.

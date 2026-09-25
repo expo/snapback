@@ -112,7 +112,10 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
     clients.push(client);
     return Object.assign(control, { client });
   };
-  return { open, request, mutate, backend: async () => (await fetch(url + "/schema", { headers: { "x-snapback-persona": "bob" } })).json(), releaseSync: () => releases.splice(0).forEach(release => release()) };
+  return { open, request, mutate, seed: async rows => {
+    const result = await fetch(url + "/seed", { method: "POST", body: JSON.stringify(rows) }).then(r => r.json());
+    assert.equal(result.seeded, rows.length, JSON.stringify(result));
+  }, backend: async () => (await fetch(url + "/schema", { headers: { "x-snapback-persona": "bob" } })).json(), releaseSync: () => releases.splice(0).forEach(release => release()) };
 }
 
 for (const tier of ["wasm", "native"]) {
@@ -193,11 +196,11 @@ query conditionalHelper(c: cursor ?):
     assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith("feedFeed/"))));
     for (const offline of [false, true]) {
       bob.offline = offline; await bob.client.sync();
-      assert.equal((await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" })).data, null, "an unknown available branch stays partial, with no server replacement");
+      assert.deepEqual(await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" }), { loading: true }, "an unknown branch cannot publish a placeholder or replace a prediction");
       for (const name of ["conditionalFeed", "conditionalHelper"]) {
         const before = bob.queries.length;
         const read = await bob.client.query(query(name), input);
-        assert.deepEqual(read.data, []); assert.equal(read.complete, false);
+        assert.deepEqual(read, { loading: true });
         const raw = bob.observed.at(-1);
         assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true);
         assert.deepEqual(raw.tables, ["switches"]);
@@ -206,10 +209,33 @@ query conditionalHelper(c: cursor ?):
     }
     bob.offline = false; await bob.client.sync(); bob.holdSync = true; bob.holdWrites = false;
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "conditional prediction not acknowledged");
-    assert.deepEqual((await bob.client.query(query("conditionalHelper"), input)).data, []);
+    assert.deepEqual(await bob.client.query(query("conditionalHelper"), input), { loading: true });
     bob.holdSync = false; f.releaseSync();
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "conditional prediction not observed");
     assert.ok((await bob.client.query(query("conditionalHelper"), input)).data.some(row => row.post === "own/conditional"));
+  });
+
+  test(`bounded Following ${tier}: a scalar cut before the feed keeps its possible reads fenced`, { timeout: 90000 }, async t => {
+    const f = await fixture(t, tier, "sync public", source => source + `
+table events:
+  at: time
+  public 'scalar cut witness'
+  sync public
+query countedFeed(c: cursor ?):
+  n = count(events)
+  return feed last 20 by .at after c { *, post: posts[.post] }
+`);
+    for (let start = 0; start < 8193; start += 512) {
+      await f.seed(Array.from({ length: Math.min(512, 8193 - start) }, (_, i) => ({ table: "events", row: { id: `e${start + i}`, at: start + i } })));
+    }
+    const bob = await f.open("bob"); bob.holdWrites = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-cut", parentId: null, at: 20 });
+    const before = bob.queries.length;
+    assert.deepEqual(await bob.client.query(query("countedFeed"), { c: null }), { loading: true });
+    const raw = bob.observed.at(-1);
+    assert.equal(raw.loading, true); assert.equal(raw.unknown, false); assert.equal(raw.complete, false);
+    assert.deepEqual(raw.tables, ["events"], "the scalar cap skipped the following statements");
+    assert.equal(bob.queries.length, before, "static feed/posts reads fence server fallback despite the executed subset");
   });
 
   test(`bounded Following ${tier}: a known branch wins over static server routing`, { timeout: 30000 }, async t => {
@@ -268,13 +294,19 @@ query remoteProfile():
 `);
     await f.mutate("profile", "bob", { id: "old", at: 1 });
     await f.mutate("profile", "bob", { id: "new", at: 2 });
-    const bob = await f.open("bob"); bob.holdWrites = true;
+    const bob = await f.open("bob");
+    bob.failQueries = true;
+    const failed = await bob.client.query(query("withProfile"), {});
+    assert.equal(failed.denied.code, "E_OFFLINE", "an unfenced speculative profile cannot publish its placeholder");
+    assert.equal(bob.client.link(), "offline");
+    bob.failQueries = false; await bob.client.sync(); bob.holdWrites = true;
     await bob.client.mutate(mutation("post"), { postId: "own-profile", parentId: null, at: 20 });
     const before = bob.queries.length;
     const answer = await bob.client.query(query("withProfile"), {});
     assert.equal(answer.data.rows[0].post.id, "own-profile"); assert.equal(answer.data.rows[0].pending, true);
     assert.equal(answer.data.profile, null); assert.equal(answer.complete, false);
     const raw = bob.observed.at(-1); assert.equal(raw.unknown, true); assert.notEqual(raw.loading, true);
+    assert.equal(raw.speculative, true); assert.equal(raw.held, true);
     assert.equal(bob.queries.length, before, "an available prediction must stay data without fallback");
     const profile = await bob.client.query(query("remoteProfile"), {});
     assert.equal(profile.data.name, "remote");
@@ -439,8 +471,8 @@ query composed(c: cursor ?):
     assert.deepEqual(await bob.client.query(query("cards"), { c: null }), { loading: true });
     assert.equal((await bob.client.query(query("home"), { c: null })).complete, true);
     const partial = await bob.client.query(query("globalRows"), {});
-    assert.deepEqual(partial.data, []); assert.equal(partial.complete, false);
-    assert.ok(global.data.length > 0, "a remembered server page must not mask available local uncertainty");
+    assert.deepEqual(partial.data, global.data); assert.equal(partial.fresh, false);
+    assert.ok(partial.since > 0, "an empty online-only scan recovers its last server answer");
   });
 
   test(`bounded Following ${tier}: repost prediction needs a held original`, { timeout: 30000 }, async t => {
@@ -589,6 +621,8 @@ query native_held(postId: posts, c: text <=2000 ?) held: native
   const raw = (await bob.core.call({ op: "query", name: op.name, viewer: "dev:bob", args: input, now: Date.now() })).ok;
   assert.equal(raw.loading, true, `native_query must propagate query_unavailable: ${JSON.stringify(raw)}`);
   assert.equal(raw.unknown, true); assert.equal("data" in raw, false); assert.equal("next" in raw, false);
+  assert.equal(raw.speculative, true, "native card misses carry engine provenance");
+  assert.equal(raw.held, true, "native scan inputs include actually held inbox rows");
   assert.ok(raw.tables.includes("posts") && raw.tables.includes("feedFeed"));
   bob.offline = true; await bob.client.sync();
   assert.deepEqual(await bob.client.query(op, input), { loading: true });

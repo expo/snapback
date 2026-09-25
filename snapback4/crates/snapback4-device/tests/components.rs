@@ -101,7 +101,7 @@ fn frames<S: DeviceStore>(mut store: S) {
         stripped.operations.get_mut(&program.name).unwrap().components.clear();
         for ceilings in [Ceilings::default(), Ceilings { examined: 3, ..Ceilings::default() }, Ceilings { examined: 30, ..Ceilings::default() }, Ceilings { heap_bytes: 100, ..Ceilings::default() }, Ceilings { output_bytes: 1, ..Ceilings::default() }] {
             let context = || context("viewer", &[]).at(100);
-            let (actual, unknown, retained, components) = local::query_with_components(&rows, &backend.schema, program, context(), ceilings);
+            let (actual, unknown, retained, components, facts) = local::observe_query(&rows, &backend.schema, program, context(), ceilings, true);
             let (baseline, baseline_unknown, baseline_retained, no_components) = local::query_with_components(&rows, &stripped, program, context(), ceilings);
             assert_eq!((&actual, unknown, retained), (&baseline, baseline_unknown, baseline_retained), "{} {ceilings:?}", program.name);
             assert!(no_components.is_empty());
@@ -116,6 +116,13 @@ fn frames<S: DeviceStore>(mut store: S) {
                 if program.name == "capGuard" && ceilings.examined == 3 { assert!(!components["held"].complete, "a reading binding starting after the cap is incomplete"); }
                 if ceilings.output_bytes == 1 { assert!(components.is_empty(), "shared output charging withholds components"); }
                 continue;
+            }
+            assert!(facts.held, "authorized rows/retained groups are provenance even for scalars");
+            assert_eq!(facts.speculative, program.name == "point", "only the past-horizon point is a placeholder");
+            if program.name != "point" {
+                assert!(components["left"].held);
+                assert!(!components["left"].speculative);
+                assert!(!components["held"].speculative, "a horizon scan is partial data, even when empty");
             }
             match program.name.as_str() {
                 "both" | "scalar" | "empty" | "guard" | "capGuard" => { assert!(components["left"].retained); assert!(!components["left"].unknown); assert!(components["held"].unknown); }
@@ -197,4 +204,22 @@ fn conformance_programs_keep_whole_query_outcomes_with_plans() {
     }
     println!("corpus component differential: {planned} planned programs; {comparisons} comparisons; 0 differences");
     assert!(independent, "component-independent-record.json must participate in the differential");
+}
+
+#[test]
+fn empty_and_scalar_retained_components_have_provenance_without_row_shaped_values() {
+    let (_, backend) = compile(SOURCE);
+    let memory = snapback4_core::rows::MemoryRows::new();
+    let rows = Retained(&memory);
+    for name in ["empty", "scalar"] {
+        let program = backend.programs.iter().find(|p| p.name == name).unwrap();
+        let (answer, unknown, _, components, facts) = local::observe_query(&rows, &backend.schema, program, context("viewer", &[]).at(100), Ceilings::default(), true);
+        assert!(unknown);
+        assert!(facts.held && !facts.speculative);
+        assert!(components["left"].retained && components["left"].held && !components["left"].speculative);
+        assert!(components["held"].unknown && !components["held"].speculative && !components["held"].held);
+        let data = answer.unwrap().data;
+        assert_eq!(data.field("left").unwrap(), &if name == "empty" { Value::Array(vec![]) } else { Value::Int(0) });
+        assert_eq!(data.field("held").unwrap(), &if name == "empty" { Value::Array(vec![]) } else { Value::Null });
+    }
 }

@@ -113,11 +113,22 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   const expiring = scenario.startsWith("MQ expiry");
   let fixtureSource = expiring ? source.replace("  body: text <=40\n  unique", "  body: text <=40\n  expiresAt: time\n  expire at .expiresAt\n  by byExpiresAt: expiresAt\n  unique").replace("insert messages {room, at, body}", "insert messages {room, at, body, expiresAt: now + 3600000}") : source;
+  const boundCase = scenario === "MQ authoritative bound";
+  if (boundCase) fixtureSource += `
+table payloads:
+  at: time
+  body: text <=50000
+  by byTime: at, id
+  public 'output bound witness'
+  sync public last 1 by .at
+query largeBoth():
+  return { left: messages['left'] last 50 by byTime, right: payloads last 30 by .at }
+`;
   const wordCase = scenario.startsWith("W14A");
   const horizonFree = scenario === "W14A horizon-free matching";
   if (wordCase) {
@@ -163,7 +174,8 @@ query wordBoth():
   rows.push(...["left", "held"].map((room) => ({ table: "members", row: { id: `alice-${room}`, room, principal: "dev:alice" } })));
   rows.push({ table: "current", row: { id: "current-row", room: "current", body: "remove me" } }, { table: "members", row: { id: "alice-current", room: "current", principal: "dev:alice" } });
   if (wordCase) rows.push(...rows.filter(item => item.table === "messages" && item.row.room === "held").map(item => ({ table: "recent", row: item.row })));
-  assert.equal((await post("/seed", rows)).seeded, wordCase ? 82 : 56);
+  if (boundCase) rows.push(...Array.from({ length: 26 }, (_, at) => ({ table: "payloads", row: { id: `large-${at}`, at, body: "x".repeat(50000) } })));
+  assert.equal((await post("/seed", rows)).seeded, wordCase || boundCase ? 82 : 56);
   for (const room of ["left", "held", "current"]) assert.equal((await post("/m/join", { args: { room }, id: `join-${room}` })).state, "sent");
   let offline = false, intercept, holdWrites = false, interruptSnapshot = false, snapshotStarted = false, deviceNow;
   const syncPages = [];
@@ -212,11 +224,22 @@ query wordBoth():
   assert.equal((await post("/m/leave", { args: { room: "left" }, id: "leave-left" })).state, "sent");
   await client.sync();
   const expected = (room, start) => rows.filter((item) => item.table === "messages" && item.row.room === room && item.row.at >= start).map((item) => item.row).reverse();
+  if (boundCase) {
+    const name = "largeBoth", server = await post("/q/" + name, { args: {} }, "bob");
+    assert.equal(server.denied.code, "E_BOUND", JSON.stringify(server));
+    const read = await client.query({ kind: "query", name }, {});
+    assert.deepEqual(read, { denied: server.denied }, "the original authoritative refusal must survive composition");
+    const local = allAnswers.findLast(answer => answer.name === name);
+    assert.equal(local.data.left.length, 25); assert.equal(local.data.right.length, 1);
+    assert.equal(local.components.left.retained, true); assert.equal(local.components.right.unknown, true);
+    assert.equal(local.loading, undefined);
+    return;
+  }
   if (wordCase) {
     const name = "wordBoth";
     const result = await client.query({ kind: "query", name }, {});
     const local = allAnswers.findLast(answer => answer.name === name);
-    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true });
+    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true, speculative: false, held: true });
     assert.equal(local.components.right.unknown, true, "the right horizon needs server knowledge");
     assert.ok(allRequests.includes("/q/wordBoth"), "mixed routing consulted the server");
     assert.deepEqual(result.data.left, horizonFree ? expected("left", 1) : true, "server fallback must keep the left group's delivered matching history");
@@ -232,7 +255,7 @@ query wordBoth():
       const result = await client.query({ kind: "query", name }, {});
       const local = allAnswers.findLast(answer => answer.name === name);
       const hit = name !== "pointMiss";
-      assert.deepEqual(local.components.left, { complete: hit, unknown: !hit, retained: hit }, name);
+      assert.deepEqual(local.components.left, { complete: hit, unknown: !hit, retained: hit, speculative: !hit, held: hit }, name);
       assert.deepEqual(result.data.held, expected("held", 0));
       assert.deepEqual(result.data.left, name === "pointMiss" ? null : name === "pointExists" ? true : rows.find(item => item.row.id === "left-25").row);
       assert.equal(result.complete, true);
