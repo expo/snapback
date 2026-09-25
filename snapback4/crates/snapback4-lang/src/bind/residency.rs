@@ -52,6 +52,13 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
     let mut requires = BTreeSet::new();
     let mut inspected_sites = Vec::new();
     inspect(schema, &program.body, &mut requires, &mut inspected_sites);
+    for refined in inspected_sites.iter().filter(|site| site.kind == "timeline event") {
+        for original in fact.sites.iter_mut().filter(|site| site.site == refined.site && site.table == refined.table && site.index == refined.index) {
+            original.class = refined.class.clone();
+            original.reason = refined.reason.clone();
+            original.rewrite = refined.rewrite.clone();
+        }
+    }
     if program.kind == ProgramKind::Mutation {
         let presence = presence.unwrap();
         fact.connected_effects_only = presence.connected_effects_only;
@@ -60,7 +67,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         fact.effect_payload_reads = presence.effect_payload_reads;
         fact.sites.extend(presence.sites);
     }
-    fact.sites.extend(inspected_sites.into_iter().filter(|site| if program.kind == ProgramKind::Mutation { site.kind != "presence" } else { site.kind == "presence" }));
+    fact.sites.extend(inspected_sites.into_iter().filter(|site| site.kind != "timeline event" && if program.kind == ProgramKind::Mutation { site.kind != "presence" } else { site.kind == "presence" }));
     fact.requires = requires.into_iter().collect();
     if program.native {
         fact.sites.push(ResidencySite { site: program.name.clone(), table: "native".into(), index: program.name.clone(), kind: "native".into(), class: SiteClass::Server, reason: "native read needs the app's module; held on a device with the module".into(), rewrite: "install the app's native module on this device".into() });
@@ -170,6 +177,9 @@ pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fac
 fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -> ResidencySite {
     let sync = schema.tables.get(table).and_then(|table| table.sync.as_ref());
     let (class, reason, rewrite) = match sync {
+        _ if snapback4_core::schema::timeline::partial_read(schema, table, index, &[]) =>
+            (SiteClass::Horizon, format!("{kind} {table} by {index}: Following events follow their sources; a missing event or a range with an unheld kind withholds the query"),
+                "read the Following view with held cards, or answer this event read on the server".into()),
         _ if schema.maintain_subset_unknown(table) => (SiteClass::Server, format!("{kind} {table} by {index}: public source has subset delivery; aggregate coverage is unknown"), "read this aggregate on the server, or sync its public source to every device".into()),
         None => (SiteClass::Server, format!("{kind} {table} by {index}: online only"), if schema.maintain_for(table).is_some() { format!("remove `online only` from view {table} to inherit its source's sync, or read a compact synced projection") } else { format!("sync {table} to its read-rule audience, or read a compact synced projection") }),
         Some(sync) if sync.horizon.is_some() => (SiteClass::Horizon, format!("{kind} {table} by {index}: {}", sync.line()), if kind == "write target" { String::new() } else { "remove a redundant guard, or read a synced fact without a horizon".into() }),
@@ -189,8 +199,9 @@ fn aggregate_source_site(schema: &Schema, table: &str, location: &str, sites: &m
 
 fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>) {
     match rule {
-        RuleExpr::Exists { table, index, .. } => {
-            sites.push(site(schema, location, table, index, "rule"));
+        RuleExpr::Exists { table, index, key, .. } => {
+            let values: Vec<_> = key.iter().map(|term| match term { snapback4_core::schema::RuleTerm::Literal(value) => value.clone(), _ => snapback4_core::Value::Null }).collect();
+            sites.push(event_site(schema, location, table, index, "rule", &values));
             aggregate_source_site(schema, table, location, sites);
             if seen.insert(table.clone()) && let Some(table) = schema.tables.get(table) { rule_sites(schema, &table.rules.read, location, sites, seen); }
         }
@@ -246,6 +257,10 @@ fn inspect(schema: &Schema, stmts: &[Stmt], codes: &mut BTreeSet<String>, sites:
     }
 }
 fn scan_exprs(schema: &Schema, scan: &ir::Scan, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
+    if schema.timelines.iter().any(|t| scan.table == t.table("Posts")) {
+        let key = scan.prefix.iter().map(|part| match part { ir::IndexKeyExpr::Scalar(Expr::Literal(v)) => v.clone(), _ => snapback4_core::Value::Null }).collect::<Vec<_>>();
+        sites.push(event_site(schema, &scan.site, &scan.table, &scan.index, "timeline event", &key));
+    }
     if let Some(filter) = &scan.filter { expr(schema, filter, codes, sites); }
     for key in &scan.prefix { let (ir::IndexKeyExpr::Scalar(value) | ir::IndexKeyExpr::WordPrefix(value)) = key; expr(schema, value, codes, sites); }
     if let Some(after) = &scan.after { expr(schema, after, codes, sites); }
@@ -265,11 +280,28 @@ fn expr(schema: &Schema, value: &Expr, codes: &mut BTreeSet<String>, sites: &mut
         Expr::Object(fields) => for value in fields.values() { expr(schema, value, codes, sites); },
         Expr::Shape { base, fields } => { expr(schema, base, codes, sites); for value in fields.values() { expr(schema, value, codes, sites); } }
         Expr::Binary { left, right, .. } => { expr(schema, left, codes, sites); expr(schema, right, codes, sites); }
-        Expr::Get(read) | Expr::Exists(read) => for key in &read.key { expr(schema, key, codes, sites); },
+        Expr::Get(read) | Expr::Exists(read) => {
+            if schema.timelines.iter().any(|t| read.table == t.table("Posts")) {
+                let key = read.key.iter().map(|part| match part { Expr::Literal(v) => v.clone(), _ => snapback4_core::Value::Null }).collect::<Vec<_>>();
+                sites.push(event_site(schema, &read.site, &read.table, &read.index, "timeline event", &key));
+            }
+            for key in &read.key { expr(schema, key, codes, sites); }
+        },
         Expr::Scan(scan) => scan_exprs(schema, scan, codes, sites),
         Expr::Merge(merge) => for lane in &merge.lanes { inspect(schema, &lane.setup, codes, sites); scan_exprs(schema, &lane.scan, codes, sites); if let Some(source) = &lane.source { if let Some(scan) = source.scan() { scan_exprs(schema, scan, codes, sites); } for value in source.expressions() { expr(schema, value, codes, sites); } } },
         _ => {}
     }
+}
+
+fn event_site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str, key: &[snapback4_core::Value]) -> ResidencySite {
+    let mut result = site(schema, location, table, index, kind);
+    if result.class == SiteClass::Horizon && schema.timelines.iter().any(|t| table == t.table("Posts"))
+        && !snapback4_core::schema::timeline::partial_read(schema, table, index, key) {
+        result.class = SiteClass::Held;
+        result.reason = format!("{kind} {table} by {index}: key names a fully synced event kind");
+        result.rewrite.clear();
+    }
+    result
 }
 
 /// A single human reason for the first site that prevents prediction.

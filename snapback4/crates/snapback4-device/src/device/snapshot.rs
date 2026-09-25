@@ -84,6 +84,7 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) -> 
                 if row.field("id")?.as_str()? != event.id {
                     return Err(RuntimeError::Input("snapshot row identity does not match its event".into()));
                 }
+                if !snapback4_core::schema::timeline::holds_event(schema, &event.table, &row) { continue; }
                 if !page.snapshot {
                     // Keys are JSON tuples ending in ']'; its strict prefix
                     // seeks this exact staged key without scanning the group.

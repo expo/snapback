@@ -67,6 +67,35 @@ pub struct Timeline {
 }
 
 impl Timeline {
+    // @ref LLP 3000.016#2.1a — an engine slot belongs to a declaration AND a source role.
+    pub fn slot(&self, repost: bool) -> String {
+        format!("$timeline:{}:{}", self.name, if repost { "repost" } else { "post" })
+    }
+    pub fn source(&self, repost: bool) -> &str { if repost { &self.reposts[0] } else { &self.posts[0] } }
+    pub fn has_slot(&self, schema: &super::Schema, repost: bool) -> bool {
+        schema.tables[self.source(repost)].columns.contains_key(&self.slot(repost))
+    }
+    pub fn fully_synced(&self, schema: &super::Schema, repost: bool) -> bool {
+        // Stored revision-5 backends keep their old full-event semantics until adoption.
+        !self.has_slot(schema, repost) || schema.tables[self.source(repost)].sync.as_ref()
+            .is_some_and(|sync| sync.horizon.is_none())
+    }
+    pub fn synced_aggregates<'a>(&self, schema: &'a super::Schema) -> Vec<&'a str> {
+        let mut sources = BTreeSet::from([self.table("Posts")]);
+        let mut targets = BTreeSet::new();
+        loop {
+            let before = sources.len();
+            for m in &schema.maintains {
+                if sources.contains(&m.source) {
+                    sources.insert(m.target.clone());
+                    let target = m.private.as_ref().map_or(m.target.as_str(), |owner| owner.table.as_str());
+                    if schema.tables[target].sync.is_some() { targets.insert(target); }
+                }
+            }
+            if sources.len() == before { break; }
+        }
+        targets.into_iter().collect()
+    }
     pub fn backfill(&self) -> usize { FOLLOW_BACKFILL }
     pub fn table(&self, suffix: &str) -> String { format!("{}{suffix}", self.name) }
     pub fn owns(&self, table: &str) -> bool { table.strip_prefix(&self.name).is_some_and(|s| OWNED_SUFFIXES.contains(&s)) }
@@ -78,17 +107,44 @@ impl Timeline {
     }
     pub fn event_tables(&self) -> [&str; 3] { [&self.posts[0], &self.reposts[0], &self.edges[0]] }
     /// Edges queue on devices; event prediction needs only public event inputs.
-    pub fn inputs(&self, table: &str, _kind: &str) -> Vec<(String, String)> {
+    pub fn inputs(&self, table: &str, kind: &str) -> Vec<(String, String)> {
         if table == self.edges[0] { return vec![(self.table("Work"), "byId".into())]; }
         if table == self.posts[0] || table == self.reposts[0] {
-            let mut inputs = vec![(self.table("Posts"), "byActorPost".into()),
-                (self.table("RemovedEvents"), "byEvent".into())];
-            if table == self.reposts[0] { inputs.push((self.posts[0].clone(), "byId".into())); }
+            let mut inputs = vec![];
+            if table == self.posts[0] && !matches!(kind, "insert" | "insert-if-absent") {
+                inputs.push((self.posts[0].clone(), "byId".into()));
+            }
+            if table == self.reposts[0] {
+                inputs.push((if kind == "delete" { self.reposts[0].clone() } else { self.posts[0].clone() }, "byId".into()));
+            }
+            if table != self.reposts[0] || kind != "delete" {
+                inputs.push((self.table("RemovedEvents"), "byEvent".into()));
+            }
             return inputs;
         }
         vec![]
     }
 
+}
+
+pub fn is_slot(field: &str) -> bool { field.starts_with("$timeline:") }
+
+/// Raw event rows on devices represent only fully synced kinds.
+pub fn holds_event(schema: &super::Schema, table: &str, row: &Value) -> bool {
+    schema.timelines.iter().find(|t| table == t.table("Posts")).is_none_or(|t|
+        row.field("repost").ok().and_then(|v| match v { Value::Bool(kind) => Some(*kind), _ => None })
+            .is_some_and(|kind| t.fully_synced(schema, kind)))
+}
+
+/// A prefix naming a fully synced kind has ordinary negative coverage.
+pub fn partial_read(schema: &super::Schema, table: &str, index: &str, key: &[Value]) -> bool {
+    let Some(t) = schema.timelines.iter().find(|t| table == t.table("Posts")) else { return false; };
+    let kind = schema.tables[table].index(index).and_then(|i| i.columns().iter().position(|c| c == "repost"))
+        .and_then(|position| key.get(position));
+    match kind {
+        Some(Value::Bool(kind)) => !t.fully_synced(schema, *kind),
+        _ => !t.fully_synced(schema, false) || !t.fully_synced(schema, true),
+    }
 }
 
 /// Stored sets are a checked projection, never an authorization input.

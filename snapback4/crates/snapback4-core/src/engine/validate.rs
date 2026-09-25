@@ -9,6 +9,16 @@ use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use std::collections::BTreeMap;
 
 pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
+    validate_image(schema, table_name, row, false)
+}
+
+/// Application input is checked before engine slots are prepared. The final
+/// stored image must also pass validate_row, with every required slot present.
+pub(super) fn validate_before_slots(schema: &Schema, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
+    validate_image(schema, table_name, row, true)
+}
+
+fn validate_image(schema: &Schema, table_name: &str, row: &Value, before_slots: bool) -> Result<(), RuntimeError> {
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     let object = row.as_object()?;
     if !object.contains_key("id") {
@@ -18,6 +28,7 @@ pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<()
         return Err(RuntimeError::Input(format!("{table_name} row contains undeclared field {name}")));
     }
     for (name, kind) in &table.columns {
+        if before_slots && crate::schema::timeline::is_slot(name) { continue; }
         let value = object.get(name).or_else(|| table.maintained.contains_key(name).then_some(&Value::Int(0)));
         validate_column(table_name, name, kind, value)?;
     }

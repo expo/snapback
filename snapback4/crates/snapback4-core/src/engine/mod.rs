@@ -46,6 +46,7 @@ mod column_activation;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
 mod write_target;
+pub(crate) use write_target::row_copy_ceiling;
 mod receipt;
 #[cfg(test)]
 #[cfg(feature = "sqlite")]

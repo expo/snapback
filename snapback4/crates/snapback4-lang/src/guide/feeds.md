@@ -67,7 +67,7 @@ table follows:
   public 'public edges'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
-  sync public
+  online only
 
 view activity:
   posts where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }
@@ -163,8 +163,10 @@ The source floors are **global and non-sliding**, fixed at acquisition time,
 not per followed author. New arrivals accumulate; nothing evicts older held
 rows. The private inbox acquires its newest 1,000 copies per reader. This
 acquisition limit does not change the 1,000-event history window per followed
-author. Owned events, follows and removal records remain fully synced: a
-missing event must be distinguishable from an original that was never admitted.
+author. Events follow their source rows: a fully synced kind keeps its owned event rows;
+a floored kind keeps its event state in engine slots on held sources. Online-only
+kinds keep neither. Removal records remain fully synced. Application follows may
+be fully synced, floored, or online only; the feed uses its private owned edges.
 
 An inbox page within its floor needs no posts. A shaped page is complete offline
 only when every card is held too. A recent repost of an old original, or a quiet
@@ -187,10 +189,14 @@ Cursors are not snapshots: concurrent writes can change what later pages show.
 Devices predict their own event's own-inbox copy when inputs are held and
 covered. Follow and unfollow queue without prediction. Offline reads use the
 last synced follows, removals and cards; remote changes arrive on reconnect.
-Reposts need a held original, event and removal probe; otherwise the entire
+Reposts need a held original, its event slot and a removal probe; otherwise the entire
 mutation queues without a row. These conditions are necessary: a horizon on
 reposts can still make its unique-pair absence unknown. `check` classifies each
-input by its residency; follow/unfollow remain `predicts: never`.
+transition by its source residency; follow/unfollow remain `predicts: never`.
+A synced aggregate over owned events stops prediction for transitions of a kind
+that is not fully synced; `check` names the aggregate. Other reads of owned events
+withhold on a missing row or a range that may contain an unheld kind. A key naming
+a fully synced kind keeps ordinary known absence.
 Use the normal pending-write, freshness and completeness state (`guide app`).
 
 ## Boundaries and refusals
@@ -204,7 +210,7 @@ do not widen a private audience to fit this shape.
 
 Posts and reposts accept `sync public`, `sync public last N by .at`, or
 `online only`. Use the mapped time column; its index must be exactly `(at, id)`.
-Follows require full `sync public`. Online-only cards use the withholding order
+Follows accept those public residencies with any admitted horizon order. Online-only cards use the withholding order
 above; writes to those sources queue without prediction. Changing any
 sync choice advances the generation and re-snapshots acquisition; a device
 never trims in place. Returning to full sync re-acquires the whole table.
@@ -228,7 +234,7 @@ image; importing mapped or owned rows cannot reconstruct delivery history.
 | Code | Meaning and next step |
 |---|---|
 | E_VIEW_FEED_SHAPE | The projection or viewer predicate is unsupported. Use the activity and Following views above |
-| E_TIMELINE_SHAPE | The sources do not fit Following. Keep three distinct public sources and owner rules; posts/reposts may use `sync public last N by .at` or `online only`, while follows keep full sync |
+| E_TIMELINE_SHAPE | The sources do not fit Following. Keep three distinct public sources and owner rules; posts/reposts may use `sync public last N by .at` or `online only`, and follows accept full sync, a public horizon, or online only |
 | E_TIMELINE_FOLLOWS | The edge key is invalid. Declare the immutable unique follower/followed pair |
 | E_TIMELINE_FILTER | Selection is not stable. Make selection columns immutable; use `.parentId = null and not .removed` |
 | E_TIMELINE_REMOVAL | Removal must be one-way. Insert false, change only false → true and retain the original card |

@@ -48,7 +48,7 @@ impl Runner<'_> {
         let row = self.record_insert(table_name, row)?;
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
-        validate_row(self.schema, table_name, &row)?;
+        super::validate::validate_before_slots(self.schema, table_name, &row)?;
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
@@ -84,6 +84,8 @@ impl Runner<'_> {
         // The server's same-id expired replacement preserves occupancy in
         // unchanged cap groups. A device cannot rely on an expired predecessor.
         self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
+        let row = self.prepare_event_slots(table_name, None, row)?;
+        validate_row(self.schema, table_name, &row)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
         self.charge_source_indexes(&table, None, Some(&row), entries)?;
         self.row_changed(table_name, None, Some(&row), Origin::Source)?;
@@ -146,7 +148,7 @@ impl Runner<'_> {
         if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
         self.meter.charge(MeterKind::Examined, expired_work)?;
         // An incomplete insert patch has the same word as a refused hidden target.
-        if let Err(error) = validate_row(self.schema, table_name, &row) {
+        if let Err(error) = super::validate::validate_before_slots(self.schema, table_name, &row) {
             return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
         }
         match self.insert_attempt(table_name, row, false).map(|_| ()) {
@@ -179,6 +181,8 @@ impl Runner<'_> {
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
         if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
+        let new = self.prepare_event_slots(table_name, Some(&old), new)?;
+        validate_row(self.schema, table_name, &new)?;
         let table = self.schema.table(table_name).expect("validated").clone();
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &new, Some(&old)))?;
         self.charge_source_indexes(&table, Some(&old), Some(&new), entries)?;

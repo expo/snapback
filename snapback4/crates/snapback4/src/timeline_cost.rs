@@ -30,7 +30,7 @@ pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<Str
 // @ref LLP 3000.016#4 — the certificate distinguishes acquisition from delivery and the history window.
 fn acquisition(schema: &Schema, t: &snapback4_core::schema::timeline::Timeline, lines: &mut Vec<String>) {
     lines.push(format!("    following {} acquisition: global, non-sliding source floors; new arrivals accumulate", t.name));
-    for name in [&t.posts[0], &t.reposts[0], &t.table("Posts"), &t.table("Feed")] {
+    for name in [&t.posts[0], &t.reposts[0], &t.edges[0], &t.table("Feed")] {
         let description = match &schema.tables[name].sync {
             None => "online only".into(),
             Some(sync) => match &sync.horizon {
@@ -42,7 +42,11 @@ fn acquisition(schema: &Schema, t: &snapback4_core::schema::timeline::Timeline, 
         };
         lines.push(format!("      {name}: {description}"));
     }
-    lines.push(format!("      {} and {}: full sync; private edge epochs and work stay synced", t.edges[0], t.table("RemovedEvents")));
+    for repost in [false, true] {
+        lines.push(format!("      {} {}: {}", t.table("Posts"), if repost { "reposts" } else { "originals" },
+            if t.fully_synced(schema, repost) { "full sync" } else { "event state follows the source's engine slot; no owned event rows on devices" }));
+    }
+    lines.push(format!("      {}: full sync; private edge epochs and work stay synced", t.table("RemovedEvents")));
     lines.push(format!("      history: newest {} events per followed author, unchanged; acquisition never changes delivery", snapback4_core::schema::timeline::HISTORY_WINDOW));
     lines.push("      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading".into());
     lines.push("      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data".into());

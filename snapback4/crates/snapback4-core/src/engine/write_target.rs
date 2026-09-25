@@ -310,7 +310,7 @@ fn pure_builtin(builtin: &Builtin) -> bool {
     }
 }
 
-pub(super) fn row_copy_ceiling(table: &Table) -> u64 {
+pub(crate) fn row_copy_ceiling(table: &Table) -> u64 {
     table.columns.iter().fold(40, |total, (name, ty)| total.saturating_add(80 + name.len() as u64).saturating_add(column_copy_ceiling(ty)))
 }
 fn column_copy_ceiling(ty: &ColumnType) -> u64 {

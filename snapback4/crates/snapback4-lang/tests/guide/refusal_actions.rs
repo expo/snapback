@@ -157,7 +157,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_TIMELINE_REDEFINE", &["Remove the view and deploy", "add the new definition over empty event and edge tables", "use a planned view over retained sources", "use the matching engine for a 0.3 store"]),
     ("E_TIMELINE_REMOVAL", &["Insert false, change only false → true and retain the original card"]),
     ("E_TIMELINE_SERVER", &["Queue it without predicted rows"]),
-    ("E_TIMELINE_SHAPE", &["Keep three distinct public sources and owner rules", "posts/reposts may use `sync public last N by .at` or `online only`", "follows keep full sync"]),
+    ("E_TIMELINE_SHAPE", &["Keep three distinct public sources and owner rules", "posts/reposts may use `sync public last N by .at` or `online only`", "follows accept full sync, a public horizon, or online only"]),
     ("E_TIMELINE_SIZE", &["`authors` and `size` lines are unused compatibility inputs", "Remove them"]),
     ("E_TYPE", &["correct seeds or wire inputs", "use the generated API types"]),
     ("E_UNBOUND_LOOP", &["use `depth 8` for an eight-hop query", "there is no `while` form"]),

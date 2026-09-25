@@ -571,6 +571,8 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             let mut row = row_image(&row, table).into_owned();
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
+            // @ref LLP 3000.016#2.1a — the horizonless owned walk keeps fully synced kinds only.
+            if viewer.is_some_and(|(schema, _)| !crate::schema::timeline::holds_event(schema, table_name, &row)) { continue; }
             if let Some(runner) = &mut aggregate {
                 let Some(live_row) = runner.live_aggregate(table_name, row)? else { continue; };
                 row = live_row;

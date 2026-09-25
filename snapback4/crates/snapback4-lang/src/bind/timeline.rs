@@ -49,19 +49,19 @@ fn owner(rule: &RuleExpr, name: &str) -> bool {
 }
 
 fn source<'a>(schema: &'a Schema, decl: &TimelineDecl, name: &str, actor: &str, time: Option<&str>, columns: &[(&str, ColumnType)]) -> Fallible<&'a Table> {
-    let acquisition = time.map_or_else(|| "sync public".into(), |at| format!("sync public, sync public last 1000 by .{at}, or online only"));
+    let acquisition = time.map_or_else(|| "sync public, sync public last 1000, or online only".into(), |at| format!("sync public, sync public last 1000 by .{at}, or online only"));
     let fail = |message| refusal(decl, "E_TIMELINE_SHAPE", message,
         format!("declare {name} public with {acquisition}; require .{actor} = viewer for inserts and allowed deletes/updates; keep mapped fields immutable"));
     let t = schema.table(name).ok_or_else(|| fail(format!("missing timeline source {name}")))?;
     if !t.rules.read.is_public() || t.expire.is_some() || schema.maintain_for(name).is_some() {
         return Err(fail(format!("{name} must be explicitly public, non-expiring application data")));
     }
-    // @ref LLP 3000.016#2.1 — source acquisition is global and ordered by event time; edges remain fully held.
+    // @ref LLP 3000.016#2.1 — events have time floors; application follows admit any public residency.
     let valid_sync = match (&t.sync, time) {
-        (None, Some(_)) => true,
+        (None, _) => true,
         (Some(sync), time) if sync.audience == Audience::Public => match &sync.horizon {
             None => true,
-            Some(horizon) => time.is_some_and(|at| t.index(&horizon.by)
+            Some(horizon) => time.is_none_or(|at| t.index(&horizon.by)
                 .is_some_and(|index| index.is_plain() && index.columns() == [at, "id"])),
         },
         _ => false,
@@ -118,7 +118,9 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             // an arbitrary authored name can silently reinterpret a saved cursor.
             let followed_index = format!("$timeline:{}:followers", decl.name);
             reserve_followed_index(decl, &mut schema.tables.get_mut(&decl.edges[0]).unwrap().indexes, &followed_index)?;
-            // @ref LLP 3000.016#2.1 — event absence must stay known for repost admission, independent of source residency.
+            // @ref LLP 3000.016#2.1a — slots are required bool / optional id, with no literal defaults.
+            schema.tables.get_mut(&decl.posts[0]).unwrap().columns.insert(format!("$timeline:{}:post", decl.name), ColumnType::Bool);
+            schema.tables.get_mut(&decl.reposts[0]).unwrap().columns.insert(format!("$timeline:{}:repost", decl.name), ColumnType::Optional(Box::new(ColumnType::Id)));
             schema.tables.get_mut(&format!("{}Feed", decl.name)).unwrap().sync.as_mut().unwrap().horizon =
                 Some(Horizon { last: HISTORY_WINDOW as u32, by: "byReaderPage".into() });
             Ok(Timeline { name: decl.name.clone(), version: 2, filter, authors: Default::default(), posts: decl.posts.clone(), reposts: decl.reposts.clone(), edges: decl.edges.clone(),
@@ -136,6 +138,15 @@ pub fn notes(catalog: &Catalog, _schema: &Schema) -> Vec<Diagnostic> {
 pub fn write_site(schema: &Schema, table: &str, kind: &str, fact: &mut snapback4_core::schema::Execution) {
     use snapback4_core::schema::{ResidencySite, SiteClass};
     for timeline in schema.timelines.iter().filter(|timeline| timeline.maps(table)) {
+        let repost = table == timeline.reposts[0];
+        if table != timeline.edges[0] && !timeline.fully_synced(schema, repost) {
+            for aggregate in timeline.synced_aggregates(schema) {
+                fact.sites.push(ResidencySite { site: format!("{kind} {table}: {aggregate}"), table: aggregate.into(), index: "byGroup".into(),
+                    kind: "timeline aggregate".into(), class: SiteClass::Server,
+                    reason: format!("Following {} cannot predict a partial event's change to synced aggregate {aggregate}", timeline.name),
+                    rewrite: format!("queue this mutation without predicted rows, or declare view {aggregate} online only") });
+            }
+        }
         for (input, index) in timeline.inputs(table, kind) {
             let sync = schema.tables[&input].sync.as_ref();
             let online = table == timeline.edges[0] || sync.is_none();
