@@ -49469,3 +49469,67 @@ rerun in this round. Test harnesses track and terminate their own children;
 no standalone server was started manually. The per-item fix/test record and
 file map are in /home/ccheever/sb5/lane-b2.r1.final.md. No push, publication or
 deployment; no claim that the reviewers have rerun these changes.
+
+
+## 2026-09-25 — Lane B2 round 2: close the second blind reviews
+
+Read Astra's NOT READY and Grok's READY/Low records, and B1 commit 81230c17f's
+absent-upsert authority ordering. Sequence-key upserts now check insert
+authority before exposing E_SEQUENCE_SUPPLIED from the key's insert candidate.
+A denied absent target returns NOT_FOUND through the existing meter-restoration
+path. The paired-world regression compares serialized refusal envelopes and
+all meter fields for hidden-existing versus absent targets: sequence-key upsert,
+ordinary insert-if-absent, and raw-IR insert-if-absent with a supplied ordinal.
+The authorized controls still get E_SEQUENCE_SUPPLIED. Denied if-absent retains
+its ordinary E_RULE. Removing the authority check fails the upsert regression.
+
+The predictor now queues any run/postcondition refusal after reading a
+provisional sequence. Unique keys and cap groups observe implicit sequence
+reads; final-exists postconditions observe the sequence fields in their keys.
+The built-wasm regressions cover an ordinary/named ticket unique constraint,
+a postcondition keyed by the ordinal, and a global unique ordinal collision
+with another parent's row. Each starts with server counter 5 and no held
+messages for the target parent, queues without an overlay at provisional 1,
+and settles with ordinal 6. The previous artifact failed with E_CONSTRAINT or
+TAKEN. Refusals without provisional consumption still terminate locally.
+
+Rules now observe Field, NextField and OldField when evaluated, preserving
+short-circuit order. An author conjunct that refuses before .ordinal remains
+E_RULE with no outbox entry on both stores and built wasm; the previous wasm
+returned E_PREDICT. The writes card states actual consumption, constraints and
+postconditions. Point rereads and pages restore pending metadata at the shared
+author-facing read boundary; valued update/upsert uses that boundary too.
+Both-store and built-wasm tests return ordinal 1 with pending true. The old
+artifact omitted pending from both the point and page result.
+
+The two requested surviving mutations now fail executed tests. Dropping the
+OldField observation makes the pending-row update rule old.ordinal != 1
+return terminal E_RULE, although the server assigns 6. Dropping delete's max
+makes a device holding 1/2/3, after pending deletion of 3 then 1, predict 3
+instead of 4. The existing production max remains unchanged. All temporary
+mutations were restored. Focused qualification: 15 core, 9 device sequence
+tests; 11 built-wasm sequence cases. Evidence: target/b2-r2-native-final.log,
+target/b2-r2-wasm-regressions.log and target/b2-r2-mutations.log. Pre-fix wasm
+failures are retained in target/b2-r2-red-wasm*.log; initial fixture syntax
+errors there were corrected before the behavioral comparisons.
+
+build-wasm.sh measures 1,766,597 B raw / 490,994 B gzip on Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Versus round 1's 1,765,680 / 490,528,
+this is +917 B raw / +466 B gzip for the combined runtime changes. Keep the
+491,000 B ratchet with 6 B headroom. This is a whole-artifact measurement;
+no independent component attribution, runtime meter ceiling change or package
+version change. The budget's reason records the measurement. The artifact's
+SHA-256 is b52a111762227cba3809e4777f290ddf8aa910e7492c673dcf73b54c928955db.
+
+Final blocking suite: `== 0 failure(s) in 282 s`, target/b2-r2-suite.log.
+Ran `env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0
+CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_RUST_TEST_PROCESSES=8 bash scripts/test.sh`
+from snapback4/, using Node v24.13.1. Client files ran in parallel: 1,100
+passed, 0 failed, 10 existing skips. transport-http.test.mjs passed, including
+the native 256-pending-ID case; no serial fallback was needed. The suite's
+wasm rebuild reproduced the measurement above. Whitespace and changed-source
+size checks pass. No store adapter changed and no optional live Postgres run
+was added. All fixture servers were managed by their test harnesses.
+The complete per-item fix and regression record is in
+/home/ccheever/sb5/lane-b2.r2.final.md. Local branch commit only: no push,
+publication or deployment, and no claim that the reviewers have rerun it.

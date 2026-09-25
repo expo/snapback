@@ -315,7 +315,6 @@ impl Runner<'_> {
         if self.context.is_system() {
             return Ok(true);
         }
-        self.observe_sequence_rule(table_name, effect, old, next)?;
         if effect == Effect::Read && self.is_provisional(table_name, next)? { return self.provisional_readable(table_name, next); }
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         // A device holds a synced table's rows because the server delivered
@@ -333,8 +332,7 @@ impl Runner<'_> {
             materialize_optional_fields(&mut old, table);
             old
         });
-        let viewer = self.context.viewer.clone();
-        rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self)
+        self.evaluate_sequence_rule(table_name, &rule, effect, old.as_ref(), &next)
     }
 
     /// A row by id, materialized, without a rule check.
@@ -413,7 +411,8 @@ impl Runner<'_> {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
-            Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
+            let row = self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null);
+            Ok(super::recorded::public_image(table, self.sequence_read_result(&read.table, row)?))
         } else {
             self.next_expiry = expiry_mark;
             if !provisional {
@@ -993,7 +992,7 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     let Some(row) = live_row else { continue; };
-                    let row = super::recorded::public_image(table, row);
+                    let row = super::recorded::public_image(table, self.sequence_read_result(&scan.table, row)?);
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;

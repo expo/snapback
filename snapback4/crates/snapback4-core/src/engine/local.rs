@@ -90,9 +90,10 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
         Ok(value)
     });
     // @ref LLP 3000.015#2 — a provisional ordinal is not server evidence.
-    // Retain the intent when a rule/require (including a selected branch)
-    // refuses after consuming one; the host rolls back all predicted rows.
-    if runner.provisional_sequence_read && matches!(&result, Err(RuntimeError::Rule { .. } | RuntimeError::Require { .. } | RuntimeError::Conflict { .. })) {
+    // Any refusal after consuming one may change with the server's assignment,
+    // including constraints, postconditions and a selected branch's refusal.
+    // The host rolls back all predicted rows and retains the intent.
+    if runner.provisional_sequence_read && result.is_err() {
         return Err(RuntimeError::Prediction("a refusal depends on a provisional sequence; queue the write for the server (guide writes)".into()));
     }
     // Unknown input can select a branch the server will never execute. Its

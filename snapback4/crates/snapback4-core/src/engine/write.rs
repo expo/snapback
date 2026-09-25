@@ -34,8 +34,16 @@ impl Runner<'_> {
     fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool, upsert_index: Option<&str>) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
-        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row)?;
+        let supplied_sequence = super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row);
         let row = self.with_defaults(table_name, row)?;
+        if let Err(error) = supplied_sequence {
+            // @ref LLP 3000.007#17 — absent upserts decide insert authority before field diagnostics.
+            // A target key may supply an ordinal even when the patch does not.
+            if !self.check_rule(table_name, Effect::Insert, None, &row)? {
+                return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+            }
+            return Err(error);
+        }
         let unassigned = if if_absent && !self.schema.tables[table_name].sequences.is_empty() { Some(row.clone()) } else { None };
         let (row, sequence_full) = self.sequence_fields(table_name, row)?;
         if let Some(index) = upsert_index {
@@ -72,6 +80,7 @@ impl Runner<'_> {
         let table = self.schema.table(table_name).expect("validated").clone();
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+                self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
                 let key = index_values(index, &row);
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
@@ -360,6 +369,7 @@ impl Runner<'_> {
         let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+                self.observe_sequence_columns(table_name, new, &index.columns(), effect == Effect::Insert)?;
                 let key = index_values(index, new);
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
@@ -407,6 +417,7 @@ impl Runner<'_> {
                     if effect == Effect::Delete {
                         continue;
                     }
+                    self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                     let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
                     let moved = old.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
                     if !moved {
@@ -473,7 +484,11 @@ impl Runner<'_> {
                 let key: Vec<Value> = key
                     .iter()
                     .map(|term| match term {
-                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => row.field(field).cloned().unwrap_or(Value::Null),
+                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
+                            // This inserted image owns a provisional ordinal even if no expression read it.
+                            self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
+                            row.field(field).cloned().unwrap_or(Value::Null)
+                        },
                         crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
                         crate::schema::RuleTerm::Literal(value) => value.clone(),
                         crate::schema::RuleTerm::OldField(_) => Value::Null,

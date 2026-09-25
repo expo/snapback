@@ -32,7 +32,7 @@ impl Runner<'_> {
     }
 
     fn authorize_read_inner(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
-        self.observe_sequence_rule(table, crate::schema::Effect::Read, None, row)?;
+        let provisional = self.is_provisional(table, row)?;
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
         if self.device_work_active { self.meter.heap(crate::rows::word_heap::materialize(row, definition))?; }
@@ -40,7 +40,7 @@ impl Runner<'_> {
         materialize_optional_fields(&mut row, definition);
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
-        let verdict = evaluate(&rule, &viewer, &row, &mut ReadProbe { runner: self, prepaid, unknown: false })?;
+        let verdict = evaluate(&rule, &viewer, &row, &mut ReadProbe { runner: self, table, provisional, prepaid, unknown: false })?;
         if self.read_capped() { return Ok(false); }
         if verdict == Verdict::Unknown {
             self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
@@ -77,8 +77,11 @@ impl Runner<'_> {
     }
 }
 
-struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, prepaid: bool, unknown: bool }
+struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, table: &'a str, provisional: bool, prepaid: bool, unknown: bool }
 impl Probe for ReadProbe<'_, '_> {
+    fn field(&mut self, field: &str, _old: bool) {
+        self.runner.provisional_sequence_read |= self.provisional && self.runner.schema.tables[self.table].sequences.contains_key(field);
+    }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.prepaid && !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
         let (present, known) = self.runner.probe_witness(table, index, key, equalities, true)?;

@@ -455,3 +455,49 @@ fn exhausted_if_absent_cannot_collide_on_a_clamped_sequence() {
     let out = e.mutate("sendAbsent", None, ctx(&[("conversationId", id("c")), ("body", Value::String("last".into()))])).unwrap();
     assert_eq!(sent(out), Value::Null);
 }
+
+#[test]
+fn denied_sequence_targets_have_identical_refusals_and_meters() {
+    use snapback4_core::ir::{Expr, Stmt};
+    let source = SOURCE
+        .replace("unique conversationId, body", "unique conversationId, body\n  unique conversationId, ordinal")
+        .replace("public 'sequence test messages'", "read <- viewer = 'writer'")
+        .replace("insert <- allow", "insert <- viewer = 'writer'")
+        .replace("update <- allow", "update <- viewer = 'writer'")
+        .replace("sync public", "online only");
+    let source = format!("{source}\nmutation position(conversationId: conversations, n: int):\n  return upsert messages[conversationId = conversationId, ordinal = n] {{ body: 'target' }}\nmutation retry(conversationId: conversations):\n  return insert messages {{ conversationId, body: 'target' }} if absent\n");
+    for op in ["position", "retry", "supplied_retry"] {
+        let mut worlds = Vec::new();
+        for hidden in [true, false] {
+            let mut b = bound(&source);
+            // Exercise raw IR too: Quarry rejects supplied insert fields statically.
+            let mut raw = b.programs.iter().find(|p| p.program.name == "retry").unwrap().program.clone();
+            raw.name = "supplied_retry".into();
+            let mut injected = 0;
+            for stmt in &mut raw.body {
+                if let Stmt::Const { value: Expr::Object(fields), .. } | Stmt::Let { value: Expr::Object(fields), .. } | Stmt::InsertIfAbsent { row: Expr::Object(fields), .. } = stmt {
+                    fields.insert("ordinal".into(), Expr::Literal(Value::Int(1)));
+                    injected += 1;
+                }
+            }
+            assert_eq!(injected, 1);
+            let programs = b.programs.drain(..).map(|p| p.program).chain([raw]);
+            let mut e = Engine::memory(b.schema, programs).unwrap();
+            if hidden {
+                e.seed([("messages".into(), object([("id", id("hidden")), ("conversationId", id("c")), ("body", Value::String("target".into()))]))]).unwrap();
+            }
+            let args = if op == "position" { vec![("conversationId", id("c")), ("n", Value::Int(1))] } else { vec![("conversationId", id("c"))] };
+            let out = e.mutate(op, None, ctx(&args).with_ids(["candidate".into()])).unwrap();
+            let WriteState::Failed { why, current } = out.state else { panic!("{out:?}"); };
+            assert_eq!(why.code, if op == "position" { "NOT_FOUND" } else { "E_RULE" }, "{op}: {why:?}");
+            assert!(current.is_none());
+            worlds.push(serde_json::to_vec(&(why, out.metered)).unwrap());
+            if !hidden && op != "retry" {
+                let authorized = e.mutate(op, None, Context::new("writer", args.into_iter().map(|(k,v)| (k.into(),v)).collect()).with_ids(["authorized".into()])).unwrap();
+                let WriteState::Failed { why, .. } = authorized.state else { panic!("{authorized:?}"); };
+                assert_eq!(why.code, "E_SEQUENCE_SUPPLIED");
+            }
+        }
+        assert_eq!(worlds[0], worlds[1], "{op}: code, message, detail and every meter field must be byte-identical");
+    }
+}

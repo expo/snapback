@@ -285,9 +285,11 @@ The settled image replaces the provisional ordinal and reorders local pages.
 Two offline inserts keep their outbox order when they reach the server.
 If no provisional value fits above the device's held integers, the write queues
 without prediction; the server decides whether its counter has room.
-A rule or `require` refusal after reading a provisional ordinal also queues
-without a predicted row: the server's assigned value may satisfy it. Provisional
-ordinals returned by insert, upsert or update carry `pending: true`.
+A refusal after actually reading a provisional ordinal also queues without a
+predicted row, including a rule, `require`, `check`, unique constraint or
+`after insert` postcondition: the server's assigned value may satisfy it.
+A short-circuited rule arm does not read its ordinal. Provisional ordinals in
+write results, point rereads and pages carry `pending: true`.
 
 ## Write authority
 

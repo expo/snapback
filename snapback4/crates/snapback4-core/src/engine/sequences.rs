@@ -4,7 +4,7 @@ use super::runner::Runner;
 use crate::{
     error::{MeterKind, RuntimeError},
     rows::{Bounds, Dir},
-    schema::{ColumnType, Effect, RuleExpr, RuleTerm, Table},
+    schema::{ColumnType, Effect, RuleExpr, Table},
     value::Value,
 };
 use std::collections::BTreeMap;
@@ -37,27 +37,28 @@ impl Runner<'_> {
         Ok(false)
     }
 
-    pub(super) fn observe_sequence_rule(&mut self, name: &str, effect: Effect, old: Option<&Value>, next: &Value) -> Result<(), RuntimeError> {
-        if !self.device { return Ok(()); }
-        let table = &self.schema.tables[name];
-        fn reads(rule: &RuleExpr, table: &Table, old: bool) -> bool {
-            let term = |term: &RuleTerm| match term {
-                RuleTerm::Field(field) | RuleTerm::NextField(field) if !old => table.sequences.contains_key(field),
-                RuleTerm::OldField(field) if old => table.sequences.contains_key(field),
-                _ => false,
-            };
-            match rule {
-                RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => term(a) || term(b),
-                RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().any(|rule| reads(rule, table, old)),
-                RuleExpr::Not(rule) => reads(rule, table, old),
-                RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, term)| term)).any(term),
-                _ => false,
-            }
+    pub(super) fn evaluate_sequence_rule(&mut self, name: &str, rule: &RuleExpr, effect: Effect, old: Option<&Value>, next: &Value) -> Result<bool, RuntimeError> {
+        let next_provisional = self.device && (effect == Effect::Insert || self.is_provisional(name, next)?);
+        let old_provisional = old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false);
+        let viewer = self.context.viewer.clone();
+        super::rules::evaluate(rule, &viewer, old, next, effect == Effect::Insert, &mut SequenceProbe {
+            runner: self, table: name, old: old_provisional, next: next_provisional,
+        })
+    }
+
+    pub(super) fn observe_sequence_columns(&mut self, name: &str, row: &Value, fields: &[String], inserting: bool) -> Result<(), RuntimeError> {
+        if self.device && fields.iter().any(|field| self.schema.tables[name].sequences.contains_key(field)) {
+            self.provisional_sequence_read |= inserting || self.is_provisional(name, row)?;
         }
-        let rule = table.rules.for_effect(effect);
-        self.provisional_sequence_read |= (reads(rule, table, false) && (effect == Effect::Insert || self.is_provisional(name, next)?))
-            || (reads(rule, table, true) && old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false));
         Ok(())
+    }
+
+    /// Author-facing point reads and pages share the sequence result contract.
+    pub(super) fn sequence_read_result(&self, name: &str, mut row: Value) -> Result<Value, RuntimeError> {
+        if row != Value::Null && !self.schema.tables[name].sequences.is_empty() && self.is_provisional(name, &row)? {
+            if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert("pending".into(), Value::Bool(true)); }
+        }
+        Ok(row)
     }
 
     #[cfg(feature = "sqlite")]
@@ -213,5 +214,25 @@ impl Runner<'_> {
             }
         }
         Ok(row)
+    }
+}
+
+/// Dependency tracking follows rule evaluation, including its short circuits.
+struct SequenceProbe<'a, 'b> {
+    runner: &'a mut Runner<'b>,
+    table: &'a str,
+    old: bool,
+    next: bool,
+}
+impl super::rules::Probe for SequenceProbe<'_, '_> {
+    fn field(&mut self, field: &str, old: bool) {
+        self.runner.provisional_sequence_read |= (if old { self.old } else { self.next })
+            && self.runner.schema.tables[self.table].sequences.contains_key(field);
+    }
+    fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
+        super::rules::Probe::exists(self.runner, table, index, key, equalities)
+    }
+    fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool {
+        super::rules::Probe::created(self.runner, table, index, key)
     }
 }

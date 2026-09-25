@@ -172,10 +172,7 @@ impl Runner<'_> {
         };
         // Only an ordinary read of the final row can enter the author's program.
         if !valued { return Ok(Value::Null); }
-        let mut value = self.get(&Read { site: target.site.clone(), table: target.table.clone(), index: "byId".into(), key: vec![Expr::Literal(id)], provenance: KeyProvenance::Computed })?;
-        if value != Value::Null && !definition.sequences.is_empty() && self.is_provisional(&target.table, &value)? {
-            if let Value::Row(fields) | Value::Map(fields) = &mut value { fields.insert("pending".into(), Value::Bool(true)); }
-        }
+        let value = self.get(&Read { site: target.site.clone(), table: target.table.clone(), index: "byId".into(), key: vec![Expr::Literal(id)], provenance: KeyProvenance::Computed })?;
         Ok(super::columns::write_result(&definition, value))
     }
 

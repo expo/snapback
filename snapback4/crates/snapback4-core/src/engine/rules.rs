@@ -214,6 +214,8 @@ pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
 
 /// Something that can answer an `exists`/`created` probe while a rule runs.
 pub trait Probe {
+    /// Called only when evaluation loads a field, after short-circuit decisions.
+    fn field(&mut self, _field: &str, _old: bool) {}
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, crate::error::RuntimeError>;
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool;
 }
@@ -223,8 +225,8 @@ pub fn evaluate(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
         RuleExpr::Deny => Ok(false),
-        RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next)? == term(right, viewer, old, next)?),
-        RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next)? != term(right, viewer, old, next)?),
+        RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next, probe)? == term(right, viewer, old, next, probe)?),
+        RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next, probe)? != term(right, viewer, old, next, probe)?),
         RuleExpr::And(rules) => {
             for rule in rules {
                 if !evaluate(rule, viewer, old, next, created_allowed, probe)? {
@@ -243,27 +245,27 @@ pub fn evaluate(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value
         }
         RuleExpr::Not(rule) => Ok(!evaluate(rule, viewer, old, next, created_allowed, probe)?),
         RuleExpr::Exists { table, index, key, equalities, .. } => {
-            let key = key.iter().map(|term| self::term(term, viewer, old, next)).collect::<Result<Vec<_>, _>>()?;
-            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
+            let key = key.iter().map(|term| self::term(term, viewer, old, next, probe)).collect::<Result<Vec<_>, _>>()?;
+            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
             probe.exists(table, index, &key, &equalities)
         }
         RuleExpr::Created { table, index, key, equalities, .. } => {
             if !created_allowed {
                 return Err(crate::error::RuntimeError::Schema("created probes are valid only in insert rules".into()));
             }
-            let key = key.iter().map(|term| self::term(term, viewer, old, next)).collect::<Result<Vec<_>, _>>()?;
+            let key = key.iter().map(|term| self::term(term, viewer, old, next, probe)).collect::<Result<Vec<_>, _>>()?;
             if !probe.created(table, index, &key) { return Ok(false); }
             if equalities.is_empty() { return Ok(true); }
-            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
+            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
             probe.exists(table, index, &key, &equalities)
         }
     }
 }
 
-fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value) -> Result<Value, crate::error::RuntimeError> {
+fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe) -> Result<Value, crate::error::RuntimeError> {
     Ok(match term {
-        RuleTerm::Field(field) | RuleTerm::NextField(field) => next.field(field).cloned().unwrap_or(Value::Null),
-        RuleTerm::OldField(field) => old.and_then(|old| old.field(field).ok()).cloned().unwrap_or(Value::Null),
+        RuleTerm::Field(field) | RuleTerm::NextField(field) => { probe.field(field, false); next.field(field).cloned().unwrap_or(Value::Null) },
+        RuleTerm::OldField(field) => { probe.field(field, true); old.and_then(|old| old.field(field).ok()).cloned().unwrap_or(Value::Null) },
         RuleTerm::Viewer => Value::Id(viewer.to_owned()),
         RuleTerm::Literal(value) => value.clone(),
     })
