@@ -398,24 +398,77 @@ for (const left of [[{ body: "retained" }], [], 0]) for (const fenced of [false,
   });
 }
 
-for (const complete of [false, true]) test(`rules 2/4/5: delayed local data expires (complete=${complete})`, async t => {
+for (const complete of [false, true]) for (const observing of [false, true]) {
+  test(`rules 2/4/5: delayed local data expires and reobserves (complete=${complete}, watch=${observing})`, async t => {
+    let now = 100; t.mock.method(Date, "now", () => now);
+    const f = routing(); f.env.link = "offline";
+    const beforeRows = [{ body: "expired" }, { body: "kept" }], afterRows = [{ body: "kept" }];
+    const data = complete ? beforeRows : { left: beforeRows, right: [] };
+    const after = complete ? afterRows : { left: afterRows, right: [] };
+    const coverage = { unknown: !complete, complete, speculative: false, tables: ["posts"],
+      ...(!complete ? { components: { left: { retained: true, unknown: false, speculative: false }, right: { unknown: true, speculative: false } } } : {}) };
+    f.outcome = { ...coverage, data, nextExpiry: 200 };
+    assert.deepEqual((await f.read()).data, data, "the pre-deadline local value is publishable");
+    let release, reached, calls = 0;
+    const gate = new Promise(resolve => { release = resolve; });
+    const waiting = new Promise(resolve => { reached = resolve; });
+    f.env.call = async request => {
+      assert.deepEqual(request.args, input);
+      if (++calls === 1) {
+        assert.equal(request.now, 100); reached(); await gate;
+        return { ok: { ...coverage, data, nextExpiry: 200 } };
+      }
+      assert.equal(request.now, 200);
+      return { ok: { ...coverage, data: after, nextExpiry: complete ? null : 300 } };
+    };
+    const watch = observing ? { dirty: false } : undefined;
+    const pending = evaluateLocal(f.env, op, input, 0, 0, watch);
+    await waiting; now = 200; release();
+    const result = await pending;
+    assert.deepEqual(result.read.data, after); assert.equal(result.read.complete, complete);
+    assert.equal(result.read.fresh, false);
+    assert.equal(result.nextExpiry, complete ? null : 300);
+    assert.equal(calls, 2); assert.equal(f.requests.length, 0);
+    if (watch) assert.equal(watch.dirty, false, "a successful retry supplies its own next deadline");
+  });
+}
+
+for (const kind of ["data", "speculative", "unavailable"]) for (const observing of [false, true]) test(`rule 5: a second expired local reply stops and dirties its watch (${kind}, ${observing})`, async t => {
   let now = 100; t.mock.method(Date, "now", () => now);
-  const f = routing(); f.env.link = "offline";
-  const data = complete ? [{ body: "local" }] : { left: [{ body: "retained" }], right: [] };
-  f.outcome = { data, unknown: !complete, complete, speculative: false, tables: ["posts"], nextExpiry: 200,
-    ...(!complete ? { components: { left: { retained: true, unknown: false, speculative: false }, right: { unknown: true, speculative: false } } } : {}) };
-  assert.deepEqual((await f.read()).data, data, "the pre-deadline local value is publishable");
-  const call = f.env.call;
-  let release, reached;
-  const gate = new Promise(resolve => { release = resolve; });
-  const waiting = new Promise(resolve => { reached = resolve; });
-  f.env.call = async (...args) => { const reply = await call(...args); reached(); await gate; return reply; };
-  const pending = evaluateLocal(f.env, op, input, 0, 0);
-  await waiting; now = 200; release();
-  const result = await pending;
+  const f = routing(); let calls = 0;
+  f.env.call = async request => {
+    assert.equal(request.now, now);
+    const deadline = now + 1; now = deadline;
+    assert.ok(++calls <= 2, "expiry retry is bounded to one extra device call");
+    const second = calls === 2;
+    return { ok: { ...(second && kind === "unavailable" ? { loading: true } : { data: ["expired"] }),
+      unknown: second && kind !== "data", complete: !second || kind === "data",
+      speculative: second && kind === "speculative", tables: ["posts"], nextExpiry: deadline } };
+  };
+  const watch = observing ? { dirty: false } : undefined;
+  const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
   assert.deepEqual(result.read, { loading: true }); assert.equal(result.nextExpiry, null);
-  assert.equal(f.requests.length, 0);
+  assert.equal(calls, 2); assert.equal(f.requests.length, 0);
+  if (watch) assert.equal(watch.dirty, true, "rerun finally must schedule another observation instead of leaving loading idle");
 });
+
+for (const transition of ["sign-out", "close", "incarnation"]) {
+  test(`rules 1/5: ${transition} during local expiry retry still fences publication`, async t => {
+    let now = 100; t.mock.method(Date, "now", () => now);
+    const f = routing(); let calls = 0;
+    f.env.call = async () => {
+      if (++calls === 1) now = 200;
+      else if (transition === "incarnation") f.env.incarnation++;
+      else f.env.unavailable = () => ({ code: transition === "close" ? "E_CLOSED" : "E_AUTH", family: "session", message: transition });
+      return { ok: { data: ["private"], unknown: false, complete: true, tables: ["posts"], nextExpiry: calls === 1 ? 200 : null } };
+    };
+    const read = await f.read();
+    assert.equal(calls, 2);
+    if (transition === "incarnation") assert.deepEqual(read, { loading: true });
+    else assert.equal(read.denied.code, transition === "close" ? "E_CLOSED" : "E_AUTH");
+    assert.equal("data" in read, false);
+  });
+}
 
 for (const composed of [false, true]) for (const boundary of ["transport", "publication"]) {
   test(`rule 5: delayed ${composed ? "composed" : "server"} data expires during ${boundary}`, async t => {

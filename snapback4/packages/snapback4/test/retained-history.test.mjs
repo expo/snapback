@@ -115,12 +115,12 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ local permit", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ expiry local watch left", "MQ local permit", "MQ local permit watch", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   const expiring = scenario.startsWith("MQ expiry");
   let fixtureSource = expiring ? source.replace("  body: text <=40\n  unique", "  body: text <=40\n  expiresAt: time\n  expire at .expiresAt\n  by byExpiresAt: expiresAt\n  unique").replace("insert messages {room, at, body}", "insert messages {room, at, body, expiresAt: now + 3600000}") : source;
-  const permitCase = scenario === "MQ local permit";
+  const permitCase = scenario.startsWith("MQ local permit");
   if (permitCase) fixtureSource += `
 table permits:
   room: text <=40
@@ -267,60 +267,71 @@ query wordBoth():
   assert.equal((await post("/m/leave", { args: { room: "left" }, id: "leave-left" })).state, "sent");
   await client.sync();
   const expected = (room, start) => rows.filter((item) => item.table === "messages" && item.row.room === room && item.row.at >= start).map((item) => item.row).reverse();
-  if (permitCase) {
+  if (permitCase || scenario.startsWith("MQ expiry local")) {
+    // Keep both one-shot and watch coverage. The first device evaluation is
+    // before the deadline; only its reply/outbox delivery crosses that deadline.
     unsubscribe(); watch.close(); offline = true; await client.sync();
-    let now = permitDeadline - 1; deviceNow = now;
+    const observing = scenario.includes("watch");
+    const op = { kind: "query", name: permitCase ? "permitBoth" : "both" };
+    const deadline = permitCase ? permitDeadline : rows.find(item => item.row.id === "left-25").row.expiresAt;
+    let now = deadline - 1;
     t.mock.method(Date, "now", () => now);
-    const op = { kind: "query", name: "permitBoth" };
     const before = await client.query(op, {});
-    assert.equal(before.data.secret.body, "private");
-    assert.deepEqual(before.data.left, expected("left", 1));
-    let evaluated = false, reached;
+    const beforeData = permitCase
+      ? { left: expected("left", 1), right: expected("held", 1), secret: { id: "secret", room: "vault", body: "private" } }
+      : { left: expected("left", 1), held: expected("held", 1) };
+    assert.deepEqual(before.data, beforeData);
+    assert.equal(before.complete, false);
+    let reached, queryCalls = 0, evaluated = false;
     const waiting = new Promise(resolve => { reached = resolve; });
     const gate = new Promise(resolve => { releaseReply = resolve; });
     interceptDevice = async (request, reply) => {
       if (request.op === "query" && request.name === op.name) {
-        assert.equal(reply.ok.data.secret.body, "private");
-        assert.equal(reply.ok.nextExpiry, permitDeadline);
-        assert.equal(reply.ok.speculative, false);
-        assert.equal(reply.ok.components.left.retained, true);
-        evaluated = true;
+        queryCalls++;
+        if (queryCalls === 1) {
+          assert.equal(request.now, deadline - 1, "the engine clock must still precede the deadline on the first call");
+          assert.equal(reply.ok.nextExpiry, deadline);
+          assert.equal(reply.ok.speculative, false);
+          assert.equal(reply.ok.components.left.retained, true);
+          assert.deepEqual(reply.ok.data, beforeData, "the first snapshot really contains the expiring row or authorized secret");
+          if (permitCase) evaluated = true;
+          else { reached(); await gate; }
+        } else {
+          assert.equal(request.now, deadline, "the retry must use the current clock");
+        }
       }
-      if (request.op === "queued" && evaluated) { reached(); await gate; }
+      if (permitCase && request.op === "queued" && evaluated) {
+        evaluated = false; reached(); await gate;
+      }
     };
-    const pending = client.query(op, {});
-    await waiting; now = permitDeadline; releaseReply();
-    assert.deepEqual(await pending, { loading: true }, "authorization can expire while the final outbox check awaits");
-    const atDeadline = await core.call({ op: "query", name: op.name, viewer: "dev:bob", args: {}, now });
-    assert.equal(atDeadline.ok.data.secret, null, "the device agrees the permit no longer authorizes the row");
-    return;
-  }
-  if (scenario === "MQ expiry local left") {
-    // Keep a non-speculative retained composition as the positive control:
-    // rejecting speculative siblings must not make this expiry probe vacuous.
-    unsubscribe(); watch.close();
-    offline = true; await client.sync();
-    const op = { kind: "query", name: "both" };
-    const deadline = rows.find(item => item.row.id === "left-25").row.expiresAt;
-    let now = deadline - 1; deviceNow = now;
-    t.mock.method(Date, "now", () => now);
-    const before = await client.query(op, {});
-    assert.deepEqual(before.data, { left: expected("left", 1), held: expected("held", 1) });
-    assert.equal(before.complete, false);
-    let reached;
-    const waiting = new Promise(resolve => { reached = resolve; });
-    const gate = new Promise(resolve => { releaseReply = resolve; });
-    interceptDevice = async (request, reply) => {
-      if (request.op !== "query" || request.name !== "both") return;
-      assert.equal(reply.ok.nextExpiry, deadline);
-      assert.equal(reply.ok.speculative, false);
-      assert.equal(reply.ok.components.left.retained, true);
-      assert.equal(reply.ok.data.left[0].id, "left-25", "the row was alive at evaluation");
-      reached(); await gate;
-    };
-    const pending = client.query(op, {});
+    let pending, live, stop;
+    const publications = [];
+    if (observing) {
+      live = client.observe(op, {});
+      pending = new Promise(resolve => {
+        stop = live.subscribe(() => {
+          const read = live.getSnapshot(); publications.push(read); resolve(read);
+        });
+      });
+      t.after(() => { stop(); live.close(); });
+    } else pending = client.query(op, {});
     await waiting; now = deadline; releaseReply();
-    assert.deepEqual(await pending, { loading: true }, "no pre-deadline local row can publish at its deadline");
+    const result = await pending;
+    const afterData = permitCase
+      ? { ...beforeData, secret: null }
+      : { ...beforeData, left: beforeData.left.slice(1) };
+    assert.deepEqual(result.data, afterData, "the first post-deadline publication must recover live rows without publishing an expired snapshot or getting stuck loading");
+    assert.equal(result.complete, false); assert.equal(result.fresh, false);
+    assert.equal(queryCalls, 2, "exactly one local retry, without a server request or an intermediate loading publication");
+    const raw = allAnswers.findLast(answer => answer.name === op.name);
+    assert.equal(raw.nextExpiry, permitCase ? null : deadline + 86_400_000);
+    if (observing) {
+      assert.deepEqual(live.getSnapshot().data, afterData);
+      assert.ok(publications.length > 0);
+      for (const read of publications) assert.deepEqual(read.data, afterData, "even a transient expired watch snapshot is forbidden");
+    }
+    if (permitCase) assert.equal(result.data.secret, null);
+    else assert.equal(result.data.left.length, 24);
     return;
   }
   if (eventCase) {
