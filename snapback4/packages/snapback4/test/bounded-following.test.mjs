@@ -173,4 +173,16 @@ for (const tier of ["wasm", "native"]) {
     assert.deepEqual(await bob.client.query(query("cards"), { c: null }), { loading: true });
     assert.equal((await bob.client.query(query("home"), { c: null })).complete, true);
   });
+
+  test(`bounded Following ${tier}: repost prediction needs a held original`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier), bob = await f.open("bob");
+    bob.holdWrites = true;
+    for (const [postId, predicts] of [["p0", false], ["p3", true]]) {
+      const write = await bob.client.mutate(mutation("repost"), { postId, at: 20 });
+      assert.equal(write.state, "pending");
+      const entry = (await bob.core.call({ op: "queued" })).ok.find(entry => entry.id === write.id);
+      assert.equal(entry.predictable, predicts);
+      assert.equal(entry.predicted.length > 0, predicts);
+    }
+  });
 }
