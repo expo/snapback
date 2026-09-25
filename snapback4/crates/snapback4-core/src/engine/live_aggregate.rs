@@ -99,6 +99,7 @@ impl Runner<'_> {
                 {
                     continue;
                 }
+                if self.device && source.through.is_some() && self.tx.retained_row(&maintain.source, &candidate)? { continue; }
                 let prior = std::mem::replace(&mut self.beyond_horizon, false);
                 let allowed = self.provisional_readable(&maintain.source, &candidate);
                 let unknown = self.beyond_horizon;

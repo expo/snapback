@@ -1077,10 +1077,12 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     if let Some(target_sync) = &target.sync
         && !source.rules.read.is_uniformly_readable()
     {
+        let preserves = |column: &String, source_column: &String| maintain.group_fields().contains(column)
+            && if let Some(capture) = maintain.aliases.get(column) { capture == source_column } else { column == source_column && maintain.bare_key(column) };
         let sound = match (&target_sync.audience, source.sync.as_ref().map(|sync| &sync.audience)) {
             (Audience::Public, Some(Audience::Public)) => true,
-            (Audience::Column(column), Some(Audience::Column(source_column))) => column == source_column && maintain.bare_key(column),
-            (Audience::Target { table, prefix, principal }, Some(Audience::Target { table: source_table, prefix: source_prefix, principal: source_principal })) => table == source_table && principal == source_principal && prefix == source_prefix && prefix.iter().all(|column| maintain.bare_key(column)),
+            (Audience::Column(column), Some(Audience::Column(source_column))) => preserves(column, source_column),
+            (Audience::Target { table, prefix, principal }, Some(Audience::Target { table: source_table, prefix: source_prefix, principal: source_principal })) => table == source_table && principal == source_principal && prefix.len() == source_prefix.len() && prefix.iter().zip(source_prefix).all(|(column, source_column)| preserves(column, source_column)),
             _ => false,
         };
         if !sound {
@@ -1093,6 +1095,17 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
 fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, path: &str, issues: &mut Vec<SchemaIssue>) {
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.to_owned(), message });
     let audience_rule = table.rules.read.device_audience_rule();
+    // @ref LLP 3000.014#5 — a child admits exactly its substituted audience, never a public subset.
+    if table.through.is_some() {
+        let exact = match (audience_rule.as_ref(), &sync.audience) {
+            (RuleExpr::Allow | RuleExpr::Public { .. }, Audience::Public) => true,
+            (RuleExpr::Eq(RuleTerm::Field(field), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(field)), Audience::Column(column)) => field == column,
+            (RuleExpr::Exists { table, key, equalities, .. }, Audience::Target { table: target, prefix, .. }) => table == target && equalities.is_empty() && key == &prefix.iter().cloned().map(RuleTerm::Field).chain([RuleTerm::Viewer]).collect::<Vec<_>>(),
+            _ => false,
+        };
+        if !exact { issue(issues, "read through sync must exactly equal its inherited audience; use `sync` to infer it, or `online only`".into()); }
+    }
+
     match &sync.audience {
         Audience::Public => {
             if !audience_rule.is_uniformly_readable() {
@@ -1310,7 +1323,7 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
         index_columns[..prefix.len()].to_vec()
     };
     for column in prefix {
-        if table.columns.get(column).is_some_and(ColumnType::is_optional) {
+        if table.columns.get(column).is_some_and(ColumnType::is_optional) && !table.through.as_ref().is_some_and(|t| t.fields.contains_key(column)) {
             return Err(format!("sync to {target_name}[{spelled_prefix}] needs required group keys; {table_name}.{column} is optional. Make every content group column required so online rules and device partitions name the same group"));
         }
     }

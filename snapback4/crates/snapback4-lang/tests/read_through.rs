@@ -218,11 +218,6 @@ fn form_refusals() {
         ),
         (
             "read through .parent",
-            "read through .parent\n  sync",
-            "E_READ_THROUGH_SYNC",
-        ),
-        (
-            "read through .parent",
             "read through .parent or viewer = 'service:search'",
             "E_READ_THROUGH",
         ),

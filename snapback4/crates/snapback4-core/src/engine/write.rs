@@ -27,6 +27,9 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+        if self.device && if_absent && self.schema.tables[table_name].through.is_some() {
+            return Err(RuntimeError::Prediction("insert if absent on a read-through child queues without a row".into()));
+        }
         self.target_attempt(table_name, |runner| {
             runner.refuse_engine_owned(table_name, Effect::Insert)?;
             let table = runner.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;

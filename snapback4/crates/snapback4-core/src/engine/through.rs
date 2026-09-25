@@ -56,11 +56,6 @@ impl Runner<'_> {
         let Some(through) = &table.through else {
             return Ok(row);
         };
-        if self.device {
-            return Err(RuntimeError::Prediction(
-                "read through insertion requires the server until device support lands".into(),
-            ));
-        }
         let denied = || RuntimeError::Rule {
             table: name.into(),
             effect: Effect::Insert,
@@ -71,11 +66,15 @@ impl Runner<'_> {
             .and_then(|v| v.as_str().ok())
             .ok_or_else(denied)?;
         let parent = &self.schema.tables[&through.parent];
-        let found = self
-            .tx
-            .get(&through.parent, id)?
-            .filter(|r| !self.expired(parent, r))
-            .ok_or_else(denied)?;
+        let found = self.tx.get(&through.parent, id)?.filter(|r| !self.expired(parent, r));
+        if self.device {
+            let covered = if let Some(found) = &found {
+                self.is_provisional(&through.parent, found)? || self.device_work(|runner| runner.tx.recording_covered(
+                    &through.parent, found, &runner.context.viewer, runner.context.now.unwrap_or(0), &mut runner.meter))?
+            } else { false };
+            if !covered { return Err(RuntimeError::Prediction(format!("read through .{} needs a live, covered {} parent; queued without a row", through.reference, through.parent))); }
+        }
+        let found = found.ok_or_else(denied)?;
         stamp(parent, through, &found, &mut row)?;
         table.recompute_deadline(&mut row)?;
         if !self.context.is_system() {
@@ -92,62 +91,6 @@ impl Runner<'_> {
             }
         }
         Ok(row)
-    }
-
-    pub(super) fn parent_verdict(
-        &mut self,
-        through: &Through,
-        id: &Value,
-    ) -> Result<ParentVerdict, RuntimeError> {
-        let parent = self.schema.tables[&through.parent].clone();
-        self.read_tables.insert(through.parent.clone());
-        self.rule_dependencies(&parent.rules.read);
-        for (kind, amount) in [
-            (MeterKind::Examined, 1),
-            (
-                MeterKind::RuleProbes,
-                rules::rule_probes(&parent.rules.read),
-            ),
-            (
-                MeterKind::HeapBytes,
-                super::write_target::row_copy_ceiling(&parent),
-            ),
-        ] {
-            if !self.meter.charge(kind, amount)? {
-                return Ok(ParentVerdict::Unknown);
-            }
-        }
-        if self.device {
-            return Ok(ParentVerdict::Unknown);
-        }
-        let Some(row) = self
-            .tx
-            .get(&through.parent, id.as_str()?)?
-            .filter(|row| !self.expired(&parent, row))
-        else {
-            return Ok(ParentVerdict::Absent);
-        };
-        let viewer = self.context.viewer.clone();
-        let row = crate::schema::row_image(&row, &parent);
-        let readable = self.context.is_system()
-            || rules::evaluate(
-                &parent.rules.read,
-                &viewer,
-                None,
-                &row,
-                false,
-                &mut super::read::PrefixProbe { runner: self },
-            )?;
-        if readable {
-            if let Some(at) = parent.deadline(&row) {
-                self.next_expiry.note(at);
-            }
-        }
-        Ok(if readable {
-            ParentVerdict::Readable
-        } else {
-            ParentVerdict::Unreadable
-        })
     }
 
     pub(super) fn physical_children(
@@ -194,7 +137,13 @@ impl Runner<'_> {
             .map(|(n, _, _)| n.clone())
             .collect();
         if self.device && !children.is_empty() {
-            return Err(RuntimeError::Prediction("parent deletion needs authoritative read-through child coverage; queue until server settlement".into()));
+            let parent_row = self.tx.get(parent, id.as_str()?)?.ok_or_else(|| RuntimeError::Prediction("parent delete needs a held parent".into()))?;
+            for name in &children {
+                let through = self.schema.tables[name].through.as_ref().unwrap();
+                if !self.child_coverage(name, through, &parent_row)? {
+                    return Err(RuntimeError::Prediction("parent deletion needs complete current child coverage; queued without a row".into()));
+                }
+            }
         }
         let refusal = || RuntimeError::Structural {
             code: "E_PARENT_HAS_CHILDREN",

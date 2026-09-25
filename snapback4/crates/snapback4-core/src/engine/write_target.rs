@@ -39,6 +39,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(super) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &Value, upsert: bool) -> Result<(), RuntimeError> {
+        if upsert && self.device && table.through.is_some() { return Err(RuntimeError::Prediction("upsert on a read-through child queues without a row".into())); }
         if upsert { self.reserve_capture(table)?; }
         self.reserve_write_rules(table, if upsert { &[Effect::Read, Effect::Read, Effect::Update, Effect::Insert, Effect::Insert] } else { &[Effect::Read, Effect::Read, Effect::Update] })?;
         // Covers the largest cloned row allowed by the schema, the caller's patch

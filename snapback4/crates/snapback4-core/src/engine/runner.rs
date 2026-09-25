@@ -657,7 +657,9 @@ impl<'a> Runner<'a> {
                 // @ref LLP 3000.007#5.3 — shaping a device row preserves its own pending metadata.
                 let base = self.expr(base)?;
                 let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
-                if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
+                for metadata in ["pending", "retained"] {
+                    if base.as_object()?.get(metadata) == Some(&Value::Bool(true)) { fields.insert(metadata.into(), Value::Bool(true)); }
+                }
                 let value = Value::Row(fields.into());
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)

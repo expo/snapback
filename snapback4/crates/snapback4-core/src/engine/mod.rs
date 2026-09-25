@@ -29,6 +29,7 @@ pub use pages::expression_page_site;
 mod shaping;
 pub use pages::returned_page_sites;
 pub mod read;
+mod read_point;
 mod read_auth;
 mod read_candidate;
 mod expiry;
@@ -42,6 +43,7 @@ pub(crate) mod timeline;
 mod timeline_authority;
 mod recorded;
 mod through;
+mod through_read;
 #[cfg(feature = "sqlite")]
 pub mod through_activation;
 pub(crate) mod columns;

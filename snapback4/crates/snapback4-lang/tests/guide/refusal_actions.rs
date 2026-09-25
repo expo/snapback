@@ -3,7 +3,6 @@
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_READ_THROUGH", &["read through .ref"]),
-    ("E_READ_THROUGH_SYNC", &["online only"]),
     ("E_READ_THROUGH_ADOPT", &["Reconcile the named table before adoption."]),
     ("E_PARENT_HAS_CHILDREN", &["deleting live children and sweeping expired children", "does not identify an occupied child table"]),
     ("E_READ_THROUGH_SCAN", &["complete key"]),

@@ -65,6 +65,7 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema, held: Option<&wire::H
 }
 
 pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) -> Result<(), RuntimeError> {
+    expiry_clock::advance(tx, expiry_clock::STAGED, page.now)?;
     let mut boundaries = boundary::Boundaries::editing(true);
     let mut markers = page.acquisitions.iter().peekable();
     boundary::validate_positions(page)?;

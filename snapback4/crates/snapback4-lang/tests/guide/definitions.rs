@@ -113,7 +113,6 @@ fn w11_every_registered_code_quotes_its_definition() {
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
     ("E_READ_THROUGH", "read through .ref"),
-    ("E_READ_THROUGH_SYNC", "online only"),
     ("E_READ_THROUGH_ADOPT", "Reconcile the named table before adoption."),
     ("E_PARENT_HAS_CHILDREN", "deleting live children and sweeping expired children"),
     ("E_READ_THROUGH_SCAN", "complete key"),

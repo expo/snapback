@@ -173,12 +173,6 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 t.reference, t.parent
             ));
         }
-        if table.sync.is_some() {
-            refuse(
-                "E_READ_THROUGH_SYNC: replace sync with online only until device support lands"
-                    .into(),
-            );
-        }
         let mut fields = BTreeSet::new();
         parent.rules.read.fields(&mut fields);
         let mapped: BTreeSet<_> = t.fields.values().cloned().collect();

@@ -11,6 +11,8 @@ export interface AcquisitionMarker {
   floor?: string;
 }
 export interface SyncPage extends Record<string, unknown> {
+  /** Pinned authoritative time, committed by the device with this page. */
+  now?: number;
   images_at?: number;
   committed_above?: Record<string, number>;
   /** Cursor echoed by the server; the device validates snapshot continuity. */

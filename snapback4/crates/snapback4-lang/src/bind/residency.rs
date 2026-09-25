@@ -77,6 +77,10 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         if let Some(definition) = schema.tables.get(&table) {
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
                 if let Some(parent) = &definition.through {
+                    if kind != "insert" {
+                        fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: kind.into(), class: SiteClass::Server,
+                            reason: format!("{kind} on a read-through child queues without a row"), rewrite: "use a plain insert with a new id when prediction is needed".into() });
+                    }
                     fact.sites.push(site(schema,&format!("{kind} {table}"),&parent.parent,"byId","read through capture"));
                     rule_sites(schema,&schema.tables[&parent.parent].rules.read,&format!("{kind} {table} parent rule"),&mut fact.sites,&mut BTreeSet::new());
                 }
@@ -178,6 +182,11 @@ pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fac
 }
 
 fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -> ResidencySite {
+    if let Some(maintain) = schema.maintain_for(table).filter(|m| m.parent_key.is_some()) {
+        let mut dependency = site(schema, location, &maintain.source, index, "parent-key aggregate source");
+        dependency.reason = format!("{table}: counts current held {} rows after resolving its parent; {}", maintain.source, dependency.reason);
+        return dependency;
+    }
     let sync = schema.tables.get(table).and_then(|table| table.sync.as_ref());
     let (class, reason, rewrite) = match sync {
         _ if schema.maintain_subset_unknown(table) => (SiteClass::Server, format!("{kind} {table} by {index}: public source has subset delivery; aggregate coverage is unknown"), "read this aggregate on the server, or sync its public source to every device".into()),

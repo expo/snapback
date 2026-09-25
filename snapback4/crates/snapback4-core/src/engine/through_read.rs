@@ -1,0 +1,96 @@
+//! Parent authorization is shared; device acquisition remains a separate fact.
+// @ref LLP 3000.014#5 — only matching live current captures may borrow a parent verdict.
+use super::{read_auth::Verdict, rules, runner::Runner, through::{ParentVerdict, stamp}};
+use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Audience, through::*}, value::Value};
+
+impl Runner<'_> {
+    pub(super) fn parent_verdict(&mut self, child: &str, through: &Through, id: &Value) -> Result<ParentVerdict, RuntimeError> {
+        let parent = self.schema.tables[&through.parent].clone();
+        self.read_tables.insert(through.parent.clone());
+        self.rule_dependencies(&parent.rules.read);
+        for (kind, amount) in [
+            (MeterKind::Examined, 1),
+            (MeterKind::RuleProbes, rules::rule_probes(&parent.rules.read)),
+            (MeterKind::HeapBytes, super::write_target::row_copy_ceiling(&parent)),
+        ] {
+            if !self.read_charge(kind, amount)? { return Ok(ParentVerdict::Unknown); }
+        }
+        let row = self.tx.get(&through.parent, id.as_str()?)?;
+        let live = row.as_ref().filter(|row| !self.expired(&parent, row));
+        if self.device {
+            self.read_tables.insert(child.into());
+            if !self.read_charge(MeterKind::HeapBytes, super::write_target::row_copy_ceiling(&self.schema.tables[child]).saturating_mul(2))? { return Ok(ParentVerdict::Unknown); }
+            if !self.captures_match(child, through, id, live)? { return Ok(ParentVerdict::Unknown); }
+        }
+        let Some(row) = live else {
+            let covered = !self.device || match &row {
+                Some(row) => self.tx.current_row(&through.parent, row)?,
+                None => self.authorization_absence_covered(&through.parent, "byId", &[id.clone()])?
+                    && self.tx.current_group(&through.parent, "byId", &[id.clone()])?,
+            };
+            return Ok(if covered { ParentVerdict::Absent } else { ParentVerdict::Unknown });
+        };
+        if self.device && !(self.is_provisional(&through.parent, row)? || self.tx.current_row(&through.parent, row)?) {
+            return Ok(ParentVerdict::Unknown);
+        }
+        let verdict = if self.context.is_system() { Verdict::Readable } else { self.read_authority(&through.parent, row, true)? };
+        match verdict {
+            Verdict::Unknown => Ok(ParentVerdict::Unknown),
+            Verdict::Denied => Ok(ParentVerdict::Unreadable),
+            Verdict::Readable => {
+                self.note_expiry(&parent, row);
+                // A parent authorizes; it cannot certify acquisition of its children.
+                if self.device && !self.child_coverage(child, through, row)? {
+                    self.unknown_fact(child, CHILDREN, &[id.clone()], "read through child coverage");
+                }
+                Ok(ParentVerdict::Readable)
+            }
+        }
+    }
+
+    pub(super) fn child_coverage(&self, child: &str, through: &Through, parent_row: &Value) -> Result<bool, RuntimeError> {
+        let table = &self.schema.tables[child];
+        let Some(sync) = &table.sync else { return Ok(false) };
+        if sync.horizon.is_some() || self.is_provisional(&through.parent, parent_row)? { return Ok(false); }
+        let mut image = crate::value::object([(through.reference.clone(), parent_row.field("id")?.clone())]);
+        stamp(&self.schema.tables[&through.parent], through, parent_row, &mut image)?;
+        let columns = match &sync.audience {
+            Audience::Public => vec![],
+            Audience::Column(column) => vec![column.clone()],
+            Audience::Target { prefix, .. } => prefix.clone(),
+        };
+        let Some((index, _)) = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&columns)) else { return Ok(false) };
+        let prefix = columns.iter().map(|column| image.field(column).cloned()).collect::<Result<Vec<_>,_>>()?;
+        self.tx.current_group(child, index, &prefix)
+    }
+
+    pub(super) fn captured_aggregate_coverage(&mut self, maintain: &crate::schema::Maintain, index: &crate::schema::Index, key: &[Value]) -> Result<bool, RuntimeError> {
+        let source = &self.schema.tables[&maintain.source];
+        self.read_tables.insert(maintain.source.clone());
+        let Some(sync) = source.sync.as_ref().filter(|sync| sync.horizon.is_none()) else { return Ok(false) };
+        let fields: std::collections::BTreeMap<_, _> = index.columns().into_iter().zip(key).map(|(field, value)| (maintain.aliases.get(&field).cloned().unwrap_or(field), value)).collect();
+        let columns = match &sync.audience { Audience::Public => vec![], Audience::Column(column) => vec![column.clone()], Audience::Target { prefix, .. } => prefix.clone() };
+        let Some(prefix) = columns.iter().map(|column| fields.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(false) };
+        let Some((index, _)) = source.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&columns)) else { return Ok(false) };
+        self.tx.current_group(&maintain.source, index, &prefix)
+    }
+
+    fn captures_match(&mut self, child: &str, through: &Through, id: &Value, parent: Option<&Value>) -> Result<bool, RuntimeError> {
+        let table = self.schema.tables[child].clone();
+        let mut expected = crate::value::object([] as [(&str, Value); 0]);
+        if let Some(parent) = parent { stamp(&self.schema.tables[&through.parent], through, parent, &mut expected)?; }
+        let mut bounds = Bounds::default();
+        loop {
+            let scratch = self.meter.mark();
+            let page = self.tx.scan_metered(child, CHILDREN, &[id.clone()], &bounds, Dir::Asc, 1, &mut self.meter)?;
+            if self.read_capped() { return Ok(false); }
+            let Some((row, key)) = page.into_iter().next() else { return Ok(true) };
+            if !self.read_charge(MeterKind::Examined, 1)? || !self.read_charge(MeterKind::Steps, through.fields.len() as u64 + 1)? { return Ok(false); }
+            let current = !self.expired(&table, &row) && !self.tx.retained_row(child, &row)?;
+            if current && (parent.is_none() || through.fields.keys().map(String::as_str).chain([PARENT_DEADLINE]).any(|field| row.field(field).ok() != expected.field(field).ok())) { return Ok(false); }
+            bounds.after = crate::key::decode(&key).map(|key| key.into_iter().skip(1).collect());
+            // One cursor is retained, with a schema-sized reservation; row scratch is reusable.
+            self.meter.release_heap(scratch);
+        }
+    }
+}

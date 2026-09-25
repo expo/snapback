@@ -24,6 +24,7 @@ mod media;
 mod snapshot;
 mod history;
 mod recorded;
+mod expiry_clock;
 mod boundary;
 mod store_identity;
 pub use store_identity::StoreObservation;
@@ -77,6 +78,9 @@ pub struct StreamEvent {
 /// One page of `POST /sync`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamPage {
+    /// Pinned server time of this authoritative page; old transports may omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub now: Option<i64>,
     /// Private restore cut captured separately from a restarted snapshot's
     /// request cursor. It validates head evidence, never acquisition progress.
     #[serde(default)]
@@ -191,7 +195,7 @@ const SNAPSHOT_THROUGH: &str = "device:snapshot:through";
 const SNAPSHOT_IMAGES_AT: &str = "device:snapshot:images_at";
 const SNAPSHOT_NEXT: &str = "device:snapshot:next";
 const SNAPSHOT_ACKS: &str = "device:snapshot:acks";
-const SNAPSHOT_KEYS: [&str; 9] = [SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT, history::STAGED_GROUPS];
+const SNAPSHOT_KEYS: [&str; 10] = [expiry_clock::STAGED,SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT, history::STAGED_GROUPS];
 /// The app's native module (LLP 3000.005 §9), kept so a cold start offline
 /// answers native reads too: the bytes as hex, and the digest the server named.
 const NATIVE: &str = "device:native";
@@ -230,6 +234,12 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     // @ref LLP 3000.007.003#3.2 — retained images cannot establish current attribution coverage.
     fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut snapback4_core::meter::Meter) -> Result<bool, RuntimeError> {
         recorded::covered(self, name, row, viewer, now, meter)
+    }
+    fn current_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
+        Ok(history::coverage_state(self.schema, &self.groups, name, history::Coverage::Row(row))? == history::CoverageState::Held)
+    }
+    fn current_group(&self, name: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
+        Ok(history::coverage_state(self.schema, &self.groups, name, history::Coverage::Range(index, prefix))? == history::CoverageState::Held)
     }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
@@ -690,7 +700,7 @@ impl<S: DeviceStore> Device<S> {
             if page.snapshot && first {
                 let images_at = store_identity::restore_images_at(&tx)?;
                 tx.staged_clear()?;
-                tx.delete_meta(&[SNAPSHOT_ACKS, SNAPSHOT_IMAGES_AT])?;
+                tx.delete_meta(&[SNAPSHOT_ACKS, SNAPSHOT_IMAGES_AT, expiry_clock::STAGED])?;
                 // @ref LLP 3000.001#authoritative-replacement-disposes-of-the-deferred-slot — an authoritative replacement discards private effects and their receipts together.
                 // Keep incarnation and maximum head evidence, but publish no
                 // old effects and retire no prediction as part of disposal.
@@ -771,6 +781,7 @@ impl<S: DeviceStore> Device<S> {
             }
             tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
             boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
+            expiry_clock::publish(&tx)?;
             snapshot::clear(&tx)?;
             // Consume private identity after promotion; ordinary effects and
             // receipts were discarded when this replacement started.
@@ -827,8 +838,8 @@ impl<S: DeviceStore> Device<S> {
         let mut components = Default::default();
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
-            let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
             let tx = self.store.read_transaction()?;
+            let context = Context::new(viewer, typed_args(&program, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation);
             if let Err(error) = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
                 unknown = true;
                 return Err(error.refusal());
@@ -872,7 +883,7 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         require_acquired(&tx, &self.schema, &program)?;
-        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
+        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
         let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {

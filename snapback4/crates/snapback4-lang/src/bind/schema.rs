@@ -44,14 +44,17 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         if maintain.online_only || !schema.tables.contains_key(&maintain.name) { continue; }
         let sync = schema.tables.get(&maintain.source).and_then(|t| t.sync.clone());
         if let Some(sync) = sync {
-            let inherits = match &sync.audience {
-                Audience::Public => true,
-                Audience::Column(column) => maintain.keys.iter().any(|key| matches!(key, Expr::Name { name, .. } if name == column)),
-                Audience::Target { prefix, .. } => prefix.iter().all(|column| maintain.keys.iter().any(|key| matches!(key, Expr::Name { name, .. } if name == column))),
+            let aliases = super::maintains::inherited_aliases(&catalog.tables[&maintain.source], maintain);
+            let output = |column: &String| aliases.iter().find_map(|(out, capture)| (capture == column).then(|| out.clone()))
+                .or_else(|| maintain.keys.iter().any(|key| matches!(key, Expr::Name { name, .. } if name == column)).then(|| column.clone()));
+            let audience = match &sync.audience {
+                Audience::Public => Some(Audience::Public),
+                Audience::Column(column) => output(column).map(Audience::Column),
+                Audience::Target { table, prefix, principal } => prefix.iter().map(output).collect::<Option<Vec<_>>>().map(|prefix| Audience::Target { table: table.clone(), prefix, principal: principal.clone() }),
             };
-            if inherits {
+            if let Some(audience) = audience {
                 let target = schema.tables.get_mut(&maintain.name).expect("bound maintain");
-                target.sync = Some(Sync { audience: sync.audience, horizon: None });
+                target.sync = Some(Sync { audience, horizon: None });
                 target.residency.inherited_from = Some(maintain.source.clone());
             }
         }

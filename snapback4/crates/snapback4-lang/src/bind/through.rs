@@ -69,15 +69,6 @@ fn one(
             format!("keep only `read through .{reference}`; put service grants on the parent"),
         ));
     }
-    if let Some(sync) = &info.decl.sync {
-        return Err(Diagnostic::new(
-            &sync.site,
-            "E_READ_THROUGH_SYNC",
-            "read through sync waits for the device increment",
-            "online only  -- remove sync until read-through device support lands",
-        )
-        .guide("rules"));
-    }
     let parent = match info.columns.get(&reference) {
         Some(ScalarType {
             kind: TypeKind::Ref { table },
