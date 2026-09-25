@@ -126,11 +126,15 @@ test("sync store identity survives a server restart; a live client detects an eq
   assert.equal(f.pages.at(-1).reply.store_id, first.store_id, "reopening the same database keeps its identity");
   assert.equal((await client.query(query, {})).data.length, 3);
   await f.start(); await f.seed("B", 3);
+  let second;
   await until(async () => {
     const read = await client.query(query, {});
-    return read.fresh && read.complete && read.data.length === 3 && read.data.every((row) => row.body === "B");
+    second = (await f.core().call({ op: "sync_state" })).ok;
+    return second.acquired && second.store_id !== first.store_id
+      && read.fresh && read.complete && read.data.length === 3 && read.data.every((row) => row.body === "B");
   }, "a live client must verify store identity on an unchanged heartbeat");
-  const second = f.pages.at(-1).reply;
+  // The public query may reach the replacement server before reacquisition;
+  // and an old in-flight HTTP reply is not the device's adopted store identity.
   assert.equal(second.watermark, first.watermark);
   assert.notEqual(second.store_id, first.store_id);
   // The HTTP protocol accepts legacy requests, while a foreign snapshot
