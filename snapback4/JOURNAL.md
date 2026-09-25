@@ -56317,3 +56317,41 @@ acquisition measurement this round: prior round-2 results remain 13.298 / 15.825
 Implementation commits: 7e7192da4, ecad97f65, fabab414c. File map, examples,
 reproductions, compatibility decisions, every failure and exact suite outputs:
 `reports/20260925-lane-v-r4.md` and `reports/20260925-lane-v-r4-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 5: store binding and session mirrors
+
+Addressed every finding in the round-4 Astra and Grok delta reviews. Every
+journaled write now retains its store-binding transfer marker while queued;
+adoption dequeues mismatched fresh writes as well as recovered writes. A click
+captured during a held replacement probe leaves the replacement audit at zero
+after sync and close. Rows, metadata and outbox retain their atomic transaction.
+
+Under the session lock, opening migrates the greatest legacy mirror/IndexedDB
+session epoch into the authoritative epoch record and mirror, then captures that
+epoch for the scope. A leftover marker 5 permits sign-in and a successful
+mutation; an existing IDB epoch 9 wins over mirror 5. Reads repair speculative
+mirrors and delete them for absent authority. An aborted migration preserves the
+old mirror fence. After locked admission refuses a stale click, the app's locked
+check fences auth, viewer, acquisition and existing private observations even
+with the change poll held. Ordinary admission authority remains IndexedDB only.
+
+Real Chromium regressions cover each case, including committed session A versus
+speculative mirror B on reopen. Six deliberate source faults each fail their
+intended tests; the two store-binding faults execute on the replacement backend
+and advance its audit to 1. Normal targeted runs passed 43/43, 32/32 and the
+final expanded authority file 14/14. Reference audit passed: 509 LLP documents,
+9,283 references, zero errors and zero unchecked references.
+
+Ran the complete suite once: **`== 0 failure(s) in 408 s`**, exit 0. Client checks:
+1,576 passed, 10 platform skips; models: 78 passed and all 13,000 seeded
+sequences. No failure was ours, baseline or environmental. The recorded
+baseline cargo failure did not recur. Bounded persistence still rewrote 262,832
+bytes for one row at both 1,000 and 16,000 rows. No new cold-acquisition benchmark:
+this round changes neither snapshot application nor bucket tuning. Historical
+round-2 times remain 13.298 / 15.825 / 18.703 seconds versus 70.716 seconds per-row.
+
+No design deviation or unresolved scoped problem. No Quarry form, authorization
+rule, engine meter, bucket ceiling or public client signature changed. Did not
+push or publish. Implementation commit: d43b3c82e. File-by-file changes,
+examples, test reproductions, decisions and raw evidence are in
+`reports/20260925-lane-v-r5.md` and `reports/20260925-lane-v-r5-evidence/`.
