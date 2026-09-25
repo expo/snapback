@@ -2,6 +2,11 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_QUARRY_SELF_EQUALITY", &["members[conversation = .conversation]", "the named key reads the enclosing row"]),
+    ("E_READ_THROUGH", &["read through .ref"]),
+    ("E_READ_THROUGH_ADOPT", &["Reconcile the named table before adoption."]),
+    ("E_PARENT_HAS_CHILDREN", &["deleting live children and sweeping expired children", "does not identify an occupied child table"]),
+    ("E_READ_THROUGH_SCAN", &["complete key"]),
     ("E_QUARRY_DUPLICATE_FIELD", &["Rename or remove the second field"]),
     ("E_QUARRY_SPREAD", &["Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`"]),
     ("E_QUARRY_SHAPE_JOIN", &["Spread both row arms before joining, or build both arms with the same shape and kind"]),
@@ -69,6 +74,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_MAINTAINED_COLUMN_PRIVATE", &["not even as the system", "Read the parent row or write the source rows instead"]),
     ("E_MAINTAINED_COLUMN_REFERENCE", &["declare a reference if needed, then select it with `likeCount: count likes by .postId`"]),
     ("E_MAINTAINED_COLUMN_RESULT", &["Read the row under its read rule to see the aggregate", "the generated `PostsWrite` type contains the ordinary fields and id"]),
+    ("E_MAINTAIN_READ_EXPIRE", &["Use `read <- deny`", "omit `read` to inherit", "Neither a source cap nor `online only` permits a value-dependent rule"]),
     ("E_MAINTAIN_READ_RULE", &["state an explicit `read <-` when the aggregate needs its own audience", "Calendar keys and reference paths do not preserve rule fields"]),
     ("E_NATIVE", &["Run `snapback4 check` to build and validate the module", "A native query cannot call a write host function"]),
     ("E_NATIVE_BUILD", &["Fix the Rust source using the generated names and rerun `snapback4 check`", "declare `crate-type = [\"cdylib\"]`"]),
@@ -157,7 +163,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_TIMELINE_REDEFINE", &["Remove the view and deploy", "add the new definition over empty event and edge tables", "use a planned view over retained sources", "use the matching engine for a 0.3 store"]),
     ("E_TIMELINE_REMOVAL", &["Insert false, change only false → true and retain the original card"]),
     ("E_TIMELINE_SERVER", &["Queue it without predicted rows"]),
-    ("E_TIMELINE_SHAPE", &["Keep three distinct public sources, full sync and owner rules"]),
+    ("E_TIMELINE_SHAPE", &["Keep three distinct public sources and owner rules", "posts/reposts may use `sync public last N by .at` or `online only`", "follows accept full sync, a public horizon, or online only"]),
     ("E_TIMELINE_SIZE", &["`authors` and `size` lines are unused compatibility inputs", "Remove them"]),
     ("E_TYPE", &["correct seeds or wire inputs", "use the generated API types"]),
     ("E_UNBOUND_LOOP", &["use `depth 8` for an eight-hop query", "there is no `while` form"]),
@@ -175,6 +181,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_SIMULATOR", &["boot the intended dedicated device, and pass its exact `--udid`", "do not let the witness choose someone else's device"]),
     ("E_WITNESS_STEP", &["Await `w.step('offline-done', ...)`, then `w.waitFor('reconnect')`, then `w.step('done', ...)`", "skipping the assertion does not establish the promised scenario"]),
     ("E_WITNESS_TIMEOUT", &["Inspect the last receipt and app log, repair the missing step or connection, and retry", "Increase `--timeout` only after measuring a slow but progressing run"]),
+    ("E_ADMISSION", &["Use `webDevice()` and `localStorageSessionStore()`", "retry the original id", "Browser storage clearing after admission can still erase the journal"]),
     ("E_WRITE_ID", &["Mint once and keep the id with the intent", "It identifies the write, not a row"]),
     ("E_WRITE_ID_REUSE", &["Use a new id for a new intent", "This refusal does not replace the original write or emit a terminal event for it"]),
     ("E_WRITE_LABEL", &["Reuse that label for retries of the same mutation within this invocation", "do not put a timestamp or random value in the label"]),

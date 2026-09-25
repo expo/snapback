@@ -1,0 +1,48 @@
+(node:1384722) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (994.588333ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (787.647355ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1818.516134ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2235.363524ms)
+  ✔ a hide during the startup probe waits for its accepted decision (891.664232ms)
+  ✔ a hide during the startup probe waits for its refused decision (851.868307ms)
+  ✔ a hide during the startup probe waits for its restore decision (842.65575ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1365.830841ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1479.698061ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (777.814297ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (834.042641ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (797.926691ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (884.887846ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (802.709589ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (775.384215ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (831.364016ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (836.633994ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (902.412501ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (764.465259ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (810.492183ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (763.818299ms)
+  ✔ a successful reconnect enables exit after startup 503s (1720.682571ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4852.31872ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4852.478739ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4913.423679ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (4995.681764ms)
+  ✔ same-epoch logout tombstone refuses live admission (546.739838ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (594.121653ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (467.99634ms)
+✔ web admission review: recovery and transport respect the session boundary (44828.837334ms)
+ℹ {"mode":"held-sync","id":"01M3C8Z7SMTK04GDWNNC77QECE","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C8Z8KTAAAX94DG4B8XWC3R","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C8ZCJECXDYT4YM4A53TREP","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C8ZDDW7J22A8D354DY95H5","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C8ZE7ASV7BGD2J7G6QQAE8","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C8ZF1W4SJVSHKGGZHE7R1T","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3C8ZGF6GH9BBFX1D4N885ZM","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44923.513872

@@ -140,7 +140,7 @@ test("round 9-12 client head observations and startup installation", { timeout: 
               observations.push({ request, reply });
               if (mode === "schema-preflight-gap") await advance();
             }
-            if (polling && request.op === "set_meta" && request.key === "syncedAt" && !injected) {
+            if (polling && request.op === "set_meta" && request.key === "syncedAt:wall:1" && !injected) {
               injected = true; await seed(core, false, false);
               // The private evidence also survives withdrawal; no sender competes with the poll.
               await ok(core, { op: "dequeue", id: "q" });

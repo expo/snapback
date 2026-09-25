@@ -1,0 +1,51 @@
+(node:896107) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1077.257586ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (942.853154ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1784.329111ms)
+  ✖ backend-required custody cannot exit offline and enables exit after validated adoption (4988.572293ms)
+  ✖ a hide during the startup probe waits for its accepted decision (3780.961869ms)
+  ✔ a hide during the startup probe waits for its refused decision (722.64269ms)
+  ✔ a hide during the startup probe waits for its restore decision (923.040498ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1133.348526ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (744.825563ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (684.599822ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (702.666315ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (760.102256ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (803.481903ms)
+  ✔ same-epoch logout tombstone refuses live admission (403.499558ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (406.947294ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (431.412567ms)
+✖ web admission review: recovery and transport respect the session boundary (21264.991438ms)
+ℹ {"mode":"held-sync","id":"01M3C6H3YNFS0PRGKFZ65KMTB4","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C6H4RXPDERKPHAVPD4S5QY","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"refused","originalId":"01M3C6HF1TW3HFXVHEA67E2BWQ","sendsWhileProbeHeld":0,"originalAudit":1}
+ℹ {"mode":"restore","originalId":"01M3C6HFW9G8XR9701EDQA2HDW","sendsWhileProbeHeld":0,"originalAudit":1}
+ℹ {"mode":"replacement","originalId":"01M3C6HGM2VWM76TQ15CSVQFBQ","sendsWhileProbeHeld":0,"originalAudit":1,"replacementAudit":0}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 14
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21349.371947
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:218:11
+✖ backend-required custody cannot exit offline and enables exit after validated adoption (4988.572293ms)
+  page.waitForResponse: Timeout 3000ms exceeded while waiting for event "response"
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:240:28)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:218:3) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:251:81
+✖ a hide during the startup probe waits for its accepted decision (3780.961869ms)
+  page.waitForResponse: Timeout 3000ms exceeded while waiting for event "response"
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:299:52)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:251:73) {
+    name: 'TimeoutError'
+  }

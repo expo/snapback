@@ -36,17 +36,18 @@ async function backend(t) {
   assert.fail(log);
 }
 
-test("native process devices bridge an inbox fetch and clear it offline and on account switch", { timeout: 45_000 }, async t => {
+test("native process devices withdraw an expired inbox during fallback, offline and on account switch", { timeout: 45_000 }, async t => {
   const { url, dir } = await backend(t);
   let serial = 0;
   const result = await exercise({ url, createApp, memorySessionStore,
     deviceFactory: () => processDevice({ dir: join(dir, `device-${serial++}`), binary }) });
-  assert.equal(result.keptUnread, 3);
+  assert.equal(result.initialUnread, 3);
+  assert.equal(result.expiryCleared, true);
   assert.equal(result.serverFallback, true);
   assert.equal(result.accountCleared, true);
 });
 
-test("web IndexedDB device bridges the two-device inbox fetch in useQuery and usePage", { timeout: 60_000 }, async t => {
+test("web IndexedDB device withdraws expired inbox data in useQuery and usePage", { timeout: 60_000 }, async t => {
   let executablePath;
   try { executablePath = chromiumExecutable(); }
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
@@ -60,7 +61,7 @@ test("web IndexedDB device bridges the two-device inbox fetch in useQuery and us
     import { flushSync } from "react-dom";
     import { createRoot } from "react-dom/client";
     import { createApp } from "/@fs/${root}/packages/snapback4/src/app.ts";
-    import { memorySessionStore } from "/@fs/${root}/packages/snapback4/src/auth.ts";
+    import { localStorageSessionStore } from "/@fs/${root}/packages/snapback4/src/auth.ts";
     import { webDevice } from "/@fs/${root}/packages/snapback4/src/web.ts";
     import { AppProvider, useQuery, usePage } from "/@fs/${root}/packages/snapback4/src/react.tsx";
     import { exercise } from "/@fs/${root}/packages/snapback4/test/fixtures/page-observation.mjs";
@@ -70,7 +71,15 @@ test("web IndexedDB device bridges the two-device inbox fetch in useQuery and us
       latest = { query: useQuery(query, {}), page: usePage(query, {}) };
       return h("pre", null, JSON.stringify(latest));
     }
-    window.run = () => exercise({ url: location.origin + "/backend", createApp, memorySessionStore, deviceFactory: () => webDevice(),
+    let storeNumber = 0;
+    window.run = () => exercise({ url: location.origin + "/backend", createApp,
+      memorySessionStore: () => {
+        const prefix = "page-observation-" + storeNumber++ + ":";
+        return localStorageSessionStore({ getItem: key => localStorage.getItem(prefix + key),
+          setItem: (key, value) => localStorage.setItem(prefix + key, value),
+          removeItem: key => localStorage.removeItem(prefix + key) }, prefix);
+      },
+      deviceFactory: () => webDevice(), durableSessions: true,
       mount: async app => {
         const root = createRoot(document.getElementById("app"));
         flushSync(() => root.render(h(AppProvider, { app }, h(Inbox))));
@@ -97,7 +106,8 @@ test("web IndexedDB device bridges the two-device inbox fetch in useQuery and us
     await page.goto(server.resolvedUrls.local[0]);
     await page.waitForFunction(() => typeof window.run === "function");
     const result = await page.evaluate(() => window.run());
-    assert.equal(result.keptUnread, 3);
+    assert.equal(result.initialUnread, 3);
+    assert.equal(result.expiryCleared, true);
     assert.equal(result.accountCleared, true);
     assert.deepEqual(errors, []);
   } finally {

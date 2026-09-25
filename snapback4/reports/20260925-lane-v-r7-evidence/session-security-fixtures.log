@@ -1,0 +1,15 @@
+✔ the default session store stays in memory and browser persistence is explicit (2.528721ms)
+✔ the local client rotates near expiry and keeps every protected request on the current bearer (47.146607ms)
+✔ a stale-token mutation refusal remains durable and retries after rotation (24.770468ms)
+✔ an online-only watch retries a stale-token refusal after rotation (9.023225ms)
+✔ a current-token sign-out cannot reclassify a stale write refusal (17.310816ms)
+✔ an authenticated change-feed refusal signs the online client out (6.999561ms)
+✔ worker, effect inspection, and service-session calls always carry the service bearer (2.620527ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 249.822622

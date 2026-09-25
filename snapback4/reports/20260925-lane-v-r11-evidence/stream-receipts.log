@@ -1,0 +1,11 @@
+   Compiling snapback4-core v0.4.1 (/home/ccheever/sb4-intent/lane-v/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.1 (/home/ccheever/sb4-intent/lane-v/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 7.75s
+     Running tests/stream_receipts.rs (target/debug/deps/stream_receipts-78b858ea32446d10)
+
+running 2 tests
+test refused_idempotency_records_never_acknowledge_execution ... ok
+test stream_heads_and_receipt_intervals ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

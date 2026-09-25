@@ -1,0 +1,104 @@
+(node:3063918) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1268.867363ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (1140.758754ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (2162.999894ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2496.589395ms)
+  ✔ a hide during the startup probe waits for its accepted decision (1568.334476ms)
+  ✔ a hide during the startup probe waits for its refused decision (1512.483797ms)
+  ✔ a hide during the startup probe waits for its restore decision (1581.711534ms)
+  ✔ a hide during the startup probe waits for its replacement decision (2164.366764ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (2299.048742ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (1584.882042ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (1566.250835ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1502.596829ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1609.052059ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (1572.067891ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1548.661204ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1659.425692ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (1628.417062ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1655.610983ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1535.861434ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (1589.561376ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (1134.946214ms)
+  ✔ a successful reconnect enables exit after startup 503s (2201.854042ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (5656.463266ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (5569.489194ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (5579.803792ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5772.817292ms)
+  ✔ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (1393.574226ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (1382.42941ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (1422.784188ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (1730.088874ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (1610.779678ms)
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (1889.569922ms)
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1652.988262ms)
+  ✔ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (1200.412065ms)
+  ✔ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (1591.165513ms)
+  ✖ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (6356.519357ms)
+  ✔ a pending changes rewind waits for an aborted successful receipt to become durable (2227.062876ms)
+  ✔ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (5828.31856ms)
+  ✔ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (5797.007141ms)
+  ✔ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (6984.980934ms)
+  ✔ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (6824.785475ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (6929.850579ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (6943.030186ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (6425.358031ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6477.707642ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (2067.660482ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (exit transport) (2029.879571ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6523.900836ms)
+  ✔ same-epoch logout tombstone refuses live admission (924.499326ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (979.210924ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (834.539506ms)
+✖ web admission review: recovery and transport respect the session boundary (148431.106444ms)
+ℹ {"mode":"held-sync","id":"01M3D2A9EPEM1KSDZ6CQZHHKBK","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3D2AAJT0AS7QB92AC1RT2JN","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3D2AFF9RXVR4JJ6YFGBTWAR","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3D2AH1DE994A16FNDVV7526","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3D2AJHD0ENAH19D3BEH70A7","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3D2AM3GS71M6MMK8TB7MKFC","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3D2APABWVW15ZKFWE0X6XQP","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3D2DHS0573B7N5KJ358JDAF","originalStore":"6ef9e702438ff1465e451c597549c88d","refusal":"E_STORE_REPLACED","auditA":16,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3D2DRHB33CQCR2T1JGKG33Z","originalStore":"6ef9e702438ff1465e451c597549c88d","refusal":"E_STORE_REPLACED","auditA":16,"auditB":0}
+ℹ {"orphan":"01M3D2DZ9S1T9ED9BA8B0T7HFE","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3D2E5M66A6FJ6ARDAZ7JYB9","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3D2EBXN0706KEDDQMWA66XM","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ {"orphan":"01M3D2EDYB29Y62XANVV3ZHJPG","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":16,"auditB":0}
+ℹ tests 52
+ℹ suites 0
+ℹ pass 50
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 148532.880316
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (6356.519357ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   code: 'E_STORE_RESTORE',
+  +   family: 'store',
+  +   guide: 'sync',
+  +   message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:829:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:803:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_STORE_RESTORE', family: 'store', guide: 'sync', message: "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox" },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

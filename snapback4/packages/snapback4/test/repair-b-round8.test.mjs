@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 test("publication notifies watches even when its following state read fails; retry uses durable progress", { timeout: 5000 }, async t => {
   const { createLocalClient } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
-  const backend = { generation: 1, schema: { tables: {}, operations: { counter: { runs: "device", held: true } } }, programs: [] };
+  const backend = { generation: 1, schema: { tables: {}, operations: { counter: { runs: "device", held: true } } }, programs: [{ name: "counter", kind: "Query", args: {}, body: [{ table: "counters" }], held: true }] };
   let value = 1, watermark = 5, advance = false, denyRead = false, denials = 0;
   const requests = [];
   const core = { close: async () => {}, call: async request => {

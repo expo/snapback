@@ -1,0 +1,20 @@
+{"store":"wasm","pendingBoundary":232,"syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (1210.400371ms)
+{"store":"wasm","pendingBoundary":233,"syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (770.876124ms)
+{"store":"wasm","pendingBoundary":256,"syncAcknowledged":272,"ordinaryAcknowledged":1,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (959.819171ms)
+{"store":"native","pendingBoundary":232,"syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (821.498498ms)
+{"store":"native","pendingBoundary":233,"syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (795.258033ms)
+{"store":"native","pendingBoundary":256,"syncAcknowledged":272,"ordinaryAcknowledged":1,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (1096.146807ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5786.384952

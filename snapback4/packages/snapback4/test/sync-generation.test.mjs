@@ -503,8 +503,8 @@ for (const tier of ["wasm", "process"]) for (const transfer of ["deferred stream
       assert.equal(earlyReplies, attempt + 1);
       assert.equal(links.at(-1), "offline", "malformed early heads surface a retryable link failure");
       const result = await f.client.query({ kind: "query", name: "remoteCounter" }, {});
-      assert.equal(result.denied?.code, "E_OFFLINE");
-      assert.equal(result.denied.retryable, true);
+      assert.ok(queued.some(entry => entry.predictable && entry.observed_seq == null && entry.predicted.length > 0));
+      assert.equal(result.denied?.code, "E_OFFLINE", "remoteCounters is disjoint from the prediction, but has neither local facts nor memory");
     }
     stripHead = false;
     await f.client.sync();

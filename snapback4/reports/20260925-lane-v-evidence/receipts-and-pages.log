@@ -1,0 +1,47 @@
+✔ native process devices bridge an inbox fetch and clear it offline and on account switch (6449.811859ms)
+✔ web IndexedDB device bridges the two-device inbox fetch in useQuery and usePage (8521.223216ms)
+✔ W6R1 A memory: already-open owners equal input, offline (1427.271709ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners equal input, in-flight send (1121.992699ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, offline (1097.159361ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, in-flight send (1107.039158ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B memory: evicted explicit row outcome reaches server replay (1303.144977ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3BQSXGX01FP14CF6PKRE3A5","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B memory: evicted changed guard outcome reaches server replay (1290.279255ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3BQSYT1M082Y8F818K1B9S9","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 A native: already-open owners equal input, offline (1189.752823ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners equal input, in-flight send (138.638471ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, offline (120.223392ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, in-flight send (1146.91448ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B native: evicted explicit row outcome reaches server replay (1907.804276ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3BQT2M0VFQS0S8G3PNGWKVJ","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B native: evicted changed guard outcome reaches server replay (1858.136938ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3BQT4G5CY50Z4M8G8NN6BCK","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 principals online: one caller ID is independent per principal (45.810748ms)
+ℹ tier=online principals=2 applications=2 posts=2
+✔ W6R1 principals memory: one caller ID is independent per principal (187.044679ms)
+ℹ tier=memory principals=2 applications=2 posts=2
+✔ W6R1 principals native: one caller ID is independent per principal (148.824928ms)
+ℹ tier=native principals=2 applications=2 posts=2
+✔ W6R1 online closed: retrying a sent ID cannot emit a contradictory failure (2.458144ms)
+✔ W6R1 online signed-out: retrying a sent ID cannot emit a contradictory failure (1.970213ms)
+✔ server write ids bind raw arguments and operation names across independent clients (39.924956ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15084.97454

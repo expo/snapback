@@ -26,6 +26,7 @@ struct WordRead {
     admitted: bool,
     metered: bool,
     retained: bool,
+    expiry: super::expiry::Pending,
     fields: Vec<String>,
     terms: Vec<String>,
 }
@@ -74,32 +75,43 @@ impl Runner<'_> {
         let mut sites = Vec::new();
         rules::probe_sites(rule, &mut sites);
         for (table, _) in sites {
-            if let Some(maintain) = self.schema.maintain_for(&table)
-                && self.schema.table(&maintain.source).is_some_and(|source| source.expire.is_some()) {
-                self.read_tables.insert(maintain.source.clone());
-            }
+            self.aggregate_source_dependency(&table);
             self.read_tables.insert(table);
         }
     }
 
-    fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr, uniform: bool) -> Result<bool, RuntimeError> {
+    // @ref LLP 3000.014#5-what-derives-from-the-capture — source invalidation is schema-derived, including empty and denied groups.
+    pub(super) fn aggregate_source_dependency(&mut self, table: &str) {
+        if let Some(maintain) = self.schema.maintain_for(table)
+            && self.schema.tables[&maintain.source].is_expiring() {
+            self.read_tables.insert(maintain.source.clone());
+        }
+    }
+
+    fn prefix_verdict(&mut self, name: &str, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr, uniform: bool) -> Result<(bool, super::expiry::Pending), RuntimeError> {
+        let expiry = self.next_expiry.scope();
+        if let Some(through) = &table.through && let Some(id) = index.columns().iter().zip(prefix).find_map(|(name,v)| (name == &through.reference).then_some(v)) {
+            let verdict = self.parent_verdict(name,through,id)?;
+            if verdict == super::through::ParentVerdict::Unknown { self.unknown_fact(name, crate::schema::through::CHILDREN, &[id.clone()], "read through parent"); }
+            let admitted = verdict == super::through::ParentVerdict::Readable;
+            return Ok((admitted, if admitted { expiry.defer() } else { Default::default() }));
+        }
         let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
         let viewer = self.context.viewer.clone();
-        let expiry = self.next_expiry;
         let verdict = rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner: self });
-        // Partial admission says nothing about any returned row's lifetime.
-        if !uniform || !matches!(verdict, Ok(true)) { self.next_expiry = expiry; }
         let verdict = verdict?;
         // A partial conjunction denial costs the same static allowance as a uniform denial.
-        Ok(self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
+        let admitted = self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict;
+        Ok((admitted, if uniform && admitted { expiry.defer() } else { Default::default() }))
     }
 
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
-    fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
+    pub(super) fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
+        self.aggregate_source_dependency(table);
         if !self.device { return; }
         let Some(maintain) = self.schema.maintain_for(table) else { return };
         let source = &self.schema.tables[&maintain.source];
-        if self.schema.maintain_subset_unknown(table) || (source.expire.is_some() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
+        if self.schema.maintain_subset_unknown(table) || (source.is_expiring() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
             self.read_tables.insert(maintain.source.clone());
             self.unknown_fact(table, index, key, site);
         }
@@ -108,12 +120,14 @@ impl Runner<'_> {
     fn horizon_coverage(&mut self, scan: &Scan, prefix: &[Value], retained: bool) {
         if retained { self.beyond_horizon = true; self.components.note(|frame| { frame.beyond = true; frame.retained = true; }); }
         else { self.unknown_fact(&scan.table, &scan.index, prefix, &scan.site); }
+        // @ref LLP 3000.016#2.2 — unknown inbox coverage withholds the whole query, including unshaped pages.
+        if self.schema.timelines.iter().any(|timeline| scan.table == timeline.table("Feed")) { self.query_unavailable = true; }
     }
 
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
     fn rule_probe_exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         let (present, known) = self.probe_witness(table, index, key, equalities, false)?;
-        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); }
+        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); self.components.note(|frame| frame.speculative = true); }
         Ok(present)
     }
 
@@ -122,6 +136,7 @@ impl Runner<'_> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
+        self.aggregate_source_dependency(table);
         let found = self.lookup_live(table, index, index_def, key, false)?;
         let mut live = found.is_some();
         let mut known = !self.device || if current {
@@ -130,11 +145,16 @@ impl Runner<'_> {
                 None => self.authorization_absence_covered(table, index, key)?,
             }
         } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
+        if found.is_none() && self.event_read_unknown(table, index, key, "rule probe") { known = false; }
+        if self.device && found.as_ref().is_some_and(|row| !crate::schema::timeline::holds_event(self.schema, table, row)) {
+            self.event_read_unknown(table, index, key, "rule probe");
+            known = false;
+            live = false;
+        }
         if let Some(row) = &found {
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table)
-                && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
-                self.read_tables.insert(maintain.source.clone());
+                && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.is_expiring()) {
                 if self.device_work_active {
                     let group_bytes = word_heap::slots::<Value>(maintain.by.len())
                         + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
@@ -193,12 +213,12 @@ impl Runner<'_> {
     // @ref LLP 3000.013#11.1 — target expiry work is charged only after authority; denied targets reveal no backlog.
     pub(super) fn lookup_live_charged(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool, mut expired_work: Option<&mut u64>) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        if table.expire.is_none() && !self.device_work_active {
+        if !table.is_expiring() && !self.device_work_active {
             return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
         }
         let mut bounds = Bounds::default();
         loop {
-            let (rows, limit) = self.witness_scan(table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
+            let (rows, limit) = self.witness_scan(table_name, name, key, &bounds, if !table.is_expiring() { 1 } else { 32 })?;
             let count = rows.len();
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, table)?;
@@ -249,21 +269,21 @@ impl Runner<'_> {
     }
 
     pub(super) fn note_expiry(&mut self, table: &Table, row: &Value) {
-        if let Some(column) = &table.expire
+        if let Some(column) = table.expiry_column()
             && let Ok(Value::Int(at)) = row.field(column)
             && self.context.now.is_some_and(|now| *at > now)
         {
-            self.next_expiry = Some(self.next_expiry.map_or(*at, |prior| prior.min(*at)));
+            self.next_expiry.note(*at);
         }
     }
 
     /// Delivered rows are authoritative except when a temporary audience
     /// can end on the device's clock without a server commit. Retained
     /// history stays readable; until-revoked content rechecks that audience.
-    fn trust_synced_read(&self, table: &Table) -> bool {
+    pub(super) fn trust_synced_read(&self, table: &Table) -> bool {
         self.device && table.sync.as_ref().is_some_and(|sync| {
             table.leave == crate::schema::LeavePolicy::DeliveredHistory || match &sync.audience {
-                crate::schema::Audience::Target { table, .. } => self.schema.table(table).is_none_or(|target| target.expire.is_none()),
+                crate::schema::Audience::Target { table, .. } => self.schema.table(table).is_none_or(|target| !target.is_expiring()),
                 _ => true,
             }
         })
@@ -295,7 +315,9 @@ impl Runner<'_> {
             old
         });
         let viewer = self.context.viewer.clone();
-        rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self)
+        if effect == Effect::Insert && table.through.is_some() {
+            rules::evaluate(&rule, &viewer, old.as_ref(), &next, true, &mut PrefixProbe { runner:self })
+        } else { rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self) }
     }
 
     /// A row by id, materialized, without a rule check.
@@ -308,81 +330,6 @@ impl Runner<'_> {
             materialize_optional_fields(&mut row, table);
             row
         }))
-    }
-
-    /// A point read: the row when it exists and the viewer may read it, else
-    /// `null`. Hidden and absent are the same word on purpose.
-    pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
-        self.schema.refuse_private(&read.table)?;
-        // @ref LLP 3000.007#20.21 — an unfinished maintained value is unavailable, never an absent group coerced to zero.
-        let maintained = self.schema.maintain_for(&read.table).is_some();
-        if maintained { self.meter.require_uncapped()?; }
-        let value = self.get_inner(read)?;
-        if maintained { self.meter.require_uncapped()?; }
-        Ok(value)
-    }
-
-    fn get_inner(&mut self, read: &Read) -> Result<Value, RuntimeError> {
-        let key = read.key.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
-        let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
-        let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
-        self.read_tables.insert(read.table.clone());
-        self.rule_dependencies(&table.rules.read);
-        self.meter.at(&read.site);
-        self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
-        if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
-        if self.device && table.sync.is_none() {
-            self.unknown_fact(&read.table, &read.index, &key, &read.site);
-        }
-        if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(&key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
-            // A null key on a required column addresses nothing.
-            return Ok(Value::Null);
-        }
-        // @ref LLP 3000.007#20.12 — reserve authorization before knowing hit, miss or hidden; an exhausted probe is not a false verdict to roll back.
-        let trusted = self.context.is_system() || self.trust_synced_read(table);
-        // Prediction keeps the server's reservation even for delivered rows.
-        // Only the additional physical authority work uses the device allowance.
-        let prepaid = !trusted || (self.device_allowance.is_some() && !self.context.is_system());
-        if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
-        // Hidden and absent cost one examined row and the same static probe
-        // allowance, including probes that a rule would short-circuit.
-        let mark = self.meter.mark();
-        let expiry_mark = self.next_expiry;
-        let found = self.live_lookup(&read.table, &read.index, index, &key)?;
-        // An expiring lookup already charged its live candidate while
-        // passing expired siblings. A miss still costs one point read.
-        if (table.expire.is_none() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
-            return Ok(Value::Null);
-        }
-        let Some(mut row) = found else {
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
-            return Ok(Value::Null);
-        };
-        if self.expired(table, &row) {
-            return Ok(Value::Null);
-        }
-        materialize_optional_fields(&mut row, table);
-        let provisional = self.is_provisional(&read.table, &row)?;
-        let viewer = self.context.viewer.clone();
-        let allowed = if provisional && !self.context.is_system() {
-            self.authorize_read(&read.table, &row, prepaid)?
-        } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })? };
-        // A failed authorization owns its charges and its cut. Hidden-candidate
-        // rollback must never erase exhaustion or convert it into coverage.
-        if self.read_capped() { return Ok(Value::Null); }
-        if allowed {
-            // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
-            if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
-            self.note_expiry(table, &row);
-            Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
-        } else {
-            self.next_expiry = expiry_mark;
-            if !provisional {
-                self.meter.restore(mark);
-                self.read_charge(MeterKind::Examined, 1)?;
-            }
-            Ok(Value::Null)
-        }
     }
 
     /// The scan's prefix values, evaluated. A word term is not a value a
@@ -475,13 +422,15 @@ impl Runner<'_> {
                 self.device_work(|runner| runner.meter.heap(256 * (192 + word_heap::values(&scope) + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site))))?;
             }
             retained = self.retained_group(&scan.table, &scan.index, &scope)?;
-            if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); }
+            if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); self.components.note(|frame| frame.speculative = true); }
             else if !scan.existence && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
                 self.horizon_coverage(scan, &scope, retained);
             }
         }
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery and shared by its generated lanes.
-        let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        let parent_pinned = table.through.as_ref().is_some_and(|t| index.columns().iter().take(scope.len()).any(|f| f == &t.reference));
+        let mut admitted = !parent_pinned && (self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
+        let mut prefix_expiry = super::expiry::Pending::default();
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             return Ok(None);
@@ -494,10 +443,12 @@ impl Runner<'_> {
             if visibility.uniform { self.meter.heap(word_heap::verdict(index, &scope, &self.context.viewer, rule))?; }
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
             if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
-            if !self.prefix_verdict(table, index, &scope, rule, visibility.uniform)? {
+            let (allowed, pending) = self.prefix_verdict(&scan.table, table, index, &scope, rule, visibility.uniform)?;
+            if !allowed && !(self.device && parent_pinned) {
                 return Ok(None);
             }
-            admitted = visibility.uniform;
+            prefix_expiry = pending;
+            admitted = allowed && visibility.uniform;
             }
         }
         // The words the first term is a prefix of, one seek per word: the
@@ -542,7 +493,7 @@ impl Runner<'_> {
             return Ok(None);
         }
         terms.remove(0); // Move the remaining terms once; every word lane shares them.
-        Ok(Some((words, scope, WordRead { admitted, metered: metered_words, retained, fields, terms })))
+        Ok(Some((words, scope, WordRead { admitted, metered: metered_words, retained, expiry: prefix_expiry, fields, terms })))
     }
 
     // The non-uniform traversal retains its eager order and disclosure contract.
@@ -708,6 +659,13 @@ impl Runner<'_> {
     }
 
     pub(super) fn scan_with_keys(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        let expiry = self.next_expiry.scope();
+        let rows = self.scan_with_keys_inner(scan)?;
+        expiry.emit();
+        Ok(rows)
+    }
+
+    fn scan_with_keys_inner(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
         if !scan.existence { return self.scan_with_words(scan, None); }
         self.page_depth += 1;
@@ -764,6 +722,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
     pub(super) fn stream_aggregate(&mut self, scan: &Scan, aggregate: super::extrema::Aggregate<'_>) -> Result<Value, RuntimeError> {
+        let expiry = self.next_expiry.scope();
         // Prefixes may be hoisted, and filter/projection locals evaluated
         // before this frame. Without input provenance, conservatively retain
         // earlier unknown coverage. An enclosing page's non-uniformity alone
@@ -785,6 +744,7 @@ impl Runner<'_> {
             self.scalar_unavailable = true;
             return Err(RuntimeError::Prediction(format!("{}: streaming aggregate needs complete domain coverage", scan.site)));
         }
+        expiry.emit();
         Ok(value)
     }
 
@@ -809,6 +769,14 @@ impl Runner<'_> {
     }
 
     fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<&mut super::extrema::Aggregate<'_>>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        self.event_read_unknown(&scan.table, &scan.index, &prefix, &scan.site);
+        let page_expiry = self.next_expiry.scope();
+        if let Some(message) = self.schema.maintain_for(&scan.table).and_then(|m| m.expiring_read_refusal(self.schema)) {
+            return Err(RuntimeError::Structural { code: "E_MAINTAIN_READ_EXPIRE", message });
+        }
+        if self.schema.maintain_for(&scan.table).is_some_and(|m| m.groups_by_parent(self.schema)) {
+            return Err(RuntimeError::Structural {code:"E_READ_THROUGH_SCAN",message:format!("{} at {} is keyed by its parent; read {}[parent] instead of scanning groups (guide maintains)",scan.table,scan.site,scan.table)});
+        }
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
@@ -818,7 +786,7 @@ impl Runner<'_> {
             self.read_tables.insert(scan.table.clone());
             self.rule_dependencies(&table.rules.read);
             self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site);
-            if self.device && table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site); }
+            if self.device && table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site); self.components.note(|frame| frame.speculative = true); }
         }
         if word.is_some_and(|w| w.metered) { self.meter.heap(word_heap::text(&scan.site))?; }
         self.meter.at(&scan.site);
@@ -828,7 +796,8 @@ impl Runner<'_> {
         };
         let visibility = if word.is_some_and(|w| w.metered) { rules::Visibility { uniform: true, decided_true: true } }
             else { rules::scan_visibility(self.schema, scan) };
-        let always_visible = word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        let parent_pinned = table.through.as_ref().is_some_and(|t| index.columns().iter().take(prefix.len()).any(|f| f == &t.reference));
+        let always_visible = !parent_pinned && (word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }
@@ -838,13 +807,17 @@ impl Runner<'_> {
         let mut has_more = false;
         let mut capped = false;
         let mut filter_interrupted = false;
-        let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
+        let mut uniform_verdict: Option<bool> = if parent_pinned { word.map(|word| word.admitted) } else { always_visible.then_some(true) };
+        let mut prefix_expiry = word.map_or_else(Default::default, |word| word.expiry);
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
+        let streaming_parent = aggregate.is_some();
         if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
-            if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
-            if visibility.uniform { uniform_verdict = Some(true); }
+            let (allowed, pending) = self.prefix_verdict(&scan.table, table, index, &prefix, &rule, visibility.uniform)?;
+            if !allowed && !(self.device && parent_pinned && !streaming_parent) { return Ok((Vec::new(), Vec::new())); }
+            prefix_expiry = pending;
+            if visibility.uniform { uniform_verdict = Some(allowed); }
         }
         // Non-uniform hidden runs cost examined rows, never a materialized
         // table. A uniform page already has its verdict before fetching.
@@ -852,6 +825,7 @@ impl Runner<'_> {
         let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
         let mut crossed = false;
+        let mut candidate_inside = false;
         // Internal timeline scans retain complete source rows, including arbitrary
         // application payload. Use the same pre-allocation ledger as word scans.
         // Ordinary jobs may hold an empty Purge grant; that is not a transition.
@@ -895,6 +869,7 @@ impl Runner<'_> {
             for (mut row, key) in fetched {
                 if let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
                     if &key < floor { crossed = true; break 'outer; }
+                    candidate_inside = true;
                 }
                 if !self.read_charge(MeterKind::Examined, 1)? {
                     capped = true;
@@ -930,31 +905,20 @@ impl Runner<'_> {
                 if unmatched {
                     continue;
                 }
-                let row_expiry_mark = self.next_expiry;
-                let allowed = match uniform_verdict {
-                    Some(verdict) => verdict && self.provisional_readable(&scan.table, &row)?,
-                    None => {
-                        let verdict = self.check_rule(&scan.table, Effect::Read, None, &row)?;
-                        verdict
-                    }
-                };
+                let kept_history = self.device && parent_pinned && self.tx.retained_row(&scan.table, &row)?;
+                if kept_history && streaming { continue; }
+                if self.device && parent_pinned && !kept_history && uniform_verdict == Some(false) { continue; }
+                if kept_history {
+                    self.beyond_horizon = true;
+                    self.components.note(|frame| { frame.beyond = true; frame.retained = true; });
+                    if let Value::Row(fields) = &mut row { fields.mark_retained(); }
+                }
+                let candidate = self.read_candidate(&scan.table, row, if kept_history { Some(true) } else { uniform_verdict }, if kept_history { Default::default() } else { prefix_expiry })?;
                 if self.read_capped() {
                     capped = true;
                     break 'outer;
                 }
-                if allowed {
-                    self.note_expiry(table, &row);
-                    let live_row = self.live_aggregate(&scan.table, row)?;
-                    // @ref LLP 3000.007#20.21 — a cut aggregate is unavailable, not a
-                    // partial contribution presented as a total. The push that used to
-                    // happen here matched maintained point reads, which now refuse
-                    // under a cap rather than answer with an unfinished value.
-                    if self.read_capped() {
-                        capped = true;
-                        break 'outer;
-                    }
-                    let Some(row) = live_row else { continue; };
-                    let row = super::recorded::public_image(table, row);
+                if let Some((row, pending)) = candidate {
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;
@@ -962,6 +926,8 @@ impl Runner<'_> {
                     }
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
+                        // @ref LLP 3000.014#5 — completed predicate answers belong to the page even when they reject this candidate.
+                        let filter_expiry = self.next_expiry.scope();
                         if metered_payload { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
                         let prior = self.env.insert("$filter".into(), row.clone());
                         // @ref LLP 3000.007#20.22 — predicate reads are below the page; restore depth even when evaluating one fails.
@@ -983,8 +949,10 @@ impl Runner<'_> {
                             break 'outer;
                         }
                         let matched = matched?.as_bool()?;
+                        filter_expiry.emit();
                         if !matched { continue; }
                     }
+                    let row_expiry = self.next_expiry.scope();
                     if let Some(aggregate) = &mut aggregate {
                         if matches!(aggregate, super::extrema::Aggregate::Extremum { .. }) {
                             // Decoding, authorization and filtering are finished.
@@ -997,6 +965,8 @@ impl Runner<'_> {
                         }
                         let done = aggregate.push(self, &row)?;
                         consumed += 1;
+                        self.next_expiry.inherit(pending);
+                        row_expiry.emit();
                         if done || (scan.existence && consumed == take) { break 'outer; }
                         continue;
                     }
@@ -1024,10 +994,10 @@ impl Runner<'_> {
                         visible.push(row);
                         keys.push(key.clone());
                     }
+                    self.next_expiry.inherit(pending);
+                    row_expiry.emit();
                     if (scan.existence || job_page) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
-                } else {
-                    self.next_expiry = row_expiry_mark;
                 }
             }
             if fetched_len < batch {
@@ -1042,12 +1012,11 @@ impl Runner<'_> {
                 match &boundary {
                     Some(crate::rows::AcquiredBoundary::Whole) => true,
                     Some(crate::rows::AcquiredBoundary::Key(floor)) => {
-                        // A full page stops at its last selected key. A shorter
-                        // page stops at its range end, which may cross the floor
-                        // even when no older row happens to be held.
+                        // @ref LLP 3000.016#2.2 — a meter cut uses its actual candidate position, not the unvisited range end.
                         let stops_inside = visible.len() == take && keys.last().is_some_and(|key| key >= floor);
+                        let cut_inside = capped && candidate_inside && !crossed;
                         let range_inside = crate::rows::scan_range(&prefix, &bounds, dir).is_none_or(|(lo, _)| lo >= *floor);
-                        stops_inside || (!crossed && range_inside)
+                        stops_inside || cut_inside || (!crossed && range_inside)
                     }
                     None => false,
                 }
@@ -1075,6 +1044,7 @@ impl Runner<'_> {
             if filter_interrupted && visible.is_empty() && next.is_some() && next == bounds.at_or_after { next = None; }
             self.record_page(scan.site.clone(), PagePosition { variant: scan.variant, view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
         }
+        page_expiry.emit();
         Ok((visible, keys))
     }
 
@@ -1153,7 +1123,10 @@ impl Runner<'_> {
     /// Merge ordered lanes into a page. Seekable uniform lanes use a heap
     /// of heads. Other lanes retain their page scan and stable union sort.
     pub(super) fn merge(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
-        self.merge_with_words(merge, None)
+        let expiry = self.next_expiry.scope();
+        let rows = self.merge_with_words(merge, None)?;
+        expiry.emit();
+        Ok(rows)
     }
 
     fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
@@ -1311,7 +1284,7 @@ impl Runner<'_> {
 
 }
 
-struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b> }
+pub(super) struct PrefixProbe<'a, 'b> { pub(super) runner: &'a mut Runner<'b> }
 impl Probe for PrefixProbe<'_, '_> {
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         self.runner.rule_probe_exists(table, index, key, equalities)

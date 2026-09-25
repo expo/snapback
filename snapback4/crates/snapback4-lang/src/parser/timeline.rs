@@ -18,7 +18,7 @@ impl Parser {
         }
         self.take("events")?;
         let posts = self.word()?.value;
-        let filter = if self.at("where") { self.take("where")?; Some(self.maintain_predicate(0)?) } else { None };
+        let filter = if self.at("where") { self.take("where")?; Some(self.filtered_predicate(&posts, &[], true)?) } else { None };
         self.take("by")?;
         let author = self.word()?.value;
         self.take(",")?;

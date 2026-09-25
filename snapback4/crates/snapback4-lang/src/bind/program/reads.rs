@@ -53,6 +53,11 @@ impl<'a> Binder<'a> {
         let row = self.temp("probe");
         out.push(Stmt::Let { name: row.clone(), value: Expr::Get(point) });
         let mut condition = Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&row)), right: Box::new(Expr::Literal(Value::Null)) };
+        // @ref LLP 3000.014#5-what-derives-from-the-capture — a denied aggregate carries a null value, not a present group.
+        if mode == ReadMode::Exists && info.maintained.is_some() {
+            let present = Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::field(ir::var(&row), "value")), right: Box::new(Expr::Literal(Value::Null)) };
+            condition = Expr::Binary { op: BinaryOp::And, left: Box::new(condition), right: Box::new(present) };
+        }
         for (column, value) in equalities {
             let test = Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::field(ir::var(&row), &column)), right: Box::new(value) };
             condition = Expr::Binary { op: BinaryOp::And, left: Box::new(condition), right: Box::new(test) };

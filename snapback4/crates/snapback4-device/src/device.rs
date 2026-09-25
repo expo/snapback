@@ -24,6 +24,7 @@ mod media;
 mod snapshot;
 mod history;
 mod recorded;
+mod expiry_clock;
 mod boundary;
 mod store_identity;
 pub use store_identity::StoreObservation;
@@ -77,6 +78,9 @@ pub struct StreamEvent {
 /// One page of `POST /sync`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamPage {
+    /// Pinned server time of this authoritative page; old transports may omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub now: Option<i64>,
     /// Private restore cut captured separately from a restarted snapshot's
     /// request cursor. It validates head evidence, never acquisition progress.
     #[serde(default)]
@@ -183,6 +187,7 @@ const ACQUIRED: &str = "device:acquired-generation";
 const BACKEND: &str = "device:backend";
 const SEND_REVISION: &str = "device:send_revision";
 const SUBMISSION: &str = "device:submission";
+const ISSUED_FLOOR: &str = "client:server-clock-floor";
 const SNAPSHOT_OWNER: &str = "device:snapshot:owner";
 const SNAPSHOT_OWNERS: &str = "device:snapshot:owners";
 const SNAPSHOT_WATERMARK: &str = "device:snapshot:watermark";
@@ -191,7 +196,7 @@ const SNAPSHOT_THROUGH: &str = "device:snapshot:through";
 const SNAPSHOT_IMAGES_AT: &str = "device:snapshot:images_at";
 const SNAPSHOT_NEXT: &str = "device:snapshot:next";
 const SNAPSHOT_ACKS: &str = "device:snapshot:acks";
-const SNAPSHOT_KEYS: [&str; 9] = [SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT, history::STAGED_GROUPS];
+const SNAPSHOT_KEYS: [&str; 10] = [expiry_clock::STAGED,SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT, history::STAGED_GROUPS];
 /// The app's native module (LLP 3000.005 §9), kept so a cold start offline
 /// answers native reads too: the bytes as hex, and the digest the server named.
 const NATIVE: &str = "device:native";
@@ -230,6 +235,12 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     // @ref LLP 3000.007.003#3.2 — retained images cannot establish current attribution coverage.
     fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut snapback4_core::meter::Meter) -> Result<bool, RuntimeError> {
         recorded::covered(self, name, row, viewer, now, meter)
+    }
+    fn current_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
+        Ok(history::coverage_state(self.schema, &self.groups, name, history::Coverage::Row(row))? == history::CoverageState::Held)
+    }
+    fn current_group(&self, name: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
+        Ok(history::coverage_state(self.schema, &self.groups, name, history::Coverage::Range(index, prefix))? == history::CoverageState::Held)
     }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
@@ -280,6 +291,15 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
 
 fn meta_u64<T: DeviceTx>(tx: &T, key: &str) -> Result<u64, RuntimeError> {
     tx.meta(key)?.map(|s| s.parse::<u64>().map_err(|_| RuntimeError::Store(format!("invalid device metadata {key}")))).transpose().map(|n| n.unwrap_or(0))
+}
+
+// Every outbox writer preserves admission time, including transfers and replay
+// after clock attachment. The floor and the entry commit or roll back together.
+fn keep_issued_floor<T: DeviceTx>(tx: &T, now: i64) -> Result<(), RuntimeError> {
+    let before = meta_u64(tx, ISSUED_FLOOR)?;
+    let floor = before.max(now.max(0) as u64);
+    if floor > before { tx.set_meta(ISSUED_FLOOR, &floor.to_string())?; }
+    Ok(())
 }
 
 // @ref LLP 3000.008.001#4-read-and-write-outcomes — unacquired facts cannot justify a value or a predicted refusal.
@@ -690,7 +710,7 @@ impl<S: DeviceStore> Device<S> {
             if page.snapshot && first {
                 let images_at = store_identity::restore_images_at(&tx)?;
                 tx.staged_clear()?;
-                tx.delete_meta(&[SNAPSHOT_ACKS, SNAPSHOT_IMAGES_AT])?;
+                tx.delete_meta(&[SNAPSHOT_ACKS, SNAPSHOT_IMAGES_AT, expiry_clock::STAGED])?;
                 // @ref LLP 3000.001#authoritative-replacement-disposes-of-the-deferred-slot — an authoritative replacement discards private effects and their receipts together.
                 // Keep incarnation and maximum head evidence, but publish no
                 // old effects and retire no prediction as part of disposal.
@@ -745,7 +765,9 @@ impl<S: DeviceStore> Device<S> {
             touched.extend(page.joined.keys().cloned());
             touched.extend(page.acquisitions.iter().map(|marker| marker.table.clone()));
         }
-        predictions::restore(&tx, &self.schema)?;
+        // @ref LLP 3000.014#5 — publication can rewrite or withdraw pending
+        // rows even on an empty clock page; invalidate both sides of replay.
+        touched.extend(predictions::restore(&tx, &self.schema)?);
         if replacing {
             let groups = history::load(&tx, history::STAGED_GROUPS)?;
             tx.clear_rows()?;
@@ -771,6 +793,7 @@ impl<S: DeviceStore> Device<S> {
             }
             tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
             boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
+            expiry_clock::publish(&tx)?;
             snapshot::clear(&tx)?;
             // Consume private identity after promotion; ordinary effects and
             // receipts were discarded when this replacement started.
@@ -790,7 +813,7 @@ impl<S: DeviceStore> Device<S> {
         if !page.more { tx.set_meta(ACQUIRED, &self.generation.to_string())?; }
         deferred::acknowledge(&tx, page.watermark, &acknowledgements)?;
         predictions::publish_declaration(&tx, declaration)?;
-        predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?;
+        touched.extend(predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?);
         tx.commit()?;
         self.store_identity = owner_store.clone();
         if replacing {
@@ -813,22 +836,24 @@ impl<S: DeviceStore> Device<S> {
     /// The query, and whether it touched something the device does not
     /// hold (an online-only table, a row past the horizon).
     pub fn query_with_coverage(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool, bool) {
-        let (result, unknown, retained, _) = self.query_observation(name, viewer, args, now, false);
+        let (result, unknown, retained, _, _) = self.query_observation(name, viewer, args, now, false);
         (result, unknown, retained)
     }
 
     pub fn query_with_components(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>) {
-        self.query_observation(name, viewer, args, now, true)
+        let (result, unknown, retained, components, _) = self.query_observation(name, viewer, args, now, true);
+        (result, unknown, retained, components)
     }
 
-    fn query_observation(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, observe_components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>) {
+    pub(crate) fn query_observation(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, observe_components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>, snapback4_core::engine::components::Provenance) {
         let mut unknown = false;
         let mut retained = false;
         let mut components = Default::default();
+        let mut provenance = Default::default();
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
-            let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
             let tx = self.store.read_transaction()?;
+            let context = Context::new(viewer, typed_args(&program, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation);
             if let Err(error) = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
                 unknown = true;
                 return Err(error.refusal());
@@ -838,31 +863,30 @@ impl<S: DeviceStore> Device<S> {
                 return Err(error.refusal());
             }
             let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
-            let (result, coverage, history_only) = if program.native {
+            let (result, coverage, history_only, facts) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
                 // the module the device does not know, and the host asks the
                 // server.
                 #[cfg(feature = "wasm-host")]
                 match &self.native {
-                    Some(module) => local::native_query(&reading, &self.schema, module, &program, context, Ceilings::default()),
-                    None => (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device has no module yet") }.refusal()), true, false),
+                    Some(module) => local::native_observation(&reading, &self.schema, module, &program, context, Ceilings::default()),
+                    None => (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device has no module yet") }.refusal()), true, false, Default::default()),
                 }
                 #[cfg(not(feature = "wasm-host"))]
-                (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true, false)
-            } else if !observe_components {
-                local::query_with_coverage(&reading, &self.schema, &program, context, Ceilings::default())
+                (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true, false, Default::default())
             } else {
-                let (result, unknown, retained, coverage) = local::query_with_components(&reading, &self.schema, &program, context, Ceilings::default());
+                let (result, unknown, retained, coverage, facts) = local::observe_query(&reading, &self.schema, &program, context, Ceilings::default(), observe_components);
                 components = coverage;
-                (result, unknown, retained)
+                (result, unknown, retained, facts)
             };
             unknown = coverage;
+            provenance = facts;
             retained = reading.retained.get() && history_only;
             drop(reading);
             tx.rollback()?;
             result
         })();
-        (result, unknown, retained, components)
+        (result, unknown, retained, components, provenance)
     }
 
     /// Predict a mutation: its rows land in the store marked `pending`, in
@@ -872,7 +896,7 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         require_acquired(&tx, &self.schema, &program)?;
-        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
+        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
         let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {
@@ -949,6 +973,9 @@ impl<S: DeviceStore> Device<S> {
         }
         tx.outbox_insert(entry.seq, &entry.id, &encoded(&entry)?)?;
         tx.set_meta(SUBMISSION, &entry.seq.to_string())?;
+        // Admission's time survives settlement in the same durable commit as
+        // its outbox entry, including synchronous web journal recovery.
+        keep_issued_floor(&tx, entry.now)?;
         tx.commit()?;
         Ok(entry)
     }
@@ -979,14 +1006,27 @@ impl<S: DeviceStore> Device<S> {
         if self.programs.get(&entry.op).is_some_and(|p| p.kind == snapback4_core::ProgramKind::Action) { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
         tx.outbox_insert(entry.seq, &entry.id, &encoded(entry)?)?;
+        keep_issued_floor(&tx, entry.now)?;
         tx.commit()
     }
 
     /// Every queued write in submission order.
     pub fn queued(&mut self) -> Result<Vec<Queued>, RuntimeError> {
-        let tx = self.store.read_transaction()?;
+        self.queued_with_clock_floor(false)
+    }
+
+    /// Clock attachment preserves legacy admission times before replay can
+    /// retire them. Read the queue and raise its durable floor in one writer
+    /// transaction, so a concurrent admission's higher floor cannot be lost.
+    pub fn queued_with_clock_floor(&mut self, restore_clock_floor: bool) -> Result<Vec<Queued>, RuntimeError> {
+        let tx = if restore_clock_floor { self.store.transaction()? } else { self.store.read_transaction()? };
         let entries = tx.outbox_entries()?.iter().map(|entry| decoded(entry)).collect::<Result<Vec<Queued>, _>>()?;
-        tx.rollback()?;
+        if restore_clock_floor {
+            let before = meta_u64(&tx, ISSUED_FLOOR)?;
+            let floor = entries.iter().fold(before, |floor, entry| floor.max(entry.now.max(0) as u64));
+            if floor > before { tx.set_meta(ISSUED_FLOOR, &floor.to_string())?; }
+            tx.commit()?;
+        } else { tx.rollback()?; }
         Ok(entries)
     }
 

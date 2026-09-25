@@ -1,0 +1,57 @@
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (822.025094ms)
+  ✔ restored identified device journals while its first sync is held (794.212234ms)
+  ✔ synchronous refusal: restoring (364.715541ms)
+  ✔ synchronous refusal: no-device (44.492678ms)
+  ✔ synchronous refusal: no-claim (342.08113ms)
+  ✔ synchronous refusal: ephemeral-device (331.689297ms)
+  ✔ synchronous refusal: storage-full (408.019197ms)
+  ✔ synchronous refusal: before-first-sync (404.798511ms)
+  ✔ repairing storage permits the refused id to be retried (423.003613ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (532.031695ms)
+  ✔ session-locked journal refuses stale authority: logout (599.370641ms)
+  ✔ session-locked journal refuses stale authority: principal (539.548149ms)
+  ✔ session-locked journal refuses stale authority: epoch (535.889116ms)
+  ✖ session-locked journal refuses stale authority: recovery (916.391346ms)
+  ✔ the bare online browser transport refuses without custody (7.248153ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (88.626127ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (110.68845ms)
+✖ web startup: immediate admin navigation, synchronous refusals and acquisition hook (9033.724282ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 18
+ℹ suites 0
+ℹ pass 16
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9133.763253
+
+✖ failing tests:
+
+test at test/web-start.test.mjs:238:78
+✖ session-locked journal refuses stale authority: recovery (916.391346ms)
+  AssertionError [ERR_ASSERTION]: recovery must cancel the stale intent before adding it to the outbox
+  + actual - expected
+
+  + {
+  +   id: '01M3BX0DZBGSM4HGP742BX24ST',
+  +   reason: 'queued without a row: local data does not justify prediction',
+  +   state: 'pending'
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:283:16)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:238:70)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { state: 'pending', id: '01M3BX0DZBGSM4HGP742BX24ST', reason: 'queued without a row: local data does not justify prediction' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -117,7 +117,7 @@ test("FF1: committed reset invalidates watches and acquisition before a denied s
   assert.equal(watch.getSnapshot().data, "A");
   assert.equal(f.client.acquired, true);
   const remote = { kind: "query", name: "remote", runs: "server" };
-  assert.equal((await f.client.query(remote, {})).data, "A", "prime a remembered server answer too");
+  assert.equal((await f.client.query(remote, {})).data, "A", "prime a server answer too");
   notices.length = 0; acquisition.length = 0;
   let atFailure, adoptions = 0;
   f.onAdopt(() => adoptions++);
@@ -139,7 +139,7 @@ test("FF1: committed reset invalidates watches and acquisition before a denied s
   assert.deepEqual(atFailure.acquisition, [false]);
   assert.equal(f.client.acquired, false, "failed inspection cannot retain retired acquisition");
   f.offline(true);
-  assert.equal((await f.client.query(remote, {})).denied?.code, "E_OFFLINE", "the retired server cache is empty even when identity inspection failed");
+  assert.deepEqual(await f.client.query(remote, {}), { loading: true }, "unavailable partitions cannot recover the retired answer");
   f.offline(false);
   const retryAt = f.syncRequests.length;
   await f.client.sync();
@@ -377,7 +377,7 @@ for (const mode of ["server", "horizon", "watch"]) test(`finding 2: delayed ${mo
   f.offline(true); await f.client.sync();
   const offline = await f.client.query(op, args);
   if (mode === "horizon") assert.ok(offline.data.every(row => row.body === "B"));
-  else assert.equal(offline.data, "B", "remembered answers retain the current incarnation only");
+  else assert.deepEqual(offline, { loading: true }, "a query the device cannot run stays withheld offline");
 });
 
 test("finding 2: changes observation drops freshness while a mutation holds the network queue", async t => {
@@ -391,7 +391,7 @@ test("finding 2: changes observation drops freshness while a mutation holds the 
   const read = await f.client.query(thread, args);
   const during = f.stats().syncStarts;
   barrier.resolve(); await write;
-  assert.ok(read.data === "B" || read.fresh === false, "A cannot be fresh after /changes identified B; a current server answer is allowed");
+  assert.deepEqual(read, { loading: true }, "a reset cannot replace an unobserved prediction with either store’s server answer");
   assert.equal(before, during, "the assertion runs before queued sync can start");
 });
 

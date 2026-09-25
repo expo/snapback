@@ -35,11 +35,14 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
     ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
     ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
+    // Source slots alter negative coverage, prediction and application row projection.
+    ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
 ];
 
 impl Schema {

@@ -1,0 +1,14 @@
+(node:2415584) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (1989.059468ms)
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1753.295219ms)
+✔ web admission review: recovery and transport respect the session boundary (4555.0879ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4648.320522

@@ -1,7 +1,136 @@
 # Rules
 
-Rules decide who may read or write each row.
-They apply on the server and when a device reads or predicts local rows.
+Rules decide who may read or write each row; a child uses `read through` to share its parent's audience.
+The engine keeps that inheritance valid across writes, expiry, sync and device prediction.
+
+```quarry
+table orgs:
+  read <- exists members[.id, viewer]
+  insert <- allow
+  online only
+table members:
+  org: orgs
+  principal: principal
+  unique org, principal
+  read <- .principal = viewer
+  insert <- created orgs[.org] or exists members[.org, viewer]
+  online only
+table issues:
+  org: orgs
+  title: text <= 200
+  comments: count comments by issue
+  immutable org
+  read through .org
+  insert <- allow
+  online only
+table comments:
+  issue: issues
+  author: principal
+  body: text <= 2000
+  immutable issue
+  read through .issue
+  insert <- .author = viewer
+  delete <- .author = viewer
+  online only
+query discussion(issue: issues, c: cursor ?):
+  comments where .issue = issue first 20 by .id after c
+```
+
+A child names one required immutable reference, without a default, to an
+ordinary application table. `read through` is its whole read rule; put service
+grants on the parent. The parent's read-rule fields and authored expiry must
+be immutable. An insert also needs a live parent readable by the writer,
+before the child's insert rule runs. The engine captures those inputs; they
+travel with sync images but never appear in query rows or accept payload values.
+
+Each child expires no later than its parent, through any number of levels.
+A parent's delete needs read authority and waits until its children are deleted
+and expired children swept. Its id cannot be reused while physical children remain.
+A mutable child deadline can shorten its life but cannot extend it past the parent.
+
+`sync` infers exactly the parent's substituted audience after service grants
+are removed. A conjunction such as membership and an archived flag stays
+`online only`; `check` explains its server reads. A parent-pinned page resolves
+authorization once, while completeness still requires the child's own coverage.
+An unknown or mismatched parent takes the server fallback. Retained history
+stays marked `retained: true` beside the server's current page.
+On these syncing delivered-history children, `retained` is row metadata; name an
+application column `wasRetained` instead. Row shapes and spreads preserve the mark.
+
+A device predicts a plain child insert only with a live parent covered by its
+current partition, or one predicted in the same pending chain. An unheld,
+expired or retained-only parent queues the call without a row; child upserts
+and `insert … if absent` also queue. A parent delete requires full current child
+coverage and no live children. Expiry uses the later of the device's supplied
+clock and the last atomically applied server time.
+
+Clique receipts and reactions need only their message reference. The unread
+view uses the captured chat field and inherits its read rule, without an explicit
+`read` or copied deadline:
+
+```quarry
+table chats:
+  read <- exists members[.id, viewer]
+  insert <- allow
+  online only
+
+table members:
+  chat: chats
+  principal: principal
+  immutable chat, principal
+  unique chat, principal
+  read <- exists members[.chat, viewer]
+  insert <- created chats[.chat] or exists members[.chat, viewer]
+  online only
+
+table messages:
+  chat: chats
+  sender: principal
+  body: text <= 2000
+  until: time ?
+  immutable chat, until
+  read <- exists members[.chat, viewer]
+  insert <- .sender = viewer and exists members[.chat, viewer]
+  expire at .until
+  online only
+
+table receipts:
+  message: messages
+  principal: principal
+  state: int
+  immutable message, principal
+  unique message, principal
+  read through .message
+  insert <- created messages[.message] or .principal = viewer
+  update <- .principal = viewer
+  online only
+
+table reactions:
+  message: messages
+  principal: principal
+  emoji: text <= 20
+  immutable message, principal
+  unique message, principal
+  read through .message
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  online only
+
+view unread: count receipts where .state < 2 by .message.chat, .principal
+  online only
+
+query unreadFor(chat: chats):
+  unread[chat, viewer]
+query received(message: messages, c: cursor ?):
+  receipts where .message = message first 50 by .principal after c { id, principal, state }
+query reacted(message: messages, c: cursor ?):
+  reactions where .message = message first 50 by .principal after c { id, principal, emoji }
+```
+
+A view grouped directly by the parent reference is read by key, such as
+`totals[issue]`; scanning its groups is refused. An unknown parent or unknown
+child coverage leaves that device count incomplete, never an invented zero.
+For independent row rules, use the comparisons and keyed probes below.
 
 ```quarry
 table docs:
@@ -132,3 +261,9 @@ over private sources. Rules and their probes cannot depend on maintained
 fields. Adding or redefining the column recounts and mirrors live parents
 without consulting parent write rules; its event-free generation barrier
 reacquires devices and wakes server-run parent watches. See `guide maintains`.
+
+
+
+Read-through limits and repair steps: `why E_READ_THROUGH`,
+`why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
+`why E_READ_THROUGH_SCAN`.

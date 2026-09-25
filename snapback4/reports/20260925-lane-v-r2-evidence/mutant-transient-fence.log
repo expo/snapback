@@ -1,0 +1,61 @@
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (728.420466ms)
+  ✔ restored identified device journals while its first sync is held (839.173402ms)
+  ✔ synchronous refusal: restoring (412.014213ms)
+  ✔ synchronous refusal: no-device (48.247771ms)
+  ✔ synchronous refusal: no-claim (382.430954ms)
+  ✔ synchronous refusal: ephemeral-device (348.656841ms)
+  ✔ synchronous refusal: storage-full (400.489696ms)
+  ✔ synchronous refusal: before-first-sync (341.25176ms)
+  ✔ repairing storage permits the refused id to be retried (467.058694ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (576.231521ms)
+  ✔ session-locked journal refuses stale authority: logout (443.262769ms)
+  ✔ session-locked journal refuses stale authority: principal (405.213829ms)
+  ✔ session-locked journal refuses stale authority: epoch (444.01009ms)
+  ✔ session-locked journal refuses stale authority: recovery (710.217686ms)
+  ✖ a transient unlocked epoch observation refuses only that call (450.804846ms)
+  ✔ the bare online browser transport refuses without custody (4.456551ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (53.252133ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (93.509125ms)
+✖ web startup: immediate admin navigation, synchronous refusals and acquisition hook (8062.326007ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 19
+ℹ suites 0
+ℹ pass 17
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8148.005264
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-start.test.mjs:305:11
+✖ a transient unlocked epoch observation refuses only that call (450.804846ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + {
+  +   code: 'E_AUTH',
+  +   family: 'auth',
+  +   message: 'the stored session changed in another app',
+  +   rewrite: 'await app.auth.login(email, password)',
+  +   site: 'app.auth'
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:319:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:305:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_AUTH', family: 'auth', message: 'the stored session changed in another app', site: 'app.auth', rewrite: 'await app.auth.login(email, password)' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

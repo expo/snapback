@@ -306,11 +306,9 @@ already manage their own session lifetime:
 
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
 
-The local client routes queries using the compiled `runs` word. An observed
-server-run query refreshes when a commit touches its tables; offline, its
-observation is `loading`. A direct `query()` may return a remembered server
-answer with `fresh: false` and `since`, or `denied: E_OFFLINE` when none exists.
-It never uses an empty device page as a server answer.
+The local client runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
+Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
+Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time and follows the same fallback, composition and memory recovery procedure; if its replacement also expires, it stays loading and its watch reruns. A withheld retry keeps its next future deadline. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
@@ -341,16 +339,42 @@ holds (`link()` is `"offline"`, reads carry `fresh: false` and `since`)
 and catches up when the link returns. A device needs a kept backend to open
 offline. Merely installing that backend does not acquire its partition: until
 a snapshot and catch-up finish, partition-dependent reads fall back to the
-server or return `E_OFFLINE`, and writes queue without invented predictions.
+server or stay `loading`, and writes queue without invented predictions.
 `client.acquired` and React's `useAcquired()` become true after the snapshot
 and catch-up finish for the current store, including an empty partition.
-They stay true offline and across an offline reopen, and become false when
-store replacement or schema adoption invalidates acquisition. The online tier
-has no local partition and reports false. `onAcquired` observes changes.
-Await `client.sync()` when `client.link() === "online"` before exposing a
-screen that needs offline prediction immediately; skip that wait on an offline
-cold start. A sync interrupted by link loss or a refused partition can return
-without acquisition, so the flag remains the authority.
+`useAcquisition()` returns `{ acquired, rows, tables }`: `rows` counts snapshot
+row images durably applied during this runtime's current acquisition, and
+`tables` maps source table names to those counts. Counts reset when an
+acquisition restarts or its store is replaced; a warm reopen can be acquired
+with zero rows received in this runtime. These are progress counts, not estimates
+of the total or permission to read a partly acquired partition.
+
+Keep the UI usable while preparing offline access. Ordinary reads fall back to
+the server until acquisition completes; `held` reads still require the device.
+This component runs inside `<AppProvider app={app}>`:
+
+```tsx
+import { useAcquisition, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+
+function Inbox() {
+  const { acquired, rows, tables } = useAcquisition();
+  const read = useQuery(api.inbox, {});
+  return <>
+    {!acquired && <p role="status">Preparing offline: {rows} rows across {Object.keys(tables).length} tables</p>}
+    {"data" in read ? <ul>{read.data.map(room => <li key={room.conversationId}>{room.conversationId}</li>)}</ul>
+      : <p>{"denied" in read ? read.denied.message : "Loading conversations…"}</p>}
+  </>;
+}
+```
+
+Acquisition stays true offline and across an offline reopen, and becomes false
+when store replacement or schema adoption invalidates it. The online tier has
+no local partition and reports false with zero progress. `onAcquired` observes
+completion changes. Await `client.sync()` when `client.link() === "online"`
+only for an operation that needs offline prediction immediately. A sync
+interrupted by link loss or a refused partition can return without acquisition,
+so `acquired` remains the authority.
 Network fetch failures resolve `sync()` normally and set `link()` to `"offline"`;
 the public method resolves without a value. A transient network failure must
 not block opening. An opener's catch should close and rethrow only an unexpected
@@ -393,6 +417,17 @@ progress captured before fetching that schema, atomically with installation.
 The JavaScript client requires a device module with this capture protocol. Each native owner binds its interpreter and loaded
 module digest to the adopted store identity. Another owner's replacement
 requires adoption and module reload before local reads or prediction resume.
+
+New IndexedDB stores pack row images into 256 buckets per device row store.
+Each bucket holds at most 512 entries and 256 KiB of UTF-8 JSON. On overflow,
+additional rows use individual records; updating one row reads and rewrites at
+most its bounded bucket plus that row. A row larger than the bucket cap stays
+an individual record. There is no overflow list to scan or rewrite.
+Each apply still writes its row changes, metadata, outbox and transfer markers
+in one atomic transaction with `durability: "strict"`. No page or watermark
+publishes before that transaction completes. Existing per-row stores remain
+readable and writable. The earlier unbounded packed format is split once,
+atomically during full device load, before mutations run.
 
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
@@ -476,21 +511,138 @@ before `mutate` returns its promise. Same-origin navigation can therefore leave 
 commits: the next client admits those records before new writes, then sends
 through the ordinary outbox with the original ids. A closed tab's records are
 adopted by the next device that opens the store, under the same provider claim.
-Adoption runs with that device's first sync, so a receipt from a closed tab
-answers `client.write(id)` once that sync completes, not at the moment it opens.
+Recovery runs during client opening on the kept backend, before its first sync,
+including offline. Orphans that require a backend adoption wait for that sync.
 Recovery and new admissions take submission numbers from the same device counter;
 already-queued writes precede recovered orphan records. A matching orphan waiting
 for backend adoption installs the destination's authenticated backend first. An
 orphan missing its kept backend or store identity is skipped with its journal
 intact until a later matching open can establish ownership; a broken orphan does
 not prevent healthy stores from opening.
-Recovered records stay bound to their original backend store identity; a
-replacement retires them without sending them to the new backend.
+Every journaled write stays bound to its original backend store identity until
+it leaves the outbox, including a fresh click captured during startup validation.
+A replacement retires these writes without sending them to the new backend.
+Own-tab recovery, fresh admission, orphan adoption and both send paths share
+the same store-binding check. Orphan adoption leaves a bound write in its source
+store while the destination identity is unknown, and retires a mismatch before
+enqueueing it. Matching adoption keeps the original mutation id.
+Ordinary and keepalive mutation requests carry that original `store_id`; the
+server refuses a replacement before execution or deduplication with terminal `E_STORE_REPLACED`.
+An overlapping ordinary request owns its settlement: a keepalive refusal cannot
+replace its known success or refusal. A known terminal outcome whose receipt save
+failed is persisted before sync, another POST or replacement handling touches
+that id; retry settles the original receipt locally. Otherwise the refusal receipt and outbox retirement commit
+together, after rechecking terminal history and custody; a failed save retains the outbox.
+An outbox acknowledgement resolves an earlier `E_STORE_REPLACED` (whose execution
+outcome was unknown) as `sent`. Its matching sequence repairs that history row;
+an authored refusal such as `NOT_ADMIN` is not overwritten.
+Sync acknowledges only stored `sent` outcomes: an idempotency record for a
+refusal does not prove success. Known authored refusals also take precedence
+over acknowledgement evidence retained from an older server.
+A local admission-storage error does not establish the server outcome; its
+captured intent remains recoverable.
+Under `createApp`, records also capture the session epoch and principal.
+The browser's authoritative session lives in IndexedDB. Login, logout and
+principal replacement mirror their value to localStorage, then await a strict
+IndexedDB transaction commit before releasing the session lock. A failed mirror
+write aborts that transaction; an aborted commit restores the previous mirror
+where storage permits. Async session reads, locked device admission and recovery
+use IndexedDB, never the mirror as authority. A logout or changed epoch/principal cancels
+an unadmitted record; a live caller receives `E_AUTH`. After releasing the
+admission lock, the app checks its scope and withdraws stale auth, viewer,
+acquisition and existing observations even when the change poll is held. A subsequent sign-in
+cannot revive that earlier click. Synchronous journaling still precedes waiting
+for the lock, so a navigation while the session is unchanged keeps its intent.
+Chromium can expose a stale localStorage mirror even after granting a Web Lock:
+such a click can be captured, but its locked IndexedDB check refuses it before
+outbox admission or transport. An already-visible logout refuses synchronously.
+App ownership is attached before recovery, including with wrapped or asynchronous
+session stores and device adapters that forward `{ ...core }` (including symbol
+capabilities). A browser adapter dropping those capabilities fails opening with
+`E_ADMISSION`. An unadmitted legacy record with no IndexedDB authority stamp, or an app record
+whose authority cannot be read, is cancelled because its originating login cannot
+be established; already committed outbox entries keep their custody.
+Page-hide transport starts after the admission lock releases. Startup installs
+it after validation permits sending, before waiting for ordinary replay or the
+initial sync, including offline. Empty outboxes undergo the same validation;
+new clicks journal during opening but neither transport sends before validation.
+A refused probe, backend mismatch, restore refusal or
+required backend adoption prevents early exit sending. An unreachable probe
+leaves the kept store's offline custody intact. If the page became hidden during
+the probe, registration makes one send attempt. A successful sync can establish
+the backend needed to validate and install the sender afterward, including on a
+later reconnect after an unsuccessful startup.
+
+On upgrading from a browser session stored only in localStorage, sign in again:
+the mirror alone cannot establish a coherent authority record. Before opening
+a scope, the session lock protects migration of the greatest legacy mirror or
+IndexedDB epoch into the authoritative epoch record and its mirror. This
+preserves the old epoch fence while allowing the new sign-in to mutate. Migration
+writes only when the legacy mirror advances the authoritative epoch. Reopening
+an existing session does not require a separate epoch key or free localStorage
+capacity; mirror repair is best-effort. A new mutation still refuses synchronously
+if its journal cannot be written. Reads
+repair speculative or stale session mirrors from IndexedDB, deleting the mirror
+when authority is absent; they never import mirror credentials. Pre-upgrade
+unadmitted journals are cancelled; committed outbox custody is preserved. The
+default memory session store and native platform stores retain their behavior.
+For a custom-prefixed localStorage adapter, pass a stable, unique namespace as
+the second argument; omitting it fails closed with `E_CLIENT` instead of sharing
+another adapter's account. Wrapping the returned store with `{ ...store }`
+preserves its authority and synchronous reader. For example:
+
+```ts
+import { localStorageSessionStore } from "snapback4/auth";
+
+const prefix = "work-account:";
+const sessions = localStorageSessionStore({
+  getItem: key => localStorage.getItem(prefix + key),
+  setItem: (key, value) => localStorage.setItem(prefix + key, value),
+  removeItem: key => localStorage.removeItem(prefix + key),
+}, "work-account");
+```
+
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
-device store; a serialized record over 64 KiB is not journaled. Unavailable,
-throwing or full localStorage, an unidentified backend store,
-exceeded journal limits, or browser storage clearing leave unawaited navigation
-best-effort: that write can still be lost before IndexedDB commits. A destination must open
+device store, and at most 64 KiB per serialized record. A browser mutation that
+cannot synchronously acquire custody refuses with `E_ADMISSION`, a site and a
+rewrite. This includes unavailable, throwing or full localStorage, exceeded
+journal limits, an unidentified backend store, an unrestored session, and a
+`createApp` without a durable device or with an asynchronous-only session store.
+The test-only `memoryPersistence()` provider also refuses browser mutations:
+transferring custody to memory cannot preserve a write across page restarts.
+No new intent is admitted in those cases. The returned promise is already
+fulfilled with a failed write and exposes `state: "failed"`, `id` and `why`
+in the calling stack. Awaiting it still uses the ordinary Write API:
+
+```ts
+import { createApp } from "snapback4/app";
+import { webDevice } from "snapback4/web";
+import { localStorageSessionStore } from "snapback4/auth";
+import { api } from "../snapback/generated/api";
+
+const app = createApp({ url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore() });
+await app.ready;
+const write = app.mutate(api.send, { conversationId: "c1", body: "hello" });
+if (write.state === "failed") console.error(write.why?.message);
+else {
+  // The web journal owns the intent now; same-origin navigation is safe.
+  const outcome = await write;
+  if (outcome.state === "failed") console.error(outcome.why.message);
+}
+```
+
+`createApp` checks the builtin session store's epoch synchronously before
+entering web admission; its network paths retain their locked epoch checks.
+An observed epoch mismatch refuses the call immediately, then checks under the
+session lock. A confirmed mismatch also withdraws the old scope's observations;
+a transient observation during a session commit does not retire that scope.
+Restoration does not queue an intent for whichever account might sign in later.
+Before the first store identification the caller retries after readiness, using
+the same id. A bare `createClient()` in a browser has no synchronous journal
+and refuses mutations with `E_ADMISSION`; use the app with a web device for
+browser writes. Node and native online clients retain their existing behavior.
+Clearing browser storage after admission can still erase its bytes.
+A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
 best-effort and sends only admitted writes.
 For programmatic navigation, `await client.mutate(...)` before navigating
@@ -600,27 +752,28 @@ If the server cannot answer the query, declare `query … held:` to answer
 from the device; the server refuses it with E_QUERY_HELD (see the search card).
 A complete empty page has `cut: null` and `complete: true`.
 
-A typing indicator or presence row with a short deadline needs a local
-filter. This is an application table, separate from the server's `connected[p]`.
-That server-decided connection signal has no `expiresAt`.
-A row already returned stays in that answer until the next answer;
-the server will not return it again after expiry, but does not push a removal
-at that instant. Select `expiresAt` with the row (`guide reads` has a complete
-typing table and query). Pass the ready typing rows to `showExpiringRows` and
-render their principals as typing. It renders now and schedules a render at
-each deadline, without waiting for a server answer.
-The local client reschedules its watch at `Read.nextExpiry`; keep the render
-filter so the row hides at its deadline rather than at the refetch.
-Call the returned cleanup before replacing the answer or unmounting.
-This example is for short-lived rows; JavaScript timer scheduling applies.
+Held device observations republish at `nextExpiry`, including offline, so render their
+ready rows directly. The browser witness measured publication within a frame; suspended
+pages still depend on host timer scheduling. Only server-answered reads need a render-deadline
+filter while the next network answer is pending. Return `expiresAt` with each row
+(`guide reads` has the typing table and query). This is an application table, separate
+from the server's `connected[p]`, which has no `expiresAt`.
+
+`client.now()` returns estimated server Unix milliseconds, monotonically. In React,
+`useNow(deadline)` returns that time and re-renders at the deadline and when the estimate
+changes. Pass the next future row deadline; `null` means no timer. Cleanup is automatic:
 
 ```ts
-function showExpiringRows<T extends { expiresAt: number | null }>(rows: T[], render: (rows: T[]) => void) {
-  const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));
-  paint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);
-  return () => timers.forEach(clearTimeout);
+import { useClient, useNow } from "snapback4/react";
+function useExpiringRows<T extends { expiresAt: number | null }>(rows: T[]) {
+  const client = useClient();
+  const deadline = Math.min(...rows.flatMap(row => row.expiresAt !== null && row.expiresAt > client.now() ? [row.expiresAt] : []));
+  const now = useNow(Number.isFinite(deadline) ? deadline : null);
+  return rows.filter(row => row.expiresAt === null || row.expiresAt > now);
 }
 ```
+
+Render the rows returned by `useExpiringRows(rows)`. A null expiry never expires.
 
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,
@@ -671,7 +824,7 @@ observation owner cancels its retries.
 A local observation may keep its previous answer with `fresh: false` and `since`
 only during an unavailable device read's server fallback, ending at fetch
 settlement or any local commit, reset, adoption, generation, account change or close.
-An unavailable device read asks the server while online even with pending writes.
+An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix
@@ -687,8 +840,10 @@ confirmed carries `pending: true`. A write is `pending` while the link is
 down, while the server has not answered within four seconds, or when the
 client closes before its response arrives. It is `sent` with the server's
 sequence, or `failed` with the refusal and its predicted rows withdrawn.
-`createApp` and local devices keep uncertain intent for restart; the raw online
-client returns `pending` too, but its caller must keep the id for retry. `onWrite` emits that later terminal result once for
+`createApp` and local devices keep admitted uncertain intent for restart; the raw
+online client on nonbrowser hosts returns `pending` too, but its caller must keep
+the id for retry. Public browser online mutations refuse before dispatch as
+described above. `onWrite` emits that later terminal result once for
 the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `auth`, `rule`
 (your `require` codes, with `rule` naming the code), `constraint`,
 `bound`, `op`, `asset`, `prediction`, `generation` or `store` from the
@@ -1357,8 +1512,13 @@ step.
   `h`, `d` or `w`, optionally prefixed `+`; the startup offset alone may be negative. Mutations at `POST
   /m/<op>` stamp `now` from this dev clock. The dev clock keeps ticking monotonically and cannot advance
   backwards. Its offset resets on process restart; supply it again to continue a test. Rows stamped under an
-  offset keep their times after restart; use a fresh store per offset test. Devices receive the ordinary sync
-  deletion and row timestamps, and keep their own local clocks. `serve` refuses every clock control with
+  offset keep their times after restart; use a fresh store per offset test.
+  Devices keep the server's time for predictions, reads and expiry, including offline starts.
+  `clock advance` and `--clock-offset` reach connected devices at their next response.
+  Estimated server time is unfloored and schedules server-answer refetches; issued device
+  time (`client.now()`) is monotonic and drives device execution, predictions, expiry and rendering.
+  Freshness labels (`since` / `syncedAt`) stay on wall time for "as of three minutes ago".
+  `serve` refuses every clock control with
   `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`. Scripts may call the same
   loopback-only dev endpoint, `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the
   recipe.
@@ -1469,7 +1629,56 @@ kind }], tables: [{ name, sync }] }`); `GET /api.ts` the generated TypeScript; `
 backend; `GET /native.wasm` the native module when the backend has one. Authenticated `GET /probe` answers
 HTTP 200 `{ ok: true, store_id, seq }`; clients require both the status and body before changing an offline
 link back to online. The local client checks the identity and head before restoring freshness or resuming a
-long poll. `POST /q/<op>` with `{ "args": {..} }` answers `{ data, complete, cut, seq, next, nextExpiry,
+long poll.
+
+Responses to `/sync`, buffered `/changes`, `/q/<op>`, `/m/<op>` and session endpoints carry
+`X-Snapback-Time` (server Unix milliseconds) and `X-Snapback-Clock` (opaque clock epoch
+and revision). Both are exposed to cross-origin clients. Refusals carry them too.
+These headers are stamped after execution, any poll wait, and JSON serialization.
+Streaming `/changes` instead stamps `serverNow` and `clockRevision` in its final
+JSON after the hold. Its early heartbeat headers contain no clock sample, including
+when a transport buffers the entire response.
+
+For round trips of at most 1,000 ms, the client estimates
+`serverNow - (sent + received) / 2`. Longer responses use the conservative receipt
+date `serverNow - received` for both estimated server time and issued device time.
+These samples are provisional, as are streaming final-body receipt stamps. Any
+short measured sample outranks them. Within each class the smallest RTT wins,
+with newest ties, among the latest 32 samples received within 60 seconds.
+A server restart or deliberate clock advance begins a new window. Older revisions cannot
+undo an advance. On a new epoch, requests already issued cannot switch the clock to another
+epoch; a newly issued request can. Receipt dating may lag true server time by
+transport latency, but never adds half a hold to the issued floor. The offset
+starts at zero and persists beside store identity. Issued time remains monotonic
+within a live clock. Each admission atomically commits its issued floor with its
+outbox entry; that separate `server-clock-floor` record outlives settlement.
+Orphan transfers and recovery writes raise the same floor in their outbox
+transaction, including recovery after clock attachment.
+Every outbox commit raises the live issued clock and reschedules its deadlines
+before later admissions, including journal recovery deferred until backend adoption.
+Restore commits available orphan outboxes and their floor before replaying its own
+journal; if that save fails, restore fails and leaves the journal unadmitted.
+Admissions already waiting behind recovery use at least
+the recovered floor at device execution; synchronous journal capture still happens
+before the first await.
+Startup restores a floor only from this record and queued `entry.now` values.
+Before replay, attachment transactionally backfills that record with the maximum
+of itself and every queued legacy admission, so their retirement cannot erase it.
+An old `last` in offset metadata is ignored: ordinary `now()` calls do not pin
+time after reopening. Synchronous web journal capture remains unchanged.
+
+Estimated server time is **unfloored** and schedules refetches of server answers, including
+local fallbacks. Issued device time (`client.now()`) rounds to integer milliseconds and is
+**monotonic**: local execution, predictions, expiry, asset homes and rendering use it.
+Mixed reads retain a deadline from each clock and wake at the earlier delay. `since` and
+`syncedAt` are **wall time**, independent of either server clock, for freshness labels.
+Wall-time freshness is versioned (`syncedAt:wall:1`); ambiguous legacy `syncedAt` is
+omitted until resync. Publication clamps future freshness stamps to `Date.now()` after
+wall-clock rollback.
+A confirmed row always carries the server's settlement time; the server never adopts a
+submitted client clock.
+
+`POST /q/<op>` with `{ "args": {..} }` answers `{ data, complete, cut, seq, next, nextExpiry,
 tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry the visible read encountered, or
 null. `POST /m/<op>` with `{ "id", "args", "newIds" }` answers `{ state: "sent", id, seq, result }` on fresh
 success, `{ state: "sent", id, seq, replayed: true }` on replay, or `{ state: "failed", id, why, current? }`

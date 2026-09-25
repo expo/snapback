@@ -34,13 +34,13 @@ table removals:
   online only
 
 mutation removeMember(conversationId: conversations, principal: principal):
-  require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN
+  require exists memberships[conversationId = conversationId, principal = viewer, role = 'admin'] else NOT_ADMIN
   delete memberships[conversationId, principal]
-  audit = removals[conversationId] ! else AUDIT_MISSING
+  audit = removals[conversationId = conversationId] ! else AUDIT_MISSING
   update removals[audit] { total: audit.total + 1 }
 
 query removed(conversationId: conversations):
-  return removals[conversationId] { total }
+  return removals[conversationId = conversationId] { total }
 
 query roster(conversationId: conversations):
   return memberships[conversationId] first 50 by byConversationPrincipal

@@ -131,6 +131,9 @@ impl Binder<'_> {
                     }
                 }
                 let (e, t) = self.expr(base, out)?;
+                if name == "length" && matches!(t.required(), Ty::Text(_) | Ty::List(..) | Ty::Page(..) | Ty::Collection(..)) {
+                    return Err(unsupported(site, ".length", format!("count({})", print::expression(base))));
+                }
                 let (value, ty) = self.member(e, t, name, site)?;
                 Ok((value, self.field_refinement(expr).unwrap_or(ty)))
             }

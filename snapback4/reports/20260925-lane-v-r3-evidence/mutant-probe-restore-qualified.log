@@ -1,0 +1,64 @@
+(node:680394) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1197.731031ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (1062.709488ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1840.754775ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2410.892961ms)
+  ✔ a hide during the startup probe waits for its accepted decision (1373.677311ms)
+  ✔ a hide during the startup probe waits for its refused decision (1552.608827ms)
+  ✖ a hide during the startup probe waits for its restore decision (2396.907651ms)
+  ✖ a hide during the startup probe waits for its replacement decision (6684.03823ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (1525.716532ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (1914.416347ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (1448.28462ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (1602.698399ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (1499.716916ms)
+  ✔ same-epoch logout tombstone refuses live admission (744.818339ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (787.461371ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (603.537954ms)
+✖ web admission review: recovery and transport respect the session boundary (32161.596603ms)
+ℹ {"mode":"held-sync","id":"01M3C618SEWWTMT9FKE70SYCZ1","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C619RFPX8H6QD6TR7QJ1QZ","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C61DZ5HKB9C76SF2B8NTB0","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C61FMK25ZRCMXPEDWA07EB","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 14
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32265.286849
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:250:81
+✖ a hide during the startup probe waits for its restore decision (2396.907651ms)
+  AssertionError [ERR_ASSERTION]: {"before":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"00ade0569edac2d9c48e775f186daef8e7e43d84661cee11dacbb1e3597c6bfb","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"2","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"568698dcc0df3e61b4ac2dd41d107abe","device:watermark":"11"},"backend_required":false,"generation":1,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"restore_images_at":0,"restore_watermark":11,"send_revision":2,"snapshot_catchup":false,"store_id":"568698dcc0df3e61b4ac2dd41d107abe","transfer_store_id":"568698dcc0df3e61b4ac2dd41d107abe","transfer_watermark":11,"watermark":11},"after":{"state":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"00ade0569edac2d9c48e775f186daef8e7e43d84661cee11dacbb1e3597c6bfb","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"3","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"568698dcc0df3e61b4ac2dd41d107abe","device:watermark":"11"},"backend_required":false,"generation":1,"pending_bound":1,"pending_complete":true,"pending_ids":["01M3C61HQDWHX0MY4BSDZ6TWJV"],"pending_through":1,"restore_images_at":0,"restore_watermark":11,"send_revision":3,"snapshot_catchup":false,"store_id":"568698dcc0df3e61b4ac2dd41d107abe","transfer_store_id":"568698dcc0df3e61b4ac2dd41d107abe","transfer_watermark":11,"watermark":11},"auth":{"state":"signed-in","viewer":"user:01M3C61GE36Y0M1BTDR1FXVNDW"},"sent":[]}}
+  + actual - expected
+
+  + undefined
+  - 'E_STORE_RESTORE'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:313:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:250:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_STORE_RESTORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:250:81
+✖ a hide during the startup probe waits for its replacement decision (6684.03823ms)
+  page.evaluate: ReferenceError: releaseProbe is not defined
+      at eval (eval at evaluate (:291:30), <anonymous>:1:15)
+      at UtilityScript.evaluate (<anonymous>:293:16)
+      at UtilityScript.<anonymous> (<anonymous>:1:44)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:339:18)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:250:73)

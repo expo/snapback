@@ -1,0 +1,159 @@
+{
+  "fixture": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+  "counts": {
+    "profiles": 1008,
+    "posts": 50228,
+    "follows": 5921,
+    "reposts": 1004,
+    "likes": 5008
+  },
+  "browser": "151.0.7922.34",
+  "results": [
+    {
+      "pages": [
+        {
+          "requested": 4000,
+          "rows": 3999,
+          "snapshot": true,
+          "responseMs": 80.40000009536743,
+          "bytes": 607214
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 80.30000019073486,
+          "bytes": 621288
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 89.60000038146973,
+          "bytes": 664472
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 166.5,
+          "bytes": 1143543
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 225.19999980926514,
+          "bytes": 1290919
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 205.69999980926514,
+          "bytes": 1291305
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 203.09999990463257,
+          "bytes": 1291423
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 196,
+          "bytes": 1291164
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 198.09999990463257,
+          "bytes": 1291297
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 190.60000038146973,
+          "bytes": 1291300
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 282.2000002861023,
+          "bytes": 1291404
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 196.90000009536743,
+          "bytes": 1291241
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 200.19999980926514,
+          "bytes": 1291163
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 207.59999990463257,
+          "bytes": 1291290
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 342.5,
+          "bytes": 1291379
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 288.69999980926514,
+          "bytes": 1242392
+        },
+        {
+          "requested": 4000,
+          "rows": 1181,
+          "snapshot": true,
+          "responseMs": 33.69999980926514,
+          "bytes": 213694
+        },
+        {
+          "requested": 4000,
+          "rows": 0,
+          "snapshot": false,
+          "responseMs": 35.39999961853027,
+          "bytes": 164
+        }
+      ],
+      "applyMs": 3239.6000003814697,
+      "wasmMs": 3742.300000190735,
+      "idbMs": 85111.30000019073,
+      "idbChanges": 195725,
+      "idbSaves": 40,
+      "tables": {
+        "followerCounts": 1006,
+        "followingCounts": 1005,
+        "follows": 5921,
+        "likes": 5008,
+        "posts": 50228,
+        "profiles": 1008,
+        "reposts": 1004
+      },
+      "wallMs": 93580.90000009537,
+      "acquired": true
+    }
+  ]
+}

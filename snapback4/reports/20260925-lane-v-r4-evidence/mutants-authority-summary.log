@@ -1,0 +1,4 @@
+mirror: exit 1
+commit: exit 1
+source: exit 1
+ownership: exit 1

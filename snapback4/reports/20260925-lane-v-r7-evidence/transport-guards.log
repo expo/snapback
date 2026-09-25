@@ -1,0 +1,57 @@
+(node:3576360) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1001.034135ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (785.416958ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1833.707358ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2096.617986ms)
+  ✔ a hide during the startup probe waits for its accepted decision (849.173373ms)
+  ✔ a hide during the startup probe waits for its refused decision (755.950565ms)
+  ✔ a hide during the startup probe waits for its restore decision (903.996298ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1221.906979ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1541.263115ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (712.326302ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (769.616315ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (751.562508ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (787.000651ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (799.589298ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (902.72986ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (780.944544ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (807.253214ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (819.372958ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (803.090475ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (817.983456ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (760.567934ms)
+  ✔ a successful reconnect enables exit after startup 503s (761.299761ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (5336.92741ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4877.785618ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4761.588896ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (7391.289627ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (6988.194954ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (8169.182479ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (6724.425425ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6713.82221ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6785.99696ms)
+  ✔ same-epoch logout tombstone refuses live admission (894.096628ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (886.286763ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (730.659417ms)
+✔ web admission review: recovery and transport respect the session boundary (82825.608538ms)
+ℹ {"mode":"held-sync","id":"01M3CHFT54CWHQWXEKWSRDGC18","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CHFTZ0VG8NNJXQWZJNZ0SF","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CHFYS5D1GQHNXGWG4TMS17","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CHFZJ16KNXW3Q10HA4BT4R","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CHG0C2W66FP40N93D6ZBYF","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CHG17KCWSAYADTG1F1NN7Q","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CHG2JWNPPF3ZZ1CR29SCBD","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3CHH4SJ7K28HG51XRHQTMFM","originalStore":"563ce5744cb1f110ece7d9a26d34b83c","refusal":"E_STORE_REPLACED","auditA":10,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3CHHBG86R7F5B6MYF3Q6EF0","originalStore":"563ce5744cb1f110ece7d9a26d34b83c","refusal":"E_STORE_REPLACED","auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CHHKR3N3KH9NJG28Y7PZ44","hidden":false,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CHHT8ZGAEJD3F5EKWD3QT6","hidden":true,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82930.532152

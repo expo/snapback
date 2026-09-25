@@ -1,0 +1,58 @@
+{
+  "acquisition-bounded.json": {
+    "sha256": "f27e806c4166e61a656f010b7cb1c69f40a42a75054a9fc1a915be993a2f4e0e",
+    "bytes": 11452
+  },
+  "acquisition-control.json": {
+    "sha256": "93709d3a65e9653ab310727ed0b398b939c0742f361780b60e22bb03c90450d9",
+    "bytes": 4000
+  },
+  "browser-final.log": {
+    "sha256": "c332624b46f1f6e819932fae53c70b14030e8b136d65d148803331e1849fdbea",
+    "bytes": 2935
+  },
+  "mutant-authority.log": {
+    "sha256": "bc9a09a8ae10b77170b71d887aee7e81efad893f787b120deca4c155bac2cb4d",
+    "bytes": 9007
+  },
+  "mutant-buckets.log": {
+    "sha256": "7984d39f7a255d3646ee3527b36507159a4bb17debd6af76f182c617d01e85e8",
+    "bytes": 4150
+  },
+  "mutant-fence.log": {
+    "sha256": "6ba432beb6d0defe4296b394e6d4e8d6f6bf7d14a97235e8d0f36fe1d1d77a8e",
+    "bytes": 3237
+  },
+  "mutant-progress.log": {
+    "sha256": "ec2928cc8a562779be1481b95029b0425d23f90b96679546390a67f5d892195c",
+    "bytes": 3067
+  },
+  "mutant-recovery.log": {
+    "sha256": "17822e8dce5c9ba9315ecf754aa9b2fe862055caa2014ce6cfeee83ef2527460",
+    "bytes": 3006
+  },
+  "mutant-reset.log": {
+    "sha256": "027e4caaba1a62b53c679b1f7bb9e15d60fd05f62050b67c4f15740478dea6fb",
+    "bytes": 2156
+  },
+  "mutant-tables.log": {
+    "sha256": "ab8949359deb951246c654d0301abaa0e8881ea1ce19dff7aad884e8aaca4071",
+    "bytes": 2969
+  },
+  "ref-check.log": {
+    "sha256": "503b2f0032b46e02240563cb4540e66200aac9c040f3292067922b93253781b3",
+    "bytes": 80
+  },
+  "suite-attempt-1.log": {
+    "sha256": "915f9237ab91c230fffa9a94441ac2886f87bc5e8e2fdb2b545968c5fd9be1ef",
+    "bytes": 402265
+  },
+  "suite-final.log": {
+    "sha256": "5ede8a158767306ef6f668ab8dbc5f495933dc41544a8b36e96ebe995c2167ba",
+    "bytes": 401401
+  },
+  "transport-isolated.log": {
+    "sha256": "bf961d30dea5001f2c9af16742f1e0a1f0e77b75246d7d3dd23a42d0d78fc5e5",
+    "bytes": 206
+  }
+}

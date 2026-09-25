@@ -1,0 +1,67 @@
+▶ web review: acquisition lifetimes and bounded persistence
+  ✖ same-store reacquisition reconciles progress with an already-true acquired flag (324.989194ms)
+  ✔ a compiled special table name produces numeric own-property counts (22.906017ms)
+  ✖ sign-out during a partial acquisition clears the raw client counts (23.969741ms)
+  ✔ one update stays bounded for 1,000 and 16,000 colliding rows (3075.599438ms)
+  ✔ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (49.872839ms)
+  ✔ an old unbounded bucket is split at load before later bounded updates (244.252444ms)
+✖ web review: acquisition lifetimes and bounded persistence (4591.014371ms)
+ℹ {"count":1000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":1000,"changed":1024,"last":1024}
+ℹ {"count":16000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":16000,"changed":1024,"last":1024}
+ℹ tests 7
+ℹ suites 0
+ℹ pass 4
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4682.41963
+
+✖ failing tests:
+
+test at test/web-review.test.mjs:42:11
+✖ same-store reacquisition reconciles progress with an already-true acquired flag (324.989194ms)
+  AssertionError [ERR_ASSERTION]: {"acquired":true,"progress":{"acquired":false,"rows":1,"tables":{"constructor":1}}}
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:56:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:42:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/web-review.test.mjs:68:11
+✖ sign-out during a partial acquisition clears the raw client counts (23.969741ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+      acquired: false,
+  +   rows: 2,
+  +   tables: {
+  +     constructor: 2
+  +   }
+  -   rows: 0,
+  -   tables: {}
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:99:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:68:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { acquired: false, rows: 2, tables: { constructor: 2 } },
+    expected: { acquired: false, rows: 0, tables: {} },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

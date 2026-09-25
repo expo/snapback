@@ -92,7 +92,11 @@ fn dev_removes_populated_view_and_preserves_sources_and_other_views() {
         let n: i64 = e.store().conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE substr(c.name, 1, length(?1) + 1) = ?1 || '.'", [&table], |r| r.get(0)).unwrap();
         assert_eq!(n, 0);
     }
-    for (table, rows) in kept { assert_eq!(e.store().rows(&table).unwrap(), rows, "{table}"); }
+    for (table, mut rows) in kept {
+        // Retiring one declaration projects out only its engine columns.
+        for row in &mut rows { if let Value::Row(fields) | Value::Map(fields) = row { fields.retain(|name,_| !name.starts_with("$timeline:following:")); } }
+        assert_eq!(e.store().rows(&table).unwrap(), rows, "{table}");
+    }
     assert_eq!(e.timeline_work_counts().unwrap(), [("other".into(), 0, 0)]);
     assert!(e.run_timeline_chunk(6000).unwrap().is_none());
 }
@@ -173,7 +177,7 @@ fn redefinition_refuses_atomically_and_delivery_keeps_running() {
     // copy, admission record or dependent count can be deleted/reconstructed.
     let alternate = source().replace("posts", "entries").replace("follows", "links")
         .replace("activity", "alternateActivity").replace("following", "alternateFollowing")
-        .replace("mutation ", "mutation alternate_").replace("query home", "query alternateHome");
+        .replace("mutation ", "mutation alternate_").replace("query ", "query alternate_");
     for revised in [s.replace(".parentId = null and not .removed", "not .removed"),
         format!("{}\n{alternate}", s.replace("view following: activity where .actor = viewer or exists follows[viewer, .actor]",
             "view following: alternateActivity where .actor = viewer or exists links[viewer, .actor]"))] {

@@ -18,10 +18,10 @@ impl Analysis<'_> {
         if kind != "delete" {
             for c in &table.constraints {
                 match c {
-                    Constraint::Unique { index } if table.expire.is_some() => self.expiry_write(name, index),
+                    Constraint::Unique { index } if table.is_expiring() => self.expiry_write(name, index),
                     Constraint::Unique { index } => self.lookup_growth(name, index, &site),
                     Constraint::FinalExistsOnInsert { table, index, .. } => self.lookup_growth(table, index, &site),
-                    Constraint::Cap { .. } if table.expire.is_some() => self.per_write(format!(
+                    Constraint::Cap { .. } if table.is_expiring() => self.per_write(format!(
                         "{name}: cap uses a maintained physical count; unswept expired rows count until removed; no population scan")),
                     _ => {}
                 }

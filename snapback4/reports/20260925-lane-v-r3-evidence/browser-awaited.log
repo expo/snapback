@@ -1,0 +1,58 @@
+(node:845582) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (945.285094ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (749.933992ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1699.083207ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2229.091242ms)
+  ✔ a hide during the startup probe waits for its accepted decision (769.834163ms)
+  ✔ a hide during the startup probe waits for its refused decision (814.993975ms)
+  ✔ a hide during the startup probe waits for its restore decision (914.530921ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1327.79661ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (820.892535ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (931.441863ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (757.415025ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (798.162776ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (830.500664ms)
+  ✔ same-epoch logout tombstone refuses live admission (479.99352ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (484.592472ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (440.117997ms)
+✔ web admission review: recovery and transport respect the session boundary (16910.5542ms)
+ℹ {"mode":"held-sync","id":"01M3C6C2TAPVFHXDK6W2SGNKD3","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C6C3HH69B9Q15JPD8M3PNH","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C6C7D8C052BMGGVHWY3MGW","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C6C84QMNY3YXSBW20XZJ54","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C6C91PCC158ETN037ZDA0C","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C6C9VPFA7P1YQRE29FV5TS","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (856.301171ms)
+  ✔ restored identified device journals while its first sync is held (781.982356ms)
+  ✔ synchronous refusal: restoring (392.20719ms)
+  ✔ synchronous refusal: no-device (35.52278ms)
+  ✔ synchronous refusal: no-claim (326.273279ms)
+  ✔ synchronous refusal: ephemeral-device (288.391703ms)
+  ✔ synchronous refusal: storage-full (438.245478ms)
+  ✔ synchronous refusal: before-first-sync (349.485212ms)
+  ✔ repairing storage permits the refused id to be retried (395.989558ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (566.484525ms)
+  ✔ session-locked journal refuses stale authority: logout (569.636787ms)
+  ✔ session-locked journal refuses stale authority: principal (575.260476ms)
+  ✔ session-locked journal refuses stale authority: epoch (510.8989ms)
+  ✔ session-locked journal refuses stale authority: recovery (964.261833ms)
+  ✔ a transient unlocked epoch observation refuses only that call (522.585693ms)
+  ✔ the bare online browser transport refuses without custody (2.377142ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (79.215364ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (106.547361ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (9761.934557ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16992.661688

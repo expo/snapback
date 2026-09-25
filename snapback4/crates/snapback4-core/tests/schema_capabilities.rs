@@ -22,13 +22,13 @@ fn capabilities_are_derived_independently_and_together() {
         assert_eq!(schema.required_capabilities(), ["maintained-column".into()].into());
     }
     assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into()].into());
-    assert_eq!(timeline.required_capabilities(), ["timeline-v2".into()].into());
+    assert_eq!(timeline.required_capabilities(), ["timeline-event-slots".into(), "timeline-v2".into()].into());
     let mut both = timeline.clone();
     both.tables.get_mut("posts").unwrap().recorded = recorded.tables["likes"].recorded.clone();
-    assert_eq!(both.required_capabilities(), ["recorded-attribution".into(), "timeline-v2".into()].into());
+    assert_eq!(both.required_capabilities(), ["recorded-attribution".into(), "timeline-event-slots".into(), "timeline-v2".into()].into());
     let mut all = both.clone();
     all.tables.get_mut("posts").unwrap().maintained = columns.tables["posts"].maintained.clone();
-    assert_eq!(all.required_capabilities(), ["maintained-column".into(), "recorded-attribution".into(), "timeline-v2".into()].into());
+    assert_eq!(all.required_capabilities(), ["maintained-column".into(), "recorded-attribution".into(), "timeline-event-slots".into(), "timeline-v2".into()].into());
     for schema in [recorded, timeline, both, columns, projection, private_only, all] {
         let bytes = serde_json::to_string(&schema).unwrap();
         assert_eq!(bytes.matches("Capabilities").count(), 1);
@@ -92,4 +92,24 @@ fn unknown_missing_and_duplicate_capabilities_refuse_decode() {
             assert!(error.to_string().starts_with("E_SCHEMA_CAPABILITY:"), "{mode}: {error}");
         }
     }
+}
+
+#[test]
+fn event_slots_fence_projection_and_standalone_columns_but_not_legacy_timelines() {
+    let slots=compile(include_str!("../../snapback4-lang/tests/fixtures/following-view.q"));
+    assert!(slots.public_projection().required_capabilities().contains("timeline-event-slots"));
+    let mut columns=slots.clone(); columns.timelines.clear();
+    assert_eq!(columns.required_capabilities(),["timeline-event-slots".into()].into());
+    let legacy:serde_json::Value=serde_json::from_str(include_str!("../../../packages/snapback4/test/fixtures/event-slots-pre-slot/backend.json")).unwrap();
+    let legacy:Schema=serde_json::from_value(legacy["schema"].clone()).unwrap();
+    assert_eq!(legacy.required_capabilities(),["timeline-v2".into()].into());
+    let mut wire=serde_json::to_value(slots).unwrap();
+    for table in wire["tables"].as_object_mut().unwrap().values_mut() {
+        for constraint in table["constraints"].as_array_mut().unwrap() {
+            if let Some(names)=constraint.get_mut("Capabilities").and_then(|v|v.as_array_mut()) {
+                names.retain(|v|v!="timeline-event-slots");
+            }
+        }
+    }
+    assert!(serde_json::from_value::<Schema>(wire).unwrap_err().to_string().contains("E_SCHEMA_CAPABILITY"));
 }

@@ -46,7 +46,7 @@ pub(super) fn check(catalog: &Catalog, schema: &Schema, diagnostics: &mut Vec<Di
                     IndexComponent::WordPrefixes { .. } => components.push(("words(..)".into(), snapback4_core::words::MAX_TOKEN_BYTES + 3)),
                     IndexComponent::Contribution(maintain) => {
                         for column in &maintain.by {
-                            let bytes = if maintain.computed.contains_key(column) { 9 } else { table.columns.get(column).map_or(usize::MAX, column_bytes) };
+                            let bytes = if maintain.computed.contains_key(column) { 9 } else { table.columns.get(maintain.aliases.get(column).unwrap_or(column)).map_or(usize::MAX, column_bytes) };
                             components.push((column.clone(), bytes));
                         }
                     }

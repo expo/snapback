@@ -240,7 +240,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     for (content_name, sync) in dependents {
         let was = membership(old, &content_name, &sync);
         let is = membership(new, &content_name, &sync);
-        let expiry = |row: Option<&Value>| table.expire.as_ref().and_then(|column| row.and_then(|row| row.field(column).ok())).cloned().unwrap_or(Value::Null);
+        let expiry = |row: Option<&Value>| row.and_then(|row| table.deadline(row)).map(Value::Int).unwrap_or(Value::Null);
         if was == is && expiry(old) == expiry(new) {
             continue;
         }
@@ -468,6 +468,13 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
     let mut used = 0;
     while at.table < tables.len() {
         let (table_name, table, sync) = tables[at.table];
+        // A partial kind lives only in source slots. Do not even open its
+        // owned table when neither kind can contribute a snapshot row.
+        if schema.timelines.iter().any(|t| table_name == t.table("Posts")
+            && !t.fully_synced(schema, false) && !t.fully_synced(schema, true)) {
+            at.table += 1; at.group = None; at.after = None; at.taken = 0;
+            continue;
+        }
         let groups = snapshot_groups(tx, schema, table_name, sync, principal, now)?;
         // Resume at the group in flight, or at the first group after one
         // the principal no longer holds.
@@ -491,9 +498,9 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
                     acquisitions.push(acquisition(table_name, &horizon.by, group, events.len(), None));
                 }
             }
-            let (rows, exhausted) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, room, now, Some((schema, principal)))?;
+            let (rows, exhausted, scanned, work) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, room, now, Some((schema, principal)))?;
             // Empty groups still emit transitions and must consume page room.
-            used += rows.len().max(1);
+            used += work.max(1);
             for (row, key) in rows {
                 let id = row.field("id")?.as_str()?.to_owned();
                 at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
@@ -505,6 +512,7 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
                 };
                 events.push(Event { partition, table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
             }
+            if scanned.is_some() { at.after = scanned; }
             if !exhausted {
                 at.group = Some(group.clone());
                 return Ok(SnapshotPage { acquisitions, events, watermark, next: Some(at), held });
@@ -547,14 +555,14 @@ pub fn snapshot(tx: &dyn PartitionRows, schema: &Schema, principal: &str, now: i
 /// counting the `taken` rows already delivered. Returns the rows with their
 /// keys and whether the group is done.
 #[cfg(feature = "sqlite")]
-fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize, now: i64, viewer: Option<(&Schema, &str)>) -> Result<(Vec<(Value, Vec<u8>)>, bool), RuntimeError> {
+fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize, now: i64, viewer: Option<(&Schema, &str)>) -> Result<(Vec<(Value, Vec<u8>)>, bool, Option<Vec<Value>>, usize), RuntimeError> {
     let (index_name, remaining, dir) = match &sync.horizon {
         Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc),
         None => (audience_index(table_name, table, sync)?, usize::MAX, Dir::Desc),
     };
     let ask = remaining.min(room);
     if ask == 0 {
-        return Ok((Vec::new(), true));
+        return Ok((Vec::new(), true, None, 0));
     }
     let mut bounds = Bounds { after: after.map(<[Value]>::to_vec), ..Bounds::default() };
     let mut live = Vec::new();
@@ -562,15 +570,24 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let mut reader = viewer.map(|(schema, principal)| Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0));
     let mut aggregate = viewer.map(|(schema, _)| Runner::new(tx, schema, crate::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
     // One extra readable row decides pagination, never selection past N.
-    let target = remaining.min(room.saturating_add(1));
+    // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — filtered kinds spend page room even when
+    // they produce no rows; the continuation records the last examined key.
+    // No lookahead here: every examined row belongs to this page's progress.
+    let filtered = viewer.is_some_and(|(schema, _)| schema.timelines.iter().any(|t|
+        table_name == t.table("Posts") && (!t.fully_synced(schema, false) || !t.fully_synced(schema, true))));
+    let target = remaining.min(if filtered { room } else { room.saturating_add(1) });
+    let mut examined = 0;
     loop {
-        let batch = target.saturating_sub(live.len()).min(256).max(1);
+        let batch = target.saturating_sub(if filtered { examined } else { live.len() }).min(256).max(1);
         let rows = tx.scan(table_name, &index_name, group, &bounds, dir, batch)?;
         let count = rows.len();
+        examined += count;
         for (row, key) in rows {
             let mut row = row_image(&row, table).into_owned();
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
+            // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — the horizonless owned walk keeps fully synced kinds only.
+            if viewer.is_some_and(|(schema, _)| !crate::schema::timeline::holds_event(schema, table_name, &row)) { continue; }
             if let Some(runner) = &mut aggregate {
                 let Some(live_row) = runner.live_aggregate(table_name, row)? else { continue; };
                 row = live_row;
@@ -583,10 +600,12 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
         }
         if live.len() == target { break; }
         if count < batch { exhausted = true; break; }
+        if filtered && examined >= target { break; }
     }
     live.truncate(ask);
     exhausted |= sync.horizon.as_ref().is_some_and(|horizon| taken + live.len() >= horizon.last as usize);
-    Ok((live, exhausted))
+    let work = if filtered { examined } else { live.len() };
+    Ok((live, exhausted, if filtered { bounds.after } else { None }, work))
 }
 
 /// The index a horizonless audience walks: the first leading with the
@@ -677,7 +696,7 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
             let member = row_image(&member, schema.table(target).expect("validated audience target"));
             let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
             if group.contains(&Value::Null) { continue; }
-            let expiry = schema.table(target).and_then(|table| table.expire.as_ref()).and_then(|column| member.field(column).ok()).and_then(|value| value.as_int().ok());
+            let expiry = schema.table(target).and_then(|table| table.deadline(&member));
             current.entry((table_name.to_owned(), canonical_json(&group))).and_modify(|held: &mut Option<i64>| {
                 *held = match (*held, expiry) { (Some(a), Some(b)) => Some(a.max(b)), _ => None };
             }).or_insert(expiry);
@@ -692,7 +711,7 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
     let keys: BTreeSet<_> = current.keys().chain(transitions.keys()).cloned().collect();
     let mut out = BTreeMap::new();
     for key in keys {
-        let expiring = schema.table(&key.0).and_then(|table| table.sync.as_ref()).and_then(|sync| match &sync.audience { Audience::Target { table, .. } => schema.table(table), _ => None }).is_some_and(|table| table.expire.is_some());
+        let expiring = schema.table(&key.0).and_then(|table| table.sync.as_ref()).and_then(|sync| match &sync.audience { Audience::Target { table, .. } => schema.table(table), _ => None }).is_some_and(|table| table.is_expiring());
         // A legacy grant without its lifetime or surviving membership cannot
         // authorize historical reads of an expiring audience. Fail closed.
         let fallback_expiry = || expiring.then_some(i64::MIN);
@@ -737,7 +756,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     let limit = limit.max(1);
     let head = tx.next_seq()?.saturating_sub(1);
     let expiring_audience = schema.synced().any(|(_, _, sync)| match &sync.audience {
-        Audience::Target { table, .. } => schema.table(table).is_some_and(|target| target.expire.is_some()),
+        Audience::Target { table, .. } => schema.table(table).is_some_and(|target| target.is_expiring()),
         _ => false,
     });
     // A cursor from a replaced database is not evidence that this store reached it.
@@ -902,7 +921,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         if let Some(horizon) = &sync.horizon {
             acquisitions.push(acquisition(&event.table, &horizon.by, &group, out.len(), None));
         }
-        let (rows, _) = group_rows_from(tx, &event.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
+        let (rows, _, _, _) = group_rows_from(tx, &event.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
         let floor = sync.horizon.as_ref().map(|horizon| {
             if rows.len() < horizon.last as usize { "whole".into() }
             else { crate::value::encode_bytes_hex(&rows.last().expect("selected horizon has a last key").1) }

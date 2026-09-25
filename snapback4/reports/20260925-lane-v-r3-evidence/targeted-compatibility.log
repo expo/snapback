@@ -1,0 +1,368 @@
+✔ W6d: caller id reservations preserve synchronous journal custody without duplicate prediction (2143.482799ms)
+ℹ caller_id_journal_records=1 durable_entries=1 applied=1
+journal dedupe: retired=false; admissions=1; applications=1; sends=1; duplicates=0
+✔ pre-admission journal: committed admission dedupes a surviving journal (queued) (2104.538561ms)
+journal dedupe: retired=true; admissions=1; applications=1; sends=1; duplicates=0
+✔ pre-admission journal: committed admission dedupes a surviving journal (retired receipt) (994.37566ms)
+✔ pre-admission journal: prediction refusal is removed and a valid successor applies (679.25716ms)
+✔ pre-admission journal: validation refusal is removed and a valid successor applies (1530.358928ms)
+✔ pre-admission journal: a known refusal survives an IDB outage (1212.928253ms)
+✔ pre-admission journal: persisted identity mismatch never sends a recovered write (989.524001ms)
+✔ pre-admission journal: server identity mismatch never sends a recovered write (1204.230841ms)
+✔ pre-admission journal: offline then server identity mismatch never sends a recovered write (627.274523ms)
+✔ pre-admission journal: quota falls back to ordinary admission without throwing (84.907909ms)
+✔ pre-admission journal: accessor falls back to ordinary admission without throwing (94.964238ms)
+✔ pre-admission journal: disabled falls back to ordinary admission without throwing (96.908552ms)
+✔ pre-admission journal: arguments are captured before the caller changes them (83.433659ms)
+journal bounds: record bytes; captured=1; writes=2; bytes=56783; largestRecord=56637
+✔ pre-admission journal: record bytes bounds capture and ordinary admission still works (101.090158ms)
+journal bounds: journal bytes; captured=4; writes=5; bytes=227132; largestRecord=56637
+✔ pre-admission journal: journal bytes bounds capture and ordinary admission still works (156.401836ms)
+journal bounds: record count; captured=32; writes=33; bytes=25079; largestRecord=638
+✔ pre-admission journal: record count bounds capture and ordinary admission still works (465.13564ms)
+✔ pre-admission journal: the next device adopts a closed tab's writes in order (131.436705ms)
+✔ pre-admission journal: a live tab's journal is never adopted (109.691839ms)
+✔ pre-admission journal: a failed save recovers the predecessor before a surviving page's next admission (87.235267ms)
+pre-admission journal: count=1; timing=same turn; applications=1; order=1; duplicates=0; replayMs=22; journalBytes=634
+✔ pre-admission journal: 1 unawaited writes survive same turn teardown (98.116162ms)
+pre-admission journal: count=1; timing=held save; applications=1; order=1; duplicates=0; replayMs=29; journalBytes=634
+✔ pre-admission journal: 1 unawaited writes survive held save teardown (112.518415ms)
+pre-admission journal: count=2; timing=same turn; applications=2; order=12; duplicates=0; replayMs=21; journalBytes=1268
+✔ pre-admission journal: 2 unawaited writes survive same turn teardown (101.138031ms)
+pre-admission journal: count=2; timing=held save; applications=2; order=12; duplicates=0; replayMs=26; journalBytes=1268
+✔ pre-admission journal: 2 unawaited writes survive held save teardown (104.666138ms)
+navigation model: writes=1; appliedBeforeAbort=false; exitRequests=1; beforeReopen=1; afterReopen=1; duplicates=0; replayMs=15
+✔ navigation model: 1 unawaited writes, ordinary aborted before delivery (100.817009ms)
+navigation model: writes=2; appliedBeforeAbort=false; exitRequests=1; beforeReopen=1; afterReopen=2; duplicates=0; replayMs=19
+✔ navigation model: 2 unawaited writes, ordinary aborted before delivery (103.409174ms)
+navigation model: writes=1; appliedBeforeAbort=true; exitRequests=1; beforeReopen=1; afterReopen=1; duplicates=0; replayMs=15
+✔ navigation model: 1 unawaited writes, ordinary applied with lost reply (92.263753ms)
+navigation model: writes=2; appliedBeforeAbort=true; exitRequests=1; beforeReopen=1; afterReopen=2; duplicates=0; replayMs=18
+✔ navigation model: 2 unawaited writes, ordinary applied with lost reply (96.416816ms)
+navigation model late commit: exitRequests=1; rows=1; state=pending
+✔ navigation model: admission finishing after pagehide sends only after its commit (4080.338713ms)
+navigation model slow sync: beforeFirstSync=1; sends=1
+✔ navigation model: reopen before slow first sync (same store) (1113.68631ms)
+✔ navigation model: reopen before slow first sync (different store) (1113.937846ms)
+✔ navigation model: reopen before slow first sync (missing store) (1110.265534ms)
+✔ navigation model: reopen before slow first sync (restored store) (1084.101757ms)
+W4R1 A: submissions=1,2,3; applications=3; order=123; duplicates=0
+✔ W4R1 A: deferred recovery allocates before an offline successor, then applies ABC (1151.678876ms)
+✔ W4R1 B1: a matching orphan installs the destination backend before recovery (133.667448ms)
+✔ W4R1 B2: empty orphan cannot fail open or hide a healthy orphan (153.853028ms)
+✔ W4R1 B2: missing identity orphan cannot fail open or hide a healthy orphan (152.275133ms)
+✔ W4R1 B2: broken backend orphan cannot fail open or hide a healthy orphan (175.241649ms)
+W4R1 C: cancellation=localStorage; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and localStorage cancellation (113.025375ms)
+W4R1 C: cancellation=IDB; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and IDB cancellation (116.008915ms)
+W4R1 C: cancellation=neither; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and neither cancellation (141.95ms)
+✔ W4R1 C: an orphan journal does not settle against its stale authored condition (132.391787ms)
+✔ W4R1 D: single-context persistence supplies exclusive ownership without Web Locks (95.269968ms)
+✔ durable IndexedDB and custom persistence cannot silently open without ownership (0.6273ms)
+✔ custom persistence rejects arbitrary alternate before opening (0.209344ms)
+✔ custom persistence rejects unrecoverable alternate before opening (0.102964ms)
+✔ custom persistence rejects an inexact orphan claim before opening (78.471594ms)
+✔ W4R1 E: one malformed journal key does not hide a real closed tab journal (133.540458ms)
+W4R1 queued + orphan: applications=3; order=123; sends=3; duplicates=0
+✔ W4R1 missing: queued primary precedes two orphan journals with one application each (1104.258544ms)
+✔ W4R1 missing: before the first store identity mutation stays best-effort without throwing (95.300753ms)
+✔ W5c a reloaded secondary tab recovers its terminal receipt by id (134.80966ms)
+✔ W11R1a: A adopts B before C opens (sent) (114.287727ms)
+ℹ forced_adoption_before_reopen=1 recovered_sent=1 applications=1
+✔ W11R1a: A adopts B before C opens (failed) (111.591947ms)
+ℹ forced_adoption_before_reopen=1 recovered_failed=1 applications=0
+✔ W11R1a: lock release after foreground retries recovers without a backend write (111.748302ms)
+ℹ foreground_lock_misses=5 post_release_backend_writes=0 applications=1
+✔ W11R1a: background outbox adoption keeps one sender and never takes a live owner (5132.117009ms)
+ℹ live_owner_adoptions=0 adopted_outbox_owners=1 posts=1 applications=1
+✔ W11R1a: shared persistence failure leaves the source recoverable (2271.526219ms)
+✔ W11R1a: the shared window is bounded, immutable and does not refresh on reads (1274.889059ms)
+ℹ shared_receipts=256 inserted_receipts=257 shared_records=1 evicted=1
+✔ W11R1a: competing adopters serialize shared receipts without holding up an opener (1099.376333ms)
+ℹ competing_adopters=2 shared_receipts=2 applications=2
+✔ W6R1 web: two live tabs admit the same new caller ID and apply once (1941.691775ms)
+ℹ live_web_tabs=2 journal_records=2 posts=2 applications=1
+✔ W6R1 journal: caller ID stays fenced across replacement (offline reopen=false) (126.364284ms)
+ℹ caller_id_replacement_posts=0 remaining_journal=0 offline_reopen=false
+✔ W6R1 journal: caller ID stays fenced across replacement (offline reopen=true) (1136.126196ms)
+ℹ caller_id_replacement_posts=0 remaining_journal=0 offline_reopen=true
+✔ W6R1 journal: an evicted guarded caller ID survives failed admission persistence and reopen (1397.245922ms)
+ℹ evicting_writes=256 recovered_replay_candidates=1 replay_posts=1 duplicate_rows=0
+✔ device close model: cancelled callers retain their ids across offline and online reopen (31320.320947ms)
+ℹ device_close_sequences=32 seed=0x14c105e coverage={"unreached":9,"committed":12,"delivered":11,"late":20,"early":12}
+▶ round 9-12 client head observations and startup installation
+  ✔ native: first-install-overlap head 15, snapshot false (852.908242ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: first-install-overlap head 19, snapshot true (1114.587882ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: first-install-healthy head 20, snapshot false (1136.345036ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: fresh head 25, snapshot false (1717.375009ms)
+  ✔ native: startup-generation head 15, snapshot false (749.059252ms)
+  ✔ native: startup-generation head 19, snapshot false (1367.373156ms)
+  ✔ native: startup-generation head 19, snapshot true (1075.367852ms)
+  ✔ native: startup-generation-native head 15, snapshot false (1281.335004ms)
+  ✔ native: startup-generation-native head 19, snapshot true (1223.641769ms)
+  ✔ native: healthy-generation head 20, snapshot false (870.34748ms)
+  ✖ native: replacement-generation head 15, snapshot false (48587.197101ms)
+✖ round 9-12 client head observations and startup installation (60011.6573ms)
+✔ startup never treats another open failure as an empty store (1.482452ms)
+✔ native open preserves a refusal arriving after process exit (0.847821ms)
+✖ native: offline-generation head 0, snapshot false (51.077293ms)
+✖ native: startup head 7, snapshot false (46.107565ms)
+✖ native: startup head 15, snapshot false (47.387173ms)
+✖ native: startup head 15, snapshot true (48.608994ms)
+✖ native: probe head 15, snapshot false (2063.152533ms)
+✖ native: changes head 7, snapshot false (47.669006ms)
+✖ native: generation head 15, snapshot false (48.084929ms)
+✖ native: generation head 15, snapshot true (48.525519ms)
+✖ native: snapshot-restart head 20, snapshot true (37.180958ms)
+✖ native: stale-send head 7, snapshot false (34.986109ms)
+✖ native: stale-published head 7, snapshot false (34.595735ms)
+✖ native: healthy head 20, snapshot false (36.469562ms)
+✖ native: private-overlap head 7, snapshot false (52.410962ms)
+✖ native: private-overlap head 15, snapshot false (59.61682ms)
+✖ native: private-generation head 15, snapshot false (48.911357ms)
+✖ native: private-generation-declaration head 15, snapshot false (59.120196ms)
+✖ native: late-evidence head 20, snapshot false (41.663205ms)
+✖ native: image-only head 20, snapshot false (37.723602ms)
+✖ native: late-first-evidence head 7, snapshot false (37.136372ms)
+✖ native: schema-overlap head 20, snapshot false (43.479417ms)
+✖ native: schema-preflight-gap head 20, snapshot false (45.703119ms)
+✖ wasm: first-install-overlap head 15, snapshot false (353.419255ms)
+ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+✖ wasm: first-install-overlap head 19, snapshot true (8.285176ms)
+ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+✖ wasm: first-install-healthy head 20, snapshot false (9.884703ms)
+ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+✖ wasm: fresh head 25, snapshot false (2.959575ms)
+✖ wasm: startup-generation head 15, snapshot false (5.699231ms)
+✖ wasm: startup-generation head 19, snapshot false (5.510598ms)
+✖ wasm: startup-generation head 19, snapshot true (6.010398ms)
+✖ wasm: startup-generation-native head 15, snapshot false (4.960363ms)
+✖ wasm: startup-generation-native head 19, snapshot true (5.927122ms)
+✖ wasm: healthy-generation head 20, snapshot false (6.615613ms)
+✖ wasm: replacement-generation head 15, snapshot false (8.600389ms)
+✔ failed admission cannot appear in later reads or hitchhike on the next saved call (367.873456ms)
+✔ failed snapshot publication and backend adoption preserve acknowledged state (11.700945ms)
+✔ recovery read failures block calls until durable state can be reopened (3.940745ms)
+✔ failed initial persistence frees the constructed Wasm device (1.421189ms)
+✔ successful calls keep incremental persistence without loading the store again (4.52393ms)
+✔ close drains accepted calls once and refuses later calls (2.81619ms)
+✔ W11R2: evicted journal has no retry timer or missing-store read (2.09526ms)
+ℹ state=evicted retry_timers=0 orphan_loads=0
+✔ W11R2: unidentified journal has no retry timer or missing-store read (1.58812ms)
+ℹ state=unidentified retry_timers=0 orphan_loads=1
+✔ W11R2: receipt lookup never opens an absent shared database and sees later adoption (1.887859ms)
+ℹ empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false) (2.763191ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true) (1.857934ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11R2: a live sibling queues one cancellable lock wait without a timer (2.974968ms)
+ℹ live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+✔ W11R2: persistent recovery failure exhausts three backoffs then a sync can recover (3.06955ms)
+ℹ failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1
+✔ W11R2: IndexedDB existence fallback aborts creation of missing stores (0.442173ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1097 ms
+✔ stalled exit body recovers in order (not applied) (2341.418284ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1035 ms
+✔ stalled exit body recovers in order (already applied replay) (1873.853017ms)
+stalled exit close: 971 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1960.492933ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.92798ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (2439.208124ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1981.80207ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1857.055784ms)
+✔ IndexedDB save resolves on transaction completion, not request success (1.846698ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1080.772053ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1079.300819ms)
+keepalive: 64093 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (3.526544ms)
+✔ exit ordering survives reversed server processing (1.351525ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (2.244303ms)
+✔ exit overlaps only the same ordinary in-flight head (1078.219419ms)
+✔ ordinary flush waits for the exit request before replaying its head (1082.291131ms)
+▶ web review: acquisition lifetimes and bounded persistence
+  ✔ same-store reacquisition reconciles progress with an already-true acquired flag (493.929146ms)
+  ✔ a compiled special table name produces numeric own-property counts (55.184477ms)
+  ✔ sign-out during a partial acquisition clears the raw client counts (115.086623ms)
+  ✔ one update stays bounded for 1,000 and 16,000 colliding rows (3298.623026ms)
+  ✔ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (80.741315ms)
+  ✔ an old unbounded bucket is split at load before later bounded updates (288.629045ms)
+✔ web review: acquisition lifetimes and bounded persistence (7866.685945ms)
+ℹ {"count":1000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":1000,"changed":1024,"last":1024}
+ℹ {"count":16000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":16000,"changed":1024,"last":1024}
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (1041.723894ms)
+  ✔ restored identified device journals while its first sync is held (990.734153ms)
+  ✔ synchronous refusal: restoring (443.14887ms)
+  ✔ synchronous refusal: no-device (65.652193ms)
+  ✔ synchronous refusal: no-claim (438.420545ms)
+  ✔ synchronous refusal: ephemeral-device (398.174114ms)
+  ✔ synchronous refusal: storage-full (469.22054ms)
+  ✔ synchronous refusal: before-first-sync (427.300121ms)
+  ✔ repairing storage permits the refused id to be retried (438.259233ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (628.023875ms)
+  ✔ session-locked journal refuses stale authority: logout (681.813571ms)
+  ✔ session-locked journal refuses stale authority: principal (755.286045ms)
+  ✔ session-locked journal refuses stale authority: epoch (724.483746ms)
+  ✔ session-locked journal refuses stale authority: recovery (937.968855ms)
+  ✔ a transient unlocked epoch observation refuses only that call (513.280437ms)
+  ✔ the bare online browser transport refuses without custody (1.469602ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (72.221929ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (99.943631ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (12841.411443ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 163
+ℹ suites 0
+ℹ pass 129
+ℹ fail 32
+ℹ cancelled 2
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72293.594719
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: replacement-generation head 15, snapshot false (48587.197101ms)
+  'test did not finish before its parent and was cancelled'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:65:1
+✖ round 9-12 client head observations and startup installation (60011.6573ms)
+  'test timed out after 60000ms'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: offline-generation head 0, snapshot false (51.077293ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: startup head 7, snapshot false (46.107565ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: startup head 15, snapshot false (47.387173ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: startup head 15, snapshot true (48.608994ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: probe head 15, snapshot false (2063.152533ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: changes head 7, snapshot false (47.669006ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: generation head 15, snapshot false (48.084929ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: generation head 15, snapshot true (48.525519ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: snapshot-restart head 20, snapshot true (37.180958ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: stale-send head 7, snapshot false (34.986109ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: stale-published head 7, snapshot false (34.595735ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: healthy head 20, snapshot false (36.469562ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: private-overlap head 7, snapshot false (52.410962ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: private-overlap head 15, snapshot false (59.61682ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: private-generation head 15, snapshot false (48.911357ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: private-generation-declaration head 15, snapshot false (59.120196ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: late-evidence head 20, snapshot false (41.663205ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: image-only head 20, snapshot false (37.723602ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: late-first-evidence head 7, snapshot false (37.136372ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: schema-overlap head 20, snapshot false (43.479417ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ native: schema-preflight-gap head 20, snapshot false (45.703119ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: first-install-overlap head 15, snapshot false (353.419255ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: first-install-overlap head 19, snapshot true (8.285176ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: first-install-healthy head 20, snapshot false (9.884703ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: fresh head 25, snapshot false (2.959575ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: startup-generation head 15, snapshot false (5.699231ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: startup-generation head 19, snapshot false (5.510598ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: startup-generation head 19, snapshot true (6.010398ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: startup-generation-native head 15, snapshot false (4.960363ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: startup-generation-native head 19, snapshot true (5.927122ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: healthy-generation head 20, snapshot false (6.615613ms)
+  'test could not be started because its parent finished'
+
+test at snapback4/packages/snapback4/test/repair-b-round9.test.mjs:86:13
+✖ wasm: replacement-generation head 15, snapshot false (8.600389ms)
+  'test could not be started because its parent finished'

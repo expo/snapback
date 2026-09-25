@@ -1,0 +1,168 @@
+{
+  "fixture": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+  "counts": {
+    "profiles": 1008,
+    "posts": 50228,
+    "follows": 5921,
+    "reposts": 1004,
+    "likes": 5008
+  },
+  "rowFormat": "legacy",
+  "browser": "151.0.7922.34",
+  "results": [
+    {
+      "pages": [
+        {
+          "requested": 4000,
+          "rows": 3999,
+          "snapshot": true,
+          "responseMs": 27.5,
+          "bytes": 607214
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 28.90000009536743,
+          "bytes": 621288
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 33.799999713897705,
+          "bytes": 664472
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 60.40000009536743,
+          "bytes": 1143543
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 64.30000019073486,
+          "bytes": 1290919
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 58.59999990463257,
+          "bytes": 1291305
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 62.90000009536743,
+          "bytes": 1291423
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 57.299999713897705,
+          "bytes": 1291164
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 65.09999990463257,
+          "bytes": 1291297
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 60.69999980926514,
+          "bytes": 1291300
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 49.60000038146973,
+          "bytes": 1291404
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 59.5,
+          "bytes": 1291241
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 58.69999980926514,
+          "bytes": 1291163
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 49.69999980926514,
+          "bytes": 1291290
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 53.69999980926514,
+          "bytes": 1291379
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 51.80000019073486,
+          "bytes": 1242392
+        },
+        {
+          "requested": 4000,
+          "rows": 1181,
+          "snapshot": true,
+          "responseMs": 9.199999809265137,
+          "bytes": 213694
+        },
+        {
+          "requested": 4000,
+          "rows": 0,
+          "snapshot": false,
+          "responseMs": 4.599999904632568,
+          "bytes": 164
+        }
+      ],
+      "applyMs": 3053,
+      "wasmMs": 3470.100001335144,
+      "idbMs": 67569.0999994278,
+      "idbChanges": 195725,
+      "idbSaves": 40,
+      "tables": {
+        "followerCounts": 1006,
+        "followingCounts": 1005,
+        "follows": 5921,
+        "likes": 5008,
+        "posts": 50228,
+        "profiles": 1008,
+        "reposts": 1004
+      },
+      "wallMs": 73351.69999980927,
+      "acquired": true,
+      "offline": {
+        "ms": 3125.5999999046326,
+        "acquired": true,
+        "link": "offline",
+        "profile": "Scale User 0001",
+        "fresh": false,
+        "persistedRows": 65180
+      }
+    }
+  ]
+}

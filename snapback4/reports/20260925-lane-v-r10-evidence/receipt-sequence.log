@@ -1,0 +1,35 @@
+(node:2413344) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (1995.198497ms)
+  ✖ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1137.328306ms)
+✖ web admission review: recovery and transport respect the session boundary (3924.274798ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4014.876446
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1137.328306ms)
+  AssertionError [ERR_ASSERTION]: {"sent":[{"id":"01M3CYMENTY6H2NM1NSRE74KBA","store_id":"ac6fd1990b7b112cd7e59314695d0361","keepalive":false},{"id":"01M3CYMENTY6H2NM1NSRE74KBA","store_id":"ac6fd1990b7b112cd7e59314695d0361","keepalive":false}],"keptReceipts":[{"id":"01M3CYMENTY6H2NM1NSRE74KBA","state":"failed","why":{"code":"E_STORE_REPLACED","family":"store","message":"write refused: E_STORE_REPLACED; whether it executed is unknown; do not retry automatically"}},{"id":"01M3CYMENTY6H2NM1NSRE74KBA","state":"failed","why":{"code":"E_STORE_REPLACED","family":"store","message":"write refused: E_STORE_REPLACED; whether it executed is unknown; do not retry automatically"}}],"receiptAborts":1,"syncRequests":3,"traceSync":[{"request":{"generation":1,"from":4,"limit":4000,"after":null,"stream":false,"pending":[],"store_id":"ac6fd1990b7b112cd7e59314695d0361"},"reply":{"acknowledged":{},"events":[{"data":null,"id":"target","kind":"del","seq":5,"table":"members"}],"generation":1,"images_at":5,"joined":{},"more":false,"snapshot":false,"store_id":"ac6fd1990b7b112cd7e59314695d0361","watermark":5}}],"outcomes":[{"state":"failed","id":"01M3CYMENTY6H2NM1NSRE74KBA","why":{"code":"E_STORE_REPLACED","family":"store","guide":"sync","message":"the intent belongs to another store; its original outcome is unknown","rewrite":"reconcile this write with its original store before submitting new intent","site":"request.store_id"}}],"state":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"00ade0569edac2d9c48e775f186daef8e7e43d84661cee11dacbb1e3597c6bfb","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"3","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"ac6fd1990b7b112cd7e59314695d0361","device:watermark":"5"},"backend_required":false,"generation":1,"pending_bound":1,"pending_complete":true,"pending_ids":[],"pending_through":0,"restore_images_at":0,"restore_watermark":5,"send_revision":3,"snapshot_catchup":false,"store_id":"ac6fd1990b7b112cd7e59314695d0361","transfer_store_id":"ac6fd1990b7b112cd7e59314695d0361","transfer_watermark":5,"watermark":5},"queued":[]}
+  
+  undefined !== 5
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:719:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:692:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 5,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

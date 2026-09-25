@@ -17,6 +17,7 @@ use std::path::{Path, PathBuf};
 
 mod activation;
 mod activation_walk;
+mod event_slots;
 mod caps;
 mod authority;
 mod successor;

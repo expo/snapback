@@ -3,7 +3,7 @@ use super::{rules::{self, Probe}, runner::Runner};
 use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, RuleExpr, materialize_optional_fields}, value::Value};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Verdict { Readable, Denied, Unknown }
+pub(super) enum Verdict { Readable, Denied, Unknown }
 
 impl Runner<'_> {
     pub(super) fn is_provisional(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
@@ -32,6 +32,15 @@ impl Runner<'_> {
     }
 
     fn authorize_read_inner(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
+        let verdict = self.read_authority(table, row, prepaid)?;
+        if verdict == Verdict::Unknown {
+            self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
+            self.components.note(|frame| frame.speculative = true);
+        }
+        Ok(verdict == Verdict::Readable)
+    }
+
+    pub(super) fn read_authority(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<Verdict, RuntimeError> {
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
         if self.device_work_active { self.meter.heap(crate::rows::word_heap::materialize(row, definition))?; }
@@ -40,11 +49,7 @@ impl Runner<'_> {
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
         let verdict = evaluate(&rule, &viewer, &row, &mut ReadProbe { runner: self, prepaid, unknown: false })?;
-        if self.read_capped() { return Ok(false); }
-        if verdict == Verdict::Unknown {
-            self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
-        }
-        Ok(verdict == Verdict::Readable)
+        Ok(if self.read_capped() { Verdict::Unknown } else { verdict })
     }
 
     pub(super) fn witness_covered(&self, table: &str, index: &str, key: &[Value], row: &Value) -> Result<bool, RuntimeError> {

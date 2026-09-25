@@ -235,7 +235,7 @@ async function observations(client, t) {
 }
 function assertUnknown(answers) {
   for (const [name, answer] of Object.entries(answers)) {
-    assert.equal(answer.denied?.code, "E_OFFLINE", `${name}: no fabricated absence or authoritative refusal`);
+    assert.deepEqual(answer, { loading: true }, `${name}: no fabricated absence or authoritative refusal`);
     assert.equal("data" in answer, false);
   }
 }
@@ -398,8 +398,53 @@ for (const tier of ["wasm", "process"]) {
 
 
 const sentReceipt = (id, seq = 1) => ({ state: "sent", id, seq, replayed: true });
+
+for (const state of ["sent", "failed"]) test(`receipt custody retains the first ${state} outcome across repeated save failures`, async () => {
+  let failures = 2, saved;
+  const history = new WriteHistory({
+    read: async () => saved ? JSON.stringify([saved]) : null,
+    save: async value => { if (failures-- > 0) throw Error("aborted receipt"); saved = JSON.parse(value); },
+  });
+  const original = state === "sent" ? sentReceipt("original", 7)
+    : { state: "failed", id: "original", why: { code: "NOT_ADMIN", family: "auth", message: "not admin" } };
+  const replacement = { state: "failed", id: "original", why: { code: "E_STORE_REPLACED", family: "store", message: "replacement" } };
+  await assert.rejects(history.keep(original), /aborted receipt/);
+  await assert.rejects(history.keep(replacement), /aborted receipt/);
+  assert.equal(history.hasUnpersisted(original.id), true);
+  await history.persistPending();
+  assert.equal(history.hasUnpersisted(original.id), false);
+  const kept = await history.read(original.id);
+  assert.equal(kept.state, state);
+  if (state === "sent") assert.equal(kept.seq, 7); else assert.equal(kept.why.code, "NOT_ADMIN");
+});
+
 const ok = reply => { assert.equal(reply.denied, undefined, JSON.stringify(reply)); return reply.ok; };
+
+test('acknowledgement drops an unsaved replacement refusal before any persistence retry', async () => {
+  let abort = true, saved;
+  const attempts = [];
+  const history = new WriteHistory({
+    read: async () => saved ? JSON.stringify([saved]) : null,
+    save: async value => { attempts.push(JSON.parse(value)); if (abort) throw Error('receipt aborted'); saved = JSON.parse(value); },
+  });
+  await assert.rejects(history.keep({ state: 'failed', id: 'acknowledged', why: { code: 'E_STORE_REPLACED', family: 'store', message: 'unknown' } }));
+  abort = false;
+  const sent = await history.acknowledged('acknowledged', 7);
+  await history.keep(sent);
+  assert.deepEqual(attempts.map(write => write.state), ['failed', 'sent']);
+  assert.equal((await history.read('acknowledged')).seq, 7);
+});
+
 const keepReceipt = (core, receipt) => core.call({ op: "keep_write", value: JSON.stringify(receipt) }).then(ok);
+
+test('a legacy acknowledgement returns a known authored refusal without saving success', async () => {
+  const refused = { state: 'failed', id: 'refused', why: { code: 'NOT_ADMIN', family: 'rule', message: 'not admin' } };
+  const saves = [];
+  const history = new WriteHistory({ read: async () => JSON.stringify([refused]), save: async value => { saves.push(value); } });
+  assert.deepEqual(await history.acknowledged(refused.id, 7), refused);
+  assert.deepEqual(await history.read(refused.id), refused);
+  assert.deepEqual(saves, []);
+});
 
 function receiptLocks(t) {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator"), held = new Set();

@@ -33,7 +33,8 @@ query global(c: cursor ?):
 
 Declare the view before adding posts, reposts or follows. This standalone
 program includes replies in `posts` but selects only originals for the feed.
-The three sources are public, fully synced and writable only by their owners.
+The three sources are public and writable only by their owners. Posts and
+reposts acquire the newest 1,000 rows globally on a cold device.
 
 ```quarry
 table posts:
@@ -45,7 +46,7 @@ table posts:
   public 'public posts and replies'
   insert <- .authorId = viewer
   update <- .authorId = viewer
-  sync public
+  sync public last 1000 by .at
 
 table reposts:
   actorId: principal
@@ -56,7 +57,7 @@ table reposts:
   public 'public reposts'
   insert <- .actorId = viewer
   delete <- .actorId = viewer
-  sync public
+  sync public last 1000 by .at
 
 table follows:
   followerId: principal
@@ -66,7 +67,7 @@ table follows:
   public 'public edges'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
-  sync public
+  online only
 
 view activity:
   posts where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }
@@ -87,6 +88,8 @@ mutation remove(postId: posts):
   update posts[postId] { removed: true }
 query home(c: cursor ?):
   return following last 20 by .at after c
+query cards(c: cursor ?):
+  return following last 20 by .at after c { *, card: posts[.post] }
 ```
 
 ## Trending: a bounded predicate read
@@ -156,6 +159,29 @@ Following exposes `id`, `post`, `actor`, `at` and `repost`. Key its list by even
 `{ *, card: posts[.post] }` to the read. Do not hide an independent repost just
 because its original card has `removed: true`.
 
+The source floors are **global and non-sliding**, fixed at acquisition time,
+not per followed author. New arrivals accumulate; nothing evicts older held
+rows. The private inbox acquires its newest 1,000 copies per reader. This
+acquisition limit does not change the 1,000-event history window per followed
+author. Events follow their source rows: a fully synced kind keeps its owned event rows;
+a floored kind keeps its event state in engine slots on held sources. Online-only
+kinds keep neither. Removal records remain fully synced. Application follows may
+be fully synced, floored, or online only; the feed uses its private owned edges.
+
+An inbox page within its floor needs no posts. A shaped page is complete offline
+only when every card is held too. A recent repost of an old original, or a quiet
+author's old post, may need the server even on the first page. A horizon card
+miss, required online-only card, or inbox scan past its floor withholds the
+**whole query** as `{ loading: true }`, with no data or continuation. Offline,
+while a predictable write remains unobserved, or for a `held` query, it stays
+withheld. Otherwise the client retries the original input cursor on the server;
+a transport failure stays loading. Remembered answers never replace this result.
+
+An examined-meter cut above the floor remains partial data with its continuation.
+A full page ending at the floor is data; its next page is withheld. Pending
+backfill or cleanup stays `complete: false` data. Heap/scalar exhaustion remains
+unavailable. The server cannot replace a prediction before it is observed.
+
 Render an incomplete result as incomplete. Continue with `next` when present.
 If a meter cut returns no continuation, retry the same cursor after cleanup.
 Cursors are not snapshots: concurrent writes can change what later pages show.
@@ -163,16 +189,35 @@ Cursors are not snapshots: concurrent writes can change what later pages show.
 Devices predict their own event's own-inbox copy when inputs are held and
 covered. Follow and unfollow queue without prediction. Offline reads use the
 last synced follows, removals and cards; remote changes arrive on reconnect.
+Reposts need a held original, its event slot and a removal probe; otherwise the entire
+mutation queues without a row. These conditions are necessary: a horizon on
+reposts can still make its unique-pair absence unknown. `check` classifies each
+transition by its source residency; follow/unfollow remain `predicts: never`.
+A synced aggregate over owned events stops prediction only when a transition
+inserts or removes an event of a kind that is not fully synced. Replies and body
+edits still predict. `check` names the aggregate; argument-dependent filters and
+source-slot lookups are decided at runtime. Slot schemas require an event-slot
+capability, so older devices refuse installation or adoption until upgraded.
+Other reads of owned events
+withhold on a missing row or a range that may contain an unheld kind. A key naming
+a fully synced kind keeps ordinary known absence.
 Use the normal pending-write, freshness and completeness state (`guide app`).
 
 ## Boundaries and refusals
 
-Following requires three distinct public, fully `sync public` source tables,
+Following requires three distinct public source tables,
 owner write rules and immutable actor/time/reference fields. The follow table
 has one declared unique follower/followed principal pair. The originals filter
 uses immutable row-local fields except the one-way removal flag. Private
-sources, expiry, source horizons and hard deletion of original cards are refused;
+sources, expiry and hard deletion of original cards are refused;
 do not widen a private audience to fit this shape.
+
+Posts and reposts accept `sync public`, `sync public last N by .at`, or
+`online only`. Use the mapped time column; its index must be exactly `(at, id)`.
+Follows accept those public residencies with any admitted horizon order. Online-only cards use the withholding order
+above; writes to those sources queue without prediction. Changing any
+sync choice advances the generation and re-snapshots acquisition; a device
+never trims in place. Returning to full sync re-acquires the whole table.
 
 Declare before source events or follows exist; populated profiles are allowed.
 Removing a materialized view retires its owned rows, indexes and delivery work
@@ -193,7 +238,7 @@ image; importing mapped or owned rows cannot reconstruct delivery history.
 | Code | Meaning and next step |
 |---|---|
 | E_VIEW_FEED_SHAPE | The projection or viewer predicate is unsupported. Use the activity and Following views above |
-| E_TIMELINE_SHAPE | The sources do not fit Following. Keep three distinct public sources, full sync and owner rules |
+| E_TIMELINE_SHAPE | The sources do not fit Following. Keep three distinct public sources and owner rules; posts/reposts may use `sync public last N by .at` or `online only`, and follows accept full sync, a public horizon, or online only |
 | E_TIMELINE_FOLLOWS | The edge key is invalid. Declare the immutable unique follower/followed pair |
 | E_TIMELINE_FILTER | Selection is not stable. Make selection columns immutable; use `.parentId = null and not .removed` |
 | E_TIMELINE_REMOVAL | Removal must be one-way. Insert false, change only false → true and retain the original card |
@@ -213,8 +258,9 @@ N_PUBLIC_AGGREGATE_COPY names a public derived column whose ordinary write rules
 allow arbitrary values. Use `likeCount: count likes` for an engine-owned count;
 for another copied value, pin its source in both write rules (`guide maintains`).
 
-Full public source partitions and the private inbox reach the device. A small
-page does not bound acquisition or storage. Measure populated data with
+`check --cost` reports source and owned-table acquisition floors, full-synced
+dependencies, the unchanged history window and card fallback. A small page
+alone does not bound acquisition or storage. Measure the whole partition with
 `snapback4 test --residency --as <principal>`; inspect dependencies with
 `snapback4 check --residency --verbose`. If a maintained count is synced,
 N_MAINTAINED_COLUMN_STREAM warns that each contributing commit streams the

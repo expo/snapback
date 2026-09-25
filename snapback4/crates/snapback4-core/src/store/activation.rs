@@ -56,6 +56,10 @@ impl Store {
     }
 
     pub(crate) fn activate(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, build: impl FnOnce(&Tx<'_>, bool) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+        self.activate_at(schema, programs, reset, crate::now_ms(), build)
+    }
+
+    pub(crate) fn activate_at(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, build: impl FnOnce(&Tx<'_>, bool) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
@@ -87,12 +91,6 @@ impl Store {
             }
         }
         let tx = Tx { tx: sql, page_size: self.page_size, catalog: &catalog };
-        if programs.is_some() { crate::engine::timeline::check_activation(&tx, schema)?; }
-        if schema_changed && programs.is_some() {
-            if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
-                return Err(step.refusal(schema));
-            }
-        }
         // @ref LLP 3000.013#12.1 — occupancy belongs to successful activation,
         // never opening a legacy store that may subsequently refuse adoption.
         let cap_counts = crate::rows::caps::required(schema) || tx.meta("cap_counts_schema")?.is_some();
@@ -101,6 +99,19 @@ impl Store {
             if reset { tx.tx.execute_batch("DELETE FROM _cap_counts;")?; }
         }
         if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i;")?; }
+        if schema_changed && programs.is_some() && !reset {
+            let previous: Option<String> = tx.tx.query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
+            let previous: Option<Schema> = previous.map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))).transpose()?;
+            let shortened = crate::engine::through_activation::activate(&tx,schema,previous.as_ref(),now)?;
+            tx.set_meta("read_through_shortened",&canonical_json(&shortened))?;
+        }
+        if programs.is_some() { crate::engine::timeline::check_activation(&tx, schema)?; }
+        if schema_changed && programs.is_some() {
+            super::event_slots::fill(&tx, schema, now)?;
+            if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
+                return Err(step.refusal(schema));
+            }
+        }
         if schema_changed {
             // Removed names retain only their catalog number, never live row
             // images. Reintroducing a name starts empty, without resurrection.
@@ -156,7 +167,7 @@ impl Store {
         if cap_counts && tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash) {
             tx.tx.execute_batch("DELETE FROM _cap_counts;")?;
             for (name, table) in &schema.tables {
-                if table.expire.is_some() && table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })) {
+                if table.is_expiring() && table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })) {
                     walk(&tx, catalog[name], |_, row| tx.update_cap_counts(name, table, None, Some(&row)).map(|_| ()))?;
                 }
             }

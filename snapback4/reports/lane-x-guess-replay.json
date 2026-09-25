@@ -1,0 +1,713 @@
+{
+  "before": {
+    "path": "/home/ccheever/sb4-intent/lane-x/snapback4/target/lane-x-before-build/debug/snapback4",
+    "sha256": "84122d26a238972e05bf4e280c85e18f86715c47f3fc5d9b9eb95673bd162b94",
+    "version": "snapback4 0.4.1"
+  },
+  "after": {
+    "path": "/home/ccheever/sb4-intent/lane-x/snapback4/target/debug/snapback4",
+    "sha256": "8d44ea49509992110228182e1b03308cad7064078a43eef003a9b17a5fb48867",
+    "version": "snapback4 0.4.1"
+  },
+  "fixture": "crates/snapback4/tests/familiar/guesses.json",
+  "guesses": [
+    {
+      "name": "len",
+      "origin": "cal20 M4 diary: len(...) retained; surrounding query reconstructed",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_UNSUPPORTED",
+            "guide": "language",
+            "mechanical": true,
+            "message": "len is not part of Snapback 4",
+            "rewrite": "count(x)",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_UNSUPPORTED",
+            "guide": "language",
+            "mechanical": true,
+            "message": "len is not part of Snapback 4",
+            "rewrite": "count(x)",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "qualified-helper",
+      "origin": "cal20 M4 diary: module-qualified helper retained only as description; reconstructed m.helper",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "expected the end of the line, got \"(\"",
+            "rewrite": "end this statement here; put the next statement on its own line at the same indentation",
+            "site": {
+              "col": 18,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 18,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "aggregate",
+      "origin": "cal20 M6 diary: guessed aggregate declaration not retained; reconstructed aggregate keyword",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "unexpected top-level \"aggregate\"",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_UNSUPPORTED",
+            "guide": "from-sql",
+            "mechanical": false,
+            "message": "aggregate declaration is not part of Snapback 4",
+            "rewrite": "view totals: count members by .conversation",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "repeated-where",
+      "origin": "comparative M8 m8-check-2.log plus final schema.q dmFor; first where reconstructed from final named key",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "read modifier where is repeated; choose one value",
+            "rewrite": "write each modifier once: [matching q] [after c] first|last N by index [where predicate]",
+            "site": {
+              "col": 75,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 75,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query dmFor has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "nested-roster",
+      "origin": "comparative M3 diary and final rosterFor; failed inline predicate reconstructed",
+      "before": {
+        "exit": 0,
+        "problems": [],
+        "notes": [
+          {
+            "code": "N_SPARSE_FILTER",
+            "guide": "feeds",
+            "mechanical": false,
+            "message": "read or declaration on members (principal, id) at schema.q:13:102: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages",
+            "rewrite": "pin a column with `where .col = value`, choose `by .col`, or read a `view` (see `snapback4 guide feeds`)",
+            "site": {
+              "col": 130,
+              "file": "schema.q",
+              "line": 13
+            }
+          }
+        ],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SELF_EQUALITY",
+            "guide": "shapes",
+            "mechanical": false,
+            "message": ".conversation = .conversation compares the filtered members row with itself; it does not bind the enclosing row",
+            "rewrite": "members[conversation = .conversation] — the named key binds the enclosing row; without an enclosing row, pass conversation as an argument and use members where .conversation = conversation",
+            "site": {
+              "col": 130,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 130,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "two-sync-lines",
+      "origin": "comparative M3 diary description; self and public audiences reconstructed",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "table notes has more than one sync line",
+            "rewrite": "one sync line per table",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 5
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "table notes has more than one sync line",
+            "rewrite": "keep one sync line matching the read rule; use sync to members[.conversation] for one membership audience, or online only when the audience cannot be inverted",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 5
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [
+          {
+            "code": "N_NO_HORIZON",
+            "guide": "sync",
+            "mechanical": false,
+            "message": "table notes: `sync to .owner` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`",
+            "rewrite": "sync to .owner last 500 by .id",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 1
+            }
+          }
+        ],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "nullable-helper",
+      "origin": "comparative M5 m5-check.log preserves disappearingTTL and enum type; lookup reconstructed from final schema.q",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_TYPE",
+            "guide": "types",
+            "mechanical": false,
+            "message": "disappearingTTL's value is text <=10000; got enum('off', '24h', '7d') ?",
+            "rewrite": "guard `(conversations[conversation]).disappearing != null` before calling disappearingTTL, or make its parameter `value: text <=10000 ?`",
+            "site": {
+              "col": 55,
+              "file": "schema.q",
+              "line": 14
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_TYPE",
+            "guide": "types",
+            "mechanical": false,
+            "message": "disappearingTTL's value is text <=10000; got enum('off', '24h', '7d') ?",
+            "rewrite": "(conversations[conversation]).disappearing ! else NOT_FOUND — require this argument once before calling disappearingTTL; absent or hidden rows refuse NOT_FOUND",
+            "site": {
+              "col": 55,
+              "file": "schema.q",
+              "line": 14
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "length-property",
+      "origin": "additional requested guess",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_TYPE",
+            "guide": "types",
+            "mechanical": false,
+            "message": "text <=10000 has no fields",
+            "rewrite": "this is already a value — remove `.length`",
+            "site": {
+              "col": 11,
+              "file": "schema.q",
+              "line": 13
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_UNSUPPORTED",
+            "guide": "language",
+            "mechanical": false,
+            "message": ".length is not part of Snapback 4",
+            "rewrite": "count(x)",
+            "site": {
+              "col": 11,
+              "file": "schema.q",
+              "line": 13
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "count-star",
+      "origin": "additional requested guess",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "expected expression, got \"*\"",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 16,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 16,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_UNSUPPORTED",
+            "guide": "from-sql",
+            "mechanical": false,
+            "message": "count(*) is not part of Snapback 4",
+            "rewrite": "count(rows) — pass the read, for example count(messages where .roomId = roomId)",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [
+          {
+            "code": "N_NOW_SERVER",
+            "guide": "residency",
+            "mechanical": false,
+            "message": "guess now runs on the server: scan members by byId: online only; selected byId (); result: page; explicit by (site schema.q:13:16 (members[]))",
+            "rewrite": "sync members to its read-rule audience, or read a compact synced projection",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "limit",
+      "origin": "additional requested guess",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "expected the end of the line, got \"20\"",
+            "rewrite": "end this statement here; put the next statement on its own line at the same indentation",
+            "site": {
+              "col": 50,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 50,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_UNSUPPORTED",
+            "guide": "reads",
+            "mechanical": false,
+            "message": "limit is not part of Snapback 4",
+            "rewrite": "first 20 — ascending; use last 20 for descending order",
+            "site": {
+              "col": 44,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 44,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    },
+    {
+      "name": "wrong-module",
+      "origin": "additional ownership regression",
+      "before": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "expected the end of the line, got \"(\"",
+            "rewrite": "end this statement here; put the next statement on its own line at the same indentation",
+            "site": {
+              "col": 22,
+              "file": "schema.q",
+              "line": 13
+            }
+          },
+          {
+            "cascade_of": {
+              "col": 22,
+              "file": "schema.q",
+              "line": 13
+            },
+            "code": "E_QUARRY_SYNTAX",
+            "guide": "language",
+            "mechanical": false,
+            "message": "query guess has an empty body",
+            "rewrite": "fix this Quarry line and rerun snapback4 check",
+            "site": {
+              "col": 1,
+              "file": "schema.q",
+              "line": 12
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "after": {
+        "exit": 1,
+        "problems": [
+          {
+            "code": "E_QUARRY_UNKNOWN",
+            "guide": "programs",
+            "mechanical": false,
+            "message": "helper helper is declared in m.q, not other.q",
+            "rewrite": "m.helper(x)",
+            "site": {
+              "col": 22,
+              "file": "schema.q",
+              "line": 13
+            }
+          }
+        ],
+        "notes": [],
+        "stderr": ""
+      },
+      "repaired": {
+        "exit": 0,
+        "problems": [],
+        "notes": [],
+        "stderr": ""
+      }
+    }
+  ]
+}

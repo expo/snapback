@@ -1,0 +1,34 @@
+(node:3058756) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✖ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (5917.114083ms)
+✖ web admission review: recovery and transport respect the session boundary (6699.560039ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6805.760201
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (5917.114083ms)
+  AssertionError [ERR_ASSERTION]: lookup itself must persist the corrected receipt before any flush
+  
+  'failed' !== 'sent'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:822:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:803:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'sent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

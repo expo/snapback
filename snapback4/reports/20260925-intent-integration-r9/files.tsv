@@ -1,0 +1,942 @@
+status	file	contributing merge or integration step
+M	llp/3000.013-quarry-states-intent.rfc.md	V
+M	llp/3000.014-a-child-reads-through-its-parent.rfc.md	T
+M	snapback4/JOURNAL.md	U, Z, V, Y, X, T, integration qualification evidence
+M	snapback4/crates/snapback4-core/src/engine/admission.rs	T
+M	snapback4/crates/snapback4-core/src/engine/aggregate_expiry.rs	T
+A	snapback4/crates/snapback4-core/src/engine/aggregate_metadata_tests.rs	T
+M	snapback4/crates/snapback4-core/src/engine/column_activation.rs	T
+M	snapback4/crates/snapback4-core/src/engine/components.rs	U
+A	snapback4/crates/snapback4-core/src/engine/expiry.rs	T
+A	snapback4/crates/snapback4-core/src/engine/live_aggregate.rs	T
+M	snapback4/crates/snapback4-core/src/engine/local.rs	U, T
+M	snapback4/crates/snapback4-core/src/engine/maintains.rs	T
+M	snapback4/crates/snapback4-core/src/engine/mod.rs	Z, T
+M	snapback4/crates/snapback4-core/src/engine/postgres/caps.rs	T
+M	snapback4/crates/snapback4-core/src/engine/postgres/mod.rs	T
+M	snapback4/crates/snapback4-core/src/engine/postgres/store.rs	T
+A	snapback4/crates/snapback4-core/src/engine/postgres/through.rs	T
+M	snapback4/crates/snapback4-core/src/engine/prefetch.rs	T
+A	snapback4/crates/snapback4-core/src/engine/provenance.rs	T
+M	snapback4/crates/snapback4-core/src/engine/read.rs	U, Z, T
+M	snapback4/crates/snapback4-core/src/engine/read_auth.rs	U, T
+A	snapback4/crates/snapback4-core/src/engine/read_candidate.rs	T
+A	snapback4/crates/snapback4-core/src/engine/read_point.rs	T
+M	snapback4/crates/snapback4-core/src/engine/recorded.rs	Z, T
+M	snapback4/crates/snapback4-core/src/engine/rules.rs	T
+M	snapback4/crates/snapback4-core/src/engine/runner.rs	U, T
+A	snapback4/crates/snapback4-core/src/engine/through.rs	T
+A	snapback4/crates/snapback4-core/src/engine/through_activation.rs	T
+A	snapback4/crates/snapback4-core/src/engine/through_read.rs	T
+M	snapback4/crates/snapback4-core/src/engine/timeline.rs	U, Z
+A	snapback4/crates/snapback4-core/src/engine/timeline/slots.rs	Z, integration regression/guide/ref fixes
+M	snapback4/crates/snapback4-core/src/engine/timeline_authority_tests.rs	T
+M	snapback4/crates/snapback4-core/src/engine/validate.rs	Z
+M	snapback4/crates/snapback4-core/src/engine/word_merge.rs	T
+M	snapback4/crates/snapback4-core/src/engine/write.rs	Z, T
+M	snapback4/crates/snapback4-core/src/engine/write_target.rs	Z, T
+M	snapback4/crates/snapback4-core/src/maintain.rs	T
+M	snapback4/crates/snapback4-core/src/partition.rs	Z, T, integration regression/guide/ref fixes
+M	snapback4/crates/snapback4-core/src/partition/born_reference.rs	T
+M	snapback4/crates/snapback4-core/src/rows.rs	T
+M	snapback4/crates/snapback4-core/src/rows/caps.rs	T
+M	snapback4/crates/snapback4-core/src/schema.rs	T
+M	snapback4/crates/snapback4-core/src/schema/capabilities.rs	Z, T
+M	snapback4/crates/snapback4-core/src/schema/columns.rs	T
+A	snapback4/crates/snapback4-core/src/schema/through.rs	T
+M	snapback4/crates/snapback4-core/src/schema/timeline.rs	Z, integration regression/guide/ref fixes
+M	snapback4/crates/snapback4-core/src/store.rs	Z
+M	snapback4/crates/snapback4-core/src/store/activation.rs	Z, T
+A	snapback4/crates/snapback4-core/src/store/event_slots.rs	Z, integration regression/guide/ref fixes
+M	snapback4/crates/snapback4-core/src/store/successor.rs	Z, integration regression/guide/ref fixes
+M	snapback4/crates/snapback4-core/src/successor.rs	Z, T, integration regression/guide/ref fixes
+M	snapback4/crates/snapback4-core/src/value.rs	T
+A	snapback4/crates/snapback4-core/src/value/provenance.rs	T
+M	snapback4/crates/snapback4-core/tests/common/meter.rs	T
+A	snapback4/crates/snapback4-core/tests/event_slot_snapshot.rs	Z
+M	snapback4/crates/snapback4-core/tests/pending_metadata_heap.rs	T
+A	snapback4/crates/snapback4-core/tests/read_verdict/aggregate_cuts.rs	T
+A	snapback4/crates/snapback4-core/tests/read_verdict/expiry_candidates.rs	T
+M	snapback4/crates/snapback4-core/tests/read_verdict/mod.rs	T
+M	snapback4/crates/snapback4-core/tests/read_verdict/round2.rs	T
+M	snapback4/crates/snapback4-core/tests/read_verdict/round3.rs	T
+M	snapback4/crates/snapback4-core/tests/schema_capabilities.rs	Z
+M	snapback4/crates/snapback4-device/src/call.rs	U, Y, T
+M	snapback4/crates/snapback4-device/src/device.rs	U, Y, T
+M	snapback4/crates/snapback4-device/src/device/deferred.rs	Z, T
+A	snapback4/crates/snapback4-device/src/device/expiry_clock.rs	T
+M	snapback4/crates/snapback4-device/src/device/history.rs	T
+M	snapback4/crates/snapback4-device/src/device/predictions.rs	Y, T
+M	snapback4/crates/snapback4-device/src/device/snapshot.rs	Z, T
+M	snapback4/crates/snapback4-device/src/memory.rs	T
+A	snapback4/crates/snapback4-device/src/memory_server.rs	T
+A	snapback4/crates/snapback4-device/tests/bounded_following.rs	U, Z
+M	snapback4/crates/snapback4-device/tests/components.rs	U
+A	snapback4/crates/snapback4-device/tests/event_slots.rs	Z
+A	snapback4/crates/snapback4-device/tests/event_slots_trace.rs	Z
+A	snapback4/crates/snapback4-device/tests/following_meters.rs	U
+A	snapback4/crates/snapback4-device/tests/native_following.rs	U
+A	snapback4/crates/snapback4-device/tests/read_through.rs	T
+A	snapback4/crates/snapback4-device/tests/read_through_review.rs	T
+M	snapback4/crates/snapback4-device/tests/readauth/census.txt	X
+M	snapback4/crates/snapback4-device/tests/search_merge/round2.rs	U
+A	snapback4/crates/snapback4-device/tests/server_clock.rs	Y
+M	snapback4/crates/snapback4-device/tests/timeline.rs	Z
+M	snapback4/crates/snapback4-device/tests/timeline/round1.rs	Z
+M	snapback4/crates/snapback4-lang/src/bind/catalog.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/columns.rs	T
+A	snapback4/crates/snapback4-lang/src/bind/helper_names.rs	X
+M	snapback4/crates/snapback4-lang/src/bind/intent_sync.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/intent_walk.rs	X
+M	snapback4/crates/snapback4-lang/src/bind/key_bound.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/maintains.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/mod.rs	X, T
+M	snapback4/crates/snapback4-lang/src/bind/program.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/program/control.rs	X
+M	snapback4/crates/snapback4-lang/src/bind/program/expr.rs	X
+M	snapback4/crates/snapback4-lang/src/bind/program/objects.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/program/reads.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/residency.rs	Z, T
+M	snapback4/crates/snapback4-lang/src/bind/residency/effect_reads.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/schema.rs	T
+A	snapback4/crates/snapback4-lang/src/bind/through.rs	T
+M	snapback4/crates/snapback4-lang/src/bind/timeline.rs	U, Z, T, integration regression/guide/ref fixes
+A	snapback4/crates/snapback4-lang/src/bind/timeline/prediction.rs	Z, integration regression/guide/ref fixes
+M	snapback4/crates/snapback4-lang/src/diag.rs	V, X, T
+M	snapback4/crates/snapback4-lang/src/emit.rs	Z, T
+M	snapback4/crates/snapback4-lang/src/emit/rust.rs	Z
+M	snapback4/crates/snapback4-lang/src/guide.rs	Y, X
+M	snapback4/crates/snapback4-lang/src/guide/codes.rs	U, Z, V, X, T
+M	snapback4/crates/snapback4-lang/src/guide/feeds.md	U, Z
+A	snapback4/crates/snapback4-lang/src/guide/from_sql.md	X
+M	snapback4/crates/snapback4-lang/src/guide/jobs.rs	Y
+M	snapback4/crates/snapback4-lang/src/guide/language.rs	U, Z, X, T, integration regression/guide/ref fixes
+M	snapback4/crates/snapback4-lang/src/guide/maintains.md	T
+M	snapback4/crates/snapback4-lang/src/guide/programs.rs	X
+M	snapback4/crates/snapback4-lang/src/guide/reads.rs	Y, X
+M	snapback4/crates/snapback4-lang/src/guide/refusals.rs	X
+M	snapback4/crates/snapback4-lang/src/guide/rules.md	T
+M	snapback4/crates/snapback4-lang/src/guide/shapes.rs	X
+M	snapback4/crates/snapback4-lang/src/guide/types.rs	Y, X
+A	snapback4/crates/snapback4-lang/src/guide/why.rs	X, T
+A	snapback4/crates/snapback4-lang/src/guide/why/E_ADOPT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_CONFLICT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_CONSTRAINT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_CURSOR_INDEX.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_DIV_ZERO.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_EMIT_IN_QUERY.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_FIELD.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_ID_REUSED.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_INIT_CONFLICT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_INPUT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_INTERNAL.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_MAINTAINED_COLUMN.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_NOT_PREDICTABLE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_OP.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_OP_RESERVED.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_OVERFLOW.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_PARENT_HAS_CHILDREN.md	T
+A	snapback4/crates/snapback4-lang/src/guide/why/E_PREDICT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_AMBIGUOUS.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_BOUND.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_DUPLICATE_FIELD.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_KEY_ORDER.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_LIVE_MAINTAIN_PROBE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_MAINTAIN_EXPIRE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_MODIFIER_SCOPE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_PLACEMENT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_POSITIONAL_SCAN.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_SELF_EQUALITY.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_SHAPE_JOIN.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_SPREAD.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_SYNTAX.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_TYPE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_UNKNOWN.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_UNSUPPORTED.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_WRITE_TESTS.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_QUERY_HELD.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_READ_THROUGH.md	T
+A	snapback4/crates/snapback4-lang/src/guide/why/E_READ_THROUGH_ADOPT.md	T
+A	snapback4/crates/snapback4-lang/src/guide/why/E_READ_THROUGH_SCAN.md	T
+A	snapback4/crates/snapback4-lang/src/guide/why/E_RULE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_SERVER_REQUIRED.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_SHAPE_EXCEEDS_METER.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_STRUCTURAL_FANOUT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_TYPE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_UNBOUND_LOOP.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_UNBOUND_SCAN.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_WRITE_ID.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_WRITE_ID_REUSE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/E_WRITE_RECEIPT_EXPIRED.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/NOT_FOUND.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/N_NEVER_COMPLETE.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/N_NO_CURSOR.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/N_OPTIONAL_FILTER_LIMIT.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/N_SEEK.md	X
+A	snapback4/crates/snapback4-lang/src/guide/why/N_SPARSE_FILTER.md	X
+M	snapback4/crates/snapback4-lang/src/guide/writes.rs	V, X
+M	snapback4/crates/snapback4-lang/src/lib.rs	X
+M	snapback4/crates/snapback4-lang/src/parser.rs	X, T
+M	snapback4/crates/snapback4-lang/src/parser/expr.rs	X
+A	snapback4/crates/snapback4-lang/src/parser/predicates.rs	X
+M	snapback4/crates/snapback4-lang/src/parser/programs.rs	X
+A	snapback4/crates/snapback4-lang/src/parser/repairs.rs	X
+M	snapback4/crates/snapback4-lang/src/parser/timeline.rs	X
+M	snapback4/crates/snapback4-lang/src/parser/views.rs	X
+M	snapback4/crates/snapback4-lang/src/recipe/bridge.rs	T
+A	snapback4/crates/snapback4-lang/src/repair.rs	X
+M	snapback4/crates/snapback4-lang/src/source.rs	X
+A	snapback4/crates/snapback4-lang/tests/bounded_following.rs	U, Z
+M	snapback4/crates/snapback4-lang/tests/chat.rs	T
+M	snapback4/crates/snapback4-lang/tests/clique_03/transport.rs	T
+M	snapback4/crates/snapback4-lang/tests/derived_maintains/disclosure.rs	T
+M	snapback4/crates/snapback4-lang/tests/ergonomics.rs	X
+A	snapback4/crates/snapback4-lang/tests/familiar_guesses.rs	X
+A	snapback4/crates/snapback4-lang/tests/familiar_predicates.rs	X
+A	snapback4/crates/snapback4-lang/tests/familiar_repairs.rs	X
+A	snapback4/crates/snapback4-lang/tests/familiar_source_repairs.rs	X
+A	snapback4/crates/snapback4-lang/tests/familiar_verified_repairs.rs	X
+A	snapback4/crates/snapback4-lang/tests/fixtures/guide-before.json	X, T
+A	snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json	X, T, integration regression/guide/ref fixes
+A	snapback4/crates/snapback4-lang/tests/fixtures/read-through-clique.q	T
+A	snapback4/crates/snapback4-lang/tests/fixtures/read-through-device.q	T
+M	snapback4/crates/snapback4-lang/tests/frontend_regressions.rs	T
+M	snapback4/crates/snapback4-lang/tests/guide.rs	Y, X
+M	snapback4/crates/snapback4-lang/tests/guide/definitions.rs	U, V, X, T
+A	snapback4/crates/snapback4-lang/tests/guide/familiar.rs	X
+M	snapback4/crates/snapback4-lang/tests/guide/intent.rs	X
+M	snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs	U, Z, V, X, T
+M	snapback4/crates/snapback4-lang/tests/maintained_columns.rs	T
+A	snapback4/crates/snapback4-lang/tests/read_through.rs	T, integration regression/guide/ref fixes
+A	snapback4/crates/snapback4-lang/tests/read_through/chain.q	T
+A	snapback4/crates/snapback4-lang/tests/read_through/clique.q	T
+A	snapback4/crates/snapback4-lang/tests/read_through/inherited_deadline.q	T
+A	snapback4/crates/snapback4-lang/tests/read_through/issue_tracker.q	T
+A	snapback4/crates/snapback4-lang/tests/read_through/lifetime.q	T
+A	snapback4/crates/snapback4-lang/tests/read_through/review_cases.rs	T, integration regression/guide/ref fixes
+A	snapback4/crates/snapback4-lang/tests/read_through/review_cuts.rs	T, integration regression/guide/ref fixes
+A	snapback4/crates/snapback4-lang/tests/read_through/review_emission.rs	T
+A	snapback4/crates/snapback4-lang/tests/read_through/review_metadata.rs	T, integration regression/guide/ref fixes
+A	snapback4/crates/snapback4-lang/tests/read_through/review_predicates.rs	T
+A	snapback4/crates/snapback4-lang/tests/read_through/scenarios.rs	T
+A	snapback4/crates/snapback4-lang/tests/read_through_provenance.rs	T
+A	snapback4/crates/snapback4-lang/tests/read_through_review.rs	T
+A	snapback4/crates/snapback4-lang/tests/read_through_sync.rs	T
+A	snapback4/crates/snapback4-lang/tests/read_through_transactions.rs	T
+M	snapback4/crates/snapback4-lang/tests/shape_overrides.rs	T
+M	snapback4/crates/snapback4-sim/tests/common/row_preserving_pages.rs	X
+M	snapback4/crates/snapback4/src/auth.rs	Y
+M	snapback4/crates/snapback4/src/dev_clock.rs	Y
+M	snapback4/crates/snapback4/src/scale.rs	T
+M	snapback4/crates/snapback4/src/scale/writes.rs	T
+M	snapback4/crates/snapback4/src/serve.rs	Y, T
+M	snapback4/crates/snapback4/src/serve_changes.rs	Y
+M	snapback4/crates/snapback4/src/serve_sync.rs	Y, T
+M	snapback4/crates/snapback4/src/serve_tests.rs	T
+M	snapback4/crates/snapback4/src/sync_wire.rs	T
+M	snapback4/crates/snapback4/src/timeline_cost.rs	U, Z
+M	snapback4/crates/snapback4/tests/check.rs	X
+M	snapback4/crates/snapback4/tests/column_commit.rs	T
+A	snapback4/crates/snapback4/tests/familiar.rs	X
+A	snapback4/crates/snapback4/tests/familiar/guesses.json	X
+M	snapback4/crates/snapback4/tests/following_view.rs	U, Z
+M	snapback4/crates/snapback4/tests/serve_sync/mod.rs	T
+M	snapback4/crates/snapback4/tests/timeline/admission.rs	U, Z
+M	snapback4/crates/snapback4/tests/timeline/delivery_wire.rs	T
+M	snapback4/crates/snapback4/tests/timeline/review.rs	Z
+M	snapback4/crates/snapback4/tests/timeline_adoption.rs	U, Z
+M	snapback4/experiments/postgres/Cargo.lock	T
+A	snapback4/experiments/postgres/tests/read_through.rs	T
+A	snapback4/experiments/postgres/tests/read_through_review.rs	T
+M	snapback4/metrics/wasm-budget.json	Z, T
+A	snapback4/native-fixtures/following/Cargo.lock	U
+A	snapback4/native-fixtures/following/Cargo.toml	U
+A	snapback4/native-fixtures/following/src/lib.rs	U
+M	snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md	U, V, Y
+M	snapback4/packages/snapback4/README.md	X
+A	snapback4/packages/snapback4/src/acquisition.ts	V
+A	snapback4/packages/snapback4/src/admission-authority.ts	V
+A	snapback4/packages/snapback4/src/admission.ts	V
+M	snapback4/packages/snapback4/src/app-client.ts	V
+M	snapback4/packages/snapback4/src/app.ts	V, Y
+M	snapback4/packages/snapback4/src/auth.ts	V, Y
+M	snapback4/packages/snapback4/src/backend.ts	U, Z, integration regression/guide/ref fixes
+M	snapback4/packages/snapback4/src/changes.ts	Y
+M	snapback4/packages/snapback4/src/client.ts	V, Y
+A	snapback4/packages/snapback4/src/clock.ts	Y
+M	snapback4/packages/snapback4/src/contract.ts	V, Y
+M	snapback4/packages/snapback4/src/local-assets.ts	Y
+A	snapback4/packages/snapback4/src/local-device.ts	V, Y
+A	snapback4/packages/snapback4/src/local-exit-settlement.ts	V
+M	snapback4/packages/snapback4/src/local-exit.ts	V
+A	snapback4/packages/snapback4/src/local-query.ts	U, Y, T
+M	snapback4/packages/snapback4/src/local-reads.ts	U
+A	snapback4/packages/snapback4/src/local-receipts.ts	V
+M	snapback4/packages/snapback4/src/local-sync.ts	V, T
+A	snapback4/packages/snapback4/src/local-through.ts	T
+M	snapback4/packages/snapback4/src/local-types.ts	V
+M	snapback4/packages/snapback4/src/local.ts	U, V, Y
+M	snapback4/packages/snapback4/src/mock.ts	Y
+M	snapback4/packages/snapback4/src/react.tsx	V, Y
+M	snapback4/packages/snapback4/src/read-observation.ts	Y
+A	snapback4/packages/snapback4/src/session-authority.ts	V
+A	snapback4/packages/snapback4/src/web-idb-buckets.ts	V
+A	snapback4/packages/snapback4/src/web-idb.ts	V
+M	snapback4/packages/snapback4/src/web-journal.ts	V, Y
+M	snapback4/packages/snapback4/src/web.ts	V, Y
+M	snapback4/packages/snapback4/src/writes.ts	V
+M	snapback4/packages/snapback4/test/acquisition.test.mjs	U, V
+M	snapback4/packages/snapback4/test/app-local-outcomes.test.mjs	U
+M	snapback4/packages/snapback4/test/app-local-session.test.mjs	U
+A	snapback4/packages/snapback4/test/bounded-following.test.mjs	U, Z, speculative source fixture
+M	snapback4/packages/snapback4/test/client-lifecycle.test.mjs	U, V, Y
+M	snapback4/packages/snapback4/test/client-seams.test.mjs	U
+A	snapback4/packages/snapback4/test/event-slot-capability.test.mjs	Z
+A	snapback4/packages/snapback4/test/event-slots.test.mjs	Z
+A	snapback4/packages/snapback4/test/familiar-forms.test.mjs	X
+A	snapback4/packages/snapback4/test/fixtures/event-slots-pre-slot/README.md	Z
+A	snapback4/packages/snapback4/test/fixtures/event-slots-pre-slot/backend.json	Z
+A	snapback4/packages/snapback4/test/fixtures/event-slots-pre-slot/device.wasm.gz	Z
+A	snapback4/packages/snapback4/test/fixtures/event-slots-pre-slot/schema.q	Z
+M	snapback4/packages/snapback4/test/fixtures/page-observation.mjs	U, V
+A	snapback4/packages/snapback4/test/fixtures/server-clock.q	Y
+A	snapback4/packages/snapback4/test/following-routing.test.mjs	U
+M	snapback4/packages/snapback4/test/helpers/app-model-device.mjs	U
+M	snapback4/packages/snapback4/test/helpers/app-server.mjs	U
+A	snapback4/packages/snapback4/test/helpers/read-through-server.mjs	T
+M	snapback4/packages/snapback4/test/helpers/timeline-recovery.q	U
+M	snapback4/packages/snapback4/test/horizon-boundary.test.mjs	T
+M	snapback4/packages/snapback4/test/local-reads.test.mjs	U
+M	snapback4/packages/snapback4/test/navigation-model.test.mjs	V
+M	snapback4/packages/snapback4/test/page-authority.test.mjs	U
+M	snapback4/packages/snapback4/test/page-observation.test.mjs	U, V
+M	snapback4/packages/snapback4/test/page-ready.test.mjs	U
+A	snapback4/packages/snapback4/test/prediction-routing.test.mjs	U, T, integration regression/guide/ref fixes
+A	snapback4/packages/snapback4/test/query-publication-session.test.mjs	U
+M	snapback4/packages/snapback4/test/react.test.mjs	V, Y
+A	snapback4/packages/snapback4/test/read-through-provenance.test.mjs	T
+A	snapback4/packages/snapback4/test/read-through.test.mjs	T
+M	snapback4/packages/snapback4/test/readauth.test.mjs	U
+M	snapback4/packages/snapback4/test/readme-examples.test.mjs	Y, X
+M	snapback4/packages/snapback4/test/repair-b-round7.test.mjs	U
+M	snapback4/packages/snapback4/test/repair-b-round8.test.mjs	U
+M	snapback4/packages/snapback4/test/repair-b-round9.test.mjs	Y
+M	snapback4/packages/snapback4/test/residency.test.mjs	U
+M	snapback4/packages/snapback4/test/retained-history.test.mjs	U, Y, retained clock fixture, client-clock fork calibration
+M	snapback4/packages/snapback4/test/schema-capabilities.test.mjs	Z
+A	snapback4/packages/snapback4/test/server-clock-browser.test.mjs	Y
+A	snapback4/packages/snapback4/test/server-clock-live.test.mjs	Y
+A	snapback4/packages/snapback4/test/server-clock-recovery.test.mjs	Y
+A	snapback4/packages/snapback4/test/server-clock-regressions.test.mjs	Y, remembered freshness fixture
+A	snapback4/packages/snapback4/test/server-clock-wire.test.mjs	Y
+A	snapback4/packages/snapback4/test/server-clock.test.mjs	Y
+M	snapback4/packages/snapback4/test/session-security.test.mjs	U, V
+M	snapback4/packages/snapback4/test/store-reset-idb.test.mjs	V
+M	snapback4/packages/snapback4/test/store-reset-review.test.mjs	U
+M	snapback4/packages/snapback4/test/store-reset.test.mjs	U
+M	snapback4/packages/snapback4/test/sync-generation.test.mjs	U
+M	snapback4/packages/snapback4/test/transport-http.test.mjs	V
+A	snapback4/packages/snapback4/test/web-admission-review.test.mjs	V
+M	snapback4/packages/snapback4/test/web-durability.test.mjs	V
+M	snapback4/packages/snapback4/test/web-navigation.test.mjs	V
+A	snapback4/packages/snapback4/test/web-review.test.mjs	V
+A	snapback4/packages/snapback4/test/web-session-authority.test.mjs	V
+A	snapback4/packages/snapback4/test/web-start.test.mjs	V
+A	snapback4/reports/20260925-bounded-following-r1/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r1/focused-client.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r1/focused-rust.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r1/guide-cost.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r1/inventory.json	U
+A	snapback4/reports/20260925-bounded-following-r1/measure.mjs	U
+A	snapback4/reports/20260925-bounded-following-r1/measurement.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r1/online-routing.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r1/ref-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r1/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r2/client-before.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/meter-before.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/meter-client.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/native-mutant.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/output-before.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/poll-recheck.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/ref-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/test-first.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r2/test-second.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r3/footprints-focused.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/local-prefix-focused.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/mutant-by-id-only.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/mutant-native-unavailable-false.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/mutant-posts-only.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/native-client-focused.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/refs-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/routing-focused.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/rust-restored.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/test-first-complete.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/test-interrupted.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r3/updated-expectations-focused.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r4/acquisition-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/affected-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/affected-first.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/client-development.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/known-branch.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/model-focused.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/mutation-known-branch-server.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/mutation-session-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/mutation-unknown-narrowing.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/mutation-unknown-withholding.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/mutations.py	U
+A	snapback4/reports/20260925-bounded-following-r4/ref-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/routing-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/test-first.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r4/timeout-rerun.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r5/compat-fixed.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/compat.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/discard-composed-refusal.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/empty-held.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/local-fresh-true.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/mutations.py	U
+A	snapback4/reports/20260925-bounded-following-r5/narrow-incomplete.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/narrow-loading.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/page-ready.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/real.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/refs-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/refs.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/routing.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r5/test-first.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r6/compatibility-first.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/components-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/corrected-24.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/corrected-33.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/discard-retained-scalars.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/expiry-race-after.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/expiry-race-before.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/expiry-views-corrected.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/ignore-engine-provenance.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/ignore-expiry-at-publication.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/ignore-expiry-at-recovery.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/local-fresh-link-only.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/mutations.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/mutations.py	U
+A	snapback4/reports/20260925-bounded-following-r6/ref-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/remembered-since-now.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/routing-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/rust-corrections.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/rust-targeted.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/targeted-first.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/test-expiry-views.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/test-first.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/test-pre-expiry-race.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r6/wasm.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r7/boundary-corrections.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/client-development.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/discard-retained-composition.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/expiry-boundary-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/expiry-only-remembered.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/mutations.py	U
+A	snapback4/reports/20260925-bounded-following-r7/ref-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/resource-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/restore-held-exception.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/routing.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/rust.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/test-first.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/test-second.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/wasm.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r7/word-correction.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r8/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r8/affected-client.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r8/broaden-retained-exception.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r8/home-development.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r8/mutations.py	U
+A	snapback4/reports/20260925-bounded-following-r8/publish-nonempty-speculative-page.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r8/ref-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r8/restore-retained-exception.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r8/skip-local-expiry.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r8/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following-r9/affected-client.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/drop-retry-deadline.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/focused-client.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/full-suite.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/interrupted-client.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/interrupted-suite.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/mutations.py	U
+A	snapback4/reports/20260925-bounded-following-r9/ref-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/remove-dirty-watch.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/remove-expiry-retry.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/skip-watch-expiry.log.gz	U
+A	snapback4/reports/20260925-bounded-following-r9/unbounded-expiry-retry.log.gz	U
+A	snapback4/reports/20260925-bounded-following/REPORT.md	U
+A	snapback4/reports/20260925-bounded-following/inventory.json	U
+A	snapback4/reports/20260925-bounded-following/measure.mjs	U
+A	snapback4/reports/20260925-bounded-following/measurement.log.gz	U
+A	snapback4/reports/20260925-bounded-following/ref-check.log.gz	U
+A	snapback4/reports/20260925-bounded-following/test-final.log.gz	U
+A	snapback4/reports/20260925-bounded-following/test-first.log.gz	U
+A	snapback4/reports/20260925-event-slots-r1/REPORT.md	Z
+A	snapback4/reports/20260925-event-slots-r1/aggregate-body-mutant.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/capabilities.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/client-after-merge.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/client.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/compiler.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/guards-restored.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/mutate-guards.py	Z
+A	snapback4/reports/20260925-event-slots-r1/package-after-merge.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/pre-slot.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/replays.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/snapshot.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/test-final.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/typecheck-after-merge.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r1/unrepost-guard-mutant.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/REPORT.md	Z
+A	snapback4/reports/20260925-event-slots-r2/auth-recheck.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/build-after-u.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/client-transient.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/full-before-u-interrupted.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/full-transient-interrupted.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/minimum-seven-scan.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/mutate-regressions.py	Z
+A	snapback4/reports/20260925-event-slots-r2/mutations.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/original-removal-bypass.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/output-only-page-charge.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/package-after-u.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/replay-after-u.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/replay-before-u.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/restored-event_slot_snapshot.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/restored-event_slots_trace.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/routing-after-u.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/routing-before-u.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/rust-before-test-followup.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/snapshot.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/test-final.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/traces-after-u.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/traces.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r2/wasm-after-u.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r3/REPORT.md	Z
+A	snapback4/reports/20260925-event-slots-r3/mutate-snapshot.py	Z
+A	snapback4/reports/20260925-event-slots-r3/mutations.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r3/omit-kept-row-charge.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r3/reset-batch-counter.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r3/restored.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r3/snapshot.log.gz	Z
+A	snapback4/reports/20260925-event-slots-r3/test-final.log.gz	Z
+A	snapback4/reports/20260925-event-slots/REPORT.md	Z
+A	snapback4/reports/20260925-event-slots/inventory-own-control.json	Z
+A	snapback4/reports/20260925-event-slots/inventory.json	Z
+A	snapback4/reports/20260925-event-slots/measure.mjs	Z, packed inventory harness
+A	snapback4/reports/20260925-event-slots/test-final.log.gz	Z
+A	snapback4/reports/20260925-event-slots/test-first.log.gz	Z
+A	snapback4/reports/20260925-intent-integration-r9/REPORT.md	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/clock-fixed.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/clock-repro.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/commit-map.tsv	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/files.tsv	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/following-fixed.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/following-repro.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/guide-first.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/guide-fixed.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/inventory.json	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/inventory.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/postgres-check.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/ref-final.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/ref-first.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/ref-fixed.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/retained-fixed.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/retained-fork-fixed.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/retained-fork-mutant.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/retained-intermittent.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/retained-repro.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/routing.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/target-check.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/test-final.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/test-first.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/test-second.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/through-fixed.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/web-fixed.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-integration-r9/web-repro.log.gz	integration qualification evidence
+A	snapback4/reports/20260925-intent-lane-t-round1.md	T
+A	snapback4/reports/20260925-intent-lane-t-round10.md	T
+A	snapback4/reports/20260925-intent-lane-t-round11.md	T
+A	snapback4/reports/20260925-intent-lane-t-round12.md	T
+A	snapback4/reports/20260925-intent-lane-t-round2.md	T
+A	snapback4/reports/20260925-intent-lane-t-round3.md	T
+A	snapback4/reports/20260925-intent-lane-t-round4.md	T
+A	snapback4/reports/20260925-intent-lane-t-round5.md	T
+A	snapback4/reports/20260925-intent-lane-t-round6.md	T
+A	snapback4/reports/20260925-intent-lane-t-round7.md	T
+A	snapback4/reports/20260925-intent-lane-t-round8.md	T
+A	snapback4/reports/20260925-intent-lane-t-round9.md	T
+A	snapback4/reports/20260925-intent-lane-t-server.md	T
+A	snapback4/reports/20260925-lane-v-evidence/acquisition-after.json	V
+A	snapback4/reports/20260925-lane-v-evidence/acquisition-before.json	V
+A	snapback4/reports/20260925-lane-v-evidence/acquisition-legacy-repeat.json	V
+A	snapback4/reports/20260925-lane-v-evidence/browser-react.log	V
+A	snapback4/reports/20260925-lane-v-evidence/guide.log	V
+A	snapback4/reports/20260925-lane-v-evidence/idb.log	V
+A	snapback4/reports/20260925-lane-v-evidence/navigation.log	V
+A	snapback4/reports/20260925-lane-v-evidence/old-guard-navigation.log	V
+A	snapback4/reports/20260925-lane-v-evidence/receipts-and-pages.log	V
+A	snapback4/reports/20260925-lane-v-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-evidence/session-restoration-rerun.log	V
+A	snapback4/reports/20260925-lane-v-evidence/suite-attempt-1.txt	V
+A	snapback4/reports/20260925-lane-v-evidence/suite-attempt-2.txt	V
+A	snapback4/reports/20260925-lane-v-evidence/suite-final.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/acquisition-bounded.json	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/acquisition-control.json	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/browser-final.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/manifest.json	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/mutant-authority.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/mutant-buckets.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/mutant-fence.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/mutant-progress.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/mutant-recovery.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/mutant-reset.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/mutant-tables.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/suite-attempt-1.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/suite-final.log	V
+A	snapback4/reports/20260925-lane-v-r1-evidence/transport-isolated.log	V
+A	snapback4/reports/20260925-lane-v-r1.md	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/acquisition-packed.json	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/acquisition-packed.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/acquisition-per-row.json	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/acquisition-per-row.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/browser-existing.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/browser-r2-initial.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/browser-r2.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/device-initial.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/full-suite.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/manifest.json	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/mutant-attach.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/mutant-early-exit.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/mutant-fence.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/mutant-legacy.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/mutant-overflow-delete.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/mutant-tombstone.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/mutant-transient-fence.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/mutant-transport.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r2-evidence/targeted-final.log	V
+A	snapback4/reports/20260925-lane-v-r2.md	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/README.md	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/SHA256SUMS	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/authority-stress-long.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/browser-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/browser-final-qualified.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/browser-final.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/browser-initial.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/browser-r3.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-backend-required-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-early-exit-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-hidden-registration-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-journal-fence-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-journal-fence-qualified.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-journal-fence-verified.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-probe-gate-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-probe-restore-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-probe-restore-final.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-probe-restore-qualified.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-probe-restore.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-probe-store-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/mutant-wrapped-owner-awaited.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/probe-order-trace.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/replay-fixed.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/review-inputs.sha256	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/storage-lock-repro.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/storage-lock-repro.mjs	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/storage-lock-trace.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/targeted-compatibility.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/targeted-final.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/test-final.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/test.log	V
+A	snapback4/reports/20260925-lane-v-r3-evidence/typecheck-final.log	V
+A	snapback4/reports/20260925-lane-v-r3.md	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/admission-review-final.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/admission-review.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/authority-and-docs.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/browser-final.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/browser-initial.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/build-reconnect.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/build.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/full-suite-final.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/full-suite.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/install.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-authority-commit.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-authority-mirror.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-authority-ownership.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-authority-source.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-empty-queue.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-exit-final-journal-fence.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-exit-final-reconnect-exit.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-exit-final-replay-delivery.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-observed.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-ordinary-gate.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-probe-store.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-qualified-reconnect-delivery.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-qualified-reconnect-exit.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-replay-delivery.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-tombstone.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutant-transport.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutants-authority-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutants-exit-final-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutants-exit-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutants-guards-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutants-qualified-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/mutants-startup-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/reconnect-targeted.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/session-authority.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/typecheck.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-1.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-10.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-11.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-12.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-13.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-14.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-15.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-16.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-17.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-18.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-19.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-2.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-20-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-20.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-3.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-4.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-5.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-6.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-7.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-8.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-9.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-1.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-10.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-11.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-12.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-13.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-14.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-15.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-16.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-17.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-18.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-19.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-2.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-20-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-20.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-3.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-4.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-5.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-6.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-7.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-8.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-final-9.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-1.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-10.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-11.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-12.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-13.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-14.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-15.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-16.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-17.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-18.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-19.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-2.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-20-summary.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-20.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-3.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-4.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-5.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-6.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-7.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-8.log	V
+A	snapback4/reports/20260925-lane-v-r4-evidence/web-start-qualified-9.log	V
+A	snapback4/reports/20260925-lane-v-r4.md	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/authority-final.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/full-suite.exit	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/full-suite.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/mutant-absence.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/mutant-epoch-migration.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/mutant-exits.json	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/mutant-fresh-binding.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/mutant-fresh-fence.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/mutant-mirror-repair.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/mutant-refusal-fence.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/targeted-final.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/targeted-first.log	V
+A	snapback4/reports/20260925-lane-v-r5-evidence/typecheck.log	V
+A	snapback4/reports/20260925-lane-v-r5.md	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/admission-final.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/admission-final.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/build-final.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/build.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/full-suite-final.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/full-suite-final.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/full-suite-second.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/full-suite-second.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/full-suite.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/full-suite.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/inspection-final.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/inspection-final.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/inspection-targeted.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/inspection-targeted.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/mutant-epoch-allocation.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/mutant-epoch-allocation.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/mutant-higher-mirror.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/mutant-higher-mirror.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/mutant-orphan-binding.exit	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/mutant-orphan-binding.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/reset-diagnosis.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/reset-final.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/reset-targeted.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/targeted-first.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/transport-targeted.log	V
+A	snapback4/reports/20260925-lane-v-r6-evidence/typecheck.log	V
+A	snapback4/reports/20260925-lane-v-r6.md	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/browser-final.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/browser-final.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/exit-retirement.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/exit-retirement.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/exit-store-field.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/exit-store-field.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/first-store-recheck.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/full-suite-final.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/full-suite-final.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/full-suite.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/full-suite.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/lifecycle-fixture.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/native-body-recheck.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/native-body-repeat-1.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/native-body-repeat-2.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/native-body-repeat-3.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/native-body-repeat-4.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/native-body-repeat-5.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/navigation-model.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/navigation-model.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/ordinary-store-field.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/ordinary-store-field.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/recovered-fixture-initial-mutant.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/recovered-fixture-initial-mutant.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/recovered-fixture-initial.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/recovered-fixture-initial.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/recovered-orphan-binding-final.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/recovered-orphan-binding-final.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/ref-check-final.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/session-security-fixtures.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/targeted-initial.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/transport-guards-final.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/transport-guards-final.log	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/transport-guards.exit	V
+A	snapback4/reports/20260925-lane-v-r7-evidence/transport-guards.log	V
+A	snapback4/reports/20260925-lane-v-r7.md	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/admission.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/binding-control.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/build.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/full-suite.exit	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/full-suite.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/lifecycle-navigation.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-binding-precedence.exit	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-binding-precedence.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-exit-custody.exit	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-exit-custody.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-exit-known.exit	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-exit-known.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-exit-owner.exit	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-exit-owner.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-exit-persistence.exit	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/mutant-exit-persistence.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/settlement-dev.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/settlement-final.exit	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/settlement-final.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/settlement.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/slow-receipt.log	V
+A	snapback4/reports/20260925-lane-v-r8-evidence/typecheck.log	V
+A	snapback4/reports/20260925-lane-v-r8.md	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/affected-final.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/build.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/clique-timing-control.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-fifth.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-fifth.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-final.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-final.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-first.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-first.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-fourth.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-fourth.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-second.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-second.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-third.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/full-suite-third.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-1.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-10.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-2.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-3.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-4.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-5.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-6.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-7.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-8.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-control-9.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/keepalive-settlement-control.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/lifecycle-receipts.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-custody-sequences.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-custody-sequences.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-exit-persistence-final.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-exit-persistence-final.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-first-terminal.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-first-terminal.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-receipt-barrier.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-receipt-barrier.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-receipt-fallthrough.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-receipt-fallthrough.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-receipt-replay.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/mutant-receipt-replay.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/pending-window-final.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/receipt-controls.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/receipts-final.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/receipts-first.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/recovery-controls.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/recovery-debug.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/ref-check.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/secondary-reopen-control.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/serial-qualification-interrupted.exit	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/serial-qualification-interrupted.log	V
+A	snapback4/reports/20260925-lane-v-r9-evidence/typecheck.log	V
+A	snapback4/reports/20260925-lane-v-r9.md	V
+A	snapback4/reports/20260925-lane-v-web-start.md	V
+A	snapback4/reports/20260925-lane-y-r1.md	Y
+A	snapback4/reports/20260925-lane-y-r2.md	Y
+A	snapback4/reports/20260925-lane-y-r3.md	Y
+A	snapback4/reports/20260925-lane-y-r4.md	Y
+A	snapback4/reports/20260925-lane-y-r5.md	Y
+A	snapback4/reports/20260925-lane-y-r6.md	Y
+A	snapback4/reports/20260925-lane-y-r7.md	Y
+A	snapback4/reports/20260925-lane-y-r8.md	Y
+A	snapback4/reports/20260925-lane-y.md	Y
+A	snapback4/reports/lane-x-guess-replay.json	X
+A	snapback4/reports/lane-x-report.md	X
+A	snapback4/reports/lane-x-round1-report.md	X
+A	snapback4/reports/lane-x-round2-report.md	X
+A	snapback4/reports/lane-x-round3-report.md	X
+A	snapback4/reports/lane-x-round4-report.md	X
+A	snapback4/reports/lane-x-round5-report.md	X
+A	snapback4/reports/lane-x-validation.json	X
+A	snapback4/scripts/replay-familiar.mjs	X
+A	snapback4/witness/clique-acquisition.mjs	V
+M	snapback4/witness/idb.mjs	V
+M	snapback4/witness/lib.mjs	V, Y, browser bootstrap fix
+M	snapback4/witness/navigation-immediate.mjs	V

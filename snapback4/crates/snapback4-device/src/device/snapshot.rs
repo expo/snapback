@@ -65,6 +65,7 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema, held: Option<&wire::H
 }
 
 pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) -> Result<(), RuntimeError> {
+    expiry_clock::advance(tx, expiry_clock::STAGED, page.now)?;
     let mut boundaries = boundary::Boundaries::editing(true);
     let mut markers = page.acquisitions.iter().peekable();
     boundary::validate_positions(page)?;
@@ -84,6 +85,7 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) -> 
                 if row.field("id")?.as_str()? != event.id {
                     return Err(RuntimeError::Input("snapshot row identity does not match its event".into()));
                 }
+                if !snapback4_core::schema::timeline::holds_event(schema, &event.table, &row) { continue; }
                 if !page.snapshot {
                     // Keys are JSON tuples ending in ']'; its strict prefix
                     // seeks this exact staged key without scanning the group.

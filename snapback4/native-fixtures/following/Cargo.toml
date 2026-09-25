@@ -1,0 +1,21 @@
+# A real query module for the bounded Following device/client regressions.
+[package]
+name = "sb4-fixture-following"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+snapback4-native = { path = "../../crates/snapback4-native" }
+
+[workspace]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
