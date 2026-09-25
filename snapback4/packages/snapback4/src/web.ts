@@ -85,6 +85,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         return undefined;
       };
       let device: WebDevice | undefined;
+      let needsRecovery = true;
       // A lock can release during opening; recovery must wait for restore/adoption.
       let opened!: () => void;
       let chain: Promise<unknown> = new Promise<void>(resolve => { opened = resolve; });
@@ -94,11 +95,11 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       const waiting = new Map<string, AbortController>();
       const outboxListeners = new Set<() => void>();
       const recoverInBackground = () => {
-        chain = chain.then(async () => {
+        chain = chain.then(() => run(async () => {
           if (closing) return;
-          try { if (!device) await restore(); await recoverOrphans(); }
+          try { if (!device) await restore(); await recoverOpening(); await recoverOrphans(); }
           catch { discard(); retryOrphans(); }
-        });
+        }));
       };
       // Persistence failures get three backed-off attempts. Structurally
       // unresolved journals wait for the next open/identity/sync signal.
@@ -141,6 +142,20 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       // being hidden can send what IndexedDB already holds.
       const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null }>();
       const committedListeners = new Set<() => void>();
+      let working = false;
+      let publishPending = false;
+      const publishCommitted = () => {
+        // Transport may acquire the session lock. Run it only after admission
+        // (including its strict IDB commit) has released that lock.
+        if (working) { publishPending = true; return; }
+        publishPending = false;
+        for (const notify of committedListeners) notify();
+      };
+      const run = async <T>(work: () => Promise<T>): Promise<T> => {
+        working = true;
+        try { return await work(); }
+        finally { working = false; if (publishPending) publishCommitted(); }
+      };
       const remember = (changes: Change[]) => {
         journal.remember(changes);
         for (const change of changes) if (change.s === "o") {
@@ -163,7 +178,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           journal.cleanup(committed);
           // An unawaited mutate may finish admission after pagehide. Recheck
           // the suspended page only once its outbox transaction has committed.
-          if (changes.some(change => change.s === "o")) for (const notify of committedListeners) notify();
+          if (changes.some(change => change.s === "o")) publishCommitted();
         }
       };
       const restore = async (backend?: DeviceOpening | null): Promise<void> => {
@@ -173,11 +188,16 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         committed.clear();
         remember(saved);
         await settle();
-        await journal.recover(device, settle, admissions);
+        needsRecovery = true;
+      };
+      const recoverOpening = async (): Promise<void> => {
+        if (!needsRecovery) return;
+        await journal.recover(device!, settle, admissions);
+        await recoverOrphans();
+        needsRecovery = false;
       };
       try {
         await restore(backend);
-        await recoverOrphans();
       } catch (error) {
         closing = Promise.resolve();
         stopRecovery();
@@ -190,7 +210,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         onSuspend(flush) {
           if (typeof window === "undefined" || typeof document === "undefined") return () => {};
           const page = window, doc = document;
-          let suspended = false;
+          let suspended = doc.visibilityState === "hidden";
           const beginSend = () => {
             if (closing || !device) return false;
             // Invalidate any sync already in flight, including a bfcache page's
@@ -208,7 +228,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
             if (entries.length) flush(entries, beginSend);
           };
-          const suspend = () => { suspended = true; dispatch(); };
+          const suspend = () => { suspended = true; publishCommitted(); };
           const resume = () => { suspended = false; };
           const hidden = () => { if (doc.visibilityState === "hidden") suspend(); else resume(); };
           const stop = () => {
@@ -239,12 +259,13 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           const admission = prepared.get(request);
           prepared.delete(request);
           if (admission) { request = { ...request, entry: admission.entry }; admissions.add(admission.entry.id); }
-          const answer = chain.then(async () => {
+          const answer = chain.then(() => run(async () => {
             try {
               // @ref LLP 3000.008.004#3 — publish only after persistence;
               // a failed call discards its uncommitted memory. Reopen lazily
               // on the kept backend, with no store copy on successful calls.
               if (!device) await restore();
+              await recoverOpening();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
               const execute = async (): Promise<Record<string, unknown>> => {
                 const reply = request.op === "admit" ? journal.admit(device!, request.entry) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
@@ -280,7 +301,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               discard();
               throw error;
             } finally { if (admission) admissions.delete(admission.entry.id); }
-          });
+          }));
           chain = answer.catch(() => undefined);
           return answer;
         },
@@ -294,7 +315,12 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         },
       };
       admissionHost(core, capture);
-      admissionAuthorityHost(core, context => { journal.authority = context; });
+      admissionAuthorityHost(core, context => {
+        // Local-client construction attaches app ownership before its first
+        // device call. Recover here, without waiting for any network sync.
+        journal.authority = context;
+        chain = chain.then(() => run(recoverOpening)).catch(error => { discard(); throw error; });
+      });
       return core;
     },
   };

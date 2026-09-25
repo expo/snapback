@@ -173,9 +173,6 @@ export class AdmissionJournal {
     for (const record of records(this.name, true)) {
       const id = record.entry.id;
       if (live.has(id)) continue;
-      // App opening binds the reader after the host returns its core. Until
-      // then, leave stamped records intact rather than guessing an authority.
-      if (record.authority && !this.authority) continue;
       if (this.transfers.has(id)) { remove(record.key); continue; }
       // A transferred outbox receipt wins over any leftover journal copy.
       const queued = invoke(device, { op: "queued" }).ok as Entry[];
@@ -183,6 +180,9 @@ export class AdmissionJournal {
         await settle([this.transfer(record, false)]);
         continue;
       }
+      // A bare device cannot validate an app-owned journal. Already committed
+      // outbox custody above is independent of this unadmitted record's epoch.
+      if (record.authority && !this.authority) continue;
       if (record.storeId !== state.store_id) {
         await settle([this.transfer(record, false)]);
         continue;
@@ -201,7 +201,9 @@ export class AdmissionJournal {
 
   async authorize<T>(record: AdmissionRecord, admitted: () => Promise<T>, refused: () => Promise<T>): Promise<T> {
     const stamp = record.authority;
-    if (!stamp) return admitted();
+    // Legacy app journals cannot prove which login authorized the click.
+    // Raw local clients have no app epoch and retain their existing custody.
+    if (!stamp) return this.authority ? refused() : admitted();
     if (!this.authority) throw new Error("the journal's session reader has not been attached");
     return storeLock(stamp.key, () => sameAdmissionAuthority(stamp, this.authority!, record.entry.viewer) ? admitted() : refused());
   }

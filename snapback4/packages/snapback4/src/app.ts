@@ -337,8 +337,11 @@ export function createApp(options: AppOptions): App {
         const stored = sessionEpoch(read(sessionKey(url))) ?? "0";
         const currentEpoch = BigInt(marker) > BigInt(stored) ? marker : stored;
         // An unlocked observation may catch our own session commit before its
-        // in-memory epoch assignment. Refuse this call without retiring scope.
-        if (!scope.valid || currentEpoch !== epoch) return new SessionEpochChanged().why;
+        // in-memory epoch assignment. Confirm under the lock before fencing.
+        if (!scope.valid || currentEpoch !== epoch) {
+          void authorized().catch(() => {});
+          return new SessionEpochChanged().why;
+        }
       } catch (error) { return admissionRefusal(`session storage is unavailable: ${String(error)}`, "app.mutate"); }
       return undefined;
     }

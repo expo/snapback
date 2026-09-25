@@ -60,8 +60,8 @@ test('web startup: immediate admin navigation, synchronous refusals and acquisit
   if (process.env.SNAPBACK4_WEB_START_AUTHORITY_MUTANT === 'fence') {
     const path = join(root, 'packages/snapback4/src/app.ts');
     sourceOverrides[path] = readFileSync(path, 'utf8').replace(
-      'if (!scope.valid || currentEpoch !== epoch) return new SessionEpochChanged().why;',
-      'if (!scope.valid || currentEpoch !== epoch) { fence(scope, new SessionEpochChanged()); return new SessionEpochChanged().why; }');
+      'void authorized().catch(() => {});',
+      'fence(scope, new SessionEpochChanged());');
   }
   const witness = await launch({ seed: [], sourceDir, sourceOverrides, entrySource: `
 import { createApp } from '${join(root, 'packages/snapback4/src/app.ts')}';

@@ -148,6 +148,9 @@ for (const state of ["evicted", "unidentified"]) test(`W11R2: ${state} journal h
   const persist = { ...memory, async load(store) { if (store === orphan) loads++; return memory.load(store); } };
   const core = await webDevice({ wasm, persist }).open(name, backend);
   try {
+    // Recovery starts at authority attachment or the first device call, after
+    // an app has had the chance to bind its session owner to the returned core.
+    ok(await core.call({ op: "state" }));
     assert.equal(timers.size, 0, "an unresolved journal must wait for a signal, not poll for its lifetime");
     assert.equal(loads, state === "evicted" ? 0 : 1, "a read must not create an evicted journal's database");
     ok(await core.call({ op: "state" }));
@@ -247,6 +250,7 @@ test("W11R2: persistent recovery failure exhausts three backoffs then a sync can
   } };
   const core = await webDevice({ wasm, persist }).open(name, backend);
   try {
+    ok(await core.call({ op: "state" }));
     for (let n = 0; n < 8 && timers.size; n++) {
       const timer = [...timers][0]; timers.delete(timer); timer.callback();
       ok(await core.call({ op: "state" }));

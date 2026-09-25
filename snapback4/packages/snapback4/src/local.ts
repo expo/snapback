@@ -1427,6 +1427,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   const prepared = startDeferred(options);
+  if (core.onSuspend) {
+    const sendOnExit = exitTransport(doFetch, base, aborter.signal);
+    stopSuspend = core.onSuspend((entries, beginSend) => {
+      const request = requestCredentials();
+      // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
+      exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
+    });
+  }
   const start = async () => {
     if (closed) return;
     if (prepared && session && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
@@ -1435,14 +1443,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // active sender, so their existing snapshot/receipt coordination runs first.
       if (core.onSuspend) await replayOnOpen();
       await syncOnce();
-    }
-    if (core.onSuspend) {
-      const sendOnExit = exitTransport(doFetch, base, aborter.signal);
-      stopSuspend = core.onSuspend((entries, beginSend) => {
-        const request = requestCredentials();
-        // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
-        exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
-      });
     }
     stopOutbox = core.onOutbox?.(() => { void flush(); });
     follow();

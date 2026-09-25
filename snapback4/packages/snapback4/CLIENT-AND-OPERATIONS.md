@@ -513,8 +513,8 @@ before `mutate` returns its promise. Same-origin navigation can therefore leave 
 commits: the next client admits those records before new writes, then sends
 through the ordinary outbox with the original ids. A closed tab's records are
 adopted by the next device that opens the store, under the same provider claim.
-Adoption runs with that device's first sync, so a receipt from a closed tab
-answers `client.write(id)` once that sync completes, not at the moment it opens.
+Recovery runs during client opening on the kept backend, before its first sync,
+including offline. Orphans that require a backend adoption wait for that sync.
 Recovery and new admissions take submission numbers from the same device counter;
 already-queued writes precede recovered orphan records. A matching orphan waiting
 for backend adoption installs the destination's authenticated backend first. An
@@ -529,6 +529,10 @@ lock through the admission commit. A logout or changed epoch/principal cancels
 an unadmitted record; a live caller receives `E_AUTH`. A subsequent sign-in
 cannot revive that earlier click. Synchronous journaling still precedes waiting
 for the lock, so a navigation while the session is unchanged keeps its intent.
+App ownership is attached before recovery. An unadmitted legacy record with no
+epoch stamp is cancelled because its originating login cannot be established;
+already committed outbox entries keep their custody. Page-hide transport starts
+after the admission lock releases, and is installed before the initial sync wait.
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
 device store, and at most 64 KiB per serialized record. A browser mutation that
 cannot synchronously acquire custody refuses with `E_ADMISSION`, a site and a
@@ -560,6 +564,9 @@ else {
 
 `createApp` checks the builtin session store's epoch synchronously before
 entering web admission; its network paths retain their locked epoch checks.
+An observed epoch mismatch refuses the call immediately, then checks under the
+session lock. A confirmed mismatch also withdraws the old scope's observations;
+a transient observation during a session commit does not retire that scope.
 Restoration does not queue an intent for whichever account might sign in later.
 Before the first store identification the caller retries after readiness, using
 the same id. A bare `createClient()` in a browser has no synchronous journal
