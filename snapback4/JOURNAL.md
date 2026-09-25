@@ -58830,3 +58830,42 @@ bump, push or publication. No new open scoped problem. V's raw diagnostic
 logs are retained verbatim, including their whitespace. File-by-file changes,
 constraints and compressed full-suite/reference evidence:
 [round-11 report](reports/20260925-intent-integration-r11/REPORT.md).
+
+## 2026-09-25 — Lane U round 11: expiry retry watch edges for 0.4.3
+
+Fetched and merged `origin/main`, fast-forwarding the lane to integrated
+`05382d59f`, then implemented the two ticketed review findings in `93f13ae44`.
+Recovery now keeps the retry's local `nextExpiry` beside remembered data's
+server-clock `serverExpiry`, so an offline speculative middle branch wakes
+at its second permit deadline. Server transport reached by the expiry retry
+uses `retain: false`: an already published pre-deadline value is withdrawn
+during the HTTP round trip. Purely local retries still publish their answer
+without an intermediate loading reset. The numbered procedure and client
+reference state both refinements. Moved the ticket into `issues/closed/`
+and appended its resolution.
+
+Added six real wasm/native process cases: chained permits recover an idle
+watch at T2 without sync; a populated watch straddling T contains no expired
+secret during delayed HTTP; and a server fallback after T keeps its cursor
+and returns the next distinct page. Sixteen router cases cover independent
+local/server clocks, missing/valid/expired memory, queries/watches and
+offline/failed-transport recovery. The affected suite passed **230/230**.
+All three deliberate mutations were rejected: losing recovery's local deadline
+failed 18 cases; retaining the expired watch value failed both device cases;
+nulling the retry's server cursor failed both pagination cases.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 942 s`**.
+Rust: 3,196 passed, 19 existing ignored, zero failures. Clients including
+shards: 1,990 passed, ten existing skips, zero failures/cancellations. Models:
+78 passed at the unchanged 5,000 / 5,000 / 3,000 sequences. No full-suite
+failure, baseline exemption or environmental exemption. New fixture shape
+and clock-interleaving mistakes were corrected during test development;
+negative-control mutation failures were expected. Wasm remains **1,850,576 B
+raw / 521,814 B gzip**, within the unchanged 522,000 B budget.
+
+No design deviation, authorization relaxation, contract change, runtime-meter
+change, model-count reduction, timeout increase, acquisition remeasurement,
+version bump, push or publication. The separately ticketed whole remembered
+answer row-expiry limitation remains open as instructed. File map, rule/test
+coverage, mutation runner, exact suite command and compressed evidence:
+`reports/20260925-bounded-following-r11/REPORT.md`.
