@@ -56125,3 +56125,43 @@ suite-speed claim. The supervisor retains integration and release ownership.
 File-by-file changes, word counts, all fact destinations, guess provenance,
 reproduction commands and exact verification receipts:
 [Lane X report](reports/lane-x-report.md).
+
+
+## 2026-09-25 — Lane X round 1: scoped comparisons, pasteable repairs and offline prediction
+
+Closed Astra and Grok's round-zero findings. E_QUARRY_SELF_EQUALITY now refuses
+all six scalar self-comparisons and `in` lists containing the same focal column.
+Read/merge, aggregate-view, maintained-column and timeline-event predicates use
+one validator; nested read keys retain the enclosing scope and inner filters get
+their own. Contextual repairs name the actual count domain and an existing
+compatible argument, or add a typed argument while preserving the declaration.
+Project table declarations supply repair types even across files or declaration
+order. Argument-free derived declarations get an explicit constant repair with
+an intent warning. These repairs never run mechanically through `check --fix`.
+
+The qualified-helper witness now submits predictable mutations fully offline on
+wasm/memory and native/SQLite. Each has a real predicted outbox row. Local queries
+return the owner's doubled value with pending metadata, hide a foreign-owned row
+in the pending overlay, and confirm that neither offline write reached the server.
+Six language regressions and a CLI paste test cover the review reproductions,
+all operators, nested scopes, declarations and actual diagnostic repairs.
+All 133 moved guide facts and 17 original compiled blocks remain covered; the
+cards total 10,420 words, still 43.1% below the 18,300-word baseline.
+
+Final default-concurrency `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 409 s`**. Client tests: 1,509 passed, ten existing skips.
+Client models: 78 passed; 5,000 / 5,000 / 3,000 sequences retained. The first run
+was `== 1 failure(s) in 411 s`: three introduced instances of the shared
+empty-scan meter test used the newly forbidden `.roomId != .roomId`. The fixture
+now compares its distinct `r...` room ids with its `m...` row ids; every empty
+result, meter-cut and continuation assertion is unchanged and passes on all
+three runners. No failures were waived or attributed to the older baseline.
+Ref-check: zero errors/unchecked. Wasm remains 1,775,799 B raw / 495,258 B gzip
+within the unchanged 496,000 B budget. The external target checks with zero
+problems and its six existing notes.
+
+No engine, authorization, disclosure, durability, meter, client-source, Following,
+version, push or publication changes. No unresolved review finding. The existing
+suite wall-time budget overrun remains outside this lane. File map, engineering
+decisions, tests, reproductions and log digests:
+[Lane X round-one report](reports/lane-x-round1-report.md).
