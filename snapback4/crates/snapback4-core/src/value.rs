@@ -404,7 +404,7 @@ impl InternalPrice {
     pub(crate) fn fits(&self, meter: &crate::meter::Meter, _: &crate::engine::Authorization) -> bool { meter.room(crate::error::MeterKind::HeapBytes, self.0) }
     pub fn from_storage(bytes: u64, _: &crate::engine::Authorization) -> Self { Self(bytes) } }
 impl InternalPrice {
-    pub fn charge(self, meter: &mut crate::meter::Meter, _: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> { meter.heap(self.0) }
+    pub fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, _: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> { meter.heap(self.0) }
 }
 
 fn scalar_copy(value: &Value) -> u64 {

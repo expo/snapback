@@ -232,7 +232,7 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     }
 
     // @ref LLP 3000.007.003#3.2 — retained images cannot establish current attribution coverage.
-    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::meter::Meter) -> Result<bool, RuntimeError> {
+    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<bool, RuntimeError> {
         recorded::covered(self, name, row, viewer, now, scope, meter)
     }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
@@ -253,10 +253,10 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         self.tx.scan(table, index_name, prefix, bounds, dir, limit).map(|rows| rows.into_iter().map(|(row, key)| (predictions::without_pending(row), key)).collect())
     }
-    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
-        self.tx.index_head(table,index,prefix,bounds)
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.tx.index_head(table,index,prefix,bounds,dir)
     }
-    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter)?;
         for (row, _) in &mut rows {
             self.schema.tables[table].project_fields(row.clone(),None).charge_copy_internal(meter,scope)?;

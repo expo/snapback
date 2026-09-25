@@ -292,7 +292,17 @@ impl Rows for Tx<'_> {
             .collect()
     }
 
-    fn scan_metered(&self, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(None); };
+        let sql = if dir == Dir::Asc {
+            "SELECT k FROM i WHERE t = $1 AND ix = $2 AND k >= $3 AND k < $4 ORDER BY k ASC LIMIT 1"
+        } else {
+            "SELECT k FROM i WHERE t = $1 AND ix = $2 AND k >= $3 AND k < $4 ORDER BY k DESC LIMIT 1"
+        };
+        Ok(self.query(sql, &[&table, &index, &lo, &hi])?.first().and_then(|r| crate::key::decode(r.get::<_, &[u8]>(0))))
+    }
+
+    fn scan_metered(&self, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
         // Queries use repeatable-read; serialized writes hold the head lock.
         // The same bounded range cannot grow between this scalar size preflight

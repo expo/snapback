@@ -386,12 +386,13 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     let tx = engine.store_mut().read_transaction().unwrap();
     let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     let initial_runs = tx.conn().prepare_cached(SQL).unwrap().get_status(Run);
+    let initial_preflight_runs = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run);
     let initial_memory = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(MemUsed);
     let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, scope, meter));
     let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 500, ..Default::default() }, meter::Cut::Cap);
     let (result, rust_bytes, native_allocated, payload_allocated) = measured_sqlite(json_bytes, || scan(&mut low));
     assert!(result.is_err());
-    let preflight_runs = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run);
+    let preflight_runs = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run) - initial_preflight_runs;
     let native_bytes = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(MemUsed) - initial_memory;
     println!("W14A {storage} json_bytes={json_bytes} page_size={page_size} ceiling=500 rust_allocated={rust_bytes} native_allocated={native_allocated} payload_allocated={payload_allocated} native_retained={native_bytes} preflight_runs={preflight_runs} charged={}", low.used.heap_bytes);
     assert_eq!(preflight_runs, 0, "resident scratch must be prepaid before the first preflight executes");
@@ -408,7 +409,7 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     assert!(native_bytes as u64 <= 2 * page_size);
     assert!(native_allocated as u64 <= 2 * page_size);
     assert_eq!(payload_allocated, if storage == "resident" { (json_bytes + 2 + 7) & !7 } else { 0 });
-    assert_eq!(tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run), 1);
+    assert_eq!(tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run) - initial_preflight_runs, 1);
     assert_eq!(tx.conn().prepare_cached(SQL).unwrap().get_status(Run), initial_runs);
     // Inspect the actual cached preflight, not a separately copied SQL spelling.
     // A normal Column (P5=0), even inside length(CAST(...)), loads the payload.
@@ -455,7 +456,7 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     println!("W14A {storage} positive_rows=1 rust_allocated={rust_bytes} first_native={first_native} next_fetch_native={next_native} next_read_native={read_native} cumulative_fetch_native={} first_charge={first} next_fetch_charge={} next_read_charge={}", first_native + next_native, ample.used.heap_bytes - first, next_read.used.heap_bytes);
 }
 
-fn physical<T>(meter: &mut meter::Meter, work: impl FnOnce(&mut meter::Meter,&engine::Authorization) -> T) -> T {
+fn physical<T>(meter: &mut meter::Meter, work: impl FnOnce(&mut engine::InternalMeter<'_>,&engine::Authorization) -> T) -> T {
     let mut ledger = meter::InternalLedger::new(meter.clone());
     let result = ledger.run(work);
     *meter = ledger.into_meter();

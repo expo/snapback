@@ -101,7 +101,7 @@ pub enum RuntimeError {
     #[error("E_RULE: {effect} on {table} is not permitted for this viewer")]
     Rule { table: String, effect: Effect },
     #[error("E_RULE: authorization could not be established")]
-    AuthorizationBudget,
+    AuthorizationBudget { table: String, effect: Effect },
     #[error("{code}: the program refused")]
     Require { code: String, site: Option<String> },
     #[error("E_CONFLICT: the row no longer matches the update condition")]
@@ -143,6 +143,13 @@ pub enum RuntimeError {
 }
 
 impl RuntimeError {
+    pub(crate) fn authorization_context(self, table: &str, effect: Effect) -> Self {
+        match self {
+            Self::AuthorizationBudget { .. } => Self::AuthorizationBudget { table: table.into(), effect },
+            other => other,
+        }
+    }
+
     /// Serde's error channel is text. Preserve the schema codec's stable
     /// capability refusal when a host adds input or durable-store context.
     pub fn decode(error: serde_json::Error, fallback: fn(String) -> Self) -> Self {
@@ -162,7 +169,7 @@ impl RuntimeError {
             Self::Value(ValueError::Type { .. }) => "E_TYPE".into(),
             Self::Value(ValueError::MissingField(_)) => "E_FIELD".into(),
             Self::Value(ValueError::Identity) => "E_INPUT".into(),
-            Self::Rule { .. } | Self::AuthorizationBudget => "E_RULE".into(),
+            Self::Rule { .. } | Self::AuthorizationBudget { .. } => "E_RULE".into(),
             Self::Require { code, .. } | Self::NamedConstraint { code, .. } => code.clone(),
             Self::Conflict { .. } => "E_CONFLICT".into(),
             Self::Constraint(_) | Self::ExpiringCap { .. } => "E_CONSTRAINT".into(),
@@ -193,7 +200,7 @@ impl RuntimeError {
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
             Self::Structural { code: "E_STORE_RESTORE", .. } => "store",
             Self::Schema(_) | Self::Structural { .. } => "schema",
-            Self::Rule { .. } | Self::AuthorizationBudget | Self::Auth(_) => "auth",
+            Self::Rule { .. } | Self::AuthorizationBudget { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
             Self::Conflict { .. } | Self::Constraint(_) | Self::ExpiringCap { .. } | Self::NamedConstraint { .. } => "constraint",
             Self::Fanout | Self::Bound { .. } => "bound",
@@ -305,9 +312,9 @@ impl RuntimeError {
                 });
                 refusal.guide = Some("bounds".into());
             }
-            Self::Rule { .. } | Self::AuthorizationBudget => {
+            Self::Rule { table, effect } | Self::AuthorizationBudget { table, effect } => {
                 // @ref LLP 3000.007#8 — explain the hidden-collision idiom without disclosing a row
-                refusal.message = String::from("The rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
+                refusal.message = format!("{table}'s {effect} rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
                 refusal.guide = Some("rules".into());
             }
             Self::Constraint(message) => {

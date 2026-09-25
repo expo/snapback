@@ -246,7 +246,10 @@ impl Pair {
                 for tick in 0..1000 {
                     let timeline = e.run_timeline_chunk(now).unwrap();
                     let aggregate = e.run_job_chunk(now).unwrap();
-                    let view = e.run_view_chunk(now).unwrap();
+                    let view = loop {
+                        let chunk = e.run_view_chunk(now).unwrap();
+                        if !matches!(chunk, Some(snapback4_core::engine::ViewChunk::Private)) { break chunk; }
+                    };
                     let phase = format!("{n}/background/{tick}");
                     transcript.insert(
                         format!("{phase}/changes"),

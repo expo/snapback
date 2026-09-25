@@ -30,24 +30,24 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
     pub(super) fn revision(&self) -> u64 { self.revision.get() }
     pub(super) fn remaining(&self) -> usize { self.remaining.get() }
-    fn limit(&self, requested: usize) -> Result<usize, RuntimeError> {
+    fn limit(&self, table: &str, requested: usize) -> Result<usize, RuntimeError> {
         if !self.authorizing.get() { return Ok(requested); }
-        if self.remaining.get() == 0 { return Err(RuntimeError::AuthorizationBudget); }
+        if self.remaining.get() == 0 { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
         Ok(requested.min(self.remaining.get()))
     }
     fn charge(&self, fetched: usize) {
         if self.authorizing.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
     }
     pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
-        self.limit(1)?;
+        self.limit(table, 1)?;
         let row = self.raw.get(table, id)?;
         self.charge(usize::from(row.is_some()));
         Ok(row)
     }
     /// A key-only witness still consumes the shared physical authorization allowance.
-    pub(crate) fn index_head(&self, _authorization: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
-        self.limit(1)?;
-        let key = self.raw.index_head(table, index, prefix, bounds)?;
+    pub(crate) fn index_head(&self, _authorization: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.limit(table, 1)?;
+        let key = self.raw.index_head(table, index, prefix, bounds, dir)?;
         self.charge(usize::from(key.is_some()));
         Ok(key)
     }
@@ -56,24 +56,24 @@ impl<'a> GuardedRows<'a> {
         // while every logical read still prepays its complete rule.
         if let Some((cached_table, cached_index, cached_key, row)) = &*self.lookup_cache.borrow()
             && cached_table == table && cached_index == name && cached_key == key { return Ok(row.clone()); }
-        self.limit(1)?;
+        self.limit(table, 1)?;
         let row = self.raw.lookup(table, name, index, key)?;
         self.charge(usize::from(row.is_some()));
         *self.lookup_cache.borrow_mut() = Some((table.into(), name.into(), key.to_vec(), row.clone()));
         Ok(row)
     }
     pub(crate) fn scan(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let permitted = self.limit(limit)?;
+        let permitted = self.limit(table, limit)?;
         let rows = self.raw.scan(table, name, prefix, bounds, dir, permitted)?;
         self.charge(rows.len());
-        if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget); }
+        if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
         Ok(rows)
     }
     pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let permitted = self.limit(limit)?;
-        let rows = self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, _authorization, meter)?;
+        let permitted = self.limit(table, limit)?;
+        let rows = InternalLedger::with_meter(meter, |meter, _| self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, _authorization, meter))?;
         self.charge(rows.len());
-        if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget); }
+        if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
         Ok(rows)
     }
     pub(crate) fn count_prefix(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
@@ -97,7 +97,7 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
     pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }
     pub(crate) fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.retained_group(table, index, prefix) }
-    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, scope: &Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> { self.raw.recording_covered(table, row, viewer, now, scope, meter) }
+    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, scope: &Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> { InternalLedger::with_meter(meter, |meter, _| self.raw.recording_covered(table, row, viewer, now, scope, meter)) }
     pub(crate) fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { self.raw.acquired_boundary(table, index, prefix) }
     pub(crate) fn prefetch_enabled(&self) -> bool { self.raw.prefetch_enabled() }
     #[allow(dead_code)] // Used by the native prefetch planner; absent on web.
@@ -133,10 +133,10 @@ impl Runner<'_> {
     }
 
     pub(super) fn witness_scratch(&self, table: &str) -> u64 {
-        let own = crate::rows::disclosed::decode_reservation(&self.schema.tables[table]);
+        let own = crate::rows::disclosed::admission(&self.schema.tables[table]);
         let source = self.schema.maintain_for(table)
             .and_then(|m| self.schema.table(&m.source)).filter(|source| source.expire.is_some());
-        own.saturating_add(source.map_or(0, crate::rows::disclosed::decode_reservation))
+        own.saturating_add(source.map_or(0, crate::rows::disclosed::admission))
     }
 
 
@@ -265,13 +265,21 @@ mod tests {
 /// Standalone physical accounting has its own meter. Its token is borrowed
 /// only for `run`, never constructible on a caller ledger or returned by it.
 pub struct InternalLedger(crate::meter::Meter);
+pub struct InternalMeter<'a>(&'a mut Meter);
+impl std::ops::Deref for InternalMeter<'_> {
+    type Target = Meter;
+    fn deref(&self) -> &Meter { self.0 }
+}
+impl std::ops::DerefMut for InternalMeter<'_> {
+    fn deref_mut(&mut self) -> &mut Meter { self.0 }
+}
 impl InternalLedger {
-    pub(crate) fn with_meter<T>(meter: &mut crate::meter::Meter, work: impl FnOnce(&mut crate::meter::Meter, &Authorization) -> T) -> T {
-        work(meter, &Authorization::internal())
+    pub(crate) fn with_meter<T>(meter: &mut crate::meter::Meter, work: impl FnOnce(&mut InternalMeter<'_>, &Authorization) -> T) -> T {
+        work(&mut InternalMeter(meter), &Authorization::internal())
     }
     pub fn new(meter: crate::meter::Meter) -> Self { Self(meter) }
-    pub fn run<T>(&mut self, work: impl FnOnce(&mut crate::meter::Meter, &Authorization) -> T) -> T {
-        work(&mut self.0, &Authorization::internal())
+    pub fn run<T>(&mut self, work: impl FnOnce(&mut InternalMeter<'_>, &Authorization) -> T) -> T {
+        work(&mut InternalMeter(&mut self.0), &Authorization::internal())
     }
     pub fn into_meter(self) -> crate::meter::Meter { self.0 }
 }

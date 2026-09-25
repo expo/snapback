@@ -148,7 +148,7 @@ fn private_expiry_recount_reconciles_edits_clock_advance_and_sweep() {
         let mark=e.mutate("mark",None,Context::new("alice",inputs(&e,"mark",&pair.operations[0].args)).at(NOW+2)).unwrap();
         assert!(matches!(mark.state,snapback4_core::WriteState::Sent{..}));
         let seq=e.seq().unwrap();
-        assert!(e.run_view_chunk(NOW+2).unwrap().is_none());
+        while let Some(chunk)=e.run_view_chunk(NOW+2).unwrap() { assert!(matches!(chunk, snapback4_core::engine::ViewChunk::Private)); }
         assert_eq!(e.seq().unwrap(),seq);
         let edit=e.mutate("extend",None,Context::new("alice",inputs(&e,"extend",&json!({"message":"m00000","until":NOW+30}))).at(NOW+2)).unwrap();
         assert!(matches!(edit.state,snapback4_core::WriteState::Sent{..}),"{edit:?}");

@@ -155,3 +155,44 @@ fn round7_disk_sqlite_reopen() {
     }
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn two_finite_alternatives_keep_the_later_deadline() {
+    for same_probe in [false,true] {
+    let mut pair = witness("alice", "exists access[tag = 0, approved = true] or exists access[tag = 1, approved = true]", false);
+    if same_probe {
+        pair.source=pair.source.replace("exists access[tag = 0, approved = true] or exists access[tag = 1, approved = true]", "exists access[tag = 0, approved = true]")
+            .replace("unique tag", "by byTag: tag, approved");
+    }
+    for seed in &mut pair.seeds {
+        let mut later = seed.iter().find(|(table,_)|table == "access").unwrap().clone();
+        later.1["id"] = json!("later"); later.1["tag"] = json!(if same_probe {0} else {1}); later.1["expires"] = json!(20000);
+        seed.iter_mut().find(|(table,_)|table == "access").unwrap().1["expires"] = json!(10000);
+        seed.push(later);
+    }
+    pair.assert_equal();
+    for world in 0..2 {
+        let mut e=pair.engine(world);
+        let out=e.query("one",Context::new("alice",inputs(&e,"one",&json!({"id":"note"}))).at(pair.now)).unwrap();
+        assert_eq!(out.next_expiry,Some(20000));
+    }
+}
+}
+
+#[test]
+fn public_wide_declarations_admit_short_writes_and_exists() {
+    let source="table notes:\n  body: text <=2000000\n  label: int default 0\n  public\n  update <- allow\n  sync public\ntable gates:\n  note: notes\n  read <- exists notes[id = .note]\n  online only\nquery probe():\n  return gates['g']\nquery one():\n  return notes['r']\nmutation edit(id: notes):\n  update notes[id] { body: 'hi' }\nmutation label(id: notes):\n  update notes[id] { label: 1 }\n";
+    let seeds=[0,1].map(|_|vec![("notes".into(),json!({"id":"r","body":"hi","label":0})),("gates".into(),json!({"id":"g","note":"r"}))]);
+    let pair=Pair::new(source,seeds,"alice",Operation::new("edit",json!({"id":"r"}),"alice"))
+        .then(Operation::new("label",json!({"id":"r"}),"alice")).query("probe",json!({})).query("one",json!({}));
+    pair.assert_equal();
+    for world in 0..2 {
+        let mut e=pair.engine(world);
+        for op in &pair.operations {
+            let out=e.mutate(&op.name,None,Context::new("alice",inputs(&e,&op.name,&op.args)).at(pair.now)).unwrap();
+            assert!(matches!(out.state,WriteState::Sent{..}),"{}: {out:?}",op.name);
+        }
+        let out=e.query("probe",Context::new("alice",Default::default()).at(pair.now)).unwrap();
+        assert!(out.complete && out.data!=Value::Null,"{out:?}");
+    }
+}

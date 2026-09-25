@@ -12,10 +12,16 @@ const binary = process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4')
 const fixture = readFileSync(join(root, 'crates/snapback4-lang/tests/fixtures/row-keyed-view.q'), 'utf8');
 initSync({ module: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)) });
 
-test('row-key check JSON and rebuilt wasm carry the actual E_VIEW_KEY envelope', { timeout: 90000 }, async t => {
+test('row-key check JSON and rebuilt wasm queue large live-count certification', { timeout: 90000 }, async t => {
   const directory = mkdtempSync(join(root, 'target/b3-wire-'));
   mkdirSync(join(directory, 'snapback'));
-  const source = 'use personas bob\n' + fixture + '\nmutation depend(member: members):\n  n = unread[member]\n  update members[member] { readUpTo: n }\n';
+  const source = 'use personas bob\n' + fixture + `
+mutation depend(member: members):
+  return unread[member]
+mutation fill(start: int):
+  for n in range(start, start + 1):
+    insert messages { conversationId: 'c', ordinal: n + 1, senderId: 'dev:alice', until: null }
+`;
   writeFileSync(join(directory, 'snapback/schema.q'), source);
   const checked = JSON.parse(execFileSync(binary, ['check', '--json'], { cwd: directory, encoding: 'utf8' }));
   assert.deepEqual(checked.rowViews, [{ view: 'unread', source: 'messages', sourceKey: 'conversationId', member: 'members', memberKey: 'conversationId', fanout: 100, writerRecount: 1024, recountChunk: 256 }]);
@@ -43,22 +49,43 @@ test('row-key check JSON and rebuilt wasm carry the actual E_VIEW_KEY envelope',
   const applied = call({ op: 'apply', first: true, page: {
     snapshot: true, generation: backend.generation, watermark: 1, more: false,
     events: [
-      { table: 'members', id: 'b', kind: 'put', data: { id: 'b', conversationId: 'c', principal: 'dev:bob', readUpTo: 10000, joinedAt: 0 } },
-      { table: 'unread', id: 'b', kind: 'put', data: { id: 'b', member: 'b', value: 10000, recountPending: true } },
-      // An empty covered live basis is now certifiable despite stale pending
-      // metadata. Exercise a real physical live-range cut for this refusal.
-      ...Array.from({ length: 10000 }, (_, n) => ({ table: 'messages', id: `live-${n}`, kind: 'put', data: {
+      { table: 'members', id: 'b', kind: 'put', data: { id: 'b', conversationId: 'c', principal: 'dev:bob', readUpTo: 0, joinedAt: 0 } },
+      { table: 'unread', id: 'b', kind: 'put', data: { id: 'b', member: 'b', value: 1200, recountPending: false } },
+      // A settled, fully covered count can exceed only the device writer
+      // certification limit; that is uncertainty, not a rejected mutation.
+      ...Array.from({ length: 1200 }, (_, n) => ({ table: 'messages', id: `live-${n}`, kind: 'put', data: {
         id: `live-${n}`, conversationId: 'c', senderId: 'dev:alice', ordinal: 1, tombstone: false, until: null,
       } })),
     ],
   } });
   assert.ok(Object.hasOwn(applied, 'ok'), JSON.stringify(applied));
   const query = call({ op: 'query', name: 'unreadFor', viewer: 'dev:bob', args: { member: 'b' }, now: 1 });
-  assert.equal(query.ok.complete, false);
-  const prediction = call({ op: 'predict', name: 'depend', viewer: 'dev:bob', args: { member: 'b' }, now: 1 });
-  assert.equal(prediction.ok?.denied?.code, 'E_VIEW_KEY', JSON.stringify(prediction));
-  assert.equal(prediction.ok.denied.guide, 'maintains');
-  assert.match(prediction.ok.denied.rewrite, /retry after recount settlement/);
+  assert.equal(query.ok.complete, true);
+  assert.equal(query.ok.data, 1200);
+  const admission = call({ op: 'admit', entry: { id: 'large-count', seq: 1,
+    op: 'depend', viewer: 'dev:bob', args: { member: 'b' }, now: 1, predictable: true } });
+  assert.equal(admission.ok?.predictable, false, JSON.stringify(admission));
+  assert.deepEqual(admission.ok.predicted, []);
+  assert.equal(call({ op: 'queued' }).ok.length, 1);
+  const mutate = async (name, args) => {
+    const response = await fetch(`${url}/m/${name}`, { method: 'POST',
+      headers: { 'x-snapback-persona': 'bob', 'content-type': 'application/json' },
+      body: JSON.stringify({ args }),
+    });
+    const receipt = await response.json();
+    assert.equal(receipt.state, 'sent', JSON.stringify(receipt));
+    return receipt;
+  };
+  await mutate('join', { id: 'b', conversationId: 'c', principal: 'dev:bob', readUpTo: 0, joinedAt: 0 });
+  for (let start = 0; start < 1200; start += 1) await mutate('fill', { start });
+  const receipt = await mutate('depend', { member: 'b' });
+  assert.equal(receipt.result, 1200);
+  assert.ok(Object.hasOwn(call({ op: 'settle', id: 'large-count', seq: receipt.seq }), 'ok'));
+  assert.ok(Object.hasOwn(call({ op: 'apply', first: false, page: {
+    snapshot: false, generation: backend.generation, requested_watermark: 1,
+    images_at: receipt.seq, watermark: receipt.seq, more: false, events: [],
+  } }), 'ok'));
+  assert.equal(call({ op: 'queued' }).ok.length, 0);
 
   const member = { id: 'b', conversationId: 'c', principal: 'dev:bob', readUpTo: 0, joinedAt: 0 };
   const message = (id, until) => ({ id, conversationId: 'c', senderId: 'dev:alice', ordinal: 1, tombstone: false, until });

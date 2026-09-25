@@ -174,11 +174,13 @@ other rules' probes, aggregate source inputs, or Following mappings and predicat
 before using it there. A row-keyed count may use a private member predicate
 when the member read rule requires that field's owner; `guide maintains` gives
 the admission rule. This applies to both `view` and `maintain … timeline`.
-Your meter charges only fixed reservations from declared bounds and results
-that pass both row-read and field authorization; hidden candidates and rule
-witnesses cannot change its charges or exhaustion boundary.
-This includes point reads, range/cursor pages, planned views, word search,
-streaming counts/sums, scalar reductions and recorded public columns.
+Point reads, writes and authorization witnesses charge fixed declared
+reservations and results that pass row-read and field authorization. Range
+and cursor pages retain an examined-count residual: some scan paths charge
+candidates before rejecting expired or unreadable rows, so examined counts
+and meter cuts can vary within the physical walk bound. A private page that
+exhausts that bound cannot expose a hidden continuation key, including when
+a nested witness consumes the allowance.
 Unreadable, private or expiring candidates reserve declared decoder bounds:
 a large declaration can exhaust the heap even for an empty value. Public,
 non-expiring rows without private fields or recorded captures establish authority before

@@ -239,7 +239,7 @@ mod tests {
 
     struct Target { row: Value, covered: bool, calls: std::cell::Cell<usize> }
     impl crate::rows::Rows for Target {
-        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64, _scope: &crate::engine::Authorization, _: &mut Meter) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
+        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64, _scope: &crate::engine::Authorization, _: &mut crate::engine::InternalMeter<'_>) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
         fn get(&self, _: &str, _: &str) -> Result<Option<Value>,RuntimeError> {Ok(Some(self.row.clone()))}
         fn lookup(&self, _: &str, _: &str, _: &crate::schema::Index, _: &[Value]) -> Result<Option<Value>,RuntimeError> {unreachable!()}
         fn scan(&self, _: &str, _: &str, _: &[Value], bounds: &crate::rows::Bounds, _: crate::rows::Dir, _: usize) -> Result<Vec<(Value,Vec<u8>)>,RuntimeError> {

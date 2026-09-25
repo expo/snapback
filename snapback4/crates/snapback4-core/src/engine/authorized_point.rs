@@ -103,7 +103,7 @@ impl<'r> Runner<'r> {
     // @ref LLP 3000.015#1 — row and field authorization precede result pricing.
     pub(super) fn authorized_point(&mut self, read: &Read, index: &Index, key: &[Value], prepaid: bool, trusted: bool) -> Result<Option<AuthorizedRow<'r>>, RuntimeError> {
         let table = &self.schema.tables[&read.table];
-        if table.rules.read.is_uniformly_readable() && table.expire.is_none() && table.recorded.is_empty() && table.written_by.values().all(|a| a.audience) {
+        if crate::rows::disclosed::actual_size(table) {
             if !self.read_charge(MeterKind::Examined,1)? { return Ok(None); }
             let scratch = self.meter.mark();
             let row = self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,&read.table,&read.index,key,&Default::default(),crate::rows::Dir::Asc,1,&mut runner.meter))?.pop();

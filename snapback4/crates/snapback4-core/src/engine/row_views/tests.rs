@@ -130,7 +130,7 @@ fn private_expiry_chunks_keep_durable_cursor_edits_and_restart() {
         let result=e.mutate("extend",None,Context::new("alice",std::collections::BTreeMap::from([("message".into(),Value::Id("m00000".into())),("until".into(),Value::Int(30))])).at(2)).unwrap();
         assert!(matches!(result.state,crate::WriteState::Sent{..}),"{result:?}");
         assert_eq!(number(&e.store().rows("$recount:unread").unwrap()[0],"total"),prefix-1);
-        assert!(e.run_view_chunk(10).unwrap().is_none());
+        while let Some(chunk)=e.run_view_chunk(10).unwrap() { assert!(matches!(chunk, ViewChunk::Private)); }
         assert_eq!(e.seq().unwrap(),base+1,"only the source edit publishes a commit");
         assert_eq!(number(&e.store().rows("unread").unwrap()[0],"value"),601);
         while e.sweep_expired(10,100).unwrap()>0 {}
@@ -162,4 +162,51 @@ fn numeric_view_witness_certifies_before_comparing_a_stored_value() {
         }
         drop(tx);drop(e);if file {std::fs::remove_file(path).unwrap();}
     }
+}
+
+#[test]
+fn exact_expiring_cursor_delete_survives_private_chunk_reopen_and_sweep() {
+    use crate::wire;
+    use serde_json::json;
+    let b=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").into())]);
+    assert!(b.diagnostics.is_empty());
+    let schema:Schema=crate::json_codec::from_text(&crate::json_codec::to_text(&b.schema).unwrap()).unwrap();
+    let programs:Vec<Program>=crate::json_codec::from_text(&crate::json_codec::to_text(&b.programs.into_iter().map(|p|p.program).collect::<Vec<_>>()).unwrap()).unwrap();
+    let observations=[false,true].map(|delete_between_chunks| {
+        let path=std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("../../target/landing-cursor-{}-{delete_between_chunks}.sqlite",std::process::id()));
+        let _=std::fs::remove_file(&path);
+        let mut e=Engine::new(crate::Store::open(&path).unwrap(),schema.clone(),programs.clone()).unwrap();
+        let mut rows=(0..1200).map(|n|("messages".into(),wire::row_from_json(&schema.tables["messages"],&json!({"id":format!("m{n:05}"),"conversationId":"c","ordinal":5,"senderId":"bob","tombstone":false,"until":20})).unwrap())).collect::<Vec<_>>();
+        rows.push(("members".into(),wire::row_from_json(&schema.tables["members"],&json!({"id":"a","conversationId":"c","principal":"alice","readUpTo":0,"joinedAt":0})).unwrap()));
+        e.seed_at(rows,1).unwrap();
+        let base=e.seq().unwrap();
+        assert!(matches!(e.run_view_chunk(2).unwrap(),Some(ViewChunk::Private)));
+        assert_eq!(e.seq().unwrap(),base);
+        let work=e.store().rows("$recount:unread").unwrap().pop().unwrap();
+        let prefix=number(&work,"total");assert!(prefix>0 && prefix<=RECOUNT_CHUNK as i64);
+        let cursor=work.field("cursor").unwrap().as_array().unwrap();
+        let last=cursor.last().unwrap().clone();
+        let remove=|e:&mut Engine| {
+            let out=e.mutate("remove",None,Context::new("alice",[("message".into(),last.clone())].into()).at(2)).unwrap();
+            assert!(matches!(out.state,crate::WriteState::Sent{..}),"{out:?}");
+        };
+        if delete_between_chunks {
+            remove(&mut e);
+            assert_eq!(number(&e.store().rows("$recount:unread").unwrap()[0],"total"),prefix-1);
+        }
+        drop(e);let mut e=Engine::open(crate::Store::open(&path).unwrap()).unwrap();
+        let mut chunks=0;
+        while let Some(chunk)=e.run_view_chunk(2).unwrap() {
+            assert!(matches!(chunk,ViewChunk::Private));chunks+=1;assert!(chunks<10);
+        }
+        assert!(chunks>=3,"one call must not drain the private backlog");
+        if !delete_between_chunks {remove(&mut e);}
+        let count=number(&e.store().rows("unread").unwrap()[0],"value");assert_eq!(count,1199);
+        let seq=e.seq().unwrap();assert_eq!(seq,base+1);
+        while e.sweep_expired(20,100).unwrap()>0 {}
+        assert_eq!(number(&e.store().rows("unread").unwrap()[0],"value"),0);
+        drop(e);std::fs::remove_file(path).unwrap();
+        (count,seq)
+    });
+    assert_eq!(observations[0],observations[1]);
 }

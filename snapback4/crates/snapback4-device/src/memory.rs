@@ -475,12 +475,14 @@ impl Rows for MemoryTx<'_> {
             None => Vec::new(),
         })
     }
-    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
-        let Some((lo,hi)) = scan_range(prefix,bounds,Dir::Asc) else { return Ok(None); };
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        let Some((lo,hi)) = scan_range(prefix,bounds,dir) else { return Ok(None); };
         let ti = format!("{table}.{index}");
-        Ok(self.store.state.borrow().entries.range((ti.clone(),lo)..(ti,hi)).next().and_then(|((_,key),_)|key::decode(key)))
+        let state = self.store.state.borrow();
+        let mut range = state.entries.range((ti.clone(),lo)..(ti,hi));
+        Ok((if dir == Dir::Asc { range.next() } else { range.next_back() }).and_then(|((_,key),_)|key::decode(key)))
     }
-    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use snapback4_core::rows::word_heap;
         word_heap::range(prefix, bounds, scope).charge(meter,scope)?;
         meter.heap(2 * word_heap::allocation(table.len() + index_name.len() + 1))?;

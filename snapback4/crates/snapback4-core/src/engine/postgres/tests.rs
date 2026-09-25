@@ -46,6 +46,28 @@ fn gets(table: &str) -> Vec<PrefetchRequest> {
     (0..8).map(|i| PrefetchRequest::Get { table: table.into(), id: format!("r{i}") }).collect()
 }
 
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn key_only_endpoints_seek_both_directions_without_payload_decode() {
+    use crate::rows::{Bounds, Dir};
+    let mut engine = engine();
+    let table = engine.schema.tables["items"].clone();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    for (id, key) in [("null", Value::Null), ("early", Value::String("a".into())), ("late", Value::String("z".into()))] {
+        tx.put("items", &table, &row(id, key), None).unwrap();
+    }
+    tx.execute("UPDATE r SET data = 'invalid payload' WHERE t = 'items'", &[]).unwrap();
+    for (bounds, dir, expected) in [
+        (Bounds { lte: Some(Value::Null), ..Default::default() }, Dir::Asc, Value::Null),
+        (Bounds { gt: Some(Value::Null), ..Default::default() }, Dir::Asc, Value::String("a".into())),
+        (Bounds { gt: Some(Value::Null), ..Default::default() }, Dir::Desc, Value::String("z".into())),
+    ] {
+        let key = tx.index_head("items", "byKey", &[], &bounds, dir).unwrap().unwrap();
+        assert_eq!(key[0], expected);
+    }
+    tx.rollback().unwrap();
+}
+
 fn authority_engine() -> PostgresEngine {
     let schema = Schema::default();
     let client = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database"), postgres::NoTls).unwrap();
@@ -361,7 +383,7 @@ fn private_scans_bypass_postgres_payload_factor() {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.0.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.0.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.0.scan(t,n,p,b,d,l)}
-        fn scan_metered(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize, scope: &crate::engine::Authorization,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+        fn scan_metered(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize, scope: &crate::engine::Authorization,m:&mut crate::engine::InternalMeter<'_>)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
             let rows=self.0.scan(t,n,p,b,d,l)?;
             let bytes=rows.iter().map(|(r,k)|serde_json::to_vec(r).unwrap().len() as u64+k.len() as u64).sum();
             store::payload_heap(bytes,l,scope).charge(m,scope)?;

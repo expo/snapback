@@ -109,7 +109,7 @@ impl Rows for NoNullPrefixes {
         assert!(!prefix.contains(&Value::Null), "null prefix for {table}.{index}: {prefix:?}");
         self.0.scan(table, index, prefix, bounds, dir, limit)
     }
-    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         assert!(!prefix.contains(&Value::Null), "null prefix for {table}.{index}: {prefix:?}");
         self.0.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter)
     }

@@ -571,6 +571,7 @@ impl Runner<'_> {
     }
     fn pending_view_read(&mut self) -> Result<(), RuntimeError> {
         if self.meter.cut == crate::meter::Cut::Abort {
+            if self.device { return Err(RuntimeError::Prediction("row-keyed count certification needs the server; queued without a predicted result (guide maintains)".into())); }
             return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "an incomplete row-keyed count cannot decide a writer; use the member row or retry after recount settlement (guide maintains)".into() });
         }
         self.timeline_pending = true;
@@ -591,7 +592,7 @@ impl Runner<'_> {
         self.authorized_scratch(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4, &[(MeterKind::Examined,1)], |runner,scope| {
             runner.meter.heap(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4)?;
             runner.meter.charge(MeterKind::Examined,1)?;
-            let Some(key) = runner.tx.index_head(scope,table,"$viewLifetime",std::slice::from_ref(row.field("member")?),&Bounds::default())? else { return Ok((false, None)); };
+            let Some(key) = runner.tx.index_head(scope,table,"$viewLifetime",std::slice::from_ref(row.field("member")?),&Bounds::default(),Dir::Asc)? else { return Ok((false, None)); };
             if runner.schema.tables[table].expire.is_some() && let Some(Value::Int(until)) = key.get(1) {
                 if *until <= runner.context.now.unwrap_or(0) { return Ok((false, None)); }
                 return Ok((true, Some(*until)));
@@ -775,6 +776,11 @@ impl Runner<'_> {
     }
 }
 
+/// A private cache transaction made progress without a public commit.
+#[cfg(feature = "sqlite")]
+#[derive(Debug)]
+pub enum ViewChunk { Private, Published(crate::meter::Metered) }
+
 #[cfg(feature = "sqlite")]
 impl super::Engine {
     /// Publish one bounded non-expiring recount chunk. Expiring caches are
@@ -783,13 +789,12 @@ impl super::Engine {
     pub fn run_view_chunk(
         &mut self,
         now: i64,
-    ) -> Result<Option<crate::meter::Metered>, RuntimeError> {
+    ) -> Result<Option<ViewChunk>, RuntimeError> {
         self.run_view_chunk_for(now, std::time::Duration::MAX)
     }
 
     /// Background callers yield the engine between bounded durable chunks.
-    pub fn run_view_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<crate::meter::Metered>, RuntimeError> {
-        let started = std::time::Instant::now();
+    pub fn run_view_chunk_for(&mut self, now: i64, _budget: std::time::Duration) -> Result<Option<ViewChunk>, RuntimeError> {
         use crate::{
             Ceilings, Context,
             meter::{Cut, Meter},
@@ -853,9 +858,9 @@ impl super::Engine {
                 let metered = runner.meter.used;
                 drop(runner);
                 // Expiring values are already certified from the live basis at
-                // every public read. Drain their private cache in bounded durable
-                // chunks without manufacturing redundant sequence/log activity.
-                if private { tx.commit()?; if started.elapsed() >= budget { return Ok(None); } continue; }
+                // every public read. Advance the private cache by one bounded durable
+                // chunk without manufacturing redundant sequence/log activity.
+                if private { tx.commit()?; return Ok(Some(ViewChunk::Private)); }
                 tx.record_commit(
                     seq,
                     now,
@@ -867,7 +872,7 @@ impl super::Engine {
                 )?;
                 partition::append(&tx, seq, &events)?;
                 tx.commit()?;
-                return Ok(Some(metered));
+                return Ok(Some(ViewChunk::Published(metered)));
             }
         }
         Ok(None)

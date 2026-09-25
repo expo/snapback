@@ -6,6 +6,16 @@ use crate::schema::ColumnType;
 /// Includes serialized storage scratch, typed decode, escaping scratch, map
 /// nodes and geometric array growth. Id/Principal/Ref have the admission bound
 /// of 144 canonical tagged bytes (value::validate_identities), on every host.
+pub fn actual_size(table: &Table) -> bool {
+    table.rules.read.is_uniformly_readable() && table.expire.is_none()
+        && table.recorded.is_empty() && table.written_by.values().all(|a| a.audience)
+}
+
+/// Public images use the metered store adapter; private images reserve before decode.
+pub fn admission(table: &Table) -> u64 {
+    if actual_size(table) { 0 } else { decode_reservation(table) }
+}
+
 pub fn decode_reservation(table: &Table) -> u64 {
     table.columns.iter().fold(4096 + MAX_INDEX_KEY_BYTES as u64 * 4, |n, (name, ty)|
         n.saturating_add(256 + name.len() as u64 * 16).saturating_add(column(ty)))

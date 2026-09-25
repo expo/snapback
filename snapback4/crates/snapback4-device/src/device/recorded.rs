@@ -1,8 +1,8 @@
 //! Capture needs current partition authority, even while retained history is readable.
 use super::*;
-use snapback4_core::{error::MeterKind, meter::Meter, rows::word_heap};
+use snapback4_core::{error::MeterKind, rows::word_heap};
 
-pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &Value, viewer: &str, now: i64, scope: &snapback4_core::engine::Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> {
+pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &Value, viewer: &str, now: i64, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<bool, RuntimeError> {
     use snapback4_core::schema::{Audience, audience_binding};
     let Some(table) = rows.schema.table(name) else { return Ok(false) };
     let Some(sync) = &table.sync else { return Ok(false) };
@@ -56,6 +56,7 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
 
 #[cfg(test)]
 mod tests {
+    use snapback4_core::meter::Meter;
     use super::*;
     use snapback4_core::meter::{Ceilings, Cut};
     fn transitions<S: DeviceStore>(mut store: S) {

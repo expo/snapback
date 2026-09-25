@@ -33,10 +33,10 @@ impl Runner<'_> {
     fn insert_mode(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
         self.target_attempt(table_name, |runner| {
             let mark = runner.meter.mark();
-            let result = runner.insert_attempt(table_name, row, if_absent, None);
+            let result = runner.insert_attempt(table_name, row, if_absent, None).map_err(|error| error.authorization_context(table_name, Effect::Insert));
             // @ref LLP 3000.015#2 — denied direct allocations hide deferred
             // read witnesses and counter work just as NOT_FOUND hides targets.
-            if matches!(&result, Err(RuntimeError::Rule { effect: Effect::Insert, .. }))
+            if matches!(&result, Err(RuntimeError::Rule { effect: Effect::Insert, .. } | RuntimeError::AuthorizationBudget { .. }))
                 && runner.schema.tables.get(table_name).is_some_and(|table| !table.sequences.is_empty()) {
                 runner.meter.restore(mark);
             }
@@ -536,7 +536,7 @@ impl Runner<'_> {
                             // hidden-dependent logical charges. Exhaustion
                             // cannot establish occupancy and reveals no detail.
                             let batch = runner.tx.remaining().min(32);
-                            if batch == 0 { return Err(RuntimeError::AuthorizationBudget); }
+                            if batch == 0 { return Err(RuntimeError::AuthorizationBudget { table: table_name.into(), effect }); }
                             let rows = runner.tx.scan(allowance, table_name, &index_name, &group, &bounds, Dir::Asc, batch)?;
                             let fetched = rows.len();
                             for (row, key) in rows {

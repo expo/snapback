@@ -562,3 +562,42 @@ fn metadata_witness<H: Host>(host: &mut H) {
 fn metadata_witness_memory() {metadata_witness(&mut Memory::new());}
 #[test]
 fn metadata_witness_sqlite() {metadata_witness(&mut Sqlite::new("b3-witness"));}
+
+fn large_live_certification<H: Host>(host: &mut H) {
+    let (mut server, mut backend)=compile(&(SOURCE.to_owned()+"\nmutation useCount(member: members):\n  return unread[member]\n"));
+    seed(&mut server,1200);backend.schema=backend.schema.public_projection();
+    let pages=snapshot_pages(&mut server,"bob",2000);
+    let mut observations=Vec::new();
+    for pending in [false,true] {
+        let name=format!("large-live-{pending}");
+        let mut device=host.open(&name,Some(backend.clone())).unwrap();
+        for (i,mut page) in pages.clone().into_iter().enumerate() {
+            for event in &mut page.events {
+                if event.table=="unread" {
+                    let row=event.data.as_mut().unwrap();row["recountPending"]=json!(pending);
+                    row["value"]=json!(if pending {0} else {1200});
+                }
+            }
+            device.apply(&page,i==0).unwrap();
+        }
+        let out=device.query("unreadFor","bob",&json!({"member":"member"}),1).unwrap();
+        assert!(out.complete,"{out:?}");assert_eq!(out.data,Value::Int(1200));
+        observations.push(out.data);
+        let entry=device.admit(Queued {id:name.clone(),seq:1,op:"useCount".into(),args:json!({"member":"member"}),viewer:"bob".into(),now:1,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None}).unwrap();
+        assert!(!entry.predictable && entry.predicted.is_empty(),"{entry:?}");
+        assert_eq!(device.queued().unwrap().len(),1);
+        host.close(&name,device);let mut device=host.open(&name,None).unwrap();
+        assert_eq!(device.queued().unwrap().len(),1);
+        let out=server.mutate("useCount",Some(&name),Context::new("bob",args(&[("member",id("member"))])).at(1)).unwrap();
+        let snapback4_core::WriteState::Sent {seq,result}=out.state else {panic!("{out:?}")};
+        assert_eq!(result,Value::Int(1200));
+        device.settle(&name,Some(seq)).unwrap();
+        let page=stream_page(&mut server,"bob",device.sync_state().unwrap().watermark);
+        device.apply(&page,false).unwrap();assert!(device.queued().unwrap().is_empty());
+    }
+    assert_eq!(observations[0],observations[1]);
+}
+#[test]
+fn large_live_count_queues_and_settles_memory() {large_live_certification(&mut Memory::new());}
+#[test]
+fn large_live_count_queues_and_settles_sqlite() {large_live_certification(&mut Sqlite::new("landing-live-count"));}

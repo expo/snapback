@@ -62,6 +62,16 @@ use crate::{engine::runner::SystemAccess, schema::{ColumnDefault, Table}};
 ///     caller.heap(raw.field("secret").unwrap().clone_heap_bytes(scope)).unwrap();
 /// }
 /// ```
+/// A closure cannot redirect an internal price to a captured caller ledger.
+/// ```compile_fail
+/// use snapback4_core::{Value, engine::InternalLedger, meter::Meter};
+/// fn captured(raw: &Value, internal: &mut InternalLedger, caller: &mut Meter) {
+///     internal.run(|_physical, scope| {
+///         raw.field("secret").unwrap().clone_heap_bytes(scope)
+///             .charge(caller, scope).unwrap();
+///     });
+/// }
+/// ```
 /// An unscoped raw scalar price is unavailable too.
 /// ```compile_fail
 /// use snapback4_core::{Value, meter::Meter};
@@ -173,11 +183,11 @@ impl Disclosed<'_> {
         bytes
     }
 
-    pub fn charge_materialization_internal(&self, meter: &mut crate::meter::Meter, scope: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> {
+    pub fn charge_materialization_internal(&self, meter: &mut crate::engine::InternalMeter<'_>, scope: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> {
         super::InternalPrice(self.materialization_heap_inner()).charge(meter,scope)
     }
 
-    pub fn charge_copy_internal(&self, meter: &mut crate::meter::Meter, scope: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> {
+    pub fn charge_copy_internal(&self, meter: &mut crate::engine::InternalMeter<'_>, scope: &crate::engine::Authorization) -> Result<(), crate::error::RuntimeError> {
         use crate::rows::word_heap as h;
         let bytes = self.row.as_object().map_or(0, |fields| h::slots::<usize>(2)
             + fields.iter().filter(|(name,_)|self.visible(name)).map(|(name,value)|h::node::<String,Value>() + h::text(name) + super::scalar_copy(value)).sum::<u64>());

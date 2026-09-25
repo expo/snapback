@@ -648,7 +648,9 @@ Server reads certify the whole current live range, including counts above the
 writer allowance, using the same policy for stored pending and settled values.
 Historical pending work never selects completeness or count-dependent refusal.
 An expiring stored count is a private cache: bounded durable chunks reconcile it
-without publishing redundant recount commits or changing watermarks. The server
+without publishing redundant recount commits or changing watermarks. Each
+private chunk counts against the maintenance allowance and releases the
+engine lock before the next chunk. The server
 certification scan can traverse the whole live group on its internal ledger.
 Reads reserve one examined unit and one step for certification; its work runs
 on the internal authorization ledger, equally for queries and count-dependent
@@ -717,14 +719,17 @@ so other members can settle. Changing a member field used by the predicate to a
 different value retries its recount. Any source edit in that member's parent
 group, including shrinking the oversized row, allows one retry chunk even when
 the recount has not yet acquired a cursor.
-A covered device predicts; without source coverage it keeps the settled
-value and queues the mark without prediction. An acquired horizon suffix can
+A covered device predicts within its certification allowance. Without source
+coverage, a non-expiring count keeps its settled value and queues the mark
+without prediction. An acquired horizon suffix can
 cover the changed interval; a device recount that exceeds its allowance also
 queues without prediction. Expiring sources need covered live input to certify
 an unswept count: an uncovered device reports a pending count until it can
-certify that live input. Count-dependent writers and numeric
-rule probes refuse an incomplete value; ordinary queries carry incomplete
-coverage. Indexes/ranking by `value` refuse
+certify that live input. A device mutation that cannot certify the count,
+including an already settled count above its local allowance, enters the
+outbox without a predicted result; the server decides and settles it.
+Server writers and numeric rule probes still refuse an uncertified value;
+ordinary queries carry incomplete coverage. Indexes/ranking by `value` refuse
 with E_VIEW_KEY. Pure view existence follows the member's lifetime, including
 when its count is zero. `online only` on the view opts
 out of member-audience delivery. E_VIEW_KEY includes the admitted rewrite.

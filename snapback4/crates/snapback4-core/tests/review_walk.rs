@@ -7,11 +7,11 @@ use snapback4_core::{
     schema::{Index, Table},
 };
 use std::cell::Cell;
-struct Counted {
-    inner: MemoryRows,
+struct Counted<R = MemoryRows> {
+    inner: R,
     fetched: Cell<usize>,
 }
-impl Rows for Counted {
+impl<R: Rows> Rows for Counted<R> {
     fn get(&self, t: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         let row = self.inner.get(t, id)?;
         self.fetched
@@ -42,6 +42,9 @@ impl Rows for Counted {
         let r = self.inner.scan(t, n, p, b, d, l)?;
         self.fetched.set(self.fetched.get() + r.len());
         Ok(r)
+    }
+    fn index_head(&self, t: &str, n: &str, p: &[Value], b: &Bounds, d: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.inner.index_head(t,n,p,b,d)
     }
     fn count_prefix(&self, t: &str, n: &str, p: &[Value], l: u64) -> Result<u64, RuntimeError> {
         self.inner.count_prefix(t, n, p, l)
@@ -202,9 +205,9 @@ fn nested_expired_witnesses_share_the_cap_allowance() {
                 rows.fetched.get() <= 8192,
                 "nested witnesses escaped the physical allowance"
             );
-            if aggregate && deadline == 500 {
-                // Main's contribution index skips the expired range. The
-                // same bound applies to work actually fetched, not skipped.
+            if aggregate {
+                // The contribution index supplies the last surviving expiry
+                // without fetching either the live or the expired payload range.
                 assert!(result.is_ok(), "{result:?}");
                 assert!(rows.fetched.get() < 32);
                 observations.push(None);
@@ -228,9 +231,10 @@ fn physical_exhaustion_uses_the_shared_cause_neutral_rule_explanation() {
         effect: snapback4_core::schema::Effect::Insert,
     }
     .refusal();
-    let exhausted = RuntimeError::AuthorizationBudget.refusal();
+    let exhausted = RuntimeError::AuthorizationBudget { table: "messages".into(), effect: snapback4_core::schema::Effect::Insert }.refusal();
     assert_eq!(ordinary, exhausted, "the refusal must not select a cause");
     assert!(ordinary.message.contains("physical work allowance"));
+    assert!(ordinary.message.contains("messages's insert rule"));
     assert!(
         snapback4_lang::guide::explain_code("E_RULE")
             .unwrap()
@@ -280,5 +284,87 @@ fn nonexpiring_private_caps_share_the_physical_allowance() {
             rows.fetched.get() <= 8192,
             "the absence of an expire declaration cannot disable the physical bound"
         );
+    }
+}
+
+#[test]
+fn server_private_witness_and_expired_unique_walks_share_one_allowance() {
+    for unique in [false,true] {
+        let source = if unique {
+            "table records:\n  tag: int\n  until: time ?\n  expire at .until\n  unique tag\n  public\n  online only\nquery one():\n  return records[tag = 0]\n"
+        } else {
+            "table records:\n  tag: int\n  until: time ?\n  expire at .until\n  by byTag: tag\n  read <- deny\n  online only\ntable gates:\n  read <- exists records[tag = 0] or viewer = 'alice'\n  online only\nquery one():\n  return gates['g']\n"
+        };
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let observations=[18000,20000].map(|n| {
+            let rows=Counted {inner:MemoryRows::default(),fetched:Cell::new(0)};
+            for i in 0..=n {
+                let value=snapback4_core::wire::row_from_json(&b.schema.tables["records"],&serde_json::json!({"id":format!("r{i:05}"),"tag":0,"until":if unique && i<n {500} else {2000}})).unwrap();
+                rows.put("records",&b.schema.tables["records"],&value,None).unwrap();
+            }
+            if !unique { rows.put("gates",&b.schema.tables["gates"],&snapback4_core::value::object([("id",Value::Id("g".into()))]),None).unwrap(); }
+            let mut r=Runner::new(&rows,&b.schema,Context::new("alice",Default::default()).at(1000),Meter::new(Ceilings::default(),Cut::Cap),0);
+            let result=r.run(&b.programs[0].program).unwrap_err().refusal();
+            assert_eq!(result.code,"E_RULE"); assert_eq!(rows.fetched.get(),8192);
+            (result,rows.fetched.get())
+        });
+        assert_eq!(observations[0],observations[1],"unique={unique}");
+    }
+}
+
+#[test]
+fn an_odd_point_prefix_cannot_turn_a_short_physical_batch_into_exhaustion_of_data() {
+    let source="table held:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable grants:\n  tag: int\n  until: time ?\n  expire at .until\n  by byTag: tag\n  read <- deny\n  online only\ntable gates:\n  owner: principal\n  read <- exists grants[tag = 0] or .owner = viewer\n  online only\nquery a():\n  return held['a']\nquery b():\n  return held['b']\nquery one():\n  return gates['g']\n";
+    let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let observations=[11,43].map(|population| {
+        let rows=Counted {inner:MemoryRows::default(),fetched:Cell::new(0)};
+        for (table,id) in [("held","a"),("held","b"),("gates","g")] {
+            let row=snapback4_core::value::object([("id",Value::Id(id.into())),("owner",Value::Id("alice".into()))]);
+            rows.put(table,&b.schema.tables[table],&row,None).unwrap();
+        }
+        for n in 0..population {
+            let row=snapback4_core::wire::row_from_json(&b.schema.tables["grants"],&serde_json::json!({"id":format!("g{n:03}"),"tag":0,"until":if n+1==population {None} else {Some(500)}})).unwrap();
+            rows.put("grants",&b.schema.tables["grants"],&row,None).unwrap();
+        }
+        let mut r=Runner::new(&rows,&b.schema,Context::new("alice",Default::default()).at(1000),Meter::new(Ceilings::default(),Cut::Cap),0);
+        for n in 0..8181 { r.run(&b.programs.iter().find(|p|p.program.name==if n%2==0 {"a"} else {"b"}).unwrap().program).unwrap(); }
+        let result=r.run(&b.programs.iter().find(|p|p.program.name=="one").unwrap().program).unwrap_err().refusal();
+        assert_eq!(result.code,"E_RULE"); assert_eq!(rows.fetched.get(),8192);
+        (result,rows.fetched.get())
+    });
+    assert_eq!(observations[0],observations[1]);
+}
+
+#[test]
+fn sqlite_and_memory_server_fetch_counts_cover_expired_points_and_private_lifetimes() {
+    fn run<R: Rows>(inner:R, schema:&snapback4_core::Schema, program:&snapback4_core::Program, count:usize, unique:bool) -> (Option<snapback4_core::Refusal>,usize) {
+        let rows=Counted {inner,fetched:Cell::new(0)};
+        for n in 0..=count {
+            let row=snapback4_core::wire::row_from_json(&schema.tables["leases"],&serde_json::json!({"id":format!("lease{n:05}"),"tag":0,"until":if unique && n<count {500} else {2000}})).unwrap();
+            rows.put("leases",&schema.tables["leases"],&row,None).unwrap();
+        }
+        if !unique {
+            rows.put("counts",&schema.tables["counts"],&snapback4_core::value::object([("id",Value::Id("count".into())),("tag",Value::Int(0)),("count",Value::Int(count as i64+1))]),None).unwrap();
+            rows.put("gates",&schema.tables["gates"],&snapback4_core::value::object([("id",Value::Id("g".into()))]),None).unwrap();
+        }
+        let mut runner=Runner::new(&rows,schema,Context::new("alice",Default::default()).at(1000),Meter::new(Ceilings::default(),Cut::Cap),0);
+        let result=runner.run(program);
+        if unique {assert_eq!(result.as_ref().unwrap_err().refusal().code,"E_RULE");assert_eq!(rows.fetched.get(),8192);}
+        else {assert!(result.is_ok(),"{result:?}");assert_eq!(rows.fetched.get(),2,"leases must be read from index metadata, not row payloads");}
+        (result.err().map(|e|e.refusal()),rows.fetched.get())
+    }
+    for unique in [false,true] {
+        let source=if unique {"table leases:\n  tag: int\n  until: time ?\n  expire at .until\n  unique tag\n  public\n  online only\nquery one():\n  return leases[tag = 0]\n"}
+        else {"table leases:\n  tag: int\n  until: time ?\n  expire at .until\n  by byTag: tag\n  read <- deny\n  online only\nmaintain counts: count leases by tag\n  read <- deny\ntable gates:\n  read <- exists counts[tag = 0] or viewer = 'alice'\n  online only\nquery one():\n  return gates['g']\n"};
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let outcomes=[18000,20000].map(|n| {
+            let memory=run(MemoryRows::default(),&b.schema,&b.programs[0].program,n,unique);
+            let mut engine=snapback4_core::Engine::memory(b.schema.clone(),vec![]).unwrap();
+            let tx=engine.store_mut().transaction().unwrap();
+            let sqlite=run(tx,&b.schema,&b.programs[0].program,n,unique);
+            assert_eq!(memory,sqlite);memory
+        });
+        assert_eq!(outcomes[0],outcomes[1]);
     }
 }

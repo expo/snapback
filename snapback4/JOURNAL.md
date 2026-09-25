@@ -58350,3 +58350,96 @@ fixed; none is treated as an inherited exception.
 
 The file-by-file conflict table, test dispositions and merge commit IDs are
 in `/Users/ccheever/projects/snapback-sb5-program/integrate.final.md`.
+
+## 2026-09-25 — Integrated B1/B2/B3 landing-review corrections
+
+Worked only on `sb5/land` in `snapback-sb5-land`; no push. The six final
+lane reviews were applied to the shared implementation. Orientation used
+LLP 3000.015 §§1–3, the SB4/SB5 fences and the rules, writes and maintains
+guide cards. B2's integrated request-owned physical counter remains the
+single 8,192-candidate allowance: nested scratch restores logical accounting,
+never the physical counter. New server fetch-count pairs exercise 18,000 and
+20,000 expired unique-key siblings and live private witnesses on memory and
+SQLite. Expiring witness enumeration now finishes the bounded walk even
+after finding a permanent witness; a full shortened batch remains a refusal.
+Maintained-source lifetimes use the selected contribution/expiry index's
+null and reverse future endpoints, with no source payload decode. Private
+pages normalize nested exhaustion to the same empty, cursorless envelope;
+mutations retain E_RULE, now with the operation's table and effect. Denied
+sequence inserts restore their logical meter on physical exhaustion too.
+
+Public non-expiring rows without private fields or recorded captures share
+actual-size decoder admission across reads, fetches, lookups and writes.
+Their retained patch copies use sealed row-read evidence instead of declared
+maximum sizes. The short `text <=2000000` body now supports integer updates,
+body updates and existence probes at default ceilings. Raw `InternalPrice`
+charges require the opaque `InternalMeter` handle, including through store
+adapters; the captured-caller bypass is a compile-fail test. Rule leaves no
+longer charge executed probes; complete static rule reservations remain.
+
+A device unable to certify a live count queues the mutation without a
+predicted result, including a fully covered settled count over 1,200 inputs.
+Memory/SQLite tests cover admission, reopen and real server settlement, and
+pending synced images must still return the covered live count. The rebuilt
+wasm wire test also settles against a real server receipt. Every private
+recount chunk returns `ViewChunk::Private` immediately, counts against the
+maintenance loop's allowance and yields the engine lock. It adds no sequence
+or log image. A paired durable SQLite test deletes the exact expiring cursor
+row between chunks, reopens, settles to 1,199, and sweeps to zero.
+
+Moved witness traversal from the oversized read module into `engine/witness.rs`
+(the same interpreter, no copied lane implementation). Updated the guide's
+range-page accounting qualification and device pending/queueing language.
+LLP 3000.015 states exactly three open disclosure residuals across §§1–3:
+paging examined counts/cuts within the walk bound, the cap occupancy bit,
+and global activity through the shared sequence/log contract.
+
+The first corrected wasm build is **1,930,063 B raw / 549,038 B gzip**,
+**+2,128 raw / +729 gzip** over the integrated **1,927,935 / 548,309**.
+The ratchet is **550,038 B**, measured gzip plus 1,000. These are whole-artifact
+numbers, not separately measured component deltas. Web changes include
+public admission/copy pricing, bounded witness completion, contextual errors
+and device certification deferral; the internal-handle change is also in that
+build. Indexed server lifetime seeks and private recount scheduling are
+server-only. Runtime logical ceilings are unchanged. Final qualification and
+mutation-test results follow below.
+
+The final landing checks also exercise the PostgreSQL adapter's null,
+ascending and descending key-only endpoints with deliberately invalid row
+payloads: all endpoint reads succeed without decoding those payloads. Its
+22 core adapter tests (including database cases) and 18-test corpus target
+pass against a private socket-only cluster, stopped afterward. The broader
+experiment wrapper stops at its separate stale `--locked` experiment
+lockfile; the affected core commands were therefore run directly, still
+with `--locked`. Updated its old unswept-cap expectation to the integrated
+live-row cap policy, retaining physical-counter and live-cap assertions.
+
+The first blocking-suite attempt exposed two test-adapter mismatches, then
+was stopped and restarted after correction: SQLite payload tests now measure
+preflight statement-run deltas relative to fixture setup (public seed writes
+can already run the preflight), and the old expiring-count witness wrapper
+forwards key-only seeks and expects zero server source-payload fetches. Both
+focused targets pass; no failed assertion was waived. All eight deliberate
+mutations failed their regression tests and were restored: finite deadline
+max/min, exact cursor comparison, short batches, pending device shortcut,
+permanent witness exit, public declared admission, unbounded physical work,
+and the captured-caller pricing signature. The independent family-checked
+`measure-wasm.sh` run confirms the same raw/gzip bytes above (416,104 B
+brotli) and passes both family and forbidden-symbol checks; its dirty-tree
+receipt is recorded in `metrics/wasm.jsonl`.
+
+Final blocking verification used Node 24.18.0 on PATH and, from `snapback4/`:
+
+```sh
+env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh
+```
+
+Exact final line: **`== 0 failure(s) in 1503 s`**. The complete Rust phase
+and compile-fail doctests pass; client tests: 1,534 passed, 9 existing skips,
+0 failures; client models: 78 passed, 0 failures. The suite rebuild confirms
+**1,930,063 B raw / 549,038 B gzip**, with the **550,038 B** ratchet and
+1,000 B slack. `./ref-check --verbose` passes with 509 LLP documents,
+9,311 references, 0 errors and 0 unchecked references. `git diff --check`
+passes. The per-item fixes, regression names, physical-allowance design and
+qualification details are in
+`/Users/ccheever/projects/snapback-sb5-program/landing-fixes.final.md`.

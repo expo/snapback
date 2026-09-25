@@ -214,7 +214,7 @@ fn large_mark_commits_pending_then_settles() {
     let mut chunks = 0;
     while let Some(m) = e.run_view_chunk(1).unwrap() {
         chunks += 1;
-        assert!(m.examined <= 260, "{m:?}");
+        assert!(matches!(m, snapback4_core::engine::ViewChunk::Published(m) if m.examined <= 260), "{m:?}");
         assert!(chunks < 50);
     }
     assert!(chunks >= 40);

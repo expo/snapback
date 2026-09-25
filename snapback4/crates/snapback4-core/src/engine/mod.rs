@@ -35,7 +35,7 @@ pub(crate) use runner::extrema;
 mod read_auth;
 mod aggregate_expiry;
 pub(crate) mod authorized_scan;
-pub use authorized_scan::{Authorization, InternalLedger};
+pub use authorized_scan::{Authorization, InternalLedger, InternalMeter};
 pub(crate) mod authorized_point;
 pub mod rules;
 pub mod runner;
@@ -1282,3 +1282,6 @@ impl Engine {
         self.store.seq()
     }
 }
+
+#[cfg(feature = "sqlite")]
+pub use row_views::ViewChunk;

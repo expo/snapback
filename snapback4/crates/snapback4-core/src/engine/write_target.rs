@@ -47,8 +47,9 @@ impl Runner<'_> {
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
         let witness = self.rule_scratch(&table.rules.read).max(self.rule_scratch(&table.rules.update))
             .max(if upsert { self.rule_scratch(&table.rules.insert) } else { 0 });
-        let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(patch.heap_bytes().saturating_mul(2))
-            .max(crate::rows::disclosed::decode_reservation(table)).saturating_add(witness);
+        let copy = if crate::rows::disclosed::actual_size(table) { 0 } else { row_copy_ceiling(table).saturating_mul(2) };
+        let heap = copy.saturating_add(patch.heap_bytes().saturating_mul(2))
+            .max(crate::rows::disclosed::admission(table)).saturating_add(witness);
         for (kind, amount, used, ceiling) in [(MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
             (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes),
             (MeterKind::IndexEntries, if upsert { table.sequences.len() as u64 } else { 0 }, self.meter.used.index_entries, self.meter.ceilings.index_entries)] {
@@ -59,12 +60,15 @@ impl Runner<'_> {
     }
 
     pub(in crate::engine) fn merge_patch(&mut self, table: &str, old: &Value, patch: &crate::value::Supplied, _readable: bool) -> Result<Value, RuntimeError> {
+        let public = if crate::rows::disclosed::actual_size(&self.schema.tables[table]) {
+            self.authorize_image(table, old.clone())?
+        } else { None };
         let mut bytes = 40_u64;
         for (key, _) in old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter()) {
             // @ref LLP 3000.015#1 — a retained field's actual size is disclosed
             // only after both row and field read authority succeed.
             let definition = &self.schema.tables[table];
-            let copy = if patch.as_object()?.contains_key(key) { patch.field_copy(key) } else { definition.columns.get(key).map_or(0,column_copy_ceiling) };
+            let copy = if patch.as_object()?.contains_key(key) { patch.field_copy(key) } else if let Some(row) = &public { row.scalar_heap(key) } else { definition.columns.get(key).map_or(0,column_copy_ceiling) };
             bytes = bytes.saturating_add(80 + key.len() as u64 + copy);
         }
         self.meter.heap(bytes)?;
