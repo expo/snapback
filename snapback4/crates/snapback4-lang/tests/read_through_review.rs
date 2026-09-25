@@ -246,3 +246,9 @@ scenario!(admitted_aggregate_emission_expiry);
 scenario!(uniform_prefix_emission_expiry);
 scenario!(partial_page_keeps_emitted_expiry);
 scenario!(unreturned_candidates_discard_expiry);
+
+scenario!(predicate_id_expiry);
+scenario!(predicate_index_expiry);
+scenario!(predicate_point_expiry);
+scenario!(predicate_private_authorization_expiry);
+scenario!(streaming_count_expiry);

@@ -13,6 +13,9 @@ pub use cuts::*;
 #[path = "review_emission.rs"]
 mod emission;
 pub use emission::*;
+#[path = "review_predicates.rs"]
+mod predicates;
+pub use predicates::*;
 
 pub type Outcome = (Result<Value, Refusal>, Metered);
 pub trait Backend {

@@ -1047,8 +1047,6 @@ impl Runner<'_> {
                     break 'outer;
                 }
                 if let Some((row, pending)) = candidate {
-                    let row_expiry = self.next_expiry.scope();
-                    self.next_expiry.inherit(pending);
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;
@@ -1056,6 +1054,8 @@ impl Runner<'_> {
                     }
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
+                        // @ref LLP 3000.014#5 — completed predicate answers belong to the page even when they reject this candidate.
+                        let filter_expiry = self.next_expiry.scope();
                         if metered_payload { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
                         let prior = self.env.insert("$filter".into(), row.clone());
                         // @ref LLP 3000.007#20.22 — predicate reads are below the page; restore depth even when evaluating one fails.
@@ -1077,8 +1077,10 @@ impl Runner<'_> {
                             break 'outer;
                         }
                         let matched = matched?.as_bool()?;
+                        filter_expiry.emit();
                         if !matched { continue; }
                     }
+                    let row_expiry = self.next_expiry.scope();
                     if let Some((total, projection)) = &mut aggregate {
                         let amount = if let Some(projection) = projection {
                             let prior = self.env.insert("$filter".into(), row.clone());
@@ -1088,6 +1090,7 @@ impl Runner<'_> {
                         } else { 1 };
                         **total += amount;
                         consumed += 1;
+                        self.next_expiry.inherit(pending);
                         row_expiry.emit();
                         if scan.existence && consumed == take { break 'outer; }
                         continue;
@@ -1116,6 +1119,7 @@ impl Runner<'_> {
                         visible.push(row);
                         keys.push(key.clone());
                     }
+                    self.next_expiry.inherit(pending);
                     row_expiry.emit();
                     if (scan.existence || job_page) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
