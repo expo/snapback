@@ -310,6 +310,26 @@ for (const issuedOffset of [0, -31 * 86_400_000]) test(`a non-admission last can
   await clock.detach();
 });
 
+test('an offline legacy offset without issuedOffset preserves a valid thirty-day session', async () => {
+  const wall = 1_780_000_000_000, offset = -31 * 86_400_000;
+  const device = store(), clock = new ServerClock(() => wall);
+  device.meta.set('server-clock', JSON.stringify({ offset, last: wall - 5000 }));
+  await clock.attach(device); // No sample, admission or issuedOffset to mask the legacy fallback.
+  assert.equal(clock.issuedDeviceNow(), wall + offset);
+  assert.ok(clock.issuedDeviceNow() < wall + offset + 30 * 86_400_000);
+  await clock.detach();
+});
+
+test('a non-admission last above wall time cannot pin an offline issued offset', async () => {
+  const wall = 1_780_000_000_000, issuedOffset = -31 * 86_400_000;
+  const device = store(), clock = new ServerClock(() => wall);
+  device.meta.set('server-clock', JSON.stringify({ offset: issuedOffset + 500, issuedOffset, last: wall + 120_000 }));
+  await clock.attach(device);
+  assert.equal(clock.estimatedServerNow(), wall + issuedOffset + 500);
+  assert.equal(clock.issuedDeviceNow(), wall + issuedOffset);
+  await clock.detach();
+});
+
 for (const kind of ['measured', 'streaming']) test(`newest equal-RTT ${kind} sample wins even when the issued floor masks its correction`, () => {
   let wall = 10_000;
   const clock = new ServerClock(() => wall);

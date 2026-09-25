@@ -111,12 +111,14 @@ export class ServerClock {
     // may be a wall-time now() call and must not override a startup correction.
     // The device commits this floor atomically with admission, and retains it
     // after settlement. Pending entries also recover older stores/journals.
+    // Backfill legacy admission times transactionally before replay can retire
+    // the queue; offset persistence deliberately cannot retain an issued floor.
+    const pending = await core.call({ op: "queued", restore_clock_floor: true });
+    if (pending.denied) throw new Error(JSON.stringify(pending.denied));
     const floor = await core.call({ op: "meta", key: "server-clock-floor" });
     if (floor.denied) throw new Error(JSON.stringify(floor.denied));
     const issued = Number(floor.ok);
     if (Number.isSafeInteger(issued) && issued >= 0) this.last = Math.max(this.last, issued);
-    const pending = await core.call({ op: "queued" });
-    if (pending.denied) throw new Error(JSON.stringify(pending.denied));
     for (const entry of (pending.ok ?? []) as { now?: number }[]) {
       if (Number.isSafeInteger(entry.now) && entry.now! >= 0) this.last = Math.max(this.last, entry.now!);
     }

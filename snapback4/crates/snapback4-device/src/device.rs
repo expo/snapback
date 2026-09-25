@@ -988,9 +988,21 @@ impl<S: DeviceStore> Device<S> {
 
     /// Every queued write in submission order.
     pub fn queued(&mut self) -> Result<Vec<Queued>, RuntimeError> {
-        let tx = self.store.read_transaction()?;
+        self.queued_with_clock_floor(false)
+    }
+
+    /// Clock attachment preserves legacy admission times before replay can
+    /// retire them. Read the queue and raise its durable floor in one writer
+    /// transaction, so a concurrent admission's higher floor cannot be lost.
+    pub fn queued_with_clock_floor(&mut self, restore_clock_floor: bool) -> Result<Vec<Queued>, RuntimeError> {
+        let tx = if restore_clock_floor { self.store.transaction()? } else { self.store.read_transaction()? };
         let entries = tx.outbox_entries()?.iter().map(|entry| decoded(entry)).collect::<Result<Vec<Queued>, _>>()?;
-        tx.rollback()?;
+        if restore_clock_floor {
+            let before = meta_u64(&tx, ISSUED_FLOOR)?;
+            let floor = entries.iter().fold(before, |floor, entry| floor.max(entry.now.max(0) as u64));
+            if floor > before { tx.set_meta(ISSUED_FLOOR, &floor.to_string())?; }
+            tx.commit()?;
+        } else { tx.rollback()?; }
         Ok(entries)
     }
 

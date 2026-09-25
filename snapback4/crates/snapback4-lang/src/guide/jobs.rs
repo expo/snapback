@@ -226,6 +226,7 @@ Responses above 1,000 ms use a provisional receipt stamp for both clocks; measur
 Streaming change polls stamp their final body after the hold, not their early heartbeat headers.
 Admission commits the issued floor with its outbox entry, and settlement does not erase it.
 On reopening, only durable admissions restore the floor; ordinary `now()` calls do not pin it.
+Attachment transactionally preserves queued legacy admission times before replay can retire them.
 Freshness labels (`since` / `syncedAt`) use wall time, so "as of three minutes ago" stays meaningful.
 Legacy freshness metadata is omitted until resync; labels never publish a stamp ahead of wall time.
 

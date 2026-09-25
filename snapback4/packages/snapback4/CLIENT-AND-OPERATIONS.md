@@ -1499,6 +1499,8 @@ starts at zero and persists beside store identity. Issued time remains monotonic
 within a live clock. Each admission atomically commits its issued floor with its
 outbox entry; that separate `server-clock-floor` record outlives settlement.
 Startup restores a floor only from this record and queued `entry.now` values.
+Before replay, attachment transactionally backfills that record with the maximum
+of itself and every queued legacy admission, so their retirement cannot erase it.
 An old `last` in offset metadata is ignored: ordinary `now()` calls do not pin
 time after reopening. Synchronous web journal capture remains unchanged.
 

@@ -9,6 +9,7 @@ import { createLocalClient } from '../dist/local.js';
 import { processDevice } from '../dist/native.js';
 import { ServerClock } from '../dist/clock.js';
 import { changeFeed } from '../dist/changes.js';
+import { modelBackend, modelDevice } from './helpers/app-model-device.mjs';
 const extraSource = readFileSync(new URL('./fixtures/server-clock.q', import.meta.url), 'utf8');
 
 async function post(url, path, body = {}, token) {
@@ -56,6 +57,63 @@ test('wire stamps successes and refusals on sync, changes, query, mutation and s
   stamped((await post(f.api, '/auth/logout', {}, token)).response);
   // Password disabled is still a stamped session endpoint response.
   for (const path of ['/auth/signup', '/auth/login']) stamped((await post(f.api, path, { email: 'clock@example.com', password: 'clock-password' })).response);
+});
+
+for (const tier of ['web', 'native']) test(`${tier}: a legacy admission keeps its floor through upgrade, retirement and rollback`, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-clock-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const device = tier === 'web' ? modelDevice() : processDevice({ dir, binary: binary() });
+  let wall = 1_004_000, core = await device.open('legacy-clock', { initial_backend: modelBackend });
+  t.after(() => core.close());
+  const queued = await core.call({ op: 'enqueue', entry: { id: 'legacy', seq: 1, op: 'write', args: { hiddenHandle: false, refuse: false },
+    viewer: 'alice', now: wall, new_ids: [], predicted: [], predictable: false } });
+  assert.equal(queued.denied, undefined);
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, null, 'legacy admission has no floor record');
+  await core.close();
+  core = await device.open('legacy-clock', null);
+  const upgraded = new ServerClock(() => wall); await upgraded.attach(core);
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, '1004000', 'attach commits the backfill before retirement');
+  assert.equal((await core.call({ op: 'settle', id: 'legacy' })).denied, undefined);
+  assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
+  await core.close(); // No clock.detach(): only committed device transactions survive.
+  wall -= 4000;
+  core = await device.open('legacy-clock', null);
+  const reopened = new ServerClock(() => wall); await reopened.attach(core);
+  assert.equal(reopened.issuedDeviceNow(), 1_004_000, 'retirement cannot erase the legacy admission floor');
+});
+
+test('native offline reopen restores legacy offset without issuedOffset or admissions and retains the session', async t => {
+  const f = await devServer({ seed: [], extraSource, clockOffset: '-31d' }); t.after(() => f.close());
+  const signed = await guest(f.api); assert.equal(signed.ok, true);
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-offset-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const device = processDevice({ dir, binary: binary() }), sessions = memorySessionStore();
+  let offline = false, core, client, deletions = 0, onlineCalls = 0;
+  const remove = sessions.delete;
+  sessions.delete = async key => { deletions++; await remove(key); };
+  const options = { url: f.api, sessionStore: sessions, device: { async open(...args) { core = await device.open(...args); return core; } },
+    fetch: async (input, init) => {
+      if (offline) throw Error('offline');
+      onlineCalls++;
+      if (new URL(input).pathname === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
+      return fetch(input, init);
+    },
+  };
+  t.after(async () => { await client?.close(); });
+  client = await createLocalClient({ ...options, session: signed.session });
+  assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, null);
+  await client.close(); client = undefined;
+  // Write the old serialized shape only after close has flushed new metadata.
+  core = await device.open(`snapback4-${encodeURIComponent(`${f.api}:${signed.session.principal}`)}`, null);
+  assert.equal((await core.call({ op: 'set_meta', key: 'server-clock', value: JSON.stringify({
+    offset: -31 * 86_400_000, last: Date.now() + 120_000,
+  }) })).denied, undefined);
+  await core.close();
+  const before = onlineCalls; offline = true;
+  client = await createLocalClient(options);
+  assert.equal(onlineCalls, before, 'offline reopen cannot obtain a sample');
+  assert.equal(deletions, 0, 'the valid thirty-day session survives the legacy offline clock');
+  assert.ok(client.now() < signed.session.expiresAt);
+  assert.ok(Math.abs(client.now() - Date.now() + 31 * 86_400_000) < 1000);
 });
 
 test('a real held heartbeat poll learns clock advance from its final body', async t => {
