@@ -56671,3 +56671,523 @@ No new author forms, diagnostics, production behavior, inventory measurement,
 authorization/disclosure/durability change, push or publication. The
 [round-3 report](reports/20260925-event-slots-r3/REPORT.md) lists files, exact
 mutation evidence, pending reproductions, scope decisions and compressed logs.
+## 2026-09-25 — Lane V: web admission before return and faster acquisition
+
+Implemented LLP 3000.013 Lane V on `sb4-intent/v-web-start`. The acquired-page
+navigation loss is reproducible with the old `createApp` guard: it awaits the
+session epoch lock before reaching the web journal. Calibration #20 already
+supplied a web device and persisted session, and its failing trace had a store
+identity. The generated API is an inert descriptor and added no wait. Chromium
+now captures the admin removal in the click's own stack and recovers its
+original ID after `location.assign`, including before an identified device's
+initial sync completes.
+
+Browser calls with an unrestored identity, an unidentified store, no provider
+claim, no durable device/session store, full journal/storage or the test-only
+memory provider refuse synchronously with E_ADMISSION. Session transport still
+uses its locked epoch checks. Added optional synchronous failure fields on
+MutationPromise to implement the brief; the awaited Write union is unchanged.
+This additive exception to the ordinary lane contract fence is explicit for
+supervisor review. Refused IDs can be retried after repair. Native/Node retain
+their existing admission behavior.
+
+Added useAcquisition() with committed snapshot row counts per source table and
+completion; useAcquired() stays. The compiled recipe keeps reads and UI active
+through server fallback. Progress describes this runtime's acquisition, so a
+warm acquired reopen can have zero newly received rows. Split device interfaces
+out of local.ts; it remains 1,465 lines.
+
+Measured the frozen Clique public corpus on Chromium/Linux: 50,228 posts,
+1,004 reposts, 5,921 follows, 1,008 profiles, plus likes and count tables, for
+65,180 acquired rows. Original IDB storage took 93.581 s (85.111 s saving IDB,
+3.240 s Wasm apply, 3.187 s snapshot HTTP). Packed rows took
+15.553 / 18.386 / 19.782 s: 5.09x faster at the median, meeting the 3x target.
+A repeat of the retained legacy format took 76.250 s; even the slowest packed
+run is 3.85x faster than that control. All runs used 4,000-row requested pages;
+all packed runs recovered every row after a fresh-document offline reopen.
+
+New IDB stores pack row images into 256 buckets per row store. Rows, metadata,
+outbox and transfer markers still share one atomic strict transaction. Legacy
+stores remain readable/writable without migration. No page/engine ceiling was
+raised. The benchmark projects the frozen action log into the public calibration
+schema, with media null and its Following timeline omitted for seeding; it is
+not the full application UX or an effect/media replay. Snapshot HTTP includes
+server work, serialization and loopback transport; pure server CPU was not
+measured. Larger pages and streaming apply were unnecessary. Old clients opening
+new packed databases were not qualified for rollback.
+
+Focused checks: 35 browser/React tests, 20 write-ID/two-device-page tests,
+80 guide tests, ten immediate-navigation cases, and the IDB witness pass.
+Ref-check passes with zero errors/unchecked refs. Wasm is 1,775,799 B raw /
+495,258 B gzip under the unchanged 496,000 B budget. The first suite's guide and
+client regressions were mine and fixed. A second run hit an intermittent
+existing session-logout probe; it passed unchanged alone and in the final serial
+run. The complete final suite, including all 13,000 model sequences, reports:
+**`== 0 failure(s) in 1373 s`**. The report classifies every failure from every attempt.
+
+No package version bump, publication, push or native simulator qualification.
+Implementation commits: 26ad8a083, 65231c446, a04b83063. File map, examples,
+reproduction commands, measurements and evidence:
+[Lane V report](reports/20260925-lane-v-web-start.md).
+
+## 2026-09-25 — Lane V round 1: bounded persistence and acquisition/session regressions
+
+Addressed Astra's two Medium findings and special-table Low, and Grok's High
+session-admission and Medium bucket findings. Progress now updates/resets before
+the unchanged-Boolean return; legacy Boolean notifications remain conditional.
+Table counts use null-prototype dictionaries, including copies and resets.
+
+IndexedDB buckets are capped at 512 entries and 256 KiB of UTF-8 JSON. Overflow
+rows use individual records with no growing index or scan. Metadata, outbox,
+transfer acknowledgements and all row changes still commit in one strict
+transaction. Old unbounded buckets split atomically at full load, before writes;
+legacy per-row stores remain per-row. A single-row update in either 1,000 or
+16,000 colliding 1 KiB rows submits 262,832 serialized bytes to IDB put, including
+metadata and outbox, versus 16,843,849 for the old 16,000-row case. This is
+serialized-record size, not physical disk I/O. Forced abort and Unicode overflow
+preserve the complete pre-transaction state, and retry commits it together.
+
+New createApp journal records capture the session epoch and principal while
+retaining synchronous localStorage custody. Device admission and recovery now
+check that stamp under the session lock through the admission commit. Peer
+logout, changed principal and changed epoch cancel unadmitted records; later
+sign-in cannot promote them. The existing locked transport check remains. A
+transient unlocked mismatch refuses the call without permanently fencing its
+scope. Low-level clients and legacy unstamped journals retain their prior path;
+no new public interface was added.
+
+Fresh Chromium acquisition of the frozen Clique projection (65,180 rows,
+including the required 50,228 posts / 1,004 reposts / 5,921 follows / 1,008
+profiles) took 13.789 / 24.345 / 17.745 s. The 17.745 s median is 4.13x faster
+than the fresh 73.352 s per-row control, or 5.27x versus the original 93.581 s
+control. Even the slowest new run clears 3x against the fresh control. Median
+run: 0.804 s snapshot HTTP, 3.019 s Wasm apply, 12.135 s IDB saving. Every run
+reopened all rows offline. Snapshot HTTP includes server work and transfer;
+these remain acquisition-only figures with the same projection limits as the
+previous entry. Page size stays 4,000. No meter or Wasm budget was raised.
+
+Focused Chromium checks: 26 passed, 0 failed. Restoring the old progress return,
+ordinary-object counts or unbounded packing fails the new regressions. Making
+reset() a no-op fails partial sign-out. Separately bypassing live admission,
+recovery authority, or restoring unlocked fencing also fails the corresponding
+real-browser test. Both reviews were reread before the final complete suite;
+ref-check reports zero errors and zero unchecked references.
+
+Final complete suite: **`== 0 failure(s) in 1508 s`**, with serialized client
+files: 1,532 passed / 0 failed / 10 platform skips; models 78 passed / 0 failed,
+including all 13,000 seeded sequences. The first attempt reported 1 failure in
+1,414 s: an environmental five-second server-start timeout, before client
+construction, in the native transport test. It passed unchanged in isolation
+and in the final complete run. Both logs and the classification are retained.
+
+Implementation commits: e11c2a282 (progress and bounded persistence), 78175cd6d
+(session-bound admission). local.ts is 1,467 lines. No package bump, push,
+publication, larger snapshot pages, streaming apply or native simulator run.
+File map, reproductions, test proofs, measurement limits and raw evidence:
+[round 1 report](reports/20260925-lane-v-r1.md).
+
+
+## 2026-09-25 — LLP 3000.013, lane V round 2: session-bound journal recovery
+
+Addressed both round-1 delta reviews. App authority now attaches before journal
+orphan recovery; attachment recovers immediately from the kept device, including
+offline or with the first sync held. Unstamped, unadmitted legacy app records are
+cancelled because their originating epoch is unknown. Committed outbox/transfer
+custody remains intact. Page-hide transport runs after serialized admission
+releases the session lock, and its listener is installed before initial network
+sync. A synchronous epoch mismatch refuses the call and schedules locked
+confirmation; a confirmed mismatch fences existing observations, while a
+transient observation does not retire the scope. No reentrant lock bypass was
+introduced.
+
+Added eight Chromium regression cases covering hidden admission with a second
+tab's logout, held-sync/offline navigation recovery, actual keepalive delivery,
+password logout/login with legacy unadmitted and committed records, same-epoch
+logout tombstones, and persistent observation fencing. Existing transient-fence
+coverage remains. Deleting a known overflow key must now disappear through both
+read and fresh load. All eight relevant mutants fail at their intended checks;
+64 focused checks pass. Raw-device recovery tests now make their first core call
+before asserting orphan recovery, so app ownership can bind after open.
+
+Measured the same 65,180-row scale projection again: bounded cold acquisition
+13.298 / 15.825 / 18.703 s; fresh per-row 70.716 s. Median speedup 4.47×. Median
+snapshot response/body time 0.779 s, wasm apply 2.877 s, IndexedDB saves 10.419 s
+(per-row IDB 65.126 s). All four offline reopens retained all rows. Page size
+4,000, strict durability and 512-entry/256-KiB bucket caps are unchanged. This is
+snapshot acquisition, with the previously documented null-media/persona fixture
+projection, not the full builder startup journey.
+
+`scripts/test.sh` ran once: **`== 0 failure(s) in 405 s`**, exit 0. Client checks:
+1,541 passed, 10 platform skips; models: 78 passed including 13,000 seeded
+sequences. No complete-suite failures (ours, baseline or environmental).
+Reference audit: 509 LLP docs / 9,282 refs, zero errors or unchecked references.
+The wasm budget remains 495,258 / 496,000 gzip bytes. The report classifies the
+corrected test-only development failures and explains the two reviewer details:
+the transport-under-lock mutant fails the stronger no-transport-in-lock
+assertion, and the explicit logout guard mutant is exposed by a same-epoch
+tombstone retaining session fields; the exact minimal tombstone is tested too.
+
+Did not change Quarry forms, disclosure rules, engine meters, page-size limits,
+bucket storage, or transport delivery guarantees; did not push or publish.
+Keepalive remains best-effort. Full file map, reproduction commands, review
+hashes, measurements and suite output: `reports/20260925-lane-v-r2.md` and
+`reports/20260925-lane-v-r2-evidence/`.
+
+
+## 2026-09-25 — LLP 3000.013, lane V round 3: validated exit replay; authority blocker
+
+Implemented both round-2 delta reviews. The web exit sender now waits for the
+ordinary replay checks before registration, including offline opening. Refused
+probes, a replacement identity, restore refusal, dead sessions and required
+backend adoption suppress early exit dispatch. Accepted probes register before
+initial sync; an already-hidden document flushes once at registration. Successful
+sync adoption can enable the sender afterward. Every createApp device is marked
+app-owned before recovery, including wrapped/asynchronous session stores that
+lack the private synchronous reader. Unverifiable unadmitted records are refused;
+committed outbox custody remains intact.
+
+Added real-Chromium held-probe tests for acceptance, refusal, restore and a second
+real backend retaining the same credentials. Replacement tests check the server
+audit, direct durable outbox reads and fresh-document reopening. Wrapped-store
+legacy/stamped recovery and backend-required offline/adoption tests are included.
+All eight startup mutants fail at the intended assertions, including removal of
+the store-ID comparison and journal.fence. Corrected eight async browser waits:
+the pinned Playwright waitForFunction checks a Promise for truthiness, so these
+checks now use the existing helper that awaits each polling result. Both browser
+files pass all 36 checks; the expanded admission file passes 17.
+
+A newly demonstrated High remains open in the pre-existing authority protocol.
+Chromium can grant a session Web Lock before the new holder's localStorage cache
+reflects the prior holder's write. A standalone two-tab probe wrote the exact
+same-epoch logout tombstone at epoch 239, released the lock, then read the old
+signed-in epoch 239 under that lock; the next read saw the tombstone. An existing
+real-app test also intermittently returned sent after a peer principal change,
+advancing the audit from 3 to 4. Repetitions sometimes pass, so suite success is
+not qualification of this guarantee. Per the brief, stopped this part for the
+supervisor's design decision; did not redesign authority storage, add timing
+workarounds, or weaken checks. The client reference names this limitation. The
+lane is NOT READY for the cross-tab logout authorization guarantee.
+
+Complete suites: first **`== 0 failure(s) in 466 s`**; after the test-wait
+correction, final **`== 0 failure(s) in 409 s`**, both exit 0. Final client checks:
+1,549 passed, 10 platform skips; models: 78 passed, including all 13,000 seeded
+sequences. No full-suite failures (ours, baseline or environmental). Two focused
+attempts hit the existing dev-server readiness timeout before client creation;
+unchanged rechecks reached the intended checks. Corrected development-only
+fixture/polling/cleanup mistakes and the temporary redundant-probe compatibility
+regression are classified in the report. Reference audit: zero errors and zero
+unchecked references. local.ts is 1,479 lines.
+
+No new cold-acquisition measurement: snapshot processing and bounded persistence
+are unchanged. Latest round-2 figures remain 13.298 / 15.825 / 18.703 s bounded,
+versus 70.716 s per-row (4.47x median); all 65,180 rows survived offline reopen.
+No Quarry forms, refusal codes, engine meters, disclosure checks, page sizes,
+bucket caps or durability modes changed. Did not push or publish.
+
+Implementation commits: 546bb169c, 137704376. File map, examples, all failure
+classifications, exact suite outputs and the standalone counterexample:
+`reports/20260925-lane-v-r3.md` and `reports/20260925-lane-v-r3-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 4: coherent browser session authority
+
+Implemented the supervisor's ruling after the round-3 STOP: IndexedDB holds
+authoritative browser sessions; localStorage remains the synchronous mirror and
+mutation capture journal. Browser login, logout and principal replacement await
+a strict IDB commit under the session Web Lock. Locked admission/recovery reads
+IDB, never a renderer's localStorage cache. A stale mirror can capture an intent,
+but a committed peer logout makes that intent fail with E_AUTH before it enters
+the outbox or sends. A visible logout still refuses in the calling stack.
+Mirror quota failure aborts the authority write; IDB abort restores the previous
+mirror where possible. Default memory and native session stores remain unchanged.
+
+Also addressed both completed round-3 reviews. Enumerable device capabilities
+and copied session-reader function identity preserve `{ ...core }` and
+`{ ...localStorageSessionStore() }`. Browser devices dropping ownership refuse
+with E_ADMISSION before recovery. Unknown async-only session adapters still
+establish app ownership and refuse unverifiable unadmitted records. Committed
+outbox custody remains. Every established browser store validates startup even
+with an empty outbox or an observed receipt; ordinary and exit delivery wait.
+Exit registration precedes ordinary replay's wait. A successful later sync both
+installs the exit sender and wakes ordinary delivery that startup held back.
+
+Measured with real Chromium: peer app logout, then a deterministic stale-renderer
+read at mutate, produced a synchronous journal followed by failed/E_AUTH, no
+outbox entry, no request and unchanged server audit. Login/replacement and abort/
+quota cases confirm commits or rollbacks finish inside the lock. The authority
+file passes 10 checks; expanded admission review passes 30. The original app
+audit suite passed 20 consecutive qualified runs, 19 checks each (380 total);
+all 80 authority audit observations remained 3, never 4. Fourteen deliberate
+source faults fail their intended regressions, including the former observed-
+receipt/empty-queue survivors, transport under the lock, same-epoch tombstones,
+store identity, journal fencing and ordinary reconnect wake-up.
+
+First complete suite: **`== 1 failure(s) in 482 s`**, failed component client
+tests. All five failing leaves were ours: three wasm acquisition cases did not
+wake queued ordinary delivery after validation, and native/wasm offline-generation
+cases saw an early begin_send during opening. Corrected both causes without
+weakening their assertions; the acquisition, repair-b-round9 and browser files
+then passed 102/102. Final complete suite: **`== 0 failure(s) in 417 s`**, exit 0;
+1,572 client checks passed, 10 platform skips; 78 model checks passed, including
+all 13,000 seeded sequences. No final failures, baseline or environmental.
+Reference audit: 509 LLP documents, 9,283 references, zero errors or unchecked
+references. The 26 reference TypeScript blocks compile. local.ts is 1,477 lines.
+
+Compatibility choices: legacy mirror-only sessions require sign-in, and pre-IDB
+unadmitted stamps cannot be promoted; committed outbox entries are preserved.
+Custom-prefixed mirrors require a stable authority namespace, demonstrated by a
+compiled client-reference recipe. No unresolved problem remains in the requested
+scope. Did not change Quarry forms, engine meters, disclosure, bucket limits,
+acquisition page sizes or the wasm budget; did not push or publish. No new cold
+acquisition measurement this round: prior round-2 results remain 13.298 / 15.825 /
+18.703 s bounded versus 70.716 s per-row, 4.47x median, 65,180 rows retained.
+
+Implementation commits: 7e7192da4, ecad97f65, fabab414c. File map, examples,
+reproductions, compatibility decisions, every failure and exact suite outputs:
+`reports/20260925-lane-v-r4.md` and `reports/20260925-lane-v-r4-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 5: store binding and session mirrors
+
+Addressed every finding in the round-4 Astra and Grok delta reviews. Every
+journaled write now retains its store-binding transfer marker while queued;
+adoption dequeues mismatched fresh writes as well as recovered writes. A click
+captured during a held replacement probe leaves the replacement audit at zero
+after sync and close. Rows, metadata and outbox retain their atomic transaction.
+
+Under the session lock, opening migrates the greatest legacy mirror/IndexedDB
+session epoch into the authoritative epoch record and mirror, then captures that
+epoch for the scope. A leftover marker 5 permits sign-in and a successful
+mutation; an existing IDB epoch 9 wins over mirror 5. Reads repair speculative
+mirrors and delete them for absent authority. An aborted migration preserves the
+old mirror fence. After locked admission refuses a stale click, the app's locked
+check fences auth, viewer, acquisition and existing private observations even
+with the change poll held. Ordinary admission authority remains IndexedDB only.
+
+Real Chromium regressions cover each case, including committed session A versus
+speculative mirror B on reopen. Six deliberate source faults each fail their
+intended tests; the two store-binding faults execute on the replacement backend
+and advance its audit to 1. Normal targeted runs passed 43/43, 32/32 and the
+final expanded authority file 14/14. Reference audit passed: 509 LLP documents,
+9,283 references, zero errors and zero unchecked references.
+
+Ran the complete suite once: **`== 0 failure(s) in 408 s`**, exit 0. Client checks:
+1,576 passed, 10 platform skips; models: 78 passed and all 13,000 seeded
+sequences. No failure was ours, baseline or environmental. The recorded
+baseline cargo failure did not recur. Bounded persistence still rewrote 262,832
+bytes for one row at both 1,000 and 16,000 rows. No new cold-acquisition benchmark:
+this round changes neither snapshot application nor bucket tuning. Historical
+round-2 times remain 13.298 / 15.825 / 18.703 seconds versus 70.716 seconds per-row.
+
+No design deviation or unresolved scoped problem. No Quarry form, authorization
+rule, engine meter, bucket ceiling or public client signature changed. Did not
+push or publish. Implementation commit: d43b3c82e. File-by-file changes,
+examples, test reproductions, decisions and raw evidence are in
+`reports/20260925-lane-v-r5.md` and `reports/20260925-lane-v-r5-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 6: one intent binding through every handoff
+
+Addressed both Astra findings and Grok's higher-mirror mutant from the round-5
+reviews. Journaled intents now share one store-binding decision across own-tab
+recovery, fresh admission, orphan adoption, exit transport and ordinary flush.
+Orphans with unknown destination identity remain in their source store. A
+mismatch retires before destination enqueue, including fresh transfers. Both
+send paths also check the original binding and intended mutation ID. Host
+identity inspection is non-capturing; it cannot manufacture sync requests.
+
+Epoch reconciliation persists only a legacy marker that advances authoritative
+IndexedDB state. Existing sessions reopen without allocating a separate epoch
+record, including at actual localStorage quota exhaustion. Repair remains
+best-effort and new mutations still refuse synchronously with E_ADMISSION when
+the journal cannot be written. Mirror 10 beats present IDB epoch 9 through
+sign-in, capture and a successful mutation.
+
+New real-Chromium tests cover two-tab replacement with ordinary and exit
+transport, asserting no destination enqueue or request and audit B = 0 through
+close. An unidentified destination preserves source custody, then matching sync
+delivers the original ID once. The quota witness filled 5,241,876 characters,
+proved a new epoch key could not fit, and restored the same acquired session.
+Deleting both orphan checks, restoring unconditional allocation, or ignoring a
+higher mirror each fails a regression. The final affected set passed 158/158.
+
+Three complete suites were run. First: **`== 1 failure(s) in 431 s`**; ours,
+`IndexedDB model: reset termination before-commit preserves one complete
+transaction`, because the new restore inspection captured a request. Second:
+**`== 1 failure(s) in 406 s`**; ours, `wasm rejects a skipped snapshot page
+before accepting its completion`, because a remaining journal recovery read
+captured metadata later persisted by the refused call. All host identity reads
+now use capture:false. Targeted checks also exposed two fixtures that had
+implicitly relied on the old capture side effects. The reset and durability
+fixtures now explicitly declare real in-flight requests; their complete durable
+state comparisons remain, and recovery must not manufacture a new request.
+
+Final suite: **`== 0 failure(s) in 408 s`**, exit 0; 1,581 client checks passed,
+10 platform skips; 78 model checks passed, including all 13,000 seeded sequences.
+No final failures — ours, baseline or environmental. The baseline cargo failure
+did not recur. Reference audit: 509 LLP documents, 9,284 references, zero errors
+and zero unchecked references. One-row persistence remains 262,832 bytes at
+both 1,000 and 16,000 rows. No new cold-acquisition measurement; snapshot pages
+and bucket tuning are unchanged.
+
+No design deviation or unresolved scoped problem. No Quarry form, public client
+signature, source authorization rule, engine meter, bucket ceiling or transaction
+durability was weakened. local.ts remains 1,477 lines. Did not push or publish.
+Implementation: d501a115a. File map, examples, decisions, reproductions and every
+failure are in `reports/20260925-lane-v-r6.md`; raw evidence is in
+`reports/20260925-lane-v-r6-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 7: server-enforced mutation store binding
+
+Ordinary and page-hide mutation requests now carry the journaled intent's
+original `store_id`. Queue views and the synchronous committed-outbox view
+retain the binding through fresh admission, own-tab recovery and orphan
+adoption. The existing server check runs under the engine lock before execution
+and idempotency lookup, closing replacement between local validation and send.
+Client guards remain as optimizations. A confirmed keepalive E_STORE_REPLACED
+persists a named failed receipt before outbox settlement; original-binding
+custody remains if teardown precedes the response. Unidentified local transport
+waits for a store identity. The client reference and governing RFC describe this.
+
+Two real browser tabs and two authenticated real backends reproduce replacement
+after validation through ordinary and keepalive delivery: B's audit stays 0,
+A's audit is unchanged, and the failed receipt survives reopening without a
+retry. Removing both client transport guards still passes all 37 final browser
+checks. Removing either request's store_id makes the matching regression fail
+with B's audit at 1. Removing keepalive retirement fails its receipt assertion.
+Grok's completed r6 review was READY but named a surviving recovered-orphan
+mutant; new cases navigate before admission, verify recovered:true and require
+retirement before enqueueing on B. That mutant now fails both no-enqueue checks;
+server enforcement still prevents execution. The initial recovered fixture
+looked in the pre-navigation database; it now locates the actual durable owner.
+
+The initial browser/navigation set passed 50/50. Final expanded browser checks
+passed 37/37, as did the control without client transport guards. Lifecycle
+fixtures passed 56/56, navigation models 62/62 and session security 7/7. The
+first full suite ended `== 1 failure(s) in 1736 s`, component client tests:
+four cases were ours (one obsolete unidentified best-effort-send expectation,
+one lifecycle fixture and two rotation fixtures missing their store identity).
+Those fixtures now assert the binding while retaining their lifecycle/security
+oracles. One environmental server-start timeout occurred before client creation;
+the unchanged native body-loss case passed once and then five consecutive
+repeats. No timeout was relaxed. The first full run used serial client testing
+at host load 119.23 across 96 CPUs, and all its model checks passed.
+
+Final suite: **`== 0 failure(s) in 449 s`**, exit 0. All 1,585 client checks and
+78 model checks passed, including 13,000 seeded interleavings; 10 platform skips.
+No final failure — ours, baseline or environmental. The baseline Cargo failure
+did not recur. Reference audit: 509 LLP documents, 9,285 references, zero errors
+and zero unchecked references. local.ts remains 1,492 lines.
+
+No design deviation or unresolved scoped implementation problem. No server
+change, Quarry form, authorization relaxation, engine-meter change, acquisition
+retuning or new cold-acquisition measurement. Did not push or publish. Source
+and tests are in 7d0140561 and 99f711a68. File map, examples, every failure and
+qualification logs are in `reports/20260925-lane-v-r7.md` and its evidence folder.
+
+
+## 2026-09-25 — LLP 3000.013 lane V, round 8: one settlement owner per write
+
+Ordinary delivery and keepalive refusal now share exclusive settlement ownership
+per mutation id. An overlapping ordinary request keeps its outcome through
+close; a replacement's refusal cannot mask its committed success. The exit
+helper also respects a known success whose receipt persistence failed. The web
+host's internal settlement operation rechecks terminal history and unsent,
+unobserved outbox custody on its serialized device chain under the exclusive
+claim, then commits receipt, retirement and journal cleanup in one strict
+IndexedDB transaction. A failed commit retains the outbox and publishes no
+terminal refusal. The helper is split out; local.ts remains 1,496 lines.
+
+Astra and Grok's completed round-7 reviews are addressed. Real Chromium and two
+real authenticated backends exercise both response orders: A commits once,
+B executes zero times, and caller, notification, receipt lookup and reopen all
+report sent. The same holds with failed ordinary receipt persistence and no
+sync observation. Aborting the keepalive receipt transaction leaves the original
+id pending and durable after reopen, until a later atomic save succeeds. Holding
+receipt persistence for 1.2 seconds prevents ordinary delivery even after the
+one-second exit wait expires. No timeout or storage ceiling was raised.
+
+Five mutation checks fail at their intended oracle: removing settlement
+ownership; bypassing the device custody check; swallowing receipt persistence
+failure; forgetting volatile known success; and preferring the newer current
+store identity to the queued write's original binding. The latter closes Grok's
+remaining mutation-test gap. Lifecycle/navigation checks passed 72/72; all 42
+browser admission checks pass in the full suite. Initial new notification tests
+subscribed before the signed-in client was published and failed; the harness
+now subscribes after app.ready. The volatile-success oracle now holds sync
+unavailable, and binding precedence is asserted outside transport error handling.
+These developmental failures were ours; full accounting is in the report.
+
+Full suite: **`== 0 failure(s) in 444 s`**, exit 0. All 1,591 client checks and
+78 model checks passed, including 13,000 seeded sequences; 10 platform skips.
+No final failures — ours, baseline or environmental. The baseline Cargo failure
+did not recur. Rust tests took 97 seconds, client tests 97 seconds, and client
+models 237 seconds. Reference audit: 509 LLP documents, 9,286 references, zero
+errors and zero unchecked references.
+
+No deviation from the requested guarantees and no known open scoped problem.
+The bounded network wait remains; settlement ownership and the atomic device
+chain prevent concurrent sending while persistence is held. No new Quarry or
+public client form, Rust/server change, authorization/disclosure relaxation,
+work-meter change, receipt-window expansion or acquisition retuning. No new
+cold-acquisition benchmark. Did not push or publish. Implementation: b9725ee26.
+File map, examples, test reproductions and evidence are in
+`reports/20260925-lane-v-r8.md` and `reports/20260925-lane-v-r8-evidence/`.
+
+
+## 2026-09-25 — LLP 3000.013 lane V, round 9: preserve every known terminal outcome
+
+Known sent and failed receipts now retain their first outcome through aborted
+persistence. A retry saves that receipt and settles it locally before any POST;
+sync, page application, store observation/adoption and exit refusal handling
+cross the same persistence barrier. Failed receipt saves cannot fall through
+to sync. Keepalive protects every known terminal state, including NOT_ADMIN.
+The serialized web send check also catches acknowledgements that arrive during
+preflight. Already reflected effects settle without a redundant sync that would
+withdraw completed acquisition freshness. Local E_STORE admission errors that
+explicitly describe an unknown outcome remain recoverable through their journal.
+The receipt helper is split out; local.ts remains 1,498 lines.
+
+Real Chromium, strict IndexedDB transactions and two real backends cover both
+NOT_ADMIN response orders after two aborted receipt saves, alongside the sent
+cases. The success regression waits for the actual retry timer while storage
+keeps failing and the endpoint remains B: no second POST or sync can discard the
+known result. Restoring storage persists the original outcome, which survives
+reopen; A commits once and B never executes it. Outbox-only sent_seq and
+observed_seq evidence independently refuse replacement settlement. Six mutants
+fail: deleting that custody check, falling through after a failed receipt save,
+reposting known custody, bypassing the sync barrier, replacing the first volatile
+terminal, and swallowing exit receipt-persistence failure.
+
+Affected lifecycle/navigation/overflow/replacement tests passed 164/164; all six
+HTTP pending-window controls passed. Across both device stores, 273 queued IDs
+settle exactly once: 272 through sync and one unknown tail through ordinary
+response. Tests that previously required pending or redundant replay after a
+correlated acknowledgement now require the known sent outcome, preserving
+ordering, original IDs, one-execution and row-completeness assertions. The
+keepalive persistence control distinguishes actual receipt attempts from
+callbacks declined by an ordinary owner, counts each completion, and controls
+page visibility. Its persistence mutant still fails.
+
+Full suite: **`== 0 failure(s) in 683 s`**, exit 0, using
+`SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`.
+All 1,598 client checks, all 47 browser admission checks and 78 model checks
+passed, including 13,000 seeded interleavings; 10 expected platform skips.
+Rust tests took 306 seconds, clients 135 seconds and models 231 seconds.
+Reference audit: 509 LLP documents, 9,287 references, zero errors and unchecked.
+No final failures — ours, baseline or environmental.
+
+Earlier runs exposed our recoverable-admission classification, acknowledgement
+preflight and redundant-sync freshness regressions, plus old acknowledgement
+expectations and an ambiguous keepalive test barrier; all are fixed and their
+failure accounting is preserved in the report. Environmental failures were a
+five-second server startup and an unchanged Rust reader timing-ratio check.
+Both isolated controls passed. The latter measured 1.043/1.025 against the
+unchanged 3.0 ratio limit; reducing Rust target concurrency yielded the green
+complete run. One fully serial attempt was intentionally stopped early before
+switching to CPU affinity. No timeouts, workloads, thresholds or meters changed.
+
+No functional design deviation or known open scoped implementation problem.
+No Rust/server, public client contract, wire format, authorization/disclosure,
+receipt-window or storage-bound change. No new Quarry forms, acquisition
+retuning or cold-acquisition measurement. No push or publication. Implementation
+and test commits: 6ea85f28b, 0efdc1638, 251336465, 2b47ba061, 44e21d0ef,
+0a8996caf. The file map, examples, failures and reproductions are in
+`reports/20260925-lane-v-r9.md` and its evidence folder.

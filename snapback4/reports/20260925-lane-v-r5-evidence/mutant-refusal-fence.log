@@ -1,0 +1,33 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✖ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (4071.654484ms)
+  ✔ a failed logout cannot commit after abort (909.189941ms)
+  ✔ a failed logout cannot commit after quota (967.331396ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (385.71646ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (870.186544ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (6.117828ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (85.179042ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (461.195517ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (448.228545ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (824.729077ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (488.130109ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (797.426533ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (757.148086ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (11925.233192ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 12
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12030.780876
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:137:11
+✖ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (4071.654484ms)
+  page.waitForFunction: Timeout 3000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:173:18)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:137:3) {
+    name: 'TimeoutError'
+  }

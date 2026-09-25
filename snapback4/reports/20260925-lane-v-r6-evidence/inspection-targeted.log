@@ -1,0 +1,217 @@
+✔ wasm acquisition boundary: public timeline (476.098934ms)
+✔ wasm acquisition boundary: conversation ordinal (60.962218ms)
+✔ wasm rejects a skipped snapshot page before accepting its completion (7.761361ms)
+✔ wasm retained reacquisition remains unknown after gap deletion (7.621982ms)
+✔ wasm retained reacquisition remains unknown after gap move (5.971729ms)
+✔ wasm wire withholds a deleted floor's historical value (62.22475ms)
+✔ wasm wire withholds a hidden floor's historical value (50.076735ms)
+wasm moved survivor hidden=false: payload-bytes=631 identical-worlds=2 completions=1 key-at=100
+✔ wasm wire withholds a deleted floor's historical value with moved survivor (recheck) (53.431302ms)
+wasm moved survivor hidden=true: payload-bytes=631 identical-worlds=2 completions=1 key-at=100
+✔ wasm wire withholds a hidden floor's historical value with moved survivor (recheck) (54.478451ms)
+wasm unselected control removed=false: completions=1 key-at=1500 page-complete=true
+✔ wasm recheck unselected row enters the current top two (38.832655ms)
+wasm unselected control removed=true: completions=1 key-at=1000 page-complete=true
+✔ wasm recheck unselected row replaces a deleted selection (60.417533ms)
+wasm empty groups: groups=5000 pages=158 max-response-bytes=119311
+✔ wasm acquires 5000 empty groups through bounded HTTP pages (12406.240772ms)
+wasm written unselected round-trip=true: payload-bytes=812 worlds=2 p1-puts=3 completions=1 key-at=1000
+✔ wasm written unselected round trip hides pre-join key (62.820413ms)
+wasm written unselected round-trip=false: payload-bytes=722 worlds=1 p1-puts=2 completions=1 key-at=1000
+✔ wasm written unselected same-key rewrite duplicates current acquisition (26.641305ms)
+wasm membership collision kind=scope row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500
+✔ wasm membership collision scope row-event=null (54.101267ms)
+wasm membership collision kind=scope row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500
+✔ wasm membership collision scope row-event=put (56.697617ms)
+wasm membership collision kind=scope row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000
+✔ wasm membership collision scope row-event=del (61.118893ms)
+wasm membership collision kind=join row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500
+✔ wasm membership collision join row-event=null (57.511647ms)
+wasm membership collision kind=join row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500
+✔ wasm membership collision join row-event=put (59.571284ms)
+wasm membership collision kind=join row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000
+✔ wasm membership collision join row-event=del (63.449646ms)
+✔ wasm current acquisition survives paged duplicates and later row changes staged=false retained=false (128.841092ms)
+✔ wasm current acquisition survives paged duplicates and later row changes staged=true retained=false (122.951455ms)
+✔ wasm current acquisition survives paged duplicates and later row changes staged=false retained=true (116.057885ms)
+✔ wasm current acquisition survives paged duplicates and later row changes staged=true retained=true (130.700689ms)
+✔ wasm horizonless current join and closed private join (49.0186ms)
+✔ wasm public retained history keeps only served rows on a closed horizonless join (5.512672ms)
+✔ wasm current selection fills a changed historical candidate set: move-up (28.437316ms)
+✔ wasm current selection fills a changed historical candidate set: move-down (25.664291ms)
+✔ wasm current selection fills a changed historical candidate set: remove (24.924091ms)
+✔ wasm current selection fills a changed historical candidate set: hide (26.414475ms)
+✔ wasm current selection fills a changed historical candidate set: remove-both (26.357389ms)
+✔ wasm review renewal cold horizon=false split=false (641.598543ms)
+✔ wasm review renewal cold horizon=false split=true (3.729549ms)
+✔ wasm review renewal cold horizon=true split=false (4.098431ms)
+✔ wasm review renewal cold horizon=true split=true (3.958622ms)
+✔ wasm review renewal gap horizon=false split=false (6.162475ms)
+✔ wasm review renewal gap horizon=false split=true (6.126221ms)
+✔ wasm review renewal gap horizon=true split=false (5.619912ms)
+✔ wasm review renewal gap horizon=true split=true (4.981094ms)
+✔ wasm review renewal revoke horizon=false split=false (2.342991ms)
+✔ wasm review renewal revoke horizon=false split=true (3.371432ms)
+✔ wasm review renewal revoke horizon=true split=false (2.646796ms)
+✔ wasm review renewal revoke horizon=true split=true (3.547666ms)
+✔ wasm review renewal unlimited horizon=true split=true (2.958594ms)
+✔ wasm review same-commit renew horizon=false split=false retained=false (3.047357ms)
+✔ wasm review same-commit renew horizon=false split=false retained=true (2.544433ms)
+✔ wasm review same-commit renew horizon=false split=true retained=false (2.660547ms)
+✔ wasm review same-commit renew horizon=false split=true retained=true (2.633016ms)
+✔ wasm review same-commit renew horizon=true split=false retained=false (2.428649ms)
+✔ wasm review same-commit renew horizon=true split=false retained=true (2.074419ms)
+✔ wasm review same-commit renew horizon=true split=true retained=false (1.504975ms)
+✔ wasm review same-commit renew horizon=true split=true retained=true (1.501671ms)
+✔ wasm review same-commit rejoin horizon=false split=false retained=false (1.306558ms)
+✔ wasm review same-commit rejoin horizon=false split=false retained=true (1.291555ms)
+✔ wasm review same-commit rejoin horizon=false split=true retained=false (1.435501ms)
+✔ wasm review same-commit rejoin horizon=false split=true retained=true (1.561109ms)
+✔ wasm review same-commit rejoin horizon=true split=false retained=false (1.323854ms)
+✔ wasm review same-commit rejoin horizon=true split=false retained=true (1.330504ms)
+✔ wasm review same-commit rejoin horizon=true split=true retained=false (1.426017ms)
+✔ wasm review same-commit rejoin horizon=true split=true retained=true (1.42074ms)
+✔ wasm review same-commit twice horizon=false split=false retained=false (1.241772ms)
+✔ wasm review same-commit twice horizon=false split=false retained=true (1.222422ms)
+✔ wasm review same-commit twice horizon=false split=true retained=false (1.398937ms)
+✔ wasm review same-commit twice horizon=false split=true retained=true (1.463394ms)
+✔ wasm review same-commit twice horizon=true split=false retained=false (1.247059ms)
+✔ wasm review same-commit twice horizon=true split=false retained=true (1.290503ms)
+✔ wasm review same-commit twice horizon=true split=true retained=false (1.467039ms)
+✔ wasm review same-commit twice horizon=true split=true retained=true (1.40775ms)
+✔ wasm review same-commit later horizon=false split=false retained=false (1.23408ms)
+✔ wasm review same-commit later horizon=false split=false retained=true (1.207509ms)
+✔ wasm review same-commit later horizon=false split=true retained=false (1.645095ms)
+✔ wasm review same-commit later horizon=false split=true retained=true (2.038705ms)
+✔ wasm review same-commit later horizon=true split=false retained=false (1.237805ms)
+✔ wasm review same-commit later horizon=true split=false retained=true (1.269392ms)
+✔ wasm review same-commit later horizon=true split=true retained=false (1.391355ms)
+✔ wasm review same-commit later horizon=true split=true retained=true (1.449202ms)
+✔ wasm review mixed-readable generated pages snapshot=false (4.878411ms)
+✔ wasm review mixed-readable generated pages snapshot=true (5.432251ms)
+✔ wasm review duplicate below the floor retained=false staged=false (31.886085ms)
+✔ wasm review duplicate below the floor retained=false staged=true (29.993448ms)
+✔ wasm review duplicate below the floor retained=true staged=false (27.963426ms)
+✔ wasm review duplicate below the floor retained=true staged=true (29.971306ms)
+✔ IndexedDB model: reset termination before-commit preserves one complete transaction (355.04408ms)
+✔ IndexedDB model: reset termination after-commit preserves one complete transaction (13.4194ms)
+✔ R2 item 2: getSnapshot is cleared after validated reset and before backend adoption (380.876414ms)
+✔ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (13.601693ms)
+✔ FF1 boundary: observe_store invalidates before fallible media reconciliation (12.373042ms)
+✔ FF1 boundary: adopt invalidates before fallible media reconciliation (13.030158ms)
+✔ FF1 adoption audit: committed generation invalidates before a thrown sync_state read (10.300727ms)
+✔ FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up (8.095822ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with healthy recovery (21.259159ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with media recovery (13.006942ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with host recovery (13.606881ms)
+✔ HH1/II1: stream publication preserves watch invalidation with healthy recovery (11.849248ms)
+✔ HH1/II1: stream publication preserves watch invalidation with media recovery (10.592824ms)
+✔ HH1/II1: stream publication preserves watch invalidation with host recovery (12.209938ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (4.840794ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (11.247265ms)
+✔ finding 2: delayed server answer cannot escape its incarnation (8.055482ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (15.415713ms)
+✔ finding 2: delayed watch answer cannot escape its incarnation (8.246388ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (16.143803ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (5.173944ms)
+✔ legacy clock-less predictable orphan imports without local rows and survives replay (5.13152ms)
+✔ finding 2: a delayed device read is retried before returning (8.125727ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (4.859662ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (3.704071ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1005.802981ms)
+✔ replacement receipts use exit transport without replaying known writes (1005.095811ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (11.956968ms)
+✔ generation discovery clears retained answers even when backend adoption cannot start (4.746814ms)
+(node:3208746) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1142.475579ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (908.445931ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1876.662395ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (1343.874106ms)
+  ✔ a hide during the startup probe waits for its accepted decision (1009.181835ms)
+  ✔ a hide during the startup probe waits for its refused decision (915.635866ms)
+  ✔ a hide during the startup probe waits for its restore decision (874.748222ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1377.482853ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1420.461991ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (860.24703ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (876.993537ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (760.229844ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (815.779962ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (869.486076ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (766.803055ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (837.616907ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (809.704507ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (843.12458ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (776.081861ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (817.302114ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (794.55249ms)
+  ✔ a successful reconnect enables exit after startup 503s (793.00376ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4812.557104ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4917.567904ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4745.029919ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5041.661723ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (5956.877833ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6056.628701ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6052.522849ms)
+  ✔ same-epoch logout tombstone refuses live admission (562.966044ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (584.027698ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (452.303705ms)
+✔ web admission review: recovery and transport respect the session boundary (62435.932193ms)
+ℹ {"mode":"held-sync","id":"01M3CFHMW1PCJS2X7PK5DGY049","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CFHNS18DMEX9AEBBJCYQY2","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CFHRXYDWHZBWKFN0BWVQ2J","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CFHSX5FJGHNRNTCKBBN4M4","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CFHTR3NQMN4D68552FW57R","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CFHVM1B2HEN9HKNVVK3NDS","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CFHX1VAEYNMEPJ24Y26HAP","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"orphan":"01M3CFJW7318Q3TP7VBK2YG9XX","hidden":false,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CFK24XF45HWT10Q7ES9PG3","hidden":true,"enqueuedInB":0,"auditA":10,"auditB":0}
+✖ failed admission cannot appear in later reads or hitchhike on the next saved call (358.084577ms)
+✔ failed snapshot publication and backend adoption preserve acknowledged state (13.794032ms)
+✔ recovery read failures block calls until durable state can be reopened (4.269318ms)
+✔ failed initial persistence frees the constructed Wasm device (1.496833ms)
+✔ successful calls keep incremental persistence without loading the store again (4.461066ms)
+✔ close drains accepted calls once and refuses later calls (2.844422ms)
+✔ W11R2: evicted journal has no retry timer or missing-store read (2.198304ms)
+ℹ state=evicted retry_timers=0 orphan_loads=0
+✔ W11R2: unidentified journal has no retry timer or missing-store read (1.657234ms)
+ℹ state=unidentified retry_timers=0 orphan_loads=1
+✔ W11R2: receipt lookup never opens an absent shared database and sees later adoption (1.871685ms)
+ℹ empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false) (2.384343ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true) (1.85482ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11R2: a live sibling queues one cancellable lock wait without a timer (2.985914ms)
+ℹ live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+✔ W11R2: persistent recovery failure exhausts three backoffs then a sync can recover (2.852264ms)
+ℹ failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1
+✔ W11R2: IndexedDB existence fallback aborts creation of missing stores (0.417265ms)
+ℹ tests 158
+ℹ suites 0
+ℹ pass 157
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62538.393883
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-durability.test.mjs:38:1
+✖ failed admission cannot appear in later reads or hitchhike on the next saved call (358.084577ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(expected.delete("m device:declaration:capture"))
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-durability.test.mjs:51:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

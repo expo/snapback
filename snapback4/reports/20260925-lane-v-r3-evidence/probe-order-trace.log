@@ -1,0 +1,78 @@
+(node:808819) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (939.778802ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (790.695978ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1790.085233ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2199.026883ms)
+  ✔ a hide during the startup probe waits for its restore decision (750.532979ms)
+  ✖ a hide during the startup probe waits for its restore decision (829.135308ms)
+  ✔ a hide during the startup probe waits for its restore decision (789.29427ms)
+  ✔ a hide during the startup probe waits for its restore decision (866.332055ms)
+  ✔ a hide during the startup probe waits for its restore decision (921.917254ms)
+  ✔ a hide during the startup probe waits for its restore decision (842.245515ms)
+  ✔ a hide during the startup probe waits for its restore decision (854.260808ms)
+  ✔ a hide during the startup probe waits for its restore decision (950.358952ms)
+  ✔ a hide during the startup probe waits for its restore decision (885.130153ms)
+  ✔ a hide during the startup probe waits for its restore decision (864.881403ms)
+  ✔ a hide during the startup probe waits for its restore decision (956.994927ms)
+  ✔ a hide during the startup probe waits for its restore decision (994.572915ms)
+  ✔ a hide during the startup probe waits for its restore decision (893.853777ms)
+  ✔ a hide during the startup probe waits for its restore decision (870.287757ms)
+  ✔ a hide during the startup probe waits for its restore decision (1020.109561ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (890.669027ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (870.523201ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (772.252692ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (846.935628ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (839.210221ms)
+  ✔ same-epoch logout tombstone refuses live admission (515.545109ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (549.220178ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (446.074563ms)
+✖ web admission review: recovery and transport respect the session boundary (25550.496177ms)
+ℹ {"mode":"held-sync","id":"01M3C6683XMKP0GNSQ50BYN5ZE","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C668X4J9XTEEM8H8KM26W8","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"restore","originalId":"01M3C66CRBZK4CT907WBH3E58X","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66E8DQWWJ7Y5M108Q36M9","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66F2NKMWJX9HG6QEEF6YG","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66FXG2PPSD83JDEH54C8H","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66GTP0KE6PH3XZE5Q4GAN","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66HMSF4JNFB2YE420GYTG","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66JGVSGV079BTJKKY7BHE","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66KDQXG9D05X49H8YK075","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66M8H3T30ZKYYY7Z8YT30","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66N5PAG45S6YK255HZFXX","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66P3SNR7F17HSWJ7N3B67","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66Q0QAHHSM771YYN735B2","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66QXP8M5K9Z2MBY9BVPHC","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C66RRY9FYQZM432ZM2MM5C","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ tests 28
+ℹ suites 0
+ℹ pass 26
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25649.224481
+
+✖ failing tests:
+
+test at packages/snapback4/test/.trace-probe.mjs:254:57
+✖ a hide during the startup probe waits for its restore decision (829.135308ms)
+  AssertionError [ERR_ASSERTION]: {"before":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"00ade0569edac2d9c48e775f186daef8e7e43d84661cee11dacbb1e3597c6bfb","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"2","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"1b9aa8755773b8f1871e2d810e5be54e","device:watermark":"9"},"backend_required":false,"generation":1,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"restore_images_at":0,"restore_watermark":9,"send_revision":2,"snapshot_catchup":false,"store_id":"1b9aa8755773b8f1871e2d810e5be54e","transfer_store_id":"1b9aa8755773b8f1871e2d810e5be54e","transfer_watermark":9,"watermark":9},"after":{"state":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"00ade0569edac2d9c48e775f186daef8e7e43d84661cee11dacbb1e3597c6bfb","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"2","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"1b9aa8755773b8f1871e2d810e5be54e","device:watermark":"9"},"backend_required":false,"generation":1,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"restore_images_at":0,"restore_watermark":9,"send_revision":2,"snapshot_catchup":false,"store_id":"1b9aa8755773b8f1871e2d810e5be54e","transfer_store_id":"1b9aa8755773b8f1871e2d810e5be54e","transfer_watermark":9,"watermark":9},"auth":{"state":"signed-in","viewer":"user:01M3C66D4TT1VX1PGE09PN7S2X"},"sent":[]},"trace":[{"phase":"head","head":{"ok":true,"seq":0,"store_id":"1b9aa8755773b8f1871e2d810e5be54e"},"ok":true,"closed":false,"sessionDead":false,"expectedRevision":0,"credentialRevision":0,"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"00ade0569edac2d9c48e775f186daef8e7e43d84661cee11dacbb1e3597c6bfb","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"2","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"1b9aa8755773b8f1871e2d810e5be54e","device:watermark":"9"},"backend_required":false,"generation":1,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"restore_images_at":0,"restore_watermark":9,"send_revision":2,"snapshot_catchup":false,"store_id":"1b9aa8755773b8f1871e2d810e5be54e","transfer_store_id":"1b9aa8755773b8f1871e2d810e5be54e","transfer_watermark":9,"watermark":9}}]}
+  + actual - expected
+
+  + undefined
+  - 'E_STORE_RESTORE'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/.trace-probe.mjs:317:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/.trace-probe.mjs:254:49)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_STORE_RESTORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

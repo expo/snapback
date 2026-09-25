@@ -1,0 +1,63 @@
+(node:2319956) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1010.240858ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (860.157272ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1810.676474ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2250.98351ms)
+  ✔ a hide during the startup probe waits for its accepted decision (947.837483ms)
+  ✔ a hide during the startup probe waits for its refused decision (903.247804ms)
+  ✔ a hide during the startup probe waits for its restore decision (951.847493ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1391.905725ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1613.964233ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (930.351255ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (894.728225ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (880.46648ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (966.174264ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (888.226271ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (863.643767ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (857.848602ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (902.533724ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (961.054912ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (834.155873ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (758.355708ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (773.775128ms)
+  ✔ a successful reconnect enables exit after startup 503s (822.503659ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4904.075316ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4890.251818ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4832.425892ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5083.743472ms)
+  ✔ same-epoch logout tombstone refuses live admission (598.428289ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (547.234012ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (420.414092ms)
+✔ web admission review: recovery and transport respect the session boundary (45152.549931ms)
+ℹ {"mode":"held-sync","id":"01M3CBTR1ERZ3CG83Y5TDPTZTB","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CBTRWZPNVSY57E0QBNCTC8","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CBTWX6F43Z19C1VGQXRCE4","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CBTXT4WMD9ANN9EA466RJ3","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CBTYQ5GSVAPT2E3ZKPCGCW","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CBTZMQRK4RM74C5N51TQK6","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CBV14CQGB2WDGBZ23M2PYR","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (918.447064ms)
+  ✔ a failed logout cannot commit after abort (875.892385ms)
+  ✔ a failed logout cannot commit after quota (881.063235ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (383.210834ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (1031.099761ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (4.087907ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (92.592472ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (521.02444ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (522.350548ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (849.86005ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (800.072911ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (715.36136ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (8390.142176ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":3}
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45248.464723

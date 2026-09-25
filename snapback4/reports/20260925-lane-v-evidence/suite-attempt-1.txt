@@ -1,0 +1,47 @@
+== cargo build
+-- ok: cargo build (2 s)
+== wasm build
+-- ok: wasm build (1 s)
+== docs budget
+-- ok: docs budget (52 s)
+== release guard
+-- ok: release guard (8 s)
+== package typecheck
+-- ok: package typecheck (2 s)
+== package build
+-- ok: package build (2 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+    definitions::w11_every_registered_code_quotes_its_definition
+    w11_every_registered_code_has_a_dedicated_section
+test result: FAILED. 78 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+    verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code
+test result: FAILED. 95 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.39s
+    w11_why_every_registered_code_returns_its_dedicated_section
+test result: FAILED. 69 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.69s
+-- FAIL: cargo test (216 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- ok: fixture wrapper tests (12 s)
+== client tests
+✖ W6d online: malformed caller ids fail locally (149.910465ms)
+✖ W6d web: malformed caller ids fail locally (67.553294ms)
+✖ W6d web: input key order is immaterial and an evicted receipt never readmits on the same client (73.943071ms)
+✖ W6d native: malformed caller ids fail locally (106.541737ms)
+✖ W6d native: input key order is immaterial and an evicted receipt never readmits on the same client (120.530963ms)
+✖ web IndexedDB device bridges the two-device inbox fetch in useQuery and usePage (1739.656959ms)
+✖ failing tests:
+✖ W6d online: malformed caller ids fail locally (149.910465ms)
+✖ W6d web: malformed caller ids fail locally (67.553294ms)
+✖ W6d web: input key order is immaterial and an evicted receipt never readmits on the same client (73.943071ms)
+✖ W6d native: malformed caller ids fail locally (106.541737ms)
+✖ W6d native: input key order is immaterial and an evicted receipt never readmits on the same client (120.530963ms)
+✖ web IndexedDB device bridges the two-device inbox fetch in useQuery and usePage (1739.656959ms)
+-- FAIL: client tests (61 s)
+== client models
+-- ok: client models (309 s)
+== 2 failure(s) in 653 s

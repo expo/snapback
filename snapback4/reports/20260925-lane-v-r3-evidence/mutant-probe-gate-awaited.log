@@ -1,0 +1,127 @@
+(node:890672) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1137.431144ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (946.507065ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1885.63238ms)
+  ✖ backend-required custody cannot exit offline and enables exit after validated adoption (776.069458ms)
+  ✖ a hide during the startup probe waits for its accepted decision (998.071017ms)
+  ✖ a hide during the startup probe waits for its refused decision (974.505093ms)
+  ✖ a hide during the startup probe waits for its restore decision (910.829483ms)
+  ✖ a hide during the startup probe waits for its replacement decision (1949.942975ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (722.48478ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (753.598534ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (690.412868ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (776.035388ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (833.454874ms)
+  ✔ same-epoch logout tombstone refuses live admission (455.631027ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (464.613377ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (385.671168ms)
+✖ web admission review: recovery and transport respect the session boundary (16594.240048ms)
+ℹ {"mode":"held-sync","id":"01M3C6GMMK1BS9MW1DZSY3NEZ4","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C6GNJ3QM10SNY3A8VHCFJ9","outboxBeforeSync":true,"keepalive":true}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 11
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16684.871524
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:218:11
+✖ backend-required custody cannot exit offline and enables exit after validated adoption (776.069458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:231:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:218:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:251:81
+✖ a hide during the startup probe waits for its accepted decision (998.071017ms)
+  AssertionError [ERR_ASSERTION]: exit transport must wait for the probe decision
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:297:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:251:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:251:81
+✖ a hide during the startup probe waits for its refused decision (974.505093ms)
+  AssertionError [ERR_ASSERTION]: exit transport must wait for the probe decision
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:297:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:251:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:251:81
+✖ a hide during the startup probe waits for its restore decision (910.829483ms)
+  AssertionError [ERR_ASSERTION]: exit transport must wait for the probe decision
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:297:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:251:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:251:81
+✖ a hide during the startup probe waits for its replacement decision (1949.942975ms)
+  AssertionError [ERR_ASSERTION]: exit transport must wait for the probe decision
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:297:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:251:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

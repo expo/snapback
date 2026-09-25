@@ -1,0 +1,33 @@
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✖ createApp and generated api journal before immediate location.assign (769.607741ms)
+✖ web startup: immediate admin navigation, synchronous refusals and acquisition hook (2561.010204ms)
+ℹ {"oldGuard":true,"synchronousJournalRecords":0,"mutationRequests":0,"removalsAfterReopen":0}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2643.156318
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-start.test.mjs:97:11
+✖ createApp and generated api journal before immediate location.assign (769.607741ms)
+  AssertionError [ERR_ASSERTION]: the admin click must recover after navigation
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:125:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:97:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

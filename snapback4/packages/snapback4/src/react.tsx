@@ -5,6 +5,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot } from "./app.ts";
+import { acquisition, type Acquisition } from "./acquisition.ts";
+export type { Acquisition } from "./acquisition.ts";
 import { isReady } from "./contract.ts";
 
 const ClientContext = createContext<Client | null>(null);
@@ -272,6 +274,13 @@ export function useAcquired(): boolean {
   const subscribe = useCallback((notify: () => void) => client.onAcquired(() => notify()), [client]);
   const read = useCallback(() => client.acquired, [client]);
   return useSyncExternalStore(subscribe, read, read);
+}
+
+/** Snapshot progress without blocking server-fallback reads. */
+export function useAcquisition(): Acquisition {
+  const client = useClient();
+  const source = useMemo(() => acquisition(client), [client]);
+  return useSyncExternalStore(source.subscribe, source.read, source.read);
 }
 
 /** A worker action. `run` returns its outcome; pass a pending id again to

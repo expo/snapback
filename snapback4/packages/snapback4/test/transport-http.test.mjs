@@ -136,7 +136,7 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) test
   const ids = Array.from({ length: count + (count === 256 ? 17 : 0) }, (_, n) => `${tier}-${count}-${n}`.padEnd(128, "x"));
   const device = f.opener(tier, `boundary-${count}`);
   let core, client;
-  const receipts = new Set(), terminal = new Map(), pendingSizes = [], cursors = [];
+  const receipts = new Set(), ordinaryReceipts = new Set(), terminal = new Map(), pendingSizes = [], cursors = [];
   client = await createLocalClient({ url: f.url, persona: "alice", device: {
     async open(...args) {
       core = await device.open(...args);
@@ -146,12 +146,19 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) test
         assert.ok(admitted.ok, JSON.stringify(admitted));
         assert.ok((await core.call({ op: "begin_send" })).ok);
         assert.equal((await (await f.post("/m/noChange", { id, args: {} })).json()).state, "sent");
-        // Lose that terminal reply: the outbox needs both a sync receipt
-        // and the at-most-once replay's eventual terminal notification.
+        // Lose that terminal reply: recover through a sync receipt or a
+        // same-id replay, with exactly one eventual terminal notification.
       }
       return core;
     },
   }, fetch: async (input, init) => {
+    if (new URL(input).pathname === "/m/noChange") {
+      const id = JSON.parse(init.body).id;
+      assert.ok(!receipts.has(id), "a sync-acknowledged terminal id must not be reposted");
+      const response = await fetch(input, init), write = await response.clone().json();
+      assert.equal(write.state, "sent"); ordinaryReceipts.add(id);
+      return response;
+    }
     if (new URL(input).pathname !== "/sync") return fetch(input, init);
     assert.equal(init.method, "POST");
     assert.equal(new URL(input).search, "");
@@ -170,17 +177,18 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) test
     assert.equal(write.state, "sent");
     terminal.set(write.id, (terminal.get(write.id) ?? 0) + 1);
   });
-  // Replaying up to 273 replies is real work on the wasm store. Allow it the
+  // Settling up to 273 receipts is real work on the wasm store. Allow it the
   // existing 40-second test budget, reserving ten seconds for setup/cleanup.
   await until(async () => terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0, 30_000);
   assert.equal(pendingSizes[0], count);
   assert.ok(cursors.length >= 5, "the real snapshot continues across six batches");
-  assert.deepEqual([...receipts].sort(), [...ids].sort(), "every id receives a sync acknowledgement, including the tail");
+  assert.deepEqual([...new Set([...receipts, ...ordinaryReceipts])].sort(), [...ids].sort(), "every id has a server acknowledgement, including the tail");
+  if (count === 256) assert.ok(ids.slice(256).some(id => receipts.has(id)), "sync acknowledgements advance beyond the first pending window");
   assert.ok([...terminal.values()].every(n => n === 1), "one terminal event per queued write");
   const read = await client.query({ kind: "query", name: "items" }, {});
   assert.equal(read.data.length, 37);
   assert.equal(new Set(read.data.map(row => row.id)).size, 37);
-  console.log(JSON.stringify({ store: tier, pendingBoundary: count, writesAcknowledged: receipts.size, terminalWrites: terminal.size, snapshotCursors: cursors.length }));
+  console.log(JSON.stringify({ store: tier, pendingBoundary: count, syncAcknowledged: receipts.size, ordinaryAcknowledged: ordinaryReceipts.size, terminalWrites: terminal.size, snapshotCursors: cursors.length }));
   await client.close();
 });
 

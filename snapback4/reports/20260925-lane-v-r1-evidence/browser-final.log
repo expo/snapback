@@ -1,0 +1,42 @@
+▶ web review: acquisition lifetimes and bounded persistence
+  ✔ same-store reacquisition reconciles progress with an already-true acquired flag (340.450347ms)
+  ✔ a compiled special table name produces numeric own-property counts (19.866213ms)
+  ✔ sign-out during a partial acquisition clears the raw client counts (36.35984ms)
+  ✔ one update stays bounded for 1,000 and 16,000 colliding rows (3032.1414ms)
+  ✔ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (35.313573ms)
+  ✔ an old unbounded bucket is split at load before later bounded updates (307.089191ms)
+✔ web review: acquisition lifetimes and bounded persistence (4517.530254ms)
+ℹ {"count":1000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":1000,"changed":1024,"last":1024}
+ℹ {"count":16000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":16000,"changed":1024,"last":1024}
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (750.183447ms)
+  ✔ restored identified device journals while its first sync is held (886.550695ms)
+  ✔ synchronous refusal: restoring (341.249906ms)
+  ✔ synchronous refusal: no-device (58.340282ms)
+  ✔ synchronous refusal: no-claim (310.309828ms)
+  ✔ synchronous refusal: ephemeral-device (274.389636ms)
+  ✔ synchronous refusal: storage-full (327.536524ms)
+  ✔ synchronous refusal: before-first-sync (330.22931ms)
+  ✔ repairing storage permits the refused id to be retried (438.780441ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (554.503ms)
+  ✔ session-locked journal refuses stale authority: logout (496.848576ms)
+  ✔ session-locked journal refuses stale authority: principal (476.634051ms)
+  ✔ session-locked journal refuses stale authority: epoch (577.891281ms)
+  ✔ session-locked journal refuses stale authority: recovery (908.636114ms)
+  ✔ a transient unlocked epoch observation refuses only that call (504.93214ms)
+  ✔ the bare online browser transport refuses without custody (1.574359ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (81.975223ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (110.009416ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (8327.972663ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13015.777238

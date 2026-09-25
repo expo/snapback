@@ -1,6 +1,13 @@
 import type { Refusal } from "./contract.ts";
 import type { DeviceCore } from "./local.ts";
 
+export function responsePageTooLarge(denied: Refusal): boolean {
+  return denied.code === "E_BOUND"
+    && denied.family === "bound"
+    && denied.message.startsWith("the HTTP JSON response exceeds 16 MiB;")
+    && denied.message.includes("smaller page");
+}
+
 /** Server acquisition markers, applied before events[at]. A missing floor
  * begins a group; completion carries "whole" or a delivered readable index key. */
 export interface AcquisitionMarker {

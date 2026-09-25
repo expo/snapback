@@ -38,6 +38,9 @@ async function fixture(t) {
 test("failed admission cannot appear in later reads or hitchhike on the next saved call", async t => {
   const f = await fixture(t);
   const before = await query(f.core);
+  // A real sync request owns the declaration that reopening must abandon.
+  // Journal identity inspection does not create a request on its behalf.
+  ok(await f.core.call({ op: "sync_state" }));
   const durable = await f.memory.load(f.name);
   f.failSave();
   const rejected = f.core.call({ op: "admit", entry: entry("rejected", 2) });
@@ -47,11 +50,10 @@ test("failed admission cannot appear in later reads or hitchhike on the next sav
   ok(await following);
   const expected = new Map(durable.map(({ s, k, v }) => [`${s} ${k}`, v]));
   // Recovery preserves the admitted rows/outbox and fences the old capture.
-  // Journal recovery then captures the surviving admission at the new revision.
+  // Journal recovery inspects custody without manufacturing another request.
   assert.ok(expected.delete("m device:declaration:capture"));
   const revision = Number(expected.get("m device:send_revision") ?? 0) + 1;
   expected.set("m device:send_revision", String(revision));
-  expected.set("m device:declaration:capture", JSON.stringify({ ids: ["earlier"], declaration: [1, true, 1], send_revision: revision }));
   expected.set("m client:following", "saved");
   assert.deepEqual(new Map((await f.memory.load(f.name)).map(({ s, k, v }) => [`${s} ${k}`, v])), expected);
   assert.deepEqual(await query(f.core), before);
@@ -148,6 +150,9 @@ for (const state of ["evicted", "unidentified"]) test(`W11R2: ${state} journal h
   const persist = { ...memory, async load(store) { if (store === orphan) loads++; return memory.load(store); } };
   const core = await webDevice({ wasm, persist }).open(name, backend);
   try {
+    // Recovery starts at authority attachment or the first device call, after
+    // an app has had the chance to bind its session owner to the returned core.
+    ok(await core.call({ op: "state" }));
     assert.equal(timers.size, 0, "an unresolved journal must wait for a signal, not poll for its lifetime");
     assert.equal(loads, state === "evicted" ? 0 : 1, "a read must not create an evicted journal's database");
     ok(await core.call({ op: "state" }));
@@ -247,6 +252,7 @@ test("W11R2: persistent recovery failure exhausts three backoffs then a sync can
   } };
   const core = await webDevice({ wasm, persist }).open(name, backend);
   try {
+    ok(await core.call({ op: "state" }));
     for (let n = 0; n < 8 && timers.size; n++) {
       const timer = [...timers][0]; timers.delete(timer); timer.callback();
       ok(await core.call({ op: "state" }));

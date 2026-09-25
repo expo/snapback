@@ -1,3 +1,6 @@
+import { admissionRefusal, browserAdmission, failedAdmission, sessionReader } from "./admission.ts";
+import { prepareAdmissionAuthority } from "./admission-authority.ts";
+import { mintId } from "./client.ts";
 import { defaultFetch } from "#fetch";
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
 import { createClient } from "./client.ts";
@@ -5,7 +8,8 @@ import { holdClose } from "./closing-responses.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { prepareClient, waitForRotation } from "./client-start.ts";
 import { createLocalClient, type DeviceOpener, type LocalOptions, type LocalClient } from "./local.ts";
-import { storeLock, sessionEpoch, StorageWarning } from "./app-storage.ts";
+import { storeLock, sessionEpoch, logoutEpoch, StorageWarning } from "./app-storage.ts";
+import { sessionAuthority } from "./session-authority.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
 import { onlineCustody } from "./app-online.ts";
 import { guardClient } from "./app-client.ts";
@@ -70,6 +74,7 @@ export function createApp(options: AppOptions): App {
   const url = options.url.replace(/\/$/, "");
   const fetcher = options.fetch ?? defaultFetch;
   const backing = options.sessionStore ?? memorySessionStore();
+  const authority = sessionAuthority(backing);
   const storage: SessionStore = { set: (key, value) => backing.set(key, value), delete: key => backing.delete(key), async get(key) {
     const bytes = await backing.get(key);
     if (key === sessionKey(url)) {
@@ -106,7 +111,11 @@ export function createApp(options: AppOptions): App {
     observeEpoch(epoch);
     return epoch;
   };
-  const captureEpoch = () => persist(() => storeLock(sessionKey(url), readEpoch));
+  const openingEpoch = async () => {
+    await authority?.reconcileEpoch(sessionKey(url));
+    return readEpoch();
+  };
+  const captureEpoch = () => persist(() => storeLock(sessionKey(url), openingEpoch));
   const revocations = sessionRevocations(url, storage, fetcher, work => persist(() => storeLock(sessionKey(url), work)));
   let logoutBarrier: Promise<void> = Promise.resolve();
   const revokeRetired = (token: string, origin?: SessionOrigin) => { void revocations.retire(token, origin).catch(report); };
@@ -167,7 +176,7 @@ export function createApp(options: AppOptions): App {
     const restoringStore: SessionStore = {
       ...sessionStore,
       get: key => persist(() => storeLock(key, async () => {
-        epoch = await readEpoch();
+        epoch = await openingEpoch();
         bytes = await storage.get(key);
         return bytes;
       })),
@@ -185,7 +194,13 @@ export function createApp(options: AppOptions): App {
   }
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
   const listeners = new Set<() => void>();
-  let current = createClient({ url, fetch: fetcher });
+  const anonymous = () => {
+    const client = createClient({ url, fetch: fetcher });
+    if (browserAdmission()) client.mutate = (_op, _args, options) => failedAdmission(options?.id ?? mintId(),
+      admissionRefusal("session restoration or sign-in is incomplete; mutation was not admitted", "app.mutate", "await app.ready; await app.auth.login(email, password); retry with the same id"));
+    return client;
+  };
+  let current = anonymous();
   type Scope = { valid: boolean; sealing?: boolean; waitRotation?: () => Promise<void>; epoch: string; session: Session; consumed?: string | undefined; issued: Set<string>; aborter: AbortController; client?: Client; view?: Client; expose?: () => Client; fenceView?: () => () => void; save?: () => Promise<void>; logout?: Promise<void>; stop(): void; pause(): void };
   const scopes = new Set<Scope>();
   let owner: (Scope & { client: Client }) | undefined;
@@ -212,7 +227,7 @@ export function createApp(options: AppOptions): App {
     if (pause) owner?.pause();
     const notifyHidden = [...scopes].map(scope => scope.fenceView?.());
     if (current !== owner?.view) void current.close();
-    current = createClient({ url, fetch: fetcher });
+    current = anonymous();
     publish(closed ? "signed-out" : state, null);
     for (const notify of notifyHidden) notify?.();
   };
@@ -313,11 +328,35 @@ export function createApp(options: AppOptions): App {
       delete: key => scope.valid ? (key === sessionKey(url) ? removeSession(scope.session.token, restoreToken !== undefined) : sessionStore.delete(key)) : Promise.resolve(),
     };
     async function authorized(): Promise<boolean> {
-      const startedEpoch = await captureEpoch();
-      if (!scope.valid || startedEpoch !== epoch) {
+      const valid = await persist(() => storeLock(sessionKey(url), async () => {
+        if (!scope.valid || await readEpoch() !== epoch) return false;
+        if (preparing || !authority) return true;
+        const raw = await authority.read(sessionKey(url));
+        if (!raw || logoutEpoch(raw) !== null) return false;
+        try { return JSON.parse(raw)?.principal === scope.session.principal; } catch { return false; }
+      }));
+      if (!valid) {
         fence(scope, new SessionEpochChanged()); return false;
       }
       return true;
+    }
+    function admit(): Refusal | undefined {
+      if (!options.device) return admissionRefusal("this browser app has no durable web device", "app.mutate", "createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })");
+      const read = sessionReader(backing);
+      if (!read) return admissionRefusal("the session store cannot be checked synchronously", "app.mutate", "use localStorageSessionStore() on the web, then retry with the same id");
+      try {
+        const marker = read(epochKey) ?? "0";
+        const raw = read(sessionKey(url));
+        const stored = sessionEpoch(raw) ?? "0";
+        const currentEpoch = BigInt(marker) > BigInt(stored) ? marker : stored;
+        // An unlocked observation may catch our own session commit before its
+        // in-memory epoch assignment. Confirm under the lock before fencing.
+        if (!scope.valid || !raw || logoutEpoch(raw) !== null || JSON.parse(raw)?.principal !== scope.session.principal || currentEpoch !== epoch) {
+          void authorized().catch(() => {});
+          return new SessionEpochChanged().why;
+        }
+      } catch (error) { return admissionRefusal(`session storage is unavailable: ${String(error)}`, "app.mutate"); }
+      return undefined;
     }
     const scopedFetch: typeof fetch = async (input, init) => {
       // Cancel backend acquisition before a local Client exists. Once open,
@@ -421,6 +460,10 @@ export function createApp(options: AppOptions): App {
         // when an untyped caller supplies lower-level sign-in options.
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
         const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch };
+        prepareAdmissionAuthority(prepared, {
+          capture: () => ({ key: sessionKey(url), epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
+          recheck: () => { void authorized().catch(() => {}); },
+        });
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
         raw = local.client; startClient = local.start;
       } else {
@@ -478,7 +521,7 @@ export function createApp(options: AppOptions): App {
       recoverStore();
       const baseClient = custody?.client ?? raw;
       scope.expose = () => {
-        const guarded = guardClient(baseClient, authorized, () => scope.valid, () => changedStore ?? new SessionEpochChanged().why, () => retirement);
+        const guarded = guardClient(baseClient, authorized, () => scope.valid, () => changedStore ?? new SessionEpochChanged().why, () => retirement, admit);
         const client = guarded.client;
         scope.view = client; scope.fenceView = guarded.fence;
         const exposed = () => owner === scope && current === client;

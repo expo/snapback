@@ -738,20 +738,32 @@ test("W4R1 missing: queued primary precedes two orphan journals with one applica
   console.log("W4R1 queued + orphan: applications=3; order=123; sends=3; duplicates=0");
 });
 
-test("W4R1 missing: before the first store identity mutation stays best-effort without throwing", async t => {
+test("an unidentified Node device defers both transports until its first store binding", async t => {
   const f = await fixture(t);
+  let identified = false;
+  const sends = [];
   const client = await f.open(async (url, init) => {
+    if (String(url).includes("/m/")) sends.push(JSON.parse(init.body));
     const response = await fetch(url, init);
-    if (["/probe", "/sync", "/changes"].some(p => String(url).includes(p))) {
+    if (!identified && ["/probe", "/sync", "/changes"].some(p => String(url).includes(p))) {
       const body = await response.json(); delete body.store_id; return Response.json(body);
     }
     return response;
   });
-  assert.equal((await f.cores.at(-1).call({ op: "sync_state" })).ok.store_id, null);
+  assert.equal((await f.cores.at(-1).call({ op: "sync_state", capture: false })).ok.store_id, null);
   let write;
   assert.doesNotThrow(() => { write = client.mutate(mark, { digit: 1 }); });
   assert.equal(journalEntries(f).length, 0);
-  assert.equal((await write).state, "sent");
+  const pending = await write;
+  assert.equal(pending.state, "pending");
+  f.window.dispatchEvent(new Event("pagehide")); await tick();
+  assert.deepEqual(sends, [], "neither transport may send without a store_id");
+  assert.equal(await f.audit(), null);
+  identified = true; await client.sync();
+  assert.ok(await until(async () => (await client.write(pending.id))?.state === "sent"));
+  const store = (await f.cores.at(-1).call({ op: "sync_state", capture: false })).ok.store_id;
+  assert.ok(store);
+  assert.ok(sends.length > 0 && sends.every(send => send.id === pending.id && send.store_id === store));
   assert.equal((await f.audit()).total, 1);
 });
 
@@ -991,8 +1003,9 @@ test("W6R1 journal: an evicted guarded caller ID survives failed admission persi
   offline = false; await recovered.sync();
   assert.ok(await until(async () => (await recovered.write(id))?.state === "sent", 15000));
   assert.deepEqual(await recovered.write(id), { state: "sent", id, seq: original.seq, replayed: true });
-  assert.equal(posts.length, 1); assert.equal((await f.rows()).length, 2); assert.equal(await f.audit(), null);
-  t.diagnostic("evicting_writes=256 recovered_replay_candidates=1 replay_posts=1 duplicate_rows=0");
+  assert.equal(posts.length, 0, "sync already correlated the original id; its known terminal receipt is settled without replay");
+  assert.equal((await f.rows()).length, 2); assert.equal(await f.audit(), null);
+  t.diagnostic("evicting_writes=256 recovered_replay_candidates=1 correlated_receipts=1 replay_posts=0 duplicate_rows=0");
 });
 
 test("device close model: cancelled callers retain their ids across offline and online reopen", { timeout: 60000 }, async t => {

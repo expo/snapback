@@ -1,0 +1,66 @@
+(node:1369280) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (991.841101ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (817.731707ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1792.970254ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2234.382658ms)
+  ✔ a hide during the startup probe waits for its accepted decision (801.197125ms)
+  ✔ a hide during the startup probe waits for its refused decision (853.416321ms)
+  ✔ a hide during the startup probe waits for its restore decision (834.224066ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1339.111425ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1476.942344ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (821.928226ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (845.05671ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (807.656475ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (828.609279ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (930.018861ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (809.333508ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (755.865121ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (811.1491ms)
+  ✖ an accepted probe enables exit before ordinary replay resolves (888.064089ms)
+  ✔ a successful reconnect enables exit after startup 503s (1821.337108ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4783.694409ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (5004.812776ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4912.991163ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (4986.450951ms)
+  ✔ same-epoch logout tombstone refuses live admission (593.409884ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (575.956274ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (431.987386ms)
+✖ web admission review: recovery and transport respect the session boundary (42704.628239ms)
+ℹ {"mode":"held-sync","id":"01M3C8SW00RZQFHSMH53Z5MGN6","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C8SWV8DF88W1T2V0CR3RGF","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C8T0R9QJHV7MEZXS71CFQY","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C8T1HDX3M2PHX1WCM6QBVD","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C8T2DDE0Q8QVG35GT3ZTK5","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C8T37H4C89RW0PKSGQ9ZHE","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3C8T4N35QDB5N7VYG69V6MY","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ tests 27
+ℹ suites 0
+ℹ pass 25
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 42794.738445
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:398:50
+✖ an accepted probe enables exit before ordinary replay resolves (888.064089ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:411:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:398:42)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

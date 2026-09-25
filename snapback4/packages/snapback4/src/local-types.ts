@@ -6,6 +6,7 @@ export interface Queued {
   op: string;
   args: unknown;
   new_ids: string[];
+  store_id?: string;
   predicted: string[];
   predictable?: boolean;
   replay_candidate?: boolean;
@@ -27,4 +28,3 @@ export interface StoreCapture {
   send_revision: number;
   restore_refusal?: Refusal;
 }
-

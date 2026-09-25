@@ -1,0 +1,113 @@
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (798.82858ms)
+  ✔ restored identified device journals while its first sync is held (820.753066ms)
+  ✔ synchronous refusal: restoring (354.061975ms)
+  ✔ synchronous refusal: no-device (61.547966ms)
+  ✔ synchronous refusal: no-claim (333.751088ms)
+  ✔ synchronous refusal: ephemeral-device (306.770835ms)
+  ✔ synchronous refusal: storage-full (375.750378ms)
+  ✔ synchronous refusal: before-first-sync (403.882176ms)
+  ✔ repairing storage permits the refused id to be retried (404.200003ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (551.950531ms)
+  ✖ session-locked journal refuses stale authority: logout (571.962461ms)
+  ✖ session-locked journal refuses stale authority: principal (501.765635ms)
+  ✖ session-locked journal refuses stale authority: epoch (498.127442ms)
+  ✖ session-locked journal refuses stale authority: recovery (540.34496ms)
+  ✔ the bare online browser transport refuses without custody (6.347623ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (80.13494ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (129.818185ms)
+✖ web startup: immediate admin navigation, synchronous refusals and acquisition hook (7874.688327ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 13
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7972.13487
+
+✖ failing tests:
+
+test at test/web-start.test.mjs:233:78
+✖ session-locked journal refuses stale authority: logout (571.962461ms)
+  AssertionError [ERR_ASSERTION]: the journal must wait for the session lock before device admission
+  + actual - expected
+
+  + '{"id":"01M3BWYWKJNBX6T81QF22GSDYM","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room3"},"new_ids":["01M3BWYWKJNBX6T81QF22GSDYN","01M3BWYWKJNBX6T81QF22GSDYP","01M3BWYWKJNBX6T81QF22GSDYQ","01M3BWYWKJNBX6T81QF22GSDYR","01M3BWYWKJNBX6T81QF22GSDYS","01M3BWYWKJNBX6T81QF22GSDYT","01M3BWYWKJNBX6T81QF22GSDYV","01M3BWYWKJNBX6T81QF22GSDYW"],"predicted":[],"viewer":"guest:01M3BWYW2E4650TXBQ2E3GGQV6","now":1790327091826,"predictable":false,"sent_seq":null,"observed_seq":null}'
+  - null
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:256:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:233:70)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '{"id":"01M3BWYWKJNBX6T81QF22GSDYM","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room3"},"new_ids":["01M3BWYWKJNBX6T81QF22GSDYN","01M3BWYWKJNBX6T81QF22GSDYP","01M3BWYWKJNBX6T81QF22GSDYQ","01M3BWYWKJNBX6T81QF22GSDYR","01M3BWYWKJNBX6T81QF22GSDYS","01M3BWYWKJNBX6T81QF22GSDYT","01M3BWYWKJNBX6T81QF22GSDYV","01M3BWYWKJNBX6T81QF22GSDYW"],"predicted":[],"viewer":"guest:01M3BWYW2E4650TXBQ2E3GGQV6","now":1790327091826,"predictable":false,"sent_seq":null,"observed_seq":null}',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/web-start.test.mjs:233:78
+✖ session-locked journal refuses stale authority: principal (501.765635ms)
+  AssertionError [ERR_ASSERTION]: the journal must wait for the session lock before device admission
+  + actual - expected
+
+  + '{"id":"01M3BWYX3DKP14H6Y8FTTV03G6","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room3"},"new_ids":["01M3BWYX3DKP14H6Y8FTTV03G7","01M3BWYX3DKP14H6Y8FTTV03G8","01M3BWYX3DKP14H6Y8FTTV03G9","01M3BWYX3DKP14H6Y8FTTV03GA","01M3BWYX3DKP14H6Y8FTTV03GB","01M3BWYX3DKP14H6Y8FTTV03GC","01M3BWYX3DKP14H6Y8FTTV03GD","01M3BWYX3DKP14H6Y8FTTV03GE"],"predicted":[],"viewer":"guest:01M3BWYWM8A39ABJX8TEJP8CV7","now":1790327092334,"predictable":false,"sent_seq":null,"observed_seq":null}'
+  - null
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:256:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:233:70)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '{"id":"01M3BWYX3DKP14H6Y8FTTV03G6","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room3"},"new_ids":["01M3BWYX3DKP14H6Y8FTTV03G7","01M3BWYX3DKP14H6Y8FTTV03G8","01M3BWYX3DKP14H6Y8FTTV03G9","01M3BWYX3DKP14H6Y8FTTV03GA","01M3BWYX3DKP14H6Y8FTTV03GB","01M3BWYX3DKP14H6Y8FTTV03GC","01M3BWYX3DKP14H6Y8FTTV03GD","01M3BWYX3DKP14H6Y8FTTV03GE"],"predicted":[],"viewer":"guest:01M3BWYWM8A39ABJX8TEJP8CV7","now":1790327092334,"predictable":false,"sent_seq":null,"observed_seq":null}',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/web-start.test.mjs:233:78
+✖ session-locked journal refuses stale authority: epoch (498.127442ms)
+  AssertionError [ERR_ASSERTION]: the journal must wait for the session lock before device admission
+  + actual - expected
+
+  + '{"id":"01M3BWYXK0K3BD85R4ZFDBBNGG","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room3"},"new_ids":["01M3BWYXK0K3BD85R4ZFDBBNGH","01M3BWYXK0K3BD85R4ZFDBBNGJ","01M3BWYXK0K3BD85R4ZFDBBNGK","01M3BWYXK0K3BD85R4ZFDBBNGM","01M3BWYXK0K3BD85R4ZFDBBNGN","01M3BWYXK0K3BD85R4ZFDBBNGP","01M3BWYXK0K3BD85R4ZFDBBNGQ","01M3BWYXK0K3BD85R4ZFDBBNGR"],"predicted":[],"viewer":"guest:01M3BWYX3X2CPVQKNG8CE3RA26","now":1790327092832,"predictable":false,"sent_seq":null,"observed_seq":null}'
+  - null
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:256:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:233:70)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '{"id":"01M3BWYXK0K3BD85R4ZFDBBNGG","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room3"},"new_ids":["01M3BWYXK0K3BD85R4ZFDBBNGH","01M3BWYXK0K3BD85R4ZFDBBNGJ","01M3BWYXK0K3BD85R4ZFDBBNGK","01M3BWYXK0K3BD85R4ZFDBBNGM","01M3BWYXK0K3BD85R4ZFDBBNGN","01M3BWYXK0K3BD85R4ZFDBBNGP","01M3BWYXK0K3BD85R4ZFDBBNGQ","01M3BWYXK0K3BD85R4ZFDBBNGR"],"predicted":[],"viewer":"guest:01M3BWYX3X2CPVQKNG8CE3RA26","now":1790327092832,"predictable":false,"sent_seq":null,"observed_seq":null}',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/web-start.test.mjs:233:78
+✖ session-locked journal refuses stale authority: recovery (540.34496ms)
+  AssertionError [ERR_ASSERTION]: the journal must wait for the session lock before device admission
+  + actual - expected
+
+  + '{"id":"01M3BWYY3VQMGP5AJ55ZTNN09X","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room3"},"new_ids":["01M3BWYY3W6WAQ576D9CYTTGP3","01M3BWYY3W6WAQ576D9CYTTGP4","01M3BWYY3W6WAQ576D9CYTTGP5","01M3BWYY3W6WAQ576D9CYTTGP6","01M3BWYY3W6WAQ576D9CYTTGP7","01M3BWYY3W6WAQ576D9CYTTGP8","01M3BWYY3W6WAQ576D9CYTTGP9","01M3BWYY3W6WAQ576D9CYTTGPA"],"predicted":[],"viewer":"guest:01M3BWYXKGJG69T0CA9R9SGG37","now":1790327093372,"predictable":false,"sent_seq":null,"observed_seq":null}'
+  - null
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:256:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-start.test.mjs:233:70)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '{"id":"01M3BWYY3VQMGP5AJ55ZTNN09X","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room3"},"new_ids":["01M3BWYY3W6WAQ576D9CYTTGP3","01M3BWYY3W6WAQ576D9CYTTGP4","01M3BWYY3W6WAQ576D9CYTTGP5","01M3BWYY3W6WAQ576D9CYTTGP6","01M3BWYY3W6WAQ576D9CYTTGP7","01M3BWYY3W6WAQ576D9CYTTGP8","01M3BWYY3W6WAQ576D9CYTTGP9","01M3BWYY3W6WAQ576D9CYTTGPA"],"predicted":[],"viewer":"guest:01M3BWYXKGJG69T0CA9R9SGG37","now":1790327093372,"predictable":false,"sent_seq":null,"observed_seq":null}',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,101 @@
+✖ IndexedDB model: reset termination before-commit preserves one complete transaction (409.555472ms)
+✔ IndexedDB model: reset termination after-commit preserves one complete transaction (15.736462ms)
+✔ R2 item 2: getSnapshot is cleared after validated reset and before backend adoption (364.134276ms)
+✔ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (13.59286ms)
+✔ FF1 boundary: observe_store invalidates before fallible media reconciliation (12.356528ms)
+✔ FF1 boundary: adopt invalidates before fallible media reconciliation (13.040342ms)
+✔ FF1 adoption audit: committed generation invalidates before a thrown sync_state read (10.384952ms)
+✔ FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up (8.170504ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with healthy recovery (21.488973ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with media recovery (13.256015ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with host recovery (13.835443ms)
+✔ HH1/II1: stream publication preserves watch invalidation with healthy recovery (11.913954ms)
+✔ HH1/II1: stream publication preserves watch invalidation with media recovery (10.692734ms)
+✔ HH1/II1: stream publication preserves watch invalidation with host recovery (12.242706ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (4.833183ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (11.283599ms)
+✔ finding 2: delayed server answer cannot escape its incarnation (8.0876ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (16.0023ms)
+✔ finding 2: delayed watch answer cannot escape its incarnation (8.386598ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (16.750322ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (5.247133ms)
+✔ legacy clock-less predictable orphan imports without local rows and survives replay (5.426883ms)
+✔ finding 2: a delayed device read is retried before returning (8.279087ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (4.979132ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (3.685984ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1006.990068ms)
+✔ replacement receipts use exit transport without replaying known writes (1006.087555ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (12.099472ms)
+✔ generation discovery clears retained answers even when backend adoption cannot start (5.088135ms)
+(node:3100591) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1009.141211ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (888.017838ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1896.235395ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2200.719981ms)
+  ✔ a hide during the startup probe waits for its accepted decision (816.47794ms)
+  ✔ a hide during the startup probe waits for its refused decision (835.62251ms)
+  ✔ a hide during the startup probe waits for its restore decision (867.469224ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1360.716596ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1402.88555ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (858.814885ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (979.14501ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (845.553051ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (898.885234ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (862.224826ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (898.457904ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (795.875145ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (885.387417ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (945.092019ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (817.009727ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (818.233601ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (784.843874ms)
+  ✔ a successful reconnect enables exit after startup 503s (807.894768ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4830.873379ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4949.061115ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4845.198359ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (4991.464414ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (6010.298114ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6070.20948ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6031.315787ms)
+  ✔ same-epoch logout tombstone refuses live admission (468.162943ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (510.996122ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (489.590965ms)
+✔ web admission review: recovery and transport respect the session boundary (62481.350339ms)
+ℹ {"mode":"held-sync","id":"01M3CF444E7YBPB3EM9MZZA912","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CF4503YTTEW6J1BZY75M1M","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CF48XMSFCVY3MGC98PZMP0","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CF49ST27V02E8E3KRVMFHF","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CF4AMKMTJBHZ7BX08PA98R","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CF4BDD8YMQ5G063493Q167","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CF4CX0RNH3DM75AHDKPYAD","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"orphan":"01M3CF5CQRNNEYVCC649KPW8BK","hidden":false,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CF5JN2PP4N6HH0KYCZGW68","hidden":true,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ tests 62
+ℹ suites 0
+ℹ pass 61
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62585.789019
+
+✖ failing tests:
+
+test at packages/snapback4/test/store-reset-idb.test.mjs:59:56
+✖ IndexedDB model: reset termination before-commit preserves one complete transaction (409.555472ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(expected.delete("m device:declaration:capture"))
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/store-reset-idb.test.mjs:79:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

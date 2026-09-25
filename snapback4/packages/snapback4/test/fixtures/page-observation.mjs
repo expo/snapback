@@ -1,5 +1,5 @@
 // Shared real-client journey: the writer and reader have independent devices.
-export async function exercise({ url, createApp, memorySessionStore, deviceFactory, mount = async () => null }) {
+export async function exercise({ url, createApp, memorySessionStore, deviceFactory, durableSessions = false, mount = async () => null }) {
   const check = (ok, message) => { if (!ok) throw Error(message); };
   const until = async (read, label) => {
     for (let n = 0; n < 1000; n++) { const value = await read(); if (value) return value; await new Promise(r => setTimeout(r, 10)); }
@@ -32,13 +32,17 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
   };
   try {
     const sessions = memorySessionStore();
-    const seed = createApp({ url, sessionStore: sessions }); apps.push(seed); await seed.ready;
+    const seed = createApp({ url, ...(durableSessions ? { device: deviceFactory() } : {}), sessionStore: sessions }); apps.push(seed); await seed.ready;
     const alice = await seed.auth.signup("alice@example.com", "password-alice");
     check(alice.ok, JSON.stringify(alice));
     const writer = createApp({ url, device: deviceFactory(), sessionStore: memorySessionStore() });
     apps.push(writer); await writer.ready;
     const bob = await writer.auth.signup("bob@example.com", "password-bob");
     check(bob.ok, JSON.stringify(bob));
+    if (durableSessions) {
+      await until(() => seed.client.acquired, "seed admission identity");
+      await until(() => writer.client.acquired, "writer admission identity");
+    }
     const dm = await seed.mutate(m("startDM"), { other: bob.session.principal });
     check(dm.state === "sent", JSON.stringify(dm));
     for (let n = 0; n < 3; n++) check((await writer.mutate(m("send"), { chat: dm.result, body: `message ${n}` })).state === "sent", "writer sent");
@@ -46,11 +50,13 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     const underlying = deviceFactory();
     const device = { async open(...args) {
       const core = await underlying.open(...args);
-      return { ...core, async call(request, committed) {
-        const reply = await core.call(request, committed);
+      const call = core.call.bind(core);
+      core.call = async (request, committed) => {
+        const reply = await call(request, committed);
         if (request.op === "query") replies.push({ name: request.name, reply });
         return reply;
-      } };
+      };
+      return core;
     } };
     const reader = createApp({ url, device, sessionStore: sessions, fetch: fetcher });
     apps.push(reader); await reader.ready;

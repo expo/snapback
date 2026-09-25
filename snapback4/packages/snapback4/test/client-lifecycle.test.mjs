@@ -54,7 +54,7 @@ function emptyDevice(overrides = {}) {
         const answer = await overrides.call(request);
         if (answer !== undefined) return answer;
       }
-      if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
+      if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: overrides.storeId ?? null, watermark: 0, generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
       if (request.op === "next_submission") return { ok: 1 };
       if (request.op === "meta") return { ok: null };
       if (request.op === "state") return { ok: { watermark: 0, generation: 1 } };
@@ -149,11 +149,11 @@ test("online auth refusal settles writes that were queued behind the refused req
   await client.close();
 });
 
-test("local pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async (t) => {
-  const queued = [], reply = deferred(), probe = deferred();
-  const device = emptyDevice({ call: async (request) => {
+for (const originalStore of [undefined, "original-store"]) test(`local pending writes emit once with ${originalStore ? "their original binding ahead of a newer device identity" : "the kept device identity"}`, { timeout: 5000 }, async (t) => {
+  const queued = [], requests = [], reply = deferred(), probe = deferred();
+  const device = emptyDevice({ storeId: "kept-store", call: async (request) => {
     if (request.op === "backend") return { ok: emptyBackend };
-    if (request.op === "admit") { queued.push(request.entry); return { ok: request.entry }; }
+    if (request.op === "admit") { queued.push({ ...request.entry, store_id: originalStore }); return { ok: request.entry }; }
     if (request.op === "queued") return { ok: queued };
     if (request.op === "begin_send") return { ok: { send_revision: 1 } };
     if (request.op === "settle") { queued.splice(0, 1); return { ok: null }; }
@@ -161,8 +161,11 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   const client = await createLocalClient({ url: "http://write.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/schema") throw new TypeError("offline at open");
-    if (path === "/m/send") return await held(reply, init?.signal);
-    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [] });
+    if (path === "/m/send") {
+      requests.push(JSON.parse(init.body));
+      return await held(reply, init?.signal);
+    }
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [], store_id: "kept-store" });
     if (path === "/probe") { await held(probe, init?.signal); return Response.json({ ok: true }); }
     if (path === "/changes") { await held(probe, init?.signal); return Response.json({ seq: 7, tables: [], generation: 1 }); }
     throw new Error(`unexpected request ${path}`);
@@ -174,6 +177,7 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   assert.equal(admitted.state, "pending");
   reply.resolve(Response.json({ state: "sent", seq: 7, result: { saved: true } }));
   await until(() => terminal.length === 1, "local terminal write event was dropped");
+  assert.equal(requests[0].store_id, originalStore ?? "kept-store", "original write binding precedes the device's current identity");
   assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7, result: { saved: true } });
   await sleep(50);
   assert.equal(terminal.length, 1);
@@ -963,8 +967,8 @@ for (const tier of ["wasm", "native"]) {
     const read = await client.query(counter, counterArgs);
     assert.equal(read.data.value, 1);
     assert.equal(read.data.pending, undefined);
+    assert.equal((await write).state, "sent", "stream acknowledgement establishes the terminal outcome despite the lost reply");
     await client.close();
-    assert.equal((await write).state, "pending");
   });
 
   for (const loseReply of [false, true]) {
@@ -1008,14 +1012,16 @@ for (const tier of ["wasm", "native"]) {
       if (loseReply) {
         offline = true;
         await client.close();
-        assert.equal((await first).state, "pending");
+        const acknowledged = await first;
+        assert.equal(acknowledged.state, "sent", "a correlated terminal outcome is never reported as pending");
         const cold = await f.open(tier, { fetch: transport });
         assert.equal((await cold.query(counter, counterArgs)).data.value, 1, "an offline reopen preserves the correlated confirmed state");
         await cold.close();
         offline = false;
         reply.resolve(); laterPost.resolve();
         const resumed = await f.open(tier, { fetch: transport });
-        await until(() => sends >= 2, "the original admitted write is retried to obtain its reply");
+        assert.equal((await resumed.write(acknowledged.id)).state, "sent", "the correlated receipt settles locally after the lost response");
+        assert.equal(sends, 1, "a known terminal receipt is never reposted to recover its historical result");
         await resumed.sync();
         assert.equal((await f.server.query(counter, counterArgs)).data.value, 1, "deduplication preserves one authoritative increment");
       } else {

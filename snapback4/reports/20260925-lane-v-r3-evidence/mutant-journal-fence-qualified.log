@@ -1,0 +1,78 @@
+(node:655588) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1355.268929ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (1139.326125ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (2149.568316ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2464.614111ms)
+  ✔ a hide during the startup probe waits for its accepted decision (1538.983493ms)
+  ✔ a hide during the startup probe waits for its refused decision (1563.499866ms)
+  ✖ a hide during the startup probe waits for its restore decision (1428.388458ms)
+  ✖ a hide during the startup probe waits for its replacement decision (4572.509425ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (3209.578809ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (1821.622299ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (1684.08833ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (1703.780583ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (1920.098842ms)
+  ✔ same-epoch logout tombstone refuses live admission (1017.355183ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (983.327634ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (963.360188ms)
+✖ web admission review: recovery and transport respect the session boundary (30450.539736ms)
+ℹ {"mode":"held-sync","id":"01M3C609117D5X0VXJ233RYPBS","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C60A35RNVGAXQ64G2H99RM","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C60EZ6VBKD3K4QBQ86BR9Q","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C60GHMM4NREZ8GCFGZYR8R","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 14
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30539.731151
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:250:81
+✖ a hide during the startup probe waits for its restore decision (1428.388458ms)
+  AssertionError [ERR_ASSERTION]: {"before":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"00ade0569edac2d9c48e775f186daef8e7e43d84661cee11dacbb1e3597c6bfb","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"2","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"54af5408cd61b0afbe496bf4b357b356","device:watermark":"11"},"backend_required":false,"generation":1,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"restore_images_at":0,"restore_watermark":11,"send_revision":2,"snapshot_catchup":false,"store_id":"54af5408cd61b0afbe496bf4b357b356","transfer_store_id":"54af5408cd61b0afbe496bf4b357b356","transfer_watermark":11,"watermark":11},"after":{"state":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"00ade0569edac2d9c48e775f186daef8e7e43d84661cee11dacbb1e3597c6bfb","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"2","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"54af5408cd61b0afbe496bf4b357b356","device:watermark":"11"},"backend_required":false,"generation":1,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"restore_images_at":0,"restore_watermark":11,"send_revision":2,"snapshot_catchup":false,"store_id":"54af5408cd61b0afbe496bf4b357b356","transfer_store_id":"54af5408cd61b0afbe496bf4b357b356","transfer_watermark":11,"watermark":11},"auth":{"state":"signed-in","viewer":"user:01M3C60H9XFTSK0WGFCV5VD8PS"},"sent":[]}}
+  + actual - expected
+
+  + undefined
+  - 'E_STORE_RESTORE'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:313:18)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:250:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_STORE_RESTORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:250:81
+✖ a hide during the startup probe waits for its replacement decision (4572.509425ms)
+  AssertionError [ERR_ASSERTION]: backend replacement must durably dequeue the recovered journal intent
+  + actual - expected
+
+  + '{"id":"01M3C60N0BYNNJJCKX9JJ00QWE","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room"},"new_ids":["01M3C60N0D1VQAZ2B1MVQ2F5PN","01M3C60N0D1VQAZ2B1MVQ2F5PP","01M3C60N0D1VQAZ2B1MVQ2F5PQ","01M3C60N0D1VQAZ2B1MVQ2F5PR","01M3C60N0D1VQAZ2B1MVQ2F5PS","01M3C60N0D1VQAZ2B1MVQ2F5PT","01M3C60N0D1VQAZ2B1MVQ2F5PV","01M3C60N0D1VQAZ2B1MVQ2F5PW"],"predicted":[],"viewer":"user:01M3C60JS12Z2DJPZWKR8VXANA","now":1790336586765,"predictable":false,"sent_seq":null,"observed_seq":null}'
+  - null
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:323:16)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:250:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '{"id":"01M3C60N0BYNNJJCKX9JJ00QWE","seq":1,"op":"removeMember","args":{"principal":"user:other","room":"room"},"new_ids":["01M3C60N0D1VQAZ2B1MVQ2F5PN","01M3C60N0D1VQAZ2B1MVQ2F5PP","01M3C60N0D1VQAZ2B1MVQ2F5PQ","01M3C60N0D1VQAZ2B1MVQ2F5PR","01M3C60N0D1VQAZ2B1MVQ2F5PS","01M3C60N0D1VQAZ2B1MVQ2F5PT","01M3C60N0D1VQAZ2B1MVQ2F5PV","01M3C60N0D1VQAZ2B1MVQ2F5PW"],"predicted":[],"viewer":"user:01M3C60JS12Z2DJPZWKR8VXANA","now":1790336586765,"predictable":false,"sent_seq":null,"observed_seq":null}',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

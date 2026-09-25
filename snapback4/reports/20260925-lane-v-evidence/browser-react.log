@@ -1,0 +1,47 @@
+$ tsc -p tsconfig.json --noEmit
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+▶ React hooks and reference-app lifetimes
+  ✔ AppProvider switches real clients, resets account state and routes existing mutation/query hooks (55.472983ms)
+  ✔ failed receipt saves settle pending-write hooks and stay settled after remount (21.367367ms)
+  ✔ two online owners notify both pending-write hooks when the shared journal settles once (292.169306ms)
+  ✔ useQuery owns observations through Strict Mode, equivalent arguments and unmount (5.798439ms)
+  ✔ useMutation survives replay, rejection, concurrent writes and an obsolete lifetime (6.670878ms)
+  ✔ useMutation preserves fresh null and direct, queued and early replay receipts (3.817077ms)
+  ✔ W5c acquisition and pending writes survive remount, receipt races and client replacement (8.455105ms)
+  ✔ useAction tracks concurrent results, retry ids and obsolete lifetimes (5.225129ms)
+  ✔ useViewer subscribes and useAsset has empty and failed outcomes (5.979311ms)
+  ✔ usePage rebinds insertion, deletion and reorder boundaries and aggregates read state (6.512361ms)
+  ✔ usePage keeps the oldest stale timestamp across fresh and stale pages (3.911939ms)
+  ✔ online observations clear pages during fetches and on unavailable settlement, refusal and close (56.593054ms)
+  ✔ usePage treats every non-array ready value as loading and keeps the earlier pages (12.270479ms)
+  ✔ usePage discards an in-flight suffix and does not claim a ready combined read (3.208574ms)
+  ✔ web app closes asynchronous opens before/after cleanup and ignores obsolete failures (11.664269ms)
+  ✔ Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures (9.394143ms)
+  ✔ web sign-out reports completion only after durable clearing and offers retry on failure (14.582447ms)
+  ✔ web composer preserves edits, immediate failure and offline admission (42.767472ms)
+  ✔ Expo composer preserves edits, immediate failure and offline admission (15.123028ms)
+  ✔ web composer fences old account callbacks and preserves saved write identities (3.802735ms)
+✔ React hooks and reference-app lifetimes (1505.173818ms)
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (829.412746ms)
+  ✔ restored identified device journals while its first sync is held (737.222827ms)
+  ✔ synchronous refusal: restoring (338.286043ms)
+  ✔ synchronous refusal: no-device (39.878688ms)
+  ✔ synchronous refusal: no-claim (314.461129ms)
+  ✔ synchronous refusal: ephemeral-device (268.741739ms)
+  ✔ synchronous refusal: storage-full (344.402077ms)
+  ✔ synchronous refusal: before-first-sync (336.262876ms)
+  ✔ repairing storage permits the refused id to be retried (413.598058ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (538.408122ms)
+  ✔ the bare online browser transport refuses without custody (2.59973ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (63.953406ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (121.81414ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (5281.857107ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5375.018743

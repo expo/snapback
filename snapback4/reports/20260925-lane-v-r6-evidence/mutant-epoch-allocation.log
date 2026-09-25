@@ -1,0 +1,47 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (991.808777ms)
+  ✔ a failed logout cannot commit after abort (795.40607ms)
+  ✔ a failed logout cannot commit after quota (860.256732ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (382.881044ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (852.104836ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.159111ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (79.398512ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (506.100914ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (515.178096ms)
+  ✔ legacy epoch 10 migrates before sign-in and mutation (IDB 9) (485.130109ms)
+  ✖ a committed session reopens with actually full localStorage and no separate epoch key (873.739407ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (822.429356ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (461.871424ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (802.15869ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (798.790502ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (10992.076463ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":3}
+ℹ tests 16
+ℹ suites 0
+ℹ pass 14
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11067.513659
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:317:11
+✖ a committed session reopens with actually full localStorage and no separate epoch key (873.739407ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"why":{"code":"E_CLIENT","family":"store","site":"app.auth","message":"session authority could not be committed or read: Error: session authority could not be committed or read: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'snapback4.0068007400740070003a002f002f003100320037002e0030002e0030002e0031003a00330035003400310037.session.epoch' exceeded the quota.","rewrite":"restore writable IndexedDB and localStorage, then retry app.auth.login","guide":"writes"}}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:345:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:317:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

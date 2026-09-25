@@ -124,11 +124,7 @@ try {
   // IndexedDB; the partition is already there and the queued write lands.
   await witness.reload();
   const second = await page.evaluate(async (api) => {
-    const rows = await new Promise((resolve, reject) => {
-      const open = indexedDB.open(`snapback4-${encodeURIComponent(`${api}:dev:bob`)}`, 1);
-      open.onsuccess = () => { const tx = open.result.transaction("changes"); const req = tx.objectStore("changes").count(IDBKeyRange.bound(["r", ""], ["r", "\uffff"])); req.onsuccess = () => { resolve(req.result); open.result.close(); }; req.onerror = () => reject(req.error); };
-      open.onerror = () => reject(open.error);
-    });
+    const rows = (await window.indexedDbPersistence().load(`snapback4-${encodeURIComponent(`${api}:dev:bob`)}`)).filter(change => change.s === "r").length;
     const t0 = performance.now();
     const client = await window.createLocalClient({ url: api, persona: "bob", waitSeconds: 1 });
     const reopened = performance.now() - t0;
@@ -220,7 +216,7 @@ try {
       const reopenedQueued = await queued(core);
       await core.close(); core = null;
       const failedOpenName = "witness-failed-open", freeBefore = freed;
-      abort = store => store === failedOpenName;
+      abort = (store, value) => store === failedOpenName && value.s !== "$format";
       const initialRejected = await attempt(() => opener.open(failedOpenName, backend));
       const initialFreed = freed - freeBefore, initialUnlocked = await unlocked(failedOpenName);
       const base = "witness-adoption", orphan = `${base}:tab-orphan`;

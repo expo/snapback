@@ -1,0 +1,54 @@
+(node:869015) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1012.532067ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (922.120693ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1840.500352ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2168.099758ms)
+  ✔ a hide during the startup probe waits for its accepted decision (816.849184ms)
+  ✔ a hide during the startup probe waits for its refused decision (808.461054ms)
+  ✔ a hide during the startup probe waits for its restore decision (759.58298ms)
+  ✖ a hide during the startup probe waits for its replacement decision (970.015537ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (822.630488ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (795.756577ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (831.705517ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (776.12502ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (800.059867ms)
+  ✔ same-epoch logout tombstone refuses live admission (497.270731ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (514.140521ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (469.893505ms)
+✖ web admission review: recovery and transport respect the session boundary (15676.505595ms)
+ℹ {"mode":"held-sync","id":"01M3C6DX46ANFV8GAXXPXBD23W","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C6DY1DQJWP0SDM46VCCREY","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C6E1W5BYZ0VJ5N5480M5TW","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C6E2Q0YE1ZEXPXVYC0413A","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C6E3ER1PKNXA4DAS3NJ7AJ","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 15
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15763.093558
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:251:81
+✖ a hide during the startup probe waits for its replacement decision (970.015537ms)
+  AssertionError [ERR_ASSERTION]: a refused startup must not register exit transport
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:314:16)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:251:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
