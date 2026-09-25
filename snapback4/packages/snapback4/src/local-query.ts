@@ -13,6 +13,8 @@
 //    expiry retries locally once through rules 2–5 (then dirties a watch if
 //    still expired). Only expired memory is retired by the expiry decision.
 //    Recovery preserves local wakeups; retry transport retires the old value.
+//    Memory expires only at its server deadline; an elapsed local wakeup
+//    dirties its watch and is consumed without withdrawing valid memory.
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
@@ -231,7 +233,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       }
       const { result, origin } = candidate;
       // Rules 1/5: no await between this deadline check and publication.
-      if ((attempt > 0 || "data" in result.read) && ((result.nextExpiry !== null && result.nextExpiry <= env.deviceNow())
+      const localDue = result.nextExpiry !== null && result.nextExpiry <= env.deviceNow();
+      if (origin === "remembered" && localDue) {
+        // Rule 5: this is a local branch wakeup, not memory's validity limit.
+        // Consume it so scheduleExpiry cannot immediately erase this page.
+        if (watch) watch.dirty = true;
+        result.nextExpiry = null;
+      }
+      if ((attempt > 0 || "data" in result.read) && ((origin !== "remembered" && localDue)
         || (result.serverExpiry != null && result.serverExpiry <= env.serverNow()))) {
         if (origin === "local" && attempt === 0) {
           // note_expiry records only deadlines after the evaluation's now.
@@ -249,7 +258,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
           const last = env.serverAnswers.get(key);
           if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) env.serverAnswers.delete(key);
         }
-        return origin === "remembered" && !watch ? { read: { denied: env.offline() }, tables, nextExpiry: null } : loading;
+        // Recovery still needs any future local branch wakeup after memory
+        // expires; only the expired server deadline is retired here.
+        return origin === "remembered" ? { read: watch ? { loading: true } : { denied: env.offline() }, tables, nextExpiry: result.nextExpiry } : loading;
       }
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.

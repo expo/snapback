@@ -53,6 +53,12 @@ query expiryBranch():
   if exists permits['later']:
     return exists audits['a1']
   return true
+query branch():
+  if exists audits['a1']:
+    return true
+  if exists permits['permit']:
+    return false
+  return true
 query expirySecret():
   if exists permits['permit']:
     return {secret: 'private', remote: false}
@@ -64,7 +70,7 @@ query expiryPage(c: cursor ?):
   return audits after c last 3 by .at pageCard
 `;
 
-for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits", "populated watch", "server pagination"]) {
+for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits", "populated watch", "server pagination", "server pagination watch", "remembered branch", "remembered branch watch"]) {
   test(`expiry retry ${scenario} ${tier}`, { timeout: 30000 }, async t => {
     const directory = mkdtempSync(join(tmpdir(), "sb4-expiry-retry-"));
     mkdirSync(join(directory, "snapback"));
@@ -96,7 +102,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       if (signal.aborted) reject(signal.reason);
       else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
     });
-    const requests = [], replies = [];
+    const requests = [], replies = [], serverReplies = [];
     const deviceDir = join(directory, "device"); mkdirSync(deviceDir);
     const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() })
       : processDevice({ binary, dir: deviceDir, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
@@ -111,6 +117,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
         }
         const response = await fetch(input, init);
         if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
+        if (path.startsWith("/q/")) serverReplies.push(await response.clone().json());
         return response;
       }),
       device: { open: async (...args) => {
@@ -123,14 +130,59 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       } },
     });
     await client.sync();
-    if (scenario === "chained permits") { offline = true; await client.sync(); }
+    const remembered = scenario.startsWith("remembered branch");
+    if (remembered) {
+      const before = await client.query({ kind: "query", name: "branch" }, {});
+      assert.equal(before.data, true); assert.equal(before.fresh, true);
+      assert.equal(serverReplies.at(-1).nextExpiry, null, "the server branch never reads the permit");
+      assert.equal(replies.at(-1).reply.ok.data, false, "the device takes the speculative permit branch");
+    }
+    if (scenario === "chained permits" || remembered) { offline = true; await client.sync(); }
     freezeSync = true;
     const setBoundary = now => {
       wall = now; clock.sample(now, now, now); clientClock.sample(now, now, now);
       assert.equal(client.now(), now);
     };
+    if (remembered) {
+      setBoundary(deadline - 1);
+      const reached = gate(); let calls = 0;
+      interceptLocal = async (request, reply) => {
+        if (request.name !== "branch") return;
+        calls++;
+        assert.equal(reply.ok.unknown, true); assert.equal(reply.ok.speculative, true);
+        if (calls === 1) {
+          assert.equal(request.now, deadline - 1);
+          assert.equal(reply.ok.data, false); assert.equal(reply.ok.nextExpiry, deadline);
+          reached.release(); await localGate.promise;
+        } else {
+          assert.equal(request.now, deadline);
+          assert.equal(reply.ok.data, true); assert.equal(reply.ok.nextExpiry, null);
+        }
+      };
+      const publications = [];
+      let pending;
+      if (scenario.endsWith("watch")) {
+        live = client.observe({ kind: "query", name: "branch" }, {});
+        stop = live.subscribe(() => publications.push(live.getSnapshot()));
+      } else pending = client.query({ kind: "query", name: "branch" }, {});
+      await reached.promise; wall = deadline; localGate.release();
+      if (live) {
+        await until(() => calls === 2 && publications.length >= 2, "elapsed wakeup must rerun without withdrawing valid memory");
+        for (const read of publications) {
+          assert.equal(read.data, true, "neither the placeholder nor an immediate loading reset may replace memory");
+          assert.equal(read.fresh, false);
+        }
+      } else {
+        const read = await pending;
+        assert.equal(read.data, true); assert.equal(read.fresh, false);
+        assert.equal(calls, 1, "a one-shot read can publish memory without reobserving the local branch");
+      }
+      assert.deepEqual(requests, [{ path: "/q/branch", args: {} }]);
+      return;
+    }
+    const paginated = scenario.startsWith("server pagination");
     const name = scenario === "chained permits" ? "expiryBranch" : scenario === "populated watch" ? "expirySecret" : "expiryPage";
-    const op = { kind: "query", name }, args = scenario === "server pagination" ? { c: null } : {};
+    const op = { kind: "query", name }, args = paginated ? { c: null } : {};
     const publications = [];
     if (scenario === "populated watch") {
       setBoundary(deadline - 60000);
@@ -160,7 +212,18 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
     if (scenario === "server pagination") pending = client.query(op, args);
     else {
       live ??= client.observe(op, args);
-      stop = live.subscribe(() => publications.push(live.getSnapshot()));
+      if (paginated) {
+        pending = new Promise(resolve => {
+          stop = live.subscribe(() => {
+            const read = live.getSnapshot(); publications.push(read);
+            if ("data" in read) {
+              // Inspect the first page, before a clock-triggered rerun can
+              // replace it and conceal a cursor lost only on the retry.
+              stop(); live.close(); resolve(read);
+            }
+          });
+        });
+      } else stop = live.subscribe(() => publications.push(live.getSnapshot()));
     }
     await reachedLocal.promise;
     if (!offline) {
@@ -184,7 +247,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       }
       assert.equal((await post("/dev/clock/advance", { duration: "2h" })).advancedMs, 7200000);
       serverGate.release();
-      if (live) {
+      if (live && !paginated) {
         await until(() => live.getSnapshot().data?.remote === true && live.getSnapshot().data?.secret === "", "post-deadline server answer missing");
       } else {
         const first = await pending;
