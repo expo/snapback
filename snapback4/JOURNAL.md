@@ -55115,3 +55115,70 @@ new syntax, refusal code, version, push or publication. Build artifacts remain
 on shared disk. Full file map, evidence and remaining accepted limitation:
 `reports/20260925-lane-q-round1.md`; final suite log:
 `~/sb4-intent/lane-q-r1-test-complete.log`.
+
+
+## 2026-09-25 — LLP 3000.013 Lane Q review round 2: fitting adoption pages
+
+Resolved both delta reviews' Medium adoption findings and their Low test gaps.
+Commit dc54cbc8f removes the second decoder multiplier and adds a shared
+SQLite/PostgreSQL admission pass that checks the retained page plus the active
+row's decoder and contribution allowance before any callback writes. A page
+that cannot fit is dropped, its reservation released, and its limit halved.
+Only an oversized singleton may refuse for heap. Preflight decodes charge
+examined work and preserve the meter across retries; optional/default field
+footprints are calculated without allocating them. Callback decoding and
+contribution evaluation retain the complete fetched-page reservation.
+
+The review's 1,000,000-byte body first reproduced E_BOUND at 19,017,459 charged
+bytes on SQLite and 24,014,816 on PostgreSQL, against the unchanged 16,777,216
+job heap. Both now adopt. SQLite also adopts one 1 MiB body, five 512 KiB rows
+and five 1,280 KiB rows. Additional live Rust peaks, measured around complete
+adoption on the final implementation, are 3,003,026; 3,148,754; 3,673,674; and
+3,935,639 bytes respectively. The existing 600 × 65,536-byte fixture remains
+2,893,625 bytes. An oversized 2 MiB singleton after 300 ordinary rows refuses
+atomically, with an unchanged whole-store digest and a 4,591,031-byte Rust peak.
+Native SQLite bytes are excluded from that independent allocator probe and
+remain reserved by the page ledger's native-payload allowance.
+
+Both explicitly enabled real-PostgreSQL tests pass. The new one-million-byte
+and five-by-512-KiB fixtures preserve payloads, every new index key and physical
+counts; reopen stays at generation 2. Existing 96 × 4 KiB and 600 × 64 KiB
+query checks still pass. Two intermediate test drafts attempted a query under
+a 2 MiB source-column bound and hit the evaluation adapter's existing query
+heap reservation (268,466,405 at programs.count.0). That separate query bound
+is unchanged; large-row tests verify adoption directly. The private socket-only
+PostgreSQL server was stopped after its successful final run.
+
+Commit 3c653bb5f adds the live witness expiring at now + 1 on memory and SQLite,
+for server reads and device predictions with zero or 9,000 expired rows. Three
+deliberate mutations were detected: removing page scratch admission refuses
+the five-by-1,280-KiB fixture at 18,370,134 bytes; deleting the retained-buffer
+reservation fails the callback-boundary assertion; advancing the seek to
+gt now + 1 makes both witness tests fail. All mutations were restored.
+
+The first complete suite ended `== 1 failure(s) in 363 s`: two client source
+audit tests rejected the shared helper's direct serde_json decode. This was
+ours, fixed by using the existing json_codec::from_text funnel without adding
+an exception. All 26 codec-census tests then passed, as did the real PostgreSQL
+rerun. The reproductions, negative tests and fixture corrections are also ours;
+no failure this round is attributed to baseline or environment.
+
+Final scripts/test.sh, exit 0: **`== 0 failure(s) in 222 s`**. All 883 Rust
+executions across 175 binaries and separate workspace doctests pass. The main
+client process reports 1,479 tests, 1,469 pass, zero failures and ten existing
+explicit skips; all separate shards pass. No new skip or waived failure.
+Wasm: 1,768,024 raw / 492,568 gzip bytes, within the unchanged 493,000 ratchet.
+Ref-check: 507 LLP docs, 9,276 refs, 25,862 files, zero errors or unchecked refs.
+Server examined-row costs remain 2/502 for backlogs 0/500 at 100/10,000 live
+rows, unchanged before and after this review correction. The device stop is
+still accepted: incomplete local recomputation stays unavailable and the
+existing server fallback answers; no physical T or private nextExpiry delivery.
+
+No runtime ceiling, query reservation, syntax, refusal code, version, push or
+publication changed. Value-order indexes, maintained columns and rule value
+comparisons over expiring sources remain refused. Build artifacts remain on
+the shared disk. File map, complete failure attribution and reproductions:
+`reports/20260925-lane-q-round2.md`. Full suite and measurements:
+`~/sb4-intent/lane-q-r2-test-complete.log`,
+`~/sb4-intent/lane-q-r2-adoption-measurements.log`, and
+`~/sb4-intent/lane-q-r2-postgres-tests.log`.
