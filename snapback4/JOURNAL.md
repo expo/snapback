@@ -58913,3 +58913,50 @@ version bump, push or publication. The whole remembered-page row-expiry issue
 remains deferred as instructed, pending engine per-row expiry facts and later
 design. File map, rule/test coverage, exact suite command, mutation runner and
 compressed evidence: `reports/20260925-bounded-following-r12/REPORT.md`.
+
+## 2026-09-26 — Lane U round 13: remembered pages survive local timer wakeups
+
+Read both round-12 delta reviews and implemented Grok's Medium after round-12
+head `e880cf39c`. Implementation/test commit: `30dd08cd5`. Final query results
+now carry whether their local deadline is a remembered-answer wakeup. Watch
+scheduling uses that explicit provenance: only a local wakeup reruns without
+reset or notification. Actual local/composed row deadlines, server deadlines
+and session refusals still withdraw the snapshot. A future server cutoff stays
+armed while a local rerun is slow. The attempt-zero consume/dirty logic remains
+intact. The procedure comment and client reference describe both timer and
+in-flight wakeups.
+
+Added real wasm/native timer cases that publish remembered `true` before T,
+let T elapse, and hold the device reply: snapshot identity and notification
+count stay unchanged throughout the rerun. Five controlled-clock cases cover
+null, simultaneous and future server deadlines, an early timer that rearms,
+and a composed page with a real local-row deadline but no server deadline.
+Also closed Astra's Low test gap with four retry/server-expiry publication
+controls requiring private memory withdrawal and cache deletion. The affected
+suite passed **281/281** in 56.728 seconds; the final strengthened clock controls
+passed **19/19** in 0.524 seconds.
+
+Five deliberate mutations were rejected: resetting remembered data at its
+local wakeup failed five tests; inferring wakeups from missing server expiry
+failed the composed-row control; disarming the server cutoff during a held
+rerun failed; dropping provenance on timer rearm failed; allowing remembered
+authorization to expire unnoticed after retry failed four controls. The optional
+early-timer mutation initially survived because the fixture did not actually
+fire early. Explicitly arming the first timer before its real deadline fixed
+that owned test-strength issue. No unmodified product test failed during
+implementation; mutation failures were expected negative controls.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 626 s`**.
+Rust: 3,196 passed, 19 existing ignored, zero failures. Clients with shards:
+2,027 passed, ten existing skips, zero failures/cancellations. Models: 78 passed
+at unchanged 5,000 / 5,000 / 3,000 sequences. No full-suite failure or baseline/
+environmental exemption. Wasm remains **1,850,576 B raw / 521,814 B gzip**,
+within the unchanged 522,000 B budget. Every changed source/test file remains
+under 1,500 lines; the largest is `local.ts`, 1,431 lines.
+
+No design deviation, authorization/disclosure/durability relaxation, runtime
+meter change, model-count reduction, timeout increase, acquisition remeasurement,
+version bump, push or publication. Whole remembered-page row expiry remains
+deferred pending engine per-row facts and later design. File map, numbered
+rule coverage, exact suite command, mutation runner and compressed evidence:
+`reports/20260926-bounded-following-r13/REPORT.md`.
