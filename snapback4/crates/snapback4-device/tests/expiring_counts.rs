@@ -108,22 +108,60 @@ fn physical_delivery_would_disclose_an_expired_contribution_to_a_new_device() {
 
 #[test]
 fn seeded_changes_match_the_old_live_recomputation() {
+    // Count observed transitions, not merely attempted mutations. Each seed
+    // must exercise selection, expiry and computed-key changes successfully.
     for seed in 1..=4 {
         let (mut server,_) = compile(SOURCE);
         let mut state = seed as u64;
         let mut now = 10;
+        let mut transitions = [0usize; 9];
         for turn in 0..180 {
             state ^= state << 13; state ^= state >> 7; state ^= state << 17;
             let n = (state % 32) as usize;
             let name = format!("r{n:05}");
             let expiry = if state % 3 == 0 {Value::Null} else {Value::Int(now + (state % 30) as i64)};
-            let exists = server.store().rows("receipts").unwrap().iter().any(|r|r.field("id")==Ok(&id(&name)));
-            let (op,input) = if !exists {("add",args(&[("id",id(&name)),("expiresAt",expiry),("weight",Value::Int((state%21) as i64-10))]))}
+            let old = server.store().rows("receipts").unwrap().into_iter().find(|r|r.field("id")==Ok(&id(&name)));
+            let live = old.as_ref().is_some_and(|r|!server.schema().tables["receipts"].expired(r,now));
+            let (op,input) = if old.is_none() {("add",args(&[("id",id(&name)),("expiresAt",expiry),("weight",Value::Int((state%21) as i64-10))]))}
             else if state%5==0 {("remove",args(&[("id",id(&name))]))}
             else {("change",args(&[("id",id(&name)),("expiresAt",expiry),("state",Value::Int((state%3) as i64)),("visible",Value::Bool(state%7!=0)),("weight",Value::Int((state%21) as i64-10)),("at",Value::Int((state%2) as i64*86_400_000))]))};
-            // Expired rows are absent as write targets; a refused update/delete is harmless.
-            let out=server.mutate(op,None,Context::new("alice",input).at(now)).unwrap();
-            assert!(matches!(out.state,WriteState::Sent{..}|WriteState::Failed{..}));
+            let out=server.mutate(op,None,Context::new("alice",input.clone()).at(now)).unwrap();
+            let actual = server.store().rows("receipts").unwrap().into_iter().find(|r|r.field("id")==Ok(&id(&name)));
+            if old.is_some() && !live {
+                // Only targets already expired before the mutation may refuse.
+                assert!(matches!(out.state,WriteState::Failed{..}),"seed={seed} turn={turn} expired {op}: {out:?}");
+                assert_eq!(actual,old,"a refused expired-target write changes nothing");
+            } else {
+                assert!(matches!(out.state,WriteState::Sent{..}),"seed={seed} turn={turn} valid {op}: {out:?}");
+                if op == "remove" {
+                    assert!(actual.is_none()); transitions[1]+=1;
+                } else {
+                    let mut expected = old.clone().unwrap_or_else(||row(n,Value::Null).1);
+                    if let Value::Row(fields) = &mut expected {
+                        for (field,value) in &input { fields.insert(field.clone(),value.clone()); }
+                    }
+                    if let Some(actual) = actual {
+                        assert_eq!(actual,expected,"seed={seed} turn={turn} applied {op}");
+                    } else {
+                        // An insert born expired is retired at commit. The
+                        // sent outcome still proves the valid write executed.
+                        assert_eq!(op,"add");
+                        assert!(server.schema().tables["receipts"].expired(&expected,now));
+                    }
+                    if let Some(old) = old {
+                        let selected = |r: &Value|r.field("state").unwrap().as_int().unwrap()<2 && r.field("visible")==Ok(&Value::Bool(true));
+                        transitions[2]+=usize::from(expected.field("state")==Ok(&Value::Int(1)));
+                        transitions[3]+=usize::from(!selected(&old) && selected(&expected));
+                        transitions[4]+=usize::from(selected(&old) && !selected(&expected));
+                        let before=old.field("expiresAt").unwrap();
+                        let after=expected.field("expiresAt").unwrap();
+                        transitions[5]+=usize::from(before!=after && after==&Value::Null);
+                        transitions[6]+=usize::from(matches!((before,after),(Value::Int(a),Value::Int(b)) if b<a));
+                        transitions[7]+=usize::from(matches!((before,after),(Value::Null,Value::Int(_))) || matches!((before,after),(Value::Int(a),Value::Int(b)) if b>a));
+                        transitions[8]+=usize::from(old.field("at")!=expected.field("at"));
+                    } else { transitions[0]+=1; }
+                }
+            }
             if turn%3==0 {now+=7;}
             if turn%11==0 {server.sweep_expired(now,7).unwrap();}
             let rows=server.store().rows("receipts").unwrap();
@@ -133,6 +171,10 @@ fn seeded_changes_match_the_old_live_recomputation() {
                 assert!(answer.complete,"seed={seed} turn={turn} {answer:?}");
                 assert_eq!(answer.data,Value::Int(expected),"seed={seed} turn={turn} query={query} day={day:?}");
             }
+        }
+        for (name,count) in ["insert","delete","state=1","filter on","filter off","expiry to null","earlier expiry","later expiry","day move"].into_iter().zip(transitions) {
+            assert!(count>0,"seed={seed}: no observed {name} transition");
+            println!("DIFFERENTIAL seed={seed} transition={name} count={count}");
         }
     }
 }
