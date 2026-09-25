@@ -46,7 +46,7 @@ fn exercise(full_kind: Option<bool>, limit: usize) {
             ("authorId",Value::Id("alice".into())),("at",Value::Int(n)),("repost",Value::Bool(kind))]);
         tx.put("feedPosts",&bound.schema.tables["feedPosts"],&row,None).unwrap();
     }
-    let mut cursor = None; let mut got = BTreeSet::new(); let mut total = 0; let mut empty_progress = 0;
+    let mut cursor = None; let mut got = BTreeSet::new(); let mut total = 0; let mut empty_progress = 0; let mut multi_batch_pages = 0;
     for _ in 0..5000 {
         tx.examined.set(0); tx.requested.set(0); tx.calls.set(0); tx.scans.borrow_mut().clear();
         let before = cursor.clone();
@@ -55,6 +55,7 @@ fn exercise(full_kind: Option<bool>, limit: usize) {
         assert!(tx.requested.get() <= limit,"fetch request must be bounded independently of returned rows");
         if full_kind.is_none() { assert_eq!(tx.calls.get(),0,"neither kind synced: never open the owned table"); }
         total += tx.examined.get();
+        if tx.calls.get() > 1 { multi_batch_pages += 1; }
         if page.events.is_empty() && tx.examined.get() > 0 { empty_progress += 1; }
         for event in page.events { if event.table == "feedPosts" { assert!(got.insert(event.id),"duplicate event"); } }
         cursor = page.next;
@@ -64,14 +65,29 @@ fn exercise(full_kind: Option<bool>, limit: usize) {
     assert!(cursor.is_none(),"snapshot must terminate");
     assert_eq!(got,want);
     assert_eq!(total,if full_kind.is_some() {4096} else {0},"no skipped row is fetched twice");
-    if full_kind.is_some() { assert!(empty_progress > 500,"exercise empty bounded pages"); }
+    if full_kind.is_some() {
+        assert!(empty_progress >= (4093 / limit).saturating_sub(1), "exercise empty bounded pages");
+        if limit > 256 { assert!(multi_batch_pages > 0, "the page must cross a storage-batch boundary"); }
+    }
 }
 #[test] fn neither_kind_opens_no_event_rows() { for limit in [1, 2, 3, 5, 7] { exercise(None, limit); } }
 #[test] fn mixed_originals_bound_reads_and_keep_scanned_progress() { for limit in [1, 2, 3, 5, 7] { exercise(Some(false), limit); } }
 #[test] fn mixed_reposts_bound_reads_and_keep_scanned_progress() { for limit in [1, 2, 3, 5, 7] { exercise(Some(true), limit); } }
 
 #[test]
-fn examined_work_spends_the_budget_before_the_next_owned_group() {
+fn cumulative_storage_reads_are_bounded_across_multiple_batches() {
+    for limit in [257, 600] {
+        for kind in [false, true] { exercise(Some(kind), limit); }
+    }
+}
+
+#[test]
+fn examined_work_spends_the_budget_before_the_next_owned_group() { shared_group_budget(false); }
+
+#[test]
+fn kept_and_excluded_events_both_spend_the_next_groups_budget() { shared_group_budget(true); }
+
+fn shared_group_budget(keep_first: bool) {
     let source = include_str!("../../snapback4-lang/tests/fixtures/following-view.q")
         .replace("sync public\n\ntable follows", "sync public last 1 by .at\n\ntable follows")
         + "\nview other: activity where .actor = viewer or exists follows[viewer, .actor]\n";
@@ -82,7 +98,9 @@ fn examined_work_spends_the_budget_before_the_next_owned_group() {
     let second = tables.iter().position(|name| *name == "otherPosts").unwrap();
     let between = second - first - 1;
     // Two public audience groups, owned by declarations sharing the sources.
-    // The first exhausts after an excluded run; the second has much more work.
+    // The first exhausts after an optional kept event and an excluded run;
+    // the second has much more work. byActorPost desc visits the largest
+    // postId first, so the mixed case keeps that event before scanning skips.
     // Empty intervening groups cost one each, exactly as snapshot_page specifies.
     let prefix = between + 3;
     let tx = Counted::default();
@@ -91,7 +109,7 @@ fn examined_work_spends_the_budget_before_the_next_owned_group() {
             let event = format!("event-{n:05}");
             let row = object([("id", Value::Id(event.clone())), ("postId", Value::Id(event)),
                 ("actorId", Value::Id("alice".into())), ("authorId", Value::Id("alice".into())),
-                ("at", Value::Int(n as i64)), ("repost", Value::Bool(true))]);
+                ("at", Value::Int(n as i64)), ("repost", Value::Bool(!(keep_first && table == "feedPosts" && n == count - 1)))]);
             tx.put(table, &bound.schema.tables[table], &row, None).unwrap();
         }
     }
@@ -100,7 +118,11 @@ fn examined_work_spends_the_budget_before_the_next_owned_group() {
         let cursor = partition::SnapshotCursor { table: first, watermark: 1, ..Default::default() };
         tx.examined.set(0); tx.scans.borrow_mut().clear();
         let page = partition::snapshot_page(&tx, &bound.schema, "alice", Some(cursor), limit, 10000).unwrap();
-        assert!(page.events.is_empty(), "excluded rows must not become output");
+        assert_eq!(page.events.len(), usize::from(keep_first), "only the full-kind event becomes output");
+        if keep_first {
+            assert_eq!(page.events[0].table, "feedPosts");
+            assert_eq!(page.events[0].id, format!("event-{:05}", prefix - 1));
+        }
         let scans = tx.scans.borrow();
         assert_eq!(scans.len(), 2, "both owned groups must be examined: {scans:?}");
         assert_eq!(scans[0], ("feedPosts".into(), limit, prefix));
