@@ -56215,3 +56215,50 @@ measurements, exact tests and log digests: [Lane X round-two report](reports/lan
 Verification note: one final ref-check invocation used the fence as its working
 directory and reported missing LLPs. This was an invocation error, corrected by
 running from the repository root; no reference or source edit was needed.
+
+
+## 2026-09-25 — Lane X round 3: source-preserving repairs and scoped fresh names
+
+Closed Astra and Grok's round-two delta findings. Self-comparison repairs now
+splice exact comparison token spans in the author's source. They never reprint
+retained expressions. Named-key repairs insert the key and replace just the bad
+comparison with true; the remaining nested keys, comments, grouping, predicates,
+page size and order remain verbatim. Existing/new argument and constant repairs
+use the same checked source edits. Parser-only comparison spans never reach the
+schema, IR or device payload. Fresh parameter names scan bindings at every depth
+within the current declaration, excluding focal column names and later operations.
+
+Added four Rust regressions. Pasting Astra's repair and executing the two-row
+example now gives a's roster exactly a; the test also covers empty/existing key
+lists. Existing/new argument repairs retain a commented multiline nested key and
+return the correct row. Nested local bindings receive fresh names, later bindings
+do not rename this operation, and same-named bool/text columns require the typed
+argument fallback. The device witness now runs the pure due <= due presence
+query online and offline on wasm/memory and native/SQLite, with the undated row
+excluded independently of any other disjunct.
+
+Actually weakened the type-equality guard, omitted only the <= null guard, and
+reintroduced the retained-key scope change in three temporary source mutations.
+Each built and failed its designated test; the scope mutation compiled its bad
+repair and failed at runtime with zero roster rows instead of one. Restored every
+mutation and reran the correct-code checks. Targeted results: 125 language/unit/
+guide tests, three CLI tests and the both-store witness passed. The report records
+an obsolete exact-rewrite expectation and three incorrect Value::field test
+assertions corrected during development; no failure was waived.
+
+One full default-concurrency scripts/test.sh run, exit 0:
+**== 0 failure(s) in 418 s**. Client tests: 1,509 passed, ten existing skips.
+Models: 78 passed with all 5,000 / 5,000 / 3,000 sequences retained. Final failures:
+ours zero, baseline zero, environmental zero. Ref-check: zero errors/unchecked.
+The external Clique target has zero problems and six existing notes. Wasm remains
+1,775,799 B raw / 495,258 B gzip under the unchanged 496,000 B budget. The why page
+is 2,250 rendered bytes within 4,096; all 133 fact homes and 17 original compiled
+blocks remain tested. Core-card counts remain 10,422 words versus 18,300, with
+860 opening words versus 12,540 and each opening meeting the two-thirds target.
+
+No engine, store, authorization, disclosure, durability, meter, client-source,
+Following, version, push or publication changes. No unresolved round-three
+finding or deviation from the brief. The existing optional-aggregate/point-seek
+restrictions and shared-host suite wall-time budget overrun remain unchanged.
+File ledger, examples, exact tests, mutation evidence, word counts, fact/guess
+mapping and log digests: [Lane X round-three report](reports/lane-x-round3-report.md).
