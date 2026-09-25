@@ -54,14 +54,16 @@ export class ServerClock {
       if (epoch !== priorEpoch) this.epochBarrier = this.order;
     }
     const before = this.offset, issuedBefore = this.issuedOffset;
+    const roundTrip = received - sent;
+    // Long responses use a conservative receipt date, never a midpoint that
+    // could latch half a server wait into the monotonic floor.
+    provisional ||= roundTrip > SHORT_RTT_MS;
     this.samples = this.samples.filter(s => received >= s.received && received - s.received <= WINDOW_MS).slice(-(MAX_SAMPLES - 1));
-    this.samples.push({ offset: serverNow - (sent + received) / 2, roundTrip: received - sent, received, provisional });
-    // Only short RTTs outrank receipt stamps. A slow/held response may estimate
-    // server time, but its midpoint error must never enter the issued floor.
-    const rank = (s: Sample) => s.provisional ? 1 : s.roundTrip <= SHORT_RTT_MS ? 0 : 2;
-    const best = this.samples.reduce((best, s) => rank(s) !== rank(best) ? (rank(s) < rank(best) ? s : best) : s.roundTrip <= best.roundTrip ? s : best);
+    this.samples.push({ offset: serverNow - (provisional ? received : (sent + received) / 2), roundTrip, received, provisional });
+    // Every short measured sample outranks provisional receipt stamps.
+    const best = this.samples.reduce((best, s) => s.provisional !== best.provisional ? (best.provisional ? s : best) : s.roundTrip <= best.roundTrip ? s : best);
     this.offset = best.offset;
-    if (rank(best) < 2) this.issuedOffset = best.offset;
+    this.issuedOffset = best.offset;
     if (before !== this.offset || issuedBefore !== this.issuedOffset) {
       void this.persist().catch(() => {}); // Device calls/close await the same durable save.
       // Watchers ignore sub-frame noise. A newly eligible issued offset can

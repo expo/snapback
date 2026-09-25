@@ -65,7 +65,11 @@ test('a real held heartbeat poll learns clock advance from its final body', asyn
   const probe = await fetch(f.api + '/probe', { headers }).then(r => r.json());
   let headersReceived;
   const entered = new Promise(resolve => { headersReceived = resolve; });
-  const transport = clock.wrap(async (...args) => { const r = await fetch(...args); headersReceived(); return r; });
+  const transport = clock.wrap(async (...args) => {
+    const r = await fetch(...args);
+    assert.equal(r.headers.get('x-snapback-time'), null, 'streaming time is stamped in the final body, not early headers');
+    headersReceived(); return r;
+  });
   const changes = changeFeed(transport, f.api, aborter.signal, () => {}, () => {});
   const pending = changes(probe.seq, 25, headers, probe.store_id);
   await entered;
@@ -79,18 +83,28 @@ test('a real held heartbeat poll learns clock advance from its final body', asyn
   assert.ok(Math.abs(clock.issuedDeviceNow() - short.data.at) < 1000, 'the following short reply cannot leave a frozen overshoot');
 });
 
-for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares device time and restores offline (${clockOffset})`, async t => {
+for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares device time and restores offline (${clockOffset}${clockOffset === '-31d' ? ', 1500ms startup responses' : ''})`, async t => {
   const f = await devServer({ seed: [], extraSource, clockOffset }); t.after(() => f.close());
   const signed = await guest(f.api); assert.equal(signed.ok, true, JSON.stringify(signed));
   await member(f.api, signed.session.principal);
+  if (clockOffset === '-31d') assert.ok(signed.session.expiresAt < Date.now(), 'wall time alone would falsely expire this valid session');
   const dir = mkdtempSync(join(tmpdir(), 'sb4-native-clock-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const sessions = memorySessionStore(), observed = [];
+  const sessions = memorySessionStore(), observed = [], slowPaths = [];
+  let deletions = 0;
+  const removeSession = sessions.delete;
+  sessions.delete = async key => { deletions++; await removeSession(key); };
   let offline = false, client, failClock = false, closedCores = 0;
   const device = processDevice({ dir, binary: binary() });
   const options = { url: f.api, session: signed.session, sessionStore: sessions, waitSeconds: 1,
     fetch: async (input, init) => {
       if (offline) throw Error('offline');
       if (new URL(input).pathname === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
+      const path = new URL(input).pathname;
+      if (clockOffset === '-31d' && ['/auth/refresh', '/schema'].includes(path)) {
+        // Simulate request/processing latency; the real server stamps after it.
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        slowPaths.push(path);
+      }
       return fetch(input, init);
     },
     device: { async open(...args) {
@@ -104,6 +118,8 @@ for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares devi
   };
   t.after(async () => { await client?.close(); });
   client = await createLocalClient(options);
+  if (clockOffset === '-31d') assert.deepEqual(slowPaths, ['/auth/refresh', '/schema']);
+  assert.equal(deletions, 0, 'valid thirty-day credentials survive slow negative-offset startup');
   offline = true; await client.sync();
   const expected = clockOffset === '+25h' ? 90_000_000 : -31 * 86_400_000;
   assert.ok(Math.abs(client.now() - Date.now() - expected) < 1000);

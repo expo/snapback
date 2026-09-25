@@ -1477,21 +1477,25 @@ HTTP 200 `{ ok: true, store_id, seq }`; clients require both the status and body
 link back to online. The local client checks the identity and head before restoring freshness or resuming a
 long poll.
 
-Responses to `/sync`, `/changes`, `/q/<op>`, `/m/<op>` and session endpoints carry
+Responses to `/sync`, buffered `/changes`, `/q/<op>`, `/m/<op>` and session endpoints carry
 `X-Snapback-Time` (server Unix milliseconds) and `X-Snapback-Clock` (opaque clock epoch
 and revision). Both are exposed to cross-origin clients. Refusals carry them too.
-A streaming `/changes` response additionally stamps `serverNow` and `clockRevision`
-in its final JSON, because its headers may precede a clock advance.
+These headers are stamped after execution, any poll wait, and JSON serialization.
+Streaming `/changes` instead stamps `serverNow` and `clockRevision` in its final
+JSON after the hold. Its early heartbeat headers contain no clock sample, including
+when a transport buffers the entire response.
 
-The client estimates `serverNow - (sent + received) / 2`, using the smallest round
-trip among the latest 32 samples received within 60 seconds; ties use the newest.
+For round trips of at most 1,000 ms, the client estimates
+`serverNow - (sent + received) / 2`. Longer responses use the conservative receipt
+date `serverNow - received` for both estimated server time and issued device time.
+These samples are provisional, as are streaming final-body receipt stamps. Any
+short measured sample outranks them. Within each class the smallest RTT wins,
+with newest ties, among the latest 32 samples received within 60 seconds.
 A server restart or deliberate clock advance begins a new window. Older revisions cannot
 undo an advance. On a new epoch, requests already issued cannot switch the clock to another
-epoch; a newly issued request can. Streaming final stamps are provisional receipt-time
-samples, avoiding half-poll-wait error. Only measured round trips of at most one second
-outrank a provisional stamp. Longer samples can supply estimated server time when no
-short or provisional sample remains, but never change the offset used to issue device
-time. Both offsets start at zero and persist beside store identity, with the issued floor.
+epoch; a newly issued request can. Receipt dating may lag true server time by
+transport latency, but never adds half a hold to the issued floor. The offset
+starts at zero and persists beside store identity, with the issued floor.
 Each admission atomically commits its issued floor with its outbox entry; the floor
 outlives settlement. Startup restores it and any older pending admission times before
 issuing time. Synchronous web journal capture remains unchanged.

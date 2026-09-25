@@ -1,5 +1,5 @@
 //! Held change polls: JSON whitespace heartbeats, followed by one JSON result.
-use super::{JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond_timed, clock_headers};
+use super::{JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond_timed};
 use serde_json::{Value as Json, json};
 use std::io;
 use std::time::{Duration, Instant};
@@ -106,7 +106,9 @@ impl PollResponse<'_> {
         let mut frame = String::new();
         if !self.started {
             frame.push_str("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store, no-transform\r\nX-Accel-Buffering: no\r\nTransfer-Encoding: chunked\r\n");
-            for header in cors(request).into_iter().chain(clock_headers(self.shared)) { frame.push_str(&format!("{header}\r\n")); }
+            // Clock time belongs to the final body, after the hold. A buffering
+            // transport must not mistake early headers for an end stamp.
+            for header in cors(request) { frame.push_str(&format!("{header}\r\n")); }
             frame.push_str("\r\n");
             self.started = true;
         }
@@ -116,7 +118,7 @@ impl PollResponse<'_> {
 
     fn finish(mut self, status: u16, mut body: Json) {
         if !self.started { return respond_timed(self.request.take().unwrap(), self.shared, status, body); }
-        // Headers may predate a development advance while this poll waited.
+        // Stamp after the hold, including any development clock advance.
         let clock = lock(&self.shared.clock);
         body["serverNow"] = json!(clock.now());
         body["clockRevision"] = json!(clock.revision());
@@ -127,7 +129,7 @@ impl PollResponse<'_> {
         if serde_json::to_writer(&mut bytes, &body).is_err() {
             let refusal = snapback4_core::error::Refusal::new("E_BOUND", "bound", "the HTTP JSON response exceeds 16 MiB; request fewer changes").guide("reads");
             bytes.0.clear();
-            serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal) })).unwrap();
+            serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal), "serverNow": body["serverNow"], "clockRevision": body["clockRevision"] })).unwrap();
         }
         let mut frame = format!("{:x}\r\n", bytes.0.len()).into_bytes();
         frame.extend_from_slice(&bytes.0);
