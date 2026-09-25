@@ -193,7 +193,9 @@ fn projection_omissions_are_unknown_only_when_the_transition_needs_them() {
             let predicted=device.predict(op,"alice",&input,1000,vec![],1);
             if transition {assert_eq!(predicted.unwrap_err().code(),"E_PREDICT");}
             else {assert_eq!(predicted.unwrap().predicted.len(),1);}
-            sent(&call(&mut e,op,"alice",input,op));
+            let outcome=call(&mut e,op,"alice",input,op);
+            if transition { refused(&outcome,"E_FIELD_AUTHORITY"); }
+            else { sent(&outcome); }
         }
         host.close("a",device);
     }
@@ -340,10 +342,10 @@ fn combined_transfer_and_private_patch_uses_the_old_owner() {
 
 #[test]
 fn absent_upsert_and_hidden_target_have_indistinguishable_refusals() {
-    for disk in [false, true] {
+    for disk in [false, true] { for insert in [".owner = viewer", "allow"] {
         let mut outcomes = Vec::new();
         for exists in [false, true] {
-            let (memory, backend) = compile(TRANSFER);
+            let (memory, backend) = compile(&TRANSFER.replace("insert <- .owner = viewer", &format!("insert <- {insert}")));
             let host = Sqlite::new("upsert-authority");
             let mut e = if disk { Engine::new(snapback4_core::store::Store::open(&host.path("server")).unwrap(), backend.schema, backend.programs).unwrap() } else { memory };
             if exists { sent(&call(&mut e, "make", "bob", json!({}), "target")); }
@@ -355,7 +357,7 @@ fn absent_upsert_and_hidden_target_have_indistinguishable_refusals() {
         // Compare the original refusal (including detail), not the sanitized receipt.
         assert_eq!(outcomes[0].state, outcomes[1].state);
         assert_eq!(outcomes[0].metered, outcomes[1].metered);
-    }
+    }}
 }
 
 fn held_owned_patch_without_delivery_witness<H: Host>(host: &mut H, online_access: bool) {
@@ -461,10 +463,10 @@ fn group_and_sort_use_null_for_projected_private_keys() {
 }
 
 #[test]
-fn projection_heap_charge_grows_with_private_payload() {
+fn projection_heap_does_not_charge_omitted_private_payload() {
     let source = "table records:\n  owner: principal\n  secret: text <=10000000 default '' written by .owner\n  public\n  sync public\nquery existsRow(id: records):\n  return exists records[id]\n";
     let mut costs = Vec::new();
-    for bytes in [0, 100_000] {
+    for bytes in [0, 10_000_000] {
         let (mut e, _) = compile(source);
         let row = json!({"id":"row","owner":"bob","secret":"s".repeat(bytes)});
         e.seed([("records".into(), wire::row_from_json(&e.schema().tables["records"], &row).unwrap())]).unwrap();
@@ -475,11 +477,11 @@ fn projection_heap_charge_grows_with_private_payload() {
         if bytes > 0 {
             e.set_ceilings(snapback4_core::meter::Ceilings { heap_bytes: 2048, ..Default::default() });
             let cut = e.query("existsRow", ctx()).unwrap();
-            assert!(!cut.complete && cut.data == Value::Null);
-            assert_eq!(cut.capped_at.unwrap().0, snapback4_core::error::MeterKind::HeapBytes);
+            assert!(cut.complete);
+            assert_eq!(cut.data, Value::Bool(true));
         }
     }
-    assert!(costs[1] >= costs[0] + 100_000, "{costs:?}");
+    assert_eq!(costs[0], costs[1], "private size is hidden");
 }
 
 #[test]

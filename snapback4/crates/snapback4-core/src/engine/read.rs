@@ -521,6 +521,7 @@ impl Runner<'_> {
         }
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery and shared by its generated lanes.
         let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        self.private_scan_authority(&scan.table, visibility.uniform, admitted)?;
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             return Ok(None);
@@ -868,6 +869,7 @@ impl Runner<'_> {
         let visibility = if word.is_some_and(|w| w.metered) { rules::Visibility { uniform: true, decided_true: true } }
             else { rules::scan_visibility(self.schema, scan) };
         let always_visible = word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        self.private_scan_authority(&scan.table, visibility.uniform, always_visible)?;
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }

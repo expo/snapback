@@ -128,10 +128,23 @@ still predicts. Ordinary row grants do not add dependencies to such a patch.
 Unknown owner-delivery witnesses also do not prevent that prediction; the
 server decides which owners may receive the committed image.
 Only a named `update (old, next)` transition may use a private field as a
-rule input; ordinary update rules cannot test guesses against it.
+rule input; ordinary update rules cannot test guesses against it. A named
+transition also cannot make an ordinary writer's success depend on another
+owner's private value. Such a test requires ownership (or audience visibility).
+Comparing an untouched private field with itself, such as
+`next.readUpTo = old.readUpTo`, remains available without knowing its value.
+When an ordinary patch retains another owner's private payload, its copy is
+charged at the column's declared bound, so its actual length cannot change the
+writer's meter or exhaustion boundary.
 Private fields cannot supply indexes/cursors, expiry, recorded attribution,
-other rules' probes or aggregate inputs; make the field readable by audience
-before using it there. `check` prints each field's owner and visibility.
+other rules' probes, aggregate inputs, or Following mappings and predicates; make the field readable by audience
+before using it there. This applies to both `view` and `maintain … timeline`.
+Projection copies and meters only the disclosed fields: a private payload's
+size cannot change another reader's result or heap cut. A scan of a table
+with private fields must establish a uniformly readable scope before visiting
+server rows; otherwise it refuses with E_FIELD_AUTHORITY. Pin the audience
+key (for example `[reader = viewer]`) or query the acquired device partition.
+`check` prints each field's owner and visibility.
 
 Clique read marks use this recipe. Add `readable by audience` after
 `written by .principal` when other conversation members should see receipts.
@@ -164,9 +177,9 @@ field is not yours. Name a required principal column on this table, declare a
 default, and omit the field when writing another principal's row. For a private
 field needed in an index or aggregate, append `readable by audience` only when
 that disclosure matches the application. It requires `written by` first.
-An unreadable update target or an absent upsert refused by the insert rule
-keeps `NOT_FOUND`, with the same refusal and meter. Field ownership is checked
-after that insert rule, so callers who can neither read nor insert cannot
-learn whether a hidden row exists. Direct inserts and readable targets retain
+An unreadable update or refused delete target, and an absent upsert refused
+by either insert authority or field ownership, keep `NOT_FOUND` with the same
+refusal and meter. This includes callers whose insert rule allows the row but
+who cannot supply another owner's private field. Direct inserts and readable targets retain
 `E_FIELD_AUTHORITY` with the owner-specific repair. The trusted system
 principal retains its existing rule bypass.

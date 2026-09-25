@@ -49489,3 +49489,83 @@ Final per-item report: /home/ccheever/sb5/lane-b1.r2.final.md.
 No new design scope, diagnostic code, schema/store format, or PostgreSQL
 adapter change. PostgreSQL was not runtime-tested. No push, publication or
 deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 3: the paired-world disclosure instrument
+
+Built and ran the differential harness before repairing production code.
+The core builder takes Quarry, two seeds, a principal and an operation;
+fixed clocks and IDs isolate the hidden input. It compares serialized
+observations: complete write/refusal envelopes and meters, every declared
+query and cursor page, snapshots, full paginated streams and refreshed puts,
+changes and maintenance sequence advances. Timeline/job ticks run to
+quiescence. The device counterpart replays those pages on memory and disk
+SQLite and compares prediction, held rows, queries and watermarks. The final
+set has 65 core runtime pairs, eight refused derivation variants, and 59
+runtime pairs per device store, plus explicit ownership-acquisition and
+negated-delivery-witness regressions. This is a regression instrument, not a
+proof for every possible Quarry program.
+
+The instrument exposed seven defects. Following's private metadata reached
+public feedPosts/feedFeed images, query results and snapshots; validate every
+mapped field and predicate after both timeline spellings lower, requiring
+readable by audience. Allowed-insert absent upserts returned E_FIELD_AUTHORITY
+and different meters from hidden targets; map the absent-arm field refusal
+to the existing NOT_FOUND attempt boundary. Private text size changed query
+heap meters; build only the disclosed map and charge its copy before
+allocation. Non-uniform private-table scans exposed hidden population through
+examined counts; refuse them before visiting rows and require a uniformly
+readable scope, while acquired-device reads and scoped server reads remain
+available. Hidden denied deletes returned E_RULE versus absent NOT_FOUND;
+canonicalize the hidden refusal and restore its meter. Named transitions
+could test another owner's private value to decide an ordinary patch, changing
+success, changes, streams, watermarks and sequence advance; require field
+ownership for value-dependent tests, preserving comparisons of an untouched
+field with itself and the owner's tests. Finally, an ordinary patch retained
+and metered another owner's private text at its actual length; precharge the
+declared column copy bound instead. Owned/supplied values retain actual
+charges. The rules card and LLP 3000.015 record these behavior changes.
+
+The absent-upsert regression now covers insert <- allow on memory and disk
+SQLite engines, comparing the complete original state and every meter field.
+Direct inserts and readable targets retain detailed E_FIELD_AUTHORITY errors.
+Private maintained-column, aggregate and recorded-attribution guards were
+already present; the new admission pairs and audience-readable controls
+exercise them. Following also runs with an unrelated private source field.
+Payload cases include 0/10, empty/10 MB reads, and empty/1 MB retained writes.
+
+Both previously surviving mutations now fail: deleting the acquisition clause
+makes the memory/SQLite device test predict an ownership transfer instead of
+queueing E_PREDICT; deleting && probe.known makes a negated unknown witness
+add an owner partition, moving the prediction step threshold from 12 to 14.
+Both mutations were restored. The negation witness uses an explicitly
+acquired device schema because its server-only negative rule cannot infer a
+sync audience. The existing simulator delete test now expects NOT_FOUND and
+also compares denied-hidden versus absent outcomes. Its 662 observation
+pairs pass across seven ceilings, three expiry states and both device stores.
+The old named-transition device regression now expects server refusal when
+its caller cannot read the private value it tests; its E_PREDICT and independent
+owned-patch assertions remain. Focused Rust checks pass 42/42.
+
+Final wasm: 1,772,188 B raw / 491,024 B gzip, Rust 1.97.0 and wasm-bindgen
+0.2.127, without wasm-opt. Round 2 was 1,765,887 / 489,738: +6,301 raw /
++1,286 gzip for the whole artifact, with no independent per-component byte
+attribution. The prior 490,000 B artifact ratchet is exceeded by 1,024 B;
+raise it to 492,000 B, leaving 976 B, with the same reason in the budget and
+commit message. Runtime meter ceilings are unchanged.
+
+Final blocking result: `== 0 failure(s) in 731 s`. All Rust targets and
+doctests passed; client tests: 1,089 passed, 0 failed, 10 existing skips.
+The suite rebuilt and confirmed the same final wasm size. `git diff --check`
+passes.
+The first complete run ended `== 1 failure(s) in 723 s` on the obsolete
+hidden-delete assertion; its clients passed 1,089 with zero failures and 10
+existing skips. The final run includes that corrected assertion and all seven
+repairs. FORCE_COLOR is unset, Node is 24.18.0, client files run in the existing
+serial mode, with eight Rust test processes and eight build jobs. Logs and
+process identities: target/b1-r3-suite-final.log and
+target/b1-r3-suite-final-processes.jsonl. Original differential failures:
+target/b1-r3-harness-before-all.log, target/b1-r3-transition-before.log and
+target/b1-r3-patch-before.log. Mutation evidence: target/b1-r3-mutations.log.
+Report: /home/ccheever/sb5/lane-b1.r3.final.md. No PostgreSQL runtime test,
+adapter change, stored-format change, new diagnostic code, push, publication
+or deployment.

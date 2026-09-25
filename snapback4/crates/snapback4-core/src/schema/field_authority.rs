@@ -16,15 +16,27 @@ impl Table {
 
     /// A missing viewer denotes a shared audience image. No defaults are
     /// materialized here: callers project only after interpreting the row.
-    pub fn project_fields(&self, mut row: Value, viewer: Option<&str>) -> Value {
+    pub fn project_fields(&self, row: Value, viewer: Option<&str>) -> Value {
         if self.written_by.is_empty() { return row; }
         let hidden: Vec<_> = self.written_by.iter().filter(|(field, authority)| row.field(field).is_ok() && !authority.audience
             && !viewer.is_some_and(|viewer| row.field(&authority.owner).is_ok_and(|value| value == &Value::Id(viewer.into()))))
             .map(|(field, _)| field.clone()).collect();
-        if let Value::Row(fields) | Value::Map(fields) = &mut row {
-            for field in hidden { fields.remove(&field); }
+        if hidden.is_empty() { return row; }
+        // Build only the disclosed image. Removing from a shared map first
+        // would clone every hidden payload and expose its size through meters.
+        match row {
+            Value::Row(fields) => Value::Row(fields.iter().filter(|(key,_)| !hidden.contains(key)).map(|(key,value)|(key.clone(),value.clone())).collect()),
+            Value::Map(fields) => Value::Map(fields.iter().filter(|(key,_)| !hidden.contains(key)).map(|(key,value)|(key.clone(),value.clone())).collect()),
+            other => other,
         }
-        row
+    }
+
+    pub fn projection_heap(&self, row: &Value, viewer: &str) -> u64 {
+        let hidden = |field: &str| self.written_by.get(field).is_some_and(|a| !a.audience
+            && row.field(&a.owner).ok() != Some(&Value::Id(viewer.into())));
+        let Ok(fields)=row.as_object() else { return 0; };
+        if !fields.keys().any(|field|hidden(field)) { return 0; }
+        40 + fields.iter().filter(|(field,_)| !hidden(field)).map(|(field,value)|80 + field.len() as u64 + value.clone_heap_bytes()).sum::<u64>()
     }
 
     pub fn field_owners(&self, row: &Value) -> BTreeSet<String> {
@@ -52,6 +64,16 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             if authority.audience { continue; }
             if table.indexes.values().any(|index| index.uses_column(field)) || table.expire.as_ref() == Some(field) {
                 issue(name, field, "is private and cannot supply an index/cursor or lifetime; declare readable by audience to use it there".into());
+            }
+            for timeline in &schema.timelines {
+                let mut dependencies = BTreeSet::new();
+                for mapping in [&timeline.authors[..], &timeline.posts[..], &timeline.reposts[..], &timeline.edges[..]] {
+                    if mapping[0] == *name { dependencies.extend(mapping[1..].iter().cloned()); }
+                }
+                if timeline.posts[0] == *name && let Some(filter) = &timeline.filter { filter.fields(&mut dependencies); }
+                if dependencies.contains(field) {
+                    issue(name, field, "is private and cannot supply a timeline mapping or predicate; declare readable by audience first".into());
+                }
             }
             for maintain in &schema.maintains {
                 if maintain.source == *name && maintain.dependencies().contains(field) {
@@ -94,6 +116,19 @@ fn private_rule(schema: &Schema, name: &str, rule: &RuleExpr, update: bool, issu
 }
 
 impl RuleExpr {
+    /// Comparing an untouched field with itself needs no knowledge of its
+    /// value. Every other use (including a probe key) requires field visibility.
+    pub fn needs_field_value(&self, field: &str) -> bool {
+        let term = |term: &RuleTerm| matches!(term, RuleTerm::Field(name) | RuleTerm::OldField(name) | RuleTerm::NextField(name) if name == field);
+        match self {
+            Self::Eq(a,b) | Self::Ne(a,b) | Self::Compare(_,a,b) => term(a) != term(b),
+            Self::And(items) | Self::Or(items) => items.iter().any(|rule|rule.needs_field_value(field)),
+            Self::Not(inner) => inner.needs_field_value(field),
+            Self::Exists { key, equalities, .. } | Self::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_,value)|value)).any(term),
+            _ => false,
+        }
+    }
+
     pub fn references_field(&self, field: &str) -> bool {
         let term = |term: &RuleTerm| matches!(term, RuleTerm::Field(name) | RuleTerm::OldField(name) | RuleTerm::NextField(name) if name == field);
         match self {

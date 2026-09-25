@@ -100,7 +100,7 @@ impl Runner<'_> {
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
         let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
         let patch = self.ignore_hidden_immutable_patch(table_name, patch, readable)?;
-        let new = self.merge_patch(&old, &patch)?;
+        let new = self.merge_patch(table_name, &old, &patch)?;
         self.replace(table_name, old, new, readable, &patch)
     }
 
@@ -121,7 +121,7 @@ impl Runner<'_> {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
-                let new = self.merge_patch(&old, &row)?;
+                let new = self.merge_patch(table_name, &old, &row)?;
                 self.replace(table_name, old, new, readable, &row)
             }
             None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
@@ -136,7 +136,7 @@ impl Runner<'_> {
         let row = self.with_defaults(table_name, row)?;
         // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
         if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
-        self.authorize_fields(table_name, &row, &supplied)?;
+        self.authorize_fields(table_name, &row, &supplied).map_err(|_| self.no_write_target())?;
         if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
         // An incomplete insert patch has the same word as a refused hidden target.
         if let Err(error) = validate_row(self.schema, table_name, &row) {
@@ -184,7 +184,9 @@ impl Runner<'_> {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
-            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete });
+            return Err(if self.check_rule(table_name, Effect::Read, None, &old)? {
+                RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete }
+            } else { self.no_write_target() });
         }
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, &old))?;

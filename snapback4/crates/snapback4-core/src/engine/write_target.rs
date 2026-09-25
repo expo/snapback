@@ -42,10 +42,16 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(super) fn merge_patch(&mut self, old: &Value, patch: &Value) -> Result<Value, RuntimeError> {
+    pub(super) fn merge_patch(&mut self, table: &str, old: &Value, patch: &Value) -> Result<Value, RuntimeError> {
         let mut bytes = 40_u64;
         for (key, value) in old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter()) {
-            bytes = bytes.saturating_add(80 + key.len() as u64 + value.clone_heap_bytes());
+            // Retaining another owner's field copies it, but its actual size
+            // must not become the ordinary writer's heap receipt or cut.
+            let definition = &self.schema.tables[table];
+            let hidden = !self.context.is_system() && !patch.as_object()?.contains_key(key)
+                && definition.written_by.get(key).is_some_and(|a| !a.audience && old.field(&a.owner).ok() != Some(&Value::Id(self.context.viewer.clone())));
+            let copy = if hidden { column_copy_ceiling(&definition.columns[key]) } else { value.clone_heap_bytes() };
+            bytes = bytes.saturating_add(80 + key.len() as u64 + copy);
         }
         self.meter.heap(bytes)?;
         let fields = old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter())
@@ -142,7 +148,7 @@ impl Runner<'_> {
             let readable = self.check_rule(&target.table, Effect::Read, None, &old)?;
             let patch = self.ignore_hidden_immutable_patch(&target.table, patch, readable)?;
             let id = old.field("id")?.clone();
-            let new = self.merge_patch(&old, &patch)?;
+            let new = self.merge_patch(&target.table, &old, &patch)?;
             // The old image is used only in this isolated condition scope, after update authority.
             self.authorize_update_fields(&target.table, &old, &new, &patch, readable)?;
             if let Some(condition) = condition {

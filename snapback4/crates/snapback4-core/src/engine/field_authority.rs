@@ -58,6 +58,12 @@ impl Runner<'_> {
                 || next.field(&authority.owner).ok() == Some(&Value::Id(self.context.viewer.clone())))) {
             return Err(RuntimeError::Prediction(format!("{table}: this transition needs another principal's private field; queue it for the server (guide rules)")));
         }
+        // @ref LLP 3000.015#1 — a named transition is not permission to test guesses against someone else's private value.
+        if !self.context.is_system() && let Some((field, authority)) = definition.written_by.iter().find(|(field, authority)|
+            !authority.audience && old.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone()))
+            && definition.rules.update.needs_field_value(field)) {
+            return Err(if readable { RuntimeError::Structural { code: "E_FIELD_AUTHORITY", message: format!("{table}.{field}: this transition needs the private value written by .{}; write as that owner or declare readable by audience (guide rules)", authority.owner) } } else { self.no_write_target() });
+        }
         let transition = self.schema.tables[table].update_transition;
         if (!owned_only || transition) && !self.check_rule(table, Effect::Update, Some(old), next)? {
             return Err(if readable { RuntimeError::Rule { table: table.into(), effect: Effect::Update } } else { self.no_write_target() });
@@ -67,14 +73,20 @@ impl Runner<'_> {
 
     pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<Value, RuntimeError> {
         let definition = &self.schema.tables[table];
-        if !self.context.is_system() && definition.written_by.iter().any(|(field, authority)| row.field(field).is_ok() && !authority.audience
-            && row.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone()))) {
-            // Charge the unprojected payload and reserve the map's copy before
-            // removal invokes Arc::make_mut. A shared row's Clone costs zero,
-            // but mutating its map can copy every field, including private text.
-            self.meter.heap(row.heap_bytes())?;
+        // @ref LLP 3000.015#1 — private payload size is not an observable meter input.
+        let row = if self.context.is_system() { row } else {
+            self.meter.heap(definition.projection_heap(&row, &self.context.viewer))?;
+            definition.project_fields(row, Some(&self.context.viewer))
+        };
+        Ok(super::recorded::public_image(definition, row))
+    }
+
+    pub(super) fn private_scan_authority(&self, table: &str, uniform: bool, admitted: bool) -> Result<(), RuntimeError> {
+        // A bounded hidden-row walk exposes population through both its meter
+        // and its cut. Require a readable scope before walking protected rows.
+        if !uniform && !admitted && self.schema.tables[table].written_by.values().any(|a| !a.audience) {
+            return Err(RuntimeError::Structural { code: "E_FIELD_AUTHORITY", message: format!("{table}: scope this read to a uniformly readable audience before scanning rows with private fields (guide rules)") });
         }
-        let row = super::recorded::public_image(definition, row);
-        Ok(if self.context.is_system() { row } else { definition.project_fields(row, Some(&self.context.viewer)) })
+        Ok(())
     }
 }
