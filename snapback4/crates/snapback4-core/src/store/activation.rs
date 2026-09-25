@@ -107,7 +107,8 @@ impl Store {
             for (name, table) in &schema.tables {
                 let t = catalog[name];
                 for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
-                walk_metered(&tx, t, |id, mut row, contribution_meter| {
+                let has_contributions = table.indexes.values().any(|index| matches!(index.components.first(), Some(crate::schema::IndexComponent::Contribution(_))));
+                walk_metered(&tx, t, |row| if has_contributions { crate::rows::adoption::contribution_bytes(row, table) } else { 0 }, |id, mut row, contribution_meter| {
                     let original = row.clone();
                     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
                     // Persist only a destructive projection. Defaults and
@@ -128,7 +129,7 @@ impl Store {
                             contribution_meter.at(&format!("adopt {name}.{index_name}"));
                             contribution_meter.charge(crate::error::MeterKind::Examined, 1)?;
                             contribution_meter.step(m.evaluation_steps())?;
-                            contribution_meter.heap(row.heap_bytes().saturating_mul(4).saturating_add(4096))?;
+                            contribution_meter.heap(crate::rows::adoption::contribution_bytes(&row, table))?;
                         }
                         for key in index_keys(index, &row, id) {
                             if contribution.is_some() && key.len() > crate::rows::MAX_INDEX_KEY_BYTES {

@@ -8,6 +8,8 @@
 #[path = "engine/word_heap.rs"]
 pub mod word_heap;
 pub mod caps;
+#[cfg(any(feature = "sqlite", feature = "postgres"))]
+pub(crate) mod adoption;
 
 use crate::assets::Asset;
 use crate::error::RuntimeError;

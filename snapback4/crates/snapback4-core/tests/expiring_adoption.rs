@@ -77,6 +77,34 @@ fn legacy_expiry_cap_uses_a_plain_index() {
 }
 
 #[test]
+fn fitting_large_rows_adopt_without_retrying_the_same_oversized_page() {
+    // The 1280 KiB case still needs a smaller page after fixing the stacked
+    // decoder charge; five 512 KiB images alone no longer exercise that cut.
+    for (count, bytes) in [(1, 1_000_000), (1, 1 << 20), (5, 512 << 10), (5, 1280 << 10)] {
+        let (mut legacy, mut modern) = schemas("");
+        for schema in [&mut legacy, &mut modern] {
+            schema.tables.get_mut("receipts").unwrap().columns.insert("payload".into(),
+                snapback4_core::schema::ColumnType::Text { max: 2 << 20 });
+        }
+        let mut store = Store::memory().unwrap();
+        store.install(&legacy).unwrap();
+        seed(&mut store, &legacy, count, bytes);
+        PEAK.with(|p| p.set(0));
+        LIVE.with(|live| live.set(Some(0)));
+        let result = store.install(&modern);
+        LIVE.with(|live| live.set(None));
+        let peak = PEAK.with(Cell::get) as u64;
+        assert!(result.is_ok(), "rows={count} payload={bytes}: {result:?}");
+        assert!(peak <= Ceilings::job().heap_bytes, "peak Rust allocation {peak} exceeds the job heap");
+        assert_eq!(store.rows("receipts").unwrap().len(), count);
+        let before = stored_digest(&store);
+        store.install(&modern).unwrap();
+        assert_eq!(stored_digest(&store), before, "successful adoption does not retry");
+        println!("ADOPTION rows={count} payload={bytes} peak_rust_bytes={peak} ceiling={}", Ceilings::job().heap_bytes);
+    }
+}
+
+#[test]
 fn large_legacy_pages_stay_inside_the_job_heap() {
     let (legacy, modern) = schemas("");
     let mut store = Store::memory().unwrap();
