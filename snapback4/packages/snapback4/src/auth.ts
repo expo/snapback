@@ -11,16 +11,16 @@ export type { Session, SignIn, SessionRevocation } from "./contract.ts";
 
 const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
 const refused = (message: string): Refusal => ({ code: "E_AUTH", family: "auth", message });
-const isSession = (value: unknown): value is Session => {
+const isSession = (value: unknown, now = Date.now()): value is Session => {
   const found = value as Partial<Session> | null;
-  return Boolean(found && typeof found.principal === "string" && found.principal.length > 0 && typeof found.kind === "string" && typeof found.token === "string" && found.token.length > 0 && typeof found.expiresAt === "number" && Number.isFinite(found.expiresAt) && found.expiresAt > Date.now());
+  return Boolean(found && typeof found.principal === "string" && found.principal.length > 0 && typeof found.kind === "string" && typeof found.token === "string" && found.token.length > 0 && typeof found.expiresAt === "number" && Number.isFinite(found.expiresAt) && found.expiresAt > now);
 };
 
 async function post(url: string, path: string, body: unknown, doFetch: typeof fetch): Promise<SignIn> {
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const json = (await response.json()) as { session?: Session; denied?: Refusal };
-    if (response.ok && isSession(json.session)) return { ok: true, session: json.session };
+    if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
     return { ok: false, why: json.denied ?? refused("sign-in was refused") };
   } catch {
     return { ok: false, why: offline() };
@@ -47,7 +47,7 @@ export async function refreshSession(url: string, token: string, doFetch: typeof
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
     const json = (await response.json()) as { session?: Session; denied?: Refusal };
-    if (response.ok && isSession(json.session)) return { ok: true, session: json.session };
+    if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
     return { ok: false, why: json.denied ?? refused("session refresh was refused") };
   } catch {
     return { ok: false, why: offline() };
@@ -102,13 +102,13 @@ export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "se
 export const sessionKey = (url: string) => storeKey("session", url.replace(/\/$/, ""));
 
 /** The session kept for a server, if it has not expired. */
-export async function restoreSession(url: string, store: SessionStore = defaultSessionStore): Promise<Session | null> {
+export async function restoreSession(url: string, store: SessionStore = defaultSessionStore, now: () => number = Date.now): Promise<Session | null> {
   const key = sessionKey(url);
   const raw = await store.get(key);
   if (!raw || logoutEpoch(raw) !== null) return null;
   try {
     const session = JSON.parse(raw) as Session;
-    if (isSession(session)) return session;
+    if (isSession(session, now())) return session;
   } catch { /* Invalid JSON follows the same cleanup path as an expired session. */ }
   // A store may condition cleanup on the exact bytes returned by get. Let a
   // changed-snapshot or storage failure propagate instead of deleting twice.

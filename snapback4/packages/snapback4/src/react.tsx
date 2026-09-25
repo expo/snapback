@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot } from "./app.ts";
+import { onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
 
 const ClientContext = createContext<Client | null>(null);
@@ -38,6 +39,25 @@ export function useClient(): Client {
   const client = useContext(ClientContext);
   if (!client) throw new Error("useClient: no <AppProvider> or <SnapbackProvider> above this component");
   return client;
+}
+
+/** Server time for a render deadline. Re-render at that deadline and whenever
+ * the estimate changes; held device queries already publish their own expiry. */
+export function useNow(deadline: number | null = null): number {
+  const client = useClient();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      const remaining = deadline === null ? 0 : deadline - client.now();
+      if (remaining > 0) timer = setTimeout(() => { tick(n => n + 1); schedule(); }, Math.min(remaining, 2_147_483_647));
+    };
+    const stop = onClock(client.now, () => { tick(n => n + 1); schedule(); });
+    schedule();
+    return () => { stop(); clearTimeout(timer); };
+  }, [client, deadline]);
+  return client.now();
 }
 
 const LOADING: Read<never> = { loading: true };

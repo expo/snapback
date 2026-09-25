@@ -4,6 +4,7 @@
 // app flips. Its only job is to let the reference application be written
 // against the card before the mechanism exists. Nothing here is measured.
 
+import { ServerClock } from "./clock.ts";
 import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { WriteHistory } from "./writes.ts";
 
@@ -94,6 +95,7 @@ export function createMockClient(options: MockOptions): MockClient {
   }
 
   const client: MockClient = {
+    now: new ServerClock().now,
     async act(op, args, options_) {
       const id = options_?.id ?? mockId();
       if (link !== "online") return { denied: { code: link === "offline" ? "E_OFFLINE" : "E_AUTH", family: link === "offline" ? "link" : "auth", message: "an action needs an online signed-in client", retryable: link === "offline" }, id };

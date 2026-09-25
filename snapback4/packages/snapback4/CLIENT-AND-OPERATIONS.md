@@ -600,27 +600,26 @@ If the server cannot answer the query, declare `query … held:` to answer
 from the device; the server refuses it with E_QUERY_HELD (see the search card).
 A complete empty page has `cut: null` and `complete: true`.
 
-A typing indicator or presence row with a short deadline needs a local
-filter. This is an application table, separate from the server's `connected[p]`.
-That server-decided connection signal has no `expiresAt`.
-A row already returned stays in that answer until the next answer;
-the server will not return it again after expiry, but does not push a removal
-at that instant. Select `expiresAt` with the row (`guide reads` has a complete
-typing table and query). Pass the ready typing rows to `showExpiringRows` and
-render their principals as typing. It renders now and schedules a render at
-each deadline, without waiting for a server answer.
-The local client reschedules its watch at `Read.nextExpiry`; keep the render
-filter so the row hides at its deadline rather than at the refetch.
-Call the returned cleanup before replacing the answer or unmounting.
-This example is for short-lived rows; JavaScript timer scheduling applies.
+Held device observations republish at `nextExpiry`, including offline, so render their
+ready rows directly. The browser witness measured publication within a frame; suspended
+pages still depend on host timer scheduling. Only server-answered reads need a render-deadline
+filter while the next network answer is pending. Return `expiresAt` with each row
+(`guide reads` has the typing table and query). This is an application table, separate
+from the server's `connected[p]`, which has no `expiresAt`.
+
+`client.now()` returns estimated server Unix milliseconds, monotonically. In React,
+`useNow(deadline)` returns that time and re-renders at the deadline and when the estimate
+changes. Pass the next future row deadline; `null` means no timer. Cleanup is automatic:
 
 ```ts
-function showExpiringRows<T extends { expiresAt: number | null }>(rows: T[], render: (rows: T[]) => void) {
-  const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));
-  paint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);
-  return () => timers.forEach(clearTimeout);
-}
+import { useClient, useNow } from "snapback4/react";
+const client = useClient();
+const deadline = Math.min(...rows.flatMap(row => row.expiresAt !== null && row.expiresAt > client.now() ? [row.expiresAt] : []));
+const now = useNow(Number.isFinite(deadline) ? deadline : null);
+const visibleRows = rows.filter(row => row.expiresAt === null || row.expiresAt > now);
 ```
+
+Render `visibleRows`. A null expiry never expires.
 
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,
@@ -1357,8 +1356,10 @@ step.
   `h`, `d` or `w`, optionally prefixed `+`; the startup offset alone may be negative. Mutations at `POST
   /m/<op>` stamp `now` from this dev clock. The dev clock keeps ticking monotonically and cannot advance
   backwards. Its offset resets on process restart; supply it again to continue a test. Rows stamped under an
-  offset keep their times after restart; use a fresh store per offset test. Devices receive the ordinary sync
-  deletion and row timestamps, and keep their own local clocks. `serve` refuses every clock control with
+  offset keep their times after restart; use a fresh store per offset test.
+  Devices keep the server's time for predictions, reads and expiry, including offline starts.
+  `clock advance` and `--clock-offset` reach connected devices at their next response.
+  `serve` refuses every clock control with
   `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`. Scripts may call the same
   loopback-only dev endpoint, `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the
   recipe.
@@ -1469,7 +1470,26 @@ kind }], tables: [{ name, sync }] }`); `GET /api.ts` the generated TypeScript; `
 backend; `GET /native.wasm` the native module when the backend has one. Authenticated `GET /probe` answers
 HTTP 200 `{ ok: true, store_id, seq }`; clients require both the status and body before changing an offline
 link back to online. The local client checks the identity and head before restoring freshness or resuming a
-long poll. `POST /q/<op>` with `{ "args": {..} }` answers `{ data, complete, cut, seq, next, nextExpiry,
+long poll.
+
+Responses to `/sync`, `/changes`, `/q/<op>`, `/m/<op>` and session endpoints carry
+`X-Snapback-Time` (server Unix milliseconds) and `X-Snapback-Clock` (opaque clock epoch
+and revision). Both are exposed to cross-origin clients. Refusals carry them too.
+A streaming `/changes` response additionally stamps `serverNow` and `clockRevision`
+in its final JSON, because its headers may precede a clock advance.
+
+The client estimates `serverNow - (sent + received) / 2`, using the smallest round
+trip among the latest 32 samples received within 60 seconds; ties use the newest.
+A server restart or deliberate clock advance begins a new window. Late replies from
+an older revision cannot undo an advance. Streaming final stamps use the whole poll's
+round trip; short responses refine their larger timing uncertainty. The offset is zero
+before a first estimate and persists as device metadata beside store identity, along
+with the issued time floor, for offline starts. `client.now()` rounds to integer
+milliseconds and never goes backward when an estimate shrinks. Local predictions,
+queries, expiry and asset homes use this clock. A confirmed row always carries the
+server's settlement time; the server never adopts a submitted client clock.
+
+`POST /q/<op>` with `{ "args": {..} }` answers `{ data, complete, cut, seq, next, nextExpiry,
 tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry the visible read encountered, or
 null. `POST /m/<op>` with `{ "id", "args", "newIds" }` answers `{ state: "sent", id, seq, result }` on fresh
 success, `{ state: "sent", id, seq, replayed: true }` on replay, or `{ state: "failed", id, why, current? }`

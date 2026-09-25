@@ -110,7 +110,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
 const harness = `
 import { StrictMode, act, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset } from "snapback4/react";
+import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession } from "snapback4/auth";
@@ -201,6 +201,27 @@ async function submit() {
 }
 
 const cases = {
+  async "useNow hides a server-answered row at its deadline and after a clock advance"() {
+    let offset = 90000000, revision = 0;
+    const client = createClient({ url: "https://clock.invalid", persona: "alice", fetch: async (input, init) => {
+      if (String(input).includes("/changes")) return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+      return Response.json({ ok: true, data: [], tables: [], seq: 0, store_id: "clock-react" }, { headers: {
+        "x-snapback-time": String(Date.now() + offset), "x-snapback-clock": "react:" + revision,
+      } });
+    } });
+    await client.query(query, {});
+    function Deadline({ at }) { return h("span", null, useNow(at) < at ? "visible" : "expired"); }
+    await mount(h(Deadline, { at: client.now() + 100 }), client);
+    equal(host.textContent, "visible", "the server-clock deadline begins live");
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)); });
+    equal(host.textContent, "expired", "the hook owns the deadline render");
+    await render(h(Deadline, { at: client.now() + 120000 }), client);
+    equal(host.textContent, "visible", "new server answer begins live");
+    offset += 120000; revision++;
+    await act(async () => { await client.query(query, {}); });
+    equal(host.textContent, "expired", "clock advance repaints without another row answer");
+    await unmount(); await client.close();
+  },
   async "AppProvider switches real clients, resets account state and routes existing mutation/query hooks"() {
     const seen = [];
     const app = createApp({ url: "https://app.invalid", sessionStore: memorySessionStore(), fetch: async (url, init) => {

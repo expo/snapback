@@ -218,8 +218,8 @@ pending work, so do not blindly repeat the advance. The offset belongs to
 this process and resets on restart; supply it again when continuing a test.
 Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
 An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
-Clients receive ordinary row times, nextExpiry and sync deletions; their
-own clocks and the application wire do not change.
+Devices keep the server's time for predictions, reads and expiry, including offline starts.
+`clock advance` and `--clock-offset` reach connected devices at their next response.
 
 `snapback4 run <op> --now 1789352669447` pins just that local invocation
 (query, mutation or job) to Unix milliseconds; `--now +25h` pins it relative

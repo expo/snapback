@@ -164,6 +164,8 @@ export type AssetRead =
 
 /** The whole client, as a screen sees it. Everything else is `why`. */
 export interface Client {
+  /** Estimated server Unix milliseconds; never goes backward on this device. */
+  now(): number;
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
   /** Retry-safe intents: pass { id } to reuse the original write. A client

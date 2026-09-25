@@ -1,3 +1,4 @@
+import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
 import { createClient } from "./client.ts";
@@ -68,7 +69,8 @@ export function createApp(options: AppOptions): App {
       site: "app.assets", rewrite: 'createApp({ url, device, assets: { keep: "viewed", maxBytes: 67108864 } })' });
   }
   const url = options.url.replace(/\/$/, "");
-  const fetcher = options.fetch ?? defaultFetch;
+  const clock = serverClock(options.fetch ?? defaultFetch);
+  const fetcher = clock.wrap(options.fetch ?? defaultFetch);
   const backing = options.sessionStore ?? memorySessionStore();
   const storage: SessionStore = { set: (key, value) => backing.set(key, value), delete: key => backing.delete(key), async get(key) {
     const bytes = await backing.get(key);
@@ -180,7 +182,7 @@ export function createApp(options: AppOptions): App {
         else await storage.delete(key);
       })),
     };
-    const session = await restoreSession(url, restoringStore);
+    const session = await restoreSession(url, restoringStore, options.device ? () => 0 : clock.now);
     return { session, epoch };
   }
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
@@ -420,11 +422,11 @@ export function createApp(options: AppOptions): App {
         // Preserve all local tuning while retaining app-owned identity, even
         // when an untyped caller supplies lower-level sign-in options.
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
-        const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch };
+        const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: clock.wrap(scopedFetch) };
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
         raw = local.client; startClient = local.start;
       } else {
-        const prepared = { url, session, fetch: scopedFetch, onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
+        const prepared = { url, session, fetch: clock.wrap(scopedFetch), onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
         const online = await prepareClient(prepared, () => createClient(prepared));
         raw = online.client; startClient = online.start;
       }
