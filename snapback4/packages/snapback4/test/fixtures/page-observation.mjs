@@ -8,15 +8,17 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
   const q = name => ({ kind: "query", name }), m = name => ({ kind: "mutation", name });
   const apps = [], watches = [], replies = [], requests = [];
   const expiryArmed = new Set();
-  let offline = false, holdWrite = false, holdInbox = false, releaseInbox, inboxGate, unmount;
+  let offline = false, holdWrite = false, holdInbox = false, releaseInbox, releaseWrite, inboxGate, unmount;
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname.split("/").slice(-2).join("/");
     requests.push(path);
     if (offline) throw Error("controlled offline link");
-    if (holdWrite && path === "m/resetRead") await new Promise((_, reject) => {
+    if (holdWrite && path === "m/resetRead") await new Promise((resolve, reject) => {
+      releaseWrite = resolve;
       if (init.signal?.aborted) reject(Error("closed"));
       else init.signal?.addEventListener("abort", () => reject(Error("closed")), { once: true });
     });
+    if (offline) throw Error("controlled offline link after pending send");
     if (holdInbox && path === "q/inbox") await inboxGate;
     const response = await fetch(input, init);
     // Schedule one rerun per observation without committing device rows. The
@@ -75,14 +77,19 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     check(inbox.getSnapshot().loading, "every local prediction clears the courtesy answer immediately");
     if (hooks) await until(() => hooks.read().query.loading && hooks.read().page.read.loading, "commit clears both hooks");
     const pendingBefore = requests.filter(path => path === "q/inbox").length;
-    const direct = reader.client.query(q("inbox"), {});
-    await until(() => requests.filter(path => path === "q/inbox").length > pendingBefore, "fallback starts despite pending write");
+    // LLP 3000.016: an unobserved resetRead writes a table the inbox reads.
+    // Neither a new fallback nor the already pending response may replace it.
+    const pendingPublications = snapshots.length, pendingReplies = replies.length;
+    const direct = await reader.client.query(q("inbox"), {});
+    check(direct.loading, "pending prediction withholds the unavailable total");
+    check(requests.filter(path => path === "q/inbox").length === pendingBefore, "prediction fence prevents fallback dispatch");
     holdInbox = false; releaseInbox();
-    check((await direct).data?.[0]?.unread === 3, "server answers despite pending prediction");
-    await until(() => inbox.getSnapshot().fresh === true, "server answer replaces kept inbox");
+    await until(() => replies.length > pendingReplies && inbox.getSnapshot().loading, "withheld rerun after old response");
+    check(snapshots.slice(pendingPublications).every(read => !("data" in read)), "no old server answer replaces the prediction");
     offline = true;
-    await reader.client.query(q("ping"), {});
-    check(reader.client.link() === "offline", "link disconnected");
+    // A fenced server-only ping cannot probe the link. Fail the actual send.
+    await until(() => releaseWrite, "pending send entered"); releaseWrite();
+    await until(() => reader.client.link() === "offline", "link disconnected");
     const rawBefore = replies.length;
     await reader.mutate(m("resetRead"), { chat: dm.result });
     await until(() => replies.slice(rawBefore).some(row => row.name === "inbox" && row.reply.ok?.loading), "unavailable offline rerun");
@@ -105,7 +112,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     if (hooks) check(hooks.read().page.items.every(row => row.principal === bob.session.principal), "pages contain only the new account's rows");
     return { keptUnread: kept.data[0].unread, since: kept.since, serverFallback: true, accountCleared: true };
   } finally {
-    releaseInbox?.();
+    releaseInbox?.(); releaseWrite?.();
     await unmount?.();
     for (const watch of watches) watch.close();
     await Promise.all(apps.map(app => app.close()));

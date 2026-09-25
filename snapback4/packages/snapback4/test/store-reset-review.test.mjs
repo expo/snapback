@@ -391,7 +391,7 @@ test("finding 2: changes observation drops freshness while a mutation holds the 
   const read = await f.client.query(thread, args);
   const during = f.stats().syncStarts;
   barrier.resolve(); await write;
-  assert.ok(read.data === "B" || read.fresh === false, "A cannot be fresh after /changes identified B; a current server answer is allowed");
+  assert.deepEqual(read, { loading: true }, "a reset cannot replace an unobserved prediction with either store’s server answer");
   assert.equal(before, during, "the assertion runs before queued sync can start");
 });
 

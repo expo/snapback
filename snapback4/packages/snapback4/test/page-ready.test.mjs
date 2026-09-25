@@ -38,23 +38,25 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   host.stdout.on("data", bytes => { log += bytes; }); host.stderr.on("data", bytes => { log += bytes; });
   let app, bob;
   t.after(async () => {
-    await app?.close(); await bob?.close();
+    releaseWrite?.(); await app?.close(); await bob?.close();
     if (host.exitCode === null && host.signalCode === null) host.kill("SIGTERM");
     await exited; rmSync(dir, { recursive: true, force: true });
   });
   const url = await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "server");
-  let offline = false, holdSync = false, holdWrite = false;
+  let offline = false, holdSync = false, holdWrite = false, releaseWrite;
   const replies = [], requests = [];
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname;
     requests.push(path);
     if (offline || (holdSync && path === "/sync")) throw Error("controlled offline link");
     if (holdWrite && path === "/m/saveProfile") {
-      await new Promise((_, reject) => {
+      await new Promise((resolve, reject) => {
+        releaseWrite = resolve;
         if (init.signal?.aborted) reject(Error("closed"));
         else init.signal?.addEventListener("abort", () => reject(Error("closed")), { once: true });
       });
     }
+    if (offline) throw Error("controlled offline link after pending send");
     return fetch(input, init);
   };
   let underlying = processDevice({ dir: join(dir, "device"), binary });
@@ -118,8 +120,10 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   assert.equal(app.client.link(), "online");
   assert.ok(requests.filter(path => path === "/q/inbox").length > before, "unavailable predictions do not block server fallback");
   offline = true;
-  await app.client.query(query("ping"), {});
-  assert.equal(app.client.link(), "offline");
+  // An unexecuted server-only ping has all possible tables and is fenced.
+  // Fail the pending transport itself to establish that the link is offline.
+  await until(() => releaseWrite, "pending profile send entered"); releaseWrite();
+  await until(() => app.client.link() === "offline", "pending send observed offline");
   const disconnected = listRead(await app.client.query(query("inbox"), {}));
   assert.ok(!("data" in disconnected), "an offline read cannot publish the unavailable total either");
   for (const read of snapshots) listRead(read);
