@@ -119,6 +119,8 @@ test('web held typing: deadline republishes locally and clock advance expires on
     await page.waitForFunction(n => window.expiries.length > n, n);
   }
   const delays = await page.evaluate(() => window.expiries.map(e => e.at - e.deadline));
+  // Real host latency is measured here. server-clock-regressions.test.mjs
+  // enforces publication within 16.7ms under controlled timer delivery.
   assert.ok(delays.every(ms => ms >= 0 && ms <= 1000), JSON.stringify(delays));
   t.diagnostic(`held answer deadline lateness (ms): ${delays.join(', ')}; within 16.7ms frame: ${delays.every(ms => ms <= 16.7)}`);
   await page.evaluate(async () => {
@@ -133,4 +135,51 @@ test('web held typing: deadline republishes locally and clock advance expires on
   await page.waitForFunction(() => window.watch.getSnapshot().data?.length === 0);
   assert.ok(Date.now() - before < 3000, 'must not wait two minutes of device time');
   await page.evaluate(async () => { window.watch.close(); await window.client.close(); });
+});
+
+test('web crash recovery restores admission time before issuing time after wall-clock rollback', { timeout: 60_000 }, async t => {
+  const f = await launch({ extraSource, seed: [
+    { table: 'conversations', row: { id: 'room', title: 'Clock', creatorId: 'dev:alice' } },
+    { table: 'memberships', row: { id: 'member', conversationId: 'room', principal: 'dev:alice', role: 'admin', joinedAt: 1 } },
+  ] });
+  t.after(() => f.close());
+  const { page, api } = f;
+  const admitted = await page.evaluate(async api => {
+    window.wall = Date.now(); Date.now = () => window.wall;
+    const opener = window.webDevice();
+    window.client = await window.createLocalClient({ url: api, persona: 'alice', device: { async open(...args) {
+      window.core = await opener.open(...args); return window.core;
+    } }, fetch: (input, init) => {
+      if (window.offline) throw Error('offline');
+      if (new URL(input).pathname === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true }));
+      return fetch(input, init);
+    } });
+    window.offline = true; await window.client.sync();
+    await window.client.query({ kind: 'query', name: 'media.heldClock' }, { conversationId: 'room' });
+    const originalWall = window.wall;
+    window.wall += 4000;
+    const write = window.client.mutate({ kind: 'mutation', name: 'media.sendClock' }, { conversationId: 'room', body: 'crash pending' });
+    const journal = Object.values(localStorage).flatMap(value => { try { const entry = JSON.parse(value).entry; return entry?.op === 'media.sendClock' ? [entry] : []; } catch { return []; } });
+    const pending = await write;
+    const queue = (await window.core.call({ op: 'queued' })).ok;
+    const saved = JSON.parse((await window.core.call({ op: 'meta', key: 'server-clock' })).ok);
+    return { originalWall, pending, journal, queue, saved };
+  }, api);
+  assert.equal(admitted.pending.state, 'pending');
+  assert.equal(admitted.journal.length, 1, 'web admission custody is synchronous');
+  assert.equal(admitted.journal[0].now, admitted.queue[0].now);
+  assert.ok(admitted.saved.last < admitted.queue[0].now, 'no close or later query has saved the admission floor');
+  await page.context().route(api + '/**', route => route.abort('internetdisconnected'));
+  await page.addInitScript(wall => { window.wall = wall; Date.now = () => window.wall; }, admitted.originalWall);
+  await f.reload(); // No client.close(): destroy the old JS lifetime with its pending admission.
+  const restored = await page.evaluate(async api => {
+    window.client = await window.createLocalClient({ url: api, persona: 'alice' });
+    const firstIssued = window.client.now();
+    const read = await window.client.query({ kind: 'query', name: 'media.heldClock' }, { conversationId: 'room' });
+    return { firstIssued, read };
+  }, api);
+  assert.ok(restored.firstIssued >= admitted.queue[0].now, JSON.stringify({ admitted, restored }));
+  assert.equal(restored.read.data[0].at, admitted.queue[0].now);
+  assert.equal(restored.read.data[0].pending, true);
+  await page.evaluate(() => window.client.close());
 });

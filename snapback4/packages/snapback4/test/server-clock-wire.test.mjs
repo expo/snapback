@@ -42,6 +42,11 @@ test('wire stamps successes and refusals on sync, changes, query, mutation and s
     ['/q/missing', { args: {} }], ['/m/missing', { id: 'missing', args: {} }],
     ['/sync', { from: -1 }],
   ]) stamped((await post(f.api, path, body, token)).response);
+  const rows = (await post(f.api, '/q/media.latestClock', { args: { conversationId: 'room' } }, token)).body.data;
+  const sent = rows.find(row => row.body === 'server stamp');
+  assert.ok(sent, 'read back the committed mutation row');
+  assert.notEqual(sent.at, 1, 'the client-supplied mutation now is never authoritative');
+  assert.ok(Math.abs(sent.at - Date.now() - 90_000_000) < 1000);
   stamped(await fetch(f.api + '/changes?wait=0', { headers: { authorization: `Bearer ${token}` } }));
   for (const path of ['/sync', '/q/media.latestClock', '/m/media.sendClock', '/auth/refresh', '/auth/logout-all'])
     stamped((await post(f.api, path, {}, 'invalid')).response);
@@ -64,11 +69,14 @@ test('a real held heartbeat poll learns clock advance from its final body', asyn
   const changes = changeFeed(transport, f.api, aborter.signal, () => {}, () => {});
   const pending = changes(probe.seq, 25, headers, probe.store_id);
   await entered;
-  const old = clock.now();
+  const old = clock.issuedDeviceNow();
   assert.equal((await post(f.api, '/dev/clock/advance', { duration: '2m' })).body.advancedMs, 120000);
   const answer = await pending;
   assert.ok(answer.json.serverNow >= old + 119000, JSON.stringify(answer.json));
-  assert.ok(clock.now() >= old + 119000, 'final response advances the client, without a second request');
+  assert.ok(clock.issuedDeviceNow() >= old + 119000, 'final response advances the client, without a second request');
+  assert.ok(Math.abs(clock.issuedDeviceNow() - answer.json.serverNow) < 1000, 'a held poll must not issue half its wait into the future');
+  const short = await clock.wrap(fetch)(f.api + '/q/media.clockTime', { method: 'POST', headers, body: JSON.stringify({ args: {} }) }).then(r => r.json());
+  assert.ok(Math.abs(clock.issuedDeviceNow() - short.data.at) < 1000, 'the following short reply cannot leave a frozen overshoot');
 });
 
 for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares device time and restores offline (${clockOffset})`, async t => {
