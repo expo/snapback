@@ -246,9 +246,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let acquired = false;
   const acquiredListeners = new Set<(value: boolean) => void>();
   function setAcquired(value: boolean) {
+    if (value) progress.acquired(true); else progress.reset();
     if (acquired === value) return;
     acquired = value;
-    if (value) progress.acquired(true); else progress.reset();
     for (const listener of acquiredListeners) listener(value);
   }
   // @ref LLP 3000.007#18.2 — acquisition belongs to the current store; a reconnect alone cannot bless an old partition.

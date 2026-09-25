@@ -11,7 +11,7 @@ interface Progress {
   read(): Acquisition;
   subscribe(notify: () => void): () => void;
 }
-const empty: Acquisition = Object.freeze({ acquired: false, rows: 0, tables: Object.freeze({}) });
+const empty: Acquisition = Object.freeze({ acquired: false, rows: 0, tables: Object.freeze(Object.create(null)) });
 const reopened: Acquisition = Object.freeze({ ...empty, acquired: true });
 const sources = new WeakMap<Client, Progress>();
 export function acquisition(client: Client): Progress {
@@ -28,7 +28,7 @@ export function acquisitionProgress() {
     reset() { publish(empty); },
     page(page: Record<string, unknown>, first: boolean) {
       if (!page.snapshot) return;
-      const tables: Record<string, number> = { ...(first ? {} : current.tables) };
+      const tables: Record<string, number> = Object.assign(Object.create(null), first ? undefined : current.tables);
       for (const event of page.events as { table: string; kind: string }[]) if (event.kind === "put") tables[event.table] = (tables[event.table] ?? 0) + 1;
       publish({ acquired: false, rows: Object.values(tables).reduce((sum, count) => sum + count, 0), tables: Object.freeze(tables) });
     },

@@ -1,17 +1,10 @@
 import type { Change, Persistence } from "./web.ts";
+import { bucket, packedStore, unpack, upgradeBuckets, writeBucket } from "./web-idb-buckets.ts";
 
-// New stores pack row images into 256 buckets instead of issuing one IDB
-// request per row. Old stores retain their exact representation. Metadata,
+// New stores pack row images into 256 bounded buckets with per-row overflow.
+// Legacy per-row stores retain their representation. Metadata,
 // outbox and transfer acknowledgements share the same strict transaction.
-const FORMAT: Change = { s: "$format", k: "row-buckets", v: "1" };
-const packedStore = (s: string) => s === "r" || s === "s" || s === "b";
-function bucket(s: string, key: string): string {
-  let hash = 2166136261;
-  for (let i = 0; i < key.length; i++) hash = Math.imul(hash ^ key.charCodeAt(i), 16777619);
-  return `${s}:${hash & 255}`;
-}
-const unpack = (change: Change): Change[] => change.s === "$format" ? [] : change.s === "$bucket"
-  ? (JSON.parse(change.v!) as [string, string][]).map(([k, v]) => ({ s: change.k.slice(0, 1), k, v })) : [change];
+const FORMAT: Change = { s: "$format", k: "row-buckets", v: "2" };
 const done = (tx: IDBTransaction): Promise<void> => new Promise((resolve, reject) => {
   tx.oncomplete = () => resolve();
   tx.onerror = () => reject(tx.error);
@@ -46,8 +39,9 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
         const direct = store.get([s, k]);
         const group = packedStore(s) ? store.get(["$bucket", bucket(s, k)]) : undefined;
         await done(tx);
+        if (direct.result) return (direct.result as Change).v;
         if (group?.result) return new Map(JSON.parse((group.result as Change).v!)).get(k) as string ?? null;
-        return (direct.result as Change | undefined)?.v ?? null;
+        return null;
       } finally { db.close(); }
     },
     async load(name) {
@@ -57,6 +51,10 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
         const request = tx.objectStore("changes").getAll();
         await done(tx);
         const changes = request.result as Change[];
+        if (changes.some(c => c.s === FORMAT.s && c.k === FORMAT.k && c.v === "1")) {
+          await upgradeBuckets(db, done);
+          return this.load(name);
+        }
         packing.set(name, changes.some(c => c.s === FORMAT.s && c.k === FORMAT.k && c.v === FORMAT.v));
         return changes.flatMap(unpack);
       } finally { db.close(); }
@@ -67,7 +65,9 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
         if (!packing.has(name) && changes.some(c => packedStore(c.s))) {
           const tx = db.transaction("changes", "readonly");
           const marker = tx.objectStore("changes").get([FORMAT.s, FORMAT.k]);
-          await done(tx); packing.set(name, marker.result?.v === FORMAT.v);
+          await done(tx);
+          if (marker.result?.v === "1") throw new Error("load the device before saving: its old row buckets require a bounded-format upgrade");
+          packing.set(name, marker.result?.v === FORMAT.v);
         }
         const tx = db.transaction("changes", "readwrite", { durability: "strict" });
         const committed = done(tx), store = tx.objectStore("changes");
@@ -87,11 +87,8 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
             const request = store.get(["$bucket", key]);
             request.onsuccess = () => {
               try {
-                const rows = new Map<string, string>(request.result ? JSON.parse((request.result as Change).v!) : []);
-                for (const change of delta) { if (change.v === null) rows.delete(change.k); else rows.set(change.k, change.v); }
-                if (rows.size) store.put({ s: "$bucket", k: key, v: JSON.stringify([...rows]) });
-                else store.delete(["$bucket", key]);
-              } catch { tx.abort(); }
+                writeBucket(store, key, request.result, delta);
+              } catch { try { tx.abort(); } catch { /* An earlier request already aborted it. */ } }
             };
           }
         } catch (error) { try { tx.abort(); } catch { /* The failing operation may already have aborted it. */ } await committed.catch(() => {}); throw error; }

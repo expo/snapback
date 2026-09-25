@@ -421,11 +421,15 @@ module digest to the adopted store identity. Another owner's replacement
 requires adoption and module reload before local reads or prediction resume.
 
 New IndexedDB stores pack row images into 256 buckets per device row store.
+Each bucket holds at most 512 entries and 256 KiB of UTF-8 JSON. On overflow,
+additional rows use individual records; updating one row reads and rewrites at
+most its bounded bucket plus that row. A row larger than the bucket cap stays
+an individual record. There is no overflow list to scan or rewrite.
 Each apply still writes its row changes, metadata, outbox and transfer markers
 in one atomic transaction with `durability: "strict"`. No page or watermark
-publishes before that transaction completes. Existing stores retain their
-per-row format and remain readable and writable; the packing optimization
-applies to newly created stores.
+publishes before that transaction completes. Existing per-row stores remain
+readable and writable. The earlier unbounded packed format is split once,
+atomically during full device load, before mutations run.
 
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
