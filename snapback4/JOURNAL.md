@@ -54982,7 +54982,7 @@ simulator on Linux. The complete file map, failure classification and release
 results are in reports/20260924-intent-integration-r5-final.md; evidence logs use
 ~/sb4-intent/integration-r5i-*.log.
 
-## 2026-09-24 — LLP 3000.013 integration round 6: part-h review fixes for 0.4.2
+## 2026-09-24 — LLP 3000.013 integration round 6: part-h review fixes (shipped in 0.4.1)
 
 Implemented all High/Medium findings in the completed Astra and Grok part-h
 reviews under the unchanged supervisor rulings. Each request invocation now
@@ -55078,3 +55078,59 @@ No new Quarry form, diagnostic, device code, runtime limit, version bump, merge,
 push or package publication. The separate M5 lane owns macOS dry-run blockers.
 Existing offline/identityless first-store fencing, process-loss and receipt-window
 limits remain; the tests do not claim exhaustive proof or iOS simulator coverage.
+
+## 2026-09-24 — LLP 3000.013 Lane S: effect-payload reads never cost prediction
+
+On `sb4-intent/s-effect-reads`, implementation `98166b335` and device witnesses
+`af6428e6b` make the Clique send predictable without hoisting its profile read.
+The compiler traces total reads through exclusive local bindings, including
+nested nullable fallbacks, records their authored sites in `why` as
+“server-only, feeds an effect”, and marks original statement paths for the
+device to skip. The server retains its original program, authorization and
+meters. Shared condition/write/require/return/domain uses, fallible payloads,
+and live expiring sums keep their ordinary prediction requirements. The
+prediction, language, presence and effects cards and their census are updated;
+all 80 guide tests compile without diagnostics or notes.
+
+Seven new language/engine tests and two device tests pass. The device matrix
+covers memory and SQLite, held/graced/absent presence, present/missing profiles
+and simple/nested coalescing: 24 worlds. Devices never acquire profiles, predict
+and durably queue the message offline, preserve it across reopen, agree with
+server rows/results, and settle it. Hidden and absent profiles are both null;
+examined, steps and heap cuts atomically roll back rows and effects. Ordinary
+payload reads add exactly two server examinations over literal payloads. The
+present-profile send charges examined 7, index entries 3, rule probes 3, steps
+90, heap 9,377, output 110 and writes 1 at every presence state. Missing profile:
+steps 94 and heap 8,913, other charges unchanged. Nested missing fallbacks:
+examined 9, steps 116, heap 11,734. The real calibration #19 backend with the
+hoist removed also reports chat.send eligible, retaining its quote horizon.
+
+Wasm is 1,767,624 raw / 492,341 gzip bytes on Rust 1.97.0 and wasm-bindgen
+0.2.127 without wasm-opt: +1,828 raw / +701 gzip versus the recorded integration
+artifact, not a freshly rebuilt control or independently measured components.
+The shared skip-aware totality walk and metadata exceed 492,000 by 341 bytes;
+raise the ratchet to 493,000, leaving 659. No runtime meter ceiling changed.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 702 s`**. The final run caps Rust
+build/test workers and uses this lane's private `/dev/shm` temporary directory;
+production SQLite settings and test assertions/timeouts are unchanged. Main
+client process: 1,478 tests, 1,468 pass, 10 existing skips, zero failures;
+separate shards pass. Reference audit: 507 LLP documents, 9,271 references,
+zero errors and zero unchecked. `reports/20260925-intent-lane-s.md` contains the
+file map, tests, measurements, exact command and complete failure ledger.
+
+Earlier complete runs ended `== 3 failure(s) in 353 s` (ours: initial wasm
+ratchet and two stale guide/eligibility assertions; environmental: native
+256-ID timeout) and `== 2 failure(s) in 261 s` (environmental shared-disk
+ENOSPC, SQLite disk-full cascades and the native timeout). A serial retry
+passed all Rust targets but hit the receipt-test 60-second timeout at host
+load about 93/96 CPUs; stopped with exit 143, no final summary. The final
+receipt test passes in 5.6 seconds and native 256-ID transport in 12.4 seconds.
+No baseline waiver or test relaxation. Logs: `~/sb4-intent/lane-s-*.log`.
+
+The proof deliberately joins all definitions of a local: a later independent
+reassignment/return can conservatively retain an earlier effect read. Arithmetic
+proof is limited to safe constants and known nonzero constant divisors, not
+general branch/interval inference. Reproductions and the live-sum overflow
+counterexample are in the report. Did not add syntax or refusal codes, push,
+publish, bump versions, run a complete calibration, or drive an iOS simulator.

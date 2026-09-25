@@ -164,13 +164,60 @@ the acquired horizon.
 
 `why countedPost` identifies the `online only` view: opting an aggregate view
 out of sync makes mutations reading it `predicts: never`. `notifyPost` stays
-eligible: the server decides the effects at commit. Presence deciding rows,
-a refusal or the returned value costs prediction; so does fallible presence
-work such as `falliblePost`, even inside an emit. For a presence-controlled
-read, `why` retains the presence origin and names the consuming read's source
-site. Moving that read before the guard is an author decision: it can refuse
-on a branch that previously did not read. `check --fix` does not hoist it.
-See `guide presence`.
+eligible: the server decides the effects at commit. An infallible point read
+used only by an effect payload is **server-only, feeds an effect** in `why`.
+The device skips that read and its exclusive local bindings; the read is
+authorized and charged on the server only. Nullable fields, `??` and infallible
+text or arithmetic expressions can feed the payload through local bindings.
+No hoisting is needed, even when the table is online only:
+
+```quarry
+effect notify
+
+table profiles:
+  principal: principal
+  displayName: text <=80
+  unique principal
+  public 'Profile names are public'
+  online only
+
+table members:
+  chat: id
+  principal: principal
+  unique chat, principal
+  cap 50 by chat
+  read <- exists members[.chat, viewer]
+  sync to members[.chat]
+
+table messages:
+  chat: id
+  sender: principal
+  body: text <=2000
+  read <- exists members[.chat, viewer]
+  insert <- .sender = viewer and exists members[.chat, viewer]
+  sync to members[.chat] last 500 by .id
+
+mutation send(chat: id, body: text <=2000) predicts:
+  require exists members[chat, viewer] else NOT_MEMBER
+  message = insert messages { chat, sender: viewer, body }
+  for p in members where .chat = chat:
+    if p.principal != viewer:
+      if not exists connected[p.principal]:
+        senderDisplayName = profiles[principal = viewer].displayName ?? 'Someone'
+        emit notify { targetUserId: p.principal, chatId: chat, senderDisplayName, preview: slice(body, 0, 80) }
+  return message
+```
+
+Presence deciding rows, a refusal or the returned value still costs prediction;
+so does fallible presence work such as `falliblePost`, even inside an emit.
+A read also used by a condition, write, require, return or loop domain keeps
+its ordinary prediction requirements. `! else CODE`, `require`, potentially
+overflowing arithmetic and division without a nonzero proof are not infallible
+payload work. For a presence-controlled read outside this class, `why` retains
+the presence origin and the consuming read's source site. `check --fix` does
+not hoist it: moving fallible work can introduce a refusal on another branch.
+Effect arms can change server charges, as live versus absent presence already
+could (`guide effects`). See `guide presence`.
 
 ## Set-state writes: likes and reactions
 

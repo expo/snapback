@@ -291,7 +291,7 @@ mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
       recipients = recipients + [m.principal]
   for p in recipients:                                              -- bounded derived lists may read and emit; row writes still need the complete-group proof
     if not exists connected[p]:
-      emit notify { targetUserId: p, roomId, preview: slice(body ?? '', 0, 80) }   -- kept in this commit; a worker claims and settles it (guide effects)
+      emit notify { targetUserId: p, roomId, senderHandle: profiles[principal = viewer].handle, preview: slice(body ?? '', 0, 80) }   -- the profile read feeds only the effect: server-only, still predicts
   return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` is the value when the left is null
 
 mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) predicts:

@@ -452,22 +452,27 @@ fn capped_page_cursor_note_respects_default_examined_ceiling() {
 #[test]
 fn calibration_presence_refusal_names_source_read_without_internal_paths() {
     let source = "table profiles:\n  principal: principal\n  unique byPrincipal: principal\n  displayName: text <=100\n  public 'profiles'\n  sync\neffect notify\nmutation send(recipient: principal) predicts:\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[principal = viewer].displayName }\n";
-    let b = compile(&[("chat.q".into(), source.into())]);
+    let good = compile(&[("chat.q".into(), source.into())]);
+    assert!(good.diagnostics.is_empty(), "{:?}", good.diagnostics);
+    assert_eq!(good.schema.operations["chat.send"].predicts.as_deref(), Some("eligible"));
+    let why = snapback4_lang::bind::residency::operation_lines("chat.send", &good.schema.operations["chat.send"]);
+    assert!(why.contains("server-only, feeds an effect") && why.contains("chat.q:10:"), "{why}");
+    // An explicit unwrap retains the old refusal dependency and origin/site
+    // explanation; the nullable effect-only read above no longer needs hoisting.
+    let fallible = source.replace(".displayName }", ".displayName ! else MISSING }");
+    let b = compile(&[("chat.q".into(), fallible.clone())]);
     let d = &b.diagnostics[0];
     println!("{d}");
     assert_eq!(d.code, "E_NOT_PREDICTABLE");
     assert!(d.message.contains("connected[recipient]") && d.message.contains("chat.q:9:17"), "{d}");
     assert!(!d.to_string().contains("programs.") && !d.to_string().contains('$'), "{d}");
-    let fixed = source.replace("  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[principal = viewer].displayName }", "  senderName = profiles[principal = viewer].displayName\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: senderName }");
-    let good = compile(&[("chat.q".into(), fixed)]);
-    assert!(good.diagnostics.is_empty(), "{:?}", good.diagnostics);
-    assert_eq!(good.schema.operations["chat.send"].predicts.as_deref(), Some("eligible"));
-    let unasserted = compile(&[("chat.q".into(), source.replace(" predicts:", ":"))]);
+    let unasserted = compile(&[("chat.q".into(), fallible.replace(" predicts:", ":"))]);
     let summary = snapback4_lang::bind::residency::prediction_summary(&unasserted).unwrap();
     assert!(!summary.contains("programs.") && summary.contains("chat.q:9:17"), "{summary}");
-    for note in snapback4_lang::bind::residency::change_notes(&unasserted, &good.schema.operations) {
-        assert!(!note.to_string().contains("programs."), "{note}");
-    }
+    let notes = snapback4_lang::bind::residency::change_notes(&unasserted, &good.schema.operations);
+    assert_eq!(notes.len(), 1);
+    assert_eq!(notes[0].code, "N_NOT_PREDICTABLE");
+    assert!(!notes[0].to_string().contains("programs."));
 }
 
 #[test]

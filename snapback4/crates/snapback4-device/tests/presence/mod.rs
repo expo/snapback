@@ -1,6 +1,7 @@
 use super::*;
 mod unconfirmed;
 mod review;
+mod effect_reads;
 
 #[path = "../../../snapback4-sim/tests/common/presence_meter.rs"]
 mod presence_meter;

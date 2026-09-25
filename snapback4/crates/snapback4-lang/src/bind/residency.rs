@@ -8,21 +8,34 @@ mod presence;
 mod inserts;
 mod horizons;
 mod components;
+mod effect_reads;
 pub(super) use horizons::{guard_notes, incompatible_horizon_pages, needs_whole_partition};
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
     execution_with_presence(schema, program, None)
 }
 
-pub(super) fn presence_facts(program: &Program, ownership: &super::program::setup::Ownership, sources: &[(Expr, crate::diag::Site, String)]) -> Execution {
+pub(super) fn presence_facts(schema: &Schema, program: &Program, ownership: &super::program::setup::Ownership, sources: &[(Expr, crate::diag::Site, String)]) -> Execution {
     let mut fact = Execution::default();
-    presence::inspect(program, &mut fact, ownership, sources);
+    fact.prediction_skips = effect_reads::plan(schema, program);
+    let local = effect_reads::prediction_program(program, &fact.prediction_skips);
+    presence::inspect(program, &local.body, &mut fact, ownership, sources);
+    let retained: BTreeSet<_> = ir::read_sites(&local).into_iter().map(|read| read.site).collect();
+    for read in ir::read_sites(program).into_iter().filter(|read| !retained.contains(&read.site)) {
+        fact.effect_payload_reads.push(ResidencySite {
+            reason: format!("{} {} by {}: server-only, feeds an effect", read.kind, read.table, read.index),
+            site: read.site, table: read.table, index: read.index, kind: read.kind.into(),
+            class: SiteClass::Server, rewrite: String::new(),
+        });
+    }
     fact
 }
 
 pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presence: Option<&Execution>) -> Execution {
     let mut fact = Execution::default();
+    let presence = (program.kind == ProgramKind::Mutation).then(|| presence.cloned().unwrap_or_else(|| presence_facts(schema, program, &BTreeMap::new(), &[])));
     for read in ir::read_sites(program) {
+        if presence.as_ref().is_some_and(|fact| fact.effect_payload_reads.iter().any(|site| site.site == read.site)) { continue; }
         fact.sites.push(site(schema, &read.site, &read.table, &read.index, read.kind));
         if let Some(table) = schema.tables.get(&read.table)
             && table.leave != snapback4_core::schema::LeavePolicy::DeliveredHistory
@@ -40,9 +53,11 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
     let mut inspected_sites = Vec::new();
     inspect(schema, &program.body, &mut requires, &mut inspected_sites);
     if program.kind == ProgramKind::Mutation {
-        let presence = presence.cloned().unwrap_or_else(|| presence_facts(program, &BTreeMap::new(), &[]));
+        let presence = presence.unwrap();
         fact.connected_effects_only = presence.connected_effects_only;
         fact.prediction_guards = presence.prediction_guards;
+        fact.prediction_skips = presence.prediction_skips;
+        fact.effect_payload_reads = presence.effect_payload_reads;
         fact.sites.extend(presence.sites);
     }
     fact.sites.extend(inspected_sites.into_iter().filter(|site| if program.kind == ProgramKind::Mutation { site.kind != "presence" } else { site.kind == "presence" }));
@@ -89,6 +104,13 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
 
 // @ref LLP 3000.007#6.3 — the printed reason belongs to its read, write or rule declaration, in every residency class.
 pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fact: &mut Execution) {
+    // Use the same source map and chosen-index explanation for both classes.
+    let effects = std::mem::take(&mut fact.effect_payload_reads);
+    if !effects.is_empty() {
+        let mut effect_fact = Execution { sites: effects, ..Execution::default() };
+        locate_sites(catalog, program, &mut effect_fact);
+        fact.effect_payload_reads = effect_fact.sites;
+    }
     let mut located = Vec::new();
     for mut site in std::mem::take(&mut fact.sites) {
         if matches!(site.kind.as_str(), "point" | "scan") && let Some(selection) = program.selections.get(&site.site) {
@@ -425,6 +447,9 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
         lines.push("    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization, limits and continuation".into());
     }
     if fact.connected_effects_only { lines.push(format!("    {CONNECTED_EFFECTS}")); }
+    for site in &fact.effect_payload_reads {
+        lines.push(format!("    {} (site {}); charged on the server only", site.reason, site.site));
+    }
     for site in &fact.sites {
         // The insert explanation also names the upsert target; do not follow it
         // with the generic horizon warning that used to contradict that proof.

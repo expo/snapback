@@ -201,10 +201,12 @@ card/prediction/1:post | noteCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"
 card/prediction/1:post | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/prediction/1:saveDraft | drafts/update | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/prediction/1:saveDraft | eligible
-card/prediction/2:guardedLike | eligible
-card/prediction/2:guardedLike | likes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
-card/prediction/2:setLike | eligible
-card/prediction/2:setLike | likes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/prediction/2:send | eligible
+card/prediction/2:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byChatPrincipal:4cd518f2ee2eaa2d","key":[{"Field":"chat"},"Viewer"],"provenance":"Shape"}} | read rule
+card/prediction/3:guardedLike | eligible
+card/prediction/3:guardedLike | likes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/prediction/3:setLike | eligible
+card/prediction/3:setLike | likes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/presence/1:checkin | never
 card/presence/1:createRoom | eligible
 card/presence/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
