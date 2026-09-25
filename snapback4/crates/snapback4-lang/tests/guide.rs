@@ -291,7 +291,7 @@ fn failed(outcome: &snapback4_core::MutationOutcome) -> &str {
 /// clean and every operation on it does what its comment says.
 #[test]
 fn the_language_card_compiles_and_runs() {
-    let source = in_context(&quarry(LANGUAGE)[1]);
+    let source = in_context(&quarry(LANGUAGE).into_iter().find(|block| block.contains("action summarizeRoom(")).unwrap());
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).filter(|name| !name.starts_with("intent")).collect();
     assert_eq!(names, ["receiptStatus", "daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "spreadProfile", "spreadObjects", "spreadChoice", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
@@ -530,7 +530,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 5, "core, server extension, Following view, compatibility and expiring receipts blocks");
+    assert_eq!(quarry(LANGUAGE).len(), 7, "paved introduction, familiar forms, and five preserved language blocks");
 }
 
 #[test]
@@ -690,7 +690,7 @@ fn w9b_every_code_has_bounded_card_context_and_a_full_card_command() {
         let keyword = snapback4_lang::diag::guide_for(code);
         assert!(text.ends_with(&format!("Full card: snapback4 guide {keyword}")), "{code}");
         assert!(text.len() + 1 <= guide::WHY_MAX_BYTES, "{code}: {} bytes", text.len() + 1);
-        assert!(text.lines().any(|line| line.starts_with('#') && card(keyword).unwrap().lines().any(|heading| heading == line)), "{text}");
+        assert!(text.lines().any(|line| line.starts_with('#') && card(keyword).unwrap().lines().any(|heading| heading == line || format!("{heading} — {code}") == line)), "{text}");
         assert!(!text.contains("```"), "{code}: a prose excerpt must not cut a Quarry example");
         largest = largest.max((text.len() + 1, code));
     }
@@ -815,7 +815,7 @@ fn the_template_compiles_clean() {
 
 #[test]
 fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
-    let source = in_context(&quarry(LANGUAGE)[1]).replace(": nightly ", ": timeline.nightly ").replace(": scheduledSummary\n", ": timeline.scheduledSummary\n");
+    let source = in_context(&quarry(LANGUAGE).into_iter().find(|block| block.contains("action summarizeRoom(")).unwrap()).replace("schema.kindLabel", "timeline.kindLabel").replace(": nightly ", ": timeline.nightly ").replace(": scheduledSummary\n", ": timeline.scheduledSummary\n");
     assert!(source.contains(": timeline.nightly "));
     assert!(source.contains(": timeline.scheduledSummary\n"));
     let bound = snapback4_lang::compile(&[("timeline.q".into(), source)]);
@@ -937,7 +937,7 @@ fn expire_card_explains_maintained_value_order_refusal_and_rewrites() {
 
 #[test]
 fn writes_card_explains_the_whole_upsert_insert_proof() {
-    let writes = card("writes").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+    let writes = explain_code("E_NOT_PREDICTABLE").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(!writes.contains("predict only updates of rows the device holds"));
     for text in ["held", "no horizon", "insert image", "unique", "cap", "guide prediction"] {
         assert!(writes.contains(text), "writes card omits {text}");
@@ -1081,8 +1081,8 @@ fn w9a_expiry_cards_explain_and_select_the_readers_deadline() {
 
 #[test]
 fn w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership() {
-    for name in ["reads", "refusals"] {
-        let text = card(name).unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+    for (name, source) in [("why E_RULE", explain_code("E_RULE").unwrap()), ("refusals", card("refusals").unwrap().into())] {
+        let text = source.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(text.contains("A read denied by a table's rule answers as an empty page, not a refusal, and a client cannot tell it apart from an empty readable page — by design, so that a hidden row cannot be probed."), "{name}");
         assert!(text.contains("For access UI, use a membership query the viewer may read, such as a conversation lookup readable by its members: a member gets the conversation even when its message page is empty."), "{name}");
         assert!(text.contains("An explicit `require … else CODE` still refuses with the program's code."), "{name}");
@@ -1108,7 +1108,8 @@ fn w9a_held_search_leads_with_coverage_then_cost_then_refusal() {
 fn w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation() {
     let reads = card("reads").unwrap();
     assert!(!reads.contains("at most 32 words per scope"));
-    let compact = reads.split_once("Unknown widths print").unwrap().1;
+    assert!(explain_code("N_SPARSE_FILTER").unwrap().contains("Unknown widths print"));
+    let compact = reads;
     assert!(compact.contains("A resumable read-meter cut"));
     assert!(compact.contains("Heap exhaustion clears the whole page"));
     assert!(compact.contains("uniform matching scan is always lazy"));
@@ -1135,13 +1136,12 @@ fn composition_card_is_reachable_and_keeps_the_routing_boundary() {
 #[test]
 fn structural_admission_cards_name_every_host_and_the_web_trust_boundary() {
     let boundary = "and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.";
-    for name in ["bounds", "programs"] {
-        assert!(card(name).unwrap().contains(boundary), "{name}: missing the web trust boundary");
-    }
+    assert!(card("bounds").unwrap().contains(boundary));
+    assert!(card("programs").unwrap().contains("E_STRUCTURAL_FANOUT"));
     for code in ["E_STRUCTURAL_FANOUT", "E_UNBOUND_SCAN"] {
         assert!(explain_code(code).unwrap().contains(boundary), "{code}: missing the web trust boundary");
     }
-    for text in [card("prediction").unwrap(), readme_reference("reads")] {
+    for text in [card("prediction").unwrap().to_owned(), explain_code("E_UNBOUND_SCAN").unwrap()] {
         assert!(text.contains("the backend compiler's structural admission") && text.contains("hand-built or corrupted backend"));
     }
 }
@@ -1217,3 +1217,6 @@ mod definitions;
 mod rules;
 #[path = "guide/recovery.rs"]
 mod recovery;
+
+#[path = "guide/familiar.rs"]
+mod familiar;

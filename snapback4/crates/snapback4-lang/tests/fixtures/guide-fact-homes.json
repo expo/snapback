@@ -1,0 +1,800 @@
+[
+  {
+    "id": "reads-00",
+    "card": "reads",
+    "home": "Details",
+    "text": "Reads select authorized rows by id, predicate or search text.\nAdd an order, page size and cursor to browse a population."
+  },
+  {
+    "id": "reads-01",
+    "card": "reads",
+    "home": "Details",
+    "text": "State the rows, then the order and page. `messages where .roomId = roomId\nlast 20 by .at after c` means the newest matching messages. The compiler\nchooses the index. `messages[messageId]` always reads one id. A full declared\nunique key also reads one row, using named columns when its arity is ambiguous.\nThe rules run before any projection, count or order reaches the caller."
+  },
+  {
+    "id": "reads-02",
+    "card": "reads",
+    "home": "E_CURSOR_INDEX",
+    "text": "For a table, order keys after `id` are redundant and omitted: `by .id, .at`\nuses the same index and cursor as `by .id`. View orders retain later keys,\nbecause distinct branches may carry the same source id; branch identity\nbreaks any remaining tie."
+  },
+  {
+    "id": "reads-03",
+    "card": "reads",
+    "home": "N_SEEK",
+    "text": "Unpaged aggregates infer a range seek only when its endpoint is already\npresent and cannot fail. Bounds requiring a short-circuit guard remain row\nfilters. A named id pin keeps its single-row access path and filters."
+  },
+  {
+    "id": "reads-04",
+    "card": "reads",
+    "home": "N_SPARSE_FILTER",
+    "text": "Finite ranked windows enumerate inclusive UTC buckets:\n`bucket(lower) ..= bucket(upper)`. The exact endpoint comparisons still\nfilter every row. A missing finite upper bound stays a metered residual scan;\nN_SPARSE_FILTER suggests `and .at <= now` when that is the intended window.\nPaging by a maintained order key such as `.likeCount` is not a snapshot:\nchanges can move rows across a saved position. Restart to see the new order.\nValue lanes deduplicate values; each lane keeps its source rule. Null never\nbecomes an index pin. When a membership list includes null, one ordinary\nfiltered lane reads the null-valued rows under the same rule.\nA keyed `exists` inside `where` probes one authorized row per candidate;\nwhen its discovery prefix cannot decide the other table's read rule, the\nplanner retains those probes and the certificate names the skipped rows.\nA cut during discovery or while any lane head is unknown is incomplete and\nhas no cursor. A full page never certifies a prefix of an unfinished lane list."
+  },
+  {
+    "id": "reads-05",
+    "card": "reads",
+    "home": "E_QUARRY_KEY_ORDER",
+    "text": "A full positional unique key can be followed by named tests on that row:\n`members[org, viewer, role = 'admin']`. The prefix must identify one declared\nunique key; inferred indexes never resolve positions. E_QUARRY_KEY_ORDER\nmeans a positional component followed a named one: move all positional\ncomponents first, then write the named tests."
+  },
+  {
+    "id": "reads-06",
+    "card": "reads",
+    "home": "Details",
+    "text": "Every ready `Read` carries `cut: 'meter' | 'words' | null` beside `complete`,\non the server and either device store. An empty page with `cut: 'meter'`\nmeans partial: retry narrower, or continue if `next` exists; never \"no matches\".\n`words` means the first term expanded past 32 words in an admitted non-uniform scope: narrow that\nterm or use scoped search (guide search). If both limits cut, `meter` wins.\nDevice reads and uniform server reads keep precise reasons.\nNon-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.\n`null` means \"not disclosed here\", not \"not cut\"; it also covers a horizon,\nmissing coverage or a page without continuation. For `complete: false` with\n`cut: null`, render \"Results may be incomplete\", even when empty; never \"no matches\".\nA complete empty page has `cut: null` and `complete: true`.\nOnline observations retain nothing, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.\nA local observation may keep its previous answer with `fresh: false` and `since`\nonly during an unavailable device read's server fallback, ending at fetch\nsettlement or any local commit, reset, adoption, generation, account change or close.\nA ready list read always carries an array; an absent point can still be null.\n`usePage` keeps earlier pages visible while a later page is unavailable.\nFor ordinary device reads, online fallback asks the server only for a missing\nfact or unknown presence; a meter or word cut and a cursorless page stay local,\nas do held queries and retained left groups, and pending predictable writes\nstill prevent fallback when the device has an answer. An unavailable ordinary\ndevice read asks the server while online even with pending writes."
+  },
+  {
+    "id": "reads-07",
+    "card": "reads",
+    "home": "E_RULE",
+    "text": "A read denied by a table's rule answers as an empty page, not a refusal,\nand a client cannot tell it apart from an empty readable page — by design,\nso that a hidden row cannot be probed. For access UI, use a membership query\nthe viewer may read, such as a conversation lookup readable by its members:\na member gets the conversation even when its message page is empty.\nAn explicit `require … else CODE` still refuses with the program's code."
+  },
+  {
+    "id": "reads-08",
+    "card": "reads",
+    "home": "E_QUARRY_AMBIGUOUS",
+    "text": "Named equalities covering a total unique key read one row and check any extra\ncolumns there: `t[key = x, col = y]` returns null on a mismatch, and\n`exists t[key = x, col = y]` returns false. Named equalities covering no\nunique key plan an ordinary authorized scan.\nA positional key resolves only when exactly one declared unique key has its\narity. Types check that choice; they never choose between keys. If none or\nseveral match, use named keys. Generated planning indexes never participate.\nAn explicit `by <authoredIndex>` keeps its existing point or prefix meaning."
+  },
+  {
+    "id": "reads-09",
+    "card": "reads",
+    "home": "E_QUARRY_POSITIONAL_SCAN",
+    "text": "References keep their table identity: `replies[id = r]` with `r: replies`\nreads a reply, while `replies where .postId = p first 20 by .id` with\n`p: posts` reads its replies. Passing a reference to a different table\nrefuses; a generic `id` does not carry that table-identity check.\nAn absent, hidden or null point target returns null. A predicate read returns\na page, empty when no visible row matches. A reference does not prove existence.\n`snapback4 why <operation>` shows each read's source site, selected index,\ncolumn/key bindings, result form and selection reason; the same facts appear\nin `check --json` execution sites. These are binder facts, not measured work."
+  },
+  {
+    "id": "reads-10",
+    "card": "reads",
+    "home": "Details",
+    "text": "For an expiring table, return the deadline with each row:"
+  },
+  {
+    "id": "reads-11",
+    "card": "reads",
+    "home": "Details",
+    "text": "A typing indicator or presence row with a short deadline needs this local\nfilter: hide it at its deadline, even while the next answer is still pending.\nA row already returned stays in that answer until the next answer; a live\nreader that must hide it at its deadline drops it locally by `expiresAt`.\nThe server will not return the row again after expiry, but does not push a\nremoval at the instant of expiry. Select the deadline in the query, as above.\nThe local client reschedules its watch at `Read.nextExpiry`; keep the render\nfilter so the row hides at its deadline rather than at the refetch.\nGiven `rows` from a ready answer and your `render` function, render now and\nschedule another render at each non-null deadline (epoch milliseconds):"
+  },
+  {
+    "id": "reads-12",
+    "card": "reads",
+    "home": "Details",
+    "text": "Clear these timers with `timers.forEach(clearTimeout)` before replacing the\nanswer or unmounting. This short-lived-row example uses the client's clock\nand timer scheduling; `null` never expires."
+  },
+  {
+    "id": "reads-13",
+    "card": "reads",
+    "home": "Details",
+    "text": "For example, this typing indicator lasts 4,500 ms after the last keystroke.\nRender `typingNow`'s ready rows with the filter and timers above. Each new\nanswer replaces those timers; cleanup also runs when the reader unmounts.\nThis is an application table, separate from the server's `connected[p]`."
+  },
+  {
+    "id": "reads-14",
+    "card": "reads",
+    "home": "N_NEVER_COMPLETE",
+    "text": "The first read examples use the language card's tables. A page's read rule is checked\nonce when the prefix decides it, else per row, and a page whose rule still depends\non a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names\nthe missing equality columns and an existing compatible index when one is\navailable). Keep the current equality prefix when adding those pins; choosing\na conversation narrows the answer to that scope. This is author guidance,\nnot a `check --fix` repair, and it does not change the read rule. With a total unique `(chatKey, principal)`\nkey on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by\nthe chat alone because the row is its own witness, so a roster page pinned\nby the chat is complete and no second table is needed. An aborting mutation\npage costs one examined unit before its verdict, plus its rule probes on\nboth true and false verdicts; a true verdict then examines candidates.\nA page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting.\nA point read reserves that same static allowance before its lookup, equally\nfor a readable row, a hidden row and a miss. If it cannot pay, authorization\nhas no verdict and the answer remains incomplete. A device's trusted held\nrow needs no authorization probes.\nA read states its predicate, search text, page size, order and continuation:\n`t where predicate matching q last 20 by .at after c`. Omit parts the read\ndoes not need. `first` ascends; `last` descends; id breaks ties. Predicates run\nafter the source rule. Parenthesize a nested read with its own modifiers:\n`exists (messages[roomId = .roomId] matching q)`. The named inner key binds\nthe outer row's room; inside a predicate, `.` denotes that predicate's row."
+  },
+  {
+    "id": "reads-15",
+    "card": "reads",
+    "home": "N_SEEK",
+    "text": "Inside `where`, an ordering comparison (`<`, `<=`, `>`, `>=`) with a nullable\ncolumn of that row is false when the column is null. `.due < now` therefore\nselects overdue tasks without a guard or a default. On the first order key it\nis a seek when its endpoint is already present and cannot fail; a nullable\nupper-only seek starts exclusively above null. `= null`\nand `!= null` keep their ordinary meaning. Optional arguments and locals,\nand comparisons outside `where`, still need a presence guard.\nAn endpoint behind a guard, such as `d != 0 and .due > 10 / d` or\n`x != null and .due < x` for optional `x`, stays in the residual predicate,\neven with `by .due`. The guard runs before that comparison. Present literals,\n`now`, required parameters and arithmetic proven not to overflow can seek.\nParenthesized predicates also work before a named shape."
+  },
+  {
+    "id": "reads-16",
+    "card": "reads",
+    "home": "Details",
+    "text": "For a required enum with at most eight variants, `.status != 'done'` opens\nthe same pinned value lanes as `.status in ['todo', 'doing']`. A bound value\ncan also select the excluded variant. Fallible expressions remain residual\npredicates so their guards still run first. Nullable enums retain a residual\ninequality, including null rows; larger enums also stay residual.\nValue lanes are chosen only when every lane's prefix decides the source read\nrule. Otherwise both `!=` and `in` remain residual filters on one scan, which\ncan continue through visible rows with `next`; the non-uniform read still\nreports `complete: false`."
+  },
+  {
+    "id": "reads-17",
+    "card": "reads",
+    "home": "N_OPTIONAL_FILTER_LIMIT",
+    "text": "Optional filters `(status = null or .status = status)` (also `==`, either order)\nchoose an indexed plan for each presence combination; reset the cursor when\nfilters change, and inspect each variant with `check --cost`.\nAt most three optional inputs expand; N_OPTIONAL_FILTER_LIMIT names any extra\nresidual filters, which can stay metered or move into separate queries.\nFor mutation population loops and top-level job sweeps, put the optional\ncondition inside an ordinary capped loop or stable sweep; a presence-selected\nread cannot supply that loop domain."
+  },
+  {
+    "id": "reads-18",
+    "card": "reads",
+    "home": "Details",
+    "text": "`check --cost` displays the residual that still tests each visible candidate,\nincluding `in` when another predicate supplies the lanes. A predicate fully\nextracted into pins or lanes has no residual-skip clause. These explanations\ndo not change read rules, meter bounds or completeness."
+  },
+  {
+    "id": "reads-19",
+    "card": "reads",
+    "home": "N_NO_CURSOR",
+    "text": "A page a query returns without\na cursor cannot be continued: an unfiltered page with more rows reads\n`complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and\npage with `after c`, or use a narrower key, such as\n`chatDeliveries where .messageId = messageId` without a page clause when a\ndeclared cap bounds that message's acknowledgements. A matching set can\ndeclare `cap 50 by conversationId` on the table\nthen read the whole group: `t where .conversationId = conversationId`, if 50 is the intended group limit\nand no existing cap already bounds that group. Unscoped pages and pages\nwhose existing cap exceeds their bound or the meter still need continuation.\nA cap refuses writes beyond its limit: it is a data constraint, not a hint.\nA single-group page omits this note only when its bound\ncovers the group cap and that cap fits the default 8,192-row examined ceiling.\nOther metered work and authorization can still make an answer incomplete;\na per-lane cap does not bound a merge. Inspect `Read.cut`: `meter` means narrow\nthe read or continue with `next`, `words` means narrow the search term, and null\ndoes not establish completeness. For `complete: false` with `cut: null`, render\n\"Results may be incomplete\", even when empty. Loopback dev's online client\nincludes `Read.meter` by default: examine `examined`, `indexEntries`, `probes`\nand `cut` on the returned answer. Local device reads have no meter; `serve`\nnever returns these development counters."
+  },
+  {
+    "id": "reads-20",
+    "card": "reads",
+    "home": "E_QUARRY_BOUND",
+    "text": "A boundless domain read uses the schema cap in ascending order, even in\nnested shapes and mutation loops. A cap above the examined ceiling requires\nexplicit pagination for a returned page. `first N` remains an ordinary page;\n`last N` remains the descending spelling."
+  },
+  {
+    "id": "reads-21",
+    "card": "reads",
+    "home": "Details",
+    "text": "`count(messages where .roomId = roomId)` and `sum(orders where .owner =\nviewer, .amount)` stream their domains. They authorize and filter each row,\nthen release it. They do not retain a page of bodies. A meter cut or unknown\ndevice coverage leaves the client read `loading`, never a partial total.\nUse a maintained view for a total that should be updated with each write.\n`count(page)` still counts only that page.\nAn unpaged aggregate keeps enum inequalities and membership predicates as\nresidual filters on its streaming scan. It does not turn them into a bounded\nmerge page: `count(tasks where .status != 'done')` and\n`sum(tasks where .status in ['todo', 'doing'], .n)` return either the whole\nauthorized total or null on interruption. Scan admission remains unchanged."
+  },
+  {
+    "id": "reads-22",
+    "card": "reads",
+    "home": "Details",
+    "text": "`exists messages where .roomId = roomId` stops at a visible match. It accepts\npredicates and seeks, but no page clause or cursor. A positive held witness\nproves existence; absence needs complete coverage. An interrupted existence\nscan cannot establish a negative answer. Mutations keep their ordinary scan\nadmission; rule probes keep exact-key semantics."
+  },
+  {
+    "id": "reads-23",
+    "card": "reads",
+    "home": "N_SPARSE_FILTER",
+    "text": "Finite ranked windows use inclusive UTC buckets from the lower through the\nupper bound. Exact endpoints still filter rows. An `in` predicate over a list\nor a read's column opens one ruled scan per distinct non-null value; a null\nvalue adds one authorized null-filtered scan for a nullable column. Unknown\nor cut discovery cannot certify the page. Use `check --cost` to inspect these\nplans. Unknown widths print `lanes ≤ meter`; the author writes no lane list."
+  },
+  {
+    "id": "reads-24",
+    "card": "reads",
+    "home": "Details",
+    "text": "A resumable read-meter cut after every required head is known can carry `next`\nafter its last fully shaped emitted row, subject to final-answer eligibility.\nHeap exhaustion clears the whole page and leaves the client read `loading`, with no continuation,\neven during the drain. Step exhaustion aborts; output exhaustion can refuse.\nA uniform matching scan is always lazy. Opening and word-limit cuts cannot\nsupply continuation. A terminal full page need not carry `next`. Following a\ncursor does not clear earlier incompleteness in `usePage`."
+  },
+  {
+    "id": "reads-25",
+    "card": "reads",
+    "home": "E_CURSOR_INDEX",
+    "text": "A direct table or maintained-view cursor binds the evaluated prefix and active\ngeneration. Another prefix or schema adoption refuses it. Ordinary writes keep\nit valid, but a changing order can move rows across the cursor. Refresh a live\nranking; continuation is not a snapshot. Planned unions preserve branch and\nsource-row identity, even when two tables contain the same id."
+  },
+  {
+    "id": "reads-26",
+    "card": "reads",
+    "home": "E_SHAPE_EXCEEDS_METER",
+    "text": "A top-level returned shape carries its page's `next`. A shaped row that cannot\nfinish is dropped with later rows; continuation reaches the unfinished visible\nrow first. If the same first shape cannot fit on retry, E_SHAPE_EXCEEDS_METER\nrefuses instead of repeating an empty page forever. Narrow its nested reads\nor move expensive components into separate queries. Non-uniform reads cannot\nreveal a hidden continuation position. Independent pages in one object each\nneed their own continuation owner; one cursor cannot cover lost siblings.\n`sort` and `group` operate on their input page and retain that page's coverage."
+  },
+  {
+    "id": "reads-27",
+    "card": "reads",
+    "home": "E_UNBOUND_LOOP",
+    "text": "A mutation classified `predicts: \"never\"`, from a server site or an author's\n`: server` marker, may iterate a bounded plain prefix page when its read rule\nis uniform over the prefix. `matching`, merges and tables with expiry are\nrefused for every mutation page (`E_STRUCTURAL_FANOUT`), predicting or not,\nlooped or only bound. Prediction still needs a complete\nschema-capped group: `for m in members where .roomId = roomId:` takes its bound from the\nschema cap, so changing the cap changes every whole-group read. An explicit\n`first <cap>` stays legal; a smaller explicit bound still fails the prediction\nproof. A job's inner loop may also read a capped group without restating it.\nEvery page a mutation reads, including a page it only\nbinds, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`): read it in\na query, or pin the deciding columns.\nA page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting; an aborting mutation page also costs one examined unit before the verdict.\nThe pass is atomic and remains subject to 1,024 rows written per mutation.\n`check --cost` prints \"a pass over the first N rows of <prefix>; examined\nceiling <n>\". It never commits a partial pass after a budget abort."
+  },
+  {
+    "id": "reads-28",
+    "card": "reads",
+    "home": "Details",
+    "text": "A job may put a read-only prelude before its first sweep. It runs again\nat the start of every chunk, with its bindings visible there and its work\ncharged to that chunk's meter. Writes belong inside the sweep body."
+  },
+  {
+    "id": "reads-29",
+    "card": "reads",
+    "home": "Details",
+    "text": "Arguments use column types; `c: cursor ?` is an opaque optional cursor.\nAn omitted optional argument is null. `walk rooms[roomId] up .parentId depth 8`\nreturns the seed and at most eight parent hops. List operations and helpers\nare on `guide language` and `guide shapes`; writes are on `guide writes`."
+  },
+  {
+    "id": "reads-30",
+    "card": "reads",
+    "home": "E_UNBOUND_SCAN",
+    "text": "Web queries and predictions trust the backend compiler's structural admission;\nthe server rechecks submitted mutations. Local argument, row, rule, coverage\nand runtime budget checks still run. A hand-built or corrupted backend can\ntherefore differ from a native device's structural refusal (`guide prediction`)."
+  },
+  {
+    "id": "reads-31",
+    "card": "reads",
+    "home": "E_UNBOUND_LOOP",
+    "text": "A bounded list loop that only reads, computes and emits may iterate a list\ncolumn, an alias, a helper result or a filtered/shaped list from a page.\nIt need not preserve the whole group. If its body writes rows, including\ninside helpers or nested loops, the original `E_STRUCTURAL_FANOUT` check\nstill applies. Every mutation page still needs a uniform plain prefix over\na table without expiry; the meter and its ceilings are unchanged."
+  },
+  {
+    "id": "reads-32",
+    "card": "reads",
+    "home": "Details",
+    "text": "To inspect a real account's server work under loopback `dev`, use the online\nclient `createClient({ url, session })` (or a bearer `token`); meters are available by default.\nSuccessful `query` and `observe` answers include `Read.meter`:\n`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten, cut }`.\n`Read.meter.cut` keeps the precise reason even for a non-uniform server read;\nit is `meter`, `words` or null, with `meter` winning when both limits cut.\nThese are the engine's counters for that answer, not latency or process memory;\n`probes` is rule_probes and `heapBytes` is charged heap work. A local fallback\nkeeps its previous answer’s counters only until the fetch settles. Local device reads\nhave no meter; use the online client to inspect the server for the same account.\n`meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.\nLoopback dev includes the field without either; `serve` ignores the header and never returns\nmeters. The counters can reflect hidden work and are development-only.\n`snapback4 run <op> '<json args>' --as <principal id> --json` also prints\nthe engine's `metered` counters against `.snapback4/store.sqlite`.\nA declared persona such as `alice` resolves to `dev:alice`; any other `--as`\nvalue is used verbatim (including `user:...`, `member:42` and `dev:alice`).\nThe default is `dev:alice`. Jobs still run as the system."
+  },
+  {
+    "id": "reads-33",
+    "card": "reads",
+    "home": "E_QUERY_HELD",
+    "text": "Declare `query name(..) held:` for a device-only answer. `check` prints\n`runs: device (held; server refuses E_QUERY_HELD; no server fallback)`.\n`dev`, `serve` and `run` refuse it with E_QUERY_HELD and a guide search rewrite;\nthe local clients answer from held rows, online or offline, without server\nfallback even at a horizon or cut. With horizon-free sources, `check` reports\nhorizon-free source coverage. Answer completeness still depends on runtime\nauthorization, limits and continuation; the marker does not acquire rows.\nAn unscoped search through expiring memberships can remain non-uniform and\nincomplete below every limit. A `first 1` page without a cursor is incomplete\nwhen its range contains two held rows. Read `complete` on each answer; a held query with an\nonline-only source or no read sites gets no source-coverage line.\nSources include reads nested in expressions such as the search text after `matching`.\nFor full server history beyond holdings, use the grouped or newest form on the search card."
+  },
+  {
+    "id": "reads-34",
+    "card": "reads",
+    "home": "E_QUARRY_POSITIONAL_SCAN",
+    "text": "E_QUARRY_POSITIONAL_SCAN means a positional key would scan a population.\nUse `posts where .authorId = owner last 20 by .at`; `posts[id = postId]` reads\none id, and named keys such as `profiles[principal = viewer]` read unique keys."
+  },
+  {
+    "id": "reads-35",
+    "card": "reads",
+    "home": "E_QUARRY_MODIFIER_SCOPE",
+    "text": "E_QUARRY_MODIFIER_SCOPE means a nested read's modifiers are ambiguous.\nParenthesize the inner read, for example `exists (messages[roomId = .roomId]\nmatching q)`, and put the outer page's `by .roomId after c` after its predicate."
+  },
+  {
+    "id": "reads-36",
+    "card": "reads",
+    "home": "N_SEEK",
+    "text": "N_SEEK is advice for an older explicit-index read whose residual filter can\nseek. For a new read, write `messages where .roomId = roomId and .at >= start\nfirst 20 by .at after c`; the planner makes that comparison a seek."
+  },
+  {
+    "id": "writes-00",
+    "card": "writes",
+    "home": "Details",
+    "text": "Mutations insert, update and delete rows in one transaction.\nRules and constraints apply before that transaction commits."
+  },
+  {
+    "id": "writes-01",
+    "card": "writes",
+    "home": "Details",
+    "text": "If `messageId` in `writeForms` addresses retained history from a room the\nwriter has left, the call still predicts. Reads hide the updated message\nbecause current membership is absent, while readable inserts remain visible.\nUnknown reaction authority also hides that provisional reaction.\nSee `guide prediction` for authorization on each device read."
+  },
+  {
+    "id": "writes-02",
+    "card": "writes",
+    "home": "E_WRITE_ID",
+    "text": "For replay adapters and retry-safe intents, pass a `mintId()` you stored with\nthe intent or fixture; arbitrary fixture strings still need an application ledger.\nPass it as `{ id }`; a retry returns the original outcome and never applies twice:\n`client.mutate(api.send, args, { id })`. The id must have the `mintId()` form:\n26 uppercase Crockford base32 digits (0123456789ABCDEFGHJKMNPQRSTVWXYZ), with\nthe first digit 0–7; malformed ids return local `failed` with `E_WRITE_ID`.\nMint once and keep the id with the intent. It identifies the write, not a row;\nprediction still mints separate row ids through `new_ids`.\nA retry of a pending write on the same client returns the same Write object;\na settled retry returns its retained receipt, without historical result values.\nOnline, web and native clients share this rule; a recovered queued write is\nreused before prediction or admission. Already-open owners of one device store\ncompare and admit under its transaction: equal input reuses the original entry\nand row ids, and conflicting input changes nothing, even during a send. `client.write(id)` and\n`usePendingWrite(op, id)` observe that same id."
+  },
+  {
+    "id": "writes-03",
+    "card": "writes",
+    "home": "E_WRITE_ID_REUSE",
+    "text": "Reusing an id with different operation names or JSON arguments returns local\n`E_WRITE_ID_REUSE` while the client knows the input: unresolved submissions,\nits last 256 terminal input identities, or its recovered outbox. Object key\norder does not matter. This refusal does not replace the original write or emit\na terminal event for it. A receipt recovered after reopen holds no arguments,\nso it returns the original outcome without comparing inputs. When neither\noutbox nor receipt knows an id, the request reaches the server: its record is\nkeyed by principal and mutation id, and an existing record wins even if the\noperation or arguments differ. Use a new id for a new intent. A client remembers\nused ids for its lifetime (ids only after the bounded input/receipt window);\nif a known id has lost its receipt and left the outbox, it refuses\n`E_WRITE_RECEIPT_EXPIRED` instead of admitting it again. Reopen to recover that\noutcome through the server. The server guarantee belongs to that backend store.\nAn online `createApp` journal separately preserves ids retired after a store\nchange, including sent ids displaced to make room for retirement receipts,\nso reopening cannot replay those writes on the replacement store:\nevicted bodies return `E_WRITE_RECEIPT_EXPIRED` without dispatch. It keeps up to\n4,096 compact retirement ids; saturation durably blocks new admissions until\nthe application reconciles prior outcomes and explicitly replaces that journal,\nrather than forgetting ids automatically. Already-admitted intents remain\nrecoverable as pending while their outcomes are unresolved.\nOnline intent records its dispatch store before transmission. A failed receipt\nsave preserves the known terminal outcome for mutate, lookup and notification;\nreopening may resend that intent only to the acknowledging store, whose replay\nrecord prevents double execution. Persisted terminal receipts are not reposted.\nA replacement retires old-store intent with an unknown-outcome refusal; an old\nunbound intent may replay only to the first store its journal has seen.\nFor a caller-supplied id with no local outcome, a prediction or validation refusal\nqueues the write without a row so the server can answer from its replay record.\nThe journal preserves this replay eligibility through navigation. If the server\nhas no record, it executes or refuses the write against its current state.\nSeparate live web tabs have separate outboxes; the server deduplicates their\nrequests under the same principal and id. Different principals may use the same\nid independently."
+  },
+  {
+    "id": "writes-04",
+    "card": "writes",
+    "home": "Details",
+    "text": "Writes that do not predict show pending with `usePendingWrite(op)` from\n`snapback4/react`: `run(args)` submits, `pending` covers submission through\nterminal `sent` or `failed`, and `last` is the Write. Keep its mutation id in\nview state; `usePendingWrite(op, savedId)` resumes observation after reload\nwithout submitting again. `client.write(id)` reads the kept outcome (undefined\nfor an unknown id or an evicted id that has left the outbox); `onWrite` reports\nlater terminal changes. The ordinary in-memory history retains at most 256 terminal outcomes.\nFailed receipt saves retain known summaries separately until persistence or close. The local client reads the device's one atomic window of the last\n256 server terminal receipts and its current outbox directly, so another native\nowner's settlement cannot leave a stale pending outcome. Reads and repeated\nflushes do not refresh the window. Queued terminal writes emit at most once\nper client: their event ids stay remembered until the outbox entry leaves.\nLocal receipts survive reopen. Before deleting an adopted web tab's store,\nits terminal receipts enter a shared server/viewer window bounded to 256 in\nrecovery order. Existing shared ids keep their outcome and position. Openers\nand `client.write(id)` read it alongside the device's own 256 receipts;\nreads neither copy nor refresh it, so another tab's adoption cannot hide a\nreceipt from a reload. Outbox ownership stays exclusive: a held Web Lock is\nnever taken; a queued background lock request wakes recovery when its owner\nreleases it, and closing cancels the wait. Unidentified journals wait for a\nmatching open or sync signal. Persistence failures get at most three retries,\nafter 1, 2 and 4 seconds; later opens or sync signals can try again. Receipt\nlookups do not create the shared window before adoption. Storage clearing or eviction\nfrom both windows can make an id unknown. Recovered success carries `replayed: true`\nand no result; recovered failure keeps code/family and `write refused: CODE`.\nRefusals before durable admission, the raw online tier and mock remember ordinary\noutcomes for their client lifetime only, up to 256 terminal outcomes.\nClose completes after local work without waiting for the network. A mutation or\naction keeps a response received before close completes; otherwise its caller\nreceives pending with its id. Late responses are consumed and discarded.\n`createApp` and device mutation intent recover on reopen; raw online callers\nretain their retry id, and action callers collect the same server action id."
+  },
+  {
+    "id": "writes-05",
+    "card": "writes",
+    "home": "Details",
+    "text": "`client.acquired` and `useAcquired()` report completed snapshot and catch-up\nfor the current store, stay true offline, and reset with invalidated acquisition.\nThe online tier has no partition and reports false. In an opener, use\n`if (client.link() === \"online\") await client.sync()` before exposing a screen\nthat needs immediate offline predictions; skip the wait on an offline cold start.\nIf sync loses the link or the partition is refused, acquisition can remain false.\nNetwork fetch failures resolve `sync()` without a value and set the link offline;\nreturn the open client. Close and rethrow only unexpected opener exceptions.\nA Write queued without a row before acquisition carries\n`reason: \"queued without a row: not acquired yet\"`; other missing local evidence\nsays `queued without a row: local data does not justify prediction`.\nPredicted rows carry pending; a pending Write has no predicted result."
+  },
+  {
+    "id": "writes-06",
+    "card": "writes",
+    "home": "E_PREDICT",
+    "text": "`upsert` set-state writes (likes, reactions and votes) predict updates of\nrows the device holds. A missing row predicts an insert only when its synced\ngroup is held with no horizon, both the key and the materialized insert image\nprove readability, and the device holds every row that can collide on a\nsecondary unique index or count toward an affected cap. Defaults are part of\nthat image. Otherwise it queues without a predicted row, including in a left\ngroup. See `guide prediction` for the conditions and a set-membership recipe.\nAn expiring cap counts unswept physical rows, which live snapshots omit.\nOccupancy-increasing writes queue without predicted rows and settle on the\nserver even after full acquisition; updates within a cap group can still predict.\nReplacing an expired same-id row also queues: the server may have swept it and\nrefilled the cap before sync reaches the device. A held live row can still\nsupport an update within its cap group."
+  },
+  {
+    "id": "writes-07",
+    "card": "writes",
+    "home": "NOT_FOUND",
+    "text": "NOT_FOUND means a point write has no target, or a write to an unreadable target\nwas refused without disclosing its existence. It is also the conventional\napplication code for `row ! else NOT_FOUND`. Check a readable target and retry;\ndo not infer absence from a refused blind write."
+  },
+  {
+    "id": "writes-08",
+    "card": "writes",
+    "home": "NOT_FOUND",
+    "text": "An alternate-key delete of a missing row refuses `NOT_FOUND` locally when the\nsynced group proves absence; otherwise it queues for server resolution."
+  },
+  {
+    "id": "writes-09",
+    "card": "writes",
+    "home": "E_CONSTRAINT",
+    "text": "For `after insert <- exists t[key]`, a local hit satisfies the postcondition.\nA local miss predicts `E_CONSTRAINT` only when the key proves readability\nand its synced group is fully held without a horizon. Otherwise either an\nordinary insert or an upsert queues without a predicted row; the server\ndecides the postcondition when the write arrives."
+  },
+  {
+    "id": "writes-10",
+    "card": "writes",
+    "home": "E_INPUT",
+    "text": "Defaults fill missing insert columns on the writing host, including the insert\nbranch of `upsert`; updates and existing-row upserts never reapply defaults.\n`upsert` inserts or patches: on an existing row, unnamed columns keep their\nvalues. An incomplete insert patch answers `NOT_FOUND`. An explicit null\nclears an optional column. Omitted asset columns keep their placement; an explicit\nasset id on a row you cannot read must be your own upload, even if it equals the\nretained id. The update\nrule runs before asset diagnostics. Conditional `if` sees old only inside\nthe engine; neither old nor the merged image is a program binding."
+  },
+  {
+    "id": "writes-11",
+    "card": "writes",
+    "home": "NOT_FOUND",
+    "text": "For update/upsert, \"readable\" means the read rule admits the old row in the\npre-write state, before the patch or any of its effects. The engine resolves\nid and unique-key targets privately; the update rule judges old and next."
+  },
+  {
+    "id": "writes-12",
+    "card": "writes",
+    "home": "E_INPUT",
+    "text": "E_INPUT means an argument or row value does not fit its declared type.\nCorrect the named field or its declaration. A typed reference checks the id's\nshape; use `require exists t[id] else CODE` to require a visible target."
+  },
+  {
+    "id": "writes-13",
+    "card": "writes",
+    "home": "E_CONFLICT",
+    "text": "E_CONFLICT means a conditional update found that the row changed.\nThe refusal carries the current row only when its read rule admits the viewer.\nRead it and retry with a fresh edit."
+  },
+  {
+    "id": "writes-14",
+    "card": "writes",
+    "home": "E_QUARRY_WRITE_TESTS",
+    "text": "E_QUARRY_WRITE_TESTS means a write target includes tests beyond its unique\nkey. For a readable row, write `require exists members[org, viewer, role =\n'admin'] else NOT_ADMIN`, then `update members[org, viewer] { role: 'member' }`.\nChoose the refusal code for your application. This explicit check refuses a\nhidden or missing row and grants no write authority; the compiler does not\ninsert it automatically."
+  },
+  {
+    "id": "writes-15",
+    "card": "writes",
+    "home": "NOT_FOUND",
+    "text": "| Target before the write | Refusal details |\n| --- | --- |\n| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |\n| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |"
+  },
+  {
+    "id": "writes-16",
+    "card": "writes",
+    "home": "NOT_FOUND",
+    "text": "A hidden collision on ordinary insert or `insert ... if absent` stays\n`E_RULE`; a readable collision names its index (if-absent returns null).\nAn update or upsert-patch colliding with a different hidden row returns generic\n`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.\nUse `upsert counters[recipient] { count: 1 }` under an `update` rule to\nwrite another principal's row. Success discloses the admitted row's existence\nand the update rule predicates. It grants no extra stream or snapshot row.\nA condition belongs on `update`; an upsert inserts or patches. A condition\nneeds a row you can read; a blind patch needs none. On a row you cannot read,\nimmutable columns in a patch are ignored. A readable immutable mismatch still\nnames the column. Before target lookup, the engine reserves room for the rule\nprobes and the largest merged image allowed by the schema and supplied patch;\nif it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.\nDelete targets and insert/if-absent collision lookups also reserve authorization\nbefore resolving a row, including expired rows. The allowance covers the read\nrule's worst case, including probes that could short-circuit; execution still\ncharges the rule work once."
+  },
+  {
+    "id": "writes-17-1",
+    "card": "writes",
+    "home": "E_INPUT",
+    "text": "The table names are the language card's. A final write is the implicit\nreturn; bind one to use its row (`row = insert ..`). Writes check the rule,\nthen unique indexes, caps, immutable columns, text formats and `after\ninsert` postconditions; any refusal rolls the whole mutation back, and a\nmaintained aggregate is written through its source rows. Every written row\nfans out to its partitions (guide sync). A mutation applies at most once\nper client-minted id and principal. Valued updates/upserts and conflict\n`current` are ordinary read-rule gets (null or withheld when hidden), evaluated\nat the read's state; a write that grants read authority may return its row."
+  },
+  {
+    "id": "writes-17-2",
+    "card": "writes",
+    "home": "E_ID_REUSED",
+    "text": "The recorded body is the replay body, with value-free diagnostic messages\nand no `result` or `current`. Retries return only\nexecution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding\nhistorical `result` and `current`, including scalar results after a lost reply."
+  },
+  {
+    "id": "writes-17-3",
+    "card": "writes",
+    "home": "Details",
+    "text": "On the web, admission waits for the IndexedDB commit; pagehide or becoming\nhidden sends only the oldest unconfirmed write with keepalive, including a retry\nof that same head if an ordinary send is in flight when the page exits.\nA blocked or oversized head is never skipped; clients share\nthe browser's 64 KiB body budget. Unsent/unconfirmed writes stay durable for retry on reopen with\nthe same mutation id, so replay cannot apply a write twice.\nIf an exit response has not finished after one second, ordinary flushing\nretries that same durable head before advancing; an unknown outcome never\nskips a write. `close()` stops waiting immediately without cancelling the\nkeepalive request.\nAn admission that finishes while the page is suspended rechecks the exit\ntransport after its commit; on reopen, a matching server store identity and\nnon-regressed head allow unknown writes to replay before the first sync finishes.\nWith an exclusive persistence claim, the web device records the mutation id, operation,\narguments and minted row ids synchronously in localStorage, in call order,\nbefore `mutate` returns its promise. Same-origin navigation can therefore leave before IndexedDB admission\ncommits: the next client admits those records before new writes, then sends\nthrough the ordinary outbox with the original ids. A closed tab's records are\nadopted by the next device that opens the store, under the outbox's exclusive claim.\nAdoption runs with that device's first sync, so a receipt from a closed tab\nanswers `client.write(id)` once that sync completes, not at the moment it opens.\nRecovery and new admissions take submission numbers from the same device counter;\nalready-queued writes precede recovered orphan records. A matching orphan waiting\nfor backend adoption installs the destination's authenticated backend first. An\norphan missing its kept backend or store identity is skipped with its journal\nintact until a later matching open can establish ownership; a broken orphan does\nnot prevent healthy stores from opening.\nRecovered records stay bound to their original backend store identity; a\nreplacement retires them without sending them to the new backend.\nThe journal allows at most 32 records and 256 KiB of UTF-8 keys and values per\ndevice store; a serialized record over 64 KiB is not journaled. Unavailable,\nthrowing or full localStorage, an unidentified backend store,\nexceeded journal limits, or browser storage clearing leave unawaited navigation\nbest-effort: that write can still be lost before IndexedDB commits. A destination must open\na client to recover a record that never reached the outbox; keepalive remains\nbest-effort and sends only admitted writes. Built-in IndexedDB requires Web\nLocks and refuses opening without them. Custom persistence must provide an\nexclusive claim and discoverable alternate stores; see the client reference.\nRecovered executable records keep successful predictions, but local refusals\nqueue for the server to decide, so stale rows cannot permanently cancel them.\nFor programmatic navigation, `await client.mutate(...)` before navigating\nis the strongest durable boundary; handle a `failed` outcome before leaving.\n`pending` means IndexedDB admission is durable and the server outcome still\nneeds confirmation. A write-specific admission refusal returns the ordinary failed\noutcome and removes its journal record, replaces it with a non-executable\ncancellation, or acknowledges it in IndexedDB. If both stores reject cancellation,\nthe recovery outcome is indeterminate: the executable record can survive and a\nlater recovery can admit it if the authored condition changes. The returned\nrefusal alone does not guarantee preserved cancellation in that case.\nA device write-target miss that cannot prove the insert conditions above\nqueues without a predicted row and still sends `/m`."
+  },
+  {
+    "id": "writes-17-4",
+    "card": "writes",
+    "home": "E_INPUT",
+    "text": "A reference column checks the id's shape, not that\nits target exists: when a mutation needs a visible target, guard first —\n`require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point\nread that is false for an absent or hidden row; deleting a target neither\ndeletes nor refuses the rows that reference it, so a lifecycle is the\napplication's, in its mutations and rules."
+  },
+  {
+    "id": "writes-18",
+    "card": "writes",
+    "home": "Details",
+    "text": "An `exists` or `count` check sees only rows its viewer may read. It cannot\nprevent a clash with another guest's private booking. E_STRUCTURAL_FANOUT\nrefuses a mutation domain whose read rule is not decided by its scope.\nUse one row per occupied night and let `unique` enforce the constraint for\nevery writer. Insert the booking and its nights in the same mutation:"
+  },
+  {
+    "id": "writes-19",
+    "card": "writes",
+    "home": "Details",
+    "text": "`firstDay` and `lastDay` are calendar-day numbers in the app's chosen calendar;\nthe last day is excluded. A second guest reserving an occupied night gets\n`TAKEN`, and the entire mutation rolls back, including any earlier free nights.\nThe normal write and work meters bound the loop; exceeding them also rolls\nback the mutation. This example only books nights; cancellation must release\nits nights in the same transaction as cancelling the booking."
+  },
+  {
+    "id": "writes-20",
+    "card": "writes",
+    "home": "Details",
+    "text": "The availability table is deliberately public: a named unique refusal applies\nonly when the clashing row is readable. A hidden collision stays `E_RULE`,\neven with `else TAKEN`. Use this example only if occupied dates and booking\nreferences may be public. Private booking details keep their own read rule.\nIf the product instead permits readable availability checks, an `exists` or\n`count` domain over that public availability table has a uniformly readable\naudience. Pinning a private guest merely narrows the check; it cannot enforce\na constraint across all guests."
+  },
+  {
+    "id": "writes-21",
+    "card": "writes",
+    "home": "Details",
+    "text": "`at` has millisecond ties; client-minted ids order creation, not arrival at\nthe server. Keep a per-conversation ordinal in the same mutation as the\nmessage insert. Transactions serialize the increment, so committed ordinals\norder accepted writes within that conversation; they do not order groups."
+  },
+  {
+    "id": "writes-22",
+    "card": "writes",
+    "home": "Details",
+    "text": "Pass the returned `next` as `c` to page newest first by ordinal. Reusing the\nmutation id on retry neither increments again nor inserts twice. This short\nshared-history example is online-only and only members can advance its counter;\nprivate conversations also need membership read rules. If you sync and predict it, a local ordinal is provisional until the\nserver commits and reconciles concurrent sends."
+  },
+  {
+    "id": "writes-23-1",
+    "card": "writes",
+    "home": "E_CONFLICT",
+    "text": "`old` in a rule and the conditional update's `if` are evaluated inside the\nengine. An update/upsert result and conflict `current` are read-rule gets,\nnever the merged patch image: null or withheld when hidden at that read.\nA patch can grant read authority and then return its row. Omitted asset columns\nkeep their placement. An explicit asset id on a row you cannot read must be your\nown upload, even if it equals the retained id. Update authority is checked\nbefore asset diagnostics. A readable aggregate view is an explicit delta read channel;\n`N_MAINTAIN_DELTA` notes potentially wider source update authority."
+  },
+  {
+    "id": "writes-23-2",
+    "card": "writes",
+    "home": "E_NOT_PREDICTABLE",
+    "text": "A missing `upsert` predicts its insert when the synced group is held with no\nhorizon, both the key and the materialized insert image prove readability,\nand the viewer-readable partition covers every secondary unique lookup and\naffected cap group. The image includes key columns, patch and defaults; a\nwhole-table cap needs the whole public table. Left groups and unproved\nconditions queue without a predicted row and still send `/m` (guide prediction).\n`check` calls an upsert with an unprovable insert arm `predicts: updates only`,\nand lists that arm in its summary with the first failing horizon, rule or cap\ncoverage proof. `insert ... if absent` reports the same insert limitation.\nAn id supplied to `insert ... if absent`, including a parameter or helper result,\nneeds the `byId` absence proof too. Only an id minted by `new` during the call\n(including an omitted id) can use a covered secondary unique key instead.\n`check` preserves a local's `new` fact across unrelated requires, reads, emits\nand writes. A direct assignment tracks the local's new value; a branch or loop\nthat may assign it discards its fact. Other locals keep their mint facts.\nMembership-scoped reactions with `last 500` cannot prove absence outside that\nwindow; removing it still leaves `(messageId, principal)` unable to decide\n`exists members[.conversationId, viewer]`. A viewer-keyed read rule with no\nhorizon and caps grouped by that viewer predicts a first write but shows only\nthe viewer's own reactions. Full public sync covers a per-message cap but\nmakes every reaction public. Membership reads can predict without a horizon\nwhen every unique key and cap group includes `conversationId` and the device\nholds the deciding membership row; that acquires all reactions in the held\nconversation. None of these means complete children of just the held messages.\nIf no shape fits the product, this write queues until the server answers;\nshow its pending state using the returned write's `state` and `client.onWrite`\n(guide writes). Changing `upsert` to an existence branch does not supply absence\nor cap coverage."
+  },
+  {
+    "id": "writes-23-3",
+    "card": "writes",
+    "home": "E_ID_REUSED",
+    "text": "The at-most-once record stores the replay body, with value-free diagnostic\nmessages and no `result` or `current`. Replay returns\nexecution identity only, with `replayed: true`; historical `result` and\n`current` are withheld, including after revocation or a dropped response.\nThe same operation id under another principal has no access to that receipt.\n`delete` keeps its own existing rule and behavior."
+  },
+  {
+    "id": "programs-00",
+    "card": "programs",
+    "home": "Details",
+    "text": "Queries read data; mutations change it in one transaction.\nJobs run background work, and helpers share logic between programs."
+  },
+  {
+    "id": "programs-01",
+    "card": "programs",
+    "home": "E_STRUCTURAL_FANOUT",
+    "text": "A mutation with `predicts: \"never\"` (a server site or `: server`) may pass\nover a bounded plain prefix page whose read rule is uniform over its prefix,\nwithout a complete schema-capped group. `matching`, merges and tables with\nexpiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation\nkeeps the complete-group requirement for page loops: `for row in t where .owner = viewer:`\nuses the schema cap, without restating it. An explicit `first N` remains legal;\nan explicit bound below the cap still fails that proof. A job's inner loop may\nalso read a capped group this way. A bounded list loop whose\nbody only reads, computes and emits may use a list column, alias, helper result,\nor filtered/shaped list derived from a page; it need not preserve the whole group.\nA row write anywhere in that body, including an inlined helper or nested loop,\nkeeps the original structural-fanout check and its capped-group rewrite.\nEvery page a mutation reads, even just\nbinding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`).\nWhen a capped scope can decide the rule, the rewrite names the missing rule\ncolumns and a capped loop that supplies their values. Pinning `.readerId` decides visibility; it grants no read\nauthority over another reader's inbox. See `guide feeds` for removal limits.\nFor `exists` and aggregate constraint checks without a deciding capped scope,\nthe refusal explains that hidden rows would be missed. Use a per-unit unique\nconstraint every writer obeys, or a readable availability audience if the\nproduct permits it; `guide writes` has a per-night booking example. A hidden\nunique collision stays E_RULE; only a readable collision can use its named code.\nThe pass is atomic and still aborts above 1,024 rows written. `check --cost`\nprints \"a pass over the first N rows of <prefix>; examined ceiling <n>\".\nFor structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there."
+  },
+  {
+    "id": "programs-02",
+    "card": "programs",
+    "home": "E_QUARRY_PLACEMENT",
+    "text": "The table names are the language card's; a `job` is `for row in table where predicate:` sweeps (guide jobs), or `native`: the app's\nown Rust, hosted as wasm; a `query` may be `native` too, run on the server\nas the viewer and on a device over its rows (guide native). Operations in `schema.q`\nare called by name (`api.thread`); operations in `snapback/feed.q` are\n`api.feed.<name>`; jobs are not on api.ts. `require cond else CODE` refuses\nwith the program's own code, which reaches the client as `{ code, family:\n\"rule\", .. }`; `CODE` is UPPER_SNAKE and never starts with `E_`. Statements\nare `x = expr` (bind or reassign a local), `(a, b) = divmod(..)`, `require`, `if:`/`else if:`/`else:`, `for x in\ndomain:`, `break`, `continue`, `return`, a helper `fn` call, and a write; every other\nexpression must be bound or returned. `fn` takes one expression or a body ending\nin `return expr` or a bare `return`; calls work in statements and expressions.\nA helper return exits only the helper, and its locals cannot capture the caller's.\nIt never repositions or reclassifies an enclosing page.\nQueries cannot write or mint ids, including through a helper; the call site names\nthe write that does not belong."
+  },
+  {
+    "id": "programs-03",
+    "card": "programs",
+    "home": "Details",
+    "text": "The backend is one file (more `.q` files beside it hold modules; their\noperations are named `<module>.<op>`, and every file shares one namespace\nof tables, shapes and helpers); generated operations group under `api.<module>`\n(`api.social.follow`, not `api.follow`). The client imports `api` from the generated\nfile and talks to the server through one client object. There are no\nresolvers, no migrations to write, no subscriptions to manage: a table's\n`sync` line says which devices hold its rows, and the client's reads run\nover what the device holds."
+  },
+  {
+    "id": "programs-04",
+    "card": "programs",
+    "home": "Details",
+    "text": "**Two ways to run.** `snapback4 init` starts local-first: declare `sync`\nand pass a device to `createApp` so the client holds its partition and works\noffline. `snapback4 init --online` writes a schema with no `sync` lines\nand a `src/client.ts` on `createApp` without a device. Its queries run on the server and\nstay live through `/changes`, with no replica. Both tiers use the same\nrules, meter, identity, assets and jobs. Add `sync` and open a local-first\nclient when the app needs offline data. `init --expo` adds the phone\nstarter, selecting the native tier when available and online in Expo Go.\nEvery starter writes `snapback/generated/package.json` with `{\"type\":\"module\"}`,\nso Node ESM seed scripts can import `api` from `snapback/generated/api.ts`\neven when the app's package.json says `\"type\":\"commonjs\"`. Existing scripts\nunder `snapback/` keep their module interpretation. The Expo starter uses\n`worker.mts` so its generated worker is explicitly ESM in a CommonJS app.\n`check` and `dev` rebuild the generated package boundary alongside `api.ts`."
+  },
+  {
+    "id": "programs-05",
+    "card": "programs",
+    "home": "E_INTERNAL",
+    "text": "E_INTERNAL means the interpreter reached an undefined compiler temporary.\nIt names the operation and statement site, without exposing the generated\nvariable name as an input error. Recompile with `snapback4 check`; if it\nrecurs, report the operation and site as a compiler defect."
+  },
+  {
+    "id": "programs-06",
+    "card": "programs",
+    "home": "E_OP",
+    "text": "E_OP means the requested operation or route does not exist, or was called\nthrough the wrong door. For example, `client.mutate(api.thread, args)`\ncannot run a query; use `client.query(api.thread, args)`. Run\n`snapback4 check` and use the generated API's module-qualified names.\nCall actions with `client.act`; run jobs with `snapback4 run <job> '{}'`\nor a schedule, since jobs are not client operations. Check the HTTP path\nwhen the message instead names an unknown route."
+  },
+  {
+    "id": "programs-07",
+    "card": "programs",
+    "home": "E_OP_RESERVED",
+    "text": "E_OP_RESERVED means an application's refusal code starts with the\nplatform's reserved `E_` prefix. For example,\n`require allowed else E_AUTH` must use\n`require allowed else NOT_MEMBER`. Pick an UPPER_SNAKE application code\nat the use site and handle that code on the client. The same rule applies\nto a unique index's `else` hook; it does not require adding the code to the\nplatform registry."
+  },
+  {
+    "id": "programs-08",
+    "card": "programs",
+    "home": "E_QUARRY_PLACEMENT",
+    "text": "E_QUARRY_PLACEMENT means a statement is valid only in another context.\nFor example, `query add():` cannot contain `insert notes { body: 'hello' }`;\nmake that operation `mutation add():` so the write runs in its transaction.\nQueries cannot insert, update, delete or mint ids, even through a helper.\nKeep read-only work in a query, put writes in a mutation or job, and put\n`break` or `continue` inside the loop they control. The rewrite names the\nmisplaced statement and where it belongs."
+  },
+  {
+    "id": "programs-09",
+    "card": "programs",
+    "home": "E_EMIT_IN_QUERY",
+    "text": "E_EMIT_IN_QUERY means a query tried to enqueue an external effect.\nFor example, `query send():` cannot contain `emit notify { body: 'hello' }`;\ndeclare `effect notify` and change the operation to `mutation send():`.\nCall that mutation for the send intent. Queries may rerun to refresh a\nscreen, so they only read; mutations and jobs keep emitted effects in\ntheir commit for a worker with a service token to perform (guide effects).\nMoving the emit into a helper called by the query does not make it legal."
+  },
+  {
+    "id": "language-00",
+    "card": "language",
+    "home": "Details",
+    "text": "Quarry defines your tables, access rules and backend operations.\nQueries and eligible mutations can run on devices that hold their inputs."
+  },
+  {
+    "id": "language-01",
+    "card": "language",
+    "home": "Details",
+    "text": "One file, `snapback/schema.q`, holds tables, views, shapes, helpers,\nprograms and schedules, in any order; more `.q` files beside it are modules\n(their operations are `<module>.<name>`) sharing one namespace. Schedules use that\nqualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous\nbare module job gets this rewrite from `check --fix`. Comments\nstart with `--`. Blocks indent with two spaces. Everything the compiler\naccepts is below; the suite compiles every block and runs the core program."
+  },
+  {
+    "id": "language-02",
+    "card": "language",
+    "home": "Details",
+    "text": "Time arithmetic uses durations: `now + 1m` is one minute from now,\nand `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`\nproduce UTC calendar ordinals. See `guide jobs` for scheduled work."
+  },
+  {
+    "id": "language-03",
+    "card": "language",
+    "home": "Details",
+    "text": "`createRoom` above predicts: its room is readable through the membership\ninserted later in the same call. Reads authorize the current provisional\nimage against all pending writes. `edit` of retained history after leaving\nthe room also predicts, but the edited image is hidden until settlement.\nSee `guide prediction`."
+  },
+  {
+    "id": "language-04",
+    "card": "language",
+    "home": "E_QUARRY_TYPE",
+    "text": "Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.\nAn enum fits `text <=N` when every variant has at most N characters and\ncontains no control characters except tab, LF and CR. This is\nstatic and total: no variant is truncated or converted at runtime. If one\nvariant is too long, declare the helper parameter with the enum instead.\nAfter a scalar `where` predicate, a declared shape name shapes the page:\n`where not .hidden card` and `where not .hidden { ...card }` agree. A valid\nrow/object shape inside a predicate keeps its meaning; parenthesize it to\nmake that scope explicit, or use `{ ...card }` explicitly for the page."
+  },
+  {
+    "id": "language-05",
+    "card": "language",
+    "home": "Details",
+    "text": "Reads: `t[id]` reads one row; `t[a, b]` needs one declared unique pair.\nNamed keys select columns explicitly. `t where predicate first 20 by .at\nafter c` pages matching rows. `last` reverses the order; id breaks ties.\nOptional filters use `(status = null or .status = status)` to select a plan\nfor absent or present inputs; an empty `matching q` needle browses in order.\n`count(t where predicate)`, `sum(t where predicate, .amount)`,\n`min(t where predicate, .col)` and `max(t where predicate, .col)` stream a\ndomain. Min/max skip null values, as SQL does, and return null for an empty\nor all-null domain; otherwise they return the column's type. An ordered\nindex seeks to the first visible matching non-null value; otherwise the\nengine scans under its meters. `check --cost` names the plan. A cut aggregate\nis unavailable, never a partial answer (even before `?? 2`). A device needs\ncomplete coverage of the domain. Rules apply before any comparison. `exists` stops\nat a visible match; an unknown domain cannot establish absence."
+  },
+  {
+    "id": "language-06",
+    "card": "language",
+    "home": "E_TYPE",
+    "text": "Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's\ninstant), `new` (an id, mutations only), `true`, `false`, `null`, integers,\n`'text'` or `\"text\"` with `\\n`, `\\t` and `\\\\`, `[a, b]` (a bounded list),\n`{ a, b: c }` (an object; a bare name is `name: name`). `=` and `!=` are total\n(null equals null); `<` and friends, `+`, `-` and `*` need present operands:\nnarrow with `if x != null:`, `x ! else CODE`, `x ?? default`, or `require x\n!= null else CODE`. Guards narrow fields of a bound row too, through `and`/`or`,\nconditional arms and the paths that survive an early return; rebinding clears the fact. `time - time` is an int of milliseconds; `time + int` a\ntime. Text `+` concatenates two present texts. `count(text | page | list)` counts characters or items; `lower(text)`, `trim(text)`, `join(list, separator)`, `sum(page, .col)`, `sum(list)`, `min(a, b)`,\n`max(a, b)`, `min(page, .col)`, `max(page, .col)` (also lists of rows), `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,\n`group(list, 'col')`, `first(list)`, `last(list)`, `at(list, index)` (element or null),\n`tokens(text)`, `sha256(text)`, `share(amount, list, member)`, `(q, r) = divmod(a, b)`,\n`(lo, hi) = sorted(a, b)`. `x = expr` binds or reassigns a local with a compatible type; reassignment resets its refinements. Arguments cannot be shadowed. A program ends\nwith `return [value]`, or with its last expression, or with its final write.\nAn inline ordered page needs parentheses to separate its order keys from\nthe column argument: `min((t first 20 by .at), .col)`. Binary `min(a, b)`\nand `max(a, b)` retain their meaning; a collection followed by `.col` selects\nthe aggregate."
+  },
+  {
+    "id": "language-07",
+    "card": "language",
+    "home": "Details",
+    "text": "`xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list."
+  },
+  {
+    "id": "language-08",
+    "card": "language",
+    "home": "Details",
+    "text": "`sha256` is for high-entropy capability tokens and content checksums. It hashes\nthe exact UTF-8 bytes without normalization and returns lowercase hexadecimal.\nIt is not password hashing, low-entropy email anonymization, a signature, a\nMAC, or entropy generation; a digest is not automatically safe to publish."
+  },
+  {
+    "id": "language-09",
+    "card": "language",
+    "home": "Details",
+    "text": "`unique principal, day(at)` enforces calendar uniqueness. `search body`\ndeclares word-prefix search. The planner builds indexes for predicates,\norder, rule probes, sync, caps and expiry (`guide indexes`)."
+  },
+  {
+    "id": "language-10",
+    "card": "language",
+    "home": "E_SERVER_REQUIRED",
+    "text": "One `use server` in any module (`schema.q` is usual) enables the whole\nproject; repeating it is harmless. Actions, routes and schedules naming an\naction require it. Effects (including secrets, retry, backoff, deadline and\ncancellation), jobs, schedules naming a job and service seats need no directive.\nThis block extends the core schema above."
+  },
+  {
+    "id": "language-11",
+    "card": "language",
+    "home": "E_INIT_CONFLICT",
+    "text": "E_INIT_CONFLICT means `init` found files or package entries it would\noverwrite, and wrote nothing. Rename the listed files or reconcile the\nnamed package.json entries, then rerun `snapback4 init --expo` (or `--web`).\nUnrelated files and symlinks can stay. An existing README.md stays intact;\nthe starter writes its setup instructions to README.snapback.md instead."
+  },
+  {
+    "id": "language-12",
+    "card": "language",
+    "home": "E_QUARRY_DUPLICATE_FIELD",
+    "text": "For a present row, `{ ...p, extra }` and `p { *, extra: extra }` contribute\nthe same columns and extra value. Shapes keep `*`; object fields and spreads\ncan replace inherited fields with an explicit field and its type, as `handle`\ndoes above. Two explicit fields with the same name are refused."
+  },
+  {
+    "id": "language-13",
+    "card": "language",
+    "home": "E_QUARRY_SYNTAX",
+    "text": "E_QUARRY_SYNTAX means the parser could not read the form at the reported\nfile, line and column. For example, `query answer:` is missing its argument\nparentheses: write `query answer():`, then indent `return 42` by two spaces\non the next line. Keep the colon, close each `(`, `[` and `{`, and separate\narguments and object fields with commas. Follow the diagnostic's rewrite;\n`snapback4 check --fix` applies it only when marked mechanical. Fix the first\nbad line and rerun `check`; a later empty-body error may be its consequence."
+  },
+  {
+    "id": "language-14",
+    "card": "language",
+    "home": "E_QUARRY_UNKNOWN",
+    "text": "E_QUARRY_UNKNOWN means a name cannot be resolved in this scope: a local,\nargument, table, column, index or helper may be misspelled or undeclared.\nFor example, after `message = 'hello'`, `return mesage` must be\n`return message`. Check the declared spelling and the diagnostic's suggested\nname; declare a missing local before using it. For a page, name its predicate and order: `posts where .authorId = viewer\nlast 20 by .at after c`. `snapback4 check --fix` applies only mechanical repairs."
+  },
+  {
+    "id": "language-15",
+    "card": "language",
+    "home": "E_QUARRY_UNSUPPORTED",
+    "text": "- `while` and recursion → `for` over a page, list, `range(a, b)` with int expressions, or `tokens(text)`; `walk` for a chain.\n- Floats → integer minor units in `decimal S` and `money CUR S`, or a native job.\n- A typed map with dynamic keys → `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.\nBefore editing, `check --fix` verifies every compiled source; an editor save refuses the repair with its filename. Its final compile re-reads the project."
+  },
+  {
+    "id": "language-16",
+    "card": "language",
+    "home": "E_QUARRY_UNSUPPORTED",
+    "text": "Ordinary field access propagates null: `row.body` is null when `row` is null.\n`check --fix` removes only the `?` in `a?.b`, preserving the base expression\nand evaluating it once, including when it is a call or read."
+  },
+  {
+    "id": "language-17",
+    "card": "language",
+    "home": "E_QUARRY_UNSUPPORTED",
+    "text": "- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`."
+  },
+  {
+    "id": "language-18",
+    "card": "language",
+    "home": "E_MAINTAINED_COLUMN",
+    "text": "Maintained columns put an aggregate on the row it describes. Their source\nis ordinary and non-expiring. Omit `by` when exactly one source column references\nthe parent; otherwise name that reference explicitly. The\nengine owns the column; a write result omits it. Read the row for its value.\nAdding or redefining it recounts existing sources in atomic activation.\nThe event-free generation barrier makes devices reacquire; a missing stored\nfield reads 0 without an authored literal default. See `guide maintains`\nfor disclosure and stream cost, and `guide feeds` for Trending."
+  },
+  {
+    "id": "language-19",
+    "card": "language",
+    "home": "Details",
+    "text": "Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,\nassets, reads, shapes, writes, programs, jobs, native, feeds, search,\neffects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why\n<CODE>` explains a refusal."
+  },
+  {
+    "id": "language-20",
+    "card": "language",
+    "home": "E_QUARRY_UNSUPPORTED",
+    "text": "E_QUARRY_UNSUPPORTED means the guessed construct is not a Quarry form.\nFor example, `return len(items)` must be `return count(items)`. The\nreported rewrite names the accepted spelling; `snapback4 check --fix`\napplies it when marked mechanical. For a different algorithm, use the\nlanguage card's bounded loop, helper or native-job idiom. Accepting a\nrewrite does not add an alias to the language."
+  },
+  {
+    "id": "language-21",
+    "card": "language",
+    "home": "E_ID_REUSED",
+    "text": "E_ID_REUSED means the request ID already belongs to another operation or\ndifferent arguments. For example, retrying an invitation with the same ID\nbut a different email changes its intent. To collect or retry the original,\nkeep its operation, ID and raw arguments exactly; for a new invitation,\nuse a new ID. Explicit null and an omitted optional argument are different\nraw inputs even when validation gives them the same value. See `guide\nactions` for durable invocation collection and `guide writes` for mutations."
+  },
+  {
+    "id": "language-22",
+    "card": "language",
+    "home": "Details",
+    "text": "For a public Following feed, see `guide feeds`. Materialization requires\npublic, fully synced sources with immutable mappings and owner write rules."
+  },
+  {
+    "id": "language-23",
+    "card": "language",
+    "home": "Details",
+    "text": "A predicate states which rows belong in a read. `by .at` orders by a column;\n`first` ascends and `last` descends, with `id` breaking ties in that direction.\nThe compiler selects or synthesizes indexes. A positional key must name one\nunambiguous declared unique key; named keys make the intended columns explicit.\n`search` declares searchable text, and unnamed `unique` declares a unique key.\nDuration literals are integer milliseconds in any expression."
+  },
+  {
+    "id": "language-24",
+    "card": "language",
+    "home": "Details",
+    "text": "The public activity union supplies a private delivered feed for each reader."
+  },
+  {
+    "id": "language-25",
+    "card": "language",
+    "home": "Details",
+    "text": "Existing explicit indexes, merges, fixed chunks, aggregates and timelines keep\ntheir meaning. New code uses predicates, views and `for` sweeps. Following's\nview declaration is shown above; `guide feeds` owns its complete example."
+  },
+  {
+    "id": "language-26",
+    "card": "language",
+    "home": "Details",
+    "text": "An unread count can use the same expiring receipts as message history. The\nserver reads a total plus its unswept expiry backlog (`guide maintains`)."
+  },
+  {
+    "id": "shapes-00",
+    "card": "shapes",
+    "home": "Details",
+    "text": "Shapes choose the fields returned from a row or page.\nName a shape to reuse the same result layout across reads."
+  },
+  {
+    "id": "shapes-01",
+    "card": "shapes",
+    "home": "E_QUARRY_SPREAD",
+    "text": "`{ ...p, extra: true }` copies a present row or object's known fields. Fields\ncan replace inherited fields: `{ ...p, handle: { value: p.handle } }` and\n`p { *, handle: { value: .handle } }` return an object in place of the handle\ntext. The replacing field determines the generated type. A row contributes\nthe same columns and `pending?: boolean` as `p { *, extra: true }`.\nA spread result is `pending` if any row spread into it, directly or through a\nspread local, is pending, even when all of that row's fields are replaced.\nLater spreads replace earlier fields from left to right. `pending` cannot be supplied or overwritten\nin an object that spreads a row. This changes only the output;\nrules, ordering and cursors still use the original row.\nE_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name, even\nwith a spread between them. Rename or remove the second field; the rewrite\nnames both locations. A bare column is an explicit field too.\nE_QUARRY_SPREAD refuses nullable operands and values without statically known\nfields. Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`,\nthen `return { ...p, extra: true }`."
+  },
+  {
+    "id": "shapes-02",
+    "card": "shapes",
+    "home": "E_QUARRY_SHAPE_JOIN",
+    "text": "An object spread's wildcard follows field order; when shaping an existing row shape,\nexplicit computed fields win over its wildcard. E_QUARRY_SHAPE_JOIN refuses\njoining different row kinds, or a row-derived value and a non-row value,\nat the conditional, assignment, return or collection that combines them.\nSpread both row arms before joining, or build both arms with the same shape\nand kind. The rule also applies inside objects and collections, even when the\nresult is only read by field. Identical kinds keep their existing behavior. Null adds absence to the same\nkind; it does not introduce a competing wildcard rule. Resetting a collector\nto `[]` keeps it empty, including inside a loop; a later append can establish\nits row kind again. A nonempty unknown value cannot join a row."
+  },
+  {
+    "id": "shapes-03",
+    "card": "shapes",
+    "home": "E_QUARRY_SHAPE_JOIN",
+    "text": "Only simple conditionals or two-value reassignments of row locals or row\nreads get pasteable repairs, with nullability and lazy evaluation preserved.\nReassignment edits require adjacent assignments (the second may be guarded),\nwith no intervening use of the reassigned local.\nCoalescing, nested field conflicts, containers and helper returns instead\nname the conflicting kinds and field path and explain how to make them\nagree. These explanations do not suggest source edits."
+  },
+  {
+    "id": "shapes-04",
+    "card": "shapes",
+    "home": "Details",
+    "text": "Here `listing` is the expanded object, or null for a missing or hidden listing."
+  },
+  {
+    "id": "shapes-05",
+    "card": "shapes",
+    "home": "Details",
+    "text": "In the first example, table and shape names are the language card's. A shape over a page is\na bounded loop; its fields are the row's columns by bare name, `*` for all\nof them, `...shape` for a named shape's fields, and `name: expr` with `.`\nas the row. There is no `select` spelling.\nA table-typed helper accepts that table's row or reference. A reference has no\nfields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's\nimplicit row parameter, `messages[m] { body: .body }`. Shapes are projections,\nnot declared helper-argument types.\nA row-based shape keeps `pending?: boolean` from its base, including `*`, named\nspreads and subsequent shapes. It is this device's unconfirmed change, absent\nafter confirmation; it is not a schema column or metadata on a containing record."
+  },
+  {
+    "id": "shapes-06",
+    "card": "shapes",
+    "home": "Details",
+    "text": "`guide reads` owns paging and continuation; `guide programs` owns helpers."
+  },
+  {
+    "id": "shapes-07-1",
+    "card": "shapes",
+    "home": "E_QUARRY_PLACEMENT",
+    "text": "`shape card = { id, name, owner: .ownerId }` names a shape; `row card` and\n`page card` use it, and `{ ...card, extra: 1 }` spreads its fields into\nanother. After a scalar predicate, `where not .hidden card` shapes the page\nwith the declared `card`, as does `where not .hidden { ...card }`. A valid\nrow/object shape inside a predicate keeps its meaning; parenthesize that\noperand, or use `{ ...card }` explicitly for the page.\n`fn isBrief(ttl: int ?): ttl != null` is a helper expression and\n`fn stamp(roomId: rooms):` a helper block ending in `return expr` or a bare `return`,\neach expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a\nstatement or expression), at most eight levels deep. A table-typed helper parameter keeps a row argument as a row with fields and no lookup; a reference argument stays a reference. A helper can write only\nwhen its caller can; a query's diagnostic names the write at the call site.\nA helper's `return` ends only that call, including inside a page's shape;\nthe page keeps its continuation and completeness."
+  },
+  {
+    "id": "shapes-07-2",
+    "card": "shapes",
+    "home": "E_SHAPE_EXCEEDS_METER",
+    "text": "The rule applies only to a query's top-level returned shape expression,\n`return <base> { ... }`: the base is an inline scan or merge, or a variable\nwith exactly one definition, that definition a read, no reassignment and no\nother use anywhere in the program. The binder marks that lowered loop; only\nthat loop drops a row whose shape the meter starved and every later row.\n`next` reaches the unfinished row first. A preceding fully computed row\nsupplies its exclusive position; otherwise the first unfinished rule-visible\nrow supplies an inclusive position — provided the page's own materialization was\nnot cut: a drain-cut merge with no fully computed emission, an opening cut or a\nword-limit cut retains no continuation. Following an inclusive cursor that again\nstarves the same first row's returned shape refuses with E_SHAPE_EXCEEDS_METER\ninstead of returning an empty page with the same `next`: the message names the\nread site and ceiling (8,192 examined rows); bound it (`first N`/`last N`) or\nmove it out of the returned shape. A shaped collector that is not the returned\nexpression keeps today's behavior: its empty or partial shape stays on the page,\nwith the existing continuation ownership and position, without trimming or rewind.\nThis includes assigned shapes, records, conditionals, helpers, aliases and\ncollector payloads; some such compositions have no continuation owner.\nThe answer stays `complete: false` on a meter cut, with `cut: 'meter'` on\ndevices and uniform server reads; non-uniform server reads keep `cut: null`.\nA nested page's cut still makes the answer incomplete.\nA collector building a returned value makes the query incomplete if it exits\nwith rows still unconsumed, even on a short final page.\nEvery page with more rows needs its own returned\ncursor owner; another field's page cannot cover a lost sibling or auxiliary\npage. A fully consumed, exhausted scan is complete without an owner, including\nan exact-bound scan returned as `count(rows)` (subject to the meter, rules and\ndevice horizon). An auxiliary loop over an intact returned page does not change\nits completeness, even if that loop breaks. Repeating a page read never clears\nan earlier loss. If an owned page site executes repeatedly, only its final\nexecution supplies `next`; a continuation lost by an earlier execution still\nmakes the query incomplete."
+  },
+  {
+    "id": "shapes-08",
+    "card": "shapes",
+    "home": "E_STRUCTURAL_FANOUT",
+    "text": "A program's prefix `exists` is a top-1 scan below the page: no cursor and no\npage overflow. Expired siblings still cost examined rows, and `matching` pays\nword discovery. A positive held row proves existence on a device regardless of\nits horizon; only a negative answer past that horizon needs coverage. A cut\nbefore finding a row returns false on an already capped answer. Mutation prefix\nexistence tests require a uniform, plain, non-expiring prefix. Rule probes keep\nexact-key, one-unit semantics. `exists` accepts predicates and seeks, but no `first`/`last` or cursor."
+  },
+  {
+    "id": "types-00",
+    "card": "types",
+    "home": "Details",
+    "text": "Types describe the values a column or argument accepts.\nThey also set limits on text, lists and uploaded assets."
+  },
+  {
+    "id": "types-01",
+    "card": "types",
+    "home": "Details",
+    "text": "`text` defaults to `text <=10000` characters in columns, arguments and helper\nparameters. Write `text <=N` or `text M..N` when the bound is a product rule;\nan indexed column must also fit the key budget (`guide indexes`)."
+  },
+  {
+    "id": "types-02-1",
+    "card": "types",
+    "home": "E_QUARRY_TYPE",
+    "text": "`?` after a type makes it optional: null when absent, and an omitted\noptional argument reads as null. Text literals in id positions are ids. A\n`<table>` reference is a typed id, with no implicit existence check and no\ndelete cascade: the string `\"null\"` is an id, and JSON null only fits an\noptional type; when a target must be visible, `require exists t[id] else\nCODE` before the write (guide writes). `=`\nand `!=` are total (null equals null); `<` and friends need present operands:\nnarrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. A null guard\nalso narrows a bound row's field (`r.changedAt != null`), until the local is rebound. `time`\narithmetic: `time - time` is an int, `time + int` a time. Duration literals are integer milliseconds:\n`now + 30s`, `now - 1d`, `500ms`, `15m` and `7d`. `/` and `%` give\nthe Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.\nCheck the divisor first: `require n != 0 else EMPTY`.\nAn enum is accepted as `text <=N` only if every variant fits N characters\nand contains no control characters except tab, LF and CR,\nincluding when both types are optional. This is a static, total widening;\nit adds no runtime conversion. Otherwise give the helper parameter the enum\ntype. `(now / 1) * 1000` explicitly scales integer milliseconds; a scaled\ncount belongs in an `int` column. Bind an optional helper result once before\nits null guard: repeated calls are separate values.\nText `+` concatenates; `count(text)` counts characters. Loop-built strings and\nlists are heap-bound; a write still validates their actual column lengths."
+  },
+  {
+    "id": "types-02-2",
+    "card": "types",
+    "home": "E_ADOPT",
+    "text": "A column may end with `default <literal | now | viewer>`. Omitted insert\nfields take their defaults before rules run; explicit values, including null\non an optional column, win. `now` and `viewer` use the writing host's context.\nAn added required column with a literal default also fills absent fields in\nold images on every host, without rewriting rows or logging partition events.\nChanging a required default rechecks its existing unique indexes and caps too.\n`data` and `sql` show that interpretation; device persistence exports are raw storage images.\nOptional columns still read null when absent. New required `default now` or\n`default viewer` columns adopt only an empty table; otherwise use an optional\ncolumn or a literal default. `check` reads `.snapback4/store.sqlite` when it\nexists (or `--store path`); `E_ADOPT` locates each successor refusal and its\nrewrite, as `dev` refuses the save. Without a store, check only compiles."
+  },
+  {
+    "id": "types-02-3",
+    "card": "types",
+    "home": "E_TYPE",
+    "text": "Pages, lists and shaped collections share the list operations: `sort`, `slice`,\n`count`, `sum`, `group`, `first`, `last`, `at`, `join` and `for`. Their elements\nmust still fit the operation: `join` joins texts; `sum(page, .amount)` projects numbers."
+  },
+  {
+    "id": "types-03",
+    "card": "types",
+    "home": "Details",
+    "text": "For complete index, rule and expiry recipes, open `guide indexes`,\n`guide rules` or `guide expire` directly."
+  },
+  {
+    "id": "types-04-1",
+    "card": "types",
+    "home": "Details",
+    "text": "- Every table has an implicit unique `id`."
+  },
+  {
+    "id": "types-04-2",
+    "card": "types",
+    "home": "E_INPUT",
+    "text": "- **Types:** `principal`, `id`, `<table>` (a reference to that table's\n  id), `int` (within ±(2^53 − 1); there are no floats), `time`\n  (milliseconds), `bool`, `decimal <scale>`, `money <CUR> [scale]` (both\n  hold integer minor units), `text`, `text <=N`, `text M..N`, each with optional\n  `format handle|url`, `enum('a', 'b')`, `json <=N`, `bytes <=N`,\n  `[type] <=N` (a bounded list), `image <=N [once]` and `video <=N` (an\n  upload the row holds — `guide assets`); `?` after a type makes the column\n  optional (null when absent). `default <literal | now | viewer>` fills an\n  omitted insert column on the writing host; an explicit value wins.\n  A required literal default also fills absent columns in older rows on every host; optional columns still read null when absent.\n  An enum fits `text <=N` when every variant has at most N characters and\n  contains no control characters except tab, LF and CR: a\n  static, total widening with no runtime conversion. If any variant exceeds\n  N, use the enum type on the helper parameter instead."
+  },
+  {
+    "id": "types-04-3",
+    "card": "types",
+    "home": "E_INPUT",
+    "text": "- **References** are typed ids, with no implicit existence check and no\n  delete cascade. The string `\"null\"` is an id; JSON `null` only fits an\n  optional reference. When a mutation requires a visible target, write\n  `require exists prompts[promptId] else PROMPT_NOT_FOUND` before its\n  writes: a metered point read that refuses absent and hidden targets\n  alike. Target deletion and dependent-row cleanup are the application's\n  policy, expressed in mutations and rules."
+  },
+  {
+    "id": "types-04-4",
+    "card": "types",
+    "home": "Details",
+    "text": "- **Keys and search:** `unique handle` or `unique postId, principal` enforces\n  a product key. Add `else HANDLE_TAKEN 'That handle is taken.'` for a visible\n  collision's code and message. Named keys cover ambiguous arities. Use\n  `search body, caption` for word-prefix search. Predicates and `by .at`\n  choose access indexes automatically; `guide indexes` explains inspection\n  and optional tuning. `unique principal, day(at)` gives calendar uniqueness."
+  },
+  {
+    "id": "types-04-5",
+    "card": "types",
+    "home": "Details",
+    "text": "- **Constraints:** `cap N by cols` (at most N rows per group; a product constraint), `immutable cols`, `after insert <- exists\n  t[..]` (a row that must exist by the end of the mutation that inserted\n  this one)."
+  },
+  {
+    "id": "types-04-6",
+    "card": "types",
+    "home": "E_QUARRY_LIVE_MAINTAIN_PROBE",
+    "text": "- **Rules:** `read`, `insert`, `update`, `delete`, each `<-` one\n  expression over the row (`.col`), `viewer`, and literals: `allow`,\n  `deny`, `public` (or the table line `public 'reason'`, which also\n  documents why), `.col = viewer`, `.col != 'x'`,\n  `exists t[.a, viewer, 'literal']` (a probe may name its columns:\n  `exists t[id = .docId, ownerId = viewer]`), `created t[..]` (insert rules\n  only: true when this mutation inserted the probed row), `and`, `or`,\n  `not`. `update (old, next) <- old.x = next.x` names both images. A table\n  with no rule for an effect denies it. A rule may probe existence on an aggregate view\n  over an expiring source at one unit, but `check` refuses an equality on its\n  `value` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the view in the program;\n  its live value cannot be probed at one unit. Equalities on non-expiring\n  maintains and ordinary tables are unchanged. Rules compare with `=` and `!=`\n  only; the system principal consults no rules. Write authority and refusal\n  disclosure are separate, as `guide writes` states."
+  },
+  {
+    "id": "types-04-7",
+    "card": "types",
+    "home": "Details",
+    "text": "- **Sync** (`guide sync`) and **retain**: `retain until-revoked` (the default: a\n  device drops a group's rows when it leaves the group) or\n  `retain delivered-history` (it keeps what it was given)."
+  },
+  {
+    "id": "types-04-8",
+    "card": "types",
+    "home": "E_CONSTRAINT",
+    "text": "- **Expire:** `expire at .expiresAt` (a `time ?` column; its sweep index is generated). A row past that time is\n  absent to every reader on every host from that moment, before any rule;\n  the server sweeps on a one-second tick, at most 2,000 rows per pass, and\n  the deletion streams to each device holding it. Backlog or downtime can\n  delay physical deletion. A `cap` on an expiring table uses a maintained\n  physical count: unswept expired rows still occupy capacity. Unique checks\n  skip expired collisions at the same full key under the examined meter;\n  secondary-key predecessors remain until the sweep, so replacement at a full\n  cap refuses until that sweep frees room. The refusal names the sweep timing.\n  A row inserted already expired by a program is retired at its commit's end,\n  releasing its cap occupancy without a later deletion event. Reviving it\n  within that commit preserves it. Seeds and loads keep expired rows for sweep.\n  Devices queue occupancy-increasing writes on expiring capped tables without\n  predicted rows: even a complete live snapshot omits unswept expired rows.\n  Unrelated live or expired rows are never scanned for a write's constraints."
+  },
+  {
+    "id": "types-04-9",
+    "card": "types",
+    "home": "Details",
+    "text": "An already returned answer keeps the row until the\n  next answer; a live reader that must hide it at its deadline drops it\n  locally by `expiresAt` (the client example in CLIENT-AND-OPERATIONS.md).\n  A typing indicator or short-lived presence row especially needs this\n  filter and a render timer; `guide reads` shows the typing table and query.\n  This is an application table, separate from the server's `connected[p]`.\n  That server-decided connection signal has no `expiresAt`.\n  The server will not return it again after expiry, but does not push a\n  removal at that instant.\n  A null time never expires. Disappearing messages\n  are one field on insert, `expiresAt: now + ttl if ttl != null else\n  null` with `ttl: int ?`; nothing else to write. "
+  },
+  {
+    "id": "types-04-10",
+    "card": "types",
+    "home": "E_QUARRY_MAINTAIN_EXPIRE",
+    "text": "A maintained `view` over an\n  expiring table subtracts its unswept expired backlog from the physical\n  total on the server. Devices still recompute live contributions; a partial\n  device reports `complete: false`. If the meter interrupts a maintained\n  lookup, backlog scan or device live group, the query returns `data: null,\n  complete: false`, without substituting zero or a partial total.\n  Value-order indexes over expiring sources are refused\n  (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,\n  so stored top-N can miss a winner. For a window over the entity's own\n  immutable time, `guide feeds` gives a predicate over a non-expiring source. A rolling\n  contribution window still needs live counts; a cut makes that answer incomplete."
+  },
+  {
+    "id": "types-05",
+    "card": "types",
+    "home": "E_TYPE",
+    "text": "E_TYPE means a runtime value has the wrong kind for the operation using it.\nFor example, a raw program cannot add the text `'3'` as an integer; supply\n`3` as a number and compile the program against its schema. Read the\nmessage's expected and actual types, correct seeds or wire inputs, and\nuse the generated API types. Changing a declaration does not convert old\nvalues; repair the values before narrowing their type."
+  },
+  {
+    "id": "types-06",
+    "card": "types",
+    "home": "E_OVERFLOW",
+    "text": "E_OVERFLOW means integer arithmetic left the value model's range of\n−9,007,199,254,740,991 through 9,007,199,254,740,991. For example,\n`9007199254740991 + 1` cannot be represented. Bound the inputs and\nintermediate arithmetic before adding or multiplying. Decimal and money\ncolumns store integer minor units in that same range; they do not provide\nlarger integers. For an overflowing aggregate, reduce its contributions or\nsplit the grouping; the refusal names the view and value column without\nrevealing a hidden computed sum, and the failed write rolls back."
+  },
+  {
+    "id": "types-07",
+    "card": "types",
+    "home": "E_FIELD",
+    "text": "E_FIELD means a runtime field selection has no such field. For example,\na raw object `{ title: 'hello' }` has no `body`; select `title` or construct\nthe declared object instead. Compile the program so field names are checked,\nand narrow an optional row with `row ! else NOT_FOUND` when presence is\nrequired. Ordinary Quarry field access propagates a null base as null;\nthat is not evidence that the row exists."
+  },
+  {
+    "id": "types-08",
+    "card": "types",
+    "home": "E_QUARRY_TYPE",
+    "text": "E_QUARRY_TYPE means the expression's type does not fit its position.\nThe diagnostic names the expected and actual types and the source location.\nA table reference is that table's typed id, not its row: read `table[id]`\nbefore selecting fields. Narrow an optional value with `if x != null:`,\n`x ! else CODE` or `x ?? default` before using it where a present value is\nrequired. Use the declared enum type when its variants cannot all widen\nto the helper's text bound; changing a type never converts stored values."
+  }
+]

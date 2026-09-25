@@ -36,9 +36,11 @@ shows the declaration; code validation is the same as `require … else CODE`.
 
 ## Operations
 
-`snapback4 why <CODE>` prints its explanation and the card paragraph naming
-the code, followed by the full-card command. Every registered code has a
-dedicated paragraph on its default card. A diagnostic may choose another
+`snapback4 why <CODE>` prints its explanation and diagnostic details,
+followed by the full-card command. Every registered code has a dedicated
+why page or a paragraph on its default card. Compiler proofs, planner choices,
+meter charges and repair eligibility live here when the first-read card
+only needs the short limit. A diagnostic may choose another
 card for its context; if that card lacks a section, explicit `why` labels
 its fallback to the card's opening. Output is at most 4,096 UTF-8
 bytes including the pointer and final newline; a shortened excerpt says so.

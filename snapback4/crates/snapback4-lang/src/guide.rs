@@ -8,6 +8,8 @@
 //! on its own; one that does not compiles beside the language card's schema.
 
 // @ref LLP 3000.007#20.19 — one orientation points to tested reference cards.
+#[path = "guide/why.rs"]
+mod why;
 #[path = "guide/app.rs"]
 mod app;
 #[path = "guide/shapes.rs"]
@@ -100,7 +102,7 @@ pub fn quarry(text: &str) -> Vec<String> {
 
 /// The language card's core program; its server opt-in block is separate.
 pub fn language() -> String {
-    quarry(LANGUAGE).into_iter().next().expect("the language card has a core block")
+    quarry(LANGUAGE).into_iter().find(|block| block.contains("query heldRoom(")).expect("the language card has a core block")
 }
 
 #[path = "guide/templates.rs"]
