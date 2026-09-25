@@ -15,9 +15,9 @@ The key repair requires a matching column on the enclosing row and a bounded
 read. It keeps the other conjuncts, page size and ordering. Otherwise use an
 argument repair. Comparisons under `or` or `not` are not moved into keys.
 Repairs splice the author's source instead of reprinting the syntax tree.
-A key repair inserts the named key and replaces only the offending comparison
-with `true`; retained nested keys, comments and grouping keep their original
-scope and spelling. An argument repair changes only that comparison and, when
+A key repair inserts the named equality before any seek, and removes the
+offending comparison with its `where` or adjacent `and`. Retained nested keys,
+comments and grouping keep their original scope and spelling. An argument repair changes only that comparison and, when
 needed, the parameter list. Fresh names avoid bindings at every depth in the
 current declaration; bindings in later declarations do not affect the name.
 At top level, use `where .conversation = conversation` with an explicit argument.
@@ -27,4 +27,8 @@ column types. Uncertain types or source spans produce no replacement text.
 Aggregate and timeline declarations
 have no argument scope: their repair makes the constant `true` or `false`
 behavior explicit. Keep that only if intended, or write a column-to-value filter.
+Before offering a repair, the compiler reparses and binds the patched
+declaration against the project declarations. A key repair must also retain
+the intended point or page plan. Invalid source, remaining errors or a changed
+plan suppress the rewrite while keeping the refusal and explanation.
 Scope repairs require intent and are never applied by `check --fix`.

@@ -43,7 +43,7 @@ impl Parser {
 
     // Delimiters suppress layout tokens. A closing ')' at column one therefore
     // stays in the declaration, regardless of its physical indentation.
-    fn declaration_tokens(&self) -> Option<Range<usize>> {
+    pub(super) fn declaration_tokens(&self) -> Option<Range<usize>> {
         let mut indent = 0usize;
         let mut delimiters = Vec::new();
         let mut statement_start = false;
@@ -99,11 +99,14 @@ impl Parser {
         self.source.join("\n").get(self.comparison_span(site)?).map(str::to_owned)
     }
 
-    pub(super) fn predicate_rewrite(&self, start: usize, end: usize, site: &Site, replacement: &str) -> Option<String> {
-        self.source_rewrite(self.token_span(start..end)?, vec![(self.comparison_span(site)?, replacement.into())])
+    pub(super) fn predicate_rewrite(&mut self, start: usize, end: usize, site: &Site, replacement: &str) -> Option<String> {
+        let span = self.token_span(start.checked_sub(1)?..end)?;
+        let rewrite = self.source_rewrite(span.clone(), vec![(self.comparison_span(site)?, replacement.into())])?;
+        self.register_bytes(site, span, &rewrite, None)?;
+        Some(rewrite.strip_prefix("where ")?.into())
     }
 
-    pub(super) fn declaration_rewrite(&self, site: &Site, replacement: &str, argument: Option<(&Site, String)>) -> Option<String> {
+    pub(super) fn declaration_rewrite(&mut self, site: &Site, replacement: &str, argument: Option<(&Site, String)>) -> Option<String> {
         let source = self.source.join("\n");
         let tokens = self.declaration_tokens()?;
         let start = self.source_offset(&self.tokens.get(tokens.start)?.site)?;
@@ -117,35 +120,87 @@ impl Parser {
             let at = at.checked_add(1)?;
             edits.push((at..at, value));
         }
-        self.source_rewrite(start..end, edits)
+        let rewrite = self.source_rewrite(start..end, edits)?;
+        self.register_bytes(site, start..end, &rewrite, None)?;
+        Some(rewrite)
     }
 
-    // A key repair inserts the new key and replaces only the offending
-    // comparison with true. Retained predicates, including nested read keys,
-    // stay byte-for-byte intact; reprinting can change their focal scope.
-    pub(super) fn keyed_read_rewrite(&self, read: &ReadExpr, site: &Site, column: &str) -> Option<String> {
-        let start = self.tokens.iter().position(|t| t.site == read.site && t.kind == Kind::Word && t.value == read.table)?;
+    // Edit only the bad conjunct and the key insertion site. Every retained
+    // operand keeps its authored scope, comments, grouping and modifiers.
+    pub(super) fn keyed_read_rewrite(&mut self, read: &ReadExpr, start: usize,
+        predicates: &[(Range<usize>, Expr)], site: &Site, column: &str) -> Option<String> {
+        let table = (start..self.position).find(|&i| self.tokens[i].kind == Kind::Word && self.tokens[i].value == read.table)?;
         let span = self.token_span(start..self.position)?;
         let key = format!("{column} = .{column}");
-        let (at, insertion) = if self.tokens.get(start + 1)?.value == "[" {
-            let mut depth = 0usize;
-            let mut close = None;
-            for i in start + 1..self.position {
-                let token = self.tokens.get(i)?;
-                if token.kind != Kind::Symbol { continue; }
-                match token.value.as_str() {
-                    "[" => depth += 1,
-                    "]" => { depth = depth.checked_sub(1)?; if depth == 0 { close = Some(i); break; } }
-                    _ => {}
+        let (at, insertion) = if self.tokens.get(table + 1)?.value == "[" {
+            // Seek sites come from the parser, so operators inside key operands
+            // cannot be mistaken for top-level seeks.
+            if let Some(seek) = read.seeks.first() {
+                (self.source_offset(&seek.site)?, format!("{key}, "))
+            } else {
+                let mut depth = 0usize;
+                let mut close = None;
+                for i in table + 1..self.position {
+                    let token = self.tokens.get(i)?;
+                    if token.kind != Kind::Symbol { continue; }
+                    match token.value.as_str() {
+                        "[" => depth += 1,
+                        "]" => { depth = depth.checked_sub(1)?; if depth == 0 { close = Some(i); break; } }
+                        _ => {}
+                    }
                 }
+                let close = close?;
+                let separator = if matches!(self.tokens.get(close.checked_sub(1)?)?.value.as_str(), "[" | ",") { "" } else { ", " };
+                (self.source_offset(&self.tokens.get(close)?.site)?, format!("{separator}{key}"))
             }
-            let close = close?;
-            let separator = if matches!(self.tokens.get(close.checked_sub(1)?)?.value.as_str(), "[" | ",") { "" } else { ", " };
-            (self.source_offset(&self.tokens.get(close)?.site)?, format!("{separator}{key}"))
         } else {
-            (self.token_end(self.tokens.get(start)?, &self.source.join("\n"))?, format!("[{key}]"))
+            (self.token_end(self.tokens.get(table)?, &self.source.join("\n"))?, format!("[{key}]"))
         };
-        self.source_rewrite(span, vec![(at..at, insertion), (self.comparison_span(site)?, "true".into())])
+        let (tokens, predicate) = predicates.iter().find(|(_, p)| super::predicates::without_conjunct(p, site).as_ref() != Some(p))?;
+        let removal = if predicate.site() == site {
+            let mut deletion = self.token_span(tokens.clone())?;
+            let source = self.source.join("\n");
+            while deletion.start > span.start && source.as_bytes().get(deletion.start - 1).is_some_and(u8::is_ascii_whitespace) { deletion.start -= 1; }
+            deletion
+        } else { self.conjunct_removal(predicate, site)? };
+        let rewrite = self.source_rewrite(span.clone(), vec![(at..at, insertion), (removal, String::new())])?;
+        let mut intended = read.clone();
+        intended.filter = read.filter.as_deref().and_then(|p| super::predicates::without_conjunct(p, site)).map(Box::new);
+        intended.keys.push(KeyPart { column: Some(column.into()), value: Expr::Member {
+            base: Box::new(Expr::Focal { site: site.clone() }), name: column.into(), site: site.clone(),
+        }, site: site.clone() });
+        self.register_bytes(site, span, &rewrite, Some(intended))?;
+        Some(rewrite)
+    }
+
+    fn conjunct_removal(&self, predicate: &Expr, site: &Site) -> Option<Range<usize>> {
+        let Expr::Binary { op, left, right, .. } = predicate else { return None; };
+        if op != "and" { return None; }
+        let span = |expr: &Expr| self.token_span(self.expression_spans.get(&(expr.site().line, expr.site().col))?.clone());
+        if left.site() == site { return Some(span(left)?.start..span(right)?.start); }
+        if right.site() == site { return Some(span(left)?.end..span(right)?.end); }
+        self.conjunct_removal(left, site).or_else(|| self.conjunct_removal(right, site))
+    }
+
+    pub(super) fn register_repair(&mut self, site: &Site, tokens: Range<usize>, rewrite: &str, intended: Option<ReadExpr>) {
+        if let Some(span) = self.token_span(tokens) { self.register_bytes(site, span, rewrite, intended); }
+    }
+
+    fn register_bytes(&mut self, site: &Site, span: Range<usize>, rewrite: &str, intended: Option<ReadExpr>) -> Option<()> {
+        if rewrite.is_empty() { return None; }
+        let tokens = self.declaration_tokens()?;
+        let declaration_site = self.tokens.get(tokens.start)?.site.clone();
+        let start = self.source_offset(&declaration_site)?;
+        let last = self.tokens.get(tokens.end)?;
+        let source = self.source.join("\n");
+        let end = if last.kind == Kind::Eof { source.len() } else { self.source_offset(&last.site)? };
+        if span.end > end { return None; }
+        self.document.source.repairs.push(crate::repair::Candidate {
+            site: site.clone(), declaration_site, source: source.get(start..end)?.into(),
+            replacement: span.start.checked_sub(start)?..span.end.checked_sub(start)?,
+            rewrite: rewrite.into(), intended,
+        });
+        Some(())
     }
 
     fn source_rewrite(&self, span: Range<usize>, edits: Vec<(Range<usize>, String)>) -> Option<String> {
@@ -159,7 +214,7 @@ impl Parser {
     }
 }
 
-fn splice(source: &str, mut edits: Vec<(Range<usize>, String)>) -> Option<String> {
+pub(crate) fn splice(source: &str, mut edits: Vec<(Range<usize>, String)>) -> Option<String> {
     edits.sort_by_key(|(span, _)| span.start);
     let mut previous = 0;
     for (span, _) in &edits {

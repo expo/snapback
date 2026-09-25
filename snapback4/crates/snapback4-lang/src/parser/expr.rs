@@ -39,6 +39,7 @@ impl Parser {
             if precedence < minimum {
                 break;
             }
+            self.expression_spans.insert((left.site().line, left.site().col), start..self.position);
             self.position += 1;
             // @ref LLP 3000.007#19.3 — recover through guessed equality without admitting an alias or cascading through its block.
             let adjacent_equals = |next: &Token, col| next.kind == Kind::Symbol && next.value == "=" && next.site.line == token.site.line && next.site.col == col;
@@ -78,6 +79,7 @@ impl Parser {
             let otherwise = self.expression(0, stops)?;
             left = Expr::If { then: Box::new(left), condition: Box::new(condition), otherwise: Box::new(otherwise), site };
         }
+        self.expression_spans.insert((left.site().line, left.site().col), start..self.position);
         self.document.source.record(&left, &self.source, &self.tokens[start..self.position]);
         Ok(left)
     }
@@ -254,9 +256,15 @@ impl Parser {
                 let (name, name_site) = call_name(&value).expect("a helper name");
                 let site = self.take("(")?.site;
                 if name == "count" && self.at("*") {
-                    let mut refusal = unsupported(&name_site, "count(*)", self.count_star_rewrite()).guide("from-sql");
+                    let rewrite = self.count_star_rewrite();
+                    if self.peek_at(1).value == ")" { self.register_repair(&name_site, start..self.position + 2, &rewrite, None); }
+                    let mut refusal = unsupported(&name_site, "count(*)", rewrite).guide("from-sql");
                     if refusal.rewrite.is_empty() { refusal.message.push_str("; pass the table or filtered read to count"); }
-                    return Err(refusal);
+                    self.position += 1;
+                    self.take(")")?;
+                    self.diagnostics.push(refusal);
+                    value = Expr::Call { name, args: Vec::new(), site };
+                    continue;
                 }
                 let mut args = Vec::new();
                 while !self.at(")") {
@@ -286,7 +294,7 @@ impl Parser {
                 return Err(unsupported(&self.peek().site.clone(), "before", "use after c; reverse display order in the client when needed"));
             } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by" | "where") {
                 let Expr::Read(read) = value else { unreachable!() };
-                value = Expr::Read(self.parse_range(read, stops.contains(&"<probe-shape>"))?);
+                value = Expr::Read(self.parse_range(read, start, stops.contains(&"<probe-shape>"))?);
             } else if self.maybe("!") {
                 let assertion = self.tokens[self.position - 1].site.clone();
                 if !self.maybe("else") {
@@ -344,9 +352,10 @@ impl Parser {
         Ok(ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: table.to_owned(), keys, index: None, range: None, filter: None, matching: None, seeks, site: site.clone() })
     }
 
-    pub(super) fn parse_range(&mut self, mut read: ReadExpr, probe: bool) -> Fallible<ReadExpr> {
+    pub(super) fn parse_range(&mut self, mut read: ReadExpr, start: usize, probe: bool) -> Fallible<ReadExpr> {
         let enclosing = self.focal_table.clone();
         let diagnostic_start = self.diagnostics.len();
+        let mut predicates = Vec::new();
         let mut order = None;
         let mut take = None;
         let mut cursor: Option<Box<Expr>> = None;
@@ -374,7 +383,9 @@ impl Parser {
             seen.insert(rank);
             match key.value.as_str() {
                 "where" => {
+                    let where_start = self.position - 1;
                     let predicate = self.filtered_predicate(&read.table, &predicate_stops, false)?;
+                    predicates.push((where_start..self.position, predicate.clone()));
                     read.filter = Some(Box::new(match read.filter.take() {
                         Some(previous) => Expr::Binary { op: "and".into(), left: previous, right: Box::new(predicate), site: key.site },
                         None => predicate,
@@ -416,21 +427,21 @@ impl Parser {
             return Err(syntax_with(&violation.site, format!("read modifier {} is repeated; choose one value", violation.value), "write each modifier once: [matching q] [after c] first|last N by index [where predicate]"));
         }
         if take.is_none() && cursor.is_none() {
-            self.finish_read_repair(&read, enclosing.as_deref(), diagnostic_start, probe);
+            self.finish_read_repair(&read, start, &predicates, enclosing.as_deref(), diagnostic_start, probe);
             return Ok(read);
         }
         if probe && take.is_none() {
             // Retain the cursor long enough for exists/created to give their
             // plain-read rewrite instead of suggesting a page inside a probe.
             read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor, site });
-            self.finish_read_repair(&read, enclosing.as_deref(), diagnostic_start, probe);
+            self.finish_read_repair(&read, start, &predicates, enclosing.as_deref(), diagnostic_start, probe);
             return Ok(read);
         }
         let (Some(take), Some(order)) = (take, order) else {
             return Err(syntax_with(&site, "range reads require first N or last N", format!("{} first 50", print::read_expr(&read))));
         };
         read.range = Some(RangeSpec { order, take, cursor, site: site.clone() });
-        self.finish_read_repair(&read, enclosing.as_deref(), diagnostic_start, probe);
+        self.finish_read_repair(&read, start, &predicates, enclosing.as_deref(), diagnostic_start, probe);
         Ok(read)
     }
 

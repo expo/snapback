@@ -13,6 +13,7 @@ pub mod parser;
 pub mod print;
 pub mod source;
 pub mod recipe;
+mod repair;
 pub mod types;
 
 pub use bind::{Bound, BoundProgram, bind};
@@ -55,6 +56,7 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
             }
         }
     }
+    repair::verify(&documents, &mut diagnostics);
     if !diagnostics.is_empty() {
         return Bound { view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
     }

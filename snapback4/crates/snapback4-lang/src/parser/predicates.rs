@@ -35,7 +35,7 @@ impl Parser {
         let Some(column) = focal_column(left) else { return Ok(predicate); };
         let (rewrite, advice) = if self.repair_args.is_some() && self.column_type(table, column).is_none() {
             (String::new(), "compare with an explicit argument once the column type is known".to_owned())
-        } else if let Some((args_site, args)) = &self.repair_args
+        } else if let Some((args_site, args)) = self.repair_args.clone().as_ref()
             && let Some(type_) = self.column_type(table, column) {
             let compatible: Vec<_> = args.iter().filter(|a| a.type_ == type_).collect();
             let argument = compatible.iter().find(|a| a.name == column).copied()
@@ -66,7 +66,7 @@ impl Parser {
 
     // The range and order may follow `where`. Wait for the complete read before
     // proposing a key, and only move a top-level conjunct across focal scopes.
-    pub(super) fn finish_read_repair(&mut self, read: &ReadExpr, enclosing: Option<&str>, diagnostic_start: usize, probe: bool) {
+    pub(super) fn finish_read_repair(&mut self, read: &ReadExpr, start: usize, predicates: &[(std::ops::Range<usize>, Expr)], enclosing: Option<&str>, diagnostic_start: usize, probe: bool) {
         let Some(enclosing) = enclosing else { return; };
         let Some(filter) = read.filter.as_deref() else { return; };
         let Some(comparison) = self_comparison(filter, &|c| self.column_type(&read.table, c).is_some_and(|t| t.optional)) else { return; };
@@ -88,7 +88,7 @@ impl Parser {
             || table.caps.iter().any(|cap| cap.by.iter().all(|name| has_key(name)))
             || table.indexes.iter().any(|index| index.unique && index.columns.iter().all(|name| has_key(name)));
         if !bounded { return; }
-        let Some(rewrite) = self.keyed_read_rewrite(read, comparison.site(), column) else { return; };
+        let Some(rewrite) = self.keyed_read_rewrite(read, start, predicates, comparison.site(), column) else { return; };
         let description = self.comparison_source(comparison.site()).unwrap_or_else(|| format!(".{column}"));
         if let Some(d) = self.diagnostics[diagnostic_start..].iter_mut().find(|d| d.code == "E_QUARRY_SELF_EQUALITY" && &d.site == comparison.site()) {
             d.rewrite = rewrite;
@@ -144,4 +144,16 @@ fn children<'a>(value: &'a Expr, visit: &mut impl FnMut(&'a Expr)) {
         }
         _ => {}
     }
+}
+
+// The intended predicate after transferring one top-level conjunct to a key.
+pub(super) fn without_conjunct(value: &Expr, site: &Site) -> Option<Expr> {
+    if value.site() == site { return None; }
+    if let Expr::Binary { op, left, right, site: and_site } = value && op == "and" {
+        return match (without_conjunct(left, site), without_conjunct(right, site)) {
+            (Some(left), Some(right)) => Some(Expr::Binary { op: op.clone(), left: Box::new(left), right: Box::new(right), site: and_site.clone() }),
+            (left, right) => left.or(right),
+        };
+    }
+    Some(value.clone())
 }

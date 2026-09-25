@@ -22,7 +22,7 @@ mod feed_view;
 mod intent;
 mod intent_aggregates;
 mod intent_variants;
-mod intent_walk;
+pub(crate) mod intent_walk;
 mod intent_views;
 mod view_predicate;
 mod intent_lanes;

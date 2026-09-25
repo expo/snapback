@@ -29,7 +29,7 @@ fn every_self_comparison_refuses_in_top_level_and_nested_filters_and_repairs_pas
         let nested = format!("members where {predicate} first 50");
         let original = format!("{MODEL}query q(c: cursor ?):\n  return members first 20 after c {{ conversation, roster: {nested} }}\n");
         let d = refusal(&original, "E_QUARRY_SELF_EQUALITY");
-        assert_eq!(d.rewrite, "members[conversation = .conversation] where true first 50");
+        assert_eq!(d.rewrite, "members[conversation = .conversation] first 50");
         clean(&original.replace(&nested, &d.rewrite));
     }
     // Grok's exact singleton-list example, plus a wrapped contradiction.
@@ -67,7 +67,11 @@ fn no_argument_repairs_add_a_typed_argument_without_losing_the_body() {
     }
     let original = format!("{MODEL}fn choose(): count(members where .active = .active)\nquery q():\n  return choose()\n");
     let d = refusal(&original, "E_QUARRY_SELF_EQUALITY");
-    clean(&format!("{MODEL}{}\nquery q():\n  return choose(true)\n", d.rewrite));
+    assert!(d.rewrite.is_empty(), "adding a helper argument would break the unchanged choose() caller");
+    let original = format!("{MODEL}fn choose(active: bool): count(members where .active = .active)\nquery q():\n  return choose(true)\n");
+    let d = refusal(&original, "E_QUARRY_SELF_EQUALITY");
+    assert_eq!(d.rewrite, "where .active = active");
+    clean(&original.replace("where .active = .active", &d.rewrite));
 }
 #[test]
 fn aggregates_columns_views_and_timelines_share_the_refusal_and_repairs_compile() {
@@ -101,7 +105,7 @@ fn count_star_names_the_scoped_table_and_each_concrete_repair_compiles() {
         format!("{MODEL}table others:\n  public\nquery q(c: cursor ?):\n  return members where count(*) > 0 first 20 after c\n"),
     ] {
         let d = refusal(&original, "E_QUARRY_UNSUPPORTED");
-        assert_eq!(d.rewrite, "count(members)");
+        assert_eq!(d.rewrite, "count(members)", "{original}");
         clean(&original.replace("count(*)", &d.rewrite));
     }
 }

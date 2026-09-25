@@ -76,7 +76,7 @@ fn nested_key_repairs_keep_conjuncts_bounds_and_order() {
     let nested = "members where .active and .conversation = .conversation first 20 by byConversation";
     let source = format!("{model}query q(c: cursor ?):\n  return members first 20 after c {{ roster: {nested} }}\n");
     let d = refusal(&source);
-    assert_eq!(d.rewrite, "members[conversation = .conversation] where .active and true first 20 by byConversation");
+    assert_eq!(d.rewrite, "members[conversation = .conversation] where .active first 20 by byConversation");
     clean(&source.replace(nested, &d.rewrite));
     // The other table lacks .body: a key would incorrectly bind the member.
     let model = format!("{MEMBERS}table notes:\n  body: text <=80\n  public\n");
@@ -112,7 +112,7 @@ fn projected_view_repairs_use_inferred_field_types() {
 fn seek_operands_are_checked_in_the_enclosing_predicate_scope() {
     let source = format!("{MEMBERS}query q(c: cursor ?):\n  return members where exists members[active >= (.active = .active)] first 20 after c\n");
     let d = refusal(&source);
-    assert!(d.message.contains("filtered members") && d.rewrite.contains("active: bool"), "{d:?}");
+    assert!(d.message.contains("filtered members") && d.rewrite.is_empty(), "the independent seek error must suppress the repair: {d:?}");
     // This exact reviewer probe has an independent unsupported point-seek.
     // A paged seek supplies a runnable witness for the same operand traversal.
     let model = MEMBERS.replace("  public", "  by byActive: active\n  public");

@@ -45,7 +45,7 @@ fn nested_key_repair_preserves_the_reviewers_two_row_answer() {
         assert_eq!(roster.len(), 1, "reprinting the retained key silently emptied a's roster");
         assert_eq!(roster[0].field("id").unwrap(), &Value::Id("a".into()));
         assert!(rows[1].field("roster").unwrap().as_array().unwrap().is_empty());
-        assert_eq!(d.rewrite, format!("{keyed} where true and {retained} first 20"));
+        assert_eq!(d.rewrite, format!("{keyed} where {retained} first 20"));
     }
 }
 

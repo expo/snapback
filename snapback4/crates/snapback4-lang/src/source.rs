@@ -3,10 +3,13 @@ use crate::{ast::Expr, lexer::{Kind, Token}};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct SourceMap(BTreeMap<String, (Expr, String, bool)>);
+pub struct SourceMap {
+    expressions: BTreeMap<String, (Expr, String, bool)>,
+    pub(crate) repairs: Vec<crate::repair::Candidate>,
+}
 
 impl SourceMap {
-    pub(crate) fn extend(&mut self, other: &Self) { self.0.extend(other.0.clone()); }
+    pub(crate) fn extend(&mut self, other: &Self) { self.expressions.extend(other.expressions.clone()); }
 
     pub(crate) fn record(&mut self, expr: &Expr, lines: &[String], tokens: &[Token]) {
         // Block expressions consume layout tokens after their final source
@@ -43,11 +46,11 @@ impl SourceMap {
             }
             depth > 0 || i + 1 == tokens.len()
         }) && depth == 0;
-        self.0.insert(expr.site().to_string(), (expr.clone(), text, grouped));
+        self.expressions.insert(expr.site().to_string(), (expr.clone(), text, grouped));
     }
 
     pub(crate) fn get(&self, expr: &Expr) -> Option<(String, bool)> {
-        let (syntax, text, grouped) = self.0.get(&expr.site().to_string())?;
+        let (syntax, text, grouped) = self.expressions.get(&expr.site().to_string())?;
         // A planner may reuse a site while changing the expression.
         (syntax == expr).then(|| (text.clone(), *grouped))
     }
