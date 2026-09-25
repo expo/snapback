@@ -56261,3 +56261,54 @@ browser acquisition result, unmet 5× target and unclaimed packed-format
 measurement remain explicit inherited limits. File changes, each rule's tests,
 all publication paths, decisions, failure classifications, reproduction and
 compressed evidence are in the [round-4 report](reports/20260925-bounded-following-r4/REPORT.md).
+
+
+## 2026-09-25 — Lane Z: Following event slots (LLP 3000.016 revision 12, increment 5)
+
+Implemented engine-owned per-declaration post bool and repost id slots, prepared
+before source writes and log accounting. Owned event residency now follows each
+source kind: full kinds retain ordinary owned rows, floored kinds use source
+slots, and online-only kinds are never held. Transitions use those witnesses;
+ordinary unproved event reads withhold, and synced event aggregates fence partial
+kind prediction. Follows admit public full sync, public horizons and online-only.
+Slot fill runs inside adoption before assessment and validation at one pinned
+time without logs; all new slots veto literal-default image retention. Read-only
+upgrade preview recognizes this fill. Query dependencies include partial event
+sources so a pending source prediction fences fallback. U's local.ts and
+local-query.ts were not edited.
+
+The same Clique fixture and SQLite backup as U round 1, on the pre-Lane-V
+IndexedDB serialized row/index format, measured these logical snapshot row JSON
+inventories (bytes are not physical disk usage): full follows has 9,484 view rows /
+1,855,714 bytes, 6.100 s view-only cold; 49,315 whole rows / 7,386,725 bytes,
+59.746 s whole cold. Online-only follows has 3,563 view rows / 1,003,090 bytes,
+2.294 s view-only cold; 41,383 whole rows / 6,312,824 bytes, 33.245 s whole cold.
+Against U's already-floored 58,712 view rows / 9,561,158 bytes, the reductions
+are 6.19x rows / 5.15x bytes and 16.48x / 9.53x respectively. The 49,228 owned
+event rows are absent in both treatments. A supplemental view-only legacy
+control, using U's exact before-server binary and current wasm/client, measured
+131,499 rows / 30,370,560 bytes in 201.325 s. These are single shared-host runs,
+not latency distributions. The report records scope, digests and all tables.
+
+Added six memory/SQLite slot tests, compiler/guide assertions, nineteen fault
+schedules replayed on actual wasm and native devices (38 passes), and two public
+client fallback tests. They cover slot/byActorPost agreement, log order, stream
+splits, source/event id reuse, snapshot deletion before catch-up, whole floors,
+two declarations, aggregate fences, deferred folding and interrupted activation
+beside pinned's literal default. Final qualification on the committed code:
+`SNAPBACK4_RUST_TEST_PROCESSES=8 CARGO_BUILD_JOBS=8 taskset -c 0-15 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 612 s`, exit 0. All stages
+passed, including 1,592 main client passes, 10 existing skips and 78 model passes.
+The first full run was `== 1 failure(s) in 1061 s`: nine test/compatibility
+failures were ours and corrected; each is enumerated with its cause in the
+report. None of the supplied baseline's four failures reproduced.
+
+Wasm is 1,787,614 bytes raw / 498,768 gzip; the gzip ratchet rises from 496,000
+to the smallest rounded 499,000 bytes, with its reason in the budget file.
+Runtime meters and write ceilings are unchanged. Static aggregate classification
+conservatively fences source updates; runtime fencing tests actual event changes.
+Recorded slotless backends retain legacy behavior until normal adoption. No
+packed storage, event horizon, serving-time pairing, tombstone bound, history
+change, arbitrary corrupt-import repair, publication or push. No known open
+correctness failure or blocked design part. The supervisor owns blind reviews
+and integration. See the [file-by-file report and evidence](reports/20260925-event-slots/REPORT.md).
