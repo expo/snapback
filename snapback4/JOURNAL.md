@@ -56309,3 +56309,47 @@ version, push or publication change. Existing aggregate/seek restrictions and
 the shared-host wall-time budget overrun remain unchanged. Implementation:
 3c3a69461. File ledger, examples, guess/fact mapping, word counts, limitations and
 log digests: [Lane X round-four report](reports/lane-x-round4-report.md).
+
+## 2026-09-25 — LLP 3000.013 lane X, round five: aggregate repair context
+
+Addressed Grok's aggregate repair finding and both requested mutation tests.
+When a named point key fails to bind in its enclosing declaration, verification
+now retries the same source with first 1, provided id or a total unique key
+proves that this preserves the whole population. The page candidate must pass
+ordinary compilation/admission and the intended plan-class check. A compiling
+wrong-plan candidate cannot trigger this retry. Valid point reads and existing
+multi-row pages remain unchanged. Candidate-specific messages and replacements
+are now published together only after verification; a rejected named key leaves
+neither a rewrite nor misleading advice.
+
+Tests paste and execute count and sum repairs for id and a non-id unique key,
+both direct and grouped. They also retain full counts for capped non-unique
+pages and tied null keys, refuse an unprovable single-row fallback, and ensure
+an invalid helper body gets no repair even without an external caller. Actually
+skipping count-candidate verification produced the noncompiling point argument
+and failed its paste test with exit 101. Actually deleting the synthetic helper
+invocation leaked a repair for int + bool and failed the new helper test with
+exit 101. Both mutations were restored before final validation. Fixture
+assumptions corrected during development are recorded in the report.
+
+Restored-code checks: 140 language/unit/guide tests and three CLI tests passed.
+One full scripts/test.sh run exited 0, exact summary:
+**== 0 failure(s) in 574 s**. Final failures: ours zero, baseline zero,
+environmental zero; none waived or retried. Client tests: 1,509 passed, ten
+existing skips. Client models: 78 passed, with all 5,000 / 5,000 / 3,000 sequences
+retained. The wasm/native familiarity witness passed. Wasm remains 1,775,799 B
+raw / 495,258 B gzip, under the unchanged 496,000 B budget. Ref-check: zero
+errors/unchecked. External Clique target: zero problems, six existing notes.
+Rendered why E_QUARRY_SELF_EQUALITY is 2,892 bytes within 4,096. Core cards remain
+10,422 words versus 18,300, with 860 opening words versus 12,540; all 133 fact
+homes and 17 original compiled blocks remain tested. Changed source files stay
+below 1,500 lines. Frozen Bun installation changed no dependencies.
+
+No unresolved round-five finding or design deviation. The existing fully pinned
+extra-key page restriction still withholds an unverified repair; this round does
+not alter planner admission. No authorization, disclosure, durability, runtime
+meter, store, client-source, Following, version, push or publication changes.
+The existing shared-host wall-time target remains exceeded; no thresholds were
+reduced. Implementation: d56014670. File ledger, forms, tests, mutation evidence,
+limitations, counts/mappings and log digests:
+[Lane X round-five report](reports/lane-x-round5-report.md).
