@@ -270,6 +270,26 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               await recoverOpening();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
               const execute = async (): Promise<Record<string, unknown>> => {
+                if (request.op === "settle_exit") {
+                  const write = request.write as Extract<Write, { state: "failed" }>;
+                  const invoke = (input: Record<string, unknown>) => JSON.parse(device!.call(JSON.stringify(input)));
+                  // The exclusive claim and device chain cover this entire
+                  // read/check/write transaction. Drain once: the strict IDB
+                  // commit holds the receipt, outbox removal and journal cleanup.
+                  const history = terminalReceipts(invoke({ op: "meta", key: "write-history" }).ok);
+                  const entry = invoke({ op: "queued" }).ok.find((entry: { id: string }) => entry.id === write.id);
+                  if (history.some(known => known.id === write.id) || !entry || entry.sent_seq != null || entry.observed_seq != null) return { ok: false };
+                  const kept = invoke({ op: "keep_write", value: JSON.stringify({ state: "failed", id: write.id, why: {
+                    code: write.why.code, family: write.why.family,
+                    message: `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically`,
+                  } }) });
+                  if (kept.denied) return kept;
+                  const retired = invoke({ op: "settle", id: write.id });
+                  if (retired.denied) throw new Error(retired.denied.message);
+                  const reply = { ok: true };
+                  await settle([], () => committedReply?.(reply));
+                  return reply;
+                }
                 if (request.op === "begin_send" && typeof request.id === "string") {
                   const binding = journal.binding(device!, request.id);
                   if (!committed.has(request.id) || binding !== "allow") {

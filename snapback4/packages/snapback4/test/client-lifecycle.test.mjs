@@ -149,11 +149,11 @@ test("online auth refusal settles writes that were queued behind the refused req
   await client.close();
 });
 
-test("local pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async (t) => {
-  const queued = [], reply = deferred(), probe = deferred();
+for (const originalStore of [undefined, "original-store"]) test(`local pending writes emit once with ${originalStore ? "their original binding ahead of a newer device identity" : "the kept device identity"}`, { timeout: 5000 }, async (t) => {
+  const queued = [], requests = [], reply = deferred(), probe = deferred();
   const device = emptyDevice({ storeId: "kept-store", call: async (request) => {
     if (request.op === "backend") return { ok: emptyBackend };
-    if (request.op === "admit") { queued.push(request.entry); return { ok: request.entry }; }
+    if (request.op === "admit") { queued.push({ ...request.entry, store_id: originalStore }); return { ok: request.entry }; }
     if (request.op === "queued") return { ok: queued };
     if (request.op === "begin_send") return { ok: { send_revision: 1 } };
     if (request.op === "settle") { queued.splice(0, 1); return { ok: null }; }
@@ -162,7 +162,7 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
     const path = new URL(input).pathname;
     if (path === "/schema") throw new TypeError("offline at open");
     if (path === "/m/send") {
-      assert.equal(JSON.parse(init.body).store_id, "kept-store", "a device without web journal metadata uses its kept identity");
+      requests.push(JSON.parse(init.body));
       return await held(reply, init?.signal);
     }
     if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [], store_id: "kept-store" });
@@ -177,6 +177,7 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   assert.equal(admitted.state, "pending");
   reply.resolve(Response.json({ state: "sent", seq: 7, result: { saved: true } }));
   await until(() => terminal.length === 1, "local terminal write event was dropped");
+  assert.equal(requests[0].store_id, originalStore ?? "kept-store", "original write binding precedes the device's current identity");
   assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7, result: { saved: true } });
   await sleep(50);
   assert.equal(terminal.length, 1);

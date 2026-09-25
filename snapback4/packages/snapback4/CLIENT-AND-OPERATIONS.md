@@ -530,6 +530,9 @@ store while the destination identity is unknown, and retires a mismatch before
 enqueueing it. Matching adoption keeps the original mutation id.
 Ordinary and keepalive mutation requests carry that original `store_id`; the
 server refuses a replacement before execution or deduplication with terminal `E_STORE_REPLACED`.
+An overlapping ordinary request owns its settlement: a keepalive refusal cannot
+mask its success. Otherwise the refusal receipt and outbox retirement commit
+together, after rechecking terminal history and custody; a failed save retains the outbox.
 Under `createApp`, records also capture the session epoch and principal.
 The browser's authoritative session lives in IndexedDB. Login, logout and
 principal replacement mirror their value to localStorage, then await a strict

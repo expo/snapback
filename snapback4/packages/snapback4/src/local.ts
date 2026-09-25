@@ -21,7 +21,8 @@ import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
 import { requireSyncProtocol, syncTransport, type SyncPage } from "./local-sync.ts";
-import { exitTransport, type PendingSend } from "./local-exit.ts";
+import { exitTransport } from "./local-exit.ts";
+import { exitRefusalSettlement } from "./local-exit-settlement.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -339,7 +340,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (observed) return;
       observed = true;
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
-      if (!result.denied && ["apply", "admit", "settle", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery);
+      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery);
       if (!result.denied && request.op === "apply") {
         for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
         delivery.push(() => { if (!closed && !sessionDead) progress.page(request.page as Record<string, unknown>, request.first === true); });
@@ -356,7 +357,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const result = (await work) as { ok?: unknown; denied?: Refusal };
       committed(result);
       deliver();
-      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
+      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op))) await media?.reconcile();
       return result;
     }
     finally { active.delete(work); deliver(); }
@@ -1107,6 +1108,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (acquire) await syncOnce();
         continue;
       }
+      let ownsSettlement = false;
       try {
         const result = await network(async () => {
           await exitDone;
@@ -1114,8 +1116,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
           const binding = entry.store_id ?? storeIdentity;
           if (!binding) return { ok: false as const };
+          if (settling.has(entry.id)) return { ok: false as const };
           ordinarySending = entry.id;
           settling.add(entry.id);
+          ownsSettlement = true;
           try {
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
@@ -1155,7 +1159,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         settle?.resolve(outcome);
         emitWrite(outcome);
       } catch { retryFlush(); return; }
-      finally { settling.delete(entry.id); }
+      finally { if (ownsSettlement) settling.delete(entry.id); }
     }
   }
 
@@ -1438,20 +1442,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function listenForExit() {
     if (!core.onSuspend || stopSuspend || closed || sessionDead) return;
     sendingAllowed = true;
-    const sendOnExit = exitTransport(doFetch, base, aborter.signal, async (entry, why) => {
-      if (closed) return; // Reopen retains the original binding if teardown won.
-      const work = (async () => {
-        const write = { state: "failed" as const, id: entry.id, why };
-        await history.keep(write);
-        const applied = await call({ op: "settle", id: entry.id });
-        if (applied.denied) retryFlush();
-        settled.get(entry.id)?.resolve(write); settled.delete(entry.id);
+    const sendOnExit = exitTransport(doFetch, base, aborter.signal, exitRefusalSettlement({
+      closed: () => closed, owners: settling, active,
+      commit: async write => {
+        if ((await history.read(write.id))?.state === "sent") return false;
+        const applied = await call({ op: "settle_exit", write });
+        if (applied.denied) throw new Error(applied.denied.message);
+        return applied.ok === true;
+      },
+      publish: write => {
+        settled.get(write.id)?.resolve(write); settled.delete(write.id);
         emitWrite(write);
         for (const watch of watches.values()) void rerun(watch);
-      })();
-      active.add(work);
-      try { await work; } finally { active.delete(work); }
-    });
+      },
+    }));
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
