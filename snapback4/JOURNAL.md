@@ -56158,3 +56158,50 @@ Implementation commits: e11c2a282 (progress and bounded persistence), 78175cd6d
 publication, larger snapshot pages, streaming apply or native simulator run.
 File map, reproductions, test proofs, measurement limits and raw evidence:
 [round 1 report](reports/20260925-lane-v-r1.md).
+
+
+## 2026-09-25 — LLP 3000.013, lane V round 2: session-bound journal recovery
+
+Addressed both round-1 delta reviews. App authority now attaches before journal
+orphan recovery; attachment recovers immediately from the kept device, including
+offline or with the first sync held. Unstamped, unadmitted legacy app records are
+cancelled because their originating epoch is unknown. Committed outbox/transfer
+custody remains intact. Page-hide transport runs after serialized admission
+releases the session lock, and its listener is installed before initial network
+sync. A synchronous epoch mismatch refuses the call and schedules locked
+confirmation; a confirmed mismatch fences existing observations, while a
+transient observation does not retire the scope. No reentrant lock bypass was
+introduced.
+
+Added eight Chromium regression cases covering hidden admission with a second
+tab's logout, held-sync/offline navigation recovery, actual keepalive delivery,
+password logout/login with legacy unadmitted and committed records, same-epoch
+logout tombstones, and persistent observation fencing. Existing transient-fence
+coverage remains. Deleting a known overflow key must now disappear through both
+read and fresh load. All eight relevant mutants fail at their intended checks;
+64 focused checks pass. Raw-device recovery tests now make their first core call
+before asserting orphan recovery, so app ownership can bind after open.
+
+Measured the same 65,180-row scale projection again: bounded cold acquisition
+13.298 / 15.825 / 18.703 s; fresh per-row 70.716 s. Median speedup 4.47×. Median
+snapshot response/body time 0.779 s, wasm apply 2.877 s, IndexedDB saves 10.419 s
+(per-row IDB 65.126 s). All four offline reopens retained all rows. Page size
+4,000, strict durability and 512-entry/256-KiB bucket caps are unchanged. This is
+snapshot acquisition, with the previously documented null-media/persona fixture
+projection, not the full builder startup journey.
+
+`scripts/test.sh` ran once: **`== 0 failure(s) in 405 s`**, exit 0. Client checks:
+1,541 passed, 10 platform skips; models: 78 passed including 13,000 seeded
+sequences. No complete-suite failures (ours, baseline or environmental).
+Reference audit: 509 LLP docs / 9,282 refs, zero errors or unchecked references.
+The wasm budget remains 495,258 / 496,000 gzip bytes. The report classifies the
+corrected test-only development failures and explains the two reviewer details:
+the transport-under-lock mutant fails the stronger no-transport-in-lock
+assertion, and the explicit logout guard mutant is exposed by a same-epoch
+tombstone retaining session fields; the exact minimal tombstone is tested too.
+
+Did not change Quarry forms, disclosure rules, engine meters, page-size limits,
+bucket storage, or transport delivery guarantees; did not push or publish.
+Keepalive remains best-effort. Full file map, reproduction commands, review
+hashes, measurements and suite output: `reports/20260925-lane-v-r2.md` and
+`reports/20260925-lane-v-r2-evidence/`.

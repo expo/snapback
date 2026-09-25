@@ -1,0 +1,29 @@
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (918.806966ms)
+  ✖ navigation recovers its original outbox id before held-sync startup completes (3792.583343ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1832.777448ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (811.002749ms)
+  ✔ legacy journal after logout preserves committed outbox custody (751.588688ms)
+  ✔ same-epoch logout tombstone refuses live admission (502.195459ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (522.891455ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (412.694874ms)
+✖ web admission review: recovery and transport respect the session boundary (10480.824528ms)
+ℹ {"mode":"offline","id":"01M3C23XY6HWX8EE90RQFZMKE7","outboxBeforeSync":true,"keepalive":true}
+ℹ tests 9
+ℹ suites 0
+ℹ pass 7
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10582.114527
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:170:56
+✖ navigation recovers its original outbox id before held-sync startup completes (3792.583343ms)
+  page.waitForFunction: Timeout 3000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:181:16)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:170:48) {
+    name: 'TimeoutError'
+  }

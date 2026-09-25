@@ -1,0 +1,62 @@
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (866.339188ms)
+  ✖ navigation recovers its original outbox id before held-sync startup completes (750.038926ms)
+  ✖ navigation recovers its original outbox id before offline startup completes (763.434968ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (788.69653ms)
+  ✔ legacy journal after logout preserves committed outbox custody (852.102755ms)
+  ✔ same-epoch logout tombstone refuses live admission (470.706963ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (490.591433ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (440.783673ms)
+✖ web admission review: recovery and transport respect the session boundary (6561.744762ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 6
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6657.378483
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:170:56
+✖ navigation recovers its original outbox id before held-sync startup completes (750.038926ms)
+  AssertionError [ERR_ASSERTION]: recovery must not depend on /sync
+  + actual - expected
+
+  + undefined
+  - 'pending'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:178:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:170:48)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:170:56
+✖ navigation recovers its original outbox id before offline startup completes (763.434968ms)
+  AssertionError [ERR_ASSERTION]: recovery must not depend on /sync
+  + actual - expected
+
+  + undefined
+  - 'pending'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:178:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:170:48)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

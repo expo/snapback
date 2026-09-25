@@ -1,0 +1,95 @@
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (922.823668ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (806.501264ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1813.340934ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (707.285931ms)
+  ✔ legacy journal after logout preserves committed outbox custody (779.305111ms)
+  ✔ same-epoch logout tombstone refuses live admission (492.446663ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (527.376336ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (481.789144ms)
+✔ web admission review: recovery and transport respect the session boundary (7592.672817ms)
+ℹ {"mode":"held-sync","id":"01M3C2712ZA6WV767BZ9D8NJQ5","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C271X43R280F11MCMPX9BJ","outboxBeforeSync":true,"keepalive":true}
+✔ failed admission cannot appear in later reads or hitchhike on the next saved call (431.369596ms)
+✔ failed snapshot publication and backend adoption preserve acknowledged state (13.35482ms)
+✔ recovery read failures block calls until durable state can be reopened (3.965188ms)
+✔ failed initial persistence frees the constructed Wasm device (1.408329ms)
+✔ successful calls keep incremental persistence without loading the store again (4.409544ms)
+✔ close drains accepted calls once and refuses later calls (3.036568ms)
+✔ W11R2: evicted journal has no retry timer or missing-store read (2.100997ms)
+ℹ state=evicted retry_timers=0 orphan_loads=0
+✔ W11R2: unidentified journal has no retry timer or missing-store read (1.608259ms)
+ℹ state=unidentified retry_timers=0 orphan_loads=1
+✔ W11R2: receipt lookup never opens an absent shared database and sees later adoption (2.213105ms)
+ℹ empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false) (3.536586ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true) (2.091653ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11R2: a live sibling queues one cancellable lock wait without a timer (3.621464ms)
+ℹ live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+✔ W11R2: persistent recovery failure exhausts three backoffs then a sync can recover (3.292921ms)
+ℹ failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1
+✔ W11R2: IndexedDB existence fallback aborts creation of missing stores (0.446949ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1035 ms
+✔ stalled exit body recovers in order (not applied) (1553.234231ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1017 ms
+✔ stalled exit body recovers in order (already applied replay) (1133.839942ms)
+stalled exit close: 971 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1084.593092ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.899086ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1116.575303ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1081.054368ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1084.39154ms)
+✔ IndexedDB save resolves on transaction completion, not request success (2.157872ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1088.357863ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1087.423927ms)
+keepalive: 64093 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (3.465861ms)
+✔ exit ordering survives reversed server processing (1.658984ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (3.164279ms)
+✔ exit overlaps only the same ordinary in-flight head (1086.128219ms)
+✔ ordinary flush waits for the exit request before replaying its head (1086.730494ms)
+▶ web review: acquisition lifetimes and bounded persistence
+  ✔ same-store reacquisition reconciles progress with an already-true acquired flag (346.714827ms)
+  ✔ a compiled special table name produces numeric own-property counts (22.406637ms)
+  ✔ sign-out during a partial acquisition clears the raw client counts (35.527196ms)
+  ✔ one update stays bounded for 1,000 and 16,000 colliding rows (3377.537678ms)
+  ✔ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (68.392887ms)
+  ✔ an old unbounded bucket is split at load before later bounded updates (258.899745ms)
+✔ web review: acquisition lifetimes and bounded persistence (5150.006263ms)
+ℹ {"count":1000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":1000,"changed":1024,"last":1024}
+ℹ {"count":16000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":16000,"changed":1024,"last":1024}
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (741.89761ms)
+  ✔ restored identified device journals while its first sync is held (702.96108ms)
+  ✔ synchronous refusal: restoring (390.542475ms)
+  ✔ synchronous refusal: no-device (54.049496ms)
+  ✔ synchronous refusal: no-claim (304.225525ms)
+  ✔ synchronous refusal: ephemeral-device (327.189326ms)
+  ✔ synchronous refusal: storage-full (418.860045ms)
+  ✔ synchronous refusal: before-first-sync (346.937152ms)
+  ✔ repairing storage permits the refused id to be retried (409.882662ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (532.011526ms)
+  ✔ session-locked journal refuses stale authority: logout (534.215406ms)
+  ✔ session-locked journal refuses stale authority: principal (506.234773ms)
+  ✔ session-locked journal refuses stale authority: epoch (562.051377ms)
+  ✔ session-locked journal refuses stale authority: recovery (915.512333ms)
+  ✔ a transient unlocked epoch observation refuses only that call (539.831502ms)
+  ✔ the bare online browser transport refuses without custody (2.317411ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (74.501727ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (133.53729ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (8686.610387ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 64
+ℹ suites 0
+ℹ pass 64
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11533.590831

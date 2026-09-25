@@ -1,0 +1,26 @@
+▶ web review: acquisition lifetimes and bounded persistence
+  ✔ same-store reacquisition reconciles progress with an already-true acquired flag (349.664902ms)
+  ✔ a compiled special table name produces numeric own-property counts (19.075157ms)
+  ✔ sign-out during a partial acquisition clears the raw client counts (25.507019ms)
+  ✖ one update stays bounded for 1,000 and 16,000 colliding rows (388.556617ms)
+  ✔ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (55.893412ms)
+  ✔ an old unbounded bucket is split at load before later bounded updates (114.599832ms)
+✖ web review: acquisition lifetimes and bounded persistence (1699.21637ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 5
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1785.187834
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-review.test.mjs:105:11
+✖ one update stays bounded for 1,000 and 16,000 colliding rows (388.556617ms)
+  page.evaluate: Error: deleted overflow row remains readable
+      at eval (eval at evaluate (:291:30), <anonymous>:32:74)
+      at async <anonymous>:317:30
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:106:32)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:105:11)

@@ -1,0 +1,57 @@
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (962.189322ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (764.082728ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1821.341644ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (855.582991ms)
+  ✔ legacy journal after logout preserves committed outbox custody (819.886607ms)
+  ✔ same-epoch logout tombstone refuses live admission (488.154034ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (483.198374ms)
+  ✖ a confirmed epoch mismatch fences existing observations while the change poll is held (392.419562ms)
+✖ web admission review: recovery and transport respect the session boundary (8054.745536ms)
+ℹ {"mode":"held-sync","id":"01M3C1ZZKZWJGG106J7MW0732N","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C200E012WPY0ADFBXVZ6ZH","outboxBeforeSync":true,"keepalive":true}
+ℹ tests 9
+ℹ suites 0
+ℹ pass 7
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8137.614069
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:234:11
+✖ a confirmed epoch mismatch fences existing observations while the change poll is held (392.419562ms)
+  page.waitForFunction: TypeError: window.observed.read is not a function
+      at eval (eval at predicate (eval at evaluate (:291:30)), <anonymous>:1:23)
+      at predicate (eval at evaluate (:291:30), <anonymous>:7:23)
+      at next (eval at evaluate (:291:30), <anonymous>:29:29)
+      at eval (eval at evaluate (:291:30), <anonymous>:42:9)
+      at UtilityScript.evaluate (<anonymous>:293:16)
+      at UtilityScript.<anonymous> (<anonymous>:1:44)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:238:16)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:234:3)
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:9:1
+✖ web admission review: recovery and transport respect the session boundary (8054.745536ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   'window.observed.read is not a function'
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:253:10)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'window.observed.read is not a function' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

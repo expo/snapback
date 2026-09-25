@@ -1,0 +1,48 @@
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (905.104864ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (795.334ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1722.412666ms)
+  ✖ legacy journal after logout refuses an unestablished epoch (880.181109ms)
+  ✔ legacy journal after logout preserves committed outbox custody (801.195888ms)
+  ✔ same-epoch logout tombstone refuses live admission (472.130026ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (461.400051ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (434.099753ms)
+✖ web admission review: recovery and transport respect the session boundary (7704.294793ms)
+ℹ {"mode":"held-sync","id":"01M3C23JMNR2TN4FCPVQ7B0FTA","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C23KD950GKVK2FCHVTVAZX","outboxBeforeSync":true,"keepalive":true}
+ℹ tests 9
+ℹ suites 0
+ℹ pass 7
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7791.142531
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:188:50
+✖ legacy journal after logout refuses an unestablished epoch (880.181109ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + {
+  +   id: '01M3C23N47DP647CAHAZPBGVXV',
+  +   replayed: true,
+  +   seq: 8,
+  +   state: 'sent'
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:206:17)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:188:42)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { state: 'sent', id: '01M3C23N47DP647CAHAZPBGVXV', seq: 8, replayed: true },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
