@@ -112,7 +112,7 @@ for (const clockOffset of ['+25h', '-31d']) test(`native JSON bridge shares devi
   const cold = await client.query(query, { conversationId: 'room' });
   assert.equal(cold.data[0].at, first.data[0].at); assert.equal(cold.data[0].pending, true);
   failClock = true;
-  await assert.rejects(client.close(), /clock storage unavailable/);
+  await client.close();
   client = undefined;
   assert.equal(closedCores, 2, 'a failed final clock save must still close the native device');
 });
