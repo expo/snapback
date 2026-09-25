@@ -25,12 +25,20 @@ export interface LocalWatch extends ReadObservation<unknown> {
   incarnation: number;
 }
 
+export type ServerAnswer = {
+  read: Extract<import("./contract.ts").Read<unknown>, { data: unknown }>;
+  at: number;
+  tables: Set<string>;
+};
+
 /** Every local commit retires retained answers. */
 export class LocalReads {
   revision = 0;
+  readonly serverAnswers = new Map<string, ServerAnswer>();
 
   clear(watches: Iterable<LocalWatch>): void {
     this.revision++;
+    this.serverAnswers.clear();
     for (const watch of watches) {
       watch.reset({ loading: true });
       if (watch.expiryTimer) clearTimeout(watch.expiryTimer);

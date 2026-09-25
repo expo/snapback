@@ -911,6 +911,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
       principal, signal: aborter.signal, unavailable, queued, call, post, installNative, notify,
+      offline, serverAnswers: answers.serverAnswers,
     };
     const work = (async () => {
       while (true) {
