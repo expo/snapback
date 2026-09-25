@@ -398,6 +398,26 @@ for (const tier of ["wasm", "process"]) {
 
 
 const sentReceipt = (id, seq = 1) => ({ state: "sent", id, seq, replayed: true });
+
+for (const state of ["sent", "failed"]) test(`receipt custody retains the first ${state} outcome across repeated save failures`, async () => {
+  let failures = 2, saved;
+  const history = new WriteHistory({
+    read: async () => saved ? JSON.stringify([saved]) : null,
+    save: async value => { if (failures-- > 0) throw Error("aborted receipt"); saved = JSON.parse(value); },
+  });
+  const original = state === "sent" ? sentReceipt("original", 7)
+    : { state: "failed", id: "original", why: { code: "NOT_ADMIN", family: "auth", message: "not admin" } };
+  const replacement = { state: "failed", id: "original", why: { code: "E_STORE_REPLACED", family: "store", message: "replacement" } };
+  await assert.rejects(history.keep(original), /aborted receipt/);
+  await assert.rejects(history.keep(replacement), /aborted receipt/);
+  assert.equal(history.hasUnpersisted(original.id), true);
+  await history.persistPending();
+  assert.equal(history.hasUnpersisted(original.id), false);
+  const kept = await history.read(original.id);
+  assert.equal(kept.state, state);
+  if (state === "sent") assert.equal(kept.seq, 7); else assert.equal(kept.why.code, "NOT_ADMIN");
+});
+
 const ok = reply => { assert.equal(reply.denied, undefined, JSON.stringify(reply)); return reply.ok; };
 const keepReceipt = (core, receipt) => core.call({ op: "keep_write", value: JSON.stringify(receipt) }).then(ok);
 

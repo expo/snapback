@@ -20,9 +20,10 @@ import { LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
-import { requireSyncProtocol, syncTransport, type SyncPage } from "./local-sync.ts";
+import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
+import { recoverReceipt, settleReceipt } from "./local-receipts.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -50,14 +51,6 @@ import type { LocalOptions, LocalClient } from "./local-device.ts";
 
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
-
-function responsePageTooLarge(denied: Refusal): boolean {
-  return denied.code === "E_BOUND"
-    && denied.family === "bound"
-    && denied.message.startsWith("the HTTP JSON response exceeds 16 MiB;")
-    && denied.message.includes("smaller page");
-}
-
 
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const retention = assetRetention(options.assets);
@@ -333,6 +326,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   async function call(request: Record<string, unknown>, committedTables?: Set<string>): Promise<{ ok?: unknown; denied?: Refusal }> {
+    if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     let observed = false;
     const delivery: (() => void)[] = [];
     const deliver = () => { for (const notify of delivery.splice(0)) notify(); };
@@ -574,6 +568,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function syncRound(): Promise<boolean> {
     caughtUp = false;
     if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return false;
+    try { await history.persistPending(); } catch { retryFlush(); return false; }
     const state = (await call({ op: "state" })).ok as { watermark: number; generation: number } | undefined;
     let watermark = state?.watermark ?? 0;
     const touched = new Set<string>();
@@ -1114,6 +1109,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
           if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
+          const known = await recoverReceipt(history, call, entry.id);
+          if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false };
           const binding = entry.store_id ?? storeIdentity;
           if (!binding) return { ok: false as const };
           if (settling.has(entry.id)) return { ok: false as const };
@@ -1128,12 +1125,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
               if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
                 try {
-                  await history.keep(json.state === "sent"
+                  await settleReceipt(history, call, json.state === "sent"
                     ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
                     : { state: "failed", id: entry.id, why: why! });
-                  const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
-                  if (applied.denied) retryFlush();
-                } catch { retryFlush(); } // I13: receipt storage cannot erase a known server outcome.
+                } catch { retryFlush(); return { ...response, persistencePending: true }; }
               }
             }
             return response;
@@ -1152,12 +1147,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
             : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
-        if (!closed) {
+        if (!closed && !("persistencePending" in result)) {
           if (outcome.state === "sent") { if (acquire) await syncOnce(); }
           else rerunTables(predictedTables(entry.predicted));
         }
         settle?.resolve(outcome);
         emitWrite(outcome);
+        if ("persistencePending" in result) return;
       } catch { retryFlush(); return; }
       finally { if (ownsSettlement) settling.delete(entry.id); }
     }
@@ -1445,7 +1441,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const sendOnExit = exitTransport(doFetch, base, aborter.signal, exitRefusalSettlement({
       closed: () => closed, owners: settling, active,
       commit: async write => {
-        if ((await history.read(write.id))?.state === "sent") return false;
+        const known = await history.read(write.id);
+        if (known && known.state !== "pending") return false;
         const applied = await call({ op: "settle_exit", write });
         if (applied.denied) throw new Error(applied.denied.message);
         return applied.ok === true;
@@ -1459,7 +1456,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
-      exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
+      exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !history.hasUnpersisted(entries[0]!.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
     });
   }
   const start = async () => {

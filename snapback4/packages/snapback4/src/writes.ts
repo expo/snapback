@@ -133,12 +133,21 @@ export class WriteHistory {
   }
 
   async keep(write: Terminal): Promise<void> {
+    write = this.unpersisted.get(write.id) ?? write;
     if (this.storage) {
-      try { await this.storage.save(JSON.stringify(receipt(write))); }
-      catch (error) { this.unpersisted.set(write.id, receipt(write)); throw error; }
+      this.unpersisted.set(write.id, receipt(write));
+      await this.storage.save(JSON.stringify(receipt(write)));
       this.unpersisted.delete(write.id);
       this.values.delete(write.id); this.terminal.delete(write.id);
     } else this.remember(write);
+  }
+
+  hasUnpersisted(id?: string): boolean { return id === undefined ? this.unpersisted.size > 0 : this.unpersisted.has(id); }
+
+  // A known result is custody, even when its receipt transaction aborted.
+  // Callers must cross this barrier before sync or another delivery can retire it.
+  async persistPending(): Promise<void> {
+    for (const write of this.unpersisted.values()) await this.keep(write);
   }
 
   async read(id: string): Promise<Write | undefined> {

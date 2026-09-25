@@ -93,7 +93,16 @@ query total():
   if (mutant === 'exit-owner') replace('local-exit-settlement.ts', ' || options.owners.has(entry.id)', '');
   if (mutant === 'exit-custody') replace('web.ts', 'if (history.some(known => known.id === write.id) || !entry || entry.sent_seq != null || entry.observed_seq != null) return { ok: false };', '/* mutant: settle a late refusal without custody */');
   if (mutant === 'exit-persistence') replace('local-exit-settlement.ts', 'await options.commit(write)', 'await options.commit(write).catch(() => true)');
-  if (mutant === 'exit-known') replace('local.ts', 'if ((await history.read(write.id))?.state === "sent") return false;', '/* mutant: forget a known success when its receipt save fails */');
+  if (mutant === 'exit-known') replace('local.ts', 'if (known && known.state !== "pending") return false;', '/* mutant: forget a known terminal */');
+  if (mutant === 'custody-sequences') replace('web.ts', ' || entry.sent_seq != null || entry.observed_seq != null', '');
+  if (mutant === 'receipt-fallthrough') replace('local.ts', 'retryFlush(); return { ...response, persistencePending: true };', 'retryFlush();');
+  if (mutant === 'receipt-replay') replace('local-receipts.ts', 'if (!known || known.state === "pending") return;', 'return;');
+  if (mutant === 'receipt-barrier') replace('local.ts', 'try { await history.persistPending(); } catch { retryFlush(); return false; }', '/* mutant: sync can retire volatile custody */');
+  // Record the actual retry callback and entry into sync, without changing either.
+  const localPath = path('local.ts');
+  sourceOverrides[localPath] = (sourceOverrides[localPath] ?? readFileSync(localPath, 'utf8'))
+    .replace('retry = undefined; void flush();', 'retry = undefined; (globalThis as any).retryTicks++; void flush();')
+    .replace('function syncOnce(): Promise<boolean> {', 'function syncOnce(): Promise<boolean> { (globalThis as any).syncAttempts?.push({ pending: history.hasUnpersisted((globalThis as any).capturedId), tick: (globalThis as any).retryTicks });');
   // Observe completion after the callback without timing sleeps or changing
   // production scheduling. Each real response body has its own gate below.
   const exitPath = path('local-exit.ts');
@@ -108,7 +117,7 @@ window.ops = { remove: { kind: 'mutation', name: 'removeMember' }, roster: { kin
 window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, wrappedDevice = false, holdProbe = false, probeMode = 'accept', backendUrl = url, unavailable = false, holdOrdinaryResponse = false, holdExitResponse = false }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
   window.sessionLocks = 0; window.exitLocks = []; window.sent = []; window.enqueued = []; window.syncHeld = false; window.openingDone = false; window.probeHeld = false; window.exitRegistrations = 0;
-  window.backendUrl = backendUrl; window.exitCompleted = []; window.outcomes = []; window.receiptBatches = [];
+  window.backendUrl = backendUrl; window.exitCompleted = []; window.outcomes = []; window.receiptBatches = []; window.retryTicks = 0; window.syncAttempts = []; window.syncRequests = 0;
   window.holdOrdinaryResponse = holdOrdinaryResponse; window.holdExitResponse = holdExitResponse;
   const request = navigator.locks.request.bind(navigator.locks);
   navigator.locks.request = (name, ...args) => {
@@ -153,6 +162,7 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
     fetch: async (input, init) => {
       const parsed = new URL(String(input)), route = parsed.pathname;
       const destination = window.backendUrl + route + parsed.search;
+      if (route === '/sync') window.syncRequests++;
       if (window.unavailable && (route === '/probe' || route === '/sync')) return Response.json({}, { status: 503 });
       if (route === '/probe' && holdProbe) {
         window.probeHeld = true; await probeGate;
@@ -191,18 +201,18 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
   if (!holdSync && !holdProbe && blockMutations !== 'hold') await app.ready;
 };
 window.captureClick = () => {
-  const id = mintId();
+  const id = mintId(); window.capturedId = id;
   window.write = app.mutate(ops.remove, { room: 'room', principal: 'user:other' }, { id });
   const key = Object.keys(localStorage).find(k => k.startsWith('snapback4-admission:') && k.endsWith(id));
   return { id, record: JSON.parse(localStorage.getItem(key)), store: decodeURIComponent(key.split(':')[1]) };
 };
-window.abortReceipts = store => {
+window.abortReceipts = (store, limit = Infinity) => {
   window.receiptAborts = 0; window.receiptAbortEnabled = true;
   const put = IDBObjectStore.prototype.put;
   IDBObjectStore.prototype.put = function (value) {
     const request = put.call(this, value);
     if (window.receiptAbortEnabled && this.transaction.db.name === store && value.s === 'm' && value.k === 'client:write-history') {
-      receiptAborts++; this.transaction.abort();
+      receiptAborts++; this.transaction.abort(); if (receiptAborts >= limit) window.receiptAbortEnabled = false;
     }
     return request;
   };
@@ -581,12 +591,107 @@ window.abortReceipts = store => {
       assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).state, 'sent');
       assert.equal(await total(session), before + 1); assert.equal(await total(session, replacement.api), 0);
       const replayed = await page.evaluate(() => sent);
-      if (abortReceipt) assert.deepEqual(replayed.map(send => send.id), [captured.id], 'an unpersisted success replays only the original id');
-      else assert.deepEqual(replayed, [], 'reopen recovers the receipt without replay');
+      assert.deepEqual(replayed, [], 'reopen settles known receipt custody without replay');
     } finally {
       await page.evaluate(async () => { window.releaseOrdinaryResponse?.(); window.releaseExitResponse?.(); await app.close(); });
       await replacement.close();
     }
+  });
+
+  for (const first of ['keepalive', 'ordinary']) await check(`a known NOT_ADMIN refusal survives two receipt aborts when ${first} answers first`, async () => {
+    const { session } = await fresh(), before = await total(session);
+    const replacement = await replacementFor(session);
+    // A still authenticates the viewer, but its authored mutation refuses.
+    assert.equal((await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([
+      { table: 'members', row: { id: 'admin-' + account, room: 'room', principal: session.principal, admin: false } },
+    ]) }).then(r => r.json())).seeded, 1);
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true, holdOrdinaryResponse: true, holdExitResponse: true });
+    try {
+      const captured = await page.evaluate(() => captureClick());
+      await page.waitForFunction(() => window.OrdinaryBody);
+      assert.equal(await page.evaluate(() => OrdinaryBody.why.code), 'NOT_ADMIN');
+      await page.evaluate(({ store, destination }) => { abortReceipts(store, 2); window.backendUrl = destination; }, { store: captured.store, destination: replacement.api });
+      await hide(); await page.waitForFunction(() => window.ExitBody);
+      assert.equal(await page.evaluate(() => ExitBody.why.code), 'E_STORE_REPLACED');
+      if (first === 'keepalive') {
+        await page.evaluate(() => releaseExitResponse());
+        await page.waitForFunction(id => exitCompleted.includes(id), captured.id);
+        await page.evaluate(() => releaseOrdinaryResponse());
+      } else {
+        await page.evaluate(() => releaseOrdinaryResponse());
+        assert.equal((await page.evaluate(() => write)).why.code, 'NOT_ADMIN');
+        await page.evaluate(() => releaseExitResponse());
+        await page.waitForFunction(id => exitCompleted.includes(id), captured.id);
+      }
+      assert.equal((await page.evaluate(() => write)).why.code, 'NOT_ADMIN');
+      await page.waitForFunction(() => receiptAborts === 2);
+      // Await the actual retry's local receipt repair, without a lookup that
+      // could itself repair it and conceal a failed retry implementation.
+      await until(() => page.evaluate(async ({ id, store }) => JSON.parse(await indexedDbPersistence().read(store, 'm', 'client:write-history') ?? '[]').some(write => write.id === id && write.why?.code === 'NOT_ADMIN'), captured), 'NOT_ADMIN receipt repair');
+      assert.deepEqual(await page.evaluate(() => outcomes.map(write => write.why?.code)), ['NOT_ADMIN']);
+      assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).why.code, 'NOT_ADMIN');
+      await page.evaluate(() => app.close()); await navigate('refusal-receipt=' + first);
+      await page.evaluate(options => boot(options), { url, backendUrl: replacement.api, holdPoll: true });
+      assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).why.code, 'NOT_ADMIN');
+      assert.equal(await total(session), before); assert.equal(await total(session, replacement.api), 0);
+    } finally { await page.evaluate(async () => { window.releaseOrdinaryResponse?.(); window.releaseExitResponse?.(); await app.close(); }); await replacement.close(); }
+  });
+
+  await check('receipt abort then retry persists sent before any replacement sync or POST', async () => {
+    const { session } = await fresh(), before = await total(session);
+    const replacement = await replacementFor(session);
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true, holdOrdinaryResponse: true, holdExitResponse: true });
+    try {
+      const captured = await page.evaluate(() => captureClick());
+      await page.waitForFunction(() => window.OrdinaryBody);
+      await page.evaluate(({ store, destination }) => { abortReceipts(store); window.backendUrl = destination; }, { store: captured.store, destination: replacement.api });
+      await hide(); await page.waitForFunction(() => window.ExitBody);
+      await page.evaluate(() => releaseExitResponse());
+      await page.waitForFunction(id => exitCompleted.includes(id), captured.id);
+      const syncs = await page.evaluate(() => { window.syncAttempts = []; return syncRequests; });
+      await page.evaluate(() => releaseOrdinaryResponse());
+      assert.equal((await page.evaluate(() => write)).state, 'sent');
+      assert.deepEqual(await page.evaluate(() => syncAttempts), [], 'a failed receipt save must return its known outcome without falling through to syncOnce');
+      await page.waitForFunction(() => retryTicks >= 1 && receiptAborts >= 2);
+      assert.equal(await page.evaluate(() => syncRequests), syncs, 'retry cannot sync an unpersisted success');
+      assert.equal(await page.evaluate(() => sent.filter(send => !send.keepalive).length), 1, 'retry cannot POST an unpersisted success');
+      // An explicit sync must also cross the persistence barrier.
+      await page.evaluate(async () => { try { await app.client.sync(); } catch {} });
+      assert.equal(await page.evaluate(() => syncRequests), syncs, 'explicit sync also waits for durable terminal custody');
+      await page.evaluate(() => { window.receiptAbortEnabled = false; });
+      await until(() => page.evaluate(async ({ id, store }) => JSON.parse(await indexedDbPersistence().read(store, 'm', 'client:write-history') ?? '[]').some(write => write.id === id && write.state === 'sent'), captured), 'retry persists original sent receipt');
+      await until(() => page.evaluate(async id => !(await core.call({ op: 'queued' })).ok.some(entry => entry.id === id && entry.sent_seq == null), captured.id), 'retry settles before another POST');
+      assert.equal(await page.evaluate(() => sent.filter(send => !send.keepalive).length), 1);
+      assert.deepEqual(await page.evaluate(() => outcomes.map(write => write.state)), ['sent']);
+      await page.evaluate(() => app.close()); await navigate('receipt-retry');
+      await page.evaluate(options => boot(options), { url, backendUrl: replacement.api, holdPoll: true });
+      assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).state, 'sent');
+      assert.equal(await total(session), before + 1); assert.equal(await total(session, replacement.api), 0);
+    } finally { await page.evaluate(async () => { window.receiptAbortEnabled = false; window.releaseOrdinaryResponse?.(); window.releaseExitResponse?.(); await app.close(); }); await replacement.close(); }
+  });
+
+  for (const marker of ['sent_seq', 'observed_seq']) await check(`outbox-only ${marker} evidence rejects a replacement refusal without terminal history`, async () => {
+    const { session } = await fresh();
+    await page.evaluate(options => boot(options), { url, session, blockMutations: true, holdPoll: true });
+    const captured = await page.evaluate(() => captureClick());
+    assert.equal((await page.evaluate(() => write)).state, 'pending');
+    const result = await page.evaluate(async ({ id, store, record, marker }) => {
+      await app.close();
+      const persist = indexedDbPersistence(), entry = JSON.parse(await persist.read(store, 'o', id));
+      entry[marker] = 1; entry.receipt_store = { id: record.storeId };
+      await persist.save(store, [{ s: 'o', k: id, v: JSON.stringify(entry) }]);
+      const device = await webDevice().open(store, null);
+      try {
+        const before = await device.call({ op: 'meta', key: 'write-history' });
+        const reply = await device.call({ op: 'settle_exit', write: { state: 'failed', id, why: { code: 'E_STORE_REPLACED', family: 'store', message: 'replacement' } } });
+        const queued = (await device.call({ op: 'queued' })).ok;
+        return { before: before.ok, reply: reply.ok, entry: queued.find(entry => entry.id === id), history: (await device.call({ op: 'meta', key: 'write-history' })).ok, disk: JSON.parse(await persist.read(store, 'o', id)) };
+      } finally { await device.close(); }
+    }, { ...captured, marker });
+    assert.ok(!JSON.parse(result.before ?? '[]').some(write => write.id === captured.id));
+    assert.equal(result.reply, false);
+    assert.equal(result.entry[marker], 1); assert.equal(result.disk[marker], 1);
+    assert.ok(!JSON.parse(result.history ?? '[]').some(write => write.id === captured.id && write.state === 'failed'));
   });
 
   await check('a keepalive settlement held past the exit timeout excludes ordinary delivery until commit', async () => {
