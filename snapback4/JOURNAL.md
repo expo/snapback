@@ -56303,3 +56303,44 @@ No new Quarry form, public client API or refusal code, server implementation
 change, authorization/disclosure/meter weakening, push, package publication or
 iOS simulator claim. No known open finding. File map, examples, implementation
 choice and qualification: [Lane Y round-5 report](reports/20260925-lane-y-r5.md).
+
+
+## 2026-09-25 — Lane Y round 6: every outbox writer preserves admission time
+
+Implemented all round-5 delta review findings in `2a4cb8e36`. A shared helper
+now raises `server-clock-floor` in every admission outbox write transaction:
+own admission, recovered enqueue/orphan transfer, and replay/receipt upsert.
+The audit found two production insert sites and one upsert site; all call the
+helper. Unchanged floors cause no metadata write, and a failed floor update
+rolls back the outbox write. Startup backfill remains for old persisted queues.
+The clock card and operations reference state the recovery-after-attachment
+rule. Synchronous web journal capture is unchanged.
+
+The real Wasm regression attaches while a sibling's legacy store is held,
+releases it, and triggers normal orphan recovery through `observe_store`.
+Entry and floor share one durable batch. Settlement retires the entry, wall
+time rolls back 4,000 ms, and reopening still issues the admission's time.
+An injected `DeviceCore` backfill refusal rejects startup without sending or
+retiring the legacy entry; retry succeeds and sends once. Rust cases prove
+atomic recovery batches and rollback, and memory/SQLite floor preservation
+through recovered enqueue, receipt upsert, retirement and restart. The legacy
+queue maximum is now in the middle. Bridge upgrade fixtures write old records
+directly because current enqueue now correctly preserves the floor; Rust
+fixtures restore their intended legacy floor after constructing the queue.
+
+Focused checks: 9 Rust clock tests, 40 clock/regression tests and 14
+browser/wire/native tests pass. Four deliberate mutations fail and were
+restored: first-entry-only backfill, enqueue without a floor update, upsert
+without a floor update, and ignoring the backfill refusal. Full
+`scripts/test.sh`, exit 0: **`== 0 failure(s) in 463 s`**.
+Regular clients: 1,562 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Held browser expiry lateness was 1, 2, 1, 1 and 1 ms. Wasm is
+1,776,761 B raw / 495,516 B gzip, up 222 raw / 98 gzip bytes and below the
+unchanged 496,000 B ceiling. Reference audit: zero errors, zero unchecked refs.
+
+No new Quarry form, public client API or refusal code, server implementation
+change, authorization/disclosure/meter weakening, push, package publication or
+iOS simulator claim. No known open finding. File map, examples, fixture changes,
+mutation results and qualification:
+[Lane Y round-6 report](reports/20260925-lane-y-r6.md).
