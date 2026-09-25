@@ -56165,3 +56165,53 @@ version, push or publication changes. No unresolved review finding. The existing
 suite wall-time budget overrun remains outside this lane. File map, engineering
 decisions, tests, reproductions and log digests:
 [Lane X round-one report](reports/lane-x-round1-report.md).
+
+
+## 2026-09-25 — Lane X round 2: safe repairs, nullable presence and mutation-resistant tests
+
+Closed Astra and Grok's round-one delta findings. Declaration repair boundaries
+now follow parsed layout tokens and balanced delimiters, including an unindented
+closing parenthesis in a multiline predicate. Every source replacement range is
+checked before splicing; uncertain types or spans yield a refusal without a
+replacement. Projected view columns use the ordinary binder's inferred types,
+including renamed and computed fields, rather than a guessed id argument.
+
+Optional focal columns retain inclusive ordered self-comparisons as presence
+tests in reads and nested keys, including late and cross-file declarations.
+Required inclusive comparisons and the other accidental self-comparisons remain
+refused. Optional ordered aggregates retain the baseline E_QUARRY_MAINTAIN
+restriction, verified against the saved f5efae87f binary; no constant-true repair
+is emitted for them. Nested-key repairs require a matching enclosing column and
+a known bound, preserve other conjuncts and page/order clauses, and fall back to
+an argument when needed. Ambiguous count-star no longer returns prose as code.
+
+Added six language regressions, a checked-splice unit test, exact count-star CLI
+paste assertions, and offline nullable-presence/guarded-update witnesses on both
+wasm/memory and native/SQLite. The qualified helper in Write.condition predicts
+value 21 for x = 7; a false guard leaves it unchanged. Existing pending-overlay
+owner visibility and foreign-row hiding assertions remain. Actually deleting
+seek traversal, deleting Write.condition traversal, and emitting the prose
+count repair each failed the corresponding test. All mutations were restored.
+
+Targeted language/guide tests: 101 passed; language units: 20 passed; CLI: three
+passed; both-store witness: passed. One full default-concurrency scripts/test.sh
+run, exit 0: **== 0 failure(s) in 423 s**. Client tests: 1,509 passed, ten existing
+skips; models: 78 passed with all 5,000 / 5,000 / 3,000 sequences retained.
+Final failures: ours zero, baseline zero, environmental zero. The report records
+six corrected introduced development-test failures and the deliberate mutants.
+No failure was waived. The external Clique target has zero problems/six existing
+notes. Ref-check has zero errors/unchecked. Wasm remains 1,775,799 B raw /
+495,258 B gzip under the unchanged 496,000 B budget.
+
+All 133 fact homes and 17 original compiled blocks remain tested. Six cards total
+10,422 words versus 18,300 originally (43.0% reduction); openings total 860 versus
+12,540, with every card exceeding the two-thirds target. No engine, store,
+authorization, disclosure, durability, meter, client-source, Following, version,
+push or publication changes. No unresolved round-two finding; the existing
+60-second suite wall-time budget remains exceeded on this shared host.
+File ledger, examples, compatibility reproductions, fact mapping, per-card
+measurements, exact tests and log digests: [Lane X round-two report](reports/lane-x-round2-report.md).
+
+Verification note: one final ref-check invocation used the fence as its working
+directory and reported missing LLPs. This was an invocation error, corrected by
+running from the repository root; no reference or source edit was needed.
