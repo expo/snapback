@@ -43,6 +43,7 @@ impl Runner<'_> {
         if self.read_capped() { return Ok(false); }
         if verdict == Verdict::Unknown {
             self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
+            self.components.note(|frame| frame.speculative = true);
         }
         Ok(verdict == Verdict::Readable)
     }

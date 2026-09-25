@@ -263,7 +263,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_TIMELINE_REDEFINE", "A materialized declaration changed or experimental reconstruction remains. Original event identities and edge-admission history cannot be reconstructed"),
     ("E_TIMELINE_REMOVAL", "Removal must be one-way. Insert false, change only false → true and retain the original card"),
     ("E_TIMELINE_SERVER", "The mutation needs server-only state. Queue it without predicted rows"),
-    ("E_TIMELINE_SHAPE", "The sources do not fit Following. Keep three distinct public sources, full sync and owner rules"),
+    ("E_TIMELINE_SHAPE", "The sources do not fit Following. Keep three distinct public sources and owner rules"),
     ("E_TIMELINE_SIZE", "Remove them; N_TIMELINE_COMPAT reports their presence and E_TIMELINE_SIZE rejects invalid old sizing syntax."),
     ("E_TYPE", "E_TYPE means a runtime value has the wrong kind for the operation using it."),
     ("E_UNBOUND_LOOP", "E_UNBOUND_LOOP means the compiler cannot establish an accepted loop domain or walk depth."),

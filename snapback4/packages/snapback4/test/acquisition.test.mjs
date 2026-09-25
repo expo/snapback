@@ -235,7 +235,7 @@ async function observations(client, t) {
 }
 function assertUnknown(answers) {
   for (const [name, answer] of Object.entries(answers)) {
-    assert.equal(answer.denied?.code, "E_OFFLINE", `${name}: no fabricated absence or authoritative refusal`);
+    assert.deepEqual(answer, { loading: true }, `${name}: no fabricated absence or authoritative refusal`);
     assert.equal("data" in answer, false);
   }
 }

@@ -108,12 +108,14 @@ impl Runner<'_> {
     fn horizon_coverage(&mut self, scan: &Scan, prefix: &[Value], retained: bool) {
         if retained { self.beyond_horizon = true; self.components.note(|frame| { frame.beyond = true; frame.retained = true; }); }
         else { self.unknown_fact(&scan.table, &scan.index, prefix, &scan.site); }
+        // @ref LLP 3000.016#2.2 — unknown inbox coverage withholds the whole query, including unshaped pages.
+        if self.schema.timelines.iter().any(|timeline| scan.table == timeline.table("Feed")) { self.query_unavailable = true; }
     }
 
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
     fn rule_probe_exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         let (present, known) = self.probe_witness(table, index, key, equalities, false)?;
-        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); }
+        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); self.components.note(|frame| frame.speculative = true); }
         Ok(present)
     }
 
@@ -333,6 +335,8 @@ impl Runner<'_> {
         if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
+            self.components.note(|frame| frame.speculative = true);
+            self.withhold_unheld_card(&read.table);
         }
         if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(&key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
             // A null key on a required column addresses nothing.
@@ -349,13 +353,18 @@ impl Runner<'_> {
         let mark = self.meter.mark();
         let expiry_mark = self.next_expiry;
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
+        // @ref LLP 3000.016#2.2 — a known horizon miss still withholds when charging the point read exhausts examination.
+        if found.is_none() && self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
+            self.unknown_fact(&read.table, &read.index, &key, &read.site);
+            self.components.note(|frame| frame.speculative = true);
+            self.withhold_unheld_card(&read.table);
+        }
         // An expiring lookup already charged its live candidate while
         // passing expired siblings. A miss still costs one point read.
         if (table.expire.is_none() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
             return Ok(Value::Null);
         };
         if self.expired(table, &row) {
@@ -374,7 +383,8 @@ impl Runner<'_> {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
-            Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
+            let live = self.live_aggregate(&read.table, row)?;
+            Ok(super::recorded::public_image(table, live.unwrap_or(Value::Null)))
         } else {
             self.next_expiry = expiry_mark;
             if !provisional {
@@ -475,7 +485,7 @@ impl Runner<'_> {
                 self.device_work(|runner| runner.meter.heap(256 * (192 + word_heap::values(&scope) + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site))))?;
             }
             retained = self.retained_group(&scan.table, &scan.index, &scope)?;
-            if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); }
+            if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); self.components.note(|frame| frame.speculative = true); }
             else if !scan.existence && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
                 self.horizon_coverage(scan, &scope, retained);
             }
@@ -818,7 +828,7 @@ impl Runner<'_> {
             self.read_tables.insert(scan.table.clone());
             self.rule_dependencies(&table.rules.read);
             self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site);
-            if self.device && table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site); }
+            if self.device && table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site); self.components.note(|frame| frame.speculative = true); }
         }
         if word.is_some_and(|w| w.metered) { self.meter.heap(word_heap::text(&scan.site))?; }
         self.meter.at(&scan.site);
@@ -852,6 +862,7 @@ impl Runner<'_> {
         let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
         let mut crossed = false;
+        let mut candidate_inside = false;
         // Internal timeline scans retain complete source rows, including arbitrary
         // application payload. Use the same pre-allocation ledger as word scans.
         // Ordinary jobs may hold an empty Purge grant; that is not a transition.
@@ -895,6 +906,7 @@ impl Runner<'_> {
             for (mut row, key) in fetched {
                 if let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
                     if &key < floor { crossed = true; break 'outer; }
+                    candidate_inside = true;
                 }
                 if !self.read_charge(MeterKind::Examined, 1)? {
                     capped = true;
@@ -1042,12 +1054,11 @@ impl Runner<'_> {
                 match &boundary {
                     Some(crate::rows::AcquiredBoundary::Whole) => true,
                     Some(crate::rows::AcquiredBoundary::Key(floor)) => {
-                        // A full page stops at its last selected key. A shorter
-                        // page stops at its range end, which may cross the floor
-                        // even when no older row happens to be held.
+                        // @ref LLP 3000.016#2.2 — a meter cut uses its actual candidate position, not the unvisited range end.
                         let stops_inside = visible.len() == take && keys.last().is_some_and(|key| key >= floor);
+                        let cut_inside = capped && candidate_inside && !crossed;
                         let range_inside = crate::rows::scan_range(&prefix, &bounds, dir).is_none_or(|(lo, _)| lo >= *floor);
-                        stops_inside || (!crossed && range_inside)
+                        stops_inside || cut_inside || (!crossed && range_inside)
                     }
                     None => false,
                 }

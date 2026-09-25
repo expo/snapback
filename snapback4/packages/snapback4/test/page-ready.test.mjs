@@ -38,23 +38,25 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   host.stdout.on("data", bytes => { log += bytes; }); host.stderr.on("data", bytes => { log += bytes; });
   let app, bob;
   t.after(async () => {
-    await app?.close(); await bob?.close();
+    releaseWrite?.(); await app?.close(); await bob?.close();
     if (host.exitCode === null && host.signalCode === null) host.kill("SIGTERM");
     await exited; rmSync(dir, { recursive: true, force: true });
   });
   const url = await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "server");
-  let offline = false, holdSync = false, holdWrite = false;
+  let offline = false, holdSync = false, holdWrite = false, releaseWrite;
   const replies = [], requests = [];
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname;
     requests.push(path);
     if (offline || (holdSync && path === "/sync")) throw Error("controlled offline link");
     if (holdWrite && path === "/m/saveProfile") {
-      await new Promise((_, reject) => {
+      await new Promise((resolve, reject) => {
+        releaseWrite = resolve;
         if (init.signal?.aborted) reject(Error("closed"));
         else init.signal?.addEventListener("abort", () => reject(Error("closed")), { once: true });
       });
     }
+    if (offline) throw Error("controlled offline link after pending send");
     return fetch(input, init);
   };
   let underlying = processDevice({ dir: join(dir, "device"), binary });
@@ -91,7 +93,11 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   let history = app.client.observe(query("history"), { chat });
   history.subscribe(() => snapshots.push(history.getSnapshot()));
   listRead(await app.client.query(query("history"), { chat }));
-  assert.deepEqual((await app.client.query(query("history"), { chat })).data, []);
+  const partial = await app.client.query(query("history"), { chat });
+  assert.deepEqual(partial.data, [], "an unknown non-speculative scan is partial data even when empty");
+  assert.equal(partial.complete, false);
+  const observation = replies.findLast(row => row.name === "history").reply.ok;
+  assert.equal(observation.unknown, true); assert.equal(observation.speculative, false);
   holdSync = false;
   await until(async () => (await app.client.query(query("inbox"), {})).data?.some(row => row.chat === chat), "chat acquired");
   for (let n = 0; n < 3; n++) assert.equal((await bob.mutate(mutation("send"), { chat, body: `message ${n}` })).state, "sent");
@@ -118,8 +124,10 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   assert.equal(app.client.link(), "online");
   assert.ok(requests.filter(path => path === "/q/inbox").length > before, "unavailable predictions do not block server fallback");
   offline = true;
-  await app.client.query(query("ping"), {});
-  assert.equal(app.client.link(), "offline");
+  // An unexecuted server-only ping has all possible tables and is fenced.
+  // Fail the pending transport itself to establish that the link is offline.
+  await until(() => releaseWrite, "pending profile send entered"); releaseWrite();
+  await until(() => app.client.link() === "offline", "pending send observed offline");
   const disconnected = listRead(await app.client.query(query("inbox"), {}));
   assert.ok(!("data" in disconnected), "an offline read cannot publish the unavailable total either");
   for (const read of snapshots) listRead(read);
@@ -168,12 +176,13 @@ test("unavailable server list responses end retention in both clients", { timeou
   const watches = clients.map(client => client.observe(query("costly"), {}));
   for (const watch of watches) await until(() => "data" in watch.getSnapshot(), "initial cached server list");
   assert.ok((await local.query(query("costly"), {})).data.length === 1);
-  // A transient transport loss may remember a genuinely available answer.
+  // An unknown scalar list is a placeholder; failed fallback recovers memory.
   queryOffline = true;
   const remembered = listRead(await local.query(query("costly"), {}));
-  assert.equal(remembered.fresh, false);
+  assert.equal(remembered.complete, true);
+  assert.equal(remembered.fresh, false); assert.ok(remembered.since > 0);
   queryOffline = false;
-  // An offline local query may use remembered data; it does not reconnect.
+  // A partial local query does not reconnect by itself.
   // Complete a sync before asserting the next HTTP availability response.
   await local.sync();
   await setCost(true);
@@ -189,8 +198,9 @@ test("unavailable server list responses end retention in both clients", { timeou
   // Invalidate the online observation once more while its next query fails.
   await setCost(false);
   await until(() => clients.every(client => client.link() === "offline"), "transport loss");
-  for (const watch of watches) assert.deepEqual(watch.getSnapshot(), { loading: true });
-  assert.equal((await local.query(query("costly"), {})).denied.code, "E_OFFLINE", "local commits also retire remembered answers");
+  assert.deepEqual(watches[0].getSnapshot(), { loading: true });
+  assert.deepEqual(watches[1].getSnapshot(), { loading: true });
+  assert.equal((await local.query(query("costly"), {})).denied.code, "E_OFFLINE");
   for (const watch of watches) watch.close();
 });
 

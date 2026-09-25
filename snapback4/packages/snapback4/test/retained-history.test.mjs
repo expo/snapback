@@ -69,6 +69,8 @@ query pointIndex():
   return {left: messages[room = 'left', at = 25], held: messages['held'] last 50 by byTime}
 query pointId():
   return {left: messages['left-25'], held: messages['held'] last 50 by byTime}
+query retainedPoint():
+  return {left: messages['left'] last 50 by byTime, right: messages['held-0']}
 query pointMiss():
   return {left: messages['left-0'], held: messages['held'] last 50 by byTime}
 query pointExists():
@@ -113,11 +115,53 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ expiry local watch left", "MQ local permit", "MQ local permit watch", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   const expiring = scenario.startsWith("MQ expiry");
   let fixtureSource = expiring ? source.replace("  body: text <=40\n  unique", "  body: text <=40\n  expiresAt: time\n  expire at .expiresAt\n  by byExpiresAt: expiresAt\n  unique").replace("insert messages {room, at, body}", "insert messages {room, at, body, expiresAt: now + 3600000}") : source;
+  const permitCase = scenario.startsWith("MQ local permit");
+  if (permitCase) fixtureSource += `
+table permits:
+  room: text <=40
+  principal: principal
+  expiresAt: time
+  expire at .expiresAt
+  by byExpiresAt: expiresAt
+  unique byRoomPrincipal: room, principal
+  read <- .principal = viewer
+  sync to .principal
+table secrets:
+  room: text <=40
+  body: text <=40
+  read <- exists permits[.room, viewer]
+  sync to permits[.room]
+query permitBoth():
+  return { left: messages['left'] last 50 by byTime, right: messages['held'] last 50 by byTime, secret: secrets['secret'] }
+`;
+  const eventCase = scenario === "MQ speculative events";
+  if (eventCase) fixtureSource += readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/following-view.q"), "utf8")
+    .replace("query home(c:", "query feedPage(c:") + `
+table eventSwitch:
+  enabled: bool
+  public 'speculative component witness'
+  online only
+query home():
+  return { older: messages['left'] last 50 by byTime, events: feedPosts last 10 by .at where exists eventSwitch['gate'] }
+query homePage():
+  return { older: messages['left'] last 50 by byTime, events: eventSwitch first 10 by byId }
+`;
+  const boundCase = scenario === "MQ authoritative bound";
+  if (boundCase) fixtureSource += `
+table payloads:
+  at: time
+  body: text <=50000
+  by byTime: at, id
+  public 'output bound witness'
+  sync public last 1 by .at
+query largeBoth():
+  return { left: messages['left'] last 50 by byTime, right: payloads last 30 by .at }
+`;
   const wordCase = scenario.startsWith("W14A");
   const horizonFree = scenario === "W14A horizon-free matching";
   if (wordCase) {
@@ -163,13 +207,21 @@ query wordBoth():
   rows.push(...["left", "held"].map((room) => ({ table: "members", row: { id: `alice-${room}`, room, principal: "dev:alice" } })));
   rows.push({ table: "current", row: { id: "current-row", room: "current", body: "remove me" } }, { table: "members", row: { id: "alice-current", room: "current", principal: "dev:alice" } });
   if (wordCase) rows.push(...rows.filter(item => item.table === "messages" && item.row.room === "held").map(item => ({ table: "recent", row: item.row })));
-  assert.equal((await post("/seed", rows)).seeded, wordCase ? 82 : 56);
+  if (boundCase) rows.push(...Array.from({ length: 26 }, (_, at) => ({ table: "payloads", row: { id: `large-${at}`, at, body: "x".repeat(50000) } })));
+  const permitDeadline = Date.now() + 3_600_000;
+  if (permitCase) rows.push(
+    { table: "permits", row: { id: "permit", room: "vault", principal: "dev:bob", expiresAt: permitDeadline } },
+    { table: "secrets", row: { id: "secret", room: "vault", body: "private" } },
+  );
+  if (eventCase) rows.push({ table: "eventSwitch", row: { id: "gate", enabled: true } });
+  assert.equal((await post("/seed", rows)).seeded, rows.length);
+  if (eventCase) assert.equal((await post("/m/post", { args: { postId: "p3", parentId: null }, id: "event-p3" }, "bob")).state, "sent");
   for (const room of ["left", "held", "current"]) assert.equal((await post("/m/join", { args: { room }, id: `join-${room}` })).state, "sent");
-  let offline = false, intercept, holdWrites = false, interruptSnapshot = false, snapshotStarted = false, deviceNow;
+  let offline = false, intercept, holdWrites = false, interruptSnapshot = false, snapshotStarted = false, deviceNow, interceptDevice;
   const syncPages = [];
   let syncedAt, querySince;
   let core;
-  const delayedName = scenario.includes("current") ? "three" : "both";
+  const delayedName = scenario === "MQ speculative component" ? "retainedPoint" : scenario.includes("current") ? "three" : "both";
   const requests = [], deviceAnswers = [], allRequests = [], allAnswers = [];
   const directoryDevice = join(directory, "device"); mkdirSync(directoryDevice);
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: directoryDevice, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
@@ -180,7 +232,10 @@ query wordBoth():
       allRequests.push(path);
       if (scenario === "R2 sync during reply" && path === "/q/both") querySince = syncedAt;
       if (path === "/q/history") requests.push(JSON.parse(init.body).args.room);
-      if (holdWrites && path.startsWith("/m/")) throw new TypeError("write held for prediction");
+      if (holdWrites && path.startsWith("/m/")) {
+        if (eventCase) return Response.json({ denied: { code: "E_BUSY", family: "transport", message: "held for prediction", retryable: true } });
+        throw new TypeError("write held for prediction");
+      }
       if (path === "/sync" && interruptSnapshot) {
         if (snapshotStarted) throw new TypeError("interrupted mid-snapshot");
         init = { ...init, body: JSON.stringify({ ...JSON.parse(init.body), ...(scenario === "MQ retained snapshot" ? { from: 0, stream: false, after: null } : {}), limit: 2 }) };
@@ -193,7 +248,7 @@ query wordBoth():
       if (intercept && path === `/q/${delayedName}`) await intercept(init);
       return response;
     },
-    device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "set_meta" && request.key === "syncedAt") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); return reply; } }; } },
+    device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "set_meta" && request.key === "syncedAt") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); if (interceptDevice) await interceptDevice(request, reply); return reply; } }; } },
   };
   if (session) { delete clientOptions.persona; clientOptions.session = session; }
   client = await createLocalClient(clientOptions);
@@ -212,11 +267,141 @@ query wordBoth():
   assert.equal((await post("/m/leave", { args: { room: "left" }, id: "leave-left" })).state, "sent");
   await client.sync();
   const expected = (room, start) => rows.filter((item) => item.table === "messages" && item.row.room === room && item.row.at >= start).map((item) => item.row).reverse();
+  if (permitCase || scenario.startsWith("MQ expiry local")) {
+    // Keep both one-shot and watch coverage. The first device evaluation is
+    // before the deadline; only its reply/outbox delivery crosses that deadline.
+    unsubscribe(); watch.close(); offline = true; await client.sync();
+    const observing = scenario.includes("watch");
+    const op = { kind: "query", name: permitCase ? "permitBoth" : "both" };
+    const deadline = permitCase ? permitDeadline : rows.find(item => item.row.id === "left-25").row.expiresAt;
+    let now = deadline - 1;
+    t.mock.method(Date, "now", () => now);
+    const before = await client.query(op, {});
+    const beforeData = permitCase
+      ? { left: expected("left", 1), right: expected("held", 1), secret: { id: "secret", room: "vault", body: "private" } }
+      : { left: expected("left", 1), held: expected("held", 1) };
+    assert.deepEqual(before.data, beforeData);
+    assert.equal(before.complete, false);
+    let reached, queryCalls = 0, evaluated = false;
+    const waiting = new Promise(resolve => { reached = resolve; });
+    const gate = new Promise(resolve => { releaseReply = resolve; });
+    interceptDevice = async (request, reply) => {
+      if (request.op === "query" && request.name === op.name) {
+        queryCalls++;
+        if (queryCalls === 1) {
+          assert.equal(request.now, deadline - 1, "the engine clock must still precede the deadline on the first call");
+          assert.equal(reply.ok.nextExpiry, deadline);
+          assert.equal(reply.ok.speculative, false);
+          assert.equal(reply.ok.components.left.retained, true);
+          assert.deepEqual(reply.ok.data, beforeData, "the first snapshot really contains the expiring row or authorized secret");
+          if (permitCase) evaluated = true;
+          else { reached(); await gate; }
+        } else {
+          assert.equal(request.now, deadline, "the retry must use the current clock");
+        }
+      }
+      if (permitCase && request.op === "queued" && evaluated) {
+        evaluated = false; reached(); await gate;
+      }
+    };
+    let pending, live, stop;
+    const publications = [];
+    if (observing) {
+      live = client.observe(op, {});
+      pending = new Promise(resolve => {
+        stop = live.subscribe(() => {
+          const read = live.getSnapshot(); publications.push(read); resolve(read);
+        });
+      });
+      t.after(() => { stop(); live.close(); });
+    } else pending = client.query(op, {});
+    await waiting; now = deadline; releaseReply();
+    const result = await pending;
+    const afterData = permitCase
+      ? { ...beforeData, secret: null }
+      : { ...beforeData, left: beforeData.left.slice(1) };
+    assert.deepEqual(result.data, afterData, "the first post-deadline publication must recover live rows without publishing an expired snapshot or getting stuck loading");
+    assert.equal(result.complete, false); assert.equal(result.fresh, false);
+    assert.equal(queryCalls, 2, "exactly one local retry, without a server request or an intermediate loading publication");
+    const raw = allAnswers.findLast(answer => answer.name === op.name);
+    assert.equal(raw.nextExpiry, permitCase ? null : deadline + 86_400_000);
+    if (observing) {
+      assert.deepEqual(live.getSnapshot().data, afterData);
+      assert.ok(publications.length > 0);
+      for (const read of publications) assert.deepEqual(read.data, afterData, "even a transient expired watch snapshot is forbidden");
+    }
+    if (permitCase) assert.equal(result.data.secret, null);
+    else assert.equal(result.data.left.length, 24);
+    return;
+  }
+  if (eventCase) {
+    for (const name of ["home", "homePage"]) {
+      const before = await client.query({ kind: "query", name }, {});
+      // The compiler conservatively gives a two-read filtered field no plan;
+      // homePage is the independent one-read-per-field composition control.
+      assert.deepEqual(before.data.older, name === "home" ? [] : expected("left", 1));
+      assert.ok(before.data.events.some(row => name === "home" ? row.postId === "p3" : row.id === "gate"));
+    }
+    for (const fenced of [false, true]) {
+      if (fenced) {
+        offline = false; await client.sync(); holdWrites = true;
+        const receipt = await client.mutate({ kind: "mutation", name: "post" }, { postId: "own-home", parentId: null });
+        assert.equal(receipt.state, "pending");
+        assert.equal((await client.mutate({ kind: "mutation", name: "send" }, { room: "held", at: 27, body: "predicted" })).state, "pending");
+        assert.ok((await core.call({ op: "queued" })).ok.some(entry => entry.predictable && entry.observed_seq == null
+          && entry.predicted.some(row => row.startsWith("feedPosts/"))));
+      } else { offline = true; await client.sync(); }
+      for (const name of ["home", "homePage"]) {
+        const requestsBefore = allRequests.filter(path => path === `/q/${name}`).length;
+        const answer = await client.query({ kind: "query", name }, {});
+        if (name === "home" && !fenced) {
+          assert.ok(answer.data.events.some(row => row.postId === "p3"), "an ineligible whole query recovers its server answer, never the empty placeholder");
+          assert.equal(answer.fresh, false);
+        } else assert.deepEqual(answer, { loading: true });
+        assert.equal(allRequests.filter(path => path === `/q/${name}`).length, requestsBefore);
+        const raw = allAnswers.findLast(answer => answer.name === name);
+        assert.deepEqual(raw.data.older, expected("left", 1)); assert.deepEqual(raw.data.events, []);
+        if (name === "homePage") {
+          assert.equal(raw.components.older.retained, true); assert.equal(raw.components.events.speculative, true);
+        } else assert.equal(raw.components, undefined, "cross-read filtered fields have no component plan");
+        assert.equal(raw.loading, undefined, "the engine's available placeholder must still be withheld by rule 4");
+      }
+    }
+    return;
+  }
+  if (scenario === "MQ speculative component") {
+    const op = { kind: "query", name: "retainedPoint" };
+    const online = await client.query(op, {});
+    assert.deepEqual(online.data.left, expected("left", 1)); assert.equal(online.data.right.id, "held-0");
+    const expectLocal = read => {
+      assert.deepEqual(read, { loading: true }, "a speculative sibling cannot be data in an atomic Read<T>");
+      const raw = allAnswers.findLast(answer => answer.name === "retainedPoint");
+      assert.equal(raw.components.left.retained, true); assert.equal(raw.components.right.speculative, true);
+    };
+    offline = true; await client.sync();
+    expectLocal(await client.query(op, {}));
+    offline = false; await client.sync();
+    intercept = async () => { throw new TypeError("failed speculative component transport"); };
+    expectLocal(await client.query(op, {}));
+    assert.equal(client.link(), "offline");
+    return;
+  }
+  if (boundCase) {
+    const name = "largeBoth", server = await post("/q/" + name, { args: {} }, "bob");
+    assert.equal(server.denied.code, "E_BOUND", JSON.stringify(server));
+    const read = await client.query({ kind: "query", name }, {});
+    assert.deepEqual(read, { denied: server.denied }, "the original authoritative refusal must survive composition");
+    const local = allAnswers.findLast(answer => answer.name === name);
+    assert.equal(local.data.left.length, 25); assert.equal(local.data.right.length, 1);
+    assert.equal(local.components.left.retained, true); assert.equal(local.components.right.unknown, true);
+    assert.equal(local.loading, undefined);
+    return;
+  }
   if (wordCase) {
     const name = "wordBoth";
     const result = await client.query({ kind: "query", name }, {});
     const local = allAnswers.findLast(answer => answer.name === name);
-    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true });
+    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true, speculative: false });
     assert.equal(local.components.right.unknown, true, "the right horizon needs server knowledge");
     assert.ok(allRequests.includes("/q/wordBoth"), "mixed routing consulted the server");
     assert.deepEqual(result.data.left, horizonFree ? expected("left", 1) : true, "server fallback must keep the left group's delivered matching history");
@@ -232,7 +417,7 @@ query wordBoth():
       const result = await client.query({ kind: "query", name }, {});
       const local = allAnswers.findLast(answer => answer.name === name);
       const hit = name !== "pointMiss";
-      assert.deepEqual(local.components.left, { complete: hit, unknown: !hit, retained: hit }, name);
+      assert.deepEqual(local.components.left, { complete: hit, unknown: !hit, retained: hit, speculative: !hit }, name);
       assert.deepEqual(result.data.held, expected("held", 0));
       assert.deepEqual(result.data.left, name === "pointMiss" ? null : name === "pointExists" ? true : rows.find(item => item.row.id === "left-25").row);
       assert.equal(result.complete, true);

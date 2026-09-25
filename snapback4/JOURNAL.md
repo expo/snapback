@@ -56080,3 +56080,401 @@ gzip against the unchanged 496,000 B budget. No new authoring form, refusal,
 runtime fix, package version, push or publication. File map, concrete
 counterexample, development-test corrections, before/after histograms and
 reproduction commands: [Lane W report](reports/20260925-lane-w.md).
+### 2026-09-25 — Lane U: bounded Following acquisition (LLP 3000.016 revision 2)
+
+Implemented time-bounded and online-only posts/reposts admission, the derived
+event acquisition setting, and the reader-private inbox's default 1,000-copy
+floor. Full follows/removal sync, owner rules, immutable attribution, delivery,
+meters, and the 1,000-event follow history window remain in force. A missing
+Following card withholds the whole device query and cursor; the client retries
+the original input online, stays loading offline, and fences fallback until
+predictable writes are observed. Repost prediction probes the held original
+and its removal record. Existing generation adoption clears acquisition and
+re-snapshots source/inbox sync changes in both directions. The feeds/language
+cards and `check --cost` describe the global, non-sliding floors.
+
+Added 3 admission tests, 8 memory/SQLite device tests, 8 actual wasm/native
+client tests, and a bounded target certificate test. The final complete
+`scripts/test.sh` exits 0: **`== 0 failure(s) in 476 s`**. The first full run
+had two failed sections containing six integration failures, all recorded and
+resolved before the final pass; no baseline/environmental waiver. The provided
+baseline's four Rust failures did not recur. Reference validation passed
+(509 LLP docs, 9,288 refs, zero errors/unchecked). Wasm measures
+**1,776,065 B raw / 495,264 B gzip**, below the unchanged 496,000 B ceiling.
+
+Measured the completed Clique scale replay's whole authorized partition for
+`u0500`, on Chromium with a fresh IndexedDB device in each mode. Full sync to
+1,000-row source/inbox floors changed **171,330 → 50,315 rows**, snapshot row
+bytes **35,901,571 → 7,462,731**, and cold authenticated acquisition
+**274.35 → 56.70 seconds** (3.405× / 4.811× / 4.839× respectively). This is a
+single paired acquisition measurement on the shared host, not the original
+multi-route UI timing. The before server is packaged 0.4.1; both modes use the
+same new client. The **5× whole-partition target is unmet**: even deleting every
+row from the four tables this RFC bounds leaves 46,315 rows, above the 34,266
+needed for 5×. `recipients` dominates afterward with 25,000 rows / 3,225,000
+row bytes. No other table's residency was changed to manufacture the target.
+
+Used the specified inbox default without inventing an M override syntax;
+kept the existing unique-pair absence requirement for repost prediction. No
+delivery/window redesign, in-place trimming, contract change, package version
+bump, iOS simulator qualification, push, or publication. File map, all failures,
+inventory, fingerprints, and reproduction:
+[Lane U report](reports/20260925-bounded-following/REPORT.md).
+
+### 2026-09-25 — Lane U round 1: accepted revision 5
+
+Applied LLP 3000.016 revision 5, read from main at `f5efae87f` with its review
+record. Owned events now stay fully synced for every posts/reposts residency,
+preserving known event absence and `FEED_POST_NOT_FOUND`. The inbox floor stays
+private and per reader. Crossing it withholds the whole query, while an
+examined-meter stop above it uses the actual cut position and remains partial
+data with a cursor. Unavailable device replies omit both data and next.
+
+The client now uses one withheld routing order before server-run or remembered
+answers: offline, predictable/unobserved outbox entry, held query, then server
+with original arguments. Transport failure stays loading. Online-only point
+cards use this path; ordinary server scans preserve their existing behavior.
+Local-commit invalidation still discards responses racing prediction admission.
+Source/event/removal inputs classify from their own sync; follow/unfollow stay
+server sites and `check` still prints `predicts: never` despite synced Work.
+The feeds card and cost certificate describe the corrected behavior.
+
+All 13 focused Rust cases and all 18 actual wasm/native client cases pass,
+including inbox-floor routing, full boundary pages, resumable meter prefixes,
+known event absence, transport failures, held queries, acknowledged but
+unobserved predictions, and the local-commit race. All 80 guide tests pass.
+The only complete suite invocation this round exits 0:
+**`== 0 failure(s) in 481 s`**. One initial focused TypeScript inference error
+was ours and corrected; the repeated typecheck/build and final client run pass.
+No baseline/environmental waiver. Ref-check passed with 509 LLP docs, 9,291
+refs, zero errors/unchecked. Wasm is **1,776,336 B raw / 495,355 B gzip**, below
+the unchanged 496,000 B ceiling.
+
+Re-measured the same whole authorized Clique scale partition for `u0500` in
+real Chromium/IndexedDB. Before/after: **171,330 → 98,543 rows**,
+**35,901,571 → 15,092,169 row bytes**, **48,521,623 → 22,236,578 wire bytes**,
+and **281.26 → 117.81 seconds** of cold authenticated acquisition. These are
+1.739×, 2.379×, 2.182×, and 2.387× reductions. Owned events dominate afterward:
+49,228 rows / 7,796,444 row bytes. The **5× target is unmet**: even removing
+every row of posts, reposts, and inbox leaves 95,543 rows / 14,304,711 bytes,
+above the required 34,266 rows / 7,180,314.2 bytes. No other residency was changed.
+
+Lane V's packed IndexedDB format was not on main at measurement start or the
+final check (`f5efae87f`), so no packed-format result is claimed. This remains
+a single paired acquisition measurement on the shared host, using packaged
+0.4.1 before and the corrected production server after, with the same current
+client in both. No delivery/window change, new syntax, ceiling increase,
+package version bump, push, or publication. The earlier report is marked
+historical. File map, complete inventory, fingerprints, failures, and reproduction:
+[Lane U round-1 report](reports/20260925-bounded-following-r1/REPORT.md).
+
+### 2026-09-25 — Lane U round 2: executed Following reads and meter interactions
+
+Addressed Astra's High and Medium findings and both Medium findings from
+Grok's completed review against accepted LLP 3000.016 revision 5. Following
+withholding now uses the device's actual unavailable result and returned
+tables, including native query modules with empty Quarry bodies. Untaken
+online-only card branches no longer block answerable held queries. Composed
+re-observation obeys the same prediction fence and cannot recover a discarded
+partial result after a failed server request, even when another in-flight
+request restores the link. Original arguments and local-commit invalidation
+remain intact.
+
+A horizon point miss is recorded before an examined-meter cut can return a
+null card. Both Quarry and native execution discard unavailable data before
+charging final output bytes. Execution and heap work remain charged; the
+identical oversized published result still hits the unchanged output limit.
+Added a real guest module, four Rust tests across memory/SQLite, seven real
+wasm/native client cases, and four composed-routing interleavings. Against
+the old client the new tests reproduce both Astra findings. Setting native
+query's unavailable flag to false fails both guest-module Rust tests. Both
+Grok failures were reproduced before their fixes, then passed on both stores.
+
+Final full suite: **`== 0 failure(s) in 632 s`**, with the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=8` setting; all tests, timeouts and model counts
+unchanged. The first full run had our new transport-recovery test setup error
+(`== 1 failure(s) in 537 s`), corrected. The second hit an environmental timing
+failure in the unchanged HTTP poll-admission test (`== 1 failure(s) in 616 s`);
+that test passed in isolation and in the final full run without a code change.
+No baseline waiver. Ref-check: 509 LLP docs, 9,293 refs, zero errors/unchecked.
+Wasm: **1,776,325 B raw / 495,299 B gzip**, below the unchanged 496,000 B ceiling.
+
+No design deviation, new syntax/diagnostic, authorization relaxation, ceiling
+increase, push or publication. Storage and acquisition are unchanged, so no
+new browser inventory is claimed; the prior measured 2.387× cold acquisition
+improvement, full-event dominance, unattainable 5× row/byte target under these
+floors, and unavailable packed-format measurement remain recorded in round 1.
+File map, examples, all failure classifications, inventory reference, and logs:
+[Lane U round-2 report](reports/20260925-bounded-following-r2/REPORT.md).
+
+### 2026-09-25 — Lane U round 3: possible reads fence every external answer
+
+Addressed Astra's unknown-condition bypass and Grok's native reset/install
+bypass against accepted LLP 3000.016 revision 5. Extracted read evaluation
+into `local-query.ts`; all server, remembered and composed answers now pass
+one final prediction fence, with checks before server dispatch and after
+response delivery. Unknown Quarry outcomes retain static dependencies,
+including expanded helpers; only complete known execution can narrow them.
+Native and unexecuted queries conservatively have every table as a possible
+read. Original arguments, held/offline precedence and commit invalidation
+remain intact. Server fetches no longer publish an intermediate answer.
+
+Fixed footprint parsing for slash-containing row IDs. Explicitly empty
+footprints predict no rows; absent legacy footprints remain conservative.
+Ordinary locally produced horizon and retained-history partial answers still
+show their predictions; unknown Following retains whole-query withholding.
+The first implementation overblocked those local answers, which the full
+suite caught and the corrected focused and full runs now cover.
+
+Added real wasm/native unknown-condition and helper regressions, native
+reset/install client cases, every external/unknown/E_OFFLINE publication
+route, independent-read and no-op controls, both repost point-key forms at
+an exhausted examined meter, and native continuation keys that actually
+advance the scan. Three intentional mutants fail on both Rust stores:
+posts-only miss marking, byId-only miss marking, and native unavailable=false.
+Restored code passes. Existing browser/native inbox and generation/reset
+expectations now require withholding where they previously allowed a server
+replacement or E_OFFLINE during an unobserved prediction. Their other
+security, durability and observation assertions remain.
+
+Final complete suite: **`== 0 failure(s) in 533 s`**, using
+`SNAPBACK4_RUST_TEST_PROCESSES=8`; all Rust tests, 1,519 main client passes
+(10 existing skips), acquisition/server shards, and all 78 model tests pass.
+An earlier invocation was stopped before completion to correct the footprint
+separator. The first completed invocation was **`== 1 failure(s) in 539 s`**,
+with 16 client failures attributable to this change; every case and resolution
+is listed in the report. All 40 affected focused checks then passed before the
+final full run. No baseline/environmental waiver and no lowered test counts,
+timeouts or engine ceilings. Wasm remains 1,776,325 bytes raw / 495,299 gzip.
+Changed source files stay below 1,500 lines (`local.ts`: 1,400).
+
+No new syntax/diagnostic, authorization relaxation, storage change, acquisition
+measurement, push or publication. The previous 2.387× browser acquisition
+result, full-event dominance, unmet 5× target and outstanding packed-format
+measurement remain explicit inherited limits. The report includes the prior
+inventory, all file changes, publication paths and proving tests, exact
+commands, decisions, failure classifications and compressed evidence:
+[Lane U round-3 report](reports/20260925-bounded-following-r3/REPORT.md).
+
+
+## 2026-09-25 — Lane U round 4: one query publication procedure
+
+Addressed both round-3 NOT READY delta reviews under the supervisor's five-rule
+procedure. `local-query.ts` now runs every executable query locally first,
+prefers known complete results over static `runs`, takes withholding from the
+engine, and preserves available unknown partial data. One shared gate compares
+predictable, unobserved write tables with possible reads before dispatch,
+after delivery/composed re-observation, and at final external publication.
+Every awaited routing boundary rechecks the session and incarnation; caller
+continuations check again before returning or notifying. Local commits still
+retire the whole evaluation. Whole-server remembered recovery and E_OFFLINE
+shortcuts were removed; failed fallback keeps local data or loading.
+
+Added the real wasm/native known conditional-branch and unknown-profile beside
+predicted feed regressions, ten real-client sign-out/close interleavings, and
+direct routing matrices for all five rules. Four routing mutations fail their
+regressions, including disabled session checking and a restored server shortcut
+after known-branch narrowing. Existing auth/model transport fixtures now use
+actual unknown online-only reads. All model seeds, invariants and coverage
+assertions remain; no security assertion was relaxed to preserve a shortcut.
+The client reference states the procedure in three lines.
+
+Final qualification: `taskset -c 0-15 env SNAPBACK4_RUST_TEST_PROCESSES=8 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 591 s`: 1,552 main client
+passes, 34 shard passes, 10 existing skips and all 78 model passes, plus the
+complete Rust/build/docs/package checks. The reduced CPU affinity limits Node's
+parallel file count on the shared host; no case, timeout or ceiling changed.
+The initial full run was `== 2 failure(s) in 610 s`: six client compatibility
+fixtures and one model coverage fixture were ours and corrected; three shared-
+host timeouts passed unchanged in focused and final full reruns. Every failure
+is enumerated in the report. Fifty focused routing checks, 29 acquisition/
+publication checks and the corrected 5,000-sequence local model also passed.
+Reference audit: 509 LLP docs, 9293 refs in 26151 files, zero errors/unchecked.
+Wasm remains 1,776,325 bytes raw / 495,299 gzip; source stays below 1,500 lines.
+
+No new syntax, diagnostic, engine, storage format, package version, acquisition
+measurement, push or publication. The earlier full-event inventory, 2.387×
+browser acquisition result, unmet 5× target and unclaimed packed-format
+measurement remain explicit inherited limits. File changes, each rule's tests,
+all publication paths, decisions, failure classifications, reproduction and
+compressed evidence are in the [round-4 report](reports/20260925-bounded-following-r4/REPORT.md).
+
+
+## 2026-09-25 — Lane U round 5: preserve incomplete read fences and offline answers
+
+Addressed both round-4 delta reviews and the supervisor's five-rule refinements
+on `sb4-intent/u-bounded-following`. A Quarry read narrows its possible tables
+only when known and complete; scalar/heap cuts retain static plus executed
+reads. Native and unexecuted queries remain opaque. Restored client-lifetime
+server-answer memory for unknown placeholders, behind session/incarnation,
+local-commit and prediction fences. Null, empty and scalar placeholders no
+longer become data. Held row values stay partial; local freshness is calculated
+at publication with the current link and sync timestamp. Composed authoritative
+refusals and loading survive the final fence; transport failure keeps the local
+fallback. Engine-withheld Following never recovers a remembered page.
+
+Added actual wasm/native `count(events)` over 8,193 fully synced rows before a
+shaped feed with a pending own post, failed-fallback profile/feed freshness,
+and oversized composed-output E_BOUND regressions. Added placeholder memory,
+late memory/session races, cache retirement and composed refusal/loading
+matrices. Four mutations are rejected, including narrowing loading outcomes
+and forcing final local freshness true. Restored audit/presence offline
+expectations; kept raw authorization oracles for held/retained empty reads
+through reopen and replay. The client reference states the refined procedure.
+
+Final qualification: `taskset -c 0-15 env SNAPBACK4_RUST_TEST_PROCESSES=8 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 631 s`, exit 0: 1,581 main
+client passes, ten existing skips, all 34 shard passes, all 78 model passes,
+and the complete Rust/build/docs/package/app checks. Both session models
+completed all 5,000 sequences and thirteen invariants. The first full run was
+`== 1 failure(s) in 615 s`: four placeholder-expectation failures, all ours,
+corrected with raw-device disclosure assertions preserved. Their focused
+rerun passed four of four. Earlier focused expectation/fixture failures and
+all intentional mutation failures are enumerated in the report. No baseline
+or environmental waiver, disabled test, timeout increase or raised ceiling.
+Wasm remains 1,776,325 bytes raw / 495,299 gzip. Source remains under 1,500 lines.
+
+No new syntax/diagnostic, engine or storage change, acquisition measurement,
+package publication or push. Prior full-event inventory and browser result
+remain 2.387×, below the original 5× target; packed-format measurement is still
+unclaimed. The [round-5 report](reports/20260925-bounded-following-r5/REPORT.md)
+records each rule and publishing path, file-by-file changes, engineering
+choices, every failure, mutation harness, prior inventory and compressed logs.
+
+
+### 2026-09-25 — Lane U round 6: read provenance and authorization deadlines
+
+Implemented the round-6 refinements to LLP 3000.016's numbered publication
+procedure. Quarry/native device replies and composed components now carry
+speculative/held provenance; removed the client's shape heuristic. Unknown
+non-speculative prefixes, empty retained components and scalar projections stay
+data. Speculative results recover unexpired server memory unless a prediction
+fence requires preserving held local values. Memory keeps nextExpiry and the
+original since; recovery and final publication reject expired data. Watches
+withdraw expired snapshots before asynchronous recovery, including a blocked
+device call. Session/incarnation, prediction, local-commit, authorization and
+meter fences remain; authoritative refusal/loading are preserved.
+
+Measured: final scripts/test.sh **== 0 failure(s) in 576 s**, exit 0.
+Rust passed; main client 1,605 passed / 0 failed / 10 existing skips, all 34
+acquisition/server shard tests and all 78 model tests passed. Both requested
+timestamp/freshness mutations fail their tests. Real wasm/process probes cover
+wrapped presence and projections without id; memory/SQLite cover retained empty
+and scalar values. The process-device expiry probe blocks recovery at the
+deadline; Chromium/IndexedDB and useQuery/usePage withdraw expired pages.
+Wasm is 1,772,196 B raw / 495,698 B gzip under the unchanged 496,000 B budget.
+All development failures and corrections are recorded in the
+[round-6 report](reports/20260925-bounded-following-r6/REPORT.md).
+
+Not done: no acquisition or packed-format remeasurement, no residency/history
+redesign, no increased ceilings/timeouts, no push or publication. The prior
+2.387× acquisition result and unmet 5× target remain explicit; fully synced
+events alone prevent a 5× reduction in the prior raw row-count/row-byte units.
+
+
+### 2026-09-25 — Lane U round 7: no held-bit exception for speculative answers
+
+Removed the fenced-and-held exception from the five-rule query publication
+procedure. Unknown speculative data and refusals load while fenced; unknown
+non-speculative pages still publish partial data, including predicted rows.
+Independent retained components keep their local composite beside a speculative
+null offline or after a failed fallback, with no whole-answer memory. Removed
+the now-unused held provenance bit from the engine/device reply and updated the
+three client-reference lines. This supersedes round 6's held-based exception;
+query declarations marked `held` and retained history are unchanged.
+
+Measured: the three review reproductions run on real wasm and process devices;
+retained-left/speculative-right runs on both too. Delayed server/composed data
+crosses deadlines during transport and final publication. The requested expiry
+mutation and mutations restoring the held exception or discarding retained
+composition all fail tests. Wasm is 1,769,867 B raw / 494,617 B gzip, 1,081 gzip
+bytes less than round 6 and below the unchanged 496,000 B budget.
+Final `scripts/test.sh`: **`== 0 failure(s) in 1528 s`**, exit 0, with the
+suite's existing serial-client mode and eight Rust test processes on 16 CPUs.
+Rust passed in 200 s; 1,653 client tests passed (zero failures, ten existing
+skips); all 78 models passed, including both 5,000-sequence I1–I13 sweeps.
+No counts or timeouts changed. Two earlier full-run failures and their complete
+disposition are preserved in the [round-7 report](reports/20260925-bounded-following-r7/REPORT.md):
+first, expiry/adoption witness synchronization errors (corrected); second,
+three resource-contention timeouts (unchanged isolated and serial-full passes).
+
+Not done: no value-level provenance, acquisition/packed-format remeasurement,
+ceiling increase, push or publication. Grok's proposed held-based recovery is
+superseded by the explicit round-7 rule. Its proposed distinction between row
+and authorization deadlines needs a new engine signal/design decision: a
+client cannot infer that an expired nextExpiry was merely a row deadline when
+it might be the permit authorizing a private row. Kept expiry rejection and
+recorded the concrete counterexample and conservative availability limitation.
+The earlier 2.387× cold acquisition result and unmet 5× target remain explicit.
+
+
+### 2026-09-25 — Lane U round 8: expire every data origin and withhold speculative compositions
+
+Applied nextExpiry at final publication to local as well as external data.
+Removed the retained-component exception: a speculative sibling cannot become
+data because another component is retained. Read<T> has no per-component
+loading variant, so used the round-8 brief's authorized whole-result loading
+fallback. Kept non-speculative partial and retained data. Updated the numbered
+procedure and three client-reference lines; implementation commit 2919dd93d.
+
+Measured: 227 affected client tests passed. Real wasm/process devices cross a
+retained row's deadline while delivering its reply and a synced secret's permit
+deadline while awaiting the outbox. Both withhold the expired value. Real
+speculative-component and nonempty-page tests pass on both hosts. Four mutations
+fail their regressions: skipping local expiry (4 failures), restoring retained
+recovery (12), broadening it to any non-speculative component (12), and accepting
+nonempty speculative arrays (2). All built-module mutations are restored.
+Final scripts/test.sh: **== 0 failure(s) in 1578 s**, exit 0. Rust passed in
+179 s; 1,669 client tests passed, zero failed, ten existing skips, in 1,152 s;
+all 78 model tests passed in 233 s, including both 5,000-sequence I1–I13 sweeps.
+The existing serial-client mode ran every test without changing any timeout or
+count. This round's single full run has no baseline or environmental waiver.
+Development fixture mistakes and the exact evidence are recorded in the
+[round-8 report](reports/20260925-bounded-following-r8/REPORT.md).
+
+Not done: no public composition-contract extension, engine deadline/provenance
+redesign, acquisition/packed-storage remeasurement, ceiling increase, push or
+publication. Stopped the repeated proposal to retain unaffected cached rows at
+ordinary expiry: nextExpiry does not distinguish an expired permit from an
+ordinary row, and a client exception would disclose the former. A projected
+value also need not identify which field to remove. The concrete counterexample
+and remaining whole-page availability limitation are in the report. The exact
+filtered home record has no component plan under the current conservative
+compiler; an independent homePage control proves the actual composition path.
+Historical acquisition remains 2.387x faster, below the 5x target, with fully
+synced owned events dominant.
+
+
+### 2026-09-25 — Lane U round 9: reobserve local replies that expire in flight
+
+Re-evaluate an expired local candidate once at the current time, with the
+original arguments and session/incarnation checks. Publish the valid retry;
+if it also expires in flight, withhold it and mark the watch dirty so the
+existing rerun path cannot leave it idle. A withheld retry retains its raw
+expiry fact and its next future deadline. The numbered procedure and client
+reference describe this behavior. Implementation commits: 9e3b1cc76 and
+59e57c47f. No engine or local.ts timer changes were needed.
+
+Measured: 186 affected client tests passed, zero failed. On both wasm and the
+native process device, a watch first evaluated at T-1 and delivered at T
+publishes the 24 remaining retained rows, or the post-permit composition with
+secret null. The expired snapshot never publishes. Query controls, bounded
+second-expiry retries, future timers, sign-out, close and incarnation changes
+pass. All five mutations are rejected: watch-only expiry bypass (4 failures),
+removed retry (8), missing dirty flag (3), unbounded retries (6), and dropped
+future deadline (1). Mutated modules were restored before the full suite.
+Final scripts/test.sh: **== 0 failure(s) in 1549 s**, exit 0. Rust passed in
+188 s; 1,686 client tests passed, zero failed, ten existing skips, in 1,115 s;
+all 78 model tests passed in 231 s, including both 5,000-sequence I1–I13 sweeps.
+The existing serial-client mode preserved all tests, counts and timeouts.
+The first full run was intentionally interrupted to preserve a withheld
+retry's future deadline; no test failure had been reported. Command errors,
+mutation evidence and complete results are in the
+[round-9 report](reports/20260925-bounded-following-r9/REPORT.md).
+
+Not done: no new language form, refusal code, public contract, schema,
+acquisition, storage, ceiling, package-version, push or publication change.
+Left the whole-page remembered row-expiry issue unchanged as requested;
+it is tracked on origin/main at
+issues/20260925-snapback4-remembered-answer-row-expiry.md. No acquisition
+remeasurement: the historical 2.387x speedup and unmet 5x target remain.

@@ -944,7 +944,7 @@ impl<'a> Runner<'a> {
                         // server's answer replaces its prediction; `run`
                         // and tests read nobody as connected.
                         self.presence_unknown = true;
-                        self.components.note(|frame| frame.presence = true);
+                        self.components.note(|frame| { frame.presence = true; frame.speculative = true; });
                         if self.effect_presence.enabled { self.grace_read(principal, None)?; }
                         Ok(Value::Int(if self.device { 1 } else { 0 }))
                     }

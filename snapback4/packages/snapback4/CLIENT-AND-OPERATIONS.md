@@ -306,11 +306,9 @@ already manage their own session lifetime:
 
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
 
-The local client routes queries using the compiled `runs` word. An observed
-server-run query refreshes when a commit touches its tables; offline, its
-observation is `loading`. A direct `query()` may return a remembered server
-answer with `fresh: false` and `since`, or `denied: E_OFFLINE` when none exists.
-It never uses an empty device page as a server answer.
+The local client runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
+Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
+Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. A local reply that expires in flight is evaluated once more at the current time; if that reply also expires, it stays loading and its watch reruns. A withheld retry keeps its next future deadline. Watches rerun at expiry, and local freshness requires an online, caught-up, identity-checked partition.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
@@ -341,7 +339,7 @@ holds (`link()` is `"offline"`, reads carry `fresh: false` and `since`)
 and catches up when the link returns. A device needs a kept backend to open
 offline. Merely installing that backend does not acquire its partition: until
 a snapshot and catch-up finish, partition-dependent reads fall back to the
-server or return `E_OFFLINE`, and writes queue without invented predictions.
+server or stay `loading`, and writes queue without invented predictions.
 `client.acquired` and React's `useAcquired()` become true after the snapshot
 and catch-up finish for the current store, including an empty partition.
 They stay true offline and across an offline reopen, and become false when
@@ -671,7 +669,7 @@ observation owner cancels its retries.
 A local observation may keep its previous answer with `fresh: false` and `since`
 only during an unavailable device read's server fallback, ending at fetch
 settlement or any local commit, reset, adoption, generation, account change or close.
-An unavailable device read asks the server while online even with pending writes.
+An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix

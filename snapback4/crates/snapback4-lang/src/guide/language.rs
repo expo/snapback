@@ -618,7 +618,8 @@ raw inputs even when validation gives them the same value. See `guide
 actions` for durable invocation collection and `guide writes` for mutations.
 
 For a public Following feed, see `guide feeds`. Materialization requires
-public, fully synced sources with immutable mappings and owner write rules.
+public sources with immutable mappings and owner write rules. Posts and reposts
+may bound acquisition by time; follows stay fully synced.
 
 ## Reads and planned views
 
@@ -653,7 +654,7 @@ table timelineCards:
   public 'cards'
   insert <- .authorId = viewer
   update <- .authorId = viewer
-  sync public
+  sync public last 1000 by .at
 table timelineReposts:
   actorId: principal
   postId: timelineCards
@@ -663,7 +664,7 @@ table timelineReposts:
   public 'timelineReposts'
   insert <- .actorId = viewer
   delete <- .actorId = viewer
-  sync public
+  online only
 table timelineFollows:
   followerId: principal
   followedId: principal

@@ -33,13 +33,10 @@ test("a failed local rotation save is not silently repeated by its notification"
 });
 
 test("a local query retries its consumed predecessor after the owned rotation arrives", { timeout: 20_000 }, async t => {
-  const { url } = await server(t), store = memorySessionStore(), held = gate(); let successor, denied = false;
+  const { url } = await server(t, "online only"), store = memorySessionStore(), held = gate(); let successor, denied = false;
   const app = createApp({ url, device: device(), sessionStore: store, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     const response = await fetch(input, init);
-    if (path === "/schema") {
-      const backend = await response.json(); backend.schema.operations.list.runs = "server"; return Response.json(backend);
-    }
     if (path === "/auth/refresh") { successor = (await response.clone().json()).session; await held.promise; }
     if (path === "/q/list" && response.status === 401) denied = true;
     return response;

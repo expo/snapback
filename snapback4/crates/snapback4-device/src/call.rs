@@ -117,19 +117,25 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
                 // `unknown` names server-only knowledge (missing facts or presence), not every incomplete answer.
-                let (result, unknown, retained, components) = device.query_with_components(text(&request, "name")?, text(&request, "viewer")?, &args, now);
-                match result {
+                let (result, unknown, retained, components, provenance) = device.query_observation(text(&request, "name")?, text(&request, "viewer")?, &args, now, true);
+                let mut reply = match result {
                     Ok(outcome) => {
-                        let mut reply = json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown, "retained": retained });
+                        let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "tables": outcome.tables });
                         if outcome.unavailable {
-                            reply.as_object_mut().expect("query reply").remove("data");
                             reply["loading"] = Json::Bool(true);
+                        } else {
+                            reply["data"] = snapback4_core::wire::to_json(&outcome.data);
+                            reply["next"] = outcome.next.map(Json::String).unwrap_or(Json::Null);
                         }
                         if !components.is_empty() { reply["components"] = encoded(&components)?; }
                         reply
                     },
-                    Err(refusal) => json!({ "denied": encoded(&refusal)?, "unknown": unknown, "retained": retained }),
+                    Err(refusal) => json!({ "denied": encoded(&refusal)? }),
+                };
+                for (field, value) in [("unknown", unknown), ("retained", retained), ("speculative", provenance.speculative)] {
+                    reply[field] = Json::Bool(value);
                 }
+                reply
             }
             "backend" => encoded(&device.backend())?,
             "upload_facts" => {

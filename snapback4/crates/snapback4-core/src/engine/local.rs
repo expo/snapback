@@ -23,26 +23,35 @@ pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, context: Conte
 
 /// Unknown means the server can establish a missing fact or presence; preserve it, and whether incompleteness is exclusively retained history, even after a require/unwrap refusal.
 pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
-    let (result, unknown, retained, _) = observe_query(rows, schema, program, context, ceilings, false);
+    let (result, unknown, retained, _, _) = observe_query(rows, schema, program, context, ceilings, false);
     (result, unknown, retained)
 }
 
 pub fn query_with_components(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>) {
-    observe_query(rows, schema, program, context, ceilings, true)
+    let (result, unknown, retained, components, _) = observe_query(rows, schema, program, context, ceilings, true);
+    (result, unknown, retained, components)
 }
 
-fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings, components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>) {
-    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false, Default::default()); }
-    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default()); }    let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
+pub fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings, components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>, super::components::Provenance) {
+    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false, Default::default(), Default::default()); }
+    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default(), Default::default()); }    let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
     runner.device = true;
     runner.component_observation = components;
     let result = (|| {
-    let data = runner.run(program)?;
+    let data = match runner.run(program) {
+        Ok(data) => data,
+        // A require/unwrap after an unheld card is no more authoritative
+        // than a null card; the original query must be answered remotely.
+        Err(_) if runner.query_unavailable => Value::Null,
+        Err(error) => return Err(error.refusal()),
+    };
+    // @ref LLP 3000.016#2.2 — withheld work keeps its execution charges, but discarded data is not published output.
+    let data = if runner.query_unavailable { Value::Null } else { data };
     let capped = runner.meter.capped_at.is_some();
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
-    let next = runner.outcome_next_cursor()?;    Ok(QueryOutcome {
+    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome {
         unavailable: runner.query_unavailable,
         complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
@@ -58,7 +67,7 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
     })();
     let components = if result.as_ref().is_ok_and(|outcome| matches!(outcome.data, Value::Row(_))) { runner.component_coverage() } else { Default::default() };
     // @ref LLP 3000.007#20.22.1 — presence is server knowledge too; a resource or structural cut is not.
-    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), components)}
+    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), components, runner.components.provenance())}
 
 /// What a mutation predicts on the device: its result, and the tables it
 /// wrote through the store. A refusal is the caller's to show; the host
@@ -114,9 +123,15 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
 /// device's words — a page at the horizon or an online-only table is
 /// `complete: false`; unknown coverage is what the host falls back on.
 #[cfg(feature = "wasm-host")]
-pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
+pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
+    let (result, unknown, retained, _) = native_observation(rows, schema, module, program, context, ceilings);
+    (result, unknown, retained)
+}
+
+#[cfg(feature = "wasm-host")]
+pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool, super::components::Provenance) {
     if let Err(error) = validate_inputs(schema, program, &mut context.args) {
-        return (Err(error.refusal()), false, false);
+        return (Err(error.refusal()), false, false, Default::default());
     }
     let args = context.args.clone();
     let now = context.now.unwrap_or(0);
@@ -124,7 +139,12 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
     runner.device = true;
     let (value, mut runner) = super::native::run_read(module, runner, &program.name, &args, now);
     let result = (|| {
-        let data = value?;
+        let data = match value {
+            Ok(data) => data,
+            Err(_) if runner.query_unavailable => Value::Null,
+            Err(error) => return Err(error.refusal()),
+        };
+        let data = if runner.query_unavailable { Value::Null } else { data };
         runner.charge_output(&data)?;
         Ok(QueryOutcome {
             unavailable: runner.query_unavailable,
@@ -140,11 +160,18 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
             next_expiry: runner.next_expiry,
         })
     })();
-    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete())
+    (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete(), runner.components.provenance())
 }
 
 
 impl Runner<'_> {
+    // @ref LLP 3000.016#2.2 — a missing Following card withholds the whole query, including its continuation.
+    pub(super) fn withhold_unheld_card(&mut self, table: &str) {
+        if self.schema.timelines.iter().any(|timeline| table == timeline.posts[0] || table == timeline.reposts[0]) {
+            self.query_unavailable = true;
+        }
+    }
+
     // @ref LLP 3000.007.003#3.2 — device-only authority work may prevent
     // prediction, but cannot spend the server-equivalent mutation budget.
     pub(super) fn device_work<T>(&mut self, work: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {

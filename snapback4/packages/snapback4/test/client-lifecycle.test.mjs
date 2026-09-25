@@ -412,7 +412,7 @@ test("local auth invalidation notifies viewer listeners before session deletion 
     schema: { tables: { remote: { columns: {}, indexes: {} } } },
     programs: [{ name: "read", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] }],
   };
-  const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice().opener, fetch: async (input, init) => {
+  const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice({ call: async request => request.op === "query" ? { ok: { loading: true, unknown: true, tables: ["remote"] } } : undefined }).opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/schema") return Response.json(backend);
     if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
@@ -1048,7 +1048,7 @@ for (const tier of ["wasm", "native"]) {
     const stale = await client.query(thread, args);
     assert.equal(stale.fresh, false);
     assert.ok(stale.since >= changedAt, "since names the latest followed sync, not initial open");
-    assert.equal((await client.query(query("message"), { messageId: "msg-a" })).denied?.code, "E_OFFLINE");
+    assert.equal((await client.query(query("message"), { messageId: "msg-a" })).denied?.code, "E_OFFLINE", "an unknown horizon miss is not an authoritative NOT_FOUND");
     await client.close();
     const cold = await f.open(tier, { fetch: transport });
     const restored = await cold.query(thread, args);
@@ -1346,11 +1346,11 @@ for (const scenario of [
   { name: "retained", cut: null, unknown: true, retained: true, requests: 0 },
   { name: "pending predictable write", cut: null, unknown: true, pending: true, requests: 0 },
 ]) test(`W13b fallback boundary: ${scenario.name}`, async t => {
-  const backend = { ...emptyBackend, schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
+  const backend = { ...emptyBackend, programs: [{ ...emptyBackend.programs[0], body: [{ table: "rows" }] }], schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
   const device = emptyDevice({ call: async request => {
     if (request.op === "backend") return { ok: backend };
-    if (request.op === "query") return { ok: { data: ["device"], complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: [] } };
-    if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: [] }] };
+    if (request.op === "query") return { ok: { data: [{ id: "device" }], speculative: false, held: true, complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
+    if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: ["rows/pending"] }] };
   } });
   const requests = []; let offline = false;
   const client = await createLocalClient({ url: "http://fallback.invalid", persona: "alice", device: device.opener, fetch: async input => {
@@ -1368,6 +1368,6 @@ for (const scenario of [
   if (scenario.offline) { offline = true; await client.sync(); }
   const read = await client.query(query("read"), {});
   assert.equal(requests.length, scenario.requests, `the ${scenario.name} /q/ request log is ${JSON.stringify(requests)}`);
-  assert.deepEqual(read.data, [scenario.requests ? "server" : "device"]);
+  assert.deepEqual(read.data, scenario.requests ? ["server"] : [{ id: "device" }]);
   assert.equal(read.complete, !!scenario.requests);
 });
