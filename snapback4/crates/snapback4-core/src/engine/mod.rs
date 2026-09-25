@@ -886,7 +886,9 @@ impl Engine {
         let mut acknowledged = BTreeMap::new();
         let mut committed_above = BTreeMap::new();
         for id in pending {
-            let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3", rusqlite::params![principal, id, images_at.max(through).min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
+            // @ref LLP 3000.013#6 — idempotency also records refusals; only
+            // committed success can acknowledge execution in a device outbox.
+            let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3 AND json_extract(outcome, '$.state') = 'sent'", rusqlite::params![principal, id, images_at.max(through).min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
             if let Some(seq) = seq {
                 let seq = u64::try_from(seq).map_err(|_| RuntimeError::Store("negative stored operation sequence".into()))?;
                 if seq <= through { acknowledged.insert(id.clone(), seq); }

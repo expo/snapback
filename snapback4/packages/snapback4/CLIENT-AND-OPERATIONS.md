@@ -536,6 +536,9 @@ together, after rechecking terminal history and custody; a failed save retains t
 An outbox acknowledgement resolves an earlier `E_STORE_REPLACED` (whose execution
 outcome was unknown) as `sent`. Its matching sequence repairs that history row;
 an authored refusal such as `NOT_ADMIN` is not overwritten.
+Sync acknowledges only stored `sent` outcomes: an idempotency record for a
+refusal does not prove success. Known authored refusals also take precedence
+over acknowledgement evidence retained from an older server.
 A local admission-storage error does not establish the server outcome; its
 captured intent remains recoverable.
 Under `createApp`, records also capture the session epoch and principal.

@@ -58738,3 +58738,54 @@ change, push, publication or version bump. U's already deferred whole-page
 remembered-expiry limitation is unchanged. No new open integration defect.
 File-by-file resolutions, forms, constraints and compressed verification:
 [round-10 report](reports/20260925-intent-integration-r10/REPORT.md).
+
+## 2026-09-25 — Lane V round 11: refused idempotency is not acknowledgement
+
+Implemented both round-10 review findings. Server acknowledgement lookup now
+selects only `_ops` records whose stored outcome is `sent`, for both covered
+receipts and `committed_above`. A known authored refusal such as `NOT_ADMIN`
+also wins over acknowledgement evidence retained from an older server. Final
+send preflight propagates that recovered receipt instead of discarding it and
+publishing its original success. A real acknowledgement still repairs an
+unknown-outcome `E_STORE_REPLACED`, and no other failed receipt.
+
+Added a core test using actual successful and refused mutations, replay and
+both acknowledgement ranges; a client-history test requires no success save
+for a known refusal. Three real-browser regressions cover a lost `NOT_ADMIN`
+response followed by sync, legacy outbox acknowledgement with a known refusal,
+and lookup-only repair of stored `E_STORE_REPLACED` from `sent_seq: 7` without
+`observed_seq`. They verify mutation/lookup outcomes and reopening. The last
+case checks durable history before flushing, removes the outbox through
+catch-up and reopens offline. The pre-fix server and both requested client
+mutations fail their intended assertions.
+
+Measured: 52 browser admission checks pass; 141 targeted acquisition, seam and
+lifecycle checks pass; two core stream-receipt checks pass. Wasm remains
+1,776,633 bytes raw and 495,460 gzip within the existing 496,000-byte ceiling.
+Reference audit: 509 LLP documents, 9,289 references, zero errors and zero
+unchecked references. Complete qualification:
+
+```text
+== 0 failure(s) in 815 s
+```
+
+Exit 0 with `SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`:
+Rust 407 s; clients 146 s (1,605 passes, zero failures, 10 existing platform
+skips); models 230 s (78 passes, 13,000 seeded sequences). No final failures —
+ours, baseline or environmental. The supplied baseline cargo failure was
+inspected and was not reproduced.
+
+One initial full browser run failed our new fixture: its synthetic catch-up
+watermark 7 was below the shared store's current watermark, correctly causing
+`E_STORE_RESTORE`. The page now covers `max(7, current watermark)` while keeping
+exactly `sent_seq: 7` and no `observed_seq`. The corrected complete file passes;
+the persistence mutation still fails before this page is applied. Deliberate
+old-server and client-mutation failures are retained separately as controls.
+
+No design deviation or open scoped problem. No new Quarry form, public API,
+refusal code, authorization/disclosure rule, storage ceiling or meter change.
+No acquisition retuning or cold-acquisition remeasurement in this receipt-only
+round. No push or publication. Implementation/test commit: `7df63b7d1`. The
+file map, examples, failure accounting and reproductions are in
+`reports/20260925-lane-v-r11.md` and
+`reports/20260925-lane-v-r11-evidence/`.
