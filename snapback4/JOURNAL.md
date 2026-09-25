@@ -56102,3 +56102,59 @@ No package version bump, publication, push or native simulator qualification.
 Implementation commits: 26ad8a083, 65231c446, a04b83063. File map, examples,
 reproduction commands, measurements and evidence:
 [Lane V report](reports/20260925-lane-v-web-start.md).
+
+## 2026-09-25 — Lane V round 1: bounded persistence and acquisition/session regressions
+
+Addressed Astra's two Medium findings and special-table Low, and Grok's High
+session-admission and Medium bucket findings. Progress now updates/resets before
+the unchanged-Boolean return; legacy Boolean notifications remain conditional.
+Table counts use null-prototype dictionaries, including copies and resets.
+
+IndexedDB buckets are capped at 512 entries and 256 KiB of UTF-8 JSON. Overflow
+rows use individual records with no growing index or scan. Metadata, outbox,
+transfer acknowledgements and all row changes still commit in one strict
+transaction. Old unbounded buckets split atomically at full load, before writes;
+legacy per-row stores remain per-row. A single-row update in either 1,000 or
+16,000 colliding 1 KiB rows submits 262,832 serialized bytes to IDB put, including
+metadata and outbox, versus 16,843,849 for the old 16,000-row case. This is
+serialized-record size, not physical disk I/O. Forced abort and Unicode overflow
+preserve the complete pre-transaction state, and retry commits it together.
+
+New createApp journal records capture the session epoch and principal while
+retaining synchronous localStorage custody. Device admission and recovery now
+check that stamp under the session lock through the admission commit. Peer
+logout, changed principal and changed epoch cancel unadmitted records; later
+sign-in cannot promote them. The existing locked transport check remains. A
+transient unlocked mismatch refuses the call without permanently fencing its
+scope. Low-level clients and legacy unstamped journals retain their prior path;
+no new public interface was added.
+
+Fresh Chromium acquisition of the frozen Clique projection (65,180 rows,
+including the required 50,228 posts / 1,004 reposts / 5,921 follows / 1,008
+profiles) took 13.789 / 24.345 / 17.745 s. The 17.745 s median is 4.13x faster
+than the fresh 73.352 s per-row control, or 5.27x versus the original 93.581 s
+control. Even the slowest new run clears 3x against the fresh control. Median
+run: 0.804 s snapshot HTTP, 3.019 s Wasm apply, 12.135 s IDB saving. Every run
+reopened all rows offline. Snapshot HTTP includes server work and transfer;
+these remain acquisition-only figures with the same projection limits as the
+previous entry. Page size stays 4,000. No meter or Wasm budget was raised.
+
+Focused Chromium checks: 26 passed, 0 failed. Restoring the old progress return,
+ordinary-object counts or unbounded packing fails the new regressions. Making
+reset() a no-op fails partial sign-out. Separately bypassing live admission,
+recovery authority, or restoring unlocked fencing also fails the corresponding
+real-browser test. Both reviews were reread before the final complete suite;
+ref-check reports zero errors and zero unchecked references.
+
+Final complete suite: **`== 0 failure(s) in 1508 s`**, with serialized client
+files: 1,532 passed / 0 failed / 10 platform skips; models 78 passed / 0 failed,
+including all 13,000 seeded sequences. The first attempt reported 1 failure in
+1,414 s: an environmental five-second server-start timeout, before client
+construction, in the native transport test. It passed unchanged in isolation
+and in the final complete run. Both logs and the classification are retained.
+
+Implementation commits: e11c2a282 (progress and bounded persistence), 78175cd6d
+(session-bound admission). local.ts is 1,467 lines. No package bump, push,
+publication, larger snapshot pages, streaming apply or native simulator run.
+File map, reproductions, test proofs, measurement limits and raw evidence:
+[round 1 report](reports/20260925-lane-v-r1.md).
