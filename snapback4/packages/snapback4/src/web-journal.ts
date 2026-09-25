@@ -150,17 +150,18 @@ export class AdmissionJournal {
     if (!this.exclusive) return changes;
     for (const [id, transfer] of this.transfers) {
       remove(transfer.key);
-      if (absent(transfer.key) && (!transfer.recovered || !queued.has(id))) changes.push({ s: "j", k: id, v: null });
+      if (absent(transfer.key) && !queued.has(id)) changes.push({ s: "j", k: id, v: null });
     }
     return changes;
   }
 
-  // Recovered, previously unadmitted writes keep their original store binding.
+  // Every journaled write keeps its original store binding until dequeued,
+  // including a fresh click captured while a replacement probe was in flight.
   // An authenticated reset has already withdrawn predictions before this runs.
   fence(device: WebDevice): void {
     const state = invoke(device, { op: "sync_state" }).ok;
     if (!state?.store_id) return;
-    for (const [id, transfer] of this.transfers) if (transfer.recovered && transfer.storeId !== state.store_id) {
+    for (const [id, transfer] of this.transfers) if (transfer.storeId !== state.store_id) {
       const reply = invoke(device, { op: "dequeue", id });
       if (reply.denied) throw new Error(JSON.stringify(reply));
     }
@@ -205,7 +206,18 @@ export class AdmissionJournal {
     // Raw local clients have no app epoch and retain their existing custody.
     if (!stamp) return this.authority ? refused() : admitted();
     if (!this.authority) throw new Error("the journal's session reader has not been attached");
-    return storeLock(stamp.key, async () => await sameAdmissionAuthority(stamp, this.authority!, record.entry.viewer) ? admitted() : refused());
+    const authority = this.authority;
+    let accepted = false;
+    try {
+      return await storeLock(stamp.key, async () => {
+        accepted = await sameAdmissionAuthority(stamp, authority, record.entry.viewer);
+        return accepted ? admitted() : refused();
+      });
+    } finally {
+      // The app must withdraw observations too, but its check takes the same
+      // non-reentrant lock. Schedule it only after this lock has released.
+      if (!accepted) authority.recheck();
+    }
   }
 
   // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.

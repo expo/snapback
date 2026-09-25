@@ -17,6 +17,16 @@ table audit:
   public 'Non-idempotent session admission audit.'
   update <- allow
 
+table notes:
+  owner: principal
+  body: text <=200
+  by byOwner: owner, id
+  read <- .owner = viewer
+  sync to .owner
+
+query privateNotes():
+  return notes[viewer] first 100 by byOwner
+
 mutation click():
   row = audit['audit'] ! else NOT_FOUND
   update audit[row] { total: row.total + 1 }
@@ -35,6 +45,10 @@ query total():
   if (mutant === 'commit') replace('session-authority.ts', 'try { await committed; }', 'try { void committed; }');
   if (mutant === 'source') replace('admission-authority.ts', '!stamp.source || stamp.source !== current.source || ', '');
   if (mutant === 'ownership') replace('admission-authority.ts', 'else if (browserAdmission()) throw new StorageWarning(', 'else if (false) throw new StorageWarning(');
+  if (mutant === 'refusal-fence') replace('web-journal.ts', 'if (!accepted) authority.recheck();', '/* mutant: retain the stale scope */');
+  if (mutant === 'mirror-repair') replace('session-authority.ts', 'try { updateMirror(key, value); }', 'try { /* mutant: retain speculative mirror */ }');
+  if (mutant === 'epoch-migration') replace('app.ts', 'await authority?.reconcileEpoch(sessionKey(url));', '/* mutant: discard the legacy epoch */');
+  if (mutant === 'absence') replace('session-authority.ts', 'const value = (request.result ?? null) as string | null;', 'if (request.result === undefined) return null;\n      const value = (request.result ?? null) as string | null;');
   const witness = await launch({ sourceDir, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
@@ -122,8 +136,11 @@ window.capture = () => {
 
   await t.test('a peer logout commits before the next lock holder and refuses a click captured from a stale mirror', async () => {
     const session = await fresh(), before = await total(session);
+    await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'notes', row: { id: 'private', owner: session.principal, body: 'private observation' } }]) });
     await page.evaluate(options => boot(options), { url, session });
-    await page.waitForFunction(() => window.pollHeld);
+    await page.evaluate(() => { window.old = app.client; window.observed = old.observe({ kind: 'query', name: 'privateNotes' }, {}); });
+    await page.waitForFunction(() => window.pollHeld && observed.getSnapshot()?.data?.length === 1);
+    assert.equal(await page.evaluate(() => old.acquired), true);
     const mirror = await page.evaluate(url => localStorage.getItem(sessionKey(url)), url);
     const peer = await page.context().newPage();
     try {
@@ -153,10 +170,14 @@ window.capture = () => {
       assert.equal(await page.evaluate(({ store, id }) => indexedDbPersistence().read(store, 'o', id), captured), null);
       assert.deepEqual(await page.evaluate(() => sent), []);
       assert.equal(await total(session), before);
+      await page.waitForFunction(() => app.auth.state === 'signed-out', null, { timeout: 3000 });
+      const fenced = await page.evaluate(() => ({ auth: app.auth.viewer, viewer: old.viewer(), acquired: old.acquired, observed: observed.getSnapshot() }));
+      assert.equal(fenced.auth, null); assert.equal(fenced.viewer, null); assert.equal(fenced.acquired, false);
+      assert.equal(fenced.observed.data, undefined); assert.ok(fenced.observed.denied);
       t.diagnostic(JSON.stringify({ captured: true, outcome: result.state, code: result.why.code, audit: before, strictCommitsUnderLock: tx.length }));
     } finally {
       await peer.evaluate(async () => { window.releaseLock?.(); await app.close(); }); await peer.close();
-      await page.evaluate(async () => { window.restoreMirror?.(); await app.close(); });
+      await page.evaluate(async () => { window.restoreMirror?.(); observed.close(); await app.close(); });
     }
   });
 
@@ -253,6 +274,94 @@ window.capture = () => {
     await page.evaluate(({ url, session }) => localStorage.setItem(sessionKey(url), JSON.stringify(session)), { url: legacyUrl, session });
     const result = await page.evaluate(options => boot(options), { url: legacyUrl });
     assert.equal(result.ok, true); assert.equal(await page.evaluate(() => app.auth.state), 'signed-out');
+    assert.equal(await page.evaluate(url => localStorage.getItem(sessionKey(url)), legacyUrl), null, 'authoritative absence deletes the mirror');
+    await page.evaluate(() => app.close());
+  });
+
+  for (const storedEpoch of [null, '9']) await t.test(`legacy epoch 5 migrates before sign-in and mutation (IDB ${storedEpoch ?? 'absent'})`, async () => {
+    const session = await fresh(), before = await total(session);
+    await page.evaluate(async ({ url, session, storedEpoch }) => {
+      const key = sessionKey(url);
+      await navigator.locks.request(key, async () => {
+        const db = await new Promise((resolve, reject) => {
+          const request = indexedDB.open('snapback4-session-authority', 1);
+          request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+        });
+        try {
+          const tx = db.transaction('sessions', 'readwrite', { durability: 'strict' }), store = tx.objectStore('sessions');
+          store.delete(['default', key]); store.delete(['default', key + '.epoch']);
+          if (storedEpoch) store.put(storedEpoch, ['default', key + '.epoch']);
+          await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onabort = () => reject(tx.error); });
+        } finally { db.close(); }
+        localStorage.setItem(key, JSON.stringify(session)); localStorage.setItem(key + '.epoch', '5');
+      });
+    }, { url, session, storedEpoch });
+    assert.equal((await page.evaluate(options => boot(options), { url })).ok, true);
+    assert.equal(await page.evaluate(() => app.auth.state), 'signed-out');
+    const signed = await page.evaluate(email => app.auth.login(email, 'a-test-password-long-enough'), `authority-${count}@example.com`);
+    assert.equal(signed.ok, true);
+    const epoch = storedEpoch ?? '5';
+    const captured = await page.evaluate(() => capture());
+    assert.equal(captured.immediate, null); assert.ok(captured.record);
+    assert.equal(captured.record.authority.epoch, epoch);
+    assert.equal((await page.evaluate(() => write)).state, 'sent');
+    assert.equal(await total(signed.session), before + 1);
+    assert.deepEqual(await page.evaluate(async url => {
+      const key = sessionKey(url), store = localStorageSessionStore();
+      return { mirror: localStorage.getItem(key + '.epoch'), idb: await store.get(key + '.epoch'), session: JSON.parse(await store.get(key)).snapback4Epoch };
+    }, url), { mirror: epoch, idb: epoch, session: epoch });
+    await page.evaluate(() => app.close());
+  });
+
+  await t.test('reopen repairs speculative session B from committed session A before capturing a mutation', async () => {
+    const session = await fresh(), before = await total(session);
+    await page.evaluate(options => boot(options), { url, session });
+    await page.evaluate(async url => {
+      await app.close();
+      const key = sessionKey(url), committed = JSON.parse(localStorage.getItem(key));
+      // Model process loss between the fallible mirror write and IDB commit.
+      localStorage.setItem(key, JSON.stringify({ ...committed, principal: 'user:speculative', token: 'speculative-bearer' }));
+    }, url);
+    await navigate('crash-mirror=1');
+    assert.equal((await page.evaluate(options => boot(options), { url })).ok, true);
+    assert.equal(await page.evaluate(() => app.auth.viewer), session.principal);
+    assert.equal(await page.evaluate(url => JSON.parse(localStorage.getItem(sessionKey(url))).principal, url), session.principal);
+    const captured = await page.evaluate(() => capture());
+    assert.equal(captured.immediate, null); assert.ok(captured.record);
+    assert.equal((await page.evaluate(() => write)).state, 'sent');
+    assert.equal(await total(session), before + 1);
+    await page.evaluate(() => app.close());
+  });
+
+  await t.test('an aborted epoch migration preserves the legacy fence for the next open', async () => {
+    const session = await fresh();
+    await page.evaluate(async ({ url, session }) => {
+      const key = sessionKey(url), store = localStorageSessionStore();
+      await navigator.locks.request(key, async () => {
+        await store.set(key, JSON.stringify({ ...session, snapback4Epoch: '1' }));
+        await store.set(key + '.epoch', '1');
+        localStorage.setItem(key + '.epoch', '5');
+      });
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (value, k) {
+        const request = put.call(this, value, k);
+        if (this.name === 'sessions' && k?.[1] === key + '.epoch') {
+          const tx = this.transaction; request.addEventListener('success', () => tx.abort());
+        }
+        return request;
+      };
+      window.restorePut = () => IDBObjectStore.prototype.put = put;
+    }, { url, session });
+    try {
+      const result = await page.evaluate(options => boot(options), { url });
+      assert.equal(result.ok, false); assert.equal(result.why.code, 'E_CLIENT');
+      assert.equal(await page.evaluate(url => localStorage.getItem(sessionKey(url) + '.epoch'), url), '5');
+    } finally { await page.evaluate(async () => { restorePut(); await app.close(); }); }
+    await navigate('migration-retry=1');
+    assert.equal((await page.evaluate(options => boot(options), { url })).ok, true);
+    const captured = await page.evaluate(() => capture());
+    assert.equal(captured.record.authority.epoch, '5');
+    assert.equal((await page.evaluate(() => write)).state, 'sent');
     await page.evaluate(() => app.close());
   });
 

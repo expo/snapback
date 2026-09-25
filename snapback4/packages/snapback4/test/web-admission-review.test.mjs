@@ -67,6 +67,8 @@ query total():
   if (mutant === 'hidden-registration') replace('web.ts', 'if (suspended) publishCommitted();', '/* mutant: lose the hide during the probe */');
   if (mutant === 'wrapped-owner') replace('app.ts', 'prepareAdmissionAuthority(prepared, {', 'if (sessionReader(backing)) prepareAdmissionAuthority(prepared, {');
   if (mutant === 'journal-fence') replace('web.ts', 'if (!reply.denied && observesStore) journal.fence(device!);', '/* mutant: retain recovered intents after replacement */');
+  if (mutant === 'fresh-fence') replace('web-journal.ts', 'if (transfer.storeId !== state.store_id)', 'if (transfer.recovered && transfer.storeId !== state.store_id)');
+  if (mutant === 'fresh-binding') replace('web-journal.ts', 'absent(transfer.key) && !queued.has(id)', 'absent(transfer.key) && (!transfer.recovered || !queued.has(id))');
   if (mutant === 'observed') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null && entry.observed_seq == null)) return true;\n    if (!capture.store_id) return false;');
   if (mutant === 'empty-queue') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null)) return true;\n    if (!capture.store_id) return false;');
   if (mutant === 'ordinary-gate') replace('local.ts', 'if (closed || !sendingAllowed) return;', 'if (closed) return;');
@@ -458,9 +460,25 @@ window.captureClick = () => {
         assert.equal(await total(observer), before);
         if (replacement) assert.equal(await total(observer, replacement.api), 0);
       }
+      if (replacement) {
+        // Adoption used to send this fresh click as soon as /sync completed.
+        // Check both transports and durable custody after that barrier opens.
+        await page.evaluate(async () => { releaseSync(); await app.ready; });
+        const after = await page.evaluate(async ({ id, store }) => ({
+          sent, queued: (await core.call({ op: 'queued' })).ok,
+          outbox: await indexedDbPersistence().read(store, 'o', id),
+          loaded: (await indexedDbPersistence().load(store)).filter(c => c.s === 'o' && c.k === id),
+        }), captured);
+        assert.deepEqual(after.sent, []); assert.deepEqual(after.queued, []);
+        assert.equal(after.outbox, null); assert.deepEqual(after.loaded, []);
+        assert.equal(await total(observer, replacement.api), 0, 'replacement audit after sync/adoption');
+      }
     } finally {
       await page.evaluate(async () => { releaseProbe(); releaseSync(); await app.ready; await app.close(); });
-      await replacement?.close();
+      if (replacement) {
+        try { assert.equal(await total(observer, replacement.api), 0, 'replacement audit after close'); }
+        finally { await replacement.close(); }
+      }
     }
   });
 

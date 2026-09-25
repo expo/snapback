@@ -521,8 +521,9 @@ for backend adoption installs the destination's authenticated backend first. An
 orphan missing its kept backend or store identity is skipped with its journal
 intact until a later matching open can establish ownership; a broken orphan does
 not prevent healthy stores from opening.
-Recovered records stay bound to their original backend store identity; a
-replacement retires them without sending them to the new backend.
+Every journaled write stays bound to its original backend store identity until
+it leaves the outbox, including a fresh click captured during startup validation.
+A replacement retires these writes without sending them to the new backend.
 Under `createApp`, records also capture the session epoch and principal.
 The browser's authoritative session lives in IndexedDB. Login, logout and
 principal replacement mirror their value to localStorage, then await a strict
@@ -530,7 +531,9 @@ IndexedDB transaction commit before releasing the session lock. A failed mirror
 write aborts that transaction; an aborted commit restores the previous mirror
 where storage permits. Async session reads, locked device admission and recovery
 use IndexedDB, never the mirror as authority. A logout or changed epoch/principal cancels
-an unadmitted record; a live caller receives `E_AUTH`. A subsequent sign-in
+an unadmitted record; a live caller receives `E_AUTH`. After releasing the
+admission lock, the app checks its scope and withdraws stale auth, viewer,
+acquisition and existing observations even when the change poll is held. A subsequent sign-in
 cannot revive that earlier click. Synchronous journaling still precedes waiting
 for the lock, so a navigation while the session is unchanged keeps its intent.
 Chromium can expose a stale localStorage mirror even after granting a Web Lock:
@@ -554,7 +557,12 @@ the backend needed to validate and install the sender afterward, including on a
 later reconnect after an unsuccessful startup.
 
 On upgrading from a browser session stored only in localStorage, sign in again:
-the mirror alone cannot establish a coherent authority record. Pre-upgrade
+the mirror alone cannot establish a coherent authority record. Before opening
+a scope, the session lock protects migration of the greatest legacy mirror or
+IndexedDB epoch into the authoritative epoch record and its mirror. This
+preserves the old epoch fence while allowing the new sign-in to mutate. Reads
+repair speculative or stale session mirrors from IndexedDB, deleting the mirror
+when authority is absent; they never import mirror credentials. Pre-upgrade
 unadmitted journals are cancelled; committed outbox custody is preserved. The
 default memory session store and native platform stores retain their behavior.
 For a custom-prefixed localStorage adapter, pass a stable, unique namespace as

@@ -1,8 +1,12 @@
 import type { SessionStore } from "./auth.ts";
-import { StorageWarning } from "./app-storage.ts";
+import { sessionEpoch, StorageWarning } from "./app-storage.ts";
 
 type Mirror = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-type Authority = { source: string; read(key: string): Promise<string | null> };
+type Authority = {
+  source: string;
+  read(key: string): Promise<string | null>;
+  reconcileEpoch(key: string): Promise<void>;
+};
 // Function identity survives `{ ...localStorageSessionStore() }`.
 const authorities = new WeakMap<SessionStore["get"], Authority>();
 export const sessionAuthority = (store: SessionStore): Authority | undefined => authorities.get(store.get);
@@ -34,22 +38,21 @@ export function indexedDbSessionStore(mirror: () => Mirror, namespace: string | 
   const updateMirror = (key: string, value: string | null) => {
     if (value === null) mirror().removeItem(key); else mirror().setItem(key, value);
   };
-  const read = async (key: string): Promise<string | null> => {
+  const read = async (key: string, repair = true): Promise<string | null> => {
     const db = await open();
     try {
       const tx = db.transaction(records, "readonly"), committed = done(tx);
       const request = tx.objectStore(records).get([namespace!, key]);
       await committed;
       // Missing authority never imports a possibly stale legacy mirror.
-      if (request.result === undefined) return null;
-      const value = request.result as string | null;
+      const value = (request.result ?? null) as string | null;
       // Repair a stale mirror while the caller holds the session lock. A
       // mirror failure cannot turn this coherent read into stale authority.
-      try { updateMirror(key, value); } catch { /* Admission will refuse if its mirror is unusable. */ }
+      if (repair) try { updateMirror(key, value); } catch { /* Admission will refuse if its mirror is unusable. */ }
       return value;
     } finally { db.close(); }
   };
-  const write = async (key: string, value: string | null) => {
+  const write = async (key: string, value: string | null, rollbackMirror?: string | null) => {
     let db: IDBDatabase | undefined;
     let previous: string | null = null, mirrored = false;
     try {
@@ -58,7 +61,7 @@ export function indexedDbSessionStore(mirror: () => Mirror, namespace: string | 
       const store = tx.objectStore(records), request = store.get([namespace!, key]);
       let cause: unknown;
       request.onsuccess = () => {
-        previous = request.result ?? null;
+        previous = rollbackMirror === undefined ? request.result ?? null : rollbackMirror;
         try {
           // A fallible mirror write precedes the authoritative commit. A
           // crash/abort can leave only a speculative mirror, never authority.
@@ -78,6 +81,22 @@ export function indexedDbSessionStore(mirror: () => Mirror, namespace: string | 
     set: write,
     delete: key => write(key, null),
   };
-  authorities.set(store.get, { source: `indexeddb-v1:${namespace ?? ""}`, read: store.get });
+  authorities.set(store.get, {
+    source: `indexeddb-v1:${namespace ?? ""}`, read: store.get,
+    async reconcileEpoch(key) {
+      // Only at scope opening, under the session lock: preserve the legacy
+      // epoch high-water mark before read repairs the mirror. Never import
+      // mirror credentials, or use the mirror in ordinary authorization.
+      try {
+        const epochKey = key + ".epoch", before = mirror().getItem(epochKey), legacy = before ?? "0";
+        // Do not repair/delete the legacy marker until its fence is committed.
+        const marker = await read(epochKey, false) ?? "0";
+        const stored = sessionEpoch(await read(key, false)) ?? "0";
+        if (![legacy, marker].every(value => /^(0|[1-9][0-9]*)$/.test(value))) throw new Error("invalid session epoch");
+        const epoch = [legacy, marker, stored].reduce((a, b) => BigInt(a) > BigInt(b) ? a : b);
+        await write(epochKey, epoch, before);
+      } catch (error) { throw failed(error); }
+    },
+  });
   return store;
 }

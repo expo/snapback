@@ -8,6 +8,8 @@ export interface AdmissionAuthorityContext {
   capture(): AdmissionAuthority;
   // Ownership exists even when a wrapped/asynchronous store has no reader.
   read: ((key: string) => Promise<string | null>) | undefined;
+  // Schedule the app's locked check after an admission lock has released.
+  recheck(): void;
 }
 const plans = new WeakMap<object, AdmissionAuthorityContext>();
 // Enumerable capabilities survive device adapters that forward with {...core}.

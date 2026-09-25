@@ -111,7 +111,11 @@ export function createApp(options: AppOptions): App {
     observeEpoch(epoch);
     return epoch;
   };
-  const captureEpoch = () => persist(() => storeLock(sessionKey(url), readEpoch));
+  const openingEpoch = async () => {
+    await authority?.reconcileEpoch(sessionKey(url));
+    return readEpoch();
+  };
+  const captureEpoch = () => persist(() => storeLock(sessionKey(url), openingEpoch));
   const revocations = sessionRevocations(url, storage, fetcher, work => persist(() => storeLock(sessionKey(url), work)));
   let logoutBarrier: Promise<void> = Promise.resolve();
   const revokeRetired = (token: string, origin?: SessionOrigin) => { void revocations.retire(token, origin).catch(report); };
@@ -172,7 +176,7 @@ export function createApp(options: AppOptions): App {
     const restoringStore: SessionStore = {
       ...sessionStore,
       get: key => persist(() => storeLock(key, async () => {
-        epoch = await readEpoch();
+        epoch = await openingEpoch();
         bytes = await storage.get(key);
         return bytes;
       })),
@@ -458,6 +462,7 @@ export function createApp(options: AppOptions): App {
         const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch };
         prepareAdmissionAuthority(prepared, {
           capture: () => ({ key: sessionKey(url), epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
+          recheck: () => { void authorized().catch(() => {}); },
         });
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
         raw = local.client; startClient = local.start;
