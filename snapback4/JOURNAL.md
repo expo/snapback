@@ -56262,3 +56262,50 @@ finding or deviation from the brief. The existing optional-aggregate/point-seek
 restrictions and shared-host suite wall-time budget overrun remain unchanged.
 File ledger, examples, exact tests, mutation evidence, word counts, fact/guess
 mapping and log digests: [Lane X round-three report](reports/lane-x-round3-report.md).
+
+## 2026-09-25 — LLP 3000.013 lane X, round four: verify offered source repairs
+
+Addressed both delta reviews of round three. Self-comparison and count(*) source
+repairs now carry checked replacement spans. The compiler patches and reparses
+only the affected declaration, binds it against the project declarations, and
+withholds the rewrite if parsing, binding or admission fails. Named-key repairs
+also bind the intended read AST in the same scope and compare actual point/page
+plans using existing source-to-IR mappings. No syntax tree is printed into a
+repair; no other operation is rebound and no recursive diagnostic compilation
+occurs. Uncertain proofs keep the refusal and explanation without a rewrite.
+
+Key edits remove a sole comparison with its where, or one conjunct with its
+adjacent and; insert named equalities before the first parsed seek; carry grouped
+reads' full opening token; and reuse trailing commas. Tests paste and execute
+id/unique point reads, explicit pages, grouped reads, all four seek operators,
+existing/nested operands, trailing-comma keys and conjunct/repeated-where cases.
+Three injected-bad-repair tests cover syntax/name/type failures, compiling
+point/page changes in both directions, and count(*) prose. Earlier executed
+nested-scope and both-store prediction/visibility witnesses remain intact.
+Standalone shapes without a focal type and helper signature edits have no local
+proof and get no rewrite; existing-argument helper repairs remain checked.
+The earlier independently invalid point-seek probe now has no broken repair.
+
+Actually removed the comma separator guard, the plan-class comparison and the
+verification gate in three temporary mutations. Each built and failed its
+specified test with exit 101; each was restored before the final checks.
+Restored targeted validation: 134 language/unit/guide tests and three CLI tests
+passed. One full scripts/test.sh run exited 0, with the exact summary:
+**== 0 failure(s) in 469 s**. Final failures: ours zero, baseline zero,
+environmental zero. Client tests: 1,509 passed, ten existing skips. Client models:
+78 passed, preserving all 5,000 / 5,000 / 3,000 sequences. Development failures
+and their corrections are recorded in the report; none was waived.
+
+Ref-check: 509 LLP docs, 9,282 refs, zero errors/unchecked. External Clique target:
+zero problems and six existing notes. Wasm: unchanged 1,775,799 B raw / 495,258 B
+gzip under the unchanged 496,000 B budget. Rendered why E_QUARRY_SELF_EQUALITY:
+2,583 bytes within 4,096. All 133 fact homes and 17 original compiled blocks remain
+tested; core cards remain 10,422 words versus 18,300, with 860 opening words versus
+12,540. Every changed source file stays below 1,500 lines.
+
+No unresolved round-four finding or design deviation. No engine, store,
+authorization, disclosure, durability, meter, client-source, Following, package
+version, push or publication change. Existing aggregate/seek restrictions and
+the shared-host wall-time budget overrun remain unchanged. Implementation:
+3c3a69461. File ledger, examples, guess/fact mapping, word counts, limitations and
+log digests: [Lane X round-four report](reports/lane-x-round4-report.md).
