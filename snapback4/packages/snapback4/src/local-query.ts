@@ -15,6 +15,7 @@
 //    Recovery preserves local wakeups; retry transport retires the old value.
 //    Memory expires only at its server deadline; an elapsed local wakeup
 //    dirties its watch and is consumed without withdrawing valid memory.
+//    Future remembered wakeups carry that provenance to the watch timer.
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
@@ -22,7 +23,7 @@ import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 
-type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; rowProvenance?: unknown };
+type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -260,7 +261,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         }
         // Recovery still needs any future local branch wakeup after memory
         // expires; only the expired server deadline is retired here.
-        return origin === "remembered" ? { read: watch ? { loading: true } : { denied: env.offline() }, tables, nextExpiry: result.nextExpiry } : loading;
+        return origin === "remembered" ? { read: watch ? { loading: true } : { denied: env.offline() }, tables, nextExpiry: result.nextExpiry, localWakeup: true } : loading;
       }
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
@@ -268,7 +269,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) });
         else env.serverAnswers.delete(key);
       }
-      if (origin !== "local" || !("data" in result.read)) return result;
+      if (origin !== "local" || !("data" in result.read)) return { ...result, localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
       return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) } };
     }

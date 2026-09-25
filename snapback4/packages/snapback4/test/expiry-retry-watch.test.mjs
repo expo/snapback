@@ -70,7 +70,7 @@ query expiryPage(c: cursor ?):
   return audits after c last 3 by .at pageCard
 `;
 
-for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits", "populated watch", "server pagination", "server pagination watch", "remembered branch", "remembered branch watch"]) {
+for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits", "populated watch", "server pagination", "server pagination watch", "remembered branch", "remembered branch watch", "remembered branch timer watch"]) {
   test(`expiry retry ${scenario} ${tier}`, { timeout: 30000 }, async t => {
     const directory = mkdtempSync(join(tmpdir(), "sb4-expiry-retry-"));
     mkdirSync(join(directory, "snapback"));
@@ -143,6 +143,37 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       wall = now; clock.sample(now, now, now); clientClock.sample(now, now, now);
       assert.equal(client.now(), now);
     };
+    if (scenario === "remembered branch timer watch") {
+      setBoundary(deadline - 100);
+      const reached = gate(); let calls = 0;
+      interceptLocal = async (request, reply) => {
+        if (request.name !== "branch") return;
+        calls++;
+        assert.equal(reply.ok.unknown, true); assert.equal(reply.ok.speculative, true);
+        if (calls === 1) {
+          assert.equal(request.now, deadline - 100);
+          assert.equal(reply.ok.nextExpiry, deadline);
+        } else {
+          assert.equal(request.now, deadline); assert.equal(reply.ok.nextExpiry, null);
+          reached.release(); await localGate.promise;
+        }
+      };
+      const publications = [];
+      live = client.observe({ kind: "query", name: "branch" }, {});
+      stop = live.subscribe(() => publications.push(live.getSnapshot()));
+      await until(() => publications.length === 1, "remembered page not published before its local wakeup");
+      const before = live.getSnapshot(); assert.equal(before.data, true); assert.equal(before.fresh, false);
+      wall = deadline;
+      await reached.promise; // Timer fired; the device reobservation is held.
+      assert.equal(calls, 2);
+      assert.equal(live.getSnapshot(), before, "local wakeup must leave the remembered snapshot intact during a slow rerun");
+      assert.equal(publications.length, 1, "a local wakeup must neither reset nor notify");
+      localGate.release();
+      await until(() => publications.length === 2, "timer reobservation did not publish");
+      assert.ok(publications.every(read => read.data === true && read.fresh === false));
+      assert.deepEqual(requests, [{ path: "/q/branch", args: {} }]);
+      return;
+    }
     if (remembered) {
       setBoundary(deadline - 1);
       const reached = gate(); let calls = 0;

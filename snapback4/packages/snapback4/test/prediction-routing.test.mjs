@@ -784,22 +784,30 @@ for (const retry of [false, true]) for (const transport of ["offline", "failed f
   });
 }
 
-for (const localDue of [false, true]) for (const observing of [false, true]) {
-  test(`rule 5: memory's own server deadline still expires at publication (localDue=${localDue}, watch=${observing})`, async () => {
+for (const retry of [false, true]) for (const localDue of [false, true]) for (const observing of [false, true]) {
+  test(`rule 5: memory's own server deadline still expires at publication (retry=${retry}, localDue=${localDue}, watch=${observing})`, async () => {
     const f = routing(); f.entries = []; f.env.link = "offline";
-    let issued = 100, estimated = 50, recovered = false;
+    let issued = 100, estimated = 50, recovered = false, calls = 0;
+    const localDeadline = retry ? 300 : 150;
     f.env.deviceNow = () => issued; f.env.serverNow = () => estimated;
-    f.outcome = { ...unknownRetry(true), nextExpiry: 150 };
+    f.env.call = async () => {
+      if (++calls === 1 && retry) {
+        issued = 200;
+        return { ok: { data: ["expired"], unknown: false, complete: true, nextExpiry: 200, tables: ["posts"] } };
+      }
+      return { ok: { ...unknownRetry(true), nextExpiry: localDeadline } };
+    };
     const key = `read:${JSON.stringify(input)}`;
     f.env.serverAnswers.set(key, { read: { data: ["private"], complete: true, fresh: true, cut: null, next: null }, at: 25, nextExpiry: 60, tables: new Set(["posts"]) });
     const get = f.env.serverAnswers.get.bind(f.env.serverAnswers);
     f.env.serverAnswers.get = key => { recovered = true; return get(key); };
-    f.env.queued = async () => { if (recovered) { estimated = 60; if (localDue) issued = 150; } return []; };
+    f.env.queued = async () => { if (recovered) { estimated = 60; if (localDue) issued = localDeadline; } return []; };
     const watch = observing ? retryWatch() : undefined;
     const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
     assert.deepEqual(result.read, observing ? { loading: true } : { denied: f.env.offline() });
     assert.equal(f.env.serverAnswers.size, 0, "only the remembered answer's server deadline retires it");
-    assert.equal(result.nextExpiry, localDue ? null : 150, "a future local wakeup survives even when memory expires");
-    if (watch) assert.equal(watch.dirty, localDue);
+    assert.equal(result.nextExpiry, localDue ? null : localDeadline, "a future local wakeup survives even when memory expires");
+    assert.equal(calls, retry ? 2 : 1);
+    if (watch) assert.equal(watch.dirty, localDue || retry);
   });
 }
