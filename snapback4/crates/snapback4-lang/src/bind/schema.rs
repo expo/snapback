@@ -95,7 +95,9 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     if diagnostics.is_empty() {
         for issue in core::validate(&schema) {
             let site = catalog.site_for(&issue.path);
-            if issue.message.contains("maintained column") || issue.message.contains("guide maintains") {
+            if issue.message.contains("value-dependent aggregate authorization needs") {
+                diagnostics.push(Diagnostic::new(&site, "E_MAINTAIN_READ_BOUND", issue.message, "add a source cap whose columns are bare group keys, or use `read <- deny` and choose an audience over the group keys").guide("maintains"));
+            } else if issue.message.contains("maintained column") || issue.message.contains("guide maintains") {
                 diagnostics.push(super::columns::refusal(&site, issue.message));
             } else if issue.path.ends_with(".sync") {
                 let rewrite = if issue.message.contains("needs required group keys") { "remove `?` from every content and audience group column named by this sync" } else { "make the sync audience exactly match the table's read rule" };

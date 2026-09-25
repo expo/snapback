@@ -55357,3 +55357,45 @@ File map, negative controls and complete failure history:
 `~/sb4-intent/lane-t-r1-*.log`. No new open review findings or design deviations.
 Sync/devices and the broader guide rewrite remain deferred. Did not push,
 publish or bump package versions.
+
+
+### 2026-09-25 — Lane T round 2: bounded aggregate authorization and due adoption
+
+Addressed both NOT READY delta reviews (`t-r1.astra.md`, `t-r1.grok.md`).
+Value-dependent reads of expiring read-through aggregates now reserve a uniform
+physical-cap-bounded recount allowance before discovering occupancy. Missing,
+occupied and expired physical groups pay the same heap, examined and steps;
+denial restores dependency tables and the next expiry. Unbounded declarations
+refuse with `E_MAINTAIN_READ_BOUND`, including raw-schema validation. Extracted
+live aggregate evaluation from `read.rs` to stay under the source-size limit.
+Extra-equality aggregate `exists` now checks presence before matching a nullable
+value. Activation recaptures a physically present parent's newly due deadline,
+then recomputes every descendant; actually missing parents still refuse.
+
+The shared regressions pass on memory, SQLite and PostgreSQL. They cover all
+reply metadata on SQL adapters, exact native refusals/meters, narrow and wide
+source rows, tight heap/examined/step ceilings, nullable existence operands,
+and the 300-to-150 default change adopted at time 200. A positive membership
+witness rejects an always-false exists probe. The round-1 implementation fails
+five new regression cases; the always-false probe mutation fails separately.
+Temporary mutations were restored. Targeted qualification: 33 read-through
+and 80 guide tests passed; PostgreSQL: 15 passed, isolated cluster stopped.
+Ref-check: 508 LLP docs, 9,284 refs, zero errors and zero unchecked references.
+
+`scripts/test.sh` ran once: **`== 0 failure(s) in 451 s`**, exit 0.
+There were no full-suite failures to classify as ours, baseline or environmental.
+Client tests: 1,557 total, 1,547 passed, 10 skipped, zero failed. Earlier test
+fixture/compiler-positive-control mistakes and new-code guide routing failures
+were ours and fixed; deliberate regression/mutation failures are recorded in
+`reports/20260925-intent-lane-t-round2.md`.
+
+Fresh Rust 1.97.0 / wasm-bindgen 0.2.127 control `7daaa51ae` measured
+1,793,057 raw / 500,855 gzip bytes; final measured 1,797,060 / 502,035:
++4,003 raw / +1,180 gzip. This is a whole-artifact comparison, not component
+attribution. The first build exceeded the old artifact ratchet by 1,035 bytes;
+raise 501,000 to 503,000 with 965 bytes headroom. Runtime ceilings are unchanged.
+LLP 3000.014 §11 records the conservative source-cap proof, uniform reservation
+and activation correction beside the existing physical-child deletion ruling.
+No syntax, cursor/store format, sync/device support, broad guide rewrite,
+unrelated baseline repair, push or publication was added. No requested review
+fix remains open. Full file map, choices and evidence are in the round-2 report.

@@ -74,6 +74,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_MAINTAINED_COLUMN_PRIVATE", &["not even as the system", "Read the parent row or write the source rows instead"]),
     ("E_MAINTAINED_COLUMN_REFERENCE", &["declare a reference if needed, then select it with `likeCount: count likes by .postId`"]),
     ("E_MAINTAINED_COLUMN_RESULT", &["Read the row under its read rule to see the aggregate", "the generated `PostsWrite` type contains the ordinary fields and id"]),
+    ("E_MAINTAIN_READ_BOUND", &["Add `cap 100 by parent`", "choose an audience over the group keys"]),
     ("E_MAINTAIN_READ_RULE", &["state an explicit `read <-` when the aggregate needs its own audience", "Calendar keys and reference paths do not preserve rule fields"]),
     ("E_NATIVE", &["Run `snapback4 check` to build and validate the module", "A native query cannot call a write host function"]),
     ("E_NATIVE_BUILD", &["Fix the Rust source using the generated names and rerun `snapback4 check`", "declare `crate-type = [\"cdylib\"]`"]),

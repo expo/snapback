@@ -55,6 +55,12 @@ rule always wins. Residency is unchanged: sync is inherited only when all
 source audience columns survive as bare keys, without the source horizon;
 otherwise the aggregate stays server-only. `online only` opts out.
 
+E_MAINTAIN_READ_BOUND means a value-dependent rule on an expiring read-through
+aggregate cannot reserve bounded work before authorization. Add `cap 100 by parent`
+to the source when grouping by `.parent`, or use `read <- deny` and choose an
+audience over the group keys. The full recount allowance is reserved for both
+missing and occupied groups before reading either.
+
 A predicate accepts scalar comparisons, and/or/not, boolean literals and bare
 required boolean columns. Equality permits null; ordering requires compatible
 non-optional scalars. It cannot read tables, viewer, now, helpers or arithmetic:

@@ -102,6 +102,25 @@ impl Maintain {
         source.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&self.by))
             .map(|(name, _)| (name.as_str(), group.to_vec())).unwrap_or(("byId", Vec::new()))
     }
+    /// Physical occupancy, including expired contributions, bounds a private recount.
+    pub fn recount_bound(&self, schema: &crate::schema::Schema) -> Option<u32> {
+        let source = schema.table(&self.source)?;
+        if !source.is_expiring() { return Some(0); }
+        let pinned: Vec<_> = self.by.iter().filter(|f| !self.computed.contains_key(*f))
+            .map(|f| self.aliases.get(f).unwrap_or(f).clone()).collect();
+        schema.group_bound(&self.source, &pinned)
+    }
+
+    pub fn read_needs_recount(&self, schema: &crate::schema::Schema) -> bool {
+        let (Some(source), Some(target)) = (schema.table(&self.source), schema.table(&self.target)) else { return false; };
+        source.through.is_some() && self.parent_key.is_none()
+            && crate::engine::rules::deciding_fields(&self.target, target, &target.rules.read).iter().any(|f| !self.group_fields().contains(f))
+    }
+
+    pub fn read_bound_refusal(&self) -> String {
+        format!("{}: value-dependent aggregate authorization needs a physical source cap pinned by the group key; add `cap 100 by {}` to {}, or use `read <- deny` and choose an audience over the group keys", self.target, self.by.join(", "), self.source)
+    }
+
     pub fn validate_keys(&self, source: &Table) -> Result<(), String> {
         for (output,capture) in &self.aliases {
             if !self.by.contains(output) || !source.through.as_ref().is_some_and(|t| t.fields.contains_key(capture)) {

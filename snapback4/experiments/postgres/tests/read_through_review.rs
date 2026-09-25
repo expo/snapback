@@ -14,6 +14,7 @@ impl Backend for Pg {
         self.0.set_ceilings(ceilings);
         if self.0.programs()[op].kind == snapback4_core::ir::ProgramKind::Query {
             let o = self.0.query(op, context).unwrap();
+            assert!(o.complete && !o.unavailable, "{op}: {o:?}");
             (Ok(o.data), o.metered)
         } else {
             let o = self.0.mutate(op, None, context).unwrap();
@@ -25,6 +26,15 @@ impl Backend for Pg {
                 o.metered,
             )
         }
+    }
+    fn query(
+        &mut self,
+        op: &str,
+        context: Context,
+        ceilings: Ceilings,
+    ) -> Option<snapback4_core::engine::QueryOutcome> {
+        self.0.set_ceilings(ceilings);
+        Some(self.0.query(op, context).unwrap())
     }
     fn adopt(&mut self, source: &str, now: i64) {
         let b = cases::bound(source);
@@ -58,3 +68,6 @@ scenario!(expiry_default);
 scenario!(reuse_refusal);
 scenario!(delete_refusal);
 scenario!(probe_meter_equivalence);
+
+scenario!(aggregate_denial_work);
+scenario!(aggregate_denial_dependencies);

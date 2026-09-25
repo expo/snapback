@@ -35,6 +35,7 @@ pub mod runner;
 pub mod validate;
 pub mod write;
 mod maintains;
+mod live_aggregate;
 pub(crate) mod timeline;
 mod timeline_authority;
 mod recorded;

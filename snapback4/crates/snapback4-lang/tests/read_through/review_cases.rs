@@ -8,6 +8,14 @@ pub type Outcome = (Result<Value, Refusal>, Metered);
 pub trait Backend {
     fn run(&mut self, op: &str, context: Context, ceilings: Ceilings) -> Outcome;
     fn adopt(&mut self, source: &str, now: i64);
+    fn query(
+        &mut self,
+        _op: &str,
+        _context: Context,
+        _ceilings: Ceilings,
+    ) -> Option<snapback4_core::engine::QueryOutcome> {
+        None
+    }
 }
 pub fn bound(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
@@ -39,7 +47,8 @@ const MODEL: &str = include_str!("lifetime.q");
 pub fn aggregate_actual_row(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
     for rule in [".value != 1", ".value = 2"] {
         let source = format!(
-            "{MODEL}\nview totals: count children by .parent\n  read <- {rule}\nquery total(p: parents):\n  return totals[p]\n"
+            "{}\nview totals: count children by .parent\n  read <- {rule}\nquery total(p: parents):\n  return totals[p]\n",
+            MODEL.replace("immutable parent", "immutable parent\n  cap 4 by parent")
         );
         let mut e = factory(&source);
         system(
@@ -361,6 +370,43 @@ pub fn probe_meter_equivalence(mut factory: impl FnMut(&str) -> Box<dyn Backend>
         "{}\nview totals: count children by .parent\nquery total(p: parents):\n  return totals[p]\n",
         probe_source()
     );
+    let mut positive = factory(&source);
+    system(&mut *positive, "seat", &[]);
+    system(
+        &mut *positive,
+        "parent",
+        &[
+            ("id", id("p")),
+            ("owner", id("alice")),
+            ("until", Value::Null),
+        ],
+    );
+    run(
+        &mut *positive,
+        "child",
+        "alice",
+        100,
+        &[("id", id("c")), ("parent", id("p")), ("until", Value::Null)],
+    )
+    .0
+    .unwrap();
+    assert_eq!(
+        run(&mut *positive, "total", "alice", 100, &[("p", id("p"))])
+            .0
+            .unwrap(),
+        Value::Int(1),
+        "the exists probe has a positive witness"
+    );
+    let page = run(
+        &mut *positive,
+        "page",
+        "alice",
+        100,
+        &[("id", id("p")), ("c", Value::Null)],
+    )
+    .0
+    .unwrap();
+    assert_eq!(page.as_array().unwrap().len(), 1);
     for op in ["page", "child", "total"] {
         let mut outcomes = Vec::new();
         for hidden in [false, true] {
@@ -392,5 +438,134 @@ pub fn probe_meter_equivalence(mut factory: impl FnMut(&str) -> Box<dyn Backend>
             outcomes[0].1.rule_probes > 0,
             "{op} reserved the exists probe even in the absent world"
         );
+    }
+}
+
+pub fn aggregate_denial_work(factory: impl FnMut(&str) -> Box<dyn Backend>) {
+    aggregate_denial_cases(factory, true);
+}
+pub fn aggregate_denial_dependencies(factory: impl FnMut(&str) -> Box<dyn Backend>) {
+    aggregate_denial_cases(factory, false);
+}
+fn aggregate_denial_cases(mut factory: impl FnMut(&str) -> Box<dyn Backend>, cuts: bool) {
+    // Both logical zero and one are denied. Expired physical rows also leave
+    // a stored aggregate candidate, but must disclose no extra dependency.
+    for wide in [false, true] {
+        let model = MODEL.replace("immutable parent", "immutable parent\n  cap 4 by parent");
+        let model = if wide {
+            model.replace("text <=100", "text <=1000000")
+        } else {
+            model
+        };
+        let source = format!(
+            "{model}\nview totals: count children by .parent\n  read <- .value = 2\nquery total(p: parents):\n  return totals[p]\n"
+        );
+        for ceilings in [
+            Ceilings {
+                heap_bytes: 1000,
+                ..Ceilings::default()
+            },
+            Ceilings {
+                examined: 3,
+                heap_bytes: 256 << 20,
+                ..Ceilings::default()
+            },
+            Ceilings {
+                steps: 3,
+                heap_bytes: 256 << 20,
+                ..Ceilings::default()
+            },
+            Ceilings::default(),
+            Ceilings {
+                heap_bytes: 256 << 20,
+                ..Ceilings::default()
+            },
+        ] {
+            let enough = ceilings.heap_bytes >= (if wide { 256 << 20 } else { 1 << 20 })
+                && ceilings.examined > 3
+                && ceilings.steps > 3;
+            if !cuts && !enough {
+                continue;
+            }
+            let mut native = Vec::new();
+            let mut replies = Vec::new();
+            for world in ["empty", "occupied", "expired"] {
+                let mut e = factory(&source);
+                // Wide declared rows also reserve write scratch; seed under an
+                // ample ceiling, then restore the query's identical ceiling.
+                let seed = Ceilings {
+                    heap_bytes: 512 << 20,
+                    ..Ceilings::default()
+                };
+                e.run(
+                    "parent",
+                    ctx(
+                        snapback4_core::SYSTEM_PRINCIPAL,
+                        100,
+                        &[
+                            ("id", id("p")),
+                            ("owner", id("alice")),
+                            ("until", Value::Null),
+                        ],
+                    ),
+                    seed,
+                )
+                .0
+                .unwrap();
+                if world != "empty" {
+                    e.run(
+                        "child",
+                        ctx(
+                            snapback4_core::SYSTEM_PRINCIPAL,
+                            100,
+                            &[
+                                ("id", id("c")),
+                                ("parent", id("p")),
+                                (
+                                    "until",
+                                    if world == "expired" {
+                                        Value::Int(150)
+                                    } else {
+                                        Value::Null
+                                    },
+                                ),
+                            ],
+                        ),
+                        seed,
+                    )
+                    .0
+                    .unwrap();
+                }
+                let context = ctx("bob", 200, &[("p", id("p"))]);
+                if let Some(mut o) = e.query("total", context.clone(), ceilings) {
+                    assert_eq!(o.data, Value::Null, "{world}");
+                    assert_eq!(o.complete, enough, "{world}: {o:?}");
+                    assert_eq!(o.unavailable, !enough, "{world}: {o:?}");
+                    assert_eq!(
+                        o.tables,
+                        vec!["totals"],
+                        "{world}: denied source cannot escape"
+                    );
+                    assert_eq!(o.next_expiry, None);
+                    assert_eq!(o.capped_at.is_none(), enough);
+                    o.seq = 0; // Deliberately different committed fixture histories.
+                    replies.push(o);
+                } else {
+                    let o = e.run("total", context, ceilings);
+                    if enough {
+                        assert_eq!(o.0, Ok(Value::Null));
+                    } else {
+                        assert_eq!(o.0.as_ref().unwrap_err().code, "E_BOUND");
+                    }
+                    native.push(o);
+                }
+            }
+            for o in &native[1.min(native.len())..] {
+                assert_eq!(o, &native[0]);
+            }
+            for o in &replies[1.min(replies.len())..] {
+                assert_eq!(o, &replies[0]);
+            }
+        }
     }
 }

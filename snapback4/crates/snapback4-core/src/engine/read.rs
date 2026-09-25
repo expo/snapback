@@ -240,62 +240,6 @@ impl Runner<'_> {
         Ok(crate::key::decode(stored).map(|values| values.into_iter().skip(prefix).collect()))
     }
 
-    /// A maintain over expiring source rows is a live fact before the
-    /// physical sweep catches up. Recompute only that fact's group, with
-    /// the usual runtime meter and device coverage rules.
-    pub(crate) fn live_aggregate(&mut self, table_name: &str, row: Value) -> Result<Option<Value>, RuntimeError> {
-        let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
-        let source = self.schema.table(&maintain.source).ok_or_else(|| RuntimeError::Schema("missing maintain source".into()))?;
-        if !source.is_expiring() { return Ok(Some(row)); }
-        let bytes = super::write_target::row_copy_ceiling(source).saturating_mul(32)
-            .saturating_add(super::write_target::row_copy_ceiling(&self.schema.tables[table_name]).saturating_mul(16));
-        self.maintain_scratch(bytes, |runner| runner.live_aggregate_inner(&maintain, row))
-    }
-
-    fn live_aggregate_inner(&mut self, maintain: &crate::schema::Maintain, row: Value) -> Result<Option<Value>, RuntimeError> {
-        let source = &self.schema.tables[&maintain.source];
-        self.read_tables.insert(maintain.source.clone());
-        let group = crate::schema::maintained_key(&row, &maintain.by);
-        let (index, prefix) = maintain.source_scan(source, &group);
-        if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) {
-            self.unknown_fact(&maintain.source, index, &prefix, "live aggregate");
-        }
-        let mut bounds = Bounds::default();
-        let mut total = 0_i128;
-        let mut any = false;
-        'sources: loop {
-            let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 32)?;
-            let count = rows.len();
-            for (mut candidate, key) in rows {
-                materialize_optional_fields(&mut candidate, source);
-                if !self.read_charge(MeterKind::Examined, 1)? { break 'sources; }
-                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
-                if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
-                if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
-                let prior = std::mem::replace(&mut self.beyond_horizon, false);
-                let allowed = self.provisional_readable(&maintain.source, &candidate);
-                let unknown = self.beyond_horizon;
-                self.beyond_horizon |= prior;
-                if !allowed? {
-                    if unknown { return Ok(None); }
-                    continue;
-                }
-                any = true;
-                self.note_expiry(source, &candidate);
-                total += match &maintain.kind { crate::schema::MaintainKind::Count => 1, crate::schema::MaintainKind::Sum { of } => i128::from(candidate.field(of)?.as_int()?) };
-            }
-            if count < 32 { break; }
-        }
-        self.meter.require_uncapped()?;
-        if !any { return Ok(None); }
-        if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {
-            return Err(super::maintains::aggregate_overflow(&maintain));
-        }
-        let mut fields = row.as_object()?.clone();
-        fields.insert("value".into(), Value::Int(total as i64));
-        Ok(Some(Value::Row(fields.into())))
-    }
-
     /// Whether a row is past its table's `expire` column at this run's
     /// clock. Expired is absent: to every reader, on every host, before
     /// any rule (the sweep makes it physical). The system sees no more
@@ -304,7 +248,7 @@ impl Runner<'_> {
         self.context.now.is_some_and(|now| table.expired(row, now))
     }
 
-    fn note_expiry(&mut self, table: &Table, row: &Value) {
+    pub(super) fn note_expiry(&mut self, table: &Table, row: &Value) {
         if let Some(column) = table.expiry_column()
             && let Ok(Value::Int(at)) = row.field(column)
             && self.context.now.is_some_and(|now| *at > now)
@@ -425,27 +369,27 @@ impl Runner<'_> {
         if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
         // Hidden and absent cost one examined row and the same static probe
         // allowance, including probes that a rule would short-circuit.
+        let actual_aggregate = inherited.is_some() && !inherited_admitted;
+        let recount = if actual_aggregate { Some(self.reserve_aggregate_read(inherited.unwrap(), &key)?) } else { None };
         let mark = self.meter.mark();
         let expiry_mark = self.next_expiry;
+        let tables_mark = self.read_tables.clone();
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
         // An expiring lookup already charged its live candidate while
         // passing expired siblings. A miss still costs one point read.
-        if (!table.is_expiring() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
+        if !actual_aggregate && (!table.is_expiring() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
-        let actual_aggregate = inherited.is_some() && !inherited_admitted;
         let mut group_exists = found.is_some();
         let mut row = if actual_aggregate {
             // A value-dependent rule sees the live aggregate, including its
             // logical zero on a missing group, never a null value or stale total.
-            let live = found.map(|row| self.live_aggregate(&read.table, row)).transpose()?.flatten();
+            let live = found.map(|row| self.prepaid_aggregate(inherited.unwrap(), row, recount.unwrap())).transpose()?.flatten();
             group_exists = live.is_some();
             match live {
                 Some(row) => row,
                 None => {
-                    // Own the zero image, copied group key and JSON id only
-                    // after reserving their schema/key-bounded allocation.
-                    self.meter.heap(super::write_target::row_copy_ceiling(table).saturating_add(key.iter().map(Value::clone_heap_bytes).fold(0_u64, u64::saturating_add).saturating_mul(8)))?;
+                    // The same reservation owns a live row or a logical zero.
                     let mut fields: std::collections::BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
                     let m = inherited.expect("inherited aggregate");
                     if !m.by.iter().all(|field| fields.contains_key(field)) { return Ok(crate::value::object([("value", Value::Null)])); }
@@ -480,9 +424,10 @@ impl Runner<'_> {
             Ok(super::recorded::public_image(table, value))
         } else {
             self.next_expiry = expiry_mark;
+            self.read_tables = tables_mark;
             if !provisional {
                 self.meter.restore(mark);
-                self.read_charge(MeterKind::Examined, 1)?;
+                if !actual_aggregate { self.read_charge(MeterKind::Examined, 1)?; }
             }
             Ok(if inherited.is_some() { crate::value::object([("value", Value::Null)]) } else { Value::Null })
         }
