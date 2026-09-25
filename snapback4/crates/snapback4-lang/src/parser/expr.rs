@@ -251,7 +251,7 @@ impl Parser {
                 let (name, name_site) = call_name(&value).expect("a helper name");
                 let site = self.take("(")?.site;
                 if name == "count" && self.at("*") {
-                    return Err(unsupported(&name_site, "count(*)", "count(rows) — pass the read, for example count(messages where .roomId = roomId)").guide("from-sql"));
+                    return Err(unsupported(&name_site, "count(*)", self.count_star_rewrite()).guide("from-sql"));
                 }
                 let mut args = Vec::new();
                 while !self.at(")") {
@@ -291,7 +291,8 @@ impl Parser {
                 value = Expr::Assert { value: Box::new(value), code, site: assertion };
             } else if self.at("{") {
                 let site = self.take("{")?.site;
-                let fields = self.parse_shape_fields()?;
+                let table = expression_table(&value).map(str::to_owned).unwrap_or_default();
+                let fields = self.with_focal(&table, |parser| parser.parse_shape_fields())?;
                 self.take("}")?;
                 value = Expr::Shape { base: Box::new(value), fields, site };
             } else if self.at_kind(Kind::Word) && !stops.contains(&"<probe-shape>") && precedence(&self.peek().value).is_none() && !stops.contains(&self.peek().value.as_str()) && !matches!(self.peek().value.as_str(), "else" | "for" | "in" | "if" | "absent") {
@@ -366,8 +367,7 @@ impl Parser {
             seen.insert(rank);
             match key.value.as_str() {
                 "where" => {
-                    let predicate = self.expression(0, &predicate_stops)?;
-                    refuse_self_equality(&predicate, &read.table)?;
+                    let predicate = self.filtered_predicate(&read.table, &predicate_stops, false)?;
                     read.filter = Some(Box::new(match read.filter.take() {
                         Some(previous) => Expr::Binary { op: "and".into(), left: previous, right: Box::new(predicate), site: key.site },
                         None => predicate,
@@ -448,8 +448,7 @@ impl Parser {
         self.take("by")?;
         let index = self.word()?.value;
         let filter = if self.maybe("where") {
-            let predicate = self.expression(0, &[":"])?;
-            refuse_self_equality(&predicate, &table)?;
+            let predicate = self.filtered_predicate(&table, &[":"], false)?;
             Some(Box::new(predicate))
         } else { None };
         self.take(":")?;
@@ -492,6 +491,9 @@ impl Parser {
     }
 
     pub(super) fn parse_shape_fields(&mut self) -> Fallible<Vec<ShapeField>> {
+        if self.focal_table.is_none() {
+            return self.with_focal("", |parser| parser.parse_shape_fields());
+        }
         let mut fields = Vec::new();
         while !self.at("}") {
             let field_site = self.peek().site.clone();
@@ -600,36 +602,11 @@ fn call_name(value: &Expr) -> Option<(String, Site)> {
     }
 }
 
-// @ref LLP 3000.013#2.1 — a predicate's focal row is its own scan candidate.
-// Do not descend into reads or shapes: each establishes its own focal scope.
-pub(super) fn refuse_self_equality(value: &Expr, table: &str) -> Fallible<()> {
+fn expression_table(value: &Expr) -> Option<&str> {
     match value {
-        Expr::Binary { op, left, right, site } => {
-            if op == "="
-                && let (Expr::Member { base: a, name: x, .. }, Expr::Member { base: b, name: y, .. }) = (left.as_ref(), right.as_ref())
-                && x == y && matches!(a.as_ref(), Expr::Focal { .. }) && matches!(b.as_ref(), Expr::Focal { .. }) {
-                return Err(Diagnostic::new(site, "E_QUARRY_SELF_EQUALITY",
-                    format!(".{x} = .{x} compares the filtered {table} row with itself; it does not bind the enclosing row"),
-                    format!("{table}[{x} = .{x}] — the named key binds the enclosing row; without an enclosing row, pass {x} as an argument and use {table} where .{x} = {x}"))
-                    .guide("shapes"));
-            }
-            refuse_self_equality(left, table)?;
-            refuse_self_equality(right, table)
-        }
-        Expr::Unary { value, .. } | Expr::Assert { value, .. } | Expr::Member { base: value, .. } => refuse_self_equality(value, table),
-        Expr::Object { fields, .. } => {
-            for field in fields { if let Some(value) = &field.value { refuse_self_equality(value, table)?; } }
-            Ok(())
-        }
-        Expr::Call { args, .. } | Expr::Array { items: args, .. } => {
-            for value in args { refuse_self_equality(value, table)?; }
-            Ok(())
-        }
-        Expr::If { then, condition, otherwise, .. } => {
-            refuse_self_equality(condition, table)?;
-            refuse_self_equality(then, table)?;
-            refuse_self_equality(otherwise, table)
-        }
-        _ => Ok(()),
+        Expr::Name { name, .. } => Some(name),
+        Expr::Read(read) => Some(&read.table),
+        Expr::Shape { base, .. } | Expr::ShapeUse { base, .. } | Expr::Assert { value: base, .. } => expression_table(base),
+        _ => None,
     }
 }

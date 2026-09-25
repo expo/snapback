@@ -112,7 +112,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
-    ("E_QUARRY_SELF_EQUALITY", "E_QUARRY_SELF_EQUALITY refuses a `where` equality comparing the filtered row with itself"),
+    ("E_QUARRY_SELF_EQUALITY", "E_QUARRY_SELF_EQUALITY refuses comparisons of a filtered row column with itself"),
     ("E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name"),
     ("E_QUARRY_SPREAD", "E_QUARRY_SPREAD refuses nullable operands and values without statically known fields"),
     ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses joining different row kinds"),

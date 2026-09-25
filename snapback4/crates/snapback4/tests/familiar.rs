@@ -51,6 +51,44 @@ fn len_retains_its_mechanical_check_fix() {
     assert_eq!(fs::read_to_string(path).unwrap(), "query size(x: text):\n  return count(x)\n");
 }
 
+#[test]
+fn round_one_diagnostic_rewrites_paste_through_check() {
+    let directory = Directory::new();
+    fs::create_dir(directory.path().join("snapback")).unwrap();
+    let path = directory.path().join("snapback/schema.q");
+    let model = "table members:\n  conversation: id\n  active: bool\n  public\n";
+    let check = |source: &str| -> Value {
+        fs::write(&path, source).unwrap();
+        let result = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--json"]).current_dir(directory.path()).output().unwrap();
+        serde_json::from_slice(&result.stdout).unwrap()
+    };
+    for op in ["=", "!=", "<", "<=", ">", ">=", "in"] {
+        let predicate = if op == "in" { ".conversation in [.conversation]".into() } else { format!(".conversation {op} .conversation") };
+        let original = format!("{model}query q(conversation: id, c: cursor ?):\n  return members where {predicate} first 20 after c\n");
+        let output = check(&original);
+        assert_eq!(output["ok"], false, "{output}");
+        let d = output["problems"].as_array().unwrap().iter().find(|d| d["code"] == "E_QUARRY_SELF_EQUALITY").unwrap();
+        let repaired = original.replace(&format!("where {predicate}"), d["rewrite"].as_str().unwrap());
+        let output = check(&repaired);
+        assert_eq!(output["ok"], true, "{output}");
+    }
+    for (declaration, code, entire) in [
+        ("query q():\n  return count(*)\n", "E_QUARRY_UNSUPPORTED", false),
+        ("query q(c: cursor ?):\n  return members where .active = .active first 20 after c\n", "E_QUARRY_SELF_EQUALITY", true),
+        ("view counts: count members where .conversation = .conversation by .conversation\n", "E_QUARRY_SELF_EQUALITY", true),
+        ("query q(c: cursor ?):\n  return members where exists members[active = (.conversation = .conversation)] first 20 after c\n", "E_QUARRY_SELF_EQUALITY", true),
+    ] {
+        let original = format!("{model}{declaration}");
+        let output = check(&original);
+        assert_eq!(output["ok"], false, "{output}");
+        let d = output["problems"].as_array().unwrap().iter().find(|d| d["code"] == code).unwrap();
+        let rewrite = d["rewrite"].as_str().unwrap();
+        let repaired = if entire { format!("{model}{rewrite}") } else { original.replace("count(*)", rewrite) };
+        let output = check(&repaired);
+        assert_eq!(output["ok"], true, "{output}");
+    }
+}
+
 struct Directory(std::path::PathBuf);
 impl Directory {
     fn new() -> Self {

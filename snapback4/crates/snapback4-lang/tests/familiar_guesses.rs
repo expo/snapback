@@ -69,9 +69,9 @@ fn nested_roster_binds_the_enclosing_conversation_and_repeated_where_is_and() {
 #[test]
 fn self_equalities_are_refused_in_predicate_scopes_only() {
     for predicate in [".conversation = .conversation", "true and (.conversation = .conversation)", "not (.conversation = .conversation)", "({ same: .conversation = .conversation }).same"] {
-        diagnostic(&format!("query bad(c: cursor ?):\n  return members first 20 after c where {predicate}\n"), "E_QUARRY_SELF_EQUALITY", "members[conversation = .conversation]");
+        diagnostic(&format!("query bad(c: cursor ?):\n  return members first 20 after c where {predicate}\n"), "E_QUARRY_SELF_EQUALITY", ".conversation = conversation");
     }
-    diagnostic("view tautology:\n  members where .conversation = .conversation { conversation }\n", "E_QUARRY_SELF_EQUALITY", "members[conversation = .conversation]");
+    diagnostic("view tautology:\n  members where .conversation = .conversation { conversation }\n", "E_QUARRY_SELF_EQUALITY", "where true");
     clean("query explicit(chat: id, c: cursor ?):\n  return members where .conversation = chat first 20 after c\nquery ordinary(x: int):\n  return x = x\n");
 }
 #[test]
@@ -97,7 +97,7 @@ fn foreign_spellings_are_refused_and_canonical_repairs_compile() {
     for (source, repair) in [
         ("query bad(x: text):\n  return len(x)\n", "count(x)"),
         ("query bad(x: text):\n  return x.length\n", "count(x)"),
-        ("query bad():\n  return count(*)\n", "count(rows)"),
+        ("query bad():\n  return count(*)\n", "count(members)"),
         ("query bad(c: cursor ?):\n  return members where .principal = viewer limit 20\n", "first 20"),
         ("aggregate totals: count members by .conversation\n", "view totals: count members by .conversation"),
     ] { diagnostic(source, "E_QUARRY_UNSUPPORTED", repair); }

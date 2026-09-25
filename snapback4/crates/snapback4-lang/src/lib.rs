@@ -28,6 +28,23 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
         diagnostics.append(&mut parsed);
         documents.push(document);
     }
+    // Refusals still block binding. On these malformed forms only, complete
+    // their repairs with column types/table names from the whole project,
+    // including files and declarations that follow the offending operation.
+    let repair_files: std::collections::BTreeSet<_> = diagnostics.iter().filter(|d|
+        d.code == "E_QUARRY_SELF_EQUALITY" || (d.code == "E_QUARRY_UNSUPPORTED" && d.message.starts_with("count(*)")))
+        .map(|d| d.site.file.clone()).collect();
+    if !repair_files.is_empty() {
+        let tables: Vec<_> = documents.iter().flat_map(|doc| doc.tables.iter().cloned()).collect();
+        diagnostics.retain(|d| !repair_files.contains(&d.site.file));
+        for ((file, source), document) in sources.iter().zip(&mut documents) {
+            if repair_files.contains(file) {
+                let (repaired, mut parsed) = parser::parse_with_tables(file, source, tables.clone());
+                *document = repaired;
+                diagnostics.append(&mut parsed);
+            }
+        }
+    }
     if !diagnostics.is_empty() {
         return Bound { view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
     }

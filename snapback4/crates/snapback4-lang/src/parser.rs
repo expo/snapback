@@ -8,6 +8,7 @@ use crate::lexer::{Kind, Token, lex};
 use crate::print;
 
 mod expr;
+mod predicates;
 mod views;
 mod maintains;
 mod timeline;
@@ -29,9 +30,13 @@ pub(crate) fn precedence(op: &str) -> Option<u8> {
 }
 
 pub fn parse_document(file: &str, source: &str) -> (Document, Vec<Diagnostic>) {
+    parse_with_tables(file, source, Vec::new())
+}
+
+pub(crate) fn parse_with_tables(file: &str, source: &str, known_tables: Vec<TableDecl>) -> (Document, Vec<Diagnostic>) {
     let (tokens, diagnostics) = lex(file, source);
     let source = source.replace("\r\n", "\n").replace('\r', "\n").split('\n').map(str::to_owned).collect();
-    let mut parser = Parser { source, tokens, position: 0, diagnostics, document: Document { file: file.to_owned(), ..Document::default() } };
+    let mut parser = Parser { source, tokens, position: 0, diagnostics, focal_table: None, repair_args: None, known_tables, document: Document { file: file.to_owned(), ..Document::default() } };
     parser.document();
     (parser.document, parser.diagnostics)
 }
@@ -42,6 +47,9 @@ struct Parser {
     position: usize,
     diagnostics: Vec<Diagnostic>,
     document: Document,
+    focal_table: Option<String>,
+    known_tables: Vec<TableDecl>,
+    repair_args: Option<(Site, Vec<ArgDecl>)>,
 }
 
 const TOP_LEVEL: [&str; 19] = ["view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
@@ -62,6 +70,8 @@ impl Parser {
     }
 
     fn top_level(&mut self) -> Fallible<()> {
+        self.focal_table = None;
+        self.repair_args = None;
         let token = self.peek().clone();
         match token.value.as_str() {
             "action" => self.parse_action(),
@@ -413,7 +423,7 @@ impl Parser {
             let sum = self.word()?.value == "sum";
             let source = self.word()?.value;
             let of = if sum { self.take("of")?; self.maybe("."); Some(self.word()?.value) } else { None };
-            let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
+            let filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
             let by = if self.maybe("by") { self.maybe("."); self.word()?.value } else { String::new() };
             self.newline()?;
             return Ok(ColumnDecl { maintained: Some(ColumnAggregate { source, of, filter, by }),
@@ -514,7 +524,7 @@ impl Parser {
             self.maybe(".");
             column = Some(self.word()?.value);
         }
-        let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
+        let filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
         self.take("by")?;
         let mut keys = Vec::new();
         loop {
@@ -682,7 +692,9 @@ impl Parser {
         if self.at("from") {
             return Err(unsupported(&self.peek().site.clone(), "imports", format!("every .q file beside schema.q shares one namespace: declare `fn {name}` once, in any file, and use it anywhere")));
         }
+        let args_site = self.peek().site.clone();
         let args = self.parse_args()?;
+        self.repair_args = Some((args_site, args.clone()));
         self.take(":")?;
         let body = if self.at_kind(Kind::Newline) {
             self.newline()?;

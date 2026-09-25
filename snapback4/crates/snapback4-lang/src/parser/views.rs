@@ -14,8 +14,7 @@ impl Parser {
         if !self.at_kind(Kind::Newline) {
             let source = self.word()?.value;
             self.take("where")?;
-            let predicate = self.expression(0, &["<newline>"])?;
-            super::expr::refuse_self_equality(&predicate, &source)?;
+            let predicate = self.filtered_predicate(&source, &["<newline>"], false)?;
             self.newline()?;
             self.document.feed_views.push(FeedView { name, source, predicate, site });
             return Ok(());
@@ -28,12 +27,11 @@ impl Parser {
             if self.at_kind(Kind::Dedent) { break; }
             let source = self.word()?;
             let predicate = if self.maybe("where") {
-                let predicate = self.expression(0, &["{"])?;
-                super::expr::refuse_self_equality(&predicate, &source.value)?;
+                let predicate = self.filtered_predicate(&source.value, &["{"], false)?;
                 Some(predicate)
             } else { None };
             self.take("{")?;
-            let fields = self.parse_shape_fields()?;
+            let fields = self.with_focal(&source.value, |parser| parser.parse_shape_fields())?;
             self.take("}")?;
             self.newline()?;
             branches.push(ViewBranch { source: source.value, predicate, fields, site: source.site });

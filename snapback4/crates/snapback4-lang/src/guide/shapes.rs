@@ -16,7 +16,7 @@ Inside each `where`, `.` denotes that read's own row.
 
 ## Limits
 
-- A predicate cannot bind the outer row with `.roomId = .roomId`: E_QUARRY_SELF_EQUALITY.
+- Comparing a filtered row column with itself, including `>=` or `in [.roomId]`, is refused: E_QUARRY_SELF_EQUALITY.
 - Spread a present row or object with known fields: E_QUARRY_SPREAD.
 - Write each explicit field once: E_QUARRY_DUPLICATE_FIELD.
 - Values joined by branches must have compatible row kinds: E_QUARRY_SHAPE_JOIN.
