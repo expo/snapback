@@ -36,17 +36,18 @@ async function backend(t) {
   assert.fail(log);
 }
 
-test("native process devices bridge an inbox fetch and clear it offline and on account switch", { timeout: 45_000 }, async t => {
+test("native process devices withdraw an expired inbox during fallback, offline and on account switch", { timeout: 45_000 }, async t => {
   const { url, dir } = await backend(t);
   let serial = 0;
   const result = await exercise({ url, createApp, memorySessionStore,
     deviceFactory: () => processDevice({ dir: join(dir, `device-${serial++}`), binary }) });
-  assert.equal(result.keptUnread, 3);
+  assert.equal(result.initialUnread, 3);
+  assert.equal(result.expiryCleared, true);
   assert.equal(result.serverFallback, true);
   assert.equal(result.accountCleared, true);
 });
 
-test("web IndexedDB device bridges the two-device inbox fetch in useQuery and usePage", { timeout: 60_000 }, async t => {
+test("web IndexedDB device withdraws expired inbox data in useQuery and usePage", { timeout: 60_000 }, async t => {
   let executablePath;
   try { executablePath = chromiumExecutable(); }
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
@@ -97,7 +98,8 @@ test("web IndexedDB device bridges the two-device inbox fetch in useQuery and us
     await page.goto(server.resolvedUrls.local[0]);
     await page.waitForFunction(() => typeof window.run === "function");
     const result = await page.evaluate(() => window.run());
-    assert.equal(result.keptUnread, 3);
+    assert.equal(result.initialUnread, 3);
+    assert.equal(result.expiryCleared, true);
     assert.equal(result.accountCleared, true);
     assert.deepEqual(errors, []);
   } finally {
