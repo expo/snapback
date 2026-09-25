@@ -40,6 +40,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
     ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
     ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
+    // Source slots alter negative coverage, prediction and application row projection.
+    ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
 ];
 
 impl Schema {
