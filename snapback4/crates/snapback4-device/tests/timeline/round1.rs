@@ -82,7 +82,7 @@ fn foreign_reads<H: Host>(mut h: H) where H::Store: Images {
 fn retained<H: Host>(mut h: H) where H::Store: Images {
     for (table,op,args,empty) in [
         ("feedRemovedEvents","publish",json!({"postId":"removed"}),false),
-        ("feedPosts","repost",json!({"postId":"original"}),false),
+        ("posts","repost",json!({"postId":"original"}),false),
     ] {
         let (mut e,mut b)=server();
         if table=="feedRemovedEvents" {

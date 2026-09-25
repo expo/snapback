@@ -36,14 +36,16 @@ fn acquire<S: DeviceStore>(d: &mut Device<S>, e: &mut Engine, who: &str) {
 fn slot(row: &Value, name: &str, repost: bool) -> Value {
     row.field(&format!("$timeline:{name}:{}", if repost { "repost" } else { "post" })).unwrap().clone()
 }
-fn agree(e: &Engine) {
-    for t in &e.schema().timelines {
-        let events = e.store().rows(&t.table("Posts")).unwrap();
+fn agree(e: &mut Engine) {
+    for t in e.schema().timelines.clone() {
+        let definition = e.schema().tables[&t.table("Posts")].indexes["byActorPost"].clone();
         for repost in [false, true] {
             for row in e.store().rows(t.source(repost)).unwrap() {
                 let actor = row.field(if repost { &t.reposts[1] } else { &t.posts[1] }).unwrap();
                 let post = row.field(if repost { &t.reposts[2] } else { "id" }).unwrap();
-                let event = events.iter().find(|event| event.field("actorId").unwrap() == actor && event.field("postId").unwrap() == post && event.field("repost").unwrap() == &Value::Bool(repost));
+                let tx = e.store_mut().read_transaction().unwrap();
+                let event = tx.lookup(&t.table("Posts"), "byActorPost", &definition, &[actor.clone(), post.clone(), Value::Bool(repost)]).unwrap();
+                tx.rollback().unwrap();
                 let expected = if repost { event.map(|event| event.field("id").unwrap().clone()).unwrap_or(Value::Null) } else { Value::Bool(event.is_some()) };
                 assert_eq!(slot(&row, &t.name, repost), expected, "{row:?}");
             }
@@ -60,7 +62,7 @@ fn residency<H: Host>(mut host: H) {
             let (mut e, backend) = common::compile(&source(posts, reposts));
             for i in 0..4 { post(&mut e, &format!("p{i}"), i); }
             write(&mut e, "plainRepost", "bob", &[("repostId", id("r")), ("postId", id("p3"))], 8);
-            agree(&e);
+            agree(&mut e);
             let name = format!("{pi}-{ri}");
             let mut d = host.open(&name, Some(backend.clone())).unwrap();
             acquire(&mut d, &mut e, "bob");
@@ -101,7 +103,7 @@ fn transitions<H: Host>(mut host: H) {
     assert!(d.store().raw_rows("feedPosts").is_empty());
     write(&mut e, "unrepost", "alice", &[("postId", id("live"))], 10);
     write(&mut e, "remove", "alice", &[("postId", id("remove"))], 11);
-    agree(&e);
+    agree(&mut e);
 }
 
 fn activation<H: Host>(mut host: H) {
@@ -124,8 +126,13 @@ fn activation<H: Host>(mut host: H) {
     let mut only_repost = next.clone();
     only_repost.tables.get_mut("posts").unwrap().columns.remove("$timeline:feed:post");
     assert!(!snapback4_core::successor::keeps_literal_default_images(&legacy, &only_repost));
+    let before = e.seq().unwrap();
+    let steps = e.store_mut().successor(&next).unwrap();
+    assert!(steps.iter().all(|s| s.change != snapback4_core::successor::Change::Narrowing), "{steps:?}");
+    assert!(e.store().rows("posts").unwrap().iter().all(|r| r.field("$timeline:feed:post").is_err()), "read-only check never fills slots");
     let generation = e.adopt(next.clone(), programs.clone()).unwrap();
-    agree(&e);
+    assert_eq!(e.seq().unwrap(), before, "activation has no partition-log writes");
+    agree(&mut e);
     d.adopt(Backend { generation, schema: next, programs }).unwrap();
     assert!(d.store().raw_rows("posts").is_empty());
     let pages = snapshot_pages(&mut e, "alice", 1);

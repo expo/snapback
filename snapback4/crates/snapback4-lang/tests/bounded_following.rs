@@ -86,6 +86,9 @@ fn public_follows_admit_each_residency_and_slots_are_hidden_engine_columns() {
         assert_eq!(bound.schema.tables["posts"].columns["$timeline:feed:post"], ColumnType::Bool);
         assert_eq!(bound.schema.tables["reposts"].columns["$timeline:feed:repost"], ColumnType::Optional(Box::new(ColumnType::Id)));
         assert!(!bound.schema.tables["posts"].defaults.contains_key("$timeline:feed:post"));
+        for output in [snapback4_lang::emit::typescript(&bound), snapback4_lang::emit::rust(&bound)] {
+            assert!(!output.contains("$timeline:feed:post") && !output.contains("$timeline:feed:repost"), "application row types cannot name slots");
+        }
     }
 }
 
