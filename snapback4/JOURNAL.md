@@ -56261,3 +56261,45 @@ browser acquisition result, unmet 5× target and unclaimed packed-format
 measurement remain explicit inherited limits. File changes, each rule's tests,
 all publication paths, decisions, failure classifications, reproduction and
 compressed evidence are in the [round-4 report](reports/20260925-bounded-following-r4/REPORT.md).
+
+
+## 2026-09-25 — Lane U round 5: preserve incomplete read fences and offline answers
+
+Addressed both round-4 delta reviews and the supervisor's five-rule refinements
+on `sb4-intent/u-bounded-following`. A Quarry read narrows its possible tables
+only when known and complete; scalar/heap cuts retain static plus executed
+reads. Native and unexecuted queries remain opaque. Restored client-lifetime
+server-answer memory for unknown placeholders, behind session/incarnation,
+local-commit and prediction fences. Null, empty and scalar placeholders no
+longer become data. Held row values stay partial; local freshness is calculated
+at publication with the current link and sync timestamp. Composed authoritative
+refusals and loading survive the final fence; transport failure keeps the local
+fallback. Engine-withheld Following never recovers a remembered page.
+
+Added actual wasm/native `count(events)` over 8,193 fully synced rows before a
+shaped feed with a pending own post, failed-fallback profile/feed freshness,
+and oversized composed-output E_BOUND regressions. Added placeholder memory,
+late memory/session races, cache retirement and composed refusal/loading
+matrices. Four mutations are rejected, including narrowing loading outcomes
+and forcing final local freshness true. Restored audit/presence offline
+expectations; kept raw authorization oracles for held/retained empty reads
+through reopen and replay. The client reference states the refined procedure.
+
+Final qualification: `taskset -c 0-15 env SNAPBACK4_RUST_TEST_PROCESSES=8 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 631 s`, exit 0: 1,581 main
+client passes, ten existing skips, all 34 shard passes, all 78 model passes,
+and the complete Rust/build/docs/package/app checks. Both session models
+completed all 5,000 sequences and thirteen invariants. The first full run was
+`== 1 failure(s) in 615 s`: four placeholder-expectation failures, all ours,
+corrected with raw-device disclosure assertions preserved. Their focused
+rerun passed four of four. Earlier focused expectation/fixture failures and
+all intentional mutation failures are enumerated in the report. No baseline
+or environmental waiver, disabled test, timeout increase or raised ceiling.
+Wasm remains 1,776,325 bytes raw / 495,299 gzip. Source remains under 1,500 lines.
+
+No new syntax/diagnostic, engine or storage change, acquisition measurement,
+package publication or push. Prior full-event inventory and browser result
+remain 2.387×, below the original 5× target; packed-format measurement is still
+unclaimed. The [round-5 report](reports/20260925-bounded-following-r5/REPORT.md)
+records each rule and publishing path, file-by-file changes, engineering
+choices, every failure, mutation harness, prior inventory and compressed logs.
