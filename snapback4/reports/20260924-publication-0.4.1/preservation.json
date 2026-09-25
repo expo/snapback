@@ -1,0 +1,187 @@
+{
+  "reportFiles": [
+    {
+      "path": "attempt-1/simulator-shutdown.json",
+      "sha256": "090d1fd49b44b32f345dbc66f1991640d007b27dc5453cda8bef1671c200a235"
+    },
+    {
+      "path": "attempt-1/native-witness.log",
+      "sha256": "886dc5359452665a34aadfa3e2fc4e20666b7c1e4d4e0ed35b4b4d9d96013084"
+    },
+    {
+      "path": "attempt-1/bun-install-after-bump.log",
+      "sha256": "647ada0df44216b679fed2318666dad9f6d22a8f99f0bf3f7767d4643a34d2b9"
+    },
+    {
+      "path": "attempt-1/xcframework-build.json",
+      "sha256": "c5b1c2f40679421bce04c6e9f55b5fb9d11da48e4724bffaebd12a8b0e5f8464"
+    },
+    {
+      "path": "attempt-1/source.json",
+      "sha256": "8a4e97e4afacc7961b6d9cb1ba3db76c222012e0c55de53a9c969a9216291875"
+    },
+    {
+      "path": "attempt-1/simulator-boot.json",
+      "sha256": "8c8d3ac8b94f0d26f8567e20b0989941441154158e0c31fd633dad60a935ded1"
+    },
+    {
+      "path": "attempt-1/failure-summary.json",
+      "sha256": "1e244d90e4c3c9526f5c40d3386d2914fd7964dc477e43bc6c8dfe687f6c2e8a"
+    },
+    {
+      "path": "attempt-1/npm-identity.log",
+      "sha256": "62e3daf9f0d8cd89b3555d1953c593174c4965a298b71061ad8240fbb060be65"
+    },
+    {
+      "path": "attempt-1/REPORT.md",
+      "sha256": "2fb8f972e18b830f299fe7c0092dee986cc99a2621d64871fda6eafa0f38e5fc"
+    },
+    {
+      "path": "attempt-1/wasm-build.log",
+      "sha256": "1b3ef270cd810ceec4bd86a24af965e9cd1c96d81a240485f8d50c719b74fb22"
+    },
+    {
+      "path": "attempt-1/bun-install-after-bump.json",
+      "sha256": "057c3c9992ccabfcc6cd052db8660f0406a4a136cf664bff52e280b368f0cd12"
+    },
+    {
+      "path": "attempt-1/wasm-build.json",
+      "sha256": "4e0c82659925f395461f83072cfa18e544e4bda91f7041c8981d164c35958ab3"
+    },
+    {
+      "path": "attempt-1/expo-release-build.json",
+      "sha256": "a29cf0b25fc4ae0dc149d6cd4de575571c0a30895e651ad4f316e2bde0bf4b06"
+    },
+    {
+      "path": "attempt-1/version-commit.log",
+      "sha256": "71352b6856af0e48b1fff61d3e58ed5ac734d40bed0d4cd7390e9c3df1c9c39c"
+    },
+    {
+      "path": "attempt-1/simulator-shutdown.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-1/native-link-verification.json",
+      "sha256": "fff1e6bfc4af9884b39e96b28ea6be3499910630620d5a7b46e1af8f56d8c2c7"
+    },
+    {
+      "path": "attempt-1/client-package-build.log",
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+    },
+    {
+      "path": "attempt-1/client-package-build.json",
+      "sha256": "6c2271bfd318a82fadd7ae4e9636fdf3a642eda6171ae28b4f1c465d3b58a637"
+    },
+    {
+      "path": "attempt-1/chat-backend-check.json",
+      "sha256": "0973bd7d3e2467db87203d0e482c6f582c5f96b9ecf6a5f590a472a1f366fd98"
+    },
+    {
+      "path": "attempt-1/publication-dry-run.log",
+      "sha256": "307b205516ee5e5857e4dbb47f25028061473d33015559775003a9caf10a7e35"
+    },
+    {
+      "path": "attempt-1/xcframework-build.log",
+      "sha256": "b20a2294ddc2b71df048ebdcdd42101a37dfadf704026052da6b7c35246d2813"
+    },
+    {
+      "path": "attempt-1/cargo-build.log",
+      "sha256": "959c9e20decf6bbc95ffd7ef4ae4dc98919e987a63d863bedaf20bbc107b30dd"
+    },
+    {
+      "path": "attempt-1/version-commit.json",
+      "sha256": "7c3b57fd74b226e1726f228cc1a8d73330b114da0ee21f0bc9a1509001b5718d"
+    },
+    {
+      "path": "attempt-1/publication-dry-run.json",
+      "sha256": "472c741925204550b0874e4742c492881c4d23a2f9e87dc44c1339e9d5322dfc"
+    },
+    {
+      "path": "attempt-1/simulator-create.log",
+      "sha256": "ab68705cdac3bedb90d08bb8b13c998727cc16f3f760766a24fd877b1ab570c3"
+    },
+    {
+      "path": "attempt-1/version-bump.json",
+      "sha256": "68c4cd10cc5c4d258c6d1b92f4f016ea57946d0b1957280aaa3cc838e6fbf73e"
+    },
+    {
+      "path": "attempt-1/simulator-install.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-1/version-bump.log",
+      "sha256": "138ba6a54b941eca8314e50f154e3567d9f52d54fd39609a555c94fa830ace71"
+    },
+    {
+      "path": "attempt-1/bun-install.json",
+      "sha256": "34a3a73e1dfcb4c67a2c12aeb301fa2da1c8f966d7d7952072cafb5314b4744d"
+    },
+    {
+      "path": "attempt-1/cargo-build.json",
+      "sha256": "25b3f1e4a74cd2a50d6096192823bb1b625f48f50954ec271d4e083acb0808ef"
+    },
+    {
+      "path": "attempt-1/bun-install.log",
+      "sha256": "d0ed3cfec0bee23baa15e0ad088ca2235dd0a3120ee71d920cbdfa3231e2fd15"
+    },
+    {
+      "path": "attempt-1/simulator-ready.json",
+      "sha256": "19c5b3026c8ce337a57f84e5aebd57ac8f57927c7f422dfc1d0de0118d309586"
+    },
+    {
+      "path": "attempt-1/simulator-install.json",
+      "sha256": "a4c08681e17fa038db185b772d4cc5040b896d2f09c4b975b9c840a0539a53de"
+    },
+    {
+      "path": "attempt-1/native-qualification-verification.json",
+      "sha256": "cc952387b3abba1cd58b7bbc2519552d5c52938c840cb8ddfc05713525d2b2c2"
+    },
+    {
+      "path": "attempt-1/chat-backend-check.log",
+      "sha256": "41cd6ff6b07357e501a60826c50b45e4cac6a39bb26ac8f825f8e0874519acd0"
+    },
+    {
+      "path": "attempt-1/simulator-create.json",
+      "sha256": "5f5f046ca85c60f138847b3127c5edfdbd979a8b377d94b82a7df4531e42dab8"
+    },
+    {
+      "path": "attempt-1/expo-release-build.log",
+      "sha256": "f0e114ddead0ff6e527df2c079a63848988884e716658bb0fc9ef6b10ce05498"
+    },
+    {
+      "path": "attempt-1/native-qualification-verification.log",
+      "sha256": "ad5aa11f73af300a859981979ead3bee696db8071b91dcbae7bfb1c89bdc4d23"
+    },
+    {
+      "path": "attempt-1/simulator-ready.log",
+      "sha256": "2cf7e00e85e3abb81b6bf0adb8d51d71a4fc8f1916aae5dc87cebd9919cdf429"
+    },
+    {
+      "path": "attempt-1/native-link-verification.log",
+      "sha256": "e770463f4462bfc2a30b85d20e75213b2ec8bcd48767a31ece129b1997ff6e3e"
+    },
+    {
+      "path": "attempt-1/failure-details.log",
+      "sha256": "f6620207252cc1be2a4f2422f560fa31c1b4b9b993b154aacd3ae16728f277d1"
+    },
+    {
+      "path": "attempt-1/simulator-boot.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-1/npm-identity.json",
+      "sha256": "95fad995190a8a493968fe53c6a0209f60b1598a05275b5a3b1b06e17521e31e"
+    },
+    {
+      "path": "attempt-1/execution.json",
+      "sha256": "a8b986bcffb021c2bb4a52014585b9d1884eaa2e76195a64f7991e60e76eb9ce"
+    },
+    {
+      "path": "attempt-1/native-witness.json",
+      "sha256": "0356b21d0e66ade24b6dfe08f8641fed15888452cdddca5d01969d0efd6f6187"
+    }
+  ],
+  "journalEntrySha256": "190809c444cae8dec44e49f56367bc835fa570c79db039fc04a8c3a36934964f",
+  "oldBranch": "sb4-intent/publish-041-attempt-1",
+  "oldCommit": "8e35a19f0e370cc3dd063da288d5750820b18c40"
+}

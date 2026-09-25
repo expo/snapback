@@ -1,0 +1,17 @@
+{
+  "name": "native-witness",
+  "command": [
+    "env",
+    "WITNESS_UDID=9A88E5C4-9F5B-4FE5-B8D0-F2199FE6E63B",
+    "WITNESS_PORT=44441",
+    "WITNESS_ARTIFACTS=/Users/ccheever/projects/snapback-pub-041/snapback4/reports/20260924-expo-0.4.1",
+    "node",
+    "witness/expo.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:16:03.387241+00:00",
+  "finished_at": "2026-09-24T23:16:26.952151+00:00",
+  "seconds": 23.565,
+  "exit_code": 0,
+  "log": "native-witness.log"
+}

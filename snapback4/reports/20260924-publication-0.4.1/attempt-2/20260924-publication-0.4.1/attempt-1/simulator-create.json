@@ -1,0 +1,17 @@
+{
+  "name": "simulator-create",
+  "command": [
+    "xcrun",
+    "simctl",
+    "create",
+    "Snapback4-Expo-041-20260924",
+    "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+    "com.apple.CoreSimulator.SimRuntime.iOS-26-5"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:12:24.211236+00:00",
+  "finished_at": "2026-09-24T23:12:24.452574+00:00",
+  "seconds": 0.241,
+  "exit_code": 0,
+  "log": "simulator-create.log"
+}

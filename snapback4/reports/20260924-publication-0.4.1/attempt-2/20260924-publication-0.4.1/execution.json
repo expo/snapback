@@ -1,0 +1,14 @@
+{
+  "node": "v24.18.0",
+  "SNAPBACK4_FENCE_PUBLISHED": "/Users/ccheever/sb4-03-lanes/published-0.2.33",
+  "codesignRelay": "/Users/ccheever/sb4-03-lanes/codesign-relay/codesign",
+  "codesignRelaySha256": "06fa7db565ac920a7ee7d5d413410c3113757682c9549e3c7c9ddd1da1c46acf",
+  "publisherChanged": false,
+  "signingRelayChanged": false,
+  "keychainOrCredentialChanges": false,
+  "releaseSource": "e1d7a6fb56828344c206dae229f4f8ec69126170",
+  "SNAPBACK4_RUST_TEST_PROCESSES": "4",
+  "SNAPBACK4_TEST_SERIAL_CLIENT_FILES": "1",
+  "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT (set by unchanged publisher)",
+  "pushTarget": "origin sb4-intent/publish-041"
+}

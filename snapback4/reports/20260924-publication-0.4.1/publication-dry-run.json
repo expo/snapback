@@ -1,0 +1,19 @@
+{
+  "name": "publication-dry-run",
+  "command": [
+    "env",
+    "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex-path:/Users/ccheever/.codex/tmp/arg0/codex-arg0BuMAmA:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin",
+    "SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33",
+    "SNAPBACK4_RUST_TEST_PROCESSES=4",
+    "SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1",
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T01:21:43.552577+00:00",
+  "finished_at": "2026-09-25T01:46:58.643928+00:00",
+  "seconds": 1515.094,
+  "exit_code": 1,
+  "log": "publication-dry-run.log"
+}

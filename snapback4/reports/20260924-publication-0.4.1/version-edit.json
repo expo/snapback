@@ -1,0 +1,15 @@
+{
+  "at": "2026-09-25T01:15:13.245937+00:00",
+  "method": "Edit exactly the 15 version fields in six files; preserve all other bytes.",
+  "files": {
+    "Cargo.toml": 1,
+    "Cargo.lock": 6,
+    "bun.lock": 4,
+    "packages/snapback4/package.json": 2,
+    "packages/snapback4-darwin-arm64/package.json": 1,
+    "packages/snapback4-expo/package.json": 1
+  },
+  "undici": "8.8.0",
+  "oldVersion": "0.4.0",
+  "newVersion": "0.4.1"
+}

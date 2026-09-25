@@ -1,0 +1,16 @@
+{
+  "name": "cargo-build",
+  "command": [
+    "cargo",
+    "build",
+    "--locked",
+    "-p",
+    "snapback4"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:12:13.923825+00:00",
+  "finished_at": "2026-09-24T23:12:33.902831+00:00",
+  "seconds": 19.979,
+  "exit_code": 0,
+  "log": "cargo-build.log"
+}

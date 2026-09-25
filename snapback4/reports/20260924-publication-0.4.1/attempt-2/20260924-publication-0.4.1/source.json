@@ -1,0 +1,27 @@
+{
+  "base": "0af449bb757b5a89f4df24a88f60cba681bf8b7d",
+  "head": "e1d7a6fb56828344c206dae229f4f8ec69126170",
+  "branch": "sb4-intent/publish-041",
+  "worktree": "/Users/ccheever/projects/snapback-pub-041b",
+  "oldWorktree": "/Users/ccheever/projects/snapback-pub-041",
+  "oldBranchRenamedTo": "sb4-intent/publish-041-attempt-1",
+  "signingRelay": "/Users/ccheever/sb4-03-lanes/codesign-relay/codesign",
+  "signingRelaySha256": "06fa7db565ac920a7ee7d5d413410c3113757682c9549e3c7c9ddd1da1c46acf",
+  "versionFilesUnchanged": false,
+  "published": false,
+  "at": "2026-09-25T01:13:31.236399+00:00",
+  "source": "e1d7a6fb56828344c206dae229f4f8ec69126170",
+  "version": "0.4.1",
+  "sourceTrees": {
+    "snapback4-core": "db3a55d21ebfb5c5bbec2d7eea990a955df04857",
+    "snapback4-device": "93e94614127fc677d534d5afa5f764b6b87852e3"
+  },
+  "node": "v24.18.0",
+  "bun": "1.4.2",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "xcode": "Xcode 27.0\nBuild version 27A266a",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83",
+  "cpu": "Apple M5 Max",
+  "updatedAt": "2026-09-25T01:49:31.936477+00:00",
+  "publicationStatus": "stopped: full client suite red"
+}

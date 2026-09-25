@@ -1,0 +1,7 @@
+{
+  "requestedMain": "7811b01e4ab6b7b2e9a34cb4259278840ce78437",
+  "fetchedMain": "7811b01e4ab6b7b2e9a34cb4259278840ce78437",
+  "archive": "reports/20260924-publication-0.4.1/attempt-2",
+  "journalAdditionsPreserved": true,
+  "journalStrategy": "Restore HEAD journal for a clean incoming merge, then append saved local additions unchanged before committing the merge."
+}

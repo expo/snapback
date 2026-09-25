@@ -1,0 +1,16 @@
+{
+  "name": "simulator-ready",
+  "command": [
+    "xcrun",
+    "simctl",
+    "bootstatus",
+    "9A88E5C4-9F5B-4FE5-B8D0-F2199FE6E63B",
+    "-b"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:12:34.861614+00:00",
+  "finished_at": "2026-09-24T23:13:09.963284+00:00",
+  "seconds": 35.101,
+  "exit_code": 0,
+  "log": "simulator-ready.log"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "native-qualification-verification",
+  "command": [
+    "python3",
+    "/tmp/pub041-native-verify.py"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:16:55.589335+00:00",
+  "finished_at": "2026-09-24T23:16:55.659683+00:00",
+  "seconds": 0.07,
+  "exit_code": 0,
+  "log": "native-qualification-verification.log"
+}

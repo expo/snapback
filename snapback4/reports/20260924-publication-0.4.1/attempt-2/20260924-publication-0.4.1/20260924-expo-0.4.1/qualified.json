@@ -1,0 +1,98 @@
+{
+  "source": "8e35a19f0e370cc3dd063da288d5750820b18c40",
+  "sourceTrees": {
+    "snapback4-core": "dc8a6a73e430a2a717b507358f137b53bf1efac3",
+    "snapback4-device": "6de0beef815e943bfc1a4899aea4781fea3c7335"
+  },
+  "version": "0.4.1",
+  "published": false,
+  "qualification": "Native qualification passed: rebuilt framework and Release app, offline --prime and restart --prime --relaunch. Publication qualification failed in the full client suite; no package was staged or published.",
+  "xcframework": {
+    "ios/Snapback4Device.xcframework/Info.plist": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "b62074ec881a6546f34ae14782d3f8741244d32f3205053198d09bb9ea13d5be",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "b607a5b5834dce605e750beac22bd445ee033dcd2446b188f7f5f1c1f3e7557a"
+  },
+  "toolchain": {
+    "node": "v24.18.0",
+    "bun": "1.4.2",
+    "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "xcode": "Xcode 27.0\nBuild version 27A266a",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83",
+    "cpu": "Apple M5 Max"
+  },
+  "linkedNativeArchive": {
+    "built": "/Users/ccheever/projects/snapback-pub-041/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+    "linked": "/Users/ccheever/Library/Developer/Xcode/DerivedData/Snapback4chat-fqfcffdtwmaukdbgamfoowkewumt/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/Snapback4Expo/libsnapback4_device.a",
+    "sha256": "b607a5b5834dce605e750beac22bd445ee033dcd2446b188f7f5f1c1f3e7557a",
+    "matches": true
+  },
+  "app": {
+    "built": "/Users/ccheever/projects/snapback-pub-041/snapback4/target/expo-release/Snapback4chat.app",
+    "installed": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/9A88E5C4-9F5B-4FE5-B8D0-F2199FE6E63B/data/Containers/Bundle/Application/1BBF2D26-AC18-433F-879F-A1829D1D524B/Snapback4chat.app",
+    "executable": "Snapback4chat",
+    "sha256": "1d50683bf3615beb8e33a26d57060bdcdc58793200d29fab1e711b7819edfc57",
+    "bundleSha256": "66e019e85ff56a79d6c3692831d7ecc9c526744ce629ee1caa39c94230ae701c",
+    "installedMatches": true,
+    "bundleId": "dev.snapback4.chat"
+  },
+  "cli": {
+    "path": "/Users/ccheever/projects/snapback-pub-041/snapback4/target/debug/snapback4",
+    "sha256": "d214293cb01822e9b3db3761dd922d918b9dd370ba90391ee576e4d55783db7d"
+  },
+  "simulator": "9A88E5C4-9F5B-4FE5-B8D0-F2199FE6E63B",
+  "port": 44441,
+  "witnesses": {
+    "offline": {
+      "manifest": "offline-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 8.578,
+      "prime": true,
+      "relaunch": false,
+      "artifactHashesVerified": true,
+      "installedExecutableSha256": "1d50683bf3615beb8e33a26d57060bdcdc58793200d29fab1e711b7819edfc57"
+    },
+    "restart": {
+      "manifest": "restart-ios-run.json",
+      "exitStatus": 0,
+      "seconds": 12.117,
+      "prime": true,
+      "relaunch": true,
+      "artifactHashesVerified": true,
+      "installedExecutableSha256": "1d50683bf3615beb8e33a26d57060bdcdc58793200d29fab1e711b7819edfc57"
+    }
+  },
+  "files": {
+    "README.md": "fccdac445608be19f1223a3a836b8cfc218236d9cabfe9a7dc82b9203ae2a1fa",
+    "expo-module.config.json": "4150f21b78b3dcfff4f15a4a2fe59ebfa76969fd3af43d10d1a9bc563eb9ad37",
+    "ios/MediaFiles.swift": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c",
+    "ios/Snapback4Device.xcframework/Info.plist": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "b62074ec881a6546f34ae14782d3f8741244d32f3205053198d09bb9ea13d5be",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "b607a5b5834dce605e750beac22bd445ee033dcd2446b188f7f5f1c1f3e7557a",
+    "ios/Snapback4Expo.podspec": "c9f21e5335e77827679388d8f69a6f4396452c9b2a80f029cb8aaceaf0d15746",
+    "ios/Snapback4Module.swift": "dbae25a5d21e2b2f193cb9f00bbc252fbfabab5b9208516da5e90c8336f61bfe",
+    "ios/WitnessContainer.swift": "4cd3f74d2cbb689d9c991669f0162217235d725ba7472d26542dac1549087bbe",
+    "package.json": "325b525c81e1be80773b650be1ec1b373ae754fc6d8cd2497b248454e1bd6c23",
+    "src/index.ts": "4b621eacaaf6d7d88ed5bee30eaac7f445c06347c70d8af5206782f87d867753",
+    "src/smoke.ts": "e38c1250b68e509cbc84eec20e1880c09ebc52c3f61e4812e24bb117dfa27575",
+    "src/witness-core.ts": "59770033e81452fd43f3cc5ec3631ffa6cd5aeda619859406f2205534e6a1464",
+    "src/witness.ts": "edb2692c496607ffa49be4ae1c318527229637019c0424e765b38765c101ed97"
+  },
+  "at": "2026-09-24T23:16:55.655661+00:00",
+  "publicationQualification": {
+    "status": "failed",
+    "attempt": "../20260924-publication-0.4.1/publication-dry-run.json",
+    "suiteFailures": 1,
+    "clientTestFailures": 5,
+    "stageCreated": false,
+    "consumerProofRun": false,
+    "published": false
+  }
+}

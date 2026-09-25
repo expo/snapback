@@ -1,0 +1,65 @@
+{
+  "suite": {
+    "failures": 1,
+    "failedSteps": [
+      "client tests"
+    ],
+    "seconds": 1515,
+    "exitCode": 1
+  },
+  "clients": {
+    "tests": 1591,
+    "passed": 1584,
+    "failed": 1,
+    "cancelled": 1,
+    "skipped": 5,
+    "durationMs": 1433543.188166
+  },
+  "blockers": [
+    {
+      "test": "online session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences",
+      "location": "packages/snapback4/test/app-session-model.test.mjs:5:41",
+      "durationMs": 240009.071625,
+      "error": "test timed out after 240000ms"
+    },
+    {
+      "test": "local session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences",
+      "location": "packages/snapback4/test/app-session-model.test.mjs:5:41",
+      "assertionLocation": "packages/snapback4/test/app-session-model.test.mjs:12:14",
+      "durationMs": 12350.402333,
+      "error": "AssertionError [ERR_ASSERTION]: tier=local seed=11: model fair recovery did not finish within 100 clock steps",
+      "sequenceFile": "local-seed-11-sequence.json"
+    }
+  ],
+  "rust": {
+    "passed": 2976,
+    "failed": 0,
+    "ignored": 16,
+    "resultSummaries": 887,
+    "inventory": [
+      "-- rust inventory: 172 test binaries, 882 executions; at most 4 concurrent processes"
+    ],
+    "step": [
+      "-- ok: cargo test (1059 s)"
+    ]
+  },
+  "fixtureWrapper": {
+    "tests": 9,
+    "passed": 9,
+    "failed": 0,
+    "durationMs": 8057.717917
+  },
+  "published0233Fences": {
+    "timeline-v2": "passed",
+    "recorded-attribution": "passed",
+    "maintained-column": "passed",
+    "capability-free control": "passed"
+  },
+  "productionBuildRun": false,
+  "stageCreated": false,
+  "consumerProofRun": false,
+  "published": false,
+  "retries": 0,
+  "isolatedReruns": 0,
+  "rootCauseAttribution": "Not established; no environmental or baseline waiver."
+}

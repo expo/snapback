@@ -1,0 +1,27 @@
+{
+  "base": "6540600116efa5ff3993a60082de2edb2f32663f",
+  "source": "8e35a19f0e370cc3dd063da288d5750820b18c40",
+  "branch": "sb4-intent/publish-041",
+  "sourceTrees": {
+    "snapback4-core": "dc8a6a73e430a2a717b507358f137b53bf1efac3",
+    "snapback4-device": "6de0beef815e943bfc1a4899aea4781fea3c7335"
+  },
+  "node": "v24.18.0",
+  "bun": "1.4.2",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "xcode": "Xcode 27.0\nBuild version 27A266a",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83",
+  "cpu": "Apple M5 Max",
+  "signingRelay": "/Users/ccheever/sb4-03-lanes/codesign-relay/codesign",
+  "signingRelaySha256": "06fa7db565ac920a7ee7d5d413410c3113757682c9549e3c7c9ddd1da1c46acf",
+  "preparation": {
+    "fetch": "passed; origin/main advanced to requested base",
+    "worktreeAdd": "passed at requested base",
+    "branchCreate": "passed",
+    "readErrors": [
+      "Local main lacked requested 0.4.0 report (git show exit 128); fetched and read origin/main successfully.",
+      "Optional .cargo/config.toml read returned absent; no such file is required.",
+      "An exploratory filename glob for fence tests matched no files; a subsequent content search located schema-capabilities.test.mjs. No test was invoked by the failed search."
+    ]
+  }
+}
