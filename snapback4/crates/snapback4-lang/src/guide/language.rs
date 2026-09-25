@@ -14,13 +14,15 @@ table folders:
   immutable owner
   read <- .owner = viewer
   insert <- .owner = viewer
+  sync last 500 by .id
 
 table documents:
   folder: folders
   body: text
   immutable folder
-  read through .folder
+  read through .folder             -- the whole read rule; captures its immutable parent's audience and lifetime
   insert <- allow
+  sync last 500 by .id              -- infers the captured owner audience
 
 table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
