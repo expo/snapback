@@ -56205,3 +56205,58 @@ bucket storage, or transport delivery guarantees; did not push or publish.
 Keepalive remains best-effort. Full file map, reproduction commands, review
 hashes, measurements and suite output: `reports/20260925-lane-v-r2.md` and
 `reports/20260925-lane-v-r2-evidence/`.
+
+
+## 2026-09-25 — LLP 3000.013, lane V round 3: validated exit replay; authority blocker
+
+Implemented both round-2 delta reviews. The web exit sender now waits for the
+ordinary replay checks before registration, including offline opening. Refused
+probes, a replacement identity, restore refusal, dead sessions and required
+backend adoption suppress early exit dispatch. Accepted probes register before
+initial sync; an already-hidden document flushes once at registration. Successful
+sync adoption can enable the sender afterward. Every createApp device is marked
+app-owned before recovery, including wrapped/asynchronous session stores that
+lack the private synchronous reader. Unverifiable unadmitted records are refused;
+committed outbox custody remains intact.
+
+Added real-Chromium held-probe tests for acceptance, refusal, restore and a second
+real backend retaining the same credentials. Replacement tests check the server
+audit, direct durable outbox reads and fresh-document reopening. Wrapped-store
+legacy/stamped recovery and backend-required offline/adoption tests are included.
+All eight startup mutants fail at the intended assertions, including removal of
+the store-ID comparison and journal.fence. Corrected eight async browser waits:
+the pinned Playwright waitForFunction checks a Promise for truthiness, so these
+checks now use the existing helper that awaits each polling result. Both browser
+files pass all 36 checks; the expanded admission file passes 17.
+
+A newly demonstrated High remains open in the pre-existing authority protocol.
+Chromium can grant a session Web Lock before the new holder's localStorage cache
+reflects the prior holder's write. A standalone two-tab probe wrote the exact
+same-epoch logout tombstone at epoch 239, released the lock, then read the old
+signed-in epoch 239 under that lock; the next read saw the tombstone. An existing
+real-app test also intermittently returned sent after a peer principal change,
+advancing the audit from 3 to 4. Repetitions sometimes pass, so suite success is
+not qualification of this guarantee. Per the brief, stopped this part for the
+supervisor's design decision; did not redesign authority storage, add timing
+workarounds, or weaken checks. The client reference names this limitation. The
+lane is NOT READY for the cross-tab logout authorization guarantee.
+
+Complete suites: first **`== 0 failure(s) in 466 s`**; after the test-wait
+correction, final **`== 0 failure(s) in 409 s`**, both exit 0. Final client checks:
+1,549 passed, 10 platform skips; models: 78 passed, including all 13,000 seeded
+sequences. No full-suite failures (ours, baseline or environmental). Two focused
+attempts hit the existing dev-server readiness timeout before client creation;
+unchanged rechecks reached the intended checks. Corrected development-only
+fixture/polling/cleanup mistakes and the temporary redundant-probe compatibility
+regression are classified in the report. Reference audit: zero errors and zero
+unchecked references. local.ts is 1,479 lines.
+
+No new cold-acquisition measurement: snapshot processing and bounded persistence
+are unchanged. Latest round-2 figures remain 13.298 / 15.825 / 18.703 s bounded,
+versus 70.716 s per-row (4.47x median); all 65,180 rows survived offline reopen.
+No Quarry forms, refusal codes, engine meters, disclosure checks, page sizes,
+bucket caps or durability modes changed. Did not push or publish.
+
+Implementation commits: 546bb169c, 137704376. File map, examples, all failure
+classifications, exact suite outputs and the standalone counterexample:
+`reports/20260925-lane-v-r3.md` and `reports/20260925-lane-v-r3-evidence/`.

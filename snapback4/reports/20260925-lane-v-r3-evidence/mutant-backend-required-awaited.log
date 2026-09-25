@@ -1,0 +1,55 @@
+(node:911831) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (961.809221ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (817.201988ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1835.417619ms)
+  ✖ backend-required custody cannot exit offline and enables exit after validated adoption (725.771735ms)
+  ✔ a hide during the startup probe waits for its accepted decision (766.765117ms)
+  ✔ a hide during the startup probe waits for its refused decision (808.486568ms)
+  ✔ a hide during the startup probe waits for its restore decision (826.333373ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1318.605535ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (806.027905ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (785.75159ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (741.116101ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (743.546042ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (967.537498ms)
+  ✔ same-epoch logout tombstone refuses live admission (573.585125ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (504.812204ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (412.559118ms)
+✖ web admission review: recovery and transport respect the session boundary (14497.447965ms)
+ℹ {"mode":"held-sync","id":"01M3C6J7XKENARNNCEPQFQGXCE","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C6J8QYSM7NFD80J77A1Y1F","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C6JB68A0XBH5HED80HYABW","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"refused","originalId":"01M3C6JBZRA39HD96AEC47625D","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C6JCRHXJKZBYE8BXW6B2JA","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"replacement","originalId":"01M3C6JDKAXS0Y3WK817GA5NV1","sendsWhileProbeHeld":0,"originalAudit":2,"replacementAudit":0}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 15
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14586.578452
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:218:11
+✖ backend-required custody cannot exit offline and enables exit after validated adoption (725.771735ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:231:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:218:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
