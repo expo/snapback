@@ -350,8 +350,16 @@ fn w7r1_grace_bookkeeping_reservation_matches_both_device_stores() {
             let sent = engine.mutate("probe", None, ctx()).unwrap();
             (sent, engine.store().rows("notes").unwrap())
         };
-        let absent = server(false, 16 << 20).0.metered.heap_bytes;
-        let grace = server(true, 16 << 20).0.metered.heap_bytes;
+        let minimum = |grace| {
+            let (mut low,mut high)=(0,16 << 20);
+            while low<high {
+                let mid=(low+high)/2;
+                if matches!(server(grace,mid).0.state,WriteState::Sent {..}) { high=mid; } else { low=mid+1; }
+            }
+            low
+        };
+        let absent = minimum(false);
+        let grace = minimum(true);
         for ceiling in [absent - 1, absent, grace - 1, grace] {
             let tx = store.transaction().unwrap();
             let predicted = local::predict(&tx, &backend.schema, program, ctx(), Ceilings { heap_bytes: ceiling, ..Default::default() });

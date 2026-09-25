@@ -9,6 +9,10 @@ use std::collections::BTreeMap;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Coverage { pub complete: bool, pub unknown: bool, pub retained: bool }
 
+// Constructed only from the successful expression evaluations below.
+pub(super) struct EvaluatedFields(BTreeMap<String,Value>);
+impl EvaluatedFields { pub(super) fn into_value(self) -> Value { Value::Row(self.0.into()) } }
+
 #[derive(Clone, Default)]
 pub(super) struct Frame {
     pub beyond: bool,
@@ -84,9 +88,7 @@ impl Runner<'_> {
             self.components.active = previous;
             values.insert(field.clone(), result?);
         }
-        let value = Value::Row(values.into());
-        self.meter.heap(value.heap_bytes())?;
-        Ok(value)
+        self.component_object(EvaluatedFields(values))
     }
 
     pub(super) fn component_coverage(&self) -> BTreeMap<String, Coverage> {

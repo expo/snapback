@@ -507,9 +507,13 @@ fn hidden_filter_work_delete_has_one_observation_per_target_outcome() {
             same(&a, &b); pairs += 1;
             let body = a.0.body();
             if !present || expiry == 2 { assert_eq!(body["why"]["code"], "NOT_FOUND"); }
-            else if denied { assert_eq!(body["why"]["code"], "E_RULE"); }
+            else if denied { assert_eq!(body["why"]["code"], "NOT_FOUND"); }
             else { assert_eq!(body["state"], "sent"); }
         }
+        // A denied hidden target and an absent one share the full response,
+        // including the attempt meter; filter inputs cannot distinguish either.
+        same(&run(false, false, true, expiry, full), &run(true, true, true, expiry, full));
+        pairs += 1;
         let used = a.0.meter;
         let mut thresholds = Vec::new();
         for (kind, amount) in [used.steps, used.examined, used.index_entries, used.rows_written, used.heap_bytes, used.rule_probes, used.output_bytes].into_iter().enumerate() {

@@ -130,10 +130,11 @@ card/language/3:timelineFollow | never
 card/language/3:timelinePublish | eligible
 card/language/3:timelineRegister | eligible
 card/language/3:timelineRemove | eligible
-card/language/4:timelineFollow | never
-card/language/4:timelinePublish | eligible
-card/language/4:timelineRegister | eligible
-card/language/4:timelineRemove | eligible
+card/language/4:markRead | eligible
+card/language/5:timelineFollow | never
+card/language/5:timelinePublish | eligible
+card/language/5:timelineRegister | eligible
+card/language/5:timelineRemove | eligible
 card/maintains/3:deletePost | never
 card/maintains/3:deleteReply | never
 card/maintains/3:likePost | never
@@ -367,6 +368,8 @@ card/routes/1:sendBrief | eligible
 card/routes/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/routes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/routes/1:split | never
+card/rules/3:markRead | eligible
+card/rules/3:markRead | members/update | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/services/1:rank | never
 card/shapes/1:checkin | never
 card/shapes/1:createRoom | eligible

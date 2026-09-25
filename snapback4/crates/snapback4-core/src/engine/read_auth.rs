@@ -1,7 +1,7 @@
 //! Read authorization of provisional images, over raw combined-state witnesses.
 use super::authorized_scan::Authorization;
 use super::{rules::{self, Probe}, runner::Runner};
-use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, materialize_optional_fields}, value::Value};
+use crate::{error::{MeterKind, RuntimeError}, schema::{Audience}, value::Value};
 
 use super::rules::Verdict;
 
@@ -23,7 +23,7 @@ impl Runner<'_> {
     pub(super) fn authorize_read(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         self.device_work(|runner| {
             let probes = if prepaid { 0 } else { rules::rule_probes(&runner.schema.tables[table].rules.read) };
-            runner.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner, allowance| {
+            runner.authorized_scratch(runner.rule_scratch(&runner.schema.tables[table].rules.read), &[(MeterKind::RuleProbes, probes)], |runner, allowance| {
                 let scratch = runner.meter.mark();
                 let result = runner.authorize_read_inner(allowance, table, row, prepaid || !runner.device_work_active);
                 if runner.device_work_active { runner.meter.release_heap(scratch); }
@@ -36,9 +36,8 @@ impl Runner<'_> {
         let provisional = self.is_provisional(table, row)?;
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
-        if self.device_work_active { self.meter.heap(crate::rows::word_heap::materialize(row, definition))?; }
-        let mut row = row.clone();
-        materialize_optional_fields(&mut row, definition);
+        if self.device_work_active { self.authorized_scratch(0,&[],|runner, scope| runner.disclosed_row(definition,row.clone()).charge_materialization_internal(&mut runner.meter,scope))?; }
+        let row = self.disclosed_row(definition, row.clone()).into_value();
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
         let verdict = rules::evaluate_verdict(&rule, &viewer, None, &row, false, &mut ReadProbe { runner: self, allowance, table, provisional, prepaid, unknown: false })?;

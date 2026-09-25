@@ -29,7 +29,7 @@ equalities may cover a total unique key and check extra columns on that one row,
 for both `exists` and `created`, without an extra index. A full positional unique
 key may come first, followed by named extra-column tests, as in
 `docs[.docId, ownerId = viewer]`. Every focal field used
-by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Rules
+by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Read, insert and delete rules
 compare with `=` and `!=` alone: a rule that varies with time is not an
 audience a partition can hold (use `expire`). A read rule that is exactly
 `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
@@ -132,3 +132,97 @@ over private sources. Rules and their probes cannot depend on maintained
 fields. Adding or redefining the column recounts and mirrors live parents
 without consulting parent write rules; its event-free generation barrier
 reacquires devices and wakes server-run parent watches. See `guide maintains`.
+
+## Field authority: written by
+
+`readUpTo: int default 0 written by .principal` gives that field its own
+writer: the required `principal` column on the same row. An insert by anyone
+else omits it and receives the declared default. Supplying even the default
+explicitly requires ownership. On update and the patch arm of upsert, the old
+row's owner authorizes each touched owned field. Other touched fields still
+require the row's update rule. An owner can patch just their fields when the
+table has no update rule. A named `update (old, next)` rule also constrains
+owner writes; it can compare matching integers or times with `<`, `<=`, `>`
+and `>=`. Read rules keep their equality-only contract.
+
+The field is private to its owner unless declared `readable by audience`.
+Group/public log images omit private fields; the owner's principal partition
+carries their image, and every owner's device receives it while the row is
+readable. Queries, shapes, write results and snapshots apply the same
+projection. Selecting an omitted field returns null, including in `{ * }` and as a `group`
+or `sort` key; generated row types
+mark the field optional. Asset downloads apply the same field visibility.
+Field ownership does not grant read access to the row. Ownership changes
+redact the former owner's copy, or remove it if the row also becomes unreadable.
+A device queues a transition that needs another owner's omitted value or
+would acquire ownership of that value. An independent owned-field patch on a
+held row predicts when its own transition and resource limits permit it.
+Untouched self-equalities do not require the omitted value. Ordinary row grants do not add dependencies to such a patch.
+Unknown owner-delivery witnesses also do not prevent that prediction; the
+server decides which owners may receive the committed image.
+Only a named `update (old, next)` transition may use a private field as a
+rule input; ordinary update rules cannot test guesses against it. A named
+transition also cannot make an ordinary writer's success depend on another
+owner's private value. Such a test requires ownership (or audience visibility).
+Comparing an untouched private field with itself, such as
+`next.readUpTo = old.readUpTo`, remains available without knowing its value.
+Ordered self-comparisons require visibility when the field is nullable: null
+is not ordered, so even `next.secret >= old.secret` can reveal nullness.
+Retained write-target copies are charged at declared column bounds, so hidden
+lengths cannot change the writer's meter or exhaustion boundary.
+Private fields cannot supply indexes/cursors, expiry, recorded attribution,
+other rules' probes, aggregate inputs, or Following mappings and predicates; make the field readable by audience
+before using it there. This applies to both `view` and `maintain … timeline`.
+Your meter charges only fixed reservations from declared bounds and results
+that pass both row-read and field authorization; hidden candidates and rule
+witnesses cannot change its charges or exhaustion boundary.
+This includes point reads, range/cursor pages, planned views, word search,
+streaming counts/sums, scalar reductions and recorded public columns.
+Unreadable, private or expiring candidates reserve declared decoder bounds:
+a large declaration can exhaust the heap even for an empty value. Public,
+non-expiring rows without private fields or recorded captures establish authority before
+storage access and use actual-size decoder accounting. Expired scan candidates
+are discarded inside the internal ledger before any payload is priced.
+Authorization witnesses expose their verdict and the earliest expiry instant
+at which the complete rule's verdict can change. All witnesses expiring at
+that instant disappear together; correlated alternatives share this timeline.
+A stable grant needs no deadline, while necessary expiring authority does.
+Failed predicates and denied rows export no deadline.
+
+Clique read marks use this recipe. Add `readable by audience` after
+`written by .principal` when other conversation members should see receipts.
+The monotonic rule is an application decision, enforced on the server and
+under prediction. `markRead` predicts on a held row, including offline.
+
+```quarry
+table conversations:
+  creator: principal
+  read <- exists members[.id, viewer]
+  insert <- .creator = viewer
+  sync to members[.id]
+table members:
+  conversationId: conversations
+  principal: principal
+  readUpTo: int default 0 written by .principal
+  unique conversationId, principal
+  cap 100 by conversationId
+  immutable conversationId, principal
+  read <- exists members[.conversationId, viewer]
+  insert <- created conversations[.conversationId] or exists members[.conversationId, viewer]
+  update (old, next) <- next.readUpTo >= old.readUpTo
+  sync to members[.conversationId]
+mutation markRead(memberId: members, readUpTo: int) predicts:
+  update members[memberId] { readUpTo }
+```
+
+E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated
+field is not yours. Name a required principal column on this table, declare a
+default, and omit the field when writing another principal's row. For a private
+field needed in an index or aggregate, append `readable by audience` only when
+that disclosure matches the application. It requires `written by` first.
+An unreadable update or refused delete target, and an absent upsert refused
+by either insert authority or field ownership, keep `NOT_FOUND` with the same
+refusal and meter. This includes callers whose insert rule allows the row but
+who cannot supply another owner's private field. Direct inserts and readable targets retain
+`E_FIELD_AUTHORITY` with the owner-specific repair. The trusted system
+principal retains its existing rule bypass.

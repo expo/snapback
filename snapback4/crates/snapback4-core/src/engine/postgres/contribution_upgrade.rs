@@ -28,11 +28,11 @@ pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, Run
                         let id=raw.get::<_,&str>(0);
                         let data=raw.get::<_,&str>(1);
                         meter.charge(MeterKind::Examined,1)?;
-                        meter.heap(adoption::decode_bytes(data))?;
+                        adoption::charge(&mut meter, adoption::decode_bytes(data))?;
                         let row: Value=super::store::decode(data)?;
                         meter.charge(MeterKind::Examined,1)?;
                         meter.step(maintain.evaluation_steps())?;
-                        meter.heap(adoption::contribution_bytes(&row,table))?;
+                        adoption::charge(&mut meter, adoption::contribution_bytes(&row,table))?;
                         for key in crate::rows::stored_index_keys(table,index,&row,id) {
                             if key.len() > crate::rows::MAX_INDEX_KEY_BYTES { return Err(crate::rows::index_key_refusal(name,index_name,1)); }
                             meter.charge(MeterKind::IndexEntries,1)?;

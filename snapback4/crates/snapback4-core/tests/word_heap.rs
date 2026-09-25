@@ -1,5 +1,5 @@
 //! The metered tokenizer keeps the index tokenizer's complete contract.
-use snapback4_core::{cursor, error, meter, rows, schema, value, words};
+use snapback4_core::{cursor, engine, error, meter, rows, schema, value, words};
 #[path = "../src/engine/word_heap.rs"]
 #[allow(dead_code)]
 mod accounting;
@@ -55,14 +55,35 @@ fn stored_row_bound_covers_decoder_growth_and_btree_splits() {
         let json = canonical_json(&row);
         let (decoded, actual) = measured(|| serde_json::from_str::<Value>(&json).unwrap());
         assert_eq!(decoded, row);
-        assert!(actual <= accounting::stored_row(&json), "fields={fields} actual={actual} bound={}", accounting::stored_row(&json));
+        assert!(actual <= stored_price(&json), "fields={fields} actual={actual} bound={}", stored_price(&json));
     }
     for depth in [1, 8, 16] {
         let mut row = Value::Array((0..33).map(|n| Value::String("x".repeat(n))).collect());
         for _ in 0..depth { row = object([("nested", row)]); }
         let json = canonical_json(&row);
         let (_, actual) = measured(|| serde_json::from_str::<Value>(&json).unwrap());
-        assert!(actual <= accounting::stored_row(&json), "depth={depth} actual={actual}");
+        assert!(actual <= stored_price(&json), "depth={depth} actual={actual}");
+    }
+}
+
+#[test]
+fn declared_private_decode_reservation_covers_utf8_and_escaping() {
+    use snapback4_core::{Engine, Value, wire};
+    configure_sqlite_probe();
+    for (label, text) in [("empty", String::new()), ("ascii", "x".repeat(1_000_000)),
+        ("escaped", "\n".repeat(1_000_000)), ("utf8", "𐐨".repeat(1_000_000))] {
+        let b = snapback4_lang::compile(&[("schema.q".into(), "table records:\n  owner: principal\n  secret: text <=1000000 default '' written by .owner\n  extra: int ?\n  public\n  sync public\n".into())]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        let reservation = rows::disclosed::decode_reservation(&b.schema.tables["records"]);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let row = wire::row_from_json(&e.schema().tables["records"], &serde_json::json!({"id":"row","owner":"bob","secret":text})).unwrap();
+        e.seed([("records".into(), row)]).unwrap();
+        let tx = e.store_mut().read_transaction().unwrap();
+        let json_bytes = value::canonical_json(&tx.get("records", "row").unwrap().unwrap()).len();
+        let (found, rust, native, _) = measured_sqlite(json_bytes, || tx.scan("records", "byId", &[Value::Id("row".into())], &rows::Bounds::default(), rows::Dir::Asc, 1).unwrap());
+        assert_eq!(found.len(), 1);
+        assert!(rust + native as u64 <= reservation, "{label}: rust={rust}, native={native}, reservation={reservation}");
+        eprintln!("private decoder {label}: rust={rust}, native={native}, reservation={reservation}");
     }
 }
 
@@ -97,7 +118,7 @@ fn exact_growth_and_query_token_cap_are_charged_before_growth() {
     assert_eq!(meter.used.heap_bytes, accounting::text(&input) + 8 * 8 + accounting::slots::<String>(1 + 2 + 4 + 8));
     let mut out = Vec::new();
     let mut meter = meter::Meter::new(meter::Ceilings { heap_bytes: 1, ..Default::default() }, meter::Cut::Cap);
-    let (_, allocated) = measured(|| assert!(accounting::memory_result(&mut meter, &mut out, &value::Value::Null, b"long-key").is_err()));
+    let (_, allocated) = measured(|| assert!(physical(&mut meter, |meter,scope| accounting::memory_result(meter, &mut out, &value::Value::Null, b"long-key",scope)).is_err()));
     assert!(out.is_empty()); assert_eq!(allocated, 0, "the failing allowance precedes key/vector allocation");
 }
 
@@ -232,9 +253,9 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
     let prefix = [value::Value::Int(0)];
     let bounds = Bounds::default();
     assert!(rows::scan_range(&prefix, &bounds, Dir::Asc).is_some(), "valid empty range, not a short circuit");
-    let scan = |meter: &mut meter::Meter| Rows::scan_metered(&tx, "messages", "byBucket", &prefix, &bounds, Dir::Asc, 1, meter);
+    let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &prefix, &bounds, Dir::Asc, 1, scope, meter));
     assert!(scan(&mut meter::Meter::new(Default::default(), meter::Cut::Cap)).unwrap().is_empty());
-    let names = accounting::range(&prefix, &bounds) + accounting::allocation("messages.byBucket".len());
+    let names = range_price(&prefix, &bounds) + accounting::allocation("messages.byBucket".len());
     assert_eq!(names, 105);
     // @ref LLP 3000.007#20.24.1 — execution storage is measured and pinned, outside the payload ledger.
     const PIN: usize = 2_048; // Measured 1,952 B for both warmed executions in one empty scan, rounded up to 1 KiB.
@@ -288,11 +309,11 @@ fn sqlite_increasing_resident_preflight_charges_before_the_next_row() {
     tx.conn().prepare_cached(SQL).unwrap();
     let prefix = [Value::Int(0)];
     let bounds = Bounds::default();
-    let scan = |meter: &mut meter::Meter| Rows::scan_metered(&tx, "messages", "byBucket", &prefix, &bounds, Dir::Asc, 22, meter);
+    let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &prefix, &bounds, Dir::Asc, 22, scope, meter));
     let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 9_000, ..Default::default() }, meter::Cut::Cap);
     // Meter.used includes the refused attempt. Only the range and the once-per-read
     // reserve fit here; exclude the refused charge from the allocation allowance.
-    let charged = accounting::range(&prefix, &bounds) + accounting::allocation("messages.byBucket".len()) + 2 * page_size;
+    let charged = range_price(&prefix, &bounds) + accounting::allocation("messages.byBucket".len()) + 2 * page_size;
     let first_allowance = 2 * (min_json + first_key.len()) as u64 + 64;
     assert!(charged <= 9_000 && charged + first_allowance > 9_000);
     let (result, rust, native, payload) = measured_sqlite_range(min_json, max_json, || scan(&mut low));
@@ -339,7 +360,7 @@ fn sqlite_scratch_uses_the_open_connections_actual_page_size() {
     for mut store in [store, reader, read_only] {
         let tx = store.read_transaction().unwrap();
         assert_eq!(tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap(), 8192);
-        let scan = |meter: &mut meter::Meter| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, meter);
+        let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, scope, meter));
         let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 10_000, ..Default::default() }, meter::Cut::Cap);
         assert!(scan(&mut low).is_err(), "an 8 KiB page needs 16 KiB of prepaid column scratch");
         let mut ample = meter::Meter::new(Default::default(), meter::Cut::Cap);
@@ -366,7 +387,7 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     let initial_runs = tx.conn().prepare_cached(SQL).unwrap().get_status(Run);
     let initial_memory = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(MemUsed);
-    let scan = |meter: &mut meter::Meter| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, meter);
+    let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, scope, meter));
     let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 500, ..Default::default() }, meter::Cut::Cap);
     let (result, rust_bytes, native_allocated, payload_allocated) = measured_sqlite(json_bytes, || scan(&mut low));
     assert!(result.is_err());
@@ -432,4 +453,22 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     assert_eq!(read_payload, first_payload);
     assert!(read_rust + read_native as u64 <= next_read.used.heap_bytes + 2 * page_size);
     println!("W14A {storage} positive_rows=1 rust_allocated={rust_bytes} first_native={first_native} next_fetch_native={next_native} next_read_native={read_native} cumulative_fetch_native={} first_charge={first} next_fetch_charge={} next_read_charge={}", first_native + next_native, ample.used.heap_bytes - first, next_read.used.heap_bytes);
+}
+
+fn physical<T>(meter: &mut meter::Meter, work: impl FnOnce(&mut meter::Meter,&engine::Authorization) -> T) -> T {
+    let mut ledger = meter::InternalLedger::new(meter.clone());
+    let result = ledger.run(work);
+    *meter = ledger.into_meter();
+    result
+}
+fn stored_price(json: &str) -> u64 {
+    let mut ledger = meter::InternalLedger::new(meter::Meter::new(meter::Ceilings::unbounded(),meter::Cut::Abort));
+    ledger.run(|meter,scope| accounting::stored_row(json,scope).charge(meter,scope).unwrap());
+    ledger.into_meter().used.heap_bytes
+}
+
+fn range_price(prefix: &[value::Value], bounds: &rows::Bounds) -> u64 {
+    let mut ledger = meter::InternalLedger::new(meter::Meter::new(meter::Ceilings::unbounded(), meter::Cut::Abort));
+    ledger.run(|meter, scope| accounting::range(prefix,bounds,scope).charge(meter,scope)).unwrap();
+    ledger.into_meter().used.heap_bytes
 }

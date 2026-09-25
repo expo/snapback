@@ -132,8 +132,8 @@ fn probes<S:DeviceStore>(mut store:S) {
             }
         }
     }
-    // Point admission is schema-derived for settled and provisional images.
-    // A delivered control pays the same fixed probe and succeeds with room.
+    // Delivered and provisional point reads reserve the same declared witness
+    // count; trusting delivery avoids physical re-evaluation, not admission.
     let out=local::query(&tx,&b.schema,program("point"),context("alice",&[]).at(100),Ceilings{rule_probes:1,..Default::default()}).unwrap();
     assert!(out.complete && out.data!=Value::Null);
     assert_eq!(out.metered.rule_probes,1);

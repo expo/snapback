@@ -530,7 +530,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 5, "core, server extension, Following view, compatibility and expiring receipts blocks");
+    assert_eq!(quarry(LANGUAGE).len(), 6, "core, server extension, Following view, compatibility field authority and expiring receipts blocks");
 }
 
 #[test]

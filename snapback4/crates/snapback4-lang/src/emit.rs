@@ -22,7 +22,7 @@ pub fn typescript(bound: &Bound) -> String {
     for (name, table) in bound.schema.visible_tables() {
         out.push_str(&format!("  {}: {{\n", property(name)));
         for (column, kind) in table.columns.iter().filter(|(name, _)| !table.recorded.contains_key(*name)) {
-            out.push_str(&format!("    {}: {};\n", property(column), column_ts(kind, &bound.schema)));
+            out.push_str(&format!("    {}: {};\n", format!("{}{}", property(column), if table.private_field(column) { "?" } else { "" }), column_ts(kind, &bound.schema)));
         }
         out.push_str("    /** True on this device's own unconfirmed change (the card). */\n    pending?: boolean;\n");
         out.push_str("  };\n");

@@ -38,7 +38,7 @@ impl Rows for Counted<'_> {
         if t=="posts" {
             self.source_rows.set(self.source_rows.get()+rows.len());
             self.max_buffer_rows.set(self.max_buffer_rows.get().max(rows.len()));
-            self.buffer_bytes.set(self.buffer_bytes.get().max(rows.iter().map(|(r,k)|r.heap_bytes()+k.len() as u64).sum()));
+            self.buffer_bytes.set(self.buffer_bytes.get().max(rows.iter().map(|(r,k)|fixture_heap(&r)+k.len() as u64).sum()));
         }
         Ok(rows)
     }
@@ -122,4 +122,16 @@ fn review2_hidden_and_absent_worlds_keep_identical_observations() {
 fn same(a:&observation::Observation,b:&observation::Observation) {
     assert_eq!(a.first_http_body,b.first_http_body); assert_eq!(a.receipt,b.receipt); assert_eq!(a.retry_http_body,b.retry_http_body);
     assert_eq!(a.meter,b.meter); assert_eq!(a.effects,b.effects); assert_eq!(a.stream,b.stream); assert_eq!(a.snapshot,b.snapshot); assert_eq!(a.devices,b.devices);
+}
+
+// Test-only sizing of public fixture/expression results; no raw pricing API is
+// available to interpreter callers.
+fn fixture_heap(value: &Value) -> u64 {
+    match value {
+        Value::String(s) | Value::Id(s) => s.capacity() as u64,
+        Value::Bytes(b) => b.capacity() as u64,
+        Value::Array(a) => a.capacity() as u64 * std::mem::size_of::<Value>() as u64 + a.iter().map(fixture_heap).sum::<u64>(),
+        Value::Row(m) | Value::Map(m) => 40 + m.iter().map(|(k,v)| 80 + k.capacity() as u64 + fixture_heap(v)).sum::<u64>(),
+        _ => 0,
+    }
 }

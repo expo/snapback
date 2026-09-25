@@ -498,4 +498,23 @@ messages and no `result` or `current`. Replay returns
 execution identity only, with `replayed: true`; historical `result` and
 `current` are withheld, including after revocation or a dropped response.
 The same operation id under another principal has no access to that receipt.
-`delete` keeps its own existing rule and behavior."##;
+`delete` keeps its own existing rule and behavior.
+
+## Writing a member's read mark
+
+Declare `readUpTo: int default 0 written by .principal` on the membership
+row. `markRead` patches just that field; it needs no row update grant, but a
+named `update (old, next) <- next.readUpTo >= old.readUpTo` still refuses a
+backwards mark. See `guide rules` for the complete Clique membership recipe.
+Other fields in the same patch require the row's update rule. Inserts by
+another principal omit readUpTo, including when its intended value is 0.
+
+The default projection is private. Append `readable by audience` for Clique's
+shared receipts. Ownership is unchanged by that visibility choice. The owner
+sees the settled mark on every device; a held-row mark write predicts offline,
+then settles through the ordinary write receipt and partition stream.
+E_FIELD_AUTHORITY names the owner column: omit the supplied field or write as
+that principal. It also refuses malformed owner declarations and private fields
+used in indexes or aggregate inputs; see the rewrite on `guide rules`.
+
+"##;

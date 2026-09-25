@@ -1,15 +1,18 @@
 //! Engine-private write addressing, conditions and disclosure.
-use super::runner::{Flow, Runner};
-use super::rules::rule_probes;
+use crate::engine::runner::{Flow, Runner};
+use crate::engine::rules::rule_probes;
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::{Builtin, Expr, IndexKeyExpr, Input, KeyProvenance, LoopDomain, Read, Scan, Stmt, WriteCondition};
 use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
 use crate::rows::index_values;
 use crate::value::Value;
 
+// Only this resolver can certify caller-evaluated natural keys.
+pub(crate) struct TargetInput(());
+
 impl Runner<'_> {
     // @ref LLP 3000.007#17 — absent and hidden-refused targets restore every logical meter field.
-    pub(super) fn target_attempt<T>(&mut self, table: &str, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+    pub(in crate::engine) fn target_attempt<T>(&mut self, table: &str, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         let mark = self.meter.mark();
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let previous_heap = std::mem::take(&mut self.maintain_heap);
@@ -36,13 +39,18 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
-    pub(super) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &Value, upsert: bool) -> Result<(), RuntimeError> {
-        self.reserve_write_rules(table, if upsert { &[Effect::Read, Effect::Read, Effect::Update, Effect::Insert, Effect::Insert] } else { &[Effect::Read, Effect::Read, Effect::Update] })?;
+    pub(in crate::engine) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &crate::value::Supplied, upsert: bool) -> Result<(), RuntimeError> {
+        let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
+            .saturating_add(if upsert { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
         // Covers the largest cloned row allowed by the schema, the caller's patch
         // (including ill-typed fields), and the miss arm's image/default materialization.
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
-        let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(patch.heap_bytes().saturating_mul(2));
-        for (kind, amount, used, ceiling) in [(MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes),
+        let witness = self.rule_scratch(&table.rules.read).max(self.rule_scratch(&table.rules.update))
+            .max(if upsert { self.rule_scratch(&table.rules.insert) } else { 0 });
+        let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(patch.heap_bytes().saturating_mul(2))
+            .max(crate::rows::disclosed::decode_reservation(table)).saturating_add(witness);
+        for (kind, amount, used, ceiling) in [(MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
+            (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes),
             (MeterKind::IndexEntries, if upsert { table.sequences.len() as u64 } else { 0 }, self.meter.used.index_entries, self.meter.ceilings.index_entries)] {
             if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
         }
@@ -50,10 +58,14 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(super) fn merge_patch(&mut self, old: &Value, patch: &Value) -> Result<Value, RuntimeError> {
+    pub(in crate::engine) fn merge_patch(&mut self, table: &str, old: &Value, patch: &crate::value::Supplied, _readable: bool) -> Result<Value, RuntimeError> {
         let mut bytes = 40_u64;
-        for (key, value) in old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter()) {
-            bytes = bytes.saturating_add(80 + key.len() as u64 + value.clone_heap_bytes());
+        for (key, _) in old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter()) {
+            // @ref LLP 3000.015#1 — a retained field's actual size is disclosed
+            // only after both row and field read authority succeed.
+            let definition = &self.schema.tables[table];
+            let copy = if patch.as_object()?.contains_key(key) { patch.field_copy(key) } else { definition.columns.get(key).map_or(0,column_copy_ceiling) };
+            bytes = bytes.saturating_add(80 + key.len() as u64 + copy);
         }
         self.meter.heap(bytes)?;
         let fields = old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter())
@@ -61,12 +73,12 @@ impl Runner<'_> {
         Ok(Value::Row(fields.into()))
     }
 
-    pub(super) fn no_write_target(&self) -> RuntimeError {
+    pub(in crate::engine) fn no_write_target(&self) -> RuntimeError {
         RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".into() }
     }
 
     // @ref LLP 3000.007#8 — item 7: an unheld write target without an absence proof queues.
-    pub(super) fn write_miss(&mut self, table: &str, index: &str, key: &[Value]) -> RuntimeError {
+    pub(in crate::engine) fn write_miss(&mut self, table: &str, index: &str, key: &[Value]) -> RuntimeError {
         if self.device {
             self.unknown_fact(table, index, key, &self.statement_site.clone());
             if let Some(message) = &mut self.missing_fact { *message = message.replace("the row or its absence is past the acquired horizon or online only", "the write target is not held on this device; only the server can resolve it"); }
@@ -74,11 +86,11 @@ impl Runner<'_> {
         } else { self.no_write_target() }
     }
 
-    pub(super) fn upsert_absence_proven(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
+    pub(in crate::engine) fn upsert_absence_proven(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
         let expressions: Vec<_> = key.iter().map(|value| {
             if *value == Value::Id(self.context.viewer.clone()) { Expr::Input(Input::Viewer) } else { Expr::Literal(value.clone()) }
         }).collect();
-        let Ok(visibility) = super::rules::upsert_absence(self.schema, table, index, &expressions) else { return Ok(false) };
+        let Ok(visibility) = crate::engine::rules::upsert_absence(self.schema, table, index, &expressions) else { return Ok(false) };
         if self.retained_group(table, index, key)? { return Ok(false); }
         if visibility.decided_true { return Ok(true); }
         // A uniform key can still name somebody else's private group. Evaluate
@@ -87,17 +99,17 @@ impl Runner<'_> {
         // may establish readability; an unknown probe must still queue.
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.device_audience_rule().into_owned();
-        let row = Value::Row(definition.index(index).expect("checked index").columns().into_iter().zip(key.iter().cloned()).collect());
+        let row = crate::value::Supplied::key(definition.index(index).expect("checked index"),key,&TargetInput(()));
         let viewer = self.context.viewer.clone();
         self.meter.heap(row.heap_bytes())?;
-        let readable = self.authorized_scan(&[(MeterKind::RuleProbes, rule_probes(&rule))], |runner, allowance| {
-            super::rules::evaluate(&rule, &viewer, None, &row, false, &mut super::read::RuleProbe { runner, allowance })
+        let readable = self.authorized_scratch(self.rule_scratch(&rule), &[(MeterKind::RuleProbes, rule_probes(&rule))], |runner, allowance| {
+            crate::engine::rules::evaluate(&rule, &viewer, None, &row, false, &mut crate::engine::read::RuleProbe { runner, allowance })
         })?;
         Ok(readable && !self.beyond_horizon)
     }
 
     // @ref LLP 3000.007#20.5 — key absence is not insert authority: the materialized image and every colliding/counting population need the same held-group proof.
-    pub(super) fn prove_upsert_insert(&mut self, table: &str, addressed_index: &str, row: &Value) -> Result<(), RuntimeError> {
+    pub(in crate::engine) fn prove_upsert_insert(&mut self, table: &str, addressed_index: &str, row: &Value) -> Result<(), RuntimeError> {
         let definition = self.schema.tables[table].clone();
         let image_key = index_values(definition.index(addressed_index).expect("addressed index"), row);
         if !self.upsert_absence_proven(table, addressed_index, &image_key)? {
@@ -125,11 +137,11 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(super) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
+    pub(in crate::engine) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
         self.target_attempt(&target.table, |runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
 
-    pub(super) fn delete_target(&mut self, target: &Read) -> Result<(), RuntimeError> {
+    pub(in crate::engine) fn delete_target(&mut self, target: &Read) -> Result<(), RuntimeError> {
         self.target_attempt(&target.table, |runner| {
             runner.refuse_engine_owned(&target.table, Effect::Delete)?;
             let key = target.key.iter().map(|e| runner.expr(e)).collect::<Result<Vec<_>, _>>()?;
@@ -139,8 +151,7 @@ impl Runner<'_> {
             runner.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
             runner.reserve_maintains(&target.table, &table)?;
             runner.read_tables.insert(target.table.clone());
-            let expired_work = 0_u64;
-            let old = runner.authorized_scan(&[], |runner, allowance| runner.live_lookup(allowance, &target.table, &target.index, index, &key))?;
+            let old = runner.lookup_stored(&target.table, &target.index, index, &key, false)?;
             if runner.device && (table.sync.is_none() || (old.is_none() && !runner.upsert_absence_proven(&target.table, &target.index, &key)?)) {
                 return Err(runner.write_miss(&target.table, &target.index, &key));
             }
@@ -151,7 +162,7 @@ impl Runner<'_> {
             if !runner.check_rule(&target.table, Effect::Delete, None, &old)? {
                 return Err(RuntimeError::Rule { table: target.table.clone(), effect: Effect::Delete });
             }
-            runner.meter.charge(MeterKind::Examined, expired_work.saturating_add(1))?;
+            runner.meter.charge(MeterKind::Examined, 1)?;
             runner.delete_authorized(&target.table, old)
         })
     }
@@ -162,18 +173,17 @@ impl Runner<'_> {
         if upsert && condition.is_some() { return Err(RuntimeError::Input("a condition belongs on update; an upsert inserts or patches".into())); }
         if let Some(condition) = condition { validate_condition(condition)?; }
         let key = target.key.iter().map(|e| self.expr(e)).collect::<Result<Vec<_>, _>>()?;
-        let patch = self.expr(patch)?;
+        let patch = self.expr_input(patch)?;
         self.refuse_recorded(&target.table, &patch)?;
-        super::sequences::refuse_fields(&self.schema.tables[&target.table], &target.table, &patch)?;
+        crate::engine::sequences::refuse_fields(&self.schema.tables[&target.table], &target.table, &patch)?;
         let definition = self.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?.clone();
         let index = definition.index(&target.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", target.table, target.index)))?;
         if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }
         if patch.as_object()?.contains_key("id") { return Err(RuntimeError::Input(format!("{} update patch cannot change id", target.table))); }
         self.read_tables.insert(target.table.clone());
         self.reserve_target_resolution(&target.table, &definition, &patch, upsert)?;
-        let expired_work = 0;
         self.observe_sequence_selection(&target.table, &target.index, &key)?;
-        let old = self.authorized_scan(&[], |runner, allowance| runner.live_lookup(allowance, &target.table, &target.index, index, &key))?;
+        let old = self.lookup_stored(&target.table, &target.index, index, &key, false)?;
         if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
             return Err(self.write_miss(&target.table, &target.index, &key));
         }
@@ -182,13 +192,13 @@ impl Runner<'_> {
             let readable = self.check_rule(&target.table, Effect::Read, None, &old)?;
             let patch = self.ignore_hidden_immutable_patch(&target.table, patch, readable)?;
             let id = old.field("id")?.clone();
-            let new = self.merge_patch(&old, &patch)?;
+            let new = self.merge_patch(&target.table, &old, &patch, readable)?;
             // The old image is used only in this isolated condition scope, after update authority.
-            self.authorize_update(&target.table, &old, &new, readable)?;
-            self.meter.charge(MeterKind::Examined, expired_work)?;
+            self.authorize_update_fields(&target.table, &old, &new, &patch, readable)?;
             if let Some(condition) = condition {
                 self.require_readable_condition(readable)?;
-                let passed = self.write_condition(condition, &old);
+                let projected_old = self.project_row(&target.table, old.clone())?;
+                let passed = self.write_condition(condition, projected_old);
                 match passed {
                     Ok(true) => {}
                     Ok(false) => return Err(RuntimeError::Conflict { current: Read { key: vec![Expr::Literal(id)], index: "byId".into(), ..target.clone() } }),
@@ -200,32 +210,23 @@ impl Runner<'_> {
         } else {
             if !upsert { return Err(self.no_write_target()); }
             let id = if target.index == "byId" { key[0].clone() } else { Value::Id(self.context.mint()?) };
-            let mut fields = patch.as_object()?.clone();
-            for (component, value) in index.components.iter().zip(&key) {
-                if let Some(column) = component.column() { fields.entry(column.clone()).or_insert_with(|| value.clone()); }
-            }
-            fields.insert("id".into(), id.clone());
-            let row = Value::Row(fields.into());
+            let row = patch.complete_key(index,&key,id.clone(),&TargetInput(()))?;
             self.meter.heap(row.heap_bytes())?;
-            self.insert_upsert(&target.table, &target.index, row, expired_work)?;
+            self.insert_upsert(&target.table, &target.index, row)?;
             id
         };
         // Only an ordinary read of the final row can enter the author's program.
         if !valued { return Ok(Value::Null); }
         let value = self.get(&Read { site: target.site.clone(), table: target.table.clone(), index: "byId".into(), key: vec![Expr::Literal(id)], provenance: KeyProvenance::Computed })?;
-        Ok(super::columns::write_result(&definition, value))
+        Ok(crate::engine::columns::write_result(&definition, value))
     }
 
     // @ref LLP 3000.007#17 — ruling 17 (a), third pass: hidden immutable fields are ignored, never compared, on update and upsert.
-    pub(super) fn ignore_hidden_immutable_patch(&self, table: &str, patch: Value, readable: bool) -> Result<Value, RuntimeError> {
+    pub(in crate::engine) fn ignore_hidden_immutable_patch(&self, table: &str, patch: crate::value::Supplied, readable: bool) -> Result<crate::value::Supplied, RuntimeError> {
         if readable { return Ok(patch); }
-        let mut fields = patch.as_object()?.clone();
-        for constraint in &self.schema.tables[table].constraints {
-            if let crate::schema::Constraint::Immutable { fields: immutable } = constraint {
-                for field in immutable { fields.remove(field); }
-            }
-        }
-        Ok(Value::Row(fields.into()))
+        patch.remove_fields(self.schema.tables[table].constraints.iter().filter_map(|c|match c {
+            crate::schema::Constraint::Immutable {fields} => Some(fields.iter().cloned()), _ => None,
+        }).flatten())
     }
 
     // @ref LLP 3000.007#14 — ruling 17 (b): an author condition needs a readable target; a blind patch needs none.
@@ -234,17 +235,17 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007#17 — the runtime also forbids writes while engine old is in scope.
-    pub(super) fn refuse_condition_write(&self) -> Result<(), RuntimeError> {
+    pub(in crate::engine) fn refuse_condition_write(&self) -> Result<(), RuntimeError> {
         if self.evaluating_write_condition { Err(RuntimeError::Input("an update condition cannot write".into())) } else { Ok(()) }
     }
 
-    fn write_condition(&mut self, condition: &WriteCondition, old: &Value) -> Result<bool, RuntimeError> {
+    fn write_condition(&mut self, condition: &WriteCondition, old: crate::engine::authorized_point::AuthorizedRow<'_>) -> Result<bool, RuntimeError> {
         validate_condition(condition)?;
-        self.meter.heap(self.env.values().map(Value::heap_bytes).sum::<u64>() + old.heap_bytes())?;
+        self.meter.heap(self.environment_heap() + old.heap_bytes())?;
         let env = self.env.clone();
         let consts = self.consts.clone();
         let site = self.statement_site.clone();
-        self.env.insert(condition.old.clone(), old.clone());
+        self.env.insert(condition.old.clone(), old.into_value());
         let previous = self.evaluating_write_condition;
         self.evaluating_write_condition = true;
         let result = (|| {
@@ -309,16 +310,16 @@ fn pure_expr(expr: &Expr) -> bool {
 fn pure_builtin(builtin: &Builtin) -> bool {
     match builtin {
         Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
-        Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
+        Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }
 }
 
-pub(super) fn row_copy_ceiling(table: &Table) -> u64 {
+pub(in crate::engine) fn row_copy_ceiling(table: &Table) -> u64 {
     table.columns.iter().fold(40, |total, (name, ty)| total.saturating_add(80 + name.len() as u64).saturating_add(column_copy_ceiling(ty)))
 }
-fn column_copy_ceiling(ty: &ColumnType) -> u64 {
+pub(in crate::engine) fn column_copy_ceiling(ty: &ColumnType) -> u64 {
     match ty {
         ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => 144,
         ColumnType::Text { max } => u64::from(*max) * 4,
@@ -335,7 +336,7 @@ fn column_copy_ceiling(ty: &ColumnType) -> u64 {
 
 impl Runner<'_> {
     // @ref LLP 3000.007#20.9 — pay for both hidden contributions before the old image; no predicate-dependent success/budget channel.
-    pub(super) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
+    pub(in crate::engine) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
         if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
         let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none()).collect();
         if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.expire.is_some()) { return Ok(()); }

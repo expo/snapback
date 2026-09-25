@@ -91,7 +91,7 @@ impl Walk<'_> {
     fn rule(&mut self, table: &str, rule: &RuleExpr, path: &str) {
         match rule {
             RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => {},
-            RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) => { self.term(table,a,path); self.term(table,b,path); },
+            RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => { self.term(table,a,path); self.term(table,b,path); },
             RuleExpr::And(items) | RuleExpr::Or(items) => for item in items { self.rule(table,item,path); },
             RuleExpr::Not(item) => self.rule(table,item,path),
             RuleExpr::Exists { table: target, index, key, equalities, .. } | RuleExpr::Created { table: target, index, key, equalities, .. } => {

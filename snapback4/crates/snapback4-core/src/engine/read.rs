@@ -23,6 +23,63 @@ mod word_merge;
 #[path = "view_merge.rs"]
 mod view_merge;
 
+// Only the read evaluator mints key evidence, from evaluated inputs, validated
+// cursors, or authorized result positions. Storage images cannot call a raw
+// scalar/key pricing API; row fields use AuthorizedRow::scalar_heap instead.
+struct DisclosedKey<'a>(&'a Value);
+struct DisclosedKeys<'a>(&'a [Value]);
+struct DisclosedBounds<'a>(&'a Bounds);
+impl DisclosedKey<'_> {
+    fn heap(self) -> u64 {
+        match self.0 {
+            Value::String(s) | Value::Id(s) => word_heap::text(s),
+            Value::Bytes(b) => word_heap::allocation(b.len()),
+            Value::Array(a) => DisclosedKeys(a).heap(), _ => 0,
+        }
+    }
+    fn copy_heap(self) -> u64 {
+        match self.0 {
+            Value::String(s) | Value::Id(s) => s.len() as u64,
+            Value::Bytes(b) => b.len() as u64,
+            Value::Array(a) => word_heap::slots::<Value>(a.len()) + a.iter().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>(), _ => 0,
+        }
+    }
+}
+impl DisclosedKeys<'_> {
+    fn heap(self) -> u64 { word_heap::slots::<Value>(self.0.len()) + self.0.iter().map(|v|DisclosedKey(v).heap()).sum::<u64>() }
+}
+impl DisclosedBounds<'_> {
+    fn heap(self) -> u64 {
+        let b = self.0;
+        [&b.after, &b.at_or_after, &b.before].into_iter().flatten().map(|v|DisclosedKeys(v).heap()).sum::<u64>()
+            + [&b.gt, &b.gte, &b.lt, &b.lte].into_iter().flatten().map(|v|DisclosedKey(v).heap()).sum::<u64>()
+            + b.word.as_ref().map_or(0, |s| word_heap::text(s))
+    }
+}
+
+fn key_verdict_heap(index: &crate::schema::Index, prefix: &[Value], viewer: &str, rule: &crate::schema::RuleExpr) -> u64 {
+    // The prefix row's collect buffer, map, Arc, viewer and probe term clones.
+    let fields = index.components.iter().zip(prefix).filter_map(|(c,v)| c.column().map(|name| (name, v)));
+    let row = fields.map(|(name,v)| word_heap::node::<String, Value>() + word_heap::text(name) + DisclosedKey(v).heap()).sum::<u64>();
+    word_heap::vec_growth::<(String, Value)>(prefix.len()) + row + word_heap::slots::<usize>(2) + word_heap::text(viewer) + rule_values(rule, prefix, viewer)
+}
+fn rule_values(rule: &crate::schema::RuleExpr, prefix: &[Value], viewer: &str) -> u64 {
+    use crate::schema::{RuleExpr::*, RuleTerm};
+    let term = |t: &RuleTerm| match t {
+        RuleTerm::Viewer => word_heap::text(viewer), RuleTerm::Literal(v) => DisclosedKey(v).heap(),
+        RuleTerm::Field(_) | RuleTerm::OldField(_) | RuleTerm::NextField(_) => prefix.iter().map(|v|DisclosedKey(v).heap()).sum(),
+    };
+    match rule {
+        Eq(a,b) | Ne(a,b) => term(a) + term(b),
+        And(rs) | Or(rs) => rs.iter().map(|r| rule_values(r, prefix, viewer)).sum(), Not(r) => rule_values(r, prefix, viewer),
+        Exists { table, key, equalities, .. } | Created { table, key, equalities, .. } => word_heap::text(table)
+            + word_heap::vec_growth::<Value>(key.len()) + key.iter().map(term).sum::<u64>()
+            + word_heap::vec_growth::<(String, Value)>(equalities.len()) + equalities.iter().map(|(name,v)| word_heap::text(name)+term(v)).sum::<u64>(),
+        _ => 0,
+    }
+}
+
+
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
 #[derive(Clone)]
 struct WordRead {
@@ -80,7 +137,7 @@ impl Probe for RuleProbe<'_, '_> {
     }
 }
 
-impl Runner<'_> {
+impl<'r> Runner<'r> {
     pub(super) fn created(&self, table: &str, index: &str, key: &[Value]) -> bool {
         self.created.contains_key(&(table.to_owned(), index.to_owned(), canonical_json(&key)))
     }
@@ -102,7 +159,7 @@ impl Runner<'_> {
         let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
         let viewer = self.context.viewer.clone();
         let expiry = self.next_expiry;
-        let verdict = self.authorized_scan(&[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |runner, allowance| {
+        let verdict = self.authorized_scratch(self.rule_scratch(rule), &[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |runner, allowance| {
             rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner, allowance })
         });
         if !uniform || !matches!(verdict, Ok(true)) { self.next_expiry = expiry; }
@@ -194,9 +251,11 @@ impl Runner<'_> {
         let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) else { return Ok((true, true, expiry)); };
         self.read_tables.insert(maintain.source.clone());
         if self.device_work_active {
-            let group_bytes = word_heap::slots::<Value>(maintain.by.len())
-                + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
-            self.meter.heap(2 * group_bytes + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
+            self.meter.heap(2 * word_heap::slots::<Value>(maintain.by.len()) + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
+            for field in &maintain.by { if let Ok(value) = row.field(field) {
+                value.scalar_heap(allowance).charge(&mut self.meter, allowance)?;
+                value.scalar_heap(allowance).charge(&mut self.meter, allowance)?;
+            } }
         }
         let group = crate::schema::maintained_key(row, &maintain.by);
         let (name, prefix) = maintain.source_scan(source, &group);
@@ -215,8 +274,8 @@ impl Runner<'_> {
                 bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 1), prefix.len())?;
                 if self.device_work_active {
                     self.meter.step(maintain.evaluation_steps())?;
-                    self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
-                        + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::value)).sum::<u64>())?;
+                    self.meter.heap(word_heap::slots::<Value>(maintain.by.len()))?;
+                    for field in &maintain.by { if let Ok(value) = candidate.field(field) { value.scalar_heap(allowance).charge(&mut self.meter, allowance)?; } }
                 }
                 if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
                 if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
@@ -233,6 +292,11 @@ impl Runner<'_> {
 
     /// Point lookups must pass expired siblings, even on an index whose
     /// logical uniqueness no longer counts those rows.
+    pub(super) fn lookup_stored(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], _charge: bool) -> Result<Option<Value>, RuntimeError> {
+        let table = &self.schema.tables[table_name];
+        self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, scope| runner.live_lookup(scope, table_name, name, index, key))
+    }
+
     pub(super) fn live_lookup(&mut self, allowance: &Authorization, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if table.expire.is_none() && !self.device_work_active {
@@ -263,7 +327,10 @@ impl Runner<'_> {
     }
 
     fn witness_materialize(&mut self, row: &mut Value, table: &Table) -> Result<(), RuntimeError> {
-        if self.device_work_active { self.meter.heap(word_heap::materialize(row, table))?; }
+        // Physical device-work accounting stays separate from the logical meter.
+        if self.device_work_active {
+            self.authorized_scratch(0,&[],|runner, scope| runner.disclosed_row(table,row.clone()).charge_materialization_internal(&mut runner.meter,scope))?;
+        }
         materialize_optional_fields(row, table);
         Ok(())
     }
@@ -318,30 +385,40 @@ impl Runner<'_> {
         if effect == Effect::Read && self.trust_synced_read(table) {
             return Ok(true);
         }
-        let rule = table.rules.for_effect(effect).clone();
+        let mut rule = table.rules.for_effect(effect).clone();
+        if effect == Effect::Update && let Some(old) = old {
+            for (field, authority) in &table.written_by {
+                if !authority.audience && old.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone())) {
+                    rule.fold_untouched_field(field, &table.columns[field]);
+                }
+            }
+        }
         if effect == Effect::Read { self.rule_dependencies(&rule); }
-        let mut next = next.clone();
-        materialize_optional_fields(&mut next, table);
-        let old = old.map(|old| {
-            let mut old = old.clone();
-            materialize_optional_fields(&mut old, table);
-            old
-        });
-        // @ref LLP 3000.015#2 — every effect prepays the entire rule before its first witness.
-        // Short-circuiting is private work, including the choice to probe again.
-        self.authorized_scan(&[(MeterKind::RuleProbes, rules::rule_probes(&rule))], |runner, allowance| runner.evaluate_sequence_rule(allowance, table_name, &rule, effect, old.as_ref(), &next))
+        let bytes = self.rule_scratch(&rule);
+        self.authorized_scratch(bytes, &[(MeterKind::RuleProbes, rules::rule_probes(&rule))], |runner, allowance| {
+            let mut next = next.clone();
+            materialize_optional_fields(&mut next, table);
+            let old = old.map(|old| {
+                let mut old = old.clone();
+                materialize_optional_fields(&mut old, table);
+                old
+            });
+            runner.evaluate_sequence_rule(allowance, table_name, &rule, effect, old.as_ref(), &next)
+        })
     }
 
     /// A row by id, materialized, without a rule check.
-    pub(crate) fn fetch(&mut self, allowance: &Authorization, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+    pub(crate) fn fetch(&mut self, _allowance: &Authorization, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.schema.refuse_private(table_name)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        let found = self.tx.get(allowance, table_name, id)?;
+        let found = self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, authority| {
+            runner.tx.get(authority, table_name, id).map(|found| found.map(|mut row| {
+                materialize_optional_fields(&mut row, table);
+                row
+            }))
+        })?;
         if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table_name, "byId", &[Value::Id(id.to_owned())], "write target"); }
-        Ok(found.filter(|row| !self.expired(table, row)).map(|mut row| {
-            materialize_optional_fields(&mut row, table);
-            row
-        }))
+        Ok(found.filter(|row| !self.expired(table, row)))
     }
 
     /// A point read: the row when it exists and the viewer may read it, else
@@ -378,30 +455,11 @@ impl Runner<'_> {
         // Prediction keeps the server's reservation even for delivered rows.
         // Only the additional physical authority work uses the device allowance.
         let prepaid = !self.context.is_system();
-        let expiry_mark = self.next_expiry;
-        let found = self.prepaid_scan(&[
-            (MeterKind::RuleProbes, if prepaid { rules::rule_probes(&table.rules.read) } else { 0 }),
-            (MeterKind::Examined, 1),
-        ], !table.rules.read.is_uniformly_readable() || table.expire.is_some(), |runner, allowance| {
-            let Some(mut row) = runner.live_lookup(allowance, &read.table, &read.index, index, &key)? else { return Ok(None) };
-            if runner.expired(table, &row) { return Ok(None); }
-            materialize_optional_fields(&mut row, table);
-            let provisional = runner.is_provisional(&read.table, &row)?;
-            let viewer = runner.context.viewer.clone();
-            let allowed = if provisional && !runner.context.is_system() {
-                runner.authorize_read(&read.table, &row, true)?
-            } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner, allowance })? };
-            Ok(allowed.then_some(row))
-        })?;
-        let Some(row) = found else {
-            self.next_expiry = expiry_mark;
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
-            return Ok(Value::Null);
-        };
-        if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
-        self.note_expiry(table, &row);
-        let row = self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null);
-        Ok(super::recorded::public_image(table, self.sequence_read_result(&read.table, row)?))
+        if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
+        match self.authorized_point(read, index, &key, prepaid, trusted)? {
+            Some(row) => { let value = row.charge(&mut self.meter)?; self.sequence_read_result(&read.table, value) },
+            None => Ok(Value::Null),
+        }
     }
 
     /// The scan's prefix values, evaluated. A word term is not a value a
@@ -491,7 +549,7 @@ impl Runner<'_> {
             // are bounded before the lookup or unknown_fact formats/clones them.
             if visibility.uniform && (table.leave == crate::schema::LeavePolicy::DeliveredHistory || table.sync.is_none()
                 || (!scan.existence && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()))) {
-                self.device_work(|runner| runner.meter.heap(256 * (192 + word_heap::values(&scope) + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site))))?;
+                self.device_work(|runner| runner.meter.heap(256 * (192 + DisclosedKeys(&scope).heap() + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site))))?;
             }
             retained = self.retained_group(&scan.table, &scan.index, &scope)?;
             if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); }
@@ -501,6 +559,7 @@ impl Runner<'_> {
         }
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery and shared by its generated lanes.
         let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        self.private_scan_authority(&scan.table, visibility.uniform, admitted)?;
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             return Ok(None);
@@ -510,7 +569,7 @@ impl Runner<'_> {
             // is needed only by the existing partial-conjunction traversal.
             let partial = if visibility.uniform { None } else { rules::prefix_decision(self.schema, scan) };
             if let Some(rule) = if visibility.uniform { Some(&table.rules.read) } else { partial.as_ref() } {
-            if visibility.uniform { self.meter.heap(word_heap::verdict(index, &scope, &self.context.viewer, rule))?; }
+            if visibility.uniform { self.meter.heap(key_verdict_heap(index, &scope, &self.context.viewer, rule))?; }
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
             if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
             if !self.prefix_verdict(table, index, &scope, rule, visibility.uniform)? {
@@ -557,7 +616,7 @@ impl Runner<'_> {
             if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
             }
-            let found = if metered_words { self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1, &mut runner.meter))? }
+            let found = if metered_words { self.scan_disclosed(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?.into_iter().map(|(r,k)|(r.map(|r|r.into_value()).unwrap_or(Value::Null),k)).collect() }
                 else { self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1))? };
             let Some((_, key)) = found.into_iter().next() else { break };
             if metered_words {
@@ -655,7 +714,7 @@ impl Runner<'_> {
                 if metered {
                     self.validate_word_cursor(&token, &scan.table, &scan.index, scan.order, &suffix, scan.variant)?;
                     let position = &self.word_cursor.as_ref().unwrap().1;
-                    self.meter.heap(word_heap::values(&position.values))?;
+                    self.meter.heap(DisclosedKeys(&position.values).heap())?;
                     if position.inclusive { bounds.at_or_after = Some(position.values.clone()); }
                     else { bounds.after = Some(position.values.clone()); }
                     self.word_shape_cursor(&scan.site, token)?;
@@ -683,7 +742,7 @@ impl Runner<'_> {
             Some(_) => return Err(RuntimeError::Input("an opaque cursor is a string or null".into())),
         }
         if let Some((site, position)) = &self.view_seek && site == &scan.site {
-            self.meter.heap(word_heap::values(&position.values))?;
+            self.meter.heap(DisclosedKeys(&position.values).heap())?;
             if position.inclusive { bounds.at_or_after = Some(position.values.clone()); }
             else { bounds.after = Some(position.values.clone()); }
         }
@@ -736,7 +795,7 @@ impl Runner<'_> {
         let table = &self.schema.tables[&scan.table];
         let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
         self.read_charge(MeterKind::Examined, 1)?;
-        Ok(self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1, &mut runner.meter))?.pop().map(|(_, key)| key))
+        Ok(self.scan_disclosed(&scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1)?.pop().map(|(_, key)| key))
     }
 
     /// A bounded page. Returns the visible rows, at most `take`, and records
@@ -782,15 +841,16 @@ impl Runner<'_> {
     fn word_scan_prepared(&mut self, scan: &Scan, prefix: &[Value], bounds: &Bounds, take: usize, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         if word.is_some_and(|w| w.metered) {
             // Scan arguments own their prefix and bounds; Vec -> VecDeque transfers its buffer.
-            self.meter.heap(word_heap::values(prefix) + word_heap::bounds(bounds))?;
+            self.meter.heap(DisclosedKeys(prefix).heap() + DisclosedBounds(bounds).heap())?;
         }
         self.scan_prepared(scan, prefix.to_vec(), bounds.clone(), take, word)
     }
 
-    fn charge_word_key(&mut self, index: &Index, prefix_len: usize, suffix_len: usize, row: &Value) -> Result<(), RuntimeError> {
+    fn charge_word_key(&mut self, table: &str, index: &Index, prefix_len: usize, suffix_len: usize, row: &Value) -> Result<(), RuntimeError> {
         // Exact suffix slots plus copied column bodies (computed time keys are scalars).
-        let copied = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).filter_map(|c| row.field(c).ok()).map(word_heap::value).sum::<u64>();
-        let appended = if index.components.len() - prefix_len < suffix_len { word_heap::value(row.field("id")?) } else { 0 };
+        let row = self.project_row(table,row.clone())?;
+        let copied = index.components.iter().skip(prefix_len).filter_map(|c| c.column()).map(|c|row.scalar_heap(c)).sum::<u64>();
+        let appended = if index.components.len() - prefix_len < suffix_len { row.scalar_heap("id") } else { 0 };
         self.meter.heap(word_heap::slots::<Value>(suffix_len) + copied + appended)
     }
 
@@ -849,26 +909,18 @@ impl Runner<'_> {
 
     /// The caller prepays the page before entering. Hidden candidates never
     /// reach the page's payload ledger, filter, lookahead or continuation.
-    fn authorized_candidate(&mut self, scan: &Scan, prefix: &[Value], bounds: &Bounds, dir: Dir, remaining: &mut usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        self.authorized_scan(&[], |runner, allowance| {
-            let table = &runner.schema.tables[&scan.table];
+    fn authorized_candidate(&mut self, scan: &Scan, prefix: &[Value], bounds: &Bounds, dir: Dir, remaining: &mut usize) -> Result<Vec<(Option<super::authorized_point::AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
+        let table = &self.schema.tables[&scan.table];
+        let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
+        self.authorized_scratch(bytes, &[], |runner, allowance| {
             let mut cursor = bounds.clone();
             loop {
-                // Return one candidate without repeatedly fetching its unused tail.
-                let batch = (*remaining).min(runner.tx.remaining()).min(1);
-                if batch == 0 { return Ok(Vec::new()); }
-                let rows = runner.tx.scan(allowance, &scan.table, &scan.index, prefix, &cursor, dir, batch)?;
-                let count = rows.len();
-                for (mut row, key) in rows {
-                    cursor.after = crate::key::decode(&key).map(|key| key.into_iter().skip(prefix.len()).collect());
-                    materialize_optional_fields(&mut row, table);
-                    if runner.expired(table, &row) { *remaining -= 1; continue; }
-                    let expiry = runner.next_expiry;
-                    if runner.check_rule(&scan.table, Effect::Read, None, &row)? { return Ok(vec![(row, key)]); }
-                    runner.next_expiry = expiry;
-                    *remaining -= 1;
-                }
-                if count < batch { return Ok(Vec::new()); }
+                if *remaining == 0 || runner.tx.remaining() == 0 { return Ok(Vec::new()); }
+                let Some((mut row, key)) = runner.tx.scan(allowance, &scan.table, &scan.index, prefix, &cursor, dir, 1)?.pop() else { return Ok(Vec::new()); };
+                cursor.after = crate::key::decode(&key).map(|key| key.into_iter().skip(prefix.len()).collect());
+                materialize_optional_fields(&mut row, table);
+                if let Some(row) = runner.authorize_image(&scan.table, row)? { return Ok(vec![(Some(row), key)]); }
+                *remaining -= 1;
             }
         })
     }
@@ -895,6 +947,7 @@ impl Runner<'_> {
         let visibility = if word.is_some_and(|w| w.metered) { rules::Visibility { uniform: true, decided_true: true } }
             else { rules::scan_visibility(self.schema, scan) };
         let always_visible = word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        self.private_scan_authority(&scan.table, visibility.uniform, always_visible)?;
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }
@@ -904,13 +957,13 @@ impl Runner<'_> {
         let mut has_more = false;
         let mut capped = false;
         let mut filter_interrupted = false;
-        let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
+        let mut uniform_verdict = always_visible;
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
-            if visibility.uniform { uniform_verdict = Some(true); }
+            uniform_verdict |= visibility.uniform;
         }
         // @ref LLP 3000.015#2 — reserve the complete page authorization tree
         // before discovering even one candidate, including ordinary int pages.
@@ -933,9 +986,12 @@ impl Runner<'_> {
         // Ordinary jobs may hold an empty Purge grant; that is not a transition.
         let metered_payload = word.is_some_and(|w| w.metered) || self.view_scan_active
             || matches!(&self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_)));
+        // @ref LLP 3000.015#1 — reserve declared decode scratch, never actual private bytes.
+        // Both adapters use the typed projection boundary before retention.
+        let private_payload = table.written_by.values().any(|a| !a.audience);
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
-        if metered_payload || transient { self.meter.heap(word_heap::bounds(&bounds))?; }
+        if metered_payload || transient { self.meter.heap(DisclosedBounds(&bounds).heap())?; }
         let mut cursor = bounds.clone();
         // One retained cursor/key allowance, outside the transient row scope.
         // Key payload sizes vary: only grow this reservation when a
@@ -958,19 +1014,14 @@ impl Runner<'_> {
             // establishes exhaustion; every new candidate must first fit.
             let fetched = if private_page {
                 self.authorized_candidate(scan, &prefix, &cursor, dir, &mut walk_remaining)?
-            } else if metered_payload || transient || job_page { self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut runner.meter))? }
-                else { self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &scan.table, &scan.index, &prefix, &cursor, dir, batch))? };
+            } else { self.scan_authorized(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict)? };
+            if self.view_scan_active && !private_payload { self.meter.heap(fetched.iter().filter_map(|(row,_)|row.as_ref()).map(|row|row.heap_bytes()).sum())?; }
             if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
-            // The store ledger prices allocation (shared memory row handles
-            // are cheap). A view also retains the full source payload while
-            // scanning, even for rejected rows and fields its shape omits.
-            // Charge the entire fetched buffer before filtering or projecting.
-            if self.view_scan_active { self.meter.heap(fetched.iter().map(|(row, _)| row.heap_bytes()).sum())?; }
             if fetched.is_empty() {
                 break;
             }
             let fetched_len = fetched.len();
-            for (mut row, key) in fetched {
+            for (row, key) in fetched {
                 if let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
                     if &key < floor { crossed = true; break 'outer; }
                 }
@@ -978,6 +1029,14 @@ impl Runner<'_> {
                     capped = true;
                     break 'outer;
                 }
+                let Some(row) = row else {
+                    // A rejected candidate's continuation is internal scratch,
+                    // never an actual-size caller charge or a published cursor.
+                    cursor.after = self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |_, _| {
+                        Ok(crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect()))
+                    })?;
+                    continue;
+                };
                 // The previous cursor remains reserved while the new key is
                 // decoded. Transient consumers release scratch with this row.
                 if metered_payload || transient || job_page {
@@ -990,9 +1049,9 @@ impl Runner<'_> {
                     if transient { row_bytes += scratch; }
                 }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
-                let materialized = if metered_payload || transient || job_page { word_heap::materialize(&row, table) } else { 0 };
+                let materialized = if metered_payload || transient || job_page { row.materialization_heap() } else { 0 };
                 if materialized > 0 { self.meter.heap(materialized)?; }
-                materialize_optional_fields(&mut row, table);
+                let (row, authority) = row.into_parts();
                 if transient { row_bytes += materialized; }
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
@@ -1012,17 +1071,11 @@ impl Runner<'_> {
                 if unmatched {
                     continue;
                 }
-                let row_expiry_mark = self.next_expiry;
-                let allowed = private_page || self.authorized_scan(&[(MeterKind::RuleProbes,
-                    if !self.context.is_system() && self.is_provisional(&scan.table, &row)? { rules::rule_probes(&table.rules.read) } else { 0 })], |runner, _| match uniform_verdict {
-                    Some(verdict) => Ok(verdict && runner.provisional_readable(&scan.table, &row)?),
-                    None => runner.check_rule(&scan.table, Effect::Read, None, &row),
-                })?;
                 if self.read_capped() {
                     capped = true;
                     break 'outer;
                 }
-                if allowed {
+                {
                     self.note_expiry(table, &row);
                     let live_row = self.live_aggregate(&scan.table, row)?;
                     // @ref LLP 3000.007#20.21 — a cut aggregate is unavailable, not a
@@ -1034,7 +1087,9 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     let Some(row) = live_row else { continue; };
-                    let row = super::recorded::public_image(table, self.sequence_read_result(&scan.table, row)?);
+                    let disclosed = authority.project(self.disclosed_row(table,row).for_query());
+                    let disclosed_bytes = disclosed.heap_bytes();
+                    let row = super::recorded::public_image(table, self.sequence_read_result(&scan.table, disclosed.into_value())?);
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;
@@ -1092,7 +1147,7 @@ impl Runner<'_> {
                         drop(key);
                         if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
                         row_bytes = 0;
-                        self.meter.heap(row.heap_bytes())?;
+                        self.meter.heap(disclosed_bytes)?;
                         word_heap::push(&mut self.meter, &mut visible, row)?;
                     } else if metered_payload {
                         // Charge retention of a store-provided row and the emitted raw key
@@ -1106,8 +1161,6 @@ impl Runner<'_> {
                     }
                     if (scan.existence || job_page) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
-                } else {
-                    self.next_expiry = row_expiry_mark;
                 }
             }
             if !private_page && fetched_len < batch {
@@ -1159,7 +1212,7 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007#19.2 — loss is monotone across executions; only the last execution at an owned site carries next.
-    fn record_page<'r>(&mut self, site: String, mut page: PagePosition, rows: impl Iterator<Item = &'r Value>) -> Result<(), RuntimeError> {
+    fn record_page<'row>(&mut self, site: String, mut page: PagePosition, rows: impl Iterator<Item = &'row Value>) -> Result<(), RuntimeError> {
         self.record_shape_positions(&site, &mut page, rows)?;
         if let Some(previous) = self.pages.insert(site, page) {
             self.discarded_page_loss |= previous.interrupted || previous.next.is_some();
@@ -1364,7 +1417,7 @@ impl Runner<'_> {
             if key == Value::Null { continue; }
             let key = canonical_json(&key);
             self.meter.heap(key.len() as u64 + 64)?;
-            if seen.insert(key) { self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?; unique.push(value); }
+            if seen.insert(key) { self.meter.heap(self.environment_value_heap(&lane.binding) + std::mem::size_of::<Value>() as u64)?; unique.push(value); }
         }
         if let Some(prior) = prior { self.env.insert(lane.binding.clone(), prior); } else { self.env.remove(&lane.binding); }
         Ok(Box::new(unique.into_iter()))
@@ -1418,5 +1471,12 @@ fn existence_predicate(value: &Expr) -> bool {
                 if name == target && existence_predicate(value)))
         }
         _ => false,
+    }
+}
+
+impl PagePosition {
+    pub(super) fn shape_keys_heap(&self) -> u64 {
+        self.shape_positions.capacity() as u64 * std::mem::size_of::<Vec<Value>>() as u64
+            + self.shape_positions.iter().map(|key| key.capacity() as u64 * std::mem::size_of::<Value>() as u64 + key.iter().map(|v|DisclosedKey(v).copy_heap()).sum::<u64>()).sum::<u64>()
     }
 }

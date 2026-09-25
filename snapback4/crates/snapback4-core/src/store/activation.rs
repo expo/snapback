@@ -115,7 +115,7 @@ impl Store {
                 let t = catalog[name];
                 for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 let work = crate::rows::adoption::Work::table(table);
-                walk_metered(&tx, t, work, |row| if work.index_entries != 0 { crate::rows::adoption::contribution_bytes(row, table) } else { 0 }, |id, mut row, contribution_meter| {
+                walk_metered(&tx, t, work, |row| if work.index_entries != 0 { crate::rows::adoption::contribution_bytes(row, table) } else { crate::value::InternalPrice::zero() }, |id, mut row, contribution_meter| {
                     let original = row.clone();
                     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
                     // Persist only a destructive projection. Defaults and
@@ -136,7 +136,7 @@ impl Store {
                             contribution_meter.at(&format!("adopt {name}.{index_name}"));
                             contribution_meter.charge(crate::error::MeterKind::Examined, 1)?;
                             contribution_meter.step(m.evaluation_steps())?;
-                            contribution_meter.heap(crate::rows::adoption::contribution_bytes(&row, table))?;
+                            crate::rows::adoption::charge(contribution_meter, crate::rows::adoption::contribution_bytes(&row, table))?;
                         }
                         for key in index_keys(index, &row, id) {
                             if contribution.is_some() && key.len() > crate::rows::MAX_INDEX_KEY_BYTES {
@@ -234,7 +234,14 @@ fn validate_groups(tx: &Tx<'_>, table: &str, index: &str, prefix_len: usize, max
         let scratch = meter.mark();
         meter.charge(MeterKind::Examined, 1)?;
         let key = row.get_ref(0)?.as_blob().map_err(|e| RuntimeError::Store(e.to_string()))?;
-        meter.heap(heap::key_decode(key.len(), key.len()) + previous.as_deref().map_or(0, heap::values))?;
+        meter.heap(heap::key_decode(key.len(), key.len()))?;
+        if let Some(values) = &previous {
+            meter.heap(heap::slots::<Value>(values.len()))?;
+            crate::engine::authorized_scan::InternalLedger::with_meter(&mut meter, |meter, scope| {
+                for value in values { value.retained_internal(scope).charge(meter, scope)?; }
+                Ok::<_, RuntimeError>(())
+            })?;
+        }
         let mut group = crate::key::decode(key).ok_or_else(|| RuntimeError::Store("invalid rebuilt index key".into()))?;
         group.truncate(prefix_len);
         if !(nulls_distinct && group.contains(&Value::Null)) {

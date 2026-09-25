@@ -283,6 +283,8 @@ pub struct RuleDecl {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
     pub sequence: Option<String>,
+    pub written_by: Option<String>,
+    pub readable_by_audience: bool,
     pub maintained: Option<ColumnAggregate>,
     pub name: String,
     pub default: Option<Expr>,

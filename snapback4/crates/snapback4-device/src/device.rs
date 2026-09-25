@@ -232,8 +232,8 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     }
 
     // @ref LLP 3000.007.003#3.2 — retained images cannot establish current attribution coverage.
-    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut snapback4_core::meter::Meter) -> Result<bool, RuntimeError> {
-        recorded::covered(self, name, row, viewer, now, meter)
+    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::meter::Meter) -> Result<bool, RuntimeError> {
+        recorded::covered(self, name, row, viewer, now, scope, meter)
     }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
@@ -253,10 +253,10 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         self.tx.scan(table, index_name, prefix, bounds, dir, limit).map(|rows| rows.into_iter().map(|(row, key)| (predictions::without_pending(row), key)).collect())
     }
-    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, meter)?;
+    fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter)?;
         for (row, _) in &mut rows {
-            meter.heap(snapback4_core::rows::word_heap::object_copy(row))?;
+            self.schema.tables[table].project_fields(row.clone(),None).charge_copy_internal(meter,scope)?;
             *row = predictions::without_pending(std::mem::replace(row, Value::Null));
         }
         Ok(rows)

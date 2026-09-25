@@ -64,6 +64,13 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
+    // @ref LLP 3000.015#1 — timeline mappings exist only after lowering both spellings.
+    for issue in snapback4_core::schema::field_authority::validate(&schema) {
+        if !diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && d.message == issue.message) {
+            diagnostics.push(crate::diag::Diagnostic::new(&catalog.site_for(&issue.path), "E_FIELD_AUTHORITY", issue.message,
+                "declare readable by audience before using a private field in a timeline mapping or predicate").guide("rules"));
+        }
+    }
     // Timeline ownership is resolved after the ordinary schema checks.
     for issue in snapback4_core::schema::columns::timeline_issues(&schema) {
         diagnostics.push(columns::refusal(&catalog.site_for(&issue.path), issue.message));

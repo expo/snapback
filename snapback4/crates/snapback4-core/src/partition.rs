@@ -125,6 +125,18 @@ pub fn partitions(table_name: &str, sync: &Sync, row: &Value) -> Vec<String> {
     }
 }
 
+/// The mutation receipt cannot reveal extra private owner deliveries. Count
+/// one logical change per private table/row, regardless of recipient fanout.
+#[cfg(feature = "sqlite")]
+pub(crate) fn disclosed_event_count(schema: &Schema, events: &[Event]) -> usize {
+    let mut private = BTreeSet::new();
+    events.iter().filter(|event| {
+        if schema.tables[&event.table].written_by.values().any(|a| !a.audience) {
+            private.insert((&event.table, &event.id))
+        } else { true }
+    }).count()
+}
+
 #[cfg(feature = "sqlite")]
 mod pending;
 #[cfg(feature = "sqlite")]
@@ -137,10 +149,9 @@ mod born_tests;
 #[cfg(feature = "sqlite")]
 mod log_events {
     use super::*;
-    pub(super) fn put(events: &mut PendingEvents, table: &str, id: &str, new: &Value, after: &BTreeSet<String>) {
-        let image = new.clone();
+    pub(super) fn put(events: &mut PendingEvents, table: &str, definition: &Table, id: &str, new: &Value, after: &BTreeSet<String>) {
         for partition in after {
-            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(image.clone()) });
+            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(definition.project_fields(new.clone(), partition.strip_prefix("p:")).into_value()) });
         }
     }
     pub(super) fn del(events: &mut PendingEvents, table: &str, id: &str, before: &BTreeSet<String>, after: &BTreeSet<String>) {
@@ -182,8 +193,30 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         runner.born_rows.insert(key.clone(), earlier);
     }
     if let Some(sync) = &table.sync {
-        let before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
-        let after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
+        let mut before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
+        let mut after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
+        // @ref LLP 3000.015#1 — reserve all potential owner deliveries before
+        // inspecting witnesses; neither short circuits nor recipient counts
+        // may move the writer's meter or E_BOUND boundary.
+        let ordinary_steps = (before.len() + after.len()) as u64;
+        let owner_slots = table.written_by.values().filter(|a| !a.audience).count() as u64
+            * (u64::from(old.is_some()) + u64::from(new.is_some()));
+        runner.prepay_field_delivery(&table.rules.read, owner_slots, origin == Origin::Maintained)?;
+        if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, ordinary_steps)?; }
+        else { runner.meter.charge(MeterKind::Steps, ordinary_steps)?; }
+        // Shared images omit private fields; each owner's own partition also
+        // carries an image only when that owner may read the row. Use the old
+        // image for revocations, so losing read authority still withdraws it.
+        // Evaluate for the recipient explicitly: the writer may be the system.
+        for (row, recipients) in [(old, &mut before), (new, &mut after)] {
+            if let Some(row) = row {
+                for owner in table.field_owners(row) {
+                    if runner.field_owner_can_read(&table.rules.read, &owner, row)? {
+                        recipients.insert(partition_of(&owner));
+                    }
+                }
+            }
+        }
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
         #[cfg(feature = "sqlite")]
         let id = if LOG { id.to_owned() } else { String::new() };
@@ -200,17 +233,15 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 // re-read it as absent and send its id as a `del`).
                 let live = new.filter(|new| !runner.context.now.is_some_and(|now| table.expired(new, now)));
                 if let Some(new) = live {
-                    log_events::put(&mut runner.events, table_name, &id, new, &after);
+                    log_events::put(&mut runner.events, table_name, table, &id, new, &after);
                 }
             } else {
                 if let Some(new) = new {
-                    log_events::put(&mut runner.events, table_name, &id, new, &after);
+                    log_events::put(&mut runner.events, table_name, table, &id, new, &after);
                 }
                 log_events::del(&mut runner.events, table_name, &id, &before, &after);
             }
         }
-        if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
-        else { runner.meter.charge(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
     }
     #[cfg(feature = "sqlite")]
     if let Some(key) = &row_key && new.is_none() {
@@ -497,11 +528,11 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
                 let id = row.field("id")?.as_str()?.to_owned();
                 at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
                 at.taken += 1;
-                let partition = match &sync.audience {
+                let partition = if table.field_owners(&row).contains(principal) { partition_of(principal) } else { match &sync.audience {
                     Audience::Public => PUBLIC.to_owned(),
                     Audience::Column(_) => partition_of(principal),
                     Audience::Target { .. } => group_partition(table_name, group),
-                };
+                }};
                 events.push(Event { partition, table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
             }
             if !exhausted {
@@ -564,10 +595,14 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let target = remaining.min(room.saturating_add(1));
     loop {
         let batch = target.saturating_sub(live.len()).min(256).max(1);
-        let rows = tx.scan(table_name, &index_name, group, &bounds, dir, batch)?;
+        let principal = viewer.map(|(_,p)|p).unwrap_or(crate::SYSTEM_PRINCIPAL);
+        // Delivery owns a separate, unbounded internal ledger. Projection is
+        // not a caller-price capability; its reader validates each live row.
+        let rows = tx.scan(table_name,&index_name,group,&bounds,dir,batch)?
+            .into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)),k)).collect::<Vec<_>>();
         let count = rows.len();
         for (row, key) in rows {
-            let mut row = row_image(&row, table).into_owned();
+            let mut row = row.into_value();
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
             if let Some(runner) = &mut aggregate {
@@ -577,6 +612,9 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             if let Some(reader) = &mut reader {
                 if !reader.check_rule(table_name, crate::schema::Effect::Read, None, &row)? { continue; }
             }
+            // Transport retains recorded attribution for device aggregates;
+            // only authored private fields are stripped from sync images.
+            let row = table.project_fields(row, viewer.map(|(_, principal)| principal)).into_value();
             live.push((row, key));
             if live.len() == target { break; }
         }
@@ -865,10 +903,21 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0);
     for mut event in page {
         if event.kind != "join" {
+            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.written_by.values().any(|authority| !authority.audience)) {
+                if let Some(row) = reader.authorized_scan(&[], |reader, scope| reader.fetch(scope, &event.table, &event.id))? {
+                    if reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)? {
+                        event.kind = "put".into();
+                        event.data = Some(schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
+                    }
+                }
+                out.push(event);
+                continue;
+            }
             if event.kind == "put" {
                 event.data = if schema.table(&event.table).is_some() { reader.metered_scan(|reader, allowance| reader.fetch(allowance, &event.table, &event.id))? } else { None };
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
+                    event.data = event.data.take().map(|row| schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
                 } else { event.kind = "del".into(); }
             }
             out.push(event);

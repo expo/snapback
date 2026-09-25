@@ -210,16 +210,19 @@ pub fn check(options: &Options) -> i32 {
     let details = acquisition.is_none() || options.flags.contains_key("verbose");
     let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze_bound(&bound.schema, p)).collect();
     let scale_summary = crate::scale::summary(&certificates);
+    let field_authority: Vec<_> = bound.schema.visible_tables().flat_map(|(name,table)| table.written_by.iter().map(move |(column,authority)|
+        format!("{name}.{column}: written by .{}; visibility: {}", authority.owner, if authority.audience { "readable by audience" } else { "private to owner" }))).collect();
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     let sequences: Vec<_> = bound.schema.visible_tables().flat_map(|(name, table)| table.sequences.iter().map(move |(column, reference)| {
         format!("sequence {name}.{column}: counter per {} row through .{reference}; immutable, provisional while pending", table.columns[reference])
     })).collect();
     if options.json {
-        println!("{}", json!({ "ok": true, "sequences": sequences, "scaleSummary": scale_summary, "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         for line in &sequences { println!("  {line}"); }
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
+        for line in &field_authority { println!("  {line}"); }
         if details {
             for report in note_reports(&bound.notes, options.flags.contains_key("verbose")) { println!("{}", present(&report)); }
         }

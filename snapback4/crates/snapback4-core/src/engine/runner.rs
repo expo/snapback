@@ -1,6 +1,9 @@
 //! The interpreter's spine: statements, expressions and builtins. Reads live
 //! in `read.rs`, writes in `write.rs`; both are methods on `Runner`.
 
+#[path = "extrema.rs"]
+pub(crate) mod extrema;
+
 use super::Context;
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
@@ -16,6 +19,19 @@ use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+
+// Only this evaluator can manufacture expression-pricing authority. Store
+// rows must pass project_row before entering its environment or result values.
+pub(crate) struct ExpressionAccess(());
+
+/// Minted only at the runner boundary; Context is data, never pricing authority.
+pub(crate) struct SystemAccess(());
+impl Runner<'_> {
+    pub(super) fn system_access(&self) -> Option<SystemAccess> {
+        self.context.is_system().then_some(SystemAccess(()))
+    }
+}
+fn expression_heap(value: &Value) -> u64 { value.expression_heap(ExpressionAccess(())) }
 
 #[derive(Clone, Debug)]
 pub(super) enum Flow {
@@ -181,6 +197,23 @@ pub struct Runner<'a> {
 }
 
 impl<'a> Runner<'a> {
+    pub(super) fn measured_expr(&mut self, expr: &Expr) -> Result<(Value, u64), RuntimeError> {
+        let value = self.expr(expr)?;
+        let bytes = expression_heap(&value);
+        Ok((value, bytes))
+    }
+    pub(super) fn environment_value_copy_heap(&self, name: &str) -> u64 { self.env.get(name).map_or(0, |v| v.expression_copy(ExpressionAccess(()))) }
+    pub(super) fn expr_input(&mut self, expr: &Expr) -> Result<crate::value::Supplied,RuntimeError> {
+        Ok(self.expr(expr)?.expression_input(ExpressionAccess(())))
+    }
+    pub(super) fn environment_heap(&self) -> u64 { self.env.values().map(expression_heap).sum() }
+    pub(super) fn environment_value_heap(&self, name: &str) -> u64 { self.env.get(name).map_or(0, expression_heap) }
+    pub(super) fn component_object(&mut self, fields: super::components::EvaluatedFields) -> Result<Value, RuntimeError> {
+        let row = fields.into_value();
+        self.meter.heap(expression_heap(&row))?;
+        Ok(row)
+    }
+
     // @ref LLP 3000.007#5.6 — non-uniform server work depends on hidden populations; its cut reason must stay private too.
     pub(crate) fn read_cut(&self) -> Option<super::ReadCut> {
         if self.non_uniform && !self.device { None }
@@ -285,7 +318,7 @@ impl<'a> Runner<'a> {
         // detail, but mark it unavailable so transports cannot publish ready null.
         let result = (|| {
             self.prepare_effect_presence(program)?;
-            for value in self.context.args.values() { self.meter.heap(value.clone_heap_bytes())?; }
+            for value in self.context.args.values() { self.meter.heap(value.expression_copy(ExpressionAccess(())))?; }
             self.statements(&program.body, &program.name)
         })();
         match result {
@@ -322,7 +355,7 @@ impl<'a> Runner<'a> {
             let flow = match statement {
                 Stmt::Const { name, value } => {
                     let value = self.expr(value)?;
-                    self.meter.heap(value.heap_bytes())?;
+                    self.meter.heap(expression_heap(&value))?;
                     self.bind_effect_value(name, value)?;
                     self.consts.insert(name.clone());
                     Flow::Next
@@ -332,13 +365,13 @@ impl<'a> Runner<'a> {
                         return Err(RuntimeError::Input(format!("cannot assign to const binding {name}")));
                     }
                     let value = self.expr(value)?;
-                    self.meter.heap(value.heap_bytes())?;
+                    self.meter.heap(expression_heap(&value))?;
                     self.bind_effect_value(name, value)?;
                     Flow::Next
                 }
                 Stmt::Push { target, value } => {
                     let value = self.expr(value)?;
-                    self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?;
+                    self.meter.heap(expression_heap(&value) + std::mem::size_of::<Value>() as u64)?;
                     self.push_presence_value(target)?;
                     match self.env.get_mut(target) {
                         Some(Value::Array(values)) => values.push(value),
@@ -425,17 +458,17 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::InsertIfAbsent { table, row, result } => {
                     let row = self.expr(row)?;
-                    let value = if self.insert_if_absent(table, row.clone())? { self.sequence_result(table, row)? } else { Value::Null };
+                    let value = if self.insert_if_absent(table, row.clone().expression_input(ExpressionAccess(())))? { self.sequence_result(table, row)? } else { Value::Null };
                     self.bind(result, value);
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {
                     let image = self.expr(row)?;
                     if self.schema.tables[table].sequences.is_empty() {
-                        self.insert(table, image)?;
+                        self.insert(table, image.expression_input(ExpressionAccess(())))?;
                     } else {
-                        self.meter.heap(image.heap_bytes())?;
-                        self.insert(table, image.clone())?;
+                        self.meter.heap(expression_heap(&image))?;
+                        self.insert(table, image.clone().expression_input(ExpressionAccess(())))?;
                         // A bound insert keeps its engine-filled image in the result local.
                         if let Expr::Variable(name) = row {
                             let result = self.sequence_result(table, image)?;
@@ -447,18 +480,18 @@ impl<'a> Runner<'a> {
                 Stmt::Update { table, key, patch } => {
                     let key = self.expr(key)?;
                     let patch = self.expr(patch)?;
-                    self.update(table, &key, patch)?;
+                    self.update(table, &key, patch.expression_input(ExpressionAccess(())))?;
                     Flow::Next
                 }
                 Stmt::Upsert { table, key, row } => {
                     let key = self.expr(key)?;
                     let row = self.expr(row)?;
-                    self.upsert(table, &key, row)?;
+                    self.upsert(table, &key, row.expression_input(ExpressionAccess(())))?;
                     Flow::Next
                 }
                 Stmt::WriteTarget { target, patch, upsert, condition, result } => {
                     let value = self.write_target(target, patch, *upsert, condition.as_ref(), result.is_some())?;
-                    if let Some(name) = result { self.meter.heap(value.heap_bytes())?; self.bind(name, value); }
+                    if let Some(name) = result { self.meter.heap(expression_heap(&value))?; self.bind(name, value); }
                     Flow::Next
                 }
                 Stmt::DeleteTarget { target } => { self.delete_target(target)?; Flow::Next }
@@ -538,7 +571,7 @@ impl<'a> Runner<'a> {
                 let values = if prepaid { self.metered_domain(scan)? } else { self.scan(scan)? };
                 #[cfg(feature = "postgres")]
                 self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, &self.tx);
-                if !prepaid { self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?; }
+                if !prepaid { self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(expression_heap).sum::<u64>())?; }
                 Ok(values)
             }
             LoopDomain::LiteralRange { start, end_exclusive } => {
@@ -552,7 +585,7 @@ impl<'a> Runner<'a> {
             }
             LoopDomain::ArgList { name, max } => {
                 let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
-                self.meter.heap(value.clone_heap_bytes())?;
+                self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                 let values = value.as_array()?.to_vec();
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
@@ -590,7 +623,7 @@ impl<'a> Runner<'a> {
                 continue;
             }
             let next = row.field(&recurse.next_field)?;
-            self.meter.heap(next.clone_heap_bytes() + row.heap_bytes() + std::mem::size_of::<Value>() as u64)?;
+            self.meter.heap(next.expression_copy(ExpressionAccess(())) + expression_heap(&row) + std::mem::size_of::<Value>() as u64)?;
             let next = next.clone();
             rows.push(row);
             match next {
@@ -625,14 +658,14 @@ impl<'a> Runner<'a> {
         self.read_presence_value(expression)?;
         match expression {
             Expr::Literal(value) => {
-                self.meter.heap(value.clone_heap_bytes())?;
+                self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 { self.effect_presence.absent = self.effect_presence.variables.get(name).and_then(|v| v.absent); }
                 let value = self.env.get(name).ok_or_else(|| missing_variable(name, &self.statement_site))?;
-                self.meter.heap(value.clone_heap_bytes())?;
+                self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                 Ok(value.clone())
             }
             Expr::Input(input) => self.input(*input),
@@ -642,7 +675,7 @@ impl<'a> Runner<'a> {
                     if *base == Value::Null { return Ok(Value::Null); }
                     self.provisional_sequence_read |= self.sequence_field_is_provisional(base, name)?;
                     let value = base.field(name)?;
-                    self.meter.heap(value.clone_heap_bytes())?;
+                    self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                     return Ok(value.clone());
                 }
                 let base = self.expr(base)?;
@@ -651,7 +684,7 @@ impl<'a> Runner<'a> {
                     other => {
                         self.provisional_sequence_read |= self.sequence_field_is_provisional(&other, name)?;
                         let value = other.field(name)?;
-                        self.meter.heap(value.clone_heap_bytes())?;
+                        self.meter.heap(value.expression_copy(ExpressionAccess(())))?;
                         Ok(value.clone())
                     }
                 }
@@ -663,7 +696,7 @@ impl<'a> Runner<'a> {
             Expr::Array(values) => {
                 let values = values.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
                 let value = Value::Array(values);
-                self.meter.heap(value.heap_bytes())?;
+                self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
             Expr::Shape { base, fields } => {
@@ -672,13 +705,13 @@ impl<'a> Runner<'a> {
                 let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
                 if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
                 let value = Value::Row(fields.into());
-                self.meter.heap(value.heap_bytes())?;
+                self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
             Expr::Object(values) => {
                 let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
                 let value = Value::Row(fields.into());
-                self.meter.heap(value.heap_bytes())?;
+                self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
             Expr::Binary { op, left, right } => {
@@ -737,18 +770,18 @@ impl<'a> Runner<'a> {
             }
             Expr::Get(read) => {
                 let value = self.get(read)?;
-                self.meter.heap(value.heap_bytes())?;
+                self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
             Expr::Exists(read) => Ok(Value::Bool(self.get(read)? != Value::Null)),
             Expr::Scan(scan) => {
                 let values = self.scan(scan)?;
-                self.meter.heap(values.iter().map(Value::heap_bytes).sum::<u64>())?;
+                self.meter.heap(values.iter().map(expression_heap).sum::<u64>())?;
                 Ok(Value::Array(values))
             }
             Expr::Merge(merge) => {
                 let values = self.merge(merge)?;
-                self.meter.heap(values.iter().map(Value::heap_bytes).sum::<u64>())?;
+                self.meter.heap(values.iter().map(expression_heap).sum::<u64>())?;
                 Ok(Value::Array(values))
             }
         }
@@ -765,7 +798,7 @@ impl<'a> Runner<'a> {
                 let id = self.context.mint()?;
                 let value = Value::Id(id);
                 crate::value::validate_identities(&value)?;
-                self.meter.heap(value.heap_bytes())?;
+                self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
             Input::ReadTime => self.context.read_time.map(Value::Int).ok_or_else(|| RuntimeError::Input("readTime is not pinned".to_owned())),
@@ -775,6 +808,14 @@ impl<'a> Runner<'a> {
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
+            Builtin::ProjectFields { table } => {
+                let row = args.remove(0);
+                if row == Value::Null { Ok(row) } else {
+                    let row = self.with_defaults(table, row.expression_input(ExpressionAccess(())))?.into_value();
+                    self.project_row(table, row).map(|row| super::recorded::public_image(&self.schema.tables[table], row.into_value()))
+                }
+            }
+            Builtin::OptionalField { field } => Ok(args[0].field(field).cloned().unwrap_or(Value::Null)),
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
             Builtin::Calendar { millis } => {
                 if *millis <= 0 { return Err(RuntimeError::Input("calendar duration must be positive".into())); }
@@ -786,7 +827,7 @@ impl<'a> Runner<'a> {
                 let text = args[0].as_str()?;
                 let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });
                 // @ref LLP 3000.007#5.3 — the small text library charges every new result to the heap meter.
-                self.meter.heap(value.heap_bytes())?;
+                self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
             Builtin::Sha256 => {
@@ -797,19 +838,19 @@ impl<'a> Runner<'a> {
                 // @ref LLP 3000.007#5.0 — runtime work and each new result allocation stay inside the meter.
                 // The digest Value owns one fixed 64-byte lowercase ASCII string;
                 // charge its String capacity as Value::heap_bytes does elsewhere.
-                self.meter.heap(value.heap_bytes())?;
+                self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
-            Builtin::Group { field } => {
+            Builtin::Group { field, optional } => {
                 // @ref LLP 3000.007#5.3 — groups retain first-seen order; keys and the result are heap charged.
                 let values = into_array(args.remove(0))?;
                 let mut positions = BTreeMap::<String, usize>::new();
                 let mut groups: Vec<(Value, Vec<Value>)> = Vec::new();
                 for value in values {
                     self.meter.step(1)?;
-                    let key = value.field(field)?.clone();
+                    let key = if *optional { value.field(field).unwrap_or(&Value::Null) } else { value.field(field)? }.clone();
                     let encoded = canonical_json(&key);
-                    self.meter.heap(encoded.len() as u64 + key.clone_heap_bytes())?;
+                    self.meter.heap(encoded.len() as u64 + key.expression_copy(ExpressionAccess(())))?;
                     let next = groups.len();
                     let position = *positions.entry(encoded).or_insert(next);
                     if position == next { groups.push((key, Vec::new())); }
@@ -831,7 +872,7 @@ impl<'a> Runner<'a> {
                     text.push_str(value.as_str()?);
                 }
                 let value = Value::String(text);
-                self.meter.heap(value.heap_bytes())?;
+                self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
             Builtin::Slice => {
@@ -883,14 +924,14 @@ impl<'a> Runner<'a> {
                 let mut values = into_array(args.remove(0))?;
                 for value in &values {
                     for key in keys {
-                        value.field(&key.field)?;
+                        if !key.optional { value.field(&key.field)?; }
                     }
                 }
                 self.meter.step(values.len() as u64)?;
                 values.sort_by(|left, right| {
                     keys.iter()
                         .find_map(|key| {
-                            let mut order = left.field(&key.field).expect("validated").total_cmp(right.field(&key.field).expect("validated"));
+                            let mut order = left.field(&key.field).unwrap_or(&Value::Null).total_cmp(right.field(&key.field).unwrap_or(&Value::Null));
                             if key.order == Order::Desc {
                                 order = order.reverse();
                             }
@@ -924,7 +965,7 @@ impl<'a> Runner<'a> {
             Builtin::DeterministicShare => {
                 let amount = args.remove(0).as_int()?;
                 let mut recipients = into_array(args.remove(0))?;
-                self.meter.heap(recipients.capacity() as u64 * std::mem::size_of::<Value>() as u64 + recipients.iter().map(Value::heap_bytes).sum::<u64>())?;
+                self.meter.heap(recipients.capacity() as u64 * std::mem::size_of::<Value>() as u64 + recipients.iter().map(expression_heap).sum::<u64>())?;
                 let recipient = args.remove(0);
                 recipients.sort_by(Value::total_cmp);
                 if recipients.is_empty() {
@@ -970,8 +1011,8 @@ impl<'a> Runner<'a> {
             }
         };
         let value = result?;
-        if matches!(builtin, Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Concat | Builtin::Slice | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::Divmod { .. }) {
-            self.meter.heap(value.heap_bytes())?;
+        if matches!(builtin, Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Concat | Builtin::Slice | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::Divmod { .. }) {
+            self.meter.heap(expression_heap(&value))?;
         }
         Ok(value)
     }

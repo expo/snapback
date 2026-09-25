@@ -78,7 +78,7 @@ fn w15a_fifty_members_write_one_effect_and_dependency_per_recipient() {
         assert_eq!((effects.len(), dependencies), (49, 49));
         let m = sent.metered;
         meters.push(unconfirmed::fields(m));
-        assert_eq!([m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, m.rows_written], [52, 2, 5, 1356, 69400, 27, 1]);
+        assert_eq!([m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, m.rows_written], [52, 2, 3, 1356, 69718, 27, 1]);
         for effect in &effects {
             assert_eq!(effect.next_at, Some(deadline));
             let recipient = effect.payload.field("targetUserId").unwrap().as_str().unwrap();
@@ -226,8 +226,16 @@ fn w7r1_heap_boundary_is_independent_of_grace() {
         let sent = engine.mutate("post", None, Context::new("alice", args(&[("p", id("bob"))])).at(11_000).with_ids(["note".into()])).unwrap();
         (sent, engine.store().rows("notes").unwrap())
     };
-    let absent = run(false, 16 << 20).0.metered.heap_bytes;
-    let grace = run(true, 16 << 20).0.metered.heap_bytes;
+    let minimum = |grace| {
+        let (mut low,mut high)=(0,16 << 20);
+        while low<high {
+            let mid=(low+high)/2;
+            if matches!(run(grace,mid).0.state,WriteState::Sent {..}) { high=mid; } else { low=mid+1; }
+        }
+        low
+    };
+    let absent = minimum(false);
+    let grace = minimum(true);
     println!("w7r1 server heap: absent={absent} grace={grace}");
     let mut mismatches = Vec::new();
     for ceiling in [absent - 1, absent, grace - 1, grace] {

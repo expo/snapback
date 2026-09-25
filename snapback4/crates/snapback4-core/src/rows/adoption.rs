@@ -1,6 +1,7 @@
 //! Admission for a fetched adoption page, before any callback can write.
-use crate::{error::{MeterKind, RuntimeError}, meter::Meter, schema::{ColumnDefault, IndexComponent, Maintain, Table}, value::Value};
+use crate::{error::{MeterKind, RuntimeError}, meter::Meter, schema::{ColumnDefault, IndexComponent, Maintain, Table}, value::{Value, InternalPrice}};
 use super::word_heap as heap;
+use crate::engine::authorized_scan::InternalLedger;
 
 /// Cumulative callback work per source row. Admission adds one examination;
 /// heap is checked separately because row scratch is released after each row.
@@ -57,29 +58,35 @@ impl Work {
     }
 }
 
-pub(crate) fn decode_bytes(data: &str) -> u64 {
-    // stored_row already includes decoder scratch; multiplying it again
-    // rejects fitting rows even when they are the only image in the page.
-    heap::stored_row(data).saturating_add(4096)
+pub(crate) fn decode_bytes(data: &str) -> InternalPrice {
+    InternalLedger::with_meter(&mut Meter::new(crate::Ceilings::unbounded(), crate::meter::Cut::Abort), |_, scope| heap::stored_row(data, scope).fixed(4096))
 }
 
-/// Bound the contribution allowance after optional/default materialization,
-/// without allocating a second row just to decide whether it fits.
-pub(crate) fn contribution_bytes(row: &Value, table: &Table) -> u64 {
-    let mut bytes = row.heap_bytes();
-    for (name, kind) in &table.columns {
-        if row.field(name).is_ok() { continue; }
-        let added = if table.maintained.contains_key(name) || kind.is_optional() { Some(0) }
-            else if let Some(ColumnDefault::Literal(value)) = table.defaults.get(name) { Some(value.heap_bytes()) }
-            else { None };
-        if let Some(added) = added { bytes = bytes.saturating_add(80 + name.len() as u64).saturating_add(added); }
-    }
-    bytes.saturating_mul(4).saturating_add(4096)
+/// The price remains opaque: adoption may charge it only on its internal meter.
+pub(crate) fn contribution_bytes(row: &Value, table: &Table) -> InternalPrice {
+    InternalLedger::with_meter(&mut Meter::new(crate::Ceilings::unbounded(), crate::meter::Cut::Abort), |_, scope| {
+        let mut bytes = row.retained_internal(scope);
+        for (name, kind) in &table.columns {
+            if row.field(name).is_ok() { continue; }
+            let added = if table.maintained.contains_key(name) || kind.is_optional() { Some(InternalPrice::zero()) }
+                else if let Some(ColumnDefault::Literal(value)) = table.defaults.get(name) { Some(value.retained_internal(scope)) }
+                else { None };
+            if let Some(added) = added { bytes = bytes.fixed(80 + name.len() as u64).plus(added); }
+        }
+        bytes.times(4).fixed(4096)
+    })
+}
+
+pub(crate) fn charge(meter: &mut Meter, price: InternalPrice) -> Result<(), RuntimeError> {
+    InternalLedger::with_meter(meter, |meter, scope| price.charge(meter, scope))
+}
+pub(crate) fn fits(meter: &mut Meter, price: &InternalPrice) -> bool {
+    InternalLedger::with_meter(meter, |meter, scope| price.fits(meter, scope))
 }
 
 // @ref LLP 3000.007#20.9.3 — shrink pages before adoption writes when retained images plus row work cannot fit.
 pub(crate) fn page_fits<'a>(images: impl ExactSizeIterator<Item = &'a str>, meter: &mut Meter,
-    work: Work, scratch: impl Fn(&Value) -> u64) -> Result<bool, RuntimeError> {
+    work: Work, scratch: impl Fn(&Value) -> InternalPrice) -> Result<bool, RuntimeError> {
     // Fix every cumulative budget before admission decodes or callbacks. Heap
     // retries retain used work, so both this check and limit use the remainder.
     if !work.fits(meter, images.len())? { return Ok(false); }
@@ -87,15 +94,15 @@ pub(crate) fn page_fits<'a>(images: impl ExactSizeIterator<Item = &'a str>, mete
     for data in images {
         let mark = meter.mark();
         let decode = decode_bytes(data);
-        if !singleton && !meter.room(MeterKind::HeapBytes, decode) { return Ok(false); }
-        meter.heap(decode)?;
+        if !singleton && !fits(meter, &decode) { return Ok(false); }
+        charge(meter, decode)?;
         meter.charge(MeterKind::Examined, 1)?;
         let row: Value = crate::json_codec::from_text(data).map_err(|e| RuntimeError::Store(e.to_string()))?;
         let work = scratch(&row);
-        let fits = meter.room(MeterKind::HeapBytes, work);
+        let fits = fits(meter, &work);
         // Only a singleton may refuse for heap. Larger pages can be dropped
         // and fetched again with a smaller limit, without replaying a write.
-        if !fits && singleton { meter.heap(work)?; }
+        if !fits && singleton { charge(meter, work)?; }
         drop(row);
         meter.release_heap(mark);
         if !fits { return Ok(false); }

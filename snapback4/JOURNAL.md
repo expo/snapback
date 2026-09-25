@@ -56897,3 +56897,625 @@ PostgreSQL run is claimed. Grok completion was rechecked: `EXIT=0`; all
 Astra and Grok items have named dispositions in
 `/home/ccheever/sb5/lane-b2.r8.final.md`. Delivery is a local commit on
 `sb5/b2-sequence-by`, with no push; the report records its hash.
+## 2026-09-25 — LLP 3000.015 B1: field authority and private owner projection
+
+Implemented `written by .principal` and `readable by audience` across
+September 24–25 in Quarry,
+schema IR and the shared engine. Supplied insert values require the named
+owner; omissions use declared defaults. Each touched owned field uses the old
+row's owner, while other fields use the ordinary row update grant. An owned
+point patch needs no ordinary update grant, including when that grant probes
+an online-only admin table. A named `update (old, next)` remains a transition
+constraint; matching integer/time comparisons admit monotonic read marks.
+Hidden targets and refused absent upserts retain NOT_FOUND; readable field
+refusals use E_FIELD_AUTHORITY with an owner/default/visibility rewrite.
+
+Private fields are removed from stored shared group/public images. Each
+owner's principal partition also carries its projected row. Queries, scalar
+selection, shapes, write results, snapshots, joins and refreshed stream images
+respect the same visibility. Ownership transfer sends a tombstone, refreshed
+to a redacted put only when the old viewer still reads the current row. This
+normalization is limited to tables with private fields. Audience-only fields
+keep ordinary projection heap cost. Private asset placements also constrain
+asset download, preserving trusted system authority. Field ownership does
+not grant row reading. Projection removes keys; selecting an absent private
+field returns null, with optional TypeScript/Rust row types.
+
+Device patches preserve another owner's missing contextual-default fields as
+unknown. A transition depending on them, or acquiring their ownership, queues;
+an independent owned-field patch still predicts. Capability fencing rejects
+older consumers rather than silently dropping authority. Adoption treats
+changed ownership/visibility as a rule generation change. check prints one
+owner/visibility line per field; the rules and writes cards include Clique's
+monotonic readUpTo/markRead recipe and a compiled language example.
+
+Conservative boundaries beyond the brief: a field requires a declared default
+and an ordinary required principal owner; nested written-by ownership refuses.
+Private values cannot feed indexes/cursors, expiry, materialized aggregates,
+recorded attribution or other rules' probes/non-update terms. The diagnostic
+rewrites to readable by audience when that disclosure is intended. Local
+named transitions remain supported; general cross-table ordered lookup was
+not added. No store layout or wire protocol change, no PostgreSQL-specific
+change, and no runtime meter ceiling increase.
+
+Two blind reviews (Astra and Grok) completed. Astra's ownership-transfer,
+private-asset, hidden-refusal and missing-private-default findings were fixed
+with regressions, including its absent-upsert follow-up. Grok's system asset
+bypass and extra audience projection cost were fixed. Its WriteRow and filtered
+maintain hypotheses were disproved by existing delegation/dependency walkers
+and new regressions; the grant distinction follows the explicit named-transition
+contract. Both final confirmations are READY. The del refresh confirmation
+explicitly covers the final table-scoped form, with no partition provenance
+added to LogEvent.
+
+The complete suite additionally exposed an interoperability regression: sync
+had reused ordinary query projection, removing recorded attribution that
+replica aggregates need. All three sync paths now use only field projection,
+preserving recorded transport values. The existing recorded coverage tests
+pass unchanged. The read-authority census adds only the new guide mutations
+and shifts the final language block ordinal. Astra confirmed this final delta;
+Grok also confirmed the final transport-only projection change READY.
+
+70 focused tests pass (8 engine/device, 4 language, 57 guide, 1 CLI). Coverage
+includes in-memory and disk SQLite engines, memory and SQLite devices, online
+and offline reopen/settlement, second owner devices, actual shared/principal
+log images, query/shape/cursor/reply projection, audience-readable controls,
+transfer revocation, contextual defaults and maintained-column write results.
+Exact blocking suite result: `== 0 failure(s) in 743 s`. All Rust targets and doctests pass;
+client tests: 1,088 passed, 10 existing skips. Final log: /tmp/b1-final-suite4.log.
+Node is exactly 24.18.0, downloaded into this worktree's ignored target because
+the requested Volta path is absent. Final suite uses the existing serial-client
+mode, eight Rust test processes and eight build jobs. Server PIDs are recorded
+in target/b1-suite4-processes.jsonl; harnesses own their child termination.
+
+Earlier qualification attempts are preserved in the lane report: host disk
+exhaustion, a subsequent stale Rust incremental link artifact (resolved by
+cleaning only snapback4-device in this worktree), parallel client timeout/
+scheduling races, and a PID tracer failure on a deliberate stopped-server test.
+The final observer does not trace or intercept server signals. No other
+worktree was modified. The first serial run passed all 1,088 client tests but ended
+`== 1 failure(s) in 814 s` on those four Rust failures. The final transport and
+census fixes then passed all 113 affected tests (81 read-authority, 24 recorded
+coverage, 8 field-authority).
+
+The web device measured through scripts/build-wasm.sh is 1,763,871 B raw /
+488,970 B gzip (Rust 1.97.0, wasm-bindgen 0.2.127, without wasm-opt). Against
+the prior recorded integrated artifact of 1,744,842 / 484,967, this is
++19,029 raw / +4,003 gzip for the whole artifact: field schema/capability
+metadata, field authorization, projection/optional-field/insert-result
+builtins, ordered transitions and partial-image prediction validation.
+Server partition logging, asset serving and compiler/reporting are outside
+the web artifact. The baseline is the preceding integration record, not a
+second local build; no per-component byte attribution is claimed. The old
+486,000 B ratchet is exceeded by 2,970 B; raise it in the same commit to
+489,000 B, leaving 30 B. metrics/wasm-budget.json and the commit message carry
+this measured reason. Final report: /home/ccheever/sb5/lane-b1.r0.final.md.
+No push, publication or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 1: blind-review corrections
+
+Continued the recovered worktree after the host ran out of disk space; retained
+its correct implementation and regression tests, without cleaning or deleting
+the cargo target. Read Astra's NOT READY and Grok's READY WITH CHANGES reviews
+in full. Additional owner partitions now require row-read authority evaluated
+for the recipient, including on system writes. Old/new images determine the
+before/after recipients so read revocation still sends a tombstone. The wire
+regression reproduces Alice as reader and Bob as an unreadable owner, then
+checks that inserts, updates and deletion disclose no row or id to Bob; it
+also checks grant, revocation and subsequent silent deletion on both stores.
+
+Private rule terms now require a named update (old, next) transition; ordinary
+update guessing and private read equality have bind-time E_FIELD_AUTHORITY
+regressions. Projection charges the real unstripped row heap before map
+copy-on-write and skips already-absent fields. The tests compare private
+payload sizes, cut a 100 KB projection at a 2 KB ceiling, and preserve shared
+map identity when the field is already omitted. Group and sort use null for
+omitted declared private keys, with nonexistent-field diagnostics preserved;
+the owner and non-owner tests now require different sort orders. An absent
+upsert reports E_FIELD_AUTHORITY while a hidden existing target remains
+NOT_FOUND. Combined ownership-transfer/private-field patches prove that both
+write checks must use the old owner. The writes-card heading is repaired and
+tested through the diagnostic card splitter; the rules card records the
+transition restriction and null-key semantics.
+
+The recovered session's deliberate combined mutation run failed nine
+engine/device and three language tests on these regressions. All mutations
+were restored. The resumed focused tests passed 22/22. With FORCE_COLOR unset
+and Node 24.18.0, the entire app.test.mjs file then passed three times, 34/34
+each run, including all four shared-logout/rotation variants. The reported
+socket flake at line 437 was not reproduced; no client code, timing, timeout,
+or test assertion was changed. These runs do not rule out an intermittent
+race. The requested Volta path is absent, so the existing worktree-local Node
+24.18.0 installation is used after that path on PATH. Test-process PIDs are
+recorded under target/b1-r1-resumed-*-processes.jsonl; harnesses own cleanup.
+
+The resumed scripts/build-wasm.sh measurement is 1,765,480 B raw / 489,547 B
+gzip (Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt). Versus round 0's
+1,763,871 / 488,970 this is +1,609 raw / +577 gzip for the whole artifact:
+recipient read checks in shared partition accounting, real projection heap
+charges and absent-field avoidance, named-transition validation, and optional
+group/sort keys in the IR and interpreter. Server log emission and compiler
+lowering are outside the web artifact; no per-component attribution is
+claimed. The old 489,000 B ratchet is exceeded by 547 B; raise it to 490,000 B,
+leaving 453 B. metrics/wasm-budget.json and the commit message record the same
+reason. Runtime ceilings are unchanged.
+
+Final blocking result: `== 0 failure(s) in 825 s`. All Rust targets and
+doctests passed; client tests: 1,088 passed, 0 failed, 10 existing skips.
+The full suite also passed the shared-logout variants and all 22 field-authority
+tests, including the strengthened sort assertions. Qualification used the
+existing serial-client-file mode, eight Rust test processes and eight build
+jobs. `git diff --check` passes. Final log:
+`target/b1-r1-resumed-suite.log`; the interrupted predecessor's disk-exhaustion
+log is retained and is not counted as a passing run. Final report:
+`/home/ccheever/sb5/lane-b1.r1.final.md`. No design-of-record deviation or
+new diagnostic code. PostgreSQL was not runtime-tested; no adapter-specific
+code changed. No push, publication or deployment.
+
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 2: second blind-review corrections
+
+Closed the second Astra/Grok review findings without expanding the lane. The
+absent-upsert arm now checks the insert rule before field ownership and uses
+NOT_FOUND when that rule refuses. Its existing target-attempt boundary restores
+the meter. The paired regression compares the full original refusal state
+(including code, message and detail) and every meter field in absent and hidden
+worlds on memory and disk SQLite engines. The transfer test no longer expects
+a split. Direct-insert and readable-target E_FIELD_AUTHORITY coverage remains.
+The rules card states the corrected guarantee.
+
+Owner-partition delivery uses a dedicated metered raw-witness probe. A device
+omits an owner partition when a delivery witness is unknown, including under
+negation, without publishing unknown_fact or setting beyond_horizon. Server
+recipient checks remain exact. New memory/SQLite device tests cover notes with
+online-only access and a two-owner record whose other owner's membership is
+absent locally. They check held images, successful prediction, the committed
+stream image and server owner-partition logs. The point-patch fixtures return a
+boolean; a separate provisional-row result read still needs its own readable
+witness. No provisional-read authorization was relaxed.
+
+Runtime E_FIELD_AUTHORITY envelopes now carry the owner-specific repair in
+rewrite and guide rules. The actual rebuilt WebDevice dispatcher regression
+checks both owner and recipient column names. Bind-time tests now refuse
+capture of a private immutable field from an otherwise public referenced row,
+and delete <- .readUpTo = 0; audience-readable forms are compiling controls.
+
+The round-1 implementation failed the upsert and delivery regressions, and its
+wasm failed the structured-envelope assertion. Restoring the old delivery probe
+and disabling the two schema guards deliberately failed the two device and two
+language regressions. All mutations were restored. Focused Rust checks passed
+26/26, and the actual wasm dispatcher file passed 2/2. Evidence is retained in
+target/b1-r2-before-all.log, target/b1-r2-mutations.log,
+target/b1-r2-focused2.log and target/b1-r2-wasm-dispatch.log.
+
+scripts/build-wasm.sh measures 1,765,887 B raw / 489,738 B gzip on Rust 1.97.0
+and wasm-bindgen 0.2.127, without wasm-opt. Relative to round 1's 1,765,480 /
+489,547, this is +407 raw / +191 gzip for the whole artifact. It includes the
+upsert check ordering, delivery probe and runtime repair metadata; no individual
+byte attribution is claimed. Keep the 490,000 B ratchet with 262 B headroom.
+Runtime meter ceilings are unchanged.
+
+Final blocking result with FORCE_COLOR unset: `== 0 failure(s) in 762 s`.
+All Rust targets and doctests passed; client tests: 1,089 passed, 0 failed,
+10 existing skips. Node 24.18.0 and the existing serial-client-file mode,
+eight Rust test processes and eight build jobs were used. The suite's wasm
+rebuild confirmed the same size. Full log: target/b1-r2-suite.log; process
+identities: target/b1-r2-suite-processes.jsonl. No client implementation,
+timing or assertions were changed to get this result. git diff --check passes.
+Final per-item report: /home/ccheever/sb5/lane-b1.r2.final.md.
+No new design scope, diagnostic code, schema/store format, or PostgreSQL
+adapter change. PostgreSQL was not runtime-tested. No push, publication or
+deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 3: the paired-world disclosure instrument
+
+Built and ran the differential harness before repairing production code.
+The core builder takes Quarry, two seeds, a principal and an operation;
+fixed clocks and IDs isolate the hidden input. It compares serialized
+observations: complete write/refusal envelopes and meters, every declared
+query and cursor page, snapshots, full paginated streams and refreshed puts,
+changes and maintenance sequence advances. Timeline/job ticks run to
+quiescence. The device counterpart replays those pages on memory and disk
+SQLite and compares prediction, held rows, queries and watermarks. The final
+set has 65 core runtime pairs, eight refused derivation variants, and 59
+runtime pairs per device store, plus explicit ownership-acquisition and
+negated-delivery-witness regressions. This is a regression instrument, not a
+proof for every possible Quarry program.
+
+The instrument exposed seven defects. Following's private metadata reached
+public feedPosts/feedFeed images, query results and snapshots; validate every
+mapped field and predicate after both timeline spellings lower, requiring
+readable by audience. Allowed-insert absent upserts returned E_FIELD_AUTHORITY
+and different meters from hidden targets; map the absent-arm field refusal
+to the existing NOT_FOUND attempt boundary. Private text size changed query
+heap meters; build only the disclosed map and charge its copy before
+allocation. Non-uniform private-table scans exposed hidden population through
+examined counts; refuse them before visiting rows and require a uniformly
+readable scope, while acquired-device reads and scoped server reads remain
+available. Hidden denied deletes returned E_RULE versus absent NOT_FOUND;
+canonicalize the hidden refusal and restore its meter. Named transitions
+could test another owner's private value to decide an ordinary patch, changing
+success, changes, streams, watermarks and sequence advance; require field
+ownership for value-dependent tests, preserving comparisons of an untouched
+field with itself and the owner's tests. Finally, an ordinary patch retained
+and metered another owner's private text at its actual length; precharge the
+declared column copy bound instead. Owned/supplied values retain actual
+charges. The rules card and LLP 3000.015 record these behavior changes.
+
+The absent-upsert regression now covers insert <- allow on memory and disk
+SQLite engines, comparing the complete original state and every meter field.
+Direct inserts and readable targets retain detailed E_FIELD_AUTHORITY errors.
+Private maintained-column, aggregate and recorded-attribution guards were
+already present; the new admission pairs and audience-readable controls
+exercise them. Following also runs with an unrelated private source field.
+Payload cases include 0/10, empty/10 MB reads, and empty/1 MB retained writes.
+
+Both previously surviving mutations now fail: deleting the acquisition clause
+makes the memory/SQLite device test predict an ownership transfer instead of
+queueing E_PREDICT; deleting && probe.known makes a negated unknown witness
+add an owner partition, moving the prediction step threshold from 12 to 14.
+Both mutations were restored. The negation witness uses an explicitly
+acquired device schema because its server-only negative rule cannot infer a
+sync audience. The existing simulator delete test now expects NOT_FOUND and
+also compares denied-hidden versus absent outcomes. Its 662 observation
+pairs pass across seven ceilings, three expiry states and both device stores.
+The old named-transition device regression now expects server refusal when
+its caller cannot read the private value it tests; its E_PREDICT and independent
+owned-patch assertions remain. Focused Rust checks pass 42/42.
+
+Final wasm: 1,772,188 B raw / 491,024 B gzip, Rust 1.97.0 and wasm-bindgen
+0.2.127, without wasm-opt. Round 2 was 1,765,887 / 489,738: +6,301 raw /
++1,286 gzip for the whole artifact, with no independent per-component byte
+attribution. The prior 490,000 B artifact ratchet is exceeded by 1,024 B;
+raise it to 492,000 B, leaving 976 B, with the same reason in the budget and
+commit message. Runtime meter ceilings are unchanged.
+
+Final blocking result: `== 0 failure(s) in 731 s`. All Rust targets and
+doctests passed; client tests: 1,089 passed, 0 failed, 10 existing skips.
+The suite rebuilt and confirmed the same final wasm size. `git diff --check`
+passes.
+The first complete run ended `== 1 failure(s) in 723 s` on the obsolete
+hidden-delete assertion; its clients passed 1,089 with zero failures and 10
+existing skips. The final run includes that corrected assertion and all seven
+repairs. FORCE_COLOR is unset, Node is 24.18.0, client files run in the existing
+serial mode, with eight Rust test processes and eight build jobs. Logs and
+process identities: target/b1-r3-suite-final.log and
+target/b1-r3-suite-final-processes.jsonl. Original differential failures:
+target/b1-r3-harness-before-all.log, target/b1-r3-transition-before.log and
+target/b1-r3-patch-before.log. Mutation evidence: target/b1-r3-mutations.log.
+Report: /home/ccheever/sb5/lane-b1.r3.final.md. No PostgreSQL runtime test,
+adapter change, stored-format change, new diagnostic code, push, publication
+or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 4: generated disclosure cases
+
+Replaced the payload/hidden-world case lists with a deterministic covering
+matrix. The builder and byte comparator are unchanged. The generator walks
+compiled private fields, derives boundaries from ColumnType recursively, and
+crosses them with declared mutations; every declared query is observed. It
+generates transition self-comparisons and witness dependencies, ordinary-rule
+admission refusals, absence and owner-role cases, public recorded captures,
+both Following spellings and real cursor pagination. Positive controls require
+server commits and device predictions on memory and SQLite. Before: 65 core
+pairs, eight admission variants, 59 pairs per device store. After: 2,433
+generated runtime pairs per host/store plus retained regressions: 2,445 total
+core pairs, 2,434 per device store, and 476 admission variants (468 generated).
+An additional float-refusal control records that this binder has no float
+column. Nullable list/bytes/asset forms reflect its literal-default grammar;
+asset values use existing system-fixture placeholders. Positive retained-text
+patch controls use a 1 MB declaration; 10 MB declarations exceed the unchanged
+write copy reservation and are still checked for identical refusals.
+
+Fixed nullable ordered self-comparisons requiring private visibility; folded
+proven untouched self-comparisons so independent owned-field patches predict.
+Metered reads now bypass SQLite and Postgres blob prices on private-field
+tables, charge disclosed images plus fixed fetch slots, and cover word
+discovery, scan fences, views, aggregates and timeline transitions together.
+Recorded public attribution charges the disclosed target image. Owner delivery
+prepays its declared slots/probe bound, while exact recipient authorization
+runs outside caller-visible accounting. The generated matrix also exposed
+integer/list/null encoding-length prices and raw mutation event counts that
+revealed hidden memberships. Private-table mutation event counts now count
+logical changed rows independently of recipient fanout on both server adapters.
+The rules card and LLP qualify these guarantees to the tested surface and
+explicitly distinguish disclosed-image accounting from raw storage decoding.
+
+All nine deliberate regressions fail: nullable guard, metered-fetch bypass,
+recorded charge, recipient-dependent steps, syntactic prediction dependencies,
+Exists/Created dependency arm, raw event count, negated-unknown witness guard,
+and ownership-acquisition guard. All were restored. The generated step-boundary
+case pads its loop to commit at exactly 1,000,000 steps and checks E_BOUND on
+the next iteration, comparing complete transcripts in both membership worlds.
+The former negated-witness step-threshold test is now a direct authorization
+assertion: fixed slot prepayment deliberately removes that counting side channel.
+A PostgreSQL-feature unit check exercises the adapter's actual 256x preflight
+formula, with a priced Rows double and an audience-readable control. No
+PostgreSQL server runtime was exercised.
+
+Wasm is 1,774,832 B raw / 492,462 B gzip on Rust 1.97.0 and wasm-bindgen
+0.2.127, without wasm-opt. Round 3 was 1,772,188 / 491,024: +2,644 raw /
++1,438 gzip for the whole artifact, without per-component attribution. The
+prior 492,000 B ratchet is exceeded by 462 B; raise it to 493,000 B, leaving
+538 B for the shared transition, delivery and disclosed-image accounting
+changes. Runtime meter ceilings are unchanged. The full suite rebuild confirms
+the same artifact; SHA-256 da3e85ec789e64324c9bcde108e834419018e627839f81c2688c8ad3826b0c1d.
+
+Final blocking result with FORCE_COLOR unset: `== 0 failure(s) in 517 s`.
+All Rust targets and doctests passed. Client groups: 1,089 passed, zero failed,
+10 existing skips; fixture wrapper: nine passed. Node 24.18.0, eight build
+jobs and Rust test processes, and normal parallel client mode were used.
+CARGO_INCREMENTAL=0, CARGO_PROFILE_TEST_DEBUG=0 and CARGO_PROFILE_DEV_DEBUG=0
+kept the rebuilt target small. The first full run ended with one failing suite
+in 843 s: the codec census treated an inline native-only unit fixture as web
+code. Moving it into an explicitly SQLite-gated test module fixed the census;
+all 26 focused checks then passed. No client code, timing assertion, or census
+checker was changed. The final suite rebuilt the same measured Wasm.
+Logs: target/r4-suite-final.log and target/r4-suite-final-processes.jsonl;
+mutation logs: target/r4-mutations.log and target/r4-mutant-*.log;
+Postgres feature checks: target/r4-postgres-unit.log. git diff --check passes.
+Exact command and per-item evidence: /home/ccheever/sb5/lane-b1.r4.final.md.
+Committed on sb5/b1-written-by; no push, publication or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 5: typed disclosure accounting
+
+Replaced raw row pricing on observer paths with an opaque `Disclosed`
+projection plan. Only the table's viewer projection or an explicit system
+projection constructs it; read/capture/row-view/timeline/delivery materialization
+can no longer pass a raw Value to word_heap's row-copy helpers. Raw retained
+Value pricing requires a system token. Expression pricing has a private evaluator
+token; caller-payload pricing is private to the writer and its target child module.
+Five compile-fail doctests pin these boundaries. System maintenance/rebuild/sweep
+Runners, recipient authorization/delivery and PostgreSQL's prefetch cache keep
+separate ledgers that are not copied into caller receipts.
+
+Private-table scans now reserve a declared-column decoder allowance before
+fetching one stored row, project it, drop the undisclosed allocations and release
+that transient allowance. SQLite borrows JSON instead of allocating an extra
+Rust String. The reservation includes bounded text/bytes/lists/JSON, admitted
+identities, asset facts and fetch scratch; all retained row prices use disclosed
+fields and missing visible defaults. Private defaults are never reinstated.
+Projection-copy reservations depend on schema visibility, not on whether a
+private key happens to be physically present. Large declarations can cut even
+empty rows, but changing actual private values cannot move that cut. No runtime
+ceiling was raised. The old raw-decoding residual is removed from LLP 3000.015
+and the rules card; ordinary shared database/cache/statement-storage exclusions
+remain unchanged.
+
+Astra's omitted-ordinary-field reproduction now uses twenty ordinary authorized
+Bob inserts and Alice's planned view/search/count on memory and disk SQLite.
+All return complete, equal outcomes for empty versus one-million-byte secrets.
+The generator adds 36 pairs: optional int/text x omitted/present-null x 1/20/32
+rows x ordinary reads/Following view/compatibility timeline. Generated pairs
+increase from 2,433 to 2,469 per host/store; the previous core accounting increases
+from 2,445 to 2,481 plus two standalone reproduction pairs, and each device store
+from 2,434 to 2,470. Admission refusal variants increase from 476 to 502; twenty
+additional core ordered-type dependency checks cover int/time/decimal/money/text.
+The current binder refuses decimal/money/text ordered transitions, so those are
+explicit E_QUARRY_TYPE tests rather than claimed executable runtime cases.
+
+All five deliberate mutations fail their intended assertions: raw materialization,
+removing timeline.reposts from the dependency walk, narrowing optional comparison
+dependencies to int/time, removing the decoder reservation, and making copy cost
+depend on physical private-field presence. Both Following spellings reject a
+private repost timestamp and accept the audience-readable control. Grok's review
+arrived with EXIT=0; its mutation gap is covered and its no-product-finding verdict,
+internal log ordinal and existing physical-cap observations are recorded in the
+report. PostgreSQL-feature payload-factor stand-in passes; no live PostgreSQL
+server was exercised.
+
+The expanded matrix also exposed 576 point-absence differences during development:
+a miss retained a fetch slot while a hidden hit rolled it back. Both paths now
+restore the same mark. The first full suite found a witness-materialization
+undercharge introduced by early rendering, a capture double that needed the
+new scan boundary, and three narrow scratch/cut expectations affected by pricing
+projection slots. Witness materialization is now charged before rendering; both
+device witness-budget tests pass. The wide memory search now heap-cuts first;
+its terminal page and smaller positive examined-cut control remain. Streaming
+scratch-envelope checks account for outer/inner projection slots and retain the
+unchanged runtime ceiling. Deeply nested maximum-sized list declarations also
+saturate their fixed reservation rather than overflowing; a unit test pins this.
+
+Allocator instrumentation validates the fixed 16,018,464-byte decoder reservation:
+Rust plus SQLite allocations total 2,246 bytes for empty text, 3,004,318 for one
+million ASCII characters, 7,103,414 for escaped newlines, and 12,010,182 for one
+million four-byte UTF-8 characters. The full charge audit lists 230 sites (201 in
+the engine including forwarding APIs; 29 store/device/projection boundaries),
+each classified constant/disclosed/caller-supplied/system-only with source and
+last-change commit. The base's literal heap/heap_bytes search finds 128 lines;
+the report expands the brief's 47-site scope rather than truncating the audit.
+
+Final wasm: 1,785,460 B raw / 496,397 B gzip, Rust 1.97.0 / wasm-bindgen 0.2.127,
+without wasm-opt. Round 4 was 1,774,832 / 492,462: +10,628 raw / +3,935 gzip for
+the complete artifact. The shared projection capability, visible-default
+materialization and declared decoder-reservation paths require these bytes;
+no per-component attribution is claimed. Raise the 493,000-byte ratchet to
+497,000, leaving 603 bytes. Runtime meter ceilings are unchanged. SHA-256:
+2cb15d2a9fb24327742b58b0700425de915a1c5622ecfede06c02ce1cc3f9b05.
+
+Final blocking result: `== 0 failure(s) in 483 s`. Command:
+`env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=8 bash snapback4/scripts/test.sh`.
+Node 24.13.1, eight Rust processes/build jobs and normal parallel client mode.
+Evidence: target/r5-test-final.log, target/r5-named-final.log,
+target/r5-restored-checks.log, target/r5-allocation-restored.log,
+target/r5-mutations.json and target/r5-mutant-*.log. The first full suite had
+one failing suite (five Rust targets); the final run includes all corrections.
+Report: /home/ccheever/sb5/lane-b1.r5.final.md. Committed on sb5/b1-written-by;
+no push, publication or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 6: authorization before caller accounting
+
+Point candidates, witness probes and write-target decoding now enter the same
+`authorized_scan` ledger boundary as B2's round-5 commit `87c4d4a06`. B1 adds
+transient scratch derived from declared columns and witness schemas, including
+expiring maintained-witness sources. Static admission precedes storage access;
+internal work cannot change the caller's meter or cut. A sealed `AuthorizedRow`
+is created after the row-read verdict, projects fields and drops hidden storage
+inside the scope, then permits result charging outside it. Live aggregate result
+computation retains its ordinary budget after authorization. Witness probes keep
+raw facts internally and export verdict/coverage; failed extra predicates export
+no expiry. Both write-target raw fetches use the decoder boundary. Target
+resolution preflights its rule scratch. Redundant byId and unchanged unique-key
+collision lookups are removed: they cannot discover a different row, and their
+second decoder reservation needlessly prevented existing large-payload writes.
+
+`Context::system_access` and `Value::heap_bytes` are gone. System projection's
+token has a private constructor in the runner; PostgreSQL cache accounting uses
+an opaque internal ledger that returns admission, never a raw price. Three new
+compile-fail cases cover a fabricated context, fabricated system token, and
+fabricated row authority. The shared ledger has tests for both cut policies,
+fixed scratch, internal errors, and reservation before an absent write target.
+
+Grok's round-6 review arrived with `EXIT=0`. Its spread finding is fixed:
+`{ * }` uses the same optional private-field access as explicit selection, so
+non-owners receive null. Positive owner/non-owner shape assertions accompany
+paired successful deletes, group/sort, private-token searches, loop predicates,
+and equal-length quote-escaping variants. Astra's point and witness reproductions
+are paired on memory and disk SQLite with reopen. The generator now crosses
+three observers, compound rules, unreadable private witness tables, hidden
+presence/payload/ownership, expiry, and 1/400/8192/8193 reads. Generated pairs
+increase from 2,469 to 2,715 per host/store (+246); compile-fail cases from five
+to eight. This remains regression evidence, not universal proof. No live
+PostgreSQL service was exercised; its feature build and payload-factor stand-in
+passed.
+
+Five deliberate mutations fail: retained internal charges, removed decoder
+admission, restored fabricated-context pricing, raw wildcard lowering, and a
+private-size charge after successful delete. The latter now fails for Alice,
+Bob and Carol. All mutations were restored. Existing tests now distinguish a
+fixed transient reservation from the final retained heap counter; confirmed
+and provisional point reads reserve the same rule witness count. Heap cuts
+still unwind expressions and cannot turn an unfinished exists into false.
+
+Wasm is 1,787,618 B raw / 497,689 B gzip on Rust 1.97.0 and wasm-bindgen 0.2.127,
+without wasm-opt. Against round 5 (1,785,460 / 496,397), +2,158 raw / +1,292 gzip
+covers the whole artifact's authorization ledger, sealed point-result boundary,
+and candidate/witness reservations; no per-component attribution is claimed.
+The compiler-only wildcard repair and tests are outside the web artifact.
+Raise the 497,000-byte ratchet to 498,000, leaving 311 B. Runtime ceilings are
+unchanged. SHA-256: 4f5d1eb18c232ba70260c60a702350b8c13c956cfea242be28ae4f46e00e4308.
+
+Round-6 final audit continuation: an allowed update to an unreadable row still
+copied an ordinary retained field at its actual length. The new focused probe
+reproduced identical sent outcomes with 594 versus 100,594 heap bytes for empty
+versus 100 KB text (`target/r6-write-boundary-before.log`). `merge_patch` now
+requires both row and field read authority before using a retained value's
+actual copy size; otherwise it charges the declared column bound. The positive
+regression covers ordinary text and writer-owned private text on an unreadable
+row. Twelve generated cases cross three observers, both ownership forms and
+expiry. The final matrix is therefore 2,727 pairs per host/store (+258 over
+round 5), or 8,181 across core and both device stores; disclosure functions are
+23 core and 11 device. The separate admission matrix remains 468. The guide
+also states this retained-copy rule. Its diagnostic excerpt was shortened so
+both dedicated-code excerpt checks still include E_FIELD_AUTHORITY.
+
+This last runtime change adds 26 raw / 9 gzip bytes to the earlier measurement:
+final wasm 1,787,644 B raw / 497,698 B gzip, +2,184 / +1,301 versus round 5.
+Keep the newly raised 498,000-byte ratchet, now with 302 B headroom. This final
+measurement supersedes the earlier round-6 artifact above; runtime ceilings
+remain unchanged. SHA-256:
+64fe730c4144de3ea0f61a49f9c836942f599cd38104368120c5c377fc4576bf.
+The focused write regression and all 12 added generated write cases pass.
+
+Final blocking result: `== 0 failure(s) in 673 s`. Command, from the worktree
+root, with FORCE_COLOR unset:
+`env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=8 bash snapback4/scripts/test.sh`.
+Node 24.13.1; normal parallel client mode, eight Rust processes/build jobs.
+The complete run includes all 23 core and 11 device disclosure tests and
+all eight compile-fail cases. Client tests report 1,055 passed, zero failed
+and ten existing skips. Earlier runs exposed the corrected guide excerpt and
+write-copy defects; two HTTP connection resets passed the 22-test focused
+recheck and the final complete client run. Source and runtime artifacts were
+held fixed during final qualification. Evidence: target/r6-test-final.log,
+target/r6-write-boundary-before.log, target/r6-write-boundary-after.log,
+target/r6-write-matrix.log, target/r6-client-recheck.log,
+target/r6-mutations.json and target/r6-mutant-*.log. Reference and whitespace
+checks pass. Grok's b1-d6.grok.exit was rechecked as EXIT=0.
+Report: /home/ccheever/sb5/lane-b1.r6.final.md. Commit on sb5/b1-written-by only;
+no push, publication or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 7: scans and compulsory pricing evidence
+
+Scan candidates now decode, materialize, filter expiry and establish row read
+and field authority inside the internal scope. Only surviving `AuthorizedRow`
+projections may be priced afterward. Expired owner-visible private payloads
+therefore cannot turn an empty page or zero scalar into a heap cut. Rejected
+cursor decoding also stays internal: a final expired-id-length pair failed at
+2,560 versus 3,352 heap bytes before this repair and passes afterward
+(`target/r7-key-before.log`, `target/r7-key-after.log`). Candidate
+rule-probe admission is checked before authorization and committed back to the
+logical ledger; internal work cannot erase its limit. Device provisional rows
+retain their own read verdict. Preauthorized public non-expiring rows without
+private or recorded fields use actual decoder scratch, released after a point
+fetch, preserving small reads under large public column declarations.
+
+`Disclosed` is a projection plan, not a pricing capability. Raw scalar,
+serialized-row, range and Postgres payload estimates are opaque `InternalPrice`
+values, accepted with internal-scope evidence. Metered store scans and recording
+coverage require that evidence. Caller expressions carry sealed `Supplied`
+values through writes, defaults, natural-key completion and immutable-field
+removal; writer helpers no longer accept arbitrary raw values for exact prices.
+Old retained fields use declared copy bounds. Component packing and evaluated
+keys retain their own provenance; retained row keys require row authority.
+The exact reviewer expiring-delete mutation fails compilation with E0061 and
+E0308. A deliberate hand-written length charge fails the new successful-delete
+pair at 3 versus 100,003 heap bytes. Both mutations were restored.
+
+Ported the sufficient-proof expiry repair from B2 commit `30add33e7`:
+`rules.rs`'s central evaluator, `read_auth.rs`'s provisional evaluator and its
+regression, and the complete-witness-predicate-before-`note_expiry` block are
+verbatim. B1 keeps its ordered Compare leaf and outer scratch/coverage rollback,
+and adapts the expiry callback to its runner/prefix/delivery probes. The same
+proof policy now drops failed-branch and redundant witness dependencies while
+retaining necessary expiring grants. The port boundaries/hashes are in
+`target/r7-b2-port.json`; this is one shared B2 policy, not a parallel repair.
+
+Astra's expired scan and redundant successful witness cases failed against the
+original runtime. New positive controls require complete empty pages/zero
+scalars, successful expiring deletes, necessary-witness invalidation and a
+short public row under a 2 MB declaration. Grok's review arrived with EXIT=0;
+its raw metered-scan and expiring aggregate concerns also have coverage.
+Postgres feature qualification passes three non-service tests; nine tests
+explicitly require an isolated live service and remain ignored. No live
+Postgres claim is made. Memory, SQLite, disk reopen and acquired offline expiry
+are covered. The rules card and LLP 3000.015 state the remaining declaration
+bounds, necessary witness deadline and non-uniform private-scan qualifications.
+
+Generated cases increase 2,727 -> 2,835 per host/store: 72 elapsed-expiry cases,
+18 successful-witness cases and 18 successful-expiring-delete/shape cases.
+Across core and both device stores that is 8,181 -> 8,505. Core disclosure tests
+increase 23 -> 30, device disclosure tests 11 -> 19, and pricing compile-fail
+cases 8 -> 14. The separate 468 admission pairs remain. This is bounded
+regression evidence, not a universal proof. Single-candidate internal decoding
+adds empty lookahead fetches on singleton device lanes (the 1,000-lane case is
+2,001 calls, with one boundary namespace load and zero whole-map parses).
+Internal candidate admission stops after an earlier cut: the reduced-ceiling
+opening now records 11 attempts, retains exactly 10 rows and no cursor.
+
+Final wasm: 1,794,926 B raw / 500,842 B gzip / 381,288 B brotli; Rust 1.97.0,
+wasm-bindgen 0.2.127, no wasm-opt. Versus round 6, +7,282 raw / +3,144 gzip.
+Raise the 498,000 B ratchet to 501,000 B, leaving 158 B. The whole-artifact
+increase covers internal scan authorization, sealed row/input pricing, opaque
+storage prices and the B2 sufficient-proof evaluator; no per-component byte
+attribution is claimed. Runtime ceilings are unchanged. The final cursor audit adds 614 raw and 234 gzip bytes over the preceding
+round-7 measurement (1,794,312 raw / 500,608 gzip). The family and absent-symbol checks pass.
+SHA-256: 58e7430298638f562a0163ec19de30ab7d96015f2e5863d2b596d77b412c05e1.
+
+Qualification: `snapback4/scripts/test.sh`, FORCE_COLOR unset, exits 0:
+`== 0 failure(s) in 672 s`. Exact invocation from the repository root:
+
+```sh
+env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=8 bash snapback4/scripts/test.sh
+```
+
+All 862 Rust executions pass, including core disclosure 30, device disclosure
+19, device written_by 17 and language written_by 9. Pricing compile-fail
+qualification passes all 14 cases. Client tests: 1,089 passed across all eight
+processes (1,055 main + 34 sharded), 0 failed, 10 skipped. Postgres feature
+qualification: 3 passed, 9 explicit live-service ignores; no live service used.
+The reference audit passes with 507 LLP docs, 9,248 refs, zero errors and zero
+unchecked references. The preceding suite had one HTTP client socket-close
+failure; that named case and the complete final suite pass. No runtime source
+changed during the final run. Logs: `target/r7-qualified.log`,
+`target/r7-postgres-qualified.log`, `target/r7-ref-check-qualified.log`, and
+`target/r7-wasm-qualified.log`. Report: `/home/ccheever/sb5/lane-b1.r7.final.md`.
+Committed on `sb5/b1-written-by`; no push.

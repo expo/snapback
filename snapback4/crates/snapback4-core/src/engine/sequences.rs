@@ -33,7 +33,7 @@ impl Runner<'_> {
     /// The insert image is supplied, unlike a write target's hidden old row.
     /// Reserve its exact copy and static authorization/counter allowance before
     /// learning a read witness; do not reserve schema-maximum hidden payloads.
-    pub(super) fn reserve_sequence_authorization(&mut self, table: &Table, row: &Value, insert_checks: u64) -> Result<(), RuntimeError> {
+    pub(super) fn reserve_sequence_authorization(&mut self, table: &Table, row: &crate::value::Supplied, insert_checks: u64) -> Result<(), RuntimeError> {
         let probes = super::rules::rule_probes(&table.rules.read).saturating_add(super::rules::rule_probes(&table.rules.insert).saturating_mul(insert_checks));
         for (kind, amount, used, ceiling) in [
             (MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
@@ -105,7 +105,8 @@ impl Runner<'_> {
     /// Author-facing point reads and pages share the sequence result contract.
     pub(super) fn sequence_read_result(&mut self, name: &str, mut row: Value) -> Result<Value, RuntimeError> {
         if row != Value::Null && row.field("pending") != Ok(&Value::Bool(true)) && !self.schema.tables[name].sequences.is_empty() && self.is_provisional(name, &row)? {
-            self.meter.heap(word_heap::object_copy(&row) + word_heap::insertion::<String, Value>(row.as_object()?.len()) + word_heap::text("pending"))?;
+            let bytes = self.project_row(name, row.clone())?.heap_bytes();
+            self.meter.heap(bytes + word_heap::insertion::<String, Value>(row.as_object()?.len()) + word_heap::text("pending"))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert("pending".into(), Value::Bool(true)); }
         }
         Ok(row)
@@ -132,7 +133,7 @@ impl Runner<'_> {
                     }
                 }
             } else {
-                let (candidate, full) = self.sequence_fields(name, row)?;
+                let (candidate, full) = self.sequence_fields(name, row.import_input(&super::ImportInput(())))?;
                 if full {
                     return Err(exhausted());
                 }
@@ -154,13 +155,14 @@ impl Runner<'_> {
         Ok(row)
     }
 
-    pub(super) fn sequence_fields(&mut self, name: &str, mut row: Value) -> Result<(Value, bool), RuntimeError> {
+    pub(super) fn sequence_fields(&mut self, name: &str, row: crate::value::Supplied) -> Result<(Value, bool), RuntimeError> {
         let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
         if table.sequences.is_empty() {
-            return Ok((row, false));
+            return Ok((row.into_value(), false));
         }
         refuse_fields(table, name, &row)?;
         self.meter.heap(row.heap_bytes())?;
+        let mut row = row.into_value();
         let mut values = BTreeMap::new();
         let mut full = false;
         for (column, reference) in &table.sequences {
@@ -254,7 +256,9 @@ impl Runner<'_> {
             return Ok(row);
         }
         let stored = self.metered_scan(|runner, allowance| runner.tx.get(allowance, name, row.field("id")?.as_str()?))?.expect("just inserted");
+        let stored = self.project_row(name, stored)?;
         self.meter.heap(stored.heap_bytes())?;
+        let stored = stored.into_value();
         if let Value::Row(fields) | Value::Map(fields) = &mut row {
             for column in table.sequences.keys() {
                 fields.insert(column.clone(), stored.field(column)?.clone());

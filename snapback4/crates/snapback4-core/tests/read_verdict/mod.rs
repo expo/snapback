@@ -13,7 +13,7 @@ mod round3;
 mod merge_continuation;
 
 fn table() -> Table {
-    Table { sequences: BTreeMap::new(), maintained: BTreeMap::new(), recorded: BTreeMap::new(), residency: Default::default(), defaults: BTreeMap::new(),
+    Table { sequences: Default::default(), written_by: Default::default(), update_transition: false, maintained: BTreeMap::new(), recorded: BTreeMap::new(), residency: Default::default(), defaults: BTreeMap::new(),
         columns: BTreeMap::from([("id".into(), ColumnType::Id), ("roomId".into(), ColumnType::Id), ("principal".into(), ColumnType::Principal), ("body".into(), ColumnType::Text { max: 100 })]),
         indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["roomId", "id"], false)), ("byRoomPrincipal".into(), Index::of(&["roomId", "principal"], true))]),
         rules: Rules { read: RuleExpr::Deny, insert: RuleExpr::Allow, update: RuleExpr::Allow, delete: RuleExpr::Allow },

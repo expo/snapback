@@ -783,11 +783,12 @@ impl<'a> Binder<'a> {
             for field in fields {
                 match field {
                     ShapeField::Spread { site } => {
-                        for (name, ty) in self.row_fields(&row_ty, site)? {
-                            // Keep the existing re-shaping behavior: explicit
-                            // computed fields win over a RowShape's wildcard.
+                        for (name, _) in self.row_fields(&row_ty, site)? {
                             if matches!(row_ty, Ty::RowShape(_)) && fields.iter().any(|field| matches!(field, ShapeField::Field { name: explicit, .. } if explicit == &name)) { continue; }
-                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, setup::Body::default(), out);
+                            // @ref LLP 3000.015#1 — wildcard selection has the same
+                            // optional private-field semantics as explicit selection.
+                            let (value, ty) = self.member(ir::var(row_var), row_ty.clone(), &name, site)?;
+                            add(self, name, value, ty, setup::Body::default(), out);
                         }
                     }
                     ShapeField::NamedSpread { name, site } => {
@@ -883,10 +884,10 @@ impl<'a> Binder<'a> {
                 if *if_absent {
                     let result = self.temp("absent");
                     out.push(Stmt::InsertIfAbsent { table: table.clone(), row: ir::var(&tmp), result: result.clone() });
-                    return Ok(valued.then(|| (ir::var(&result), row_ty.optional())));
+                    return Ok(valued.then(|| (self.project_insert(info, ir::var(&result)), row_ty.optional())));
                 }
                 out.push(Stmt::Insert { table: table.clone(), row: ir::var(&tmp) });
-                Ok(valued.then(|| (ir::var(&tmp), row_ty)))
+                Ok(valued.then(|| (self.project_insert(info, ir::var(&tmp)), row_ty)))
             }
             WriteOp::Update | WriteOp::Upsert => {
                 // @ref LLP 3000.007#17 — upsert's insert arm has no old row on which to decide a condition.
@@ -1033,6 +1034,11 @@ impl<'a> Binder<'a> {
         // Materialize the same defaults in the insert expression so its returned row is the written image.
         for column in &info.decl.columns {
             if !given.contains(&column.name) && let Some(default) = &column.default {
+                if column.written_by.is_some() {
+                    // Preserve omission until the engine checks supplied-field authority.
+                    given.insert(column.name.clone());
+                    continue;
+                }
                 let default = super::defaults::column(column, default)?;
                 let value = match default {
                     snapback4_core::schema::ColumnDefault::Literal(value) => Expr::Literal(value),
@@ -1048,6 +1054,12 @@ impl<'a> Binder<'a> {
             return Err(type_error(site, format!("insert into {} omits required column{} {}", info.decl.name, if missing.len() == 1 { "" } else { "s" }, missing.join(", ")), format!("insert {} {{ {} }}", info.decl.name, given.iter().cloned().chain(missing.iter().map(|m| format!("{m}: <{}>", info.columns.get(*m).map(print::scalar_type).unwrap_or_default()))).collect::<Vec<_>>().join(", "))));
         }
         Ok((Expr::Object(exprs.into_iter().collect()), self.write_result_type(info)))
+    }
+
+    fn project_insert(&self, info: &TableInfo, row: Expr) -> Expr {
+        if info.decl.columns.iter().any(|column| column.written_by.is_some()) {
+            Expr::Builtin { builtin: Builtin::ProjectFields { table: info.decl.name.clone() }, args: vec![row] }
+        } else { row }
     }
 
     fn write_result_type(&self, info: &TableInfo) -> Ty {

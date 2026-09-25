@@ -27,16 +27,24 @@ mod read_only;
 mod pages;
 pub use pages::expression_page_site;
 mod shaping;
+#[cfg(feature = "sqlite")]
+pub(crate) struct ImportInput(());
 pub use pages::returned_page_sites;
 pub mod read;
-mod extrema;
+pub(crate) use runner::extrema;
 mod read_auth;
 mod aggregate_expiry;
 pub(crate) mod authorized_scan;
+pub use authorized_scan::{Authorization, InternalLedger};
+pub(crate) mod authorized_point;
 pub mod rules;
 pub mod runner;
 pub mod validate;
 pub mod write;
+mod field_authority;
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
+mod field_authority_tests;
 mod maintains;
 pub(crate) mod timeline;
 mod timeline_authority;
@@ -47,7 +55,7 @@ pub(crate) mod columns;
 mod column_activation;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
-mod write_target;
+use write::target as write_target;
 mod receipt;
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
@@ -122,6 +130,7 @@ pub struct Context {
     /// The server's live registry behind `connected[p]`, when there is one.
     pub presence: Option<std::sync::Arc<dyn Presence>>,
 }
+
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
@@ -649,7 +658,9 @@ impl Engine {
         let mut image = row.clone();
         materialize_optional_fields(&mut image, table);
         let mut runner = Runner::new(&tx, &self.schema, Context::new(principal, BTreeMap::new()).at(now), Meter::new(self.ceilings, Cut::Cap), 0);
-        let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?;
+        let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?
+            && (runner.context.is_system() || !table.written_by.get(column).is_some_and(|authority| !authority.audience
+                && image.field(&authority.owner).ok() != Some(&Value::Id(principal.into()))));
         drop(runner);
         if !allowed {
             tx.rollback()?;
@@ -983,7 +994,7 @@ impl Engine {
                 tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
                 partition::append(&tx, seq, &events)?;
                 effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
+                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_to("program")?;
@@ -1044,7 +1055,7 @@ impl Engine {
                 if old.is_none() { for (field, default) in &table.defaults { fields.entry(field.clone()).or_insert_with(|| default.value(now, crate::SYSTEM_PRINCIPAL)); } }
                 let mut image = Value::Row(fields.into());
                 if old.is_none() {
-                    let (assigned, full) = staging.sequence_fields(name, image)?;
+                    let (assigned, full) = staging.sequence_fields(name, image.import_input(&ImportInput(())))?;
                     if full { return Err(sequences::exhausted()); }
                     staging.commit_sequences(name, &assigned)?;
                     image = assigned;
@@ -1061,7 +1072,7 @@ impl Engine {
         let mut count = 0;
         for (table, row) in rows {
             timeline::check_import(&self.schema, &table)?;
-            runner.upsert(&table, &row.field("id")?.clone(), row)?;
+            runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&ImportInput(())))?;
             count += 1;
         }
         let events = runner.events.take();

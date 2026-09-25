@@ -8,7 +8,20 @@ use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, row
 
 // Only this module mints the capability; it cannot be constructed or cloned
 // by callers, and the borrowed token cannot escape the guarded closure.
-pub(crate) struct Authorization { _private: () }
+pub struct Authorization { probes: Cell<u64>, remaining_probes: u64 }
+
+impl Authorization {
+    fn internal() -> Self { Self { probes: std::cell::Cell::new(0), remaining_probes: u64::MAX } }
+    // The candidate's declared probe allowance is checked before authorization
+    // executes. The enclosing scope commits this logical count on every exit.
+    pub(super) fn admit_probes(&self, probes: u64) -> bool {
+        let total = self.probes.get().saturating_add(probes);
+        self.probes.set(total);
+        total <= self.remaining_probes
+    }
+
+}
+
 
 // No Rows implementation, Deref or raw accessor: row reads require the
 // unforgeable token even when a caller has access to Runner's store facade.
@@ -46,7 +59,7 @@ impl<'a> GuardedRows<'a> {
     }
     pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let permitted = self.limit(limit)?;
-        let rows = self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, meter)?;
+        let rows = self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, _authorization, meter)?;
         self.charge(rows.len());
         if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget); }
         Ok(rows)
@@ -72,7 +85,7 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
     pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }
     pub(crate) fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> { self.raw.retained_group(table, index, prefix) }
-    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, meter: &mut Meter) -> Result<bool, RuntimeError> { self.raw.recording_covered(table, row, viewer, now, meter) }
+    pub(crate) fn recording_covered(&self, table: &str, row: &Value, viewer: &str, now: i64, scope: &Authorization, meter: &mut Meter) -> Result<bool, RuntimeError> { self.raw.recording_covered(table, row, viewer, now, scope, meter) }
     pub(crate) fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { self.raw.acquired_boundary(table, index, prefix) }
     pub(crate) fn prefetch_enabled(&self) -> bool { self.raw.prefetch_enabled() }
     #[allow(dead_code)] // Used by the native prefetch planner; absent on web.
@@ -80,11 +93,38 @@ impl<'a> GuardedRows<'a> {
 }
 
 impl Runner<'_> {
+    // @ref LLP 3000.015#1 — declaration-only scratch is admitted before any
+    // candidate/witness access. The logical heap retains only disclosed output.
+    pub(super) fn authorized_scratch<T: Default>(&mut self, bytes: u64, allowance: &[(MeterKind, u64)], work: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        if self.device_work_active { return self.authorized_scan(allowance, work); }
+        if self.context.is_system() { return self.authorized_scan(allowance, work); }
+        let mark = self.meter.mark();
+        self.meter.heap(bytes)?;
+        let result = self.authorized_scan(allowance, work);
+        // Failure of fixed admission retains its cut; internal work cannot cut.
+        self.meter.release_row_heap(mark, bytes);
+        result
+    }
+
+    pub(super) fn rule_scratch(&self, rule: &crate::schema::RuleExpr) -> u64 {
+        let mut sites = Vec::new();
+        super::rules::probe_sites(rule, &mut sites);
+        sites.iter().map(|(table, _)| self.witness_scratch(table)).max().unwrap_or(0)
+    }
+
+    pub(super) fn witness_scratch(&self, table: &str) -> u64 {
+        let own = crate::rows::disclosed::decode_reservation(&self.schema.tables[table]);
+        let source = self.schema.maintain_for(table)
+            .and_then(|m| self.schema.table(&m.source)).filter(|source| source.expire.is_some());
+        own.saturating_add(source.map_or(0, crate::rows::disclosed::decode_reservation))
+    }
+
+
     /// Ordinary data reads keep their existing meter and cut semantics. This
     /// scope grants storage access without disabling or restoring any charge.
     /// Hidden authorization must use authorized_scan's prepaid reservation.
     pub(crate) fn metered_scan<T>(&mut self, scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
-        scan(self, &Authorization { _private: () })
+        scan(self, &Authorization::internal())
     }
 
     // @ref LLP 3000.015#2 — admission depends on declared bounds, never on
@@ -101,7 +141,7 @@ impl Runner<'_> {
         // caller maps exhaustion to uncertainty, never a logical E_BOUND.
         if self.device_work_active {
             let active = self.tx.authorizing.replace(self.tx.authorizing.get() || (physical && !self.context.is_system()));
-            let result = scan(self, &Authorization { _private: () });
+            let result = scan(self, &Authorization::internal());
             self.tx.authorizing.set(active);
             return result;
         }
@@ -110,14 +150,16 @@ impl Runner<'_> {
         }
         if self.read_capped() { return Ok(T::default()); }
         let mark = self.meter.mark();
+        let scope = Authorization { probes: Cell::new(0), remaining_probes: self.meter.ceilings.rule_probes.saturating_sub(self.meter.used.rule_probes) };
         let ceilings = std::mem::replace(&mut self.meter.ceilings, Ceilings::unbounded());
         let cut = std::mem::replace(&mut self.meter.cut, Cut::Abort);
         let active = self.tx.authorizing.replace(self.tx.authorizing.get() || (physical && !self.context.is_system()));
-        let result = scan(self, &Authorization { _private: () });
+        let result = scan(self, &scope);
         self.tx.authorizing.set(active);
         self.meter.restore(mark);
         self.meter.ceilings = ceilings;
         self.meter.cut = cut;
+        if scope.probes.get() > 0 { self.read_charge(MeterKind::RuleProbes, scope.probes.get())?; }
         result
     }
 }
@@ -126,6 +168,46 @@ impl Runner<'_> {
 mod tests {
     use super::*;
     use crate::{Context, Store, meter::Meter, schema::Schema};
+
+    #[test]
+    fn raw_write_fetches_reserve_before_even_an_absent_candidate() {
+        use crate::{rows::MemoryRows, schema::{ColumnType, FieldAuthority, public_table}, Value};
+        let rows = MemoryRows::new();
+        let mut schema = Schema::default();
+        let mut table = public_table([("id".into(),ColumnType::Id),("owner".into(),ColumnType::Principal),
+            ("secret".into(),ColumnType::Text { max: 1000000 })].into(), Default::default());
+        table.indexes.insert("byId".into(),crate::schema::Index::of(&["id"],true));
+        table.written_by.insert("secret".into(),FieldAuthority { owner:"owner".into(),audience:false });
+        schema.tables.insert("records".into(),table);
+        for lookup in [false,true] {
+            let mut runner = Runner::new(&rows,&schema,Context::new("alice",Default::default()),
+                Meter::new(Ceilings {heap_bytes:32,..Default::default()},Cut::Abort),0);
+            let result = if lookup {
+                let index=&schema.tables["records"].indexes["byId"];
+                runner.lookup_stored("records","byId",index,&[Value::Id("absent".into())],false)
+            } else { runner.fetch("records","absent") };
+            assert!(matches!(result,Err(RuntimeError::Bound {kind:MeterKind::HeapBytes,..})),"lookup={lookup}: {result:?}");
+        }
+    }
+
+    #[test]
+    fn scratch_keeps_only_the_fixed_peak_on_success_and_failure() {
+        let rows = crate::rows::MemoryRows::new();
+        let schema = Schema::default();
+        for hidden in [0,1000000] {
+            for refuses in [false,true] {
+                let mut runner=Runner::new(&rows,&schema,Context::new("alice",Default::default()),Meter::new(Ceilings::default(),Cut::Abort),0);
+                let result=runner.authorized_scratch(4096,&[(MeterKind::RuleProbes,2)],|runner,_| {
+                    runner.meter.heap(hidden)?;
+                    if refuses { Err(RuntimeError::Input("internal test error".into())) } else { Ok(()) }
+                });
+                assert_eq!(result.is_err(),refuses);
+                assert_eq!(runner.meter.used.heap_bytes,0);
+                assert_eq!(runner.meter.heap_peak,4096);
+                assert_eq!(runner.meter.used.rule_probes,2);
+            }
+        }
+    }
 
     #[test]
     fn allowance_alone_decides_admission_and_every_exit_keeps_it() {
@@ -158,4 +240,18 @@ mod tests {
             }
         }
     }
+}
+
+/// Standalone physical accounting has its own meter. Its token is borrowed
+/// only for `run`, never constructible on a caller ledger or returned by it.
+pub struct InternalLedger(crate::meter::Meter);
+impl InternalLedger {
+    pub(crate) fn with_meter<T>(meter: &mut crate::meter::Meter, work: impl FnOnce(&mut crate::meter::Meter, &Authorization) -> T) -> T {
+        work(meter, &Authorization::internal())
+    }
+    pub fn new(meter: crate::meter::Meter) -> Self { Self(meter) }
+    pub fn run<T>(&mut self, work: impl FnOnce(&mut crate::meter::Meter, &Authorization) -> T) -> T {
+        work(&mut self.0, &Authorization::internal())
+    }
+    pub fn into_meter(self) -> crate::meter::Meter { self.0 }
 }

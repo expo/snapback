@@ -1255,7 +1255,7 @@ fn ceremony_run_two_probes_one_row_with_or_without_the_second_index() {
         assert_eq!(denied.metered.rule_probes, 1);
         let bootstrapped = engine.mutate("bootstrap", None, Context::new("dev:carol", args(&[("chatKey", Value::String("new".into()))]))).unwrap();
         assert!(matches!(bootstrapped.state, WriteState::Sent { .. }));
-        assert_eq!(bootstrapped.metered.rule_probes, 1, "the whole rule prepays exists even when created short-circuits it");
+        assert_eq!(bootstrapped.metered.rule_probes, 1, "created short-circuits internal work; the declared witness slot is reserved");
     }
 }
 

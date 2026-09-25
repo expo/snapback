@@ -77,7 +77,7 @@ fn nested_ladder<H:Host>(mut h:H,mut store:H::Store) {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,snapback4_core::RuntimeError>{self.0.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&snapback4_core::schema::Index,k:&[Value])->Result<Option<Value>,snapback4_core::RuntimeError>{self.0.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan(t,n,k,b,d,l)}
-        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize,m:&mut snapback4_core::meter::Meter)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan_metered(t,n,k,b,d,l,m)}
+        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&snapback4_core::rows::Bounds,d:snapback4_core::rows::Dir,l:usize, scope: &snapback4_core::engine::Authorization,m:&mut snapback4_core::meter::Meter)->Result<Vec<(Value,Vec<u8>)>,snapback4_core::RuntimeError>{self.0.scan_metered(t,n,k,b,d,l, scope,m)}
         fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,snapback4_core::RuntimeError>{self.0.count_prefix(t,n,k,l)}
         fn put(&self,t:&str,d:&snapback4_core::schema::Table,r:&Value,o:Option<&Value>)->Result<u64,snapback4_core::RuntimeError>{self.0.put(t,d,r,o)}
         fn delete(&self,t:&str,d:&snapback4_core::schema::Table,r:&Value)->Result<u64,snapback4_core::RuntimeError>{self.0.delete(t,d,r)}
@@ -377,9 +377,9 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.rows.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.rows.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.rows.scan(t,n,k,b,d,l)}
-        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+        fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize, scope: &snapback4_core::engine::Authorization,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
             assert!(l as u64 <= m.ceilings.examined.saturating_sub(m.used.examined));
-            let result=self.rows.scan_metered(t,n,k,b,d,l,m)?;
+            let result=self.rows.scan_metered(t,n,k,b,d,l, scope,m)?;
             self.fetched.set(self.fetched.get()+result.len()); Ok(result)
         }
         fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,RuntimeError>{self.rows.count_prefix(t,n,k,l)}
@@ -421,10 +421,8 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
             if budget < 8192 { assert_eq!(counted.fetched.get(), budget as usize); }
             tx.rollback_to("attempt").unwrap();
         }
-        // An early live witness with an oversized, unindexed payload must
-        // exhaust allocation before authorizing; a small image still fits.
-        // Use the earliest live deadline at an earlier pinned clock: expiry
-        // ordering puts null after the expired backlog, no longer first by id.
+        // Logical decoder admission depends on the declaration, not the witness
+        // payload. Both small and large worlds cut before device physical work.
         let old = tx.get("members", "m00000").unwrap().unwrap();
         for payload in [Value::Null, Value::String("x".repeat(40000))] {
             tx.savepoint("heap").unwrap();
@@ -433,8 +431,7 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
             tx.put("members", &backend.schema.tables["members"], &row, Some(&old)).unwrap();
             let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(198),
                 Ceilings { examined: 1 + u64::from(aggregate), heap_bytes: 32768, ..Ceilings::unbounded() });
-            if payload == Value::Null { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
-            else { assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}: {result:?}"); }
+            assert!(matches!(result, Err(RuntimeError::Bound {kind:snapback4_core::error::MeterKind::HeapBytes,..})), "aggregate={aggregate}: {result:?}");
             tx.rollback_to("heap").unwrap();
         }
         tx.rollback().unwrap();

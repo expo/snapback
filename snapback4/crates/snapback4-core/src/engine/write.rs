@@ -10,7 +10,7 @@ use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
 use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
-use crate::value::{Value, canonical_json};
+use crate::value::{Value, Supplied, canonical_json};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Origin {
@@ -18,16 +18,19 @@ pub(crate) enum Origin {
     Maintained,
 }
 
+#[path = "write_target.rs"]
+pub(crate) mod target;
+
 impl Runner<'_> {
-    pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn insert(&mut self, table: &str, row: Supplied) -> Result<(), RuntimeError> {
         self.insert_mode(table, row, false).map(|_| ())
     }
 
-    pub(super) fn insert_if_absent(&mut self, table: &str, row: Value) -> Result<bool, RuntimeError> {
+    pub(super) fn insert_if_absent(&mut self, table: &str, row: Supplied) -> Result<bool, RuntimeError> {
         self.insert_mode(table, row, true)
     }
 
-    fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+    fn insert_mode(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
         self.target_attempt(table_name, |runner| {
             let mark = runner.meter.mark();
             let result = runner.insert_attempt(table_name, row, if_absent, None);
@@ -41,13 +44,14 @@ impl Runner<'_> {
         })
     }
 
-    fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool, upsert_index: Option<&str>) -> Result<bool, RuntimeError> {
+    fn insert_attempt(&mut self, table_name: &str, row: Supplied, if_absent: bool, upsert_index: Option<&str>) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
         let supplied_sequence = super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row);
         // A directly supplied field is a payload error before any lookup;
         // only an upsert's copied address waits for insert authority.
         if upsert_index.is_none() && supplied_sequence.is_err() { return supplied_sequence.map(|_| false); }
+        let supplied = row.clone();
         let row = self.with_defaults(table_name, row)?;
         let table = &self.schema.tables[table_name];
         let independent = !table.sequences.is_empty() && !super::rules::deciding_fields(table_name, table, &table.rules.insert)
@@ -78,6 +82,10 @@ impl Runner<'_> {
             }
             return Err(if upsert_index.is_some() { self.no_write_target() } else { error });
         }
+        if upsert_index.is_some() {
+            if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
+            self.authorize_fields(table_name, &row, &supplied).map_err(|_| self.no_write_target())?;
+        } else { self.authorize_fields(table_name, &row, &supplied)?; }
         let (row, sequence_full) = self.sequence_fields(table_name, row)?;
         if let Some(index) = upsert_index {
             if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
@@ -155,11 +163,11 @@ impl Runner<'_> {
         Ok(true)
     }
 
-    pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+    pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
         self.target_attempt(table_name, |runner| runner.update_attempt(table_name, key, patch))
     }
 
-    fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+    fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, &patch)?;
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &patch)?;
@@ -174,15 +182,15 @@ impl Runner<'_> {
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
         let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
         let patch = self.ignore_hidden_immutable_patch(table_name, patch, readable)?;
-        let new = self.merge_patch(&old, &patch)?;
+        let new = self.merge_patch(table_name, &old, &patch, readable)?;
         self.replace(table_name, old, new, readable, &patch)
     }
 
-    pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
         self.target_attempt(table_name, |runner| runner.upsert_attempt(table_name, key, row))
     }
 
-    fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+    fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         self.refuse_recorded(table_name, &row)?;
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row)?;
@@ -196,15 +204,15 @@ impl Runner<'_> {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
-                let new = self.merge_patch(&old, &row)?;
+                let new = self.merge_patch(table_name, &old, &row, readable)?;
                 self.replace(table_name, old, new, readable, &row)
             }
             None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
-            None => self.insert_upsert(table_name, "byId", row, 0),
+            None => self.insert_upsert(table_name, "byId", row),
         }
     }
 
-    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value, _expired_work: u64) -> Result<(), RuntimeError> {
+    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         match self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()) {
             Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
@@ -213,29 +221,22 @@ impl Runner<'_> {
     }
 
     fn replace(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
-        self.authorize_update(table_name, &old, &new, readable)?;
+        self.authorize_update_fields(table_name, &old, &new, patch, readable)?;
         self.replace_authorized(table_name, old, new, readable, patch)
-    }
-
-    // @ref LLP 3000.007#8 — item 7: pre-write read authority controls details; update authority precedes asset diagnostics.
-    pub(super) fn authorize_update(&mut self, table: &str, old: &Value, new: &Value, readable: bool) -> Result<(), RuntimeError> {
-        if !self.check_rule(table, Effect::Update, Some(old), new)? {
-            return Err(if readable { RuntimeError::Rule { table: table.into(), effect: Effect::Update } } else { self.no_write_target() });
-        }
-        Ok(())
     }
 
     pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, patch)?;
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, patch)?;
+        self.authorize_fields(table_name, &old, patch)?;
         for path in self.schema.tables[table_name].recorded.keys() {
             if old.field(path).ok() != new.field(path).ok() {
                 return Err(if readable { RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("engine replacement changed stored attribution at {table_name}.{path} (guide maintains)") } } else { self.no_write_target() });
             }
         }
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
-        if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
+        if let Err(error) = super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str())) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
         let table = self.schema.table(table_name).expect("validated").clone();
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &new, Some(&old)))?;
@@ -257,7 +258,9 @@ impl Runner<'_> {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
-            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete });
+            return Err(if self.check_rule(table_name, Effect::Read, None, &old)? {
+                RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete }
+            } else { self.no_write_target() });
         }
         self.delete_authorized(table_name, old)
     }
@@ -317,19 +320,12 @@ impl Runner<'_> {
     /// it out, before validation and before the asset facts, so the row the
     /// rules and the constraints see is the complete one.
     // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
-    fn with_defaults(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+    pub(super) fn with_defaults(&mut self, table_name: &str, row: Supplied) -> Result<Supplied, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if !table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
             return Ok(row);
         }
-        let mut fields = row.as_object()?.clone();
-        for (name, default) in &table.defaults {
-            if !fields.contains_key(name) {
-                let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
-                fields.insert(name.clone(), value);
-            }
-        }
-        let row = Value::Row(fields.into());
+        let row = row.defaults(table,self.context.now.ok_or_else(||RuntimeError::Input("write clock is not pinned".into()))?,&self.context.viewer)?;
         self.meter.heap(row.heap_bytes())?;
         Ok(row)
     }
@@ -445,7 +441,11 @@ impl Runner<'_> {
         let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+                // byId can only return this id (already checked on insert).
+                // An unchanged admitted unique key cannot acquire a collision.
+                if name == "byId" { continue; }
                 let key = index_values(index, new);
+                if old.is_some_and(|old| index_values(index, old) == key) { continue; }
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
@@ -611,7 +611,7 @@ impl Runner<'_> {
                 self.observe_sequence_selection(target, index, &key)?;
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
                 let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = match self.authorized_scan(&[], |runner, allowance| runner.live_lookup(allowance, target, index, target_index, &key))? {
+                let found = match self.lookup_stored(target, index, target_index, &key, true)? {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };
