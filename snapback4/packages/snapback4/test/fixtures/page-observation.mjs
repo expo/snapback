@@ -7,7 +7,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
   };
   const q = name => ({ kind: "query", name }), m = name => ({ kind: "mutation", name });
   const apps = [], watches = [], replies = [], requests = [];
-  const expiryArmed = new Set();
+  const expiryArmed = new Map();
   let offline = false, holdWrite = false, holdInbox = false, releaseInbox, releaseWrite, inboxGate, unmount;
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname.split("/").slice(-2).join("/");
@@ -24,8 +24,9 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     // Give each observation a known authorization deadline without a row
     // commit. A stalled replacement cannot extend the old answer's lifetime.
     if (path === "q/inbox" && !expiryArmed.has(init.body)) {
-      expiryArmed.add(init.body);
-      return Response.json({ ...await response.json(), nextExpiry: Date.now() + 2000 });
+      const nextExpiry = Date.now() + 2000;
+      expiryArmed.set(init.body, nextExpiry);
+      return Response.json({ ...await response.json(), nextExpiry });
     }
     return response;
   };
@@ -56,19 +57,23 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     check(reader.auth.viewer === alice.session.principal, "restored reader account");
     const inbox = reader.client.observe(q("inbox"), {}); watches.push(inbox);
     const snapshots = [];
-    inbox.subscribe(() => snapshots.push(inbox.getSnapshot()));
+    inbox.subscribe(() => snapshots.push({ read: inbox.getSnapshot(), at: Date.now() }));
     let hooks = await mount(reader); unmount = hooks?.close;
     await until(() => inbox.getSnapshot().data?.[0]?.unread === 3, "published inbox");
     if (hooks) await until(() => hooks.read().query.data?.[0]?.unread === 3 && hooks.read().page.items[0]?.unread === 3, "both hooks published inbox");
     check(replies.some(row => row.name === "inbox" && row.reply.ok?.loading), "the cold device's unread domain crosses its horizon");
     const initialUnread = inbox.getSnapshot().data[0].unread;
+    const inboxExpiry = expiryArmed.get(JSON.stringify({ args: {} }));
+    check(Number.isFinite(inboxExpiry), "the observed inbox has an authorization deadline");
     const publicationStart = snapshots.length;
     holdInbox = true; inboxGate = new Promise(resolve => { releaseInbox = resolve; });
     const before = requests.filter(path => path === "q/inbox").length;
     await until(() => requests.filter(path => path === "q/inbox").length > before && inbox.getSnapshot().loading, "expired inbox with stalled fallback");
     if (hooks) await until(() => hooks.read().query.loading && hooks.read().page.read.loading, "both hooks withdraw expired data");
     if (hooks) check(hooks.read().page.items.length === 0, "expired first-page rows cannot bridge the fetch");
-    check(snapshots.slice(publicationStart).every(read => !("data" in read)), "no expired data while the replacing fetch is in flight");
+    // A sync rerun may retain still-authorized data before T. Only publications
+    // at or after the actual deadline claim that expired data survived.
+    check(snapshots.slice(publicationStart).filter(row => row.at >= inboxExpiry).every(({ read }) => !("data" in read)), "no expired data while the replacing fetch is in flight");
     holdWrite = true;
     const pending = await reader.mutate(m("resetRead"), { chat: dm.result });
     check(pending.state === "pending" && reader.client.link() === "online", "pending prediction while online");
@@ -83,7 +88,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     check(requests.filter(path => path === "q/inbox").length === pendingBefore, "prediction fence prevents fallback dispatch");
     holdInbox = false; releaseInbox();
     await until(() => replies.length > pendingReplies && inbox.getSnapshot().loading, "withheld rerun after old response");
-    check(snapshots.slice(pendingPublications).every(read => !("data" in read)), "no old server answer replaces the prediction");
+    check(snapshots.slice(pendingPublications).every(({ read }) => !("data" in read)), "no old server answer replaces the prediction");
     offline = true;
     // A fenced server-only ping cannot probe the link. Fail the actual send.
     await until(() => releaseWrite, "pending send entered"); releaseWrite();
@@ -101,7 +106,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     await reader.mutate(m("resetRead"), { chat: dm.result });
     await until(() => replies.length > rawBefore + 2, "another rerun");
     check(inbox.getSnapshot().loading, "another unavailable rerun cannot resurrect data");
-    check(snapshots.filter(read => "data" in read).every(read => Array.isArray(read.data)), "all published lists are arrays");
+    check(snapshots.filter(({ read }) => "data" in read).every(({ read }) => Array.isArray(read.data)), "all published lists are arrays");
     offline = false; holdWrite = false;
     const switched = await reader.auth.login("bob@example.com", "password-bob");
     check(switched.ok && reader.auth.viewer === bob.session.principal, "account switched");
