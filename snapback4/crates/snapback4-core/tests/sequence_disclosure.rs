@@ -67,7 +67,7 @@ fn generated_self_readable_allocations_and_hidden_cap_limit() {
     for principal in [Principal::SelfReadable, Principal::Writer, Principal::InsertOnly] {
         for read in [ReadRule::Owner, ReadRule::Witness, ReadRule::Ordinal, ReadRule::Deny] {
             for cap in [false, true] {
-                for op in [Write::Insert, Write::Absent] {
+                for op in [Write::Insert, Write::Absent, Write::Upsert] {
                     let who = principal.who();
                     let source = generated::schema(principal, read, false, cap);
                     let mut seeds: [Seed; 2] = [vec![], vec![]];
@@ -89,8 +89,8 @@ fn generated_self_readable_allocations_and_hidden_cap_limit() {
                             assert_eq!(result.field("ordinal"), Ok(&Value::Int(if world == 1 && read == ReadRule::Owner { 6 } else { 1 })));
                         } else {
                             let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}") };
-                            assert_eq!(why.code, "E_RULE");
-                            assert!(why.message.contains("sequence insert requires read authority independent of its ordinal"));
+                            assert_eq!(why.code, if op.name == "put" && !readable { "NOT_FOUND" } else { "E_RULE" });
+                            if why.code == "E_RULE" { assert!(why.message.contains("sequence insert requires read authority independent of its ordinal")); }
                             assert!(!why.message.contains("holds at most"));
                             assert!(!why.message.contains("occupied"));
                         }
@@ -100,11 +100,11 @@ fn generated_self_readable_allocations_and_hidden_cap_limit() {
             }
         }
     }
-    assert_eq!(controls, 96);
+    assert_eq!(controls, 144);
     // With the accepted occupancy bit fixed, occupant identity, ordinal and
     // counter history must not create any further observable distinction.
     for principal in [Principal::SelfReadable, Principal::Writer] {
-        for op in [Write::Insert, Write::Absent] {
+        for op in [Write::Insert, Write::Absent, Write::Upsert] {
             let who = principal.who();
             let mut pair = Pair::new(generated::schema(principal, ReadRule::Owner, false, true),
                 [vec![generated::row("hidden-a", "carol", 1, "a")], vec![generated::row("hidden-b", "dave", 5, "b")]], who,
@@ -132,18 +132,22 @@ fn generated_first_ordinal_page_at_examined_ceiling_one() {
 }
 
 #[test]
-fn hidden_ordinal_prefix_has_a_separate_internal_walk_limit() {
+fn hidden_ordinal_prefix_cannot_cut_before_the_readable_row() {
     use paired_worlds::*;
     use generated::{Principal, ReadRule};
-    let hidden = (1..=8193).map(|n| generated::row(&format!("h{n}"), "bob", n, &format!("h{n}"))).chain([generated::row("own", "alice", 8194, "own")]).collect();
-    let mut pair = Pair::new(generated::schema(Principal::SelfReadable, ReadRule::Owner, false, false), [vec![], hidden], "alice", Operation::new("add", serde_json::json!({}), "alice"));
+    let own = generated::row("own", "alice", 8194, "own");
+    let hidden = (1..=8193).map(|n| generated::row(&format!("h{n}"), "bob", n, &format!("h{n}"))).chain([own.clone()]).collect();
+    let mut pair = Pair::new(generated::schema(Principal::SelfReadable, ReadRule::Owner, false, false), [vec![own], hidden], "alice", Operation::new("edit", serde_json::json!({"parent":"p","body":"changed","n":8194}), "alice"))
+        .query("page", serde_json::json!({"parent":"p","c":null})).query("one", serde_json::json!({"parent":"p","n":8194}));
     pair.trusted = true;
     pair.ceilings = Some(snapback4_core::Ceilings { examined: 1, ..Default::default() });
-    let mut e = pair.engine(1);
-    let page = e.query("page", snapback4_core::Context::new("alice", inputs(&e, "page", &serde_json::json!({"parent":"p","c":null})))).unwrap();
-    assert!(page.data.as_array().unwrap().is_empty(), "the internal walk must stop before own ordinal 8194");
-    assert!(!page.complete);
-    assert!(page.next.is_none(), "a hidden key cannot become a continuation");
+    pair.assert_equal();
+    for world in 0..2 {
+        let mut e = pair.engine(world);
+        let page = e.query("page", snapback4_core::Context::new("alice", inputs(&e, "page", &serde_json::json!({"parent":"p","c":null})))).unwrap();
+        assert_eq!(page.data.as_array().unwrap().len(), 1);
+        assert!(page.capped_at.is_none());
+    }
 }
 
 #[test]
@@ -169,6 +173,120 @@ fn generated_owned_hidden_and_fresh_sequence_addresses_at_boundaries() {
             let snapback4_core::WriteState::Failed { why, .. } = reply.state else { panic!("{reply:?}") };
             let expected = if case.pair.ceilings.is_some_and(|c| c.index_entries == 0) { "E_BOUND" } else if op.args["n"] == 1 { "E_RULE" } else { "NOT_FOUND" };
             assert_eq!(why.code, expected, "{}", case.label);
+        }
+    }
+}
+
+#[path = "paired_worlds/sequence_round5.rs"]
+mod round5;
+#[test]
+fn generated_round5_compounds_caps_shapes_and_allowed_writes() {
+    let cases = round5::cases();
+    eprintln!("round5 generated equality cases: {}", cases.len());
+    assert_eq!(cases.len(), 300);
+    let mut failed = vec![];
+    for case in cases {
+        if std::panic::catch_unwind(|| {
+            case.pair.assert_equal();
+            if case.label.ends_with("/Update") || case.label.ends_with("/Delete") {
+                for world in 0..2 {
+                    let mut e = case.pair.engine(world);
+                    let op = &case.pair.operations[0];
+                    let out = e.mutate(&op.name, None, snapback4_core::Context::new("alice", paired_worlds::inputs(&e, &op.name, &op.args))).unwrap();
+                    assert!(matches!(out.state, snapback4_core::WriteState::Sent { .. }), "allowed owned write must succeed: {out:?}");
+                }
+            }
+        }).is_err() { failed.push(case.label); }
+    }
+    assert!(failed.is_empty(), "{} failing cases: {failed:?}", failed.len());
+}
+#[test]
+fn cap_order_cannot_change_refusal_after_8191_point_reads() {
+    for reads in [8191, 8190, 0] {
+        for op in [generated::Write::Insert, generated::Write::Absent, generated::Write::Upsert] {
+            let pair = round5::cap_boundary(reads, op);
+            pair.assert_equal();
+            for world in 0..2 {
+                let mut e = pair.engine(world);
+                let out = e.mutate("burn", None, snapback4_core::Context::new("alice", paired_worlds::inputs(&e, "burn", &pair.operations[0].args))).unwrap();
+                let snapback4_core::WriteState::Failed { why, .. } = out.state else { panic!("{out:?}") };
+                assert_eq!(why.code, if reads > 8190 { "E_BOUND" } else { "E_RULE" });
+            }
+        }
+    }
+}
+#[test]
+fn compound_page_reserves_before_discovery_at_default_probe_ceiling() {
+    for ordinary in [false, true] {
+        for reads in [4096, 4095, 4094, 0] {
+            for take in [1, 3] {
+                for hidden in [1, 3] {
+                    round5::page_boundary(ordinary, reads, take, hidden).assert_equal();
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn descending_and_ascending_pages_ignore_middle_and_high_hidden_ordinals() {
+    use paired_worlds::*;
+    use serde_json::json;
+    for compound in [false, true] {
+        for direction in ["first", "last"] {
+            for take in [1, 2] {
+                for middle in [false, true] {
+                    for ceiling in [None, Some(1)] {
+                        let mut source = generated::schema(generated::Principal::SelfReadable, generated::ReadRule::Owner, false, false)
+                            .replace("first 1 by .ordinal", &format!("{direction} {take} by .ordinal"));
+                        if compound { source = source.replace(".owner = viewer", round5::COMPOUND).replace("sync to .owner", "online only"); }
+                        let mut visible = vec![generated::row("own", "alice", 1, "own")];
+                        if middle { visible.push(generated::row("own3", "alice", 3, "own3")); }
+                        let mut hidden = visible.clone();
+                        hidden.push(generated::row("hidden", "bob", 2, "hidden"));
+                        let mut pair = Pair::new(source, [visible, hidden], "alice", Operation::new("edit", json!({"parent":"p","body":"probe","n":9}), "alice"))
+                            .query("page", json!({"parent":"p","c":null})).query("one", json!({"parent":"p","n":9}));
+                        pair.trusted = true;
+                        pair.ceilings = ceiling.map(|examined| snapback4_core::Ceilings { examined, ..Default::default() });
+                        pair.assert_equal();
+                        if !middle {
+                            for world in 0..2 {
+                                let mut e = pair.engine(world);
+                                let page = e.query("page", snapback4_core::Context::new("alice", inputs(&e, "page", &json!({"parent":"p","c":null})))).unwrap();
+                                assert_eq!(page.data.as_array().unwrap().len(), 1);
+                                assert_eq!(page.metered.examined, 1, "{direction} prepays the same allowance");
+                                assert!(page.capped_at.is_none());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn underfilled_and_full_caps_disclose_only_unreadable_occupancy() {
+    use paired_worlds::*;
+    use serde_json::json;
+    for cap in [2, 4, 8] {
+        for compound in [false, true] {
+            for op in [generated::Write::Insert, generated::Write::Absent, generated::Write::Upsert] {
+                let mut source = generated::schema(generated::Principal::SelfReadable, generated::ReadRule::Owner, false, true)
+                    .replace("cap 1 by parent", &format!("cap {cap} by parent"));
+                if compound { source = source.replace(".owner = viewer", round5::COMPOUND).replace("sync to .owner", "online only"); }
+                let seed = |count| (1..=count).map(|n| generated::row(&format!("hidden{n}"), "bob", n, &format!("hidden{n}"))).collect();
+                let mut pair = Pair::new(source, [seed(1), seed(cap)], "alice", Operation::new(op.name(), json!({"parent":"p","body":"fresh","n":99}), "alice"))
+                    .query("page", json!({"parent":"p","c":null})).query("one", json!({"parent":"p","n":99}));
+                pair.trusted = true;
+                pair.assert_equal();
+                for world in 0..2 {
+                    let mut e = pair.engine(world);
+                    let outcome = e.mutate(op.name(), None, snapback4_core::Context::new("alice", inputs(&e, op.name(), &pair.operations[0].args))).unwrap();
+                    let snapback4_core::WriteState::Failed { why, .. } = outcome.state else { panic!("{outcome:?}") };
+                    assert_eq!(why.code, "E_RULE");
+                }
+            }
         }
     }
 }

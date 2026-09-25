@@ -49703,3 +49703,92 @@ full-suite builds agree. SHA-256:
 38e418260ca8f8cb22faf90a38323ebc11464959d8b1eb9908d7374f131bd6a5.
 Final report: /home/ccheever/sb5/lane-b2.r4.final.md. Local branch commit only;
 no push, publication, deployment or new blind-review claim.
+
+## 2026-09-25 — Lane B2 round 5: one prepaid authorization-scan boundary
+
+Worktree /home/ccheever/sb5/lane-b2, branch sb5/b2-sequence-by, base 8bccc7749.
+The author's round-5 brief replaces the sequence-only fixes with one shared
+`authorized_scan` helper. It reserves schema/request-derived work before any
+occupant, marks that paid meter, isolates private authorization work, and
+restores the paid mark on success or refusal, including heap peak and cut state.
+Insufficient allowance stops before lookup. Cap N, complete unique keys,
+sequence counters, point/read witnesses, prefix admission, candidate admission,
+ordinary/ordinal pages and non-uniform word discovery all route through it.
+The report contains the complete grep audit and routed/constant/system-only
+classification. The device's separate physical prediction budget still queues
+on exhaustion; helper nesting must not erase it.
+
+This fixes Astra's cap-2 ordinary-key upsert at 8,191 preceding point reads:
+hidden body a versus z no longer changes examined work or E_RULE/E_BOUND.
+The cap allowance is reserved before the first occupant for insertion, if-absent
+and upsert. The compound owner-or-viewer-witness-or-owner-witness page at 4,096
+preceding point reads now reserves its whole authorization allowance before
+fetching. The fix also covers ordinary integer columns and closes an inherited
+Snapback 4 weakness, not just a sequence-by regression. Private page candidates
+are authorized before payload charges, further word filters, lookahead or cursor
+selection. Actual readable candidates still spend the ordinary examined budget.
+
+The 8,192-hidden-candidate termination rule also changed page data and therefore
+could not remain. Private scans stream batches of 32 until a readable candidate
+or exhaustion, without a hidden-population cutoff. Logical meters do not bound
+total physical duration through hidden populations; no constant-time claim is
+made. LLP 3000 §7 records this author-requested change to the earlier contract.
+Non-uniform word discovery had the same inherited weakness: hidden-only words
+could exhaust 32 word lanes and affect later results/cuts. It now prepays 33
+seeks and admits only words with a readable candidate. Native, wasm and HTTP
+pairs compare the full normalized result, including development meters. The
+spec's sole hidden-refusal residual remains unreadable shared-cap occupancy,
+without identity, count, ordinal or field values.
+
+The main paired matrix grows from 688 to 1,038, or 726 to 1,120 including boundary
+controls. New dimensions: the compound rule above; caps 2/4/8 with 1/3/7 hidden
+siblings; nullable long text, lists, JSON, bool and enum; ordinary integer controls;
+ordinary-key upsert; allowing update/delete rules; first/last, page sizes 1/2,
+hidden ordinals between/above readable rows; underfilled versus full caps.
+Readable allocation controls now include upsert: 96 -> 144 outcomes. New update
+and delete cases also assert 240 successful owned writes, not just pair equality.
+There are 9 exact cap-boundary pairs and 32 compound-page boundary pairs. Against
+the original engine, the new 300-case generator finds 30 differing pairs, all
+ordinary-key sequence upserts. Both named High boundary tests and the long-hidden-
+prefix pair also fail there. Evidence: target/b2-r5-baseline-matrix.log.
+
+Grok's completed round-5 review (EXIT=0, READY) still names a Low and two surviving
+mutations. `check --json` now shares text mode's per-column counter descriptions
+under `sequences`. A two-column fixture holding 1 and 2 predicts 3 and 4 on memory
+and SQLite. Four deliberately executed mutations fail: floor `.take(1)`, skip
+descending allowance, refuse hidden cap occupants only at fullness, omit JSON
+counter descriptions. All restored; logs are target/b2-r5-mutant-*.log.
+
+Qualification also caught and fixed initial regressions: erasing the device
+physical-work budget; extending private-sequence cap semantics to ordinary caps;
+and omitting examined charges for readable candidates rejected by further words.
+Exact-meter tests now account for fixed unique-key probes and the 33-seek private
+word allowance. Uniform readable/expiry cuts still retain their original boundary
+coverage. Initial full-suite logs are retained as target/b2-r5-suite-initial.log
+and target/b2-r5-suite-second.log. The latter had green Rust and three client
+failures: two stale hidden-population assertions and a transient closed socket in
+the shared-logout test. All eight affected HTTP/logout tests passed in a focused rerun;
+the final suite serializes client files using the runner's supported option.
+
+Final qualification, Node v24.13.1, from snapback4/:
+```sh
+env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh
+```
+printed exactly `== 0 failure(s) in 775 s`, exit 0. Every blocking step passed;
+client summary: 1,106 passed, 0 failed, 10 existing skips. Log:
+target/b2-r5-suite.log. The final core disclosure suite has 15 passing tests;
+all Rust targets and workspace doctests passed. `./ref-check --verbose` passed
+with 507 LLP docs, 9,241 refs, 0 errors and 0 unchecked. `git diff --check` passed.
+
+Wasm is 1,780,690 B raw / 497,083 B gzip, Rust 1.97.0 / wasm-bindgen 0.2.127,
+without wasm-opt. Versus round 4: +8,928 raw / +3,897 gzip. The shared helper,
+authorization-before-page-discovery and authorized-only word discovery exceed
+the 494,000 B ratchet by 3,083 B. Raise it to 498,000 B, leaving 917 B; the reason
+is also recorded in metrics/wasm-budget.json and the commit message. This is a
+whole-artifact delta, not per-component attribution. Caller runtime ceilings
+are unchanged. build-wasm.sh and direct gzip measurement agree. The optional
+measure-wasm.sh attribution pass could not run because twiggy is absent.
+SHA-256: c2ede5b83ca05a5dd4701c4d0ac1a5dfc025c5edff5ace6c66216b46920ba8f3.
+
+Final report: /home/ccheever/sb5/lane-b2.r5.final.md. Local commit only; no push,
+live PostgreSQL qualification, publication, deployment or new blind-review claim.

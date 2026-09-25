@@ -293,10 +293,18 @@ The generated harness compares hidden siblings, witnesses and counter history
 across refusals, logical meters, pages/cursors, sync images and watermarks, and
 device prediction, admission, reopened outboxes and settlement. It separately
 checks successful assignments and this cap limit; it does not promise identical
-outcomes when the caller's actual authority changes. A denied sibling following
-a readable row in `first 1 by .ordinal` adds no examined charge or visible meter
-cut; a separate internal walk limit bounds long hidden prefixes without a
-hidden continuation key.
+outcomes when the caller's actual authority changes. Authorization-dependent scans prepay a fixed logical allowance from their
+schema and requested page size before examining occupants. This applies to cap
+checks on insertion and upsert, unique collisions, counter reads, rule witnesses,
+and pages with simple or compound read rules. Hidden candidates cannot change
+logical meters, budget refusals, returned rows or cursors by changing their
+payload or position. For `first 1 by .ordinal` and `last 1 by .ordinal`, a denied
+sibling before or after the readable row adds no examined charge or visible cut.
+The same page protection applies to ordinary integer columns. Private scans use
+bounded batches and continue through denied rows; their physical work is not
+reported in the logical meter. A device still queues if its separate prediction
+work allowance is exhausted. `check --json` includes the same sequence-counter
+descriptions as text `check` under `sequences`.
 Ordinals and their parent reference are immutable; listing the ordinal
 in `immutable` is accepted and redundant.
 

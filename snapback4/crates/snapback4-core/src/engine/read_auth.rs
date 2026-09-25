@@ -22,12 +22,13 @@ impl Runner<'_> {
 
     pub(super) fn authorize_read(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         self.device_work(|runner| {
-            let scratch = runner.meter.mark();
-            let result = runner.authorize_read_inner(table, row, prepaid);
-            // Only a verdict escapes; all fetched witnesses and cursors have
-            // been dropped. Keep physical work charged across authorizations.
-            if runner.device_work_active { runner.meter.release_heap(scratch); }
-            result
+            let probes = if prepaid { 0 } else { rules::rule_probes(&runner.schema.tables[table].rules.read) };
+            runner.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner| {
+                let scratch = runner.meter.mark();
+                let result = runner.authorize_read_inner(table, row, prepaid || !runner.device_work_active);
+                if runner.device_work_active { runner.meter.release_heap(scratch); }
+                result
+            })
         })
     }
 
@@ -70,7 +71,7 @@ impl Runner<'_> {
                 let target_def = &self.schema.tables[target];
                 self.read_tables.insert(target.clone());
                 // This is a raw audience membership, not the witness's ACL.
-                let found = self.lookup_live(target, &binding.group_index, target_def.index(&binding.group_index).expect("audience index"), &group, false)?;
+                let found = self.live_lookup(target, &binding.group_index, target_def.index(&binding.group_index).expect("audience index"), &group)?;
                 found.map(|row| self.witness_covered(target, &binding.group_index, &group, &row)).transpose().map(|known| known.unwrap_or(false))
             }
         }

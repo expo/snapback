@@ -133,7 +133,7 @@ query amount():
     ]);
     for (op, expected) in [("total", 2), ("amount", 18)] {
         let result = engine.query(op, Context::new("alice", BTreeMap::new()).at(1)).unwrap();
-        assert_eq!(result.metered.examined, 3, "the permitted prefix must visit the denied row too");
+        assert_eq!(result.metered.examined, 2, "denied rows stay inside the prepaid authorization scan");
         assert_eq!(result.data, Value::Int(expected));
         assert!(!result.complete, "retain the non-uniform query contract");
     }

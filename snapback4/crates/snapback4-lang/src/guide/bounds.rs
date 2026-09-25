@@ -14,6 +14,11 @@ per mutation; a job's chunk may examine 16,384 rows and write 8,192. A
 query past a ceiling returns what it found with `complete: false`; a
 mutation aborts with E_BOUND naming the meter, the ceiling and the site
 (never the count: it would measure rows the viewer may not read).
+Authorization-dependent scans prepay a fixed logical allowance before row
+discovery. Hidden candidates do not consume the caller's remaining allowance;
+readable rows, filters and output still do. These logical meters exclude private
+scan work: denied rows are visited in bounded batches without a hidden-row cut.
+The device's separate prediction-work budget can instead queue an operation.
 `snapback4 check --cost` prints each site's structural class;
 `snapback4 test` prints the numbers on your data and names query/persona reads
 past half any ceiling without a cut: at most ten lines and a count of the rest.

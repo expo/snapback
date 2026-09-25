@@ -218,7 +218,7 @@ fn d02_non_uniform_outcome_withholds_next_in_both_orders_and_paths() {
                 observe(&format!("D0.2 {op} eager={eager} synced={synced} hidden={hidden}"), &read);
                 if read.next.is_some() != (DEVICE && synced) { failures.borrow_mut().push(format!("{op} eager={eager} synced={synced} hidden={hidden}: next={:?}", read.next)); }
                 assert_eq!(read.complete, DEVICE && synced);
-                assert_eq!(read.cut, if DEVICE && !synced && hidden > 0 { Some(ReadCut::Meter) } else { None });
+                assert_eq!(read.cut, None);
             }
         });
     } } }
@@ -405,7 +405,7 @@ fn ticket_merge_next_after_non_uniform() {
                 let page = q(op, ctx(None)).unwrap();
                 observe(&format!("ticket {op} hidden={hidden}"), &page);
                 assert_eq!(page.complete, op == "mergeAlone");
-                assert_eq!(page.cut, if DEVICE && op != "mergeAlone" && hidden > 0 { Some(ReadCut::Meter) } else { None });
+                assert_eq!(page.cut, None);
                 if page.next.is_some() != (op == "mergeAlone") { failures.borrow_mut().push(format!("{op} hidden={hidden}: next={:?}", page.next)); }
             }
         });

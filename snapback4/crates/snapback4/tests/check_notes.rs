@@ -29,3 +29,25 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
     assert_eq!(plain_json["notes"].as_array().unwrap().len(), 2);
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn json_and_text_both_name_every_sequence_counter() {
+    let dir = std::env::temp_dir().join(format!("sb4-check-sequences-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    fs::write(dir.join("snapback/schema.q"), "table parents:\n  public\ntable children:\n  parent: parents\n  first: sequence by parent\n  second: sequence by parent\n  public\n").unwrap();
+    let run = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let text = run(&["check"]);
+    let json: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
+    let lines = json["sequences"].as_array().unwrap();
+    assert_eq!(lines.len(), 2);
+    for (column, line) in ["first", "second"].into_iter().zip(lines) {
+        let expected = format!("sequence children.{column}: counter per parents row through .parent; immutable, provisional while pending");
+        assert_eq!(line, &serde_json::Value::String(expected.clone()));
+        assert!(text.lines().any(|line| line.trim() == expected));
+    }
+    fs::remove_dir_all(dir).unwrap();
+}

@@ -83,7 +83,9 @@ impl Runner<'_> {
         let row = Value::Row(definition.index(index).expect("checked index").columns().into_iter().zip(key.iter().cloned()).collect());
         let viewer = self.context.viewer.clone();
         self.meter.heap(row.heap_bytes())?;
-        let readable = super::rules::evaluate(&rule, &viewer, None, &row, false, self)?;
+        let readable = self.authorized_scan(&[(MeterKind::RuleProbes, rule_probes(&rule))], |runner| {
+            super::rules::evaluate(&rule, &viewer, None, &row, false, runner)
+        })?;
         Ok(readable && !self.beyond_horizon)
     }
 
@@ -136,7 +138,7 @@ impl Runner<'_> {
         self.read_tables.insert(target.table.clone());
         self.reserve_target_resolution(&target.table, &definition, &patch, upsert)?;
         self.observe_sequence_selection(&target.table, &target.index, &key)?;
-        let old = self.lookup_live(&target.table, &target.index, index, &key, false)?;
+        let old = self.live_lookup(&target.table, &target.index, index, &key)?;
         if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
             return Err(self.write_miss(&target.table, &target.index, &key));
         }

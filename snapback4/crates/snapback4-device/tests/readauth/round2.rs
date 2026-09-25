@@ -275,7 +275,7 @@ query note():
 "#;
 
 fn mixed_probe_boundary<H: Host>(mut host: H) {
-    for reads in [8190, 8191, 8192] {
+    for reads in [8188, 8189, 8190] {
         let (mut engine, backend) = compile(PROBE_BOUNDARY);
         engine.seed([("members".into(), snapback4_core::value::object([
             ("id", id("member")), ("groupId", id("group")), ("principal", id("alice")),
@@ -283,11 +283,11 @@ fn mixed_probe_boundary<H: Host>(mut host: H) {
         let mut device = host.open(&format!("mixed-{reads}"), Some(backend)).unwrap();
         for (n, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
         let server = engine.mutate("mixed", Some("mixed"), context("alice", &[("work", Value::Int(reads))]).at(100)).unwrap();
-        assert_eq!(server.metered.rule_probes, reads as u64 + 1);
+        assert_eq!(server.metered.rule_probes, reads as u64 + 3);
         let reply = snapback4_device::call::call_text(&mut device, &json!({"op":"admit", "entry":{
             "id":"mixed", "seq":1, "op":"mixed", "args":{"work":reads}, "viewer":"alice", "now":100, "predictable":true
         }}).to_string());
-        if reads < 8192 {
+        if reads < 8190 {
             assert!(matches!(server.state, WriteState::Sent { .. }), "{server:?}");
             let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
             assert!(queued.predictable, "{reads}: {queued:?}");

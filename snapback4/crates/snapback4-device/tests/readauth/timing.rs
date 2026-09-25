@@ -113,8 +113,9 @@ fn probes<S:DeviceStore>(mut store:S) {
     store.install(&b.schema,&Default::default(),false).unwrap();
     let tx=store.transaction().unwrap();
     let program=|name:&str| b.programs.iter().find(|p|p.name==name).unwrap();
-    // There is no output-read admission charge: this predicts with zero probes.
-    local::predict(&tx,&b.schema,program("publish"),context("alice",&[]).at(100),Ceilings{rule_probes:0,..Default::default()}).unwrap();
+    // Five unique-key authorization reservations precede occupant lookup,
+    // even for a miss. No output-read authorization is added.
+    local::predict(&tx,&b.schema,program("publish"),context("alice",&[]).at(100),Ceilings{rule_probes:5,..Default::default()}).unwrap();
     for name in ["point","scan","merged","page","total","probe"] {
         for budget in [0,1] {
             let out=local::query(&Overlay(&tx),&b.schema,program(name),context("alice",if name=="page" {&[("c",Value::Null)]} else {&[]}).at(100),Ceilings{rule_probes:budget,..Default::default()});
@@ -131,10 +132,11 @@ fn probes<S:DeviceStore>(mut store:S) {
             }
         }
     }
-    // Delivered control pays no read-rule probes, even at a zero ceiling.
-    let out=local::query(&tx,&b.schema,program("point"),context("alice",&[]).at(100),Ceilings{rule_probes:0,..Default::default()}).unwrap();
+    // Point admission is schema-derived for settled and provisional images.
+    // A delivered control pays the same fixed probe and succeeds with room.
+    let out=local::query(&tx,&b.schema,program("point"),context("alice",&[]).at(100),Ceilings{rule_probes:1,..Default::default()}).unwrap();
     assert!(out.complete && out.data!=Value::Null);
-    assert_eq!(out.metered.rule_probes,0);
+    assert_eq!(out.metered.rule_probes,1);
     tx.rollback().unwrap();
 }
 #[test] fn reading_probe_meter_memory(){probes(snapback4_device::memory::MemoryStore::new());}

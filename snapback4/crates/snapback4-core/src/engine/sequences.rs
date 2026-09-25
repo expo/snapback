@@ -63,7 +63,7 @@ impl Runner<'_> {
         let Some(position) = index.columns().iter().position(|field| table.sequences.contains_key(field)) else { return Ok(()); };
         let arity = index.components.len() + 1;
         let stable = &prefix[..prefix.len().min(position)];
-        let dependent = self.device_work(|runner| {
+        let dependent = self.authorized_scan(&[], |runner| runner.device_work(|runner| {
             let mut bounds = Bounds::default();
             loop {
                 let rows = runner.tx.scan_metered(name, index_name, stable, &bounds, Dir::Asc, 1, &mut runner.meter)?;
@@ -73,7 +73,7 @@ impl Runner<'_> {
                 runner.meter.heap(word_heap::key_decode(arity, key.len()))?;
                 bounds.after = crate::key::decode(key).map(|key| key.into_iter().skip(stable.len()).collect());
             }
-        })?;
+        }))?;
         self.provisional_sequence_read |= dependent;
         Ok(())
     }
@@ -174,10 +174,9 @@ impl Runner<'_> {
             let previous = if let Some(value) = values.get(&key) {
                 *value
             } else if self.device {
-                self.device_work(|runner| runner.sequence_floor(parent, &id))?
+                self.authorized_scan(&[], |runner| runner.device_work(|runner| runner.sequence_floor(parent, &id)))?
             } else {
-                self.meter.charge(MeterKind::IndexEntries, 1)?;
-                self.tx.sequence_value(parent, &id)?
+                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner| runner.tx.sequence_value(parent, &id))?
             };
             let next = if previous >= crate::value::I53_MAX {
                 if self.device {

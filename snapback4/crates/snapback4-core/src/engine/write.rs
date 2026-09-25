@@ -96,9 +96,8 @@ impl Runner<'_> {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().all(|column| !table.sequences.contains_key(column))) {
                 let key = index_values(index, &row);
                 if key.contains(&Value::Null) { continue; }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
+                if self.collision_lookup(table_name, name, index, &key, None, Effect::Insert)?.is_some() {
                     self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
-                    self.visible_collision(table_name, &existing, Effect::Insert)?;
                     return Ok(false);
                 }
             }
@@ -115,9 +114,8 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
+                if self.collision_lookup(table_name, name, index, &key, None, Effect::Insert)?.is_some() {
                     self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
-                    self.visible_collision(table_name, &existing, Effect::Insert)?;
                     return Ok(false);
                 }
             }
@@ -133,9 +131,13 @@ impl Runner<'_> {
             } else { "byId" };
             self.prove_upsert_insert(table_name, index, &row)?;
         }
-        if let Some(existing) = self.tx.get(table_name, &id)? {
+        let existing = self.authorized_scan(&[(MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner| {
+            let existing = runner.tx.get(table_name, &id)?;
+            if let Some(row) = &existing && !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
+            Ok(existing)
+        })?;
+        if let Some(existing) = existing {
             if !self.expired(&table, &existing) {
-                self.visible_collision(table_name, &existing, Effect::Insert)?;
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
             }
             self.remove(table_name, &existing)?;
@@ -404,12 +406,12 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
+                if let Some(existing) = self.collision_lookup(table_name, name, index, &key, Some(&id), effect)
+                    .map_err(|error| if !readable && matches!(error, RuntimeError::Rule { .. }) { self.no_write_target() } else { error })?
                     && existing.field("id")?.as_str()? != id
                 {
                     self.observe_sequence_columns(table_name, new, &index.columns(), effect == Effect::Insert)?;
                     if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
-                    self.visible_collision(table_name, &existing, effect)?;
                     let detail = format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "));
                     if let Some(refusal) = self.schema.unique_refusals.get(table_name).and_then(|indexes| indexes.get(name)) {
                         return Err(RuntimeError::NamedConstraint { code: refusal.code.clone(), message: refusal.message.clone(), detail });
@@ -454,31 +456,32 @@ impl Runner<'_> {
                         continue;
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
-                    self.meter.charge(MeterKind::IndexEntries, 1)?;
-                    let private_sequence = !table.sequences.is_empty() && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
-                    let count = if table.expire.is_none() && !private_sequence {
-                        self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
-                    } else {
+                    let private_cap = !table.sequences.is_empty() && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
+                    let count = self.authorized_scan(&[
+                        (MeterKind::IndexEntries, 1),
+                        (MeterKind::Examined, if private_cap { *max as u64 } else { 0 }),
+                        (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 }),
+                    ], |runner| {
+                        if table.expire.is_none() && !private_cap {
+                            return runner.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1);
+                        }
                         let mut count = 0;
                         let mut bounds = Bounds::default();
                         loop {
-                            let rows = self.tx.scan(table_name, &index_name, &group, &bounds, Dir::Asc, 256)?;
+                            let rows = runner.tx.scan(table_name, &index_name, &group, &bounds, Dir::Asc, 32)?;
                             let fetched = rows.len();
                             for (row, key) in rows {
-                                self.meter.charge(MeterKind::Examined, 1)?;
                                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
-                                if !self.expired(&table, &row) {
-                                    // @ref LLP 3000.015#2 — cap enforcement may disclose
-                                    // unreadable occupancy, never its values or constraint text.
-                                    if private_sequence { self.visible_collision(table_name, &row, effect)?; }
+                                if !runner.expired(&table, &row) {
+                                    if private_cap { runner.visible_collision(table_name, &row, effect)?; }
                                     count += 1;
                                 }
                                 if count >= *max as u64 { break; }
                             }
-                            if count >= *max as u64 || fetched < 256 { break; }
+                            if count >= *max as u64 || fetched < 32 { break; }
                         }
-                        count
-                    };
+                        Ok(count)
+                    })?;
                     if count >= *max as u64 {
                         self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
@@ -488,6 +491,18 @@ impl Runner<'_> {
             }
         }
         Ok(())
+    }
+
+    fn collision_lookup(&mut self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value], except: Option<&str>, effect: Effect) -> Result<Option<Value>, RuntimeError> {
+        let probes = super::rules::rule_probes(&self.schema.tables[table].rules.read);
+        self.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner| {
+            let found = runner.live_lookup(table, name, index, key)?;
+            if let Some(row) = &found && Some(row.field("id")?.as_str()?) != except {
+                runner.observe_sequence_columns(table, row, &index.columns(), effect == Effect::Insert)?;
+                runner.visible_collision(table, row, effect)?;
+            }
+            Ok(found)
+        })
     }
 
     // @ref LLP 3000#7-decisions-during-execution — hidden collisions use the ordinary write-rule refusal

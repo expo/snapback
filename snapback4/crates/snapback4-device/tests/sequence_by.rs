@@ -305,3 +305,21 @@ fn reread_and_page_results_mark_provisional_ordinals_pending() {
     run(&mut Memory::new());
     run(&mut Sqlite::new("sequence-reread"));
 }
+
+#[test]
+fn two_sequence_columns_each_raise_the_held_parent_floor() {
+    fn run<H: Host>(host: &mut H) {
+        let source = "table parents:\n  public\n  sync public\ntable children:\n  parent: parents\n  first: sequence by parent\n  second: sequence by parent\n  public\n  sync public\n  insert <- allow\nmutation add(parent: parents):\n  return insert children { parent }\n";
+        let (mut e, backend) = compile(source);
+        e.seed([("children".into(), snapback4_core::value::object([("id", id("settled")), ("parent", id("p"))]))]).unwrap();
+        let mut d = host.open("two-columns", Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut e, "alice", 100).iter().enumerate() { d.apply(page, i == 0).unwrap(); }
+        let predicted = d.predict("add", "alice", &json!({"parent":"p"}), 1000, vec!["pending".into()], 0).unwrap();
+        assert_eq!(predicted.result["first"], 3, "both held values, 1 and 2, contribute to the floor");
+        assert_eq!(predicted.result["second"], 4);
+        assert_eq!(predicted.result["pending"], true);
+        host.close("two-columns", d);
+    }
+    run(&mut Memory::new());
+    run(&mut Sqlite::new("sequence-two-columns"));
+}
