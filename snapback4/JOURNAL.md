@@ -49533,3 +49533,88 @@ was added. All fixture servers were managed by their test harnesses.
 The complete per-item fix and regression record is in
 /home/ccheever/sb5/lane-b2.r2.final.md. Local branch commit only: no push,
 publication or deployment, and no claim that the reviewers have rerun it.
+
+## 2026-09-25 — Lane B2 round 3: paired disclosure worlds and final sequence fixes
+
+Copied Lane B1's existing disclosure builder into core/tests/paired_worlds
+and reused its device replay adapter before changing the interpreter. Added
+trusted restoration, counter preparation and optional meter ceilings. The
+sequence instantiation has 120 pairs: denied/insert-only principals, six write
+forms at target/absent keys, and hidden existence, counter history, ordinal,
+sequence-unique sibling and cap-occupancy differences. Three identical visible
+rows exercise real paginated cursors. Server and both device stores compare
+serialized refusal/write/query envelopes, every meter field (including index
+entries), /changes table sets, snapshots, streams and refreshed images,
+watermarks, held rows, prediction, and background commits to quiescence.
+The hidden counter setup holds observable history fixed while representing
+fresh 0 versus 5 with all earlier children gone. These are bounded regressions,
+not an arbitrary-program or timing proof.
+
+The first executable harness found 29 differing sequence pairs plus the
+counter-read boundary reproduction. Insert-only principals could receive
+unreadable ordinals, distinguish hidden unique/cap occupancy via success or
+refusal, and distinguish absent sequence-key upserts via E_SEQUENCE_SUPPLIED.
+The resulting commit difference propagated to /changes and sync watermarks.
+Sequence inserts now establish read authority from the supplied/defaulted
+image independently of allocation; blind sequence inserts refuse E_RULE,
+or NOT_FOUND for upsert's insert arm, before counter and constraint state.
+This intentionally tightens blind insertion; redacting only the return value
+would leave the commit channel. Readable controls retain detailed diagnostics.
+The guide and LLP 3000.015 section 2 record the behavior. All 120 core pairs
+passed; the same fixtures run on memory and SQLite devices in the suite.
+
+Upsert resolution also reserves the worst-case counter index-read allowance
+before target lookup. Both a 0–3 entry sweep and 512 scratch writes with 32
+indexes at default ceilings catch deletion of the reservation. The absent
+candidate in these tests is readable but insert-denied, so the test still
+reaches the counter path independently of the blind-insert guard.
+
+Author index selection now looks for unsettled sequence rows within the
+stable prefix, using the bounded device allowance. An empty ordinal suffix
+can depend on a provisional value. Astra's insert/require ordinal 6 case now
+queues at provisional 1, keeps no overlay, and succeeds at server 6. Unique
+and cap checks observe sequence dependence only on collision/refusal, so
+independent ABORTED remains terminal. Missing pending metadata charges the
+object-copy, map-insertion and key-allocation ledger before mutation; an
+already true marker preserves the shared map. The near-16-MiB test refuses
+one byte below the copy allowance and passes exactly at it.
+
+Both formerly surviving mutations now fail executed tests: cap 1 by ordinal
+collides locally with another parent's ordinal 1 but succeeds at server 6;
+the I53_MAX if-absent case now includes seeded body other and attempted body
+last, which must refuse exhaustion rather than become a clamped-ordinal no-op.
+The exhausted retry path uses its authority candidate with the explicit
+sequence-index filter, removing the redundant unassigned-row clone. Independent
+body retries still return null. Six deliberate removals failed their tests:
+counter reservation, empty-scan observation, cap observation, exhausted-key
+filter, pending-copy charge, and blind-insert guard. All mutations restored.
+Old wasm separately reproduced terminal NO_SIX and the two erroneous E_PREDICT
+outcomes for independent unique/cap refusals; the fixed artifact passed all
+15 wasm sequence cases. Evidence: target/b2-r3-mutations.log, per-mutation
+logs, b2-r3-pairs-red.log, b2-r3-heap.log and b2-r3-wasm-*.log.
+
+Final build-wasm.sh measurement on Rust 1.97.0 / wasm-bindgen 0.2.127, without
+wasm-opt: 1,769,730 B raw / 492,152 B gzip, +3,133 raw / +1,158 gzip versus
+round 2. The combined runtime changes exceed the 491,000 B ratchet by 1,152 B;
+raise it to 493,000 B with 848 B headroom, recorded in its why and the commit
+message. Whole-artifact measurement only; runtime meter ceilings and package
+version are unchanged. SHA-256:
+ef3aff3f30513c86cc921996a36e09db0025732460b575e9ba2b12078f104591.
+The first full-suite invocation reached the wasm check before that ratchet
+edit and recorded the old-budget overrun; final qualification follows below.
+
+Final blocking suite: `== 0 failure(s) in 402 s`, target/b2-r3-suite.log.
+Ran `env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0
+CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_RUST_TEST_PROCESSES=8 bash scripts/test.sh`
+from snapback4/, with Node v24.13.1. Client files ran in parallel: 1,104 passed,
+0 failed, 10 existing skips. Rust includes the 120 pairs on both device stores,
+the three core disclosure tests, 15 core/9 device/5 language sequence tests,
+and the heap unit regression. All 15 built-wasm sequence cases passed. The
+suite reproduced the artifact measurement and digest above. The initial run
+had two failed steps (old wasm ratchet and the new test's direct serde schema
+conversion); the test now uses the existing json_codec funnel, its 26 targeted
+codec tests pass, and the complete rerun above is green. All controlled fixture
+servers were managed by their test harnesses. Whitespace and changed-source
+size checks pass. No store adapter changes or optional live PostgreSQL run.
+Full per-finding report: /home/ccheever/sb5/lane-b2.r3.final.md. Local branch
+commit only, no push, publication or deployment; no claim of a new blind review.

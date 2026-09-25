@@ -443,17 +443,19 @@ fn parent_rewrites_distinguish_import_retargeting_from_bad_types() {
 fn exhausted_if_absent_cannot_collide_on_a_clamped_sequence() {
     let source = SOURCE.replace("  unique conversationId, body", "  unique conversationId, body\n  unique conversationId, ordinal");
     let source = format!("{source}\nmutation sendAbsent(conversationId: conversations, body: text <=40):\n  return insert messages {{ conversationId, body }} if absent\n");
-    let b = bound(&source);
-    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-    e.load_trusted([("messages".into(), object([
-        ("id", id("last")), ("conversationId", id("c")), ("body", Value::String("last".into())),
-        ("ordinal", Value::Int(snapback4_core::value::I53_MAX)),
-    ]))]).unwrap();
-    let out = e.mutate("sendAbsent", None, ctx(&[("conversationId", id("c")), ("body", Value::String("new".into()))])).unwrap();
-    let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}"); };
-    assert_eq!(why.code, "E_SEQUENCE_EXHAUSTED");
-    let out = e.mutate("sendAbsent", None, ctx(&[("conversationId", id("c")), ("body", Value::String("last".into()))])).unwrap();
-    assert_eq!(sent(out), Value::Null);
+    for body in ["last", "other"] {
+        let b = bound(&source);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        e.load_trusted([("messages".into(), object([
+            ("id", id("last")), ("conversationId", id("c")), ("body", Value::String(body.into())),
+            ("ordinal", Value::Int(snapback4_core::value::I53_MAX)),
+        ]))]).unwrap();
+        let out = e.mutate("sendAbsent", None, ctx(&[("conversationId", id("c")), ("body", Value::String(if body == "other" { "last" } else { "new" }.into()))])).unwrap();
+        let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}"); };
+        assert_eq!(why.code, "E_SEQUENCE_EXHAUSTED");
+        let out = e.mutate("sendAbsent", None, ctx(&[("conversationId", id("c")), ("body", Value::String(body.into()))])).unwrap();
+        assert_eq!(sent(out), Value::Null);
+    }
 }
 
 #[test]

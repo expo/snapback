@@ -36,6 +36,11 @@ impl Runner<'_> {
         self.refuse_recorded(table_name, &row)?;
         let supplied_sequence = super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row);
         let row = self.with_defaults(table_name, row)?;
+        // @ref LLP 3000.015#2 — an unreadable allocation cannot expose counter,
+        // uniqueness or cap state, even to a principal allowed to insert.
+        if !self.sequence_insert_readable(table_name, &row)? {
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+        }
         if let Err(error) = supplied_sequence {
             // @ref LLP 3000.007#17 — absent upserts decide insert authority before field diagnostics.
             // A target key may supply an ordinal even when the patch does not.
@@ -44,7 +49,6 @@ impl Runner<'_> {
             }
             return Err(error);
         }
-        let unassigned = if if_absent && !self.schema.tables[table_name].sequences.is_empty() { Some(row.clone()) } else { None };
         let (row, sequence_full) = self.sequence_fields(table_name, row)?;
         if let Some(index) = upsert_index {
             if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
@@ -61,12 +65,13 @@ impl Runner<'_> {
         }
         // Retry keys independent of engine allocation still identify a no-op
         // at the ceiling. Never use the clamped authority candidate as a key.
-        if sequence_full && let Some(unassigned) = &unassigned {
+        if sequence_full && if_absent {
             let table = self.schema.tables[table_name].clone();
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().all(|column| !table.sequences.contains_key(column))) {
-                let key = index_values(index, unassigned);
+                let key = index_values(index, &row);
                 if key.contains(&Value::Null) { continue; }
                 if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
+                    self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
                     self.visible_collision(table_name, &existing, Effect::Insert)?;
                     return Ok(false);
                 }
@@ -80,12 +85,12 @@ impl Runner<'_> {
         let table = self.schema.table(table_name).expect("validated").clone();
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
-                self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
                 let key = index_values(index, &row);
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
                 if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
+                    self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
                     self.visible_collision(table_name, &existing, Effect::Insert)?;
                     return Ok(false);
                 }
@@ -369,7 +374,6 @@ impl Runner<'_> {
         let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
-                self.observe_sequence_columns(table_name, new, &index.columns(), effect == Effect::Insert)?;
                 let key = index_values(index, new);
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
@@ -377,6 +381,7 @@ impl Runner<'_> {
                 if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
                     && existing.field("id")?.as_str()? != id
                 {
+                    self.observe_sequence_columns(table_name, new, &index.columns(), effect == Effect::Insert)?;
                     if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
                     self.visible_collision(table_name, &existing, effect)?;
                     let detail = format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "));
@@ -417,7 +422,6 @@ impl Runner<'_> {
                     if effect == Effect::Delete {
                         continue;
                     }
-                    self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                     let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
                     let moved = old.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
                     if !moved {
@@ -444,6 +448,7 @@ impl Runner<'_> {
                         count
                     };
                     if count >= *max as u64 {
+                        self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
                         return Err(RuntimeError::Constraint(format!("{table_name} holds at most {max} rows per group by {}", by.join(", "))));
                     }

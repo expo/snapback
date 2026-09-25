@@ -35,7 +35,8 @@ impl Runner<'_> {
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
         let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(patch.heap_bytes().saturating_mul(2));
         for (kind, amount, used, ceiling) in [(MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
-            (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes)] {
+            (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes),
+            (MeterKind::IndexEntries, if upsert { table.sequences.len() as u64 } else { 0 }, self.meter.used.index_entries, self.meter.ceilings.index_entries)] {
             if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
         }
         self.reserve_maintains(table_name, table)?;

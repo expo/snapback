@@ -271,7 +271,11 @@ a sequence column still returns null at counter exhaustion. Bulk seeds capture
 engine-assigned ordinals in maintained reference paths even when the referring
 row comes first. Different conversations have independent counters. Multiple
 sequence columns in one inserted row allocate in column-name
-order. Ordinals and their parent reference are immutable; listing the ordinal
+order. Sequence inserts require read authority established independently of
+the assigned ordinal. An insert-only principal whose new row is unreadable
+gets the ordinary insert refusal (NOT_FOUND for an upsert insert arm), before
+counter allocation, uniqueness or cap checks; no hidden counter or occupancy
+is exposed by a write result or refusal. Ordinals and their parent reference are immutable; listing the ordinal
 in `immutable` is accepted and redundant.
 
 `first N by .ordinal` and `last N by .ordinal` give a total order within a
@@ -288,7 +292,11 @@ without prediction; the server decides whether its counter has room.
 A refusal after actually reading a provisional ordinal also queues without a
 predicted row, including a rule, `require`, `check`, unique constraint or
 `after insert` postcondition: the server's assigned value may satisfy it.
-A short-circuited rule arm does not read its ordinal. Provisional ordinals in
+An indexed read consumes provisional ordinals when settlement could move a
+pending row into or out of the selected range, including an empty result.
+A unique lookup that finds no collision, or a cap that passes, does not make
+an unrelated later refusal provisional. A short-circuited rule arm does not
+read its ordinal. Provisional ordinals in
 write results, point rereads and pages carry `pending: true`.
 
 ## Write authority

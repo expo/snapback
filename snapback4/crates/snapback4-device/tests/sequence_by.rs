@@ -208,6 +208,8 @@ fn provisional_rule_and_require_refusals_queue_on_both_stores() {
             "rule" => SOURCE.replace("public 'sequence test messages'\n  insert <- allow", "public 'sequence test messages'\n  insert <- .ordinal != 1"),
             "require" => SOURCE.replace("  return row\nmutation join", "  ordinal = row.ordinal\n  require ordinal != 1 else FIRST\n  return row\nmutation join"),
             "branch" => SOURCE.replace("  return row\nmutation join", "  if row.ordinal = 1:\n    require false else FIRST\n  return row\nmutation join"),
+            "empty index" => SOURCE.replace("  return row\nmutation join", "  require exists messages[conversationId = conversationId, ordinal = 6] else NO_SIX\n  return row\nmutation join"),
+            "cap group" => SOURCE.replace("  immutable ordinal", "  immutable ordinal\n  cap 1 by ordinal\n  by byOrdinal: ordinal, id"),
             "old" => SOURCE.replace("update <- allow", "update (old, next) <- old.ordinal != 1").replace("  return row\nmutation join", "  update messages[row.id] { body: 'updated' }\n  return row\nmutation join"),
             _ => unreachable!(),
         };
@@ -218,6 +220,11 @@ fn provisional_rule_and_require_refusals_queue_on_both_stores() {
                 ("id", id(&name)), ("conversationId", id("c")), ("body", Value::String(name.clone())),
             ]))]).unwrap();
             e.seed_delete("messages", &name).unwrap();
+        }
+        if form == "cap group" {
+            e.seed([("messages".into(), snapback4_core::value::object([
+                ("id", id("other")), ("conversationId", id("other")), ("body", Value::String("occupied".into())),
+            ]))]).unwrap();
         }
         let mut d = host.open("sequence-refusal", Some(backend)).unwrap();
         for (i, p) in snapshot_pages(&mut e, "alice", 100).iter().enumerate() { d.apply(p, i == 0).unwrap(); }
@@ -231,7 +238,7 @@ fn provisional_rule_and_require_refusals_queue_on_both_stores() {
         assert_eq!(result.field("ordinal"), Ok(&Value::Int(6)));
         host.close("sequence-refusal", d);
     }
-    for form in ["rule", "require", "branch", "old"] {
+    for form in ["rule", "require", "branch", "old", "empty index", "cap group"] {
         run(&mut Memory::new(), form);
         run(&mut Sqlite::new("sequence-refusal"), form);
     }
@@ -239,12 +246,13 @@ fn provisional_rule_and_require_refusals_queue_on_both_stores() {
 
 #[test]
 fn unrelated_denials_still_refuse_without_queuing() {
-    fn run<H: Host>(host: &mut H, rule: bool) {
+    fn run<H: Host>(host: &mut H, rule: bool, constraint: &str) {
         let source = if rule {
             SOURCE.replace("public 'sequence test messages'\n  insert <- allow", "public 'sequence test messages'\n  insert <- .body != 'pending1'")
         } else {
             SOURCE.replace("  return row\nmutation join", "  require body != 'pending1' else BAD_BODY\n  return row\nmutation join")
         };
+        let source = source.replace("  immutable ordinal", &format!("  immutable ordinal\n{constraint}"));
         let source = format!("{source}\nmutation inspect():\n  sample = {{ id: 1, ordinal: 7 }}\n  require sample.ordinal = 7 else BAD_OBJECT\n  return sample.ordinal\n");
         let (mut e, backend) = compile(&source);
         let mut d = host.open("sequence-independent", Some(backend)).unwrap();
@@ -255,8 +263,10 @@ fn unrelated_denials_still_refuse_without_queuing() {
         host.close("sequence-independent", d);
     }
     for rule in [false, true] {
-        run(&mut Memory::new(), rule);
-        run(&mut Sqlite::new("sequence-independent"), rule);
+        for constraint in ["", "  unique conversationId, ordinal", "  cap 1 by ordinal\n  by byOrdinal: ordinal, id"] {
+            run(&mut Memory::new(), rule, constraint);
+            run(&mut Sqlite::new("sequence-independent"), rule, constraint);
+        }
     }
 }
 
