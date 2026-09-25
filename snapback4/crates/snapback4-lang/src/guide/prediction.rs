@@ -169,6 +169,8 @@ used only by an effect payload is **server-only, feeds an effect** in `why`.
 The device skips that read and its exclusive local bindings; the read is
 authorized and charged on the server only. Nullable fields, `??` and infallible
 text or arithmetic expressions can feed the payload through local bindings.
+This includes `sha256(text)` and `join(list, separator)` when their arguments
+are infallible; their work is still metered on the server.
 No hoisting is needed, even when the table is online only:
 
 ```quarry

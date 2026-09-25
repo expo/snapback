@@ -55038,3 +55038,43 @@ proof is limited to safe constants and known nonzero constant divisors, not
 general branch/interval inference. Reproductions and the live-sum overflow
 counterexample are in the report. Did not add syntax or refusal codes, push,
 publish, bump versions, run a complete calibration, or drive an iOS simulator.
+
+
+## 2026-09-25 — LLP 3000.013 Lane S round 1: total text effect payloads
+
+Closed the Astra/Grok round-1 items for 0.4.2 on `sb4-intent/s-effect-reads`.
+`Builtin::Sha256` and `Builtin::Join` now qualify as total effect-payload work
+when every argument is total. The binder already requires their text/list
+argument types; their remaining cuts are the accepted server meter cuts. No
+runtime code, authorization, durability policy, meter ceiling or syntax changed.
+The prediction card names both operations explicitly.
+
+The new compiler test covers `sha256(x ?? '')` and `join([x ?? ''], '')` with
+and without presence guards, using a local from an online-only profile read.
+The existing never-list now also contains `n / 0` and `n % 0` after a nullable
+profile read coalesces into n; both lock the nonzero-constant proof condition.
+
+Two new device tests cover 24 worlds: memory/SQLite × guarded/unguarded ×
+plain/sha256/join payloads × present/missing profiles. Snapshot pages never
+contain profiles, each device predicts a pending message before the server
+runs, and server rows and returned values match prediction. Server payloads
+match fixed expected text and SHA-256 vectors, including empty-input fallbacks.
+The unguarded operation explicitly has `connected_effects_only = false`, so
+restricting runtime skips to presence-controlled operations loses prediction
+and fails the device test. Existing offline/reopen, presence-state,
+authorization and meter-rollback witnesses remain green.
+
+Focused qualification: 8 language effect-read tests, 80 guide tests and all
+4 device effect-read tests pass. Full `scripts/test.sh`:
+**`== 0 failure(s) in 755 s`**, exit 0. Command:
+`CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=4 TMPDIR=/dev/shm/sb4-intent-lane-s-tests scripts/test.sh`.
+The worker cap and private tmpfs temporary directory retain the prior successful
+host setup; assertions, timeouts and production storage settings are unchanged.
+No failed checks or baseline waivers in this round. Wasm remains 1,767,624 raw /
+492,341 gzip bytes under 493,000. Reference audit: 507 LLP documents, 9,271
+references, zero errors and zero unchecked. Logs are
+`~/sb4-intent/lane-s-r1-{lang,device,test,ref-check}.log`.
+
+No deviations or new open issues. The prior conservative local-slot and
+arithmetic proof boundaries are unchanged. Did not push, publish or bump package
+versions; the supervisor owns release integration.
