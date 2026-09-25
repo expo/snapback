@@ -12,27 +12,38 @@ const identity = (mask: unknown): string | undefined => {
   const source = object(mask) ? mask.source : undefined;
   return Array.isArray(source) && source.length === 2 && source.every(part => typeof part === "string") ? JSON.stringify(source) : undefined;
 };
+const uniqueSources = (masks: unknown[]): Map<string, number> => {
+  const positions = new Map<string, number>();
+  masks.forEach((mask, index) => {
+    const source = identity(mask);
+    if (source !== undefined) positions.set(source, positions.has(source) ? -1 : index);
+  });
+  return new Map([...positions].filter(([, index]) => index !== -1));
+};
 export function keepRetainedRows(current: unknown, local: unknown, mask: unknown, currentMask?: unknown): unknown {
   if (!hasRetainedRows(mask)) return current;
   if (Array.isArray(current) && Array.isArray(local)) {
     if (!Array.isArray(mask) || !Array.isArray(currentMask) || mask.length !== local.length || currentMask.length !== current.length) return local;
-    const localIds = mask.map(identity), serverIds = currentMask.map(identity);
-    // No positional fallback, including for synthetic wrappers or ambiguous
-    // repeated identities. The caller publishes this local subtree incomplete.
-    if (localIds.includes(undefined) || serverIds.includes(undefined) || new Set(localIds).size !== localIds.length || new Set(serverIds).size !== serverIds.length) return local;
-    const locals = new Map(localIds.map((id, index) => [id, index]));
-    const servers = new Set(serverIds);
+    // Missing or repeated sources leave only those elements unpaired. Known
+    // siblings still refresh; no position or projected field supplies identity.
+    const locals = uniqueSources(mask), servers = uniqueSources(currentMask);
+    const pairs = new Map<number, number>();
+    const pairedLocals = new Set<number>();
+    for (const [source, index] of servers) {
+      const paired = locals.get(source);
+      if (paired !== undefined) { pairs.set(index, paired); pairedLocals.add(paired); }
+    }
     return [
       ...current.map((value, index) => {
-        const paired = locals.get(serverIds[index]);
+        const paired = pairs.get(index);
         return paired === undefined ? value : keepRetainedRows(value, local[paired], mask[paired], currentMask[index]);
       }),
-      ...local.filter((_, index) => !servers.has(localIds[index]) && hasRetainedRows(mask[index])),
+      ...local.filter((_, index) => !pairedLocals.has(index) && hasRetainedRows(mask[index])),
     ];
   }
   if (object(current) && object(local) && object(mask) && object(currentMask)) {
     const source = identity(mask);
-    if (source === undefined || source !== identity(currentMask) || !object(mask.fields) || !object(currentMask.fields)) return local;
+    if (source !== identity(currentMask) || !object(mask.fields) || !object(currentMask.fields)) return local;
     const fields = mask.fields, serverFields = currentMask.fields;
     const result = { ...current };
     for (const [field, value] of Object.entries(local)) {

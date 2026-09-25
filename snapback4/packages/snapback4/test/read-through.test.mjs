@@ -92,7 +92,7 @@ for(const tier of ["wasm","process"]) test(`${tier}: an unheld parent falls back
   assert.deepEqual(result.data,[{id:"new",body:"current"},{id:"old",body:"delivered",retained:true}],JSON.stringify(result));
   assert.equal(result.fresh,false);assert.equal(result.complete,false);
   const nested=await client.query({kind:"query",name:"nested"},{parent:"a"});
-  assert.deepEqual(nested.data,[{rows:[{id:"old",body:"delivered",retained:true}]}],"identityless array wrappers stay local, incomplete");
+  assert.deepEqual(nested.data,[{rows:[{id:"new",body:"current"}]},{rows:[{id:"old",body:"delivered",retained:true}]}],"unpaired retained wrappers survive beside the current server rows");
   assert.equal(nested.complete,false);
   const nestedLocal=host.answers.findLast(a=>a.name==="nested");
   assert.equal(nestedLocal.retainedRows[0].source,null);
@@ -136,11 +136,11 @@ test("retained fallback uses provenance identities, not projected fields", () =>
   assert.deepEqual(keepRetainedRows([server],[ordinary,history],localMask,[mask("rows","server")]),[server,history]);
   assert.deepEqual(keepRetainedRows([], [ordinary], undefined), []);
 });
-test("retained fallback keeps identityless subtrees and prefers matching source IDs", () => {
+test("retained fallback preserves unpaired history and prefers matching source IDs", () => {
   const old={body:"history",retained:true}, duplicate={body:"stale",retained:true}, current={body:"current"};
   assert.deepEqual(keepRetainedRows([current],[duplicate,old],[mask("rows","live",true),mask("rows","old",true)],[mask("rows","live")]),[current,old]);
   const local=[{rows:[old]}], provenance=[{source:null,retained:false,fields:{rows:[mask("rows","old",true)]}}];
-  assert.deepEqual(keepRetainedRows([{rows:[current]}],local,provenance,[{source:null,retained:false,fields:{rows:[mask("rows","live")]}}]),local);
+  assert.deepEqual(keepRetainedRows([{rows:[current]}],local,provenance,[{source:null,retained:false,fields:{rows:[mask("rows","live")]}}]),[{rows:[current]},...local]);
   assert.deepEqual(keepRetainedRows([current],[old],[mask("rows","old",true)]),[old],"a missing server envelope cannot authorize identity guesses");
 });
 
@@ -197,4 +197,20 @@ mutation postUntil(id: comments, task: tasks, until: time):
   assert.equal(queued.denied,undefined,JSON.stringify(queued));
   assert.equal(queued.ok.predictable,false);assert.deepEqual(queued.ok.predicted,[]);
   assert.equal((await host.core.call({op:"queued"})).ok.length,1);
+});
+
+// Ambiguous identities stay unpaired, without blocking uniquely identified
+// siblings. Each distinct local history survives once; it cannot be attached
+// to both projections of the same parent.
+for(const repeated of ["local", "server", "both"]) test(`retained fallback leaves ${repeated} duplicate identities unpaired`,()=>{
+  const history=label=>({label,rows:[{body:label,retained:true}]});
+  const provenance=(id,label,retained)=>mask("parents",id,false,{rows:[mask("children",label,retained)]});
+  const locals=[history("A1"),...(repeated!=="server"?[history("A2")]:[]),history("B-old")];
+  const localMasks=[provenance("A","A1",true),...(repeated!=="server"?[provenance("A","A2",true)]:[]),provenance("B","B-old",true)];
+  const current=label=>({label,rows:[{body:label}]});
+  const servers=[current("A-current-1"),...(repeated!=="local"?[current("A-current-2")]:[]),current("B-current")];
+  const serverMasks=[provenance("A","A-current-1",false),...(repeated!=="local"?[provenance("A","A-current-2",false)]:[]),provenance("B","B-current",false)];
+  assert.deepEqual(keepRetainedRows(servers,locals,localMasks,serverMasks),[
+    ...servers.slice(0,-1),{label:"B-current",rows:[{body:"B-current"},{body:"B-old",retained:true}]},...locals.slice(0,-1),
+  ]);
 });

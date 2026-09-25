@@ -24,6 +24,7 @@ table children:
   sync
 
 table reactions:
+  update <- allow
   parent: parents
   body: text <=40
   immutable parent
@@ -41,7 +42,7 @@ query outer():
 query page(parent: parents):
   children where .parent = parent first 10 by .id {roomId: .parent, body}
 
-query mixed(parent: parents):
+fn mixedRows(parent: parents):
   history = reactions where .parent = parent first 10 by .id
   c = children['x'] {id, kind: 'comment', body}
   r = reactions['x'] {id, kind: 'reaction', body}
@@ -52,6 +53,27 @@ query mixed(parent: parents):
   if r != null:
     return [r]
   return []
+
+query mixed(parent: parents):
+  mixedRows(parent)
+
+query wrapped(parent: parents):
+  return {items: mixedRows(parent)}
+
+query partial():
+  a = parents['A'] ! else MISSING
+  c = parents['C'] ! else MISSING
+  d = parents['D'] ! else MISSING
+  first = {...(a {title, rows: rowsFor(.id)})}
+  last = {...(c {title, rows: rowsFor(.id)})}
+  ambiguous = {...a, ...c}
+  middle = ambiguous {title: 'unidentified'}
+  if d.visible:
+    return [first, middle, last, {...(d {title})}]
+  return [first, middle, last]
+
+mutation editReaction(id: reactions):
+  update reactions[id] {body: 'new-reaction'}
 
 mutation rerank(parent: parents, rank: int, visible: bool):
   update parents[parent] {rank, visible}
@@ -124,5 +146,41 @@ for(const tier of ["wasm","process"]) {
     const local=host.answers.findLast(a=>a.name==="page");
     assert.deepEqual(local.data,[{roomId:"A",body:"old-A",retained:true}]);
     assert.deepEqual(local.retainedRows[0].source,["children","x"]);
+  });
+}
+
+for(const tier of ["wasm","process"]) {
+  test(`${tier}: an identityless object merges its identified child rows`,{timeout:60000},async t=>{
+    const host=await server(t,tier,source);
+    assert.equal((await host.post("/seed",[parent("A",0),child("x","A"),{table:"reactions",row:{id:"x",parent:"A",body:"reaction"}}])).seeded,3);
+    const client=await host.open();await leave(host,"reactions");
+    await mutate(host,"edit",{id:"x"});await mutate(host,"editReaction",{id:"x"});
+    const result=await client.query({kind:"query",name:"wrapped"},{parent:"A"});
+    assert.deepEqual(result.data,{items:[{id:"x",kind:"comment",body:"current"},{id:"x",kind:"reaction",body:"new-reaction"}]});
+    assert.equal(result.complete,false);
+    const local=host.answers.findLast(a=>a.name==="wrapped");
+    assert.equal(local.retainedRows.source,null);
+    assert.deepEqual(local.retainedRows.fields.items.map(m=>m.source),[["children","x"],["reactions","x"]]);
+    assert.equal(local.retainedRows.fields.items[1].retained,true);
+    const remote=await host.post("/q/wrapped",{args:{parent:"A"},provenance:true});
+    assert.equal(remote.rowProvenance.source,null);
+    assert.deepEqual(remote.rowProvenance.fields.items.map(m=>m.source),[["children","x"],["reactions","x"]]);
+  });
+  test(`${tier}: an unidentified sibling preserves paired parents and drops an unpaired current row`,{timeout:60000},async t=>{
+    const host=await server(t,tier,source);
+    assert.equal((await host.post("/seed",[parent("A",0),parent("C",1),parent("D",2),child("old-A","A"),child("old-C","C")])).seeded,5);
+    const client=await host.open();await leave(host,"children");
+    for(const id of ["A","C"])await mutate(host,"replace",{old:"old-"+id,id:"new-"+id,parent:id},"replace-"+id);
+    await mutate(host,"rerank",{parent:"D",rank:2,visible:false});
+    const result=await client.query({kind:"query",name:"partial"},{});
+    assert.deepEqual(result.data,[
+      {title:"A",rows:[{roomId:"A",body:"current"},{roomId:"A",body:"old-A",retained:true}]},
+      {title:"unidentified"},
+      {title:"C",rows:[{roomId:"C",body:"current"},{roomId:"C",body:"old-C",retained:true}]},
+    ]);
+    assert.equal(result.complete,false);
+    const local=host.answers.findLast(a=>a.name==="partial");
+    assert.deepEqual(local.retainedRows.map(m=>m.source),[["parents","A"],null,["parents","C"],["parents","D"]]);
+    assert.equal(local.retainedRows[3].retained,false);
   });
 }
