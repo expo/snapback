@@ -343,7 +343,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 // Read through on every lookup: a sibling may have recovered a
                 // receipt after this client opened. Never copy it into this VM.
                 const shared = await receiptHistory(persist, name);
-                reply.ok = JSON.stringify([...new Map([...shared, ...terminalReceipts(reply.ok as string | null)].map(write => [write.id, write])).values()]);
+                reply.ok = JSON.stringify(lookupReceipts(shared, terminalReceipts(reply.ok as string | null)));
               }
               return reply;
             } catch (error) {
@@ -618,6 +618,21 @@ async function receiptHistory(persist: Persistence, name: string): Promise<Termi
   return terminalReceipts(text);
 }
 
+const unknownOutcome = (write: TerminalReceipt) => write.state === "failed" && write.why.code === "E_STORE_REPLACED";
+
+// @ref LLP 3000.013#6 — lookup applies adoption's correction rule. A shared,
+// verified outcome resolves this client's own unknown replacement refusal;
+// every other local outcome wins over shared history.
+function lookupReceipts(shared: TerminalReceipt[], local: TerminalReceipt[]): TerminalReceipt[] {
+  const merged = new Map(shared.map(write => [write.id, write]));
+  for (const write of local) {
+    const prior = merged.get(write.id);
+    if (prior && unknownOutcome(write) && !unknownOutcome(prior)) continue;
+    merged.set(write.id, write);
+  }
+  return [...merged.values()];
+}
+
 async function shareReceipts(persist: Persistence, name: string, text: string): Promise<boolean> {
   const held = await claimStore(persist, `${name}:receipts`, false);
   if (!held) return false;
@@ -632,7 +647,7 @@ async function shareReceipts(persist: Persistence, name: string, text: string): 
       // persisting it; adoption must keep it before deleting that source.
       else {
         const prior = kept[index]!;
-        if (prior.state === "failed" && prior.why.code === "E_STORE_REPLACED") kept[index] = write;
+        if (unknownOutcome(prior)) kept[index] = write;
       }
     }
     // Corrections retain their position; authored outcomes remain immutable.
