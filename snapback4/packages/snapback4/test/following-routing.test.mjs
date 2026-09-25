@@ -28,7 +28,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
           case "meta": return { ok: null };
           case "set_meta": case "adopt": return { ok: null };
           case "apply": return { ok: { touched: [] } };
-          case "queued": return { ok: pending ? [{ id: "pending", predictable: true, observed_seq: null, predicted: [] }] : [] };
+          case "queued": return { ok: pending ? [{ id: "pending", predictable: true, observed_seq: null, predicted: ["posts/pending"] }] : [] };
           case "query": {
             assert.equal(request.name, "read");
             assert.deepEqual(request.args, input);

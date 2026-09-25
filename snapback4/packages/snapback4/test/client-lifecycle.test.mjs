@@ -1346,11 +1346,11 @@ for (const scenario of [
   { name: "retained", cut: null, unknown: true, retained: true, requests: 0 },
   { name: "pending predictable write", cut: null, unknown: true, pending: true, requests: 0 },
 ]) test(`W13b fallback boundary: ${scenario.name}`, async t => {
-  const backend = { ...emptyBackend, schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
+  const backend = { ...emptyBackend, programs: [{ ...emptyBackend.programs[0], body: [{ table: "rows" }] }], schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
   const device = emptyDevice({ call: async request => {
     if (request.op === "backend") return { ok: backend };
-    if (request.op === "query") return { ok: { data: ["device"], complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: [] } };
-    if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: [] }] };
+    if (request.op === "query") return { ok: { data: ["device"], complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
+    if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: ["rows/pending"] }] };
   } });
   const requests = []; let offline = false;
   const client = await createLocalClient({ url: "http://fallback.invalid", persona: "alice", device: device.opener, fetch: async input => {

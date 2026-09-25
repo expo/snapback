@@ -78,6 +78,20 @@ test("prediction publication fence: row IDs containing slashes still intersect t
   assert.equal(f.requests.length, 0);
 });
 
+test("prediction publication fence: ordinary local prefixes retain predicted rows without remote replacement", async () => {
+  const f = routing(); f.env.backend.schema.timelines = [];
+  f.outcome = { data: ["own"], complete: false, unknown: true, tables: ["posts"] };
+  assert.deepEqual((await f.read()).data, ["own"]);
+  assert.equal(f.requests.length, 0);
+});
+
+test("prediction publication fence: a predictable no-op has no written-table intersection", async () => {
+  const f = routing(); f.program.body = []; f.program.runs = "server";
+  f.entries = [{ ...prediction, predicted: [] }];
+  assert.deepEqual((await f.read()).data, ["server"]);
+  assert.equal(f.requests.length, 1);
+});
+
 test("prediction publication fence: established branches and disjoint writes remain answerable", async () => {
   const f = routing(); f.program.held = true;
   f.outcome = { data: false, unknown: false, complete: true, tables: [] };

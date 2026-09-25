@@ -3,7 +3,7 @@ import { operationTables, type BackendJson } from "./backend.ts";
 import { followingReads, routeWithheld, runsOnServer, predictedTables, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
 
-type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean; localKnown?: boolean };
+type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean; locallyPublishable?: boolean };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 
@@ -50,11 +50,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   let possible: Set<string> | null = null;
   const pending = async () => (await queued()).some(entry => {
     if (entry.observed_seq != null || entry.predictable !== true) return false;
-    const written = predictedTables(entry.predicted ?? []);
-    // Older hosts may omit the prediction footprint; absence is not proof
-    // that the write was independent of this query.
-    return possible === null || (!written.size && possible.size > 0)
-      || [...written].some(table => possible!.has(table));
+    // A missing legacy footprint is unknown; an explicitly empty footprint
+    // establishes that this entry predicted no rows to replace.
+    if (!entry.predicted) return true;
+    const written = predictedTables(entry.predicted);
+    return written.size > 0 && (possible === null || [...written].some(table => possible!.has(table)));
   });
   const loading: Result<R> = { read: { loading: true }, tables, nextExpiry: null };
   // All non-local publications pass here, including composed and remembered
@@ -62,7 +62,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const stale = () => revision !== env.incarnation || authority !== env.authority;
   const publish = async (result: Result<R>): Promise<Result<R>> => {
     if ("denied" in result.read && ["E_AUTH", "E_CLOSED", "E_STORE_RESTORE"].includes(result.read.denied.code)) return result;
-    const fenced = !result.localKnown && await pending();
+    const fenced = !result.locallyPublishable && await pending();
     return fenced || stale() ? loading : result;
   };
   const key = `${op.name}:${JSON.stringify(args)}`;
@@ -125,7 +125,10 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
     const denied = unavailableWhy ?? (answer.denied as Refusal | undefined) ?? outcome.denied;
     const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true } : { data: outcome.data as R, complete: outcome.complete !== false, cut: outcome.cut ?? null, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !env.lastSyncAt ? {} : { since: env.lastSyncAt }) };
-    return { outcome, result: { read, tables, nextExpiry, localKnown: !outcome.unknown }, terminal: !!(unavailableWhy || answer.denied) };
+    // Ordinary local horizon/retained prefixes still include local predictions.
+    // They may publish without a server replacement. Following unknown results
+    // keep the whole-page rule; opaque native dependencies stay conservative.
+    return { outcome, result: { read, tables, nextExpiry, locallyPublishable: !outcome.unknown || (!program?.native && !followingReads(schema, possible ?? tables)) }, terminal: !!(unavailableWhy || answer.denied) };
   };
   const withheld = (fallback = () => server(() => loading, false)) => routeWithheld(env.link === "online", held, pending, loading, fallback);
   // Executed card misses withhold; a known untaken branch does not.
