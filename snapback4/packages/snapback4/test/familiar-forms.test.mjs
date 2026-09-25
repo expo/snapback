@@ -33,6 +33,17 @@ const source = `use personas alice
   read <- .owner = viewer
   insert <- allow
   sync to .owner
+ table predictedNotes:
+  author: principal
+  owner: principal
+  value: int
+  read <- .owner = viewer
+  insert <- .author = viewer
+  sync to .owner
+ query prediction(id: predictedNotes):
+  return predictedNotes[id] { value }
+ mutation predict(owner: principal, x: int) predicts:
+  return insert predictedNotes { author: viewer, owner, value: m.twice(x) }
  query roster(c: cursor ?):
   return members where .principal = viewer first 20 by .conversation after c { conversation, roster: members[conversation = .conversation], notes: privateNotes[conversation = .conversation, owner = viewer] { body } }
  query repeated(chat: id, c: cursor ?):
@@ -109,7 +120,9 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
   ];
   for (const [host, device] of openers) {
     let offline = false;
-    const client = await createLocalClient({url, persona: 'alice', device, fetch: (...args) => {
+    let core;
+    const captured = {open: async (...args) => (core = await device.open(...args))};
+    const client = await createLocalClient({url, persona: 'alice', device: captured, fetch: (...args) => {
       if (offline) throw new TypeError('offline witness');
       return fetch(...args);
     }});
@@ -135,6 +148,23 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
     assert.deepEqual((await query('privateOne', {chat: 'one', owner: 'dev:alice'})).data, {body: 'visible one'}, host);
     const missing = await client.query({kind: 'query', name: 'required'}, {id: 'missing'});
     assert.equal(missing.denied?.code, 'NOT_FOUND');
+    // A pending Write has no result field. Observe prediction through the
+    // rule-filtered local query, and verify the outbox contains a predicted row.
+    for (const [owner, x] of [['dev:alice', 7], ['bob', 9]]) {
+      const write = await client.mutate({kind: 'mutation', name: 'predict'}, {owner, x});
+      assert.equal(write.state, 'pending', `${host}: ${JSON.stringify(write)}`);
+      assert.equal(write.reason, undefined, `${host}: must predict, not queue without a row`);
+      const queued = (await core.call({op: 'queued'})).ok;
+      const entry = queued.find(entry => entry.id === write.id);
+      assert.equal(entry.predictable, true, host);
+      assert.equal(entry.predicted.length, 1, host);
+      assert.ok(entry.predicted[0].startsWith('predictedNotes/'));
+      const id = entry.predicted[0].slice('predictedNotes/'.length);
+      const local = await query('prediction', {id});
+      assert.deepEqual(local.data, owner === 'dev:alice' ? {value: 14, pending: true} : null,
+        `${host}: rules filter even a row present in the pending overlay`);
+      assert.equal((await online('q', 'prediction', {id})).data, null, `${host}: offline write never reached server`);
+    }
     await client.close();
     clients.pop();
   }
