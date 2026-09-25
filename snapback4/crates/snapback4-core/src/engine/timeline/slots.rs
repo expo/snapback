@@ -1,5 +1,5 @@
 //! Event witnesses travel in the source's one stored and logged image.
-// @ref LLP 3000.016#2.1a — prepare before the source write; partial events have no device row.
+// @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — prepare before the source write; partial events have no device row.
 use super::*;
 
 impl Runner<'_> {

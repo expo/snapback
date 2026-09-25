@@ -26,6 +26,56 @@ function routing() {
     read: async () => (await evaluateLocal(env, op, input, 0, 0)).read };
 }
 
+test("integration: device observations use the issued clock; server deadlines use the estimate", async () => {
+  const f = routing(); f.entries = [];
+  f.env.deviceNow = () => 900;
+  f.env.serverNow = () => 200;
+  f.env.call = async request => {
+    assert.equal(request.now, 900);
+    return { ok: { loading: true, unknown: true, tables: ["posts"] } };
+  };
+  f.env.post = async () => ({ ok: true, obsoleteAuth: false,
+    json: { data: ["current"], complete: true, nextExpiry: 500 } });
+  const result = await evaluateLocal(f.env, op, input, 0, 0);
+  assert.deepEqual(result.read.data, ["current"]);
+  assert.equal(result.nextExpiry, null);
+  assert.equal(result.serverExpiry, 500);
+  f.env.serverNow = () => 500;
+  assert.deepEqual(await f.read(), { loading: true });
+});
+
+for (const mode of ["publish", "prediction", "issued expiry", "server expiry"]) {
+  test(`integration: retained read-through fallback obeys the common router (${mode})`, async () => {
+    const f = routing(); f.entries = [];
+    let issued = 100, estimated = 100;
+    f.env.deviceNow = () => issued; f.env.serverNow = () => estimated;
+    f.outcome = { data: [{ id: "history" }], unknown: true, speculative: false, held: true,
+      complete: false, nextExpiry: 300, tables: ["posts"],
+      retainedRows: [{ source: ["posts", "history"], retained: true, fields: {} }] };
+    f.env.post = async (path, body) => {
+      assert.equal(path, "/q/read");
+      assert.deepEqual(body, { args: input, provenance: true });
+      if (mode === "prediction") f.entries = [prediction];
+      if (mode === "issued expiry") issued = 300;
+      if (mode === "server expiry") estimated = 400;
+      return { ok: true, obsoleteAuth: false, json: { data: [{ id: "current" }], complete: true,
+        nextExpiry: 400, rowProvenance: [{ source: ["posts", "current"], fields: {} }] } };
+    };
+    const result = await evaluateLocal(f.env, op, input, 0, 0);
+    if (mode.endsWith("expiry")) assert.deepEqual(result.read, { loading: true });
+    else {
+      assert.deepEqual(result.read.data, mode === "prediction" ? [{ id: "history" }] : [{ id: "current" }, { id: "history" }]);
+      assert.equal(result.read.complete, false);
+      if (mode === "publish") {
+        assert.equal(result.nextExpiry, 300);
+        assert.equal(result.serverExpiry, 400);
+        assert.equal(result.read.fresh, false);
+      }
+    }
+    assert.equal(f.env.serverAnswers.size, 0, "composed history is never remembered as a current page");
+  });
+}
+
 // Rule 2: even a static server class must execute and prefer a complete answer.
 for (const native of [false, true]) for (const held of [false, true]) {
   test(`rule 2: known complete branch wins (native=${native}, held=${held})`, async () => {

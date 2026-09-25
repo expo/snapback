@@ -570,7 +570,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let mut reader = viewer.map(|(schema, principal)| Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0));
     let mut aggregate = viewer.map(|(schema, _)| Runner::new(tx, schema, crate::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
     // One extra readable row decides pagination, never selection past N.
-    // @ref LLP 3000.016#2.1a — filtered kinds spend page room even when
+    // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — filtered kinds spend page room even when
     // they produce no rows; the continuation records the last examined key.
     // No lookahead here: every examined row belongs to this page's progress.
     let filtered = viewer.is_some_and(|(schema, _)| schema.timelines.iter().any(|t|
@@ -586,7 +586,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             let mut row = row_image(&row, table).into_owned();
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
-            // @ref LLP 3000.016#2.1a — the horizonless owned walk keeps fully synced kinds only.
+            // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — the horizonless owned walk keeps fully synced kinds only.
             if viewer.is_some_and(|(schema, _)| !crate::schema::timeline::holds_event(schema, table_name, &row)) { continue; }
             if let Some(runner) = &mut aggregate {
                 let Some(live_row) = runner.live_aggregate(table_name, row)? else { continue; };

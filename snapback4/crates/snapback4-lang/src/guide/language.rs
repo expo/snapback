@@ -572,7 +572,8 @@ effects, actions, routes, services, presence, bounds, refusals, personas, witnes
 
 For a public Following feed, see `guide feeds`. Materialization requires
 public sources with immutable mappings and owner write rules. Posts and reposts
-may bound acquisition by time; follows stay fully synced.
+may bound acquisition by time; public follows may sync fully, use a horizon,
+or stay online only.
 
 ## Reads and planned views
 

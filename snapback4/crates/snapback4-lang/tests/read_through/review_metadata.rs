@@ -304,7 +304,9 @@ pub fn authorized_expired_backlog_stays_metered(mut factory: impl FnMut(&str) ->
                 ordinary.0,
                 Ok(if denied { Value::Null } else { Value::Int(0) })
             );
-            assert_eq!(ordinary.1.examined, if denied { 1 } else { backlog + 1 });
+            // An occupied group adds Q's metered live seek after the backlog;
+            // a missing or denied group still stops at its point lookup.
+            assert_eq!(ordinary.1.examined, if denied || backlog == 0 { 1 } else { backlog + 2 });
             let tight = Ceilings {
                 examined: 16,
                 ..Ceilings::default()

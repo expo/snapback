@@ -695,9 +695,8 @@ pub fn aggregate_multi_batch(mut factory: impl FnMut(&str) -> Box<dyn Backend>) 
     for (now, count) in [(100, 65), (200, 32)] {
         let o = run(&mut *e, "total", "bob", now, &[("p", id("p"))]);
         assert_eq!(o.0, Ok(Value::Int(count)));
-        assert!(
-            o.1.examined >= 66 && o.1.steps >= 65,
-            "all contributions stay metered: {o:?}"
-        );
+        // Q's indexed server path meters the group, the expired backlog and
+        // one live seek; it never recounts the remaining live population.
+        assert_eq!(o.1.examined, if now == 100 { 2 } else { 35 }, "{o:?}");
     }
 }

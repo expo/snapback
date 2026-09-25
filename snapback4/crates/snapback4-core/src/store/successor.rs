@@ -49,7 +49,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
         let path: Vec<_> = step.path.split('.').collect();
         let Some(name) = path.get(1).copied() else { continue };
         let Some(table) = schema.table(name) else { continue };
-        // @ref LLP 3000.016#2.1a — check previews the engine fill, never an unfilled bit as absence.
+        // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — check previews the engine fill, never an unfilled bit as absence.
         // Actual activation fills before this assessment and still validates
         // every row. A read-only check cannot write the old store's images.
         if let ["tables", _, "columns", column] = path.as_slice()

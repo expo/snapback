@@ -67,7 +67,7 @@ pub struct Timeline {
 }
 
 impl Timeline {
-    // @ref LLP 3000.016#2.1a — an engine slot belongs to a declaration AND a source role.
+    // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — an engine slot belongs to a declaration AND a source role.
     pub fn slot(&self, repost: bool) -> String {
         format!("$timeline:{}:{}", self.name, if repost { "repost" } else { "post" })
     }

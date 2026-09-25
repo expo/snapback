@@ -197,7 +197,7 @@ pub fn worst(steps: &[Step]) -> Change {
 /// This literal-default addition can interpret held device images without
 /// changing their audience, lifetime, constraints or existing column meaning.
 pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
-    // @ref LLP 3000.016#2.1a — even an optional repost slot must arrive in a replacement snapshot.
+    // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — even an optional repost slot must arrive in a replacement snapshot.
     if to.tables.iter().any(|(name, table)| table.columns.keys().any(|field|
         crate::schema::timeline::is_slot(field) && from.table(name).is_none_or(|old| !old.columns.contains_key(field)))) { return false; }
     if from.maintains != to.maintains { return false; }

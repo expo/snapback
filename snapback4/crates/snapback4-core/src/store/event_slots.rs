@@ -1,5 +1,5 @@
 //! Fill new slots before successor assessment and row validation, without logs.
-// @ref LLP 3000.016#2.1a — one pinned activation transaction, including mixed default additions.
+// @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — one pinned activation transaction, including mixed default additions.
 use super::*;
 use crate::{error::MeterKind, rows::adoption::Work, schema::timeline::Timeline};
 

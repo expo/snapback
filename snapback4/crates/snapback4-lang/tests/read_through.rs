@@ -1,6 +1,6 @@
 use snapback4_core::{
     engine::{Context, Engine, WriteState},
-    value::Value,
+    value::{object, Value},
 };
 mod read_through_support {
     include!("read_through/scenarios.rs");
@@ -384,5 +384,39 @@ fn parent_missing_hidden_and_upsert_target_refusals_have_equal_meters() {
             .unwrap();
         assert_eq!(format!("{:?}", a.state), format!("{:?}", b.state));
         assert_eq!(a.metered, b.metered);
+    }
+}
+
+// Integration: T's inherited expiry uses Q's indexed unswept-backlog path.
+#[test]
+fn inherited_aggregate_cost_depends_on_backlog_not_live_population() {
+    let source = "table parents:\n  owner: principal\n  until: time\n  immutable owner, until\n  expire at .until\n  read <- .owner = viewer\n  insert <- allow\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\nview totals: count children by .parent.owner\nquery total(owner: principal):\n  return totals[owner]\n";
+    for live in [100, 10_000] {
+        for backlog in [0, 50] {
+            let b = bound(source);
+            assert!(b.notes.is_empty(), "{:?}", b.notes);
+            let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+            let mut rows = Vec::new();
+            for (parent, until, count) in [("live", 500, live), ("expired", 150, backlog)] {
+                rows.push(("parents".into(), object([
+                    ("id", id(parent)), ("owner", id("alice")), ("until", Value::Int(until)),
+                ])));
+                for n in 0..count {
+                    rows.push(("children".into(), object([
+                        ("id", id(&format!("{parent}-{n}"))), ("parent", id(parent)),
+                    ])));
+                }
+            }
+            e.seed_at(rows, 100).unwrap();
+            let result = e.query("total", context("alice", 200, &[("owner", id("alice"))])).unwrap();
+            assert_eq!(result.data, Value::Int(live));
+            assert!(result.complete, "{result:?}");
+            assert_eq!(result.next_expiry, Some(500));
+            assert_eq!(result.metered.examined, backlog as u64 + 2, "{result:?}");
+            let denied = e.query("total", context("bob", 200, &[("owner", id("alice"))])).unwrap();
+            assert_eq!(denied.data, Value::Null);
+            assert_eq!(denied.next_expiry, None);
+            assert_eq!(denied.metered.examined, 1, "hidden backlog must not be inspected");
+        }
     }
 }

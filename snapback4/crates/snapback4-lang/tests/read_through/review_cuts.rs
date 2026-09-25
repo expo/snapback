@@ -174,8 +174,10 @@ pub fn aggregate_live_recount_cut_expiry(mut factory: impl FnMut(&str) -> Box<dy
             parent(&mut *e);
             child(&mut *e, "a", deadline);
             child(&mut *e, "b", 900);
+            child(&mut *e, "expired", 150);
             system(&mut *e, "clock", &[]);
-            // Clock (if present), group lookup, then exactly one live contribution.
+            // Q's server path visits the expired backlog and seeks the next
+            // live contribution. The device recount also exceeds this limit.
             let limit = Ceilings {
                 examined: if op == "total" { 2 } else { 3 },
                 ..Ceilings::default()

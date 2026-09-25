@@ -120,7 +120,7 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             // an arbitrary authored name can silently reinterpret a saved cursor.
             let followed_index = format!("$timeline:{}:followers", decl.name);
             reserve_followed_index(decl, &mut schema.tables.get_mut(&decl.edges[0]).unwrap().indexes, &followed_index)?;
-            // @ref LLP 3000.016#2.1a — slots are required bool / optional id, with no literal defaults.
+            // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — slots are required bool / optional id, with no literal defaults.
             schema.tables.get_mut(&decl.posts[0]).unwrap().columns.insert(format!("$timeline:{}:post", decl.name), ColumnType::Bool);
             schema.tables.get_mut(&decl.reposts[0]).unwrap().columns.insert(format!("$timeline:{}:repost", decl.name), ColumnType::Optional(Box::new(ColumnType::Id)));
             schema.tables.get_mut(&format!("{}Feed", decl.name)).unwrap().sync.as_mut().unwrap().horizon =

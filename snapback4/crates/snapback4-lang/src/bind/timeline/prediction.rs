@@ -1,6 +1,6 @@
 //! Only event-changing writes fence a synced event aggregate. Unknown insert
 //! filters and deletes need their actual source witness, so the runtime decides.
-// @ref LLP 3000.016#2.1a — replies and ordinary edits do not change owned events.
+// @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — replies and ordinary edits do not change owned events.
 use snapback4_core::{Value, ir::{Expr, Program, Stmt}, schema::{Execution, ResidencySite, Schema, SiteClass, timeline::Timeline}};
 use std::collections::{BTreeMap, BTreeSet};
 

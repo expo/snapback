@@ -62,7 +62,7 @@ export function operationTables(program: ProgramJson, schema: SchemaJson): Set<s
   walk(program.body);
   for (const table of tables) {
     walk((schema.tables[table] as { rules?: unknown } | undefined)?.rules);
-    // @ref LLP 3000.016#2.1a — a partial event prediction writes its source slot, not an owned row.
+    // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a partial event prediction writes its source slot, not an owned row.
     // Include those dependencies in invalidation and the fallback fence, even
     // when an unknown branch has not yet executed the event read.
     for (const timeline of schema.timelines ?? []) {
