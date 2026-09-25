@@ -56441,3 +56441,41 @@ Left the whole-page remembered row-expiry issue unchanged as requested;
 it is tracked on origin/main at
 issues/20260925-snapback4-remembered-answer-row-expiry.md. No acquisition
 remeasurement: the historical 2.387x speedup and unmet 5x target remain.
+
+
+### 2026-09-25 — Lane U round 10: run expiry retries through the complete routing procedure
+
+An expiry reobservation now uses the same post-local decision procedure as
+its first evaluation: blocked checks, fallback, composition and memory
+recovery. Every external replacement passes the final delivery fence, and
+only accepted server data enters memory. Expiry removes only expired memory,
+so a local deadline cannot delete an independent remembered answer whose own
+deadline is still valid. Withheld locals keep their engine deadline; a second
+due candidate dirties the watch. One expiry retry remains the bound; ordinary
+composition retains its existing post-server observation. Updated the numbered
+procedure and client reference. Implementation commit: aa8aaf6fc.
+
+Measured: 210 affected client tests passed. Both wasm and native devices prove
+expiryBranch changes from a complete false before T to speculative at T,
+reaches the real server, and publishes true. The idle watch recovers with sync
+delivery blocked. Both tiers retain a real non-null cursor after retry and
+read the next five rows, closing Astra's Low pagination gap. New router tests
+cover online partial fallback, offline memory recovery and expired controls,
+composition, blocked/failed fallback, late predictions and a due replacement.
+All six mutations fail their intended assertions: skipped retry routing (11),
+Grok's initial-result replay (4), premature memory deletion (4), dropped cursor
+(2), skipped final fence (2), and dropped withheld deadline (2). Built modules
+were restored before the full suite.
+Final scripts/test.sh: **== 0 failure(s) in 1555 s**, exit 0. Rust passed in
+195 s; 1,710 client tests passed, zero failed, ten existing skips, in 1,112 s;
+all 78 model tests passed in 233 s, including both 5,000-sequence I1–I13 sweeps.
+One full run, no product failures, no waiver, and no changed counts or timeouts.
+Evidence and rule-by-rule coverage are in the
+[round-10 report](reports/20260925-bounded-following-r10/REPORT.md).
+
+Not done: no new language form, refusal code, engine, schema, storage,
+acquisition, public-contract, ceiling, package-version, push or publication
+change. Left issues/20260925-snapback4-remembered-answer-row-expiry.md on
+origin/main unchanged: a remembered page's own earliest deadline still
+withdraws the whole page. No acquisition remeasurement; earlier lane-U
+measurements and their unmet 5x target remain historical.
