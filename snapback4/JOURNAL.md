@@ -56042,3 +56042,41 @@ Q's accepted device fallback/disclosure boundary and documented PostgreSQL
 query-reservation limitation remain. No new authoring form, package version
 bump, simulator qualification, push or publication. Full file map, regressions,
 all suite attempts and evidence: [round-8 report](reports/20260925-intent-integration-r8.md).
+
+
+## 2026-09-25 — Lane W: Following regressions and read-stall investigation
+
+Added three-cycle follow/unfollow/repost regressions on memory, SQLite and
+actual Wasm devices, a 12-seed × 100-operation model per native adapter
+(2,400 settlements), and 100-operation SDK walks per Wasm/native adapter.
+Receipt-before-sync and sync-before-receipt agree with server Following pages.
+The explicit sequence passes without a runtime change. A deterministic held-
+delivery test reproduces a flaw in the frozen calibration choreography: a
+new original can be absent while the follow edge is present, so its conditional
+unfollow is skipped; delivery plus repost then correctly produces both cards.
+An acknowledged unfollow leaves only the repost. This is a concrete harness
+counterexample, not proof of every historical browser failure. Neither the
+frozen harness nor the browser app was modified.
+
+Retained a reproducible 50k-post/100k-message fixture, idle-maintenance timing
+entrypoints, and 20,000 raw sequential HTTP read samples from the production
+profile with publication's SQLite build flag. Four query shapes, 1,000 reads
+each, across default-before, no-watch, held-schedules, connection-close and
+default-after runs have no 25–32 ms sample. All p95s are below 2.62 ms; the
+largest read is 13.406 ms. Before/after are repeated measurements of the same
+runtime, not an optimization. Idle maintenance phases stay below 0.405 ms in
+this run; the first explicit passive checkpoint takes 41.067 ms. No causal
+link from that checkpoint to the original receipt's stall was established.
+The full calibration store and a macOS host were unavailable; the original
+periodic stall remains unresolved, with no hard sub-5-ms claim. FIFO fairness,
+meters, authorization, disclosure and FULL durability remain unchanged.
+
+Full `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 1483 s`**. Regular clients: 1,508 passed, 10 existing skips;
+all three models retain 5,000 / 5,000 / 3,000 sequences. No suite failure was
+waived. The four failures in the older supplied baseline pass here without
+lane fixes. Ref-check: zero errors/unchecked. Wasm: 1,775,799 B raw / 495,258 B
+gzip against the unchanged 496,000 B budget. No new authoring form, refusal,
+runtime fix, package version, push or publication. File map, concrete
+counterexample, development-test corrections, before/after histograms and
+reproduction commands: [Lane W report](reports/20260925-lane-w.md).
