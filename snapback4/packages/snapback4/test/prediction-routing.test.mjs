@@ -9,7 +9,7 @@ const prediction = { id: "own", predictable: true, observed_seq: null, predicted
 function routing() {
   const program = { name: "read", kind: "Query", args: {}, body: [{ table: "posts" }], runs: "device" };
   const backend = { generation: 1, schema: { tables: {}, timelines: [{ name: "feed", posts: ["posts"], reposts: ["reposts"] }] }, programs: [program] };
-  let entries = [prediction], outcome = { data: [], unknown: true, complete: false, tables: ["switches"] };
+  let entries = [prediction], outcome = { data: [], speculative: true, held: false, unknown: true, complete: false, tables: ["switches"] };
   const requests = [];
   const env = {
     backend, partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0, sessionDead: false,
@@ -54,7 +54,7 @@ for (const state of ["offline", "prediction", "held", "server", "transport failu
 for (const state of ["offline", "prediction", "held", "server", "transport failure"]) {
   test(`rule 4: available unknown Following ${state}`, async () => {
     const f = routing(); f.entries = [];
-    f.outcome = { data: [{ id: "own" }], unknown: true, complete: false, tables: ["posts"] };
+    f.outcome = { data: [{ id: "own" }], speculative: false, held: true, unknown: true, complete: false, tables: ["posts"] };
     if (state === "offline") f.env.link = "offline";
     if (state === "prediction") f.entries = [prediction];
     if (state === "held") f.program.held = true;
@@ -91,7 +91,7 @@ test("rule 3: known meter prefixes stay partial without fallback", async () => {
 for (const available of [false, true]) for (const wait of ["delivery", "publication"]) {
   test(`rule 5: prediction arriving at ${wait} keeps ${available ? "local data" : "withholding"}`, async () => {
     const f = routing(); f.entries = [];
-    f.outcome = available ? { data: [{ id: "local" }], unknown: true, complete: false, tables: ["posts"] } : { loading: true, unknown: true, tables: ["posts"] };
+    f.outcome = available ? { data: [{ id: "local" }], speculative: false, held: true, unknown: true, complete: false, tables: ["posts"] } : { loading: true, unknown: true, tables: ["posts"] };
     const send = f.env.post; let delivered = false, checks = 0;
     f.env.post = async (...args) => { const answer = await send(...args); delivered = true; return answer; };
     f.env.queued = async () => delivered && ++checks >= (wait === "delivery" ? 1 : 2) ? [prediction] : [];
@@ -107,7 +107,7 @@ for (const available of [false, true]) test(`rules 3/4: remembered pages cannot 
   f.env.serverAnswers.set(`read:${JSON.stringify(input)}`, {
     read: { data: ["old"], complete: true, cut: null, fresh: true, next: "stale-next" }, at: 1, tables: new Set(["switches"]),
   });
-  f.outcome = available ? { data: [{ id: "own" }], unknown: true, complete: false, tables: ["posts"] } : { loading: true, unknown: true, tables: ["posts"] };
+  f.outcome = available ? { data: [{ id: "own" }], speculative: false, held: true, unknown: true, complete: false, tables: ["posts"] } : { loading: true, unknown: true, tables: ["posts"] };
   for (const online of [true, false]) for (const entries of [[prediction], []]) {
     f.entries = entries; f.env.link = online ? "online" : "offline";
     f.env.post = async () => ({ ok: false });
@@ -222,7 +222,7 @@ for (const unknown of [false, true]) test(`rule 2: a withheld scalar/heap cut pr
 for (const value of [null, [], true, false, 0, { online: true }, [null]]) {
   test(`rules 4/5: unknown placeholder ${JSON.stringify(value)} recovers memory, never speculative data`, async () => {
     const f = routing(); f.entries = [];
-    f.outcome = { data: value, unknown: true, complete: false, tables: ["posts"] };
+    f.outcome = { data: value, speculative: true, held: false, unknown: true, complete: false, tables: ["posts"] };
     const online = await f.read(); assert.deepEqual(online.data, ["server"]);
     f.env.link = "offline";
     const stale = await f.read();
@@ -258,7 +258,7 @@ for (const wait of ["recovery", "publication"]) for (const change of ["predictio
 
 for (const fail of [false, true]) test(`rule 4: local freshness is decided at publication (transport failure=${fail})`, async () => {
   const f = routing(); f.entries = [];
-  f.outcome = { data: [{ id: "held" }], unknown: true, complete: false, tables: ["posts"] };
+  f.outcome = { data: [{ id: "held" }], speculative: false, held: true, unknown: true, complete: false, tables: ["posts"] };
   if (fail) f.env.post = async () => { f.env.link = "offline"; return { ok: false }; };
   else f.env.link = "offline";
   const answer = await f.read();
@@ -270,7 +270,7 @@ for (const reply of [{ denied: { code: "E_BOUND", family: "bound", message: "out
   { denied: { code: "APP_REFUSAL", family: "application", message: "guard" } }, { loading: true }]) {
   for (const fenced of [false, true]) test(`rule 5: composed ${JSON.stringify(reply)} survives unless fenced (${fenced})`, async () => {
     const f = routing(); f.entries = [];
-    f.outcome = { data: { left: [{ id: "held" }], right: [{ id: "partial" }] }, unknown: true, complete: false, tables: ["posts"],
+    f.outcome = { data: { left: [{ id: "held" }], right: [{ id: "partial" }] }, speculative: false, held: true, unknown: true, complete: false, tables: ["posts"],
       components: { left: { retained: true, complete: true }, right: { unknown: true, complete: false } } };
     let delivered = false, checks = 0;
     f.env.post = async () => { delivered = true; return { ok: true, json: reply, obsoleteAuth: false }; };
@@ -289,5 +289,78 @@ for (const reply of [{ loading: true }, { denied: { code: "NO", family: "applica
     assert.deepEqual(await f.read(), reply);
     f.env.link = "offline";
     assert.equal((await f.read()).denied.code, "E_OFFLINE");
+  });
+}
+
+// Round 6: provenance is supplied by the interpreter, never inferred from shape.
+for (const value of [[], 0, null, [{ body: "held", at: 1 }]]) {
+  test(`rule 4: non-speculative unknown ${JSON.stringify(value)} stays partial without an id`, async () => {
+    const f = routing(); f.entries = []; f.env.link = "offline";
+    f.outcome = { data: value, unknown: true, complete: false, speculative: false, held: true, tables: ["posts"] };
+    assert.deepEqual((await f.read()).data, value);
+    assert.equal((await f.read()).complete, false);
+    assert.equal(f.requests.length, 0);
+  });
+}
+for (const left of [[], 0]) for (const failed of [false, true]) {
+  test(`rule 4: retained ${JSON.stringify(left)} composition survives offline/transport failure=${failed}`, async () => {
+    const f = routing(); f.entries = [];
+    const data = { left, held: Array.isArray(left) ? [] : null };
+    f.outcome = { data, unknown: true, complete: false, speculative: false, held: true, tables: ["posts"],
+      components: { left: { retained: true, unknown: false, held: true, speculative: false }, held: { unknown: true, speculative: false, held: false } } };
+    f.env.serverAnswers.set(`read:${JSON.stringify(input)}`, { read: { data: "obsolete" }, at: 1, nextExpiry: null, tables: new Set() });
+    if (failed) f.env.post = async () => { f.env.link = "offline"; return { ok: false }; }; else f.env.link = "offline";
+    const read = await f.read();
+    assert.deepEqual(read.data, data); assert.equal(read.complete, false); assert.equal(read.fresh, false);
+    assert.equal(f.env.serverAnswers.size, 0, "composition never uses whole-answer memory");
+  });
+}
+for (const held of [false, true]) for (const fenced of [false, true]) {
+  test(`rule 4: speculative values with engine held=${held}, fenced=${fenced}`, async () => {
+    const f = routing(); f.entries = []; await f.read();
+    f.env.link = "offline"; f.entries = fenced ? [prediction] : [];
+    f.outcome = { data: [{ body: "local", online: true }], unknown: true, complete: false, speculative: true, held, tables: ["posts"] };
+    const read = await f.read();
+    if (!fenced) assert.deepEqual(read.data, ["server"]);
+    else if (held) { assert.deepEqual(read.data, [{ body: "local", online: true }]); assert.equal(read.complete, false); }
+    else assert.deepEqual(read, { loading: true });
+  });
+}
+for (const caughtUp of [false, true]) for (const identityChecked of [false, true]) {
+  test(`rule 4: online partial freshness requires caughtUp=${caughtUp}, identityChecked=${identityChecked}`, async () => {
+    const f = routing(); f.env.caughtUp = caughtUp; f.env.identityChecked = identityChecked;
+    f.outcome = { data: [{ body: "own", at: 1 }], unknown: true, complete: false, speculative: false, held: true, tables: ["posts"] };
+    const read = await f.read();
+    assert.equal(read.fresh, caughtUp && identityChecked);
+    if (!read.fresh) assert.equal(read.since, f.env.lastSyncAt);
+    assert.equal(f.requests.length, 0);
+  });
+}
+test("rules 4/5: remembered since is the original observation time", async t => {
+  let now = 100;
+  t.mock.method(Date, "now", () => now);
+  const f = routing(); f.entries = [];
+  await f.read(); now = 900; f.env.link = "offline";
+  const read = await f.read();
+  assert.equal(read.fresh, false); assert.equal(read.since, 100);
+});
+for (const when of ["recovery", "publication"]) {
+  test(`rule 5: memory expires at ${when}, with no expired answer or repeated deadline`, async t => {
+    let now = 100; t.mock.method(Date, "now", () => now);
+    const f = routing(); f.entries = [];
+    f.env.post = async () => ({ ok: true, json: { data: ["private"], complete: true, nextExpiry: 200 }, obsoleteAuth: false });
+    const initial = await evaluateLocal(f.env, op, input, 0, 0);
+    assert.equal(initial.nextExpiry, 200);
+    f.env.link = "offline"; now = 150;
+    const remembered = await evaluateLocal(f.env, op, input, 0, 0);
+    assert.equal(remembered.nextExpiry, 200, "watch must schedule the remembered authorization deadline");
+    assert.equal(remembered.read.since, 100);
+    let checks = 0;
+    if (when === "recovery") now = 200;
+    // Offline dispatch, recovery, and final publication each consult the fence.
+    else f.env.queued = async () => { if (++checks === 3) now = 200; return []; };
+    const expired = await evaluateLocal(f.env, op, input, 0, 0);
+    assert.equal(expired.read.denied.code, "E_OFFLINE"); assert.equal(expired.nextExpiry, null);
+    assert.equal(f.env.serverAnswers.size, 0);
   });
 }

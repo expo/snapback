@@ -3,8 +3,8 @@
 // 2. Run locally first; a known complete answer wins, regardless of `runs`.
 // 3. The engine decides unavailability (or the query could not run): offline,
 //    intersecting prediction, or held => loading; otherwise try original args.
-// 4. Available unknown values containing rows remain partial data. Placeholders
-//    recover a remembered answer (stale), or loading/E_OFFLINE, never fake data.
+// 4. Unknown non-speculative values remain partial data. Speculative values
+//    recover unexpired memory or loading/E_OFFLINE; when fenced, keep held data.
 // 5. Recheck session and P ∩ S before any external answer lands. S is static
 //    (opaque programs read everything), narrowed only by a known COMPLETE L.
 //    Remembered answers share this fence; freshness is decided at publication.
@@ -15,18 +15,9 @@ import type { Queued } from "./local-types.ts";
 
 type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
-type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; denied?: Refusal };
+type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; held?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
-
-// A scalar (including presence), null, or empty collection is not a held row.
-// Rows may be nested in a returned record, or projected into records in a page.
-function containsRows(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  if (Array.isArray(value)) return value.some(row =>
-    !!row && typeof row === "object" && !Array.isArray(row) && Object.keys(row).length > 0 || containsRows(row));
-  return typeof (value as { id?: unknown }).id === "string" || Object.values(value).some(containsRows);
-}
 
 export interface QueryEnvironment {
   backend: BackendJson;
@@ -64,9 +55,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const key = `${op.name}:${JSON.stringify(args)}`;
   let remember = true;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
+  let fenced = false;
+  // Missing provenance from an older device is conservatively speculative.
   const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
-    && !("data" in latest.result.read && containsRows(latest.result.read.data));
-  const fallback = () => placeholder() ? loading : latest?.result ?? loading;
+    && latest.outcome.speculative !== false;
+  const fallback = () => placeholder() && !(fenced && latest?.outcome.held) ? loading : latest?.result ?? loading;
   const localCandidate = (): Candidate<R> => ({ result: fallback(), origin: "local" });
   // Rule 1. This check also preserves the local-commit invalidation fence.
   const checkpoint = () => {
@@ -76,7 +69,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   const pending = async () => {
     const entries = await env.queued(); checkpoint();
-    return entries.some(entry => {
+    return fenced = entries.some(entry => {
       if (entry.observed_seq != null || entry.predictable !== true) return false;
       if (!entry.predicted) return true; // Legacy missing footprints are unknown.
       return [...predictedTables(entry.predicted)].some(table => possible === null || possible.has(table));
@@ -85,7 +78,6 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // Rules 3 and 5 share exactly one external-answer gate, at dispatch and delivery.
   const blocked = async (remembered = false) => {
     checkpoint();
-    if (!remembered && env.link !== "online") return true;
     const fenced = await pending(); checkpoint();
     return (!remembered && env.link !== "online") || fenced || held;
   };
@@ -95,11 +87,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (!placeholder() || !remember) return localCandidate();
     const stopped = await blocked(true); checkpoint();
     if (stopped) return localCandidate();
-    const last = env.serverAnswers.get(key);
+    let last = env.serverAnswers.get(key);
+    if (last?.nextExpiry != null && last.nextExpiry <= Date.now()) {
+      env.serverAnswers.delete(key); last = undefined;
+    }
     if (last) for (const table of last.tables) tables.add(table);
     const read: Read<R> = last ? { ...last.read, fresh: false, since: last.at } as Read<R>
       : watch ? { loading: true } : { denied: env.offline() };
-    return { origin: "remembered", result: { read, tables, nextExpiry: null } };
+    return { origin: "remembered", result: { read, tables, nextExpiry: last?.nextExpiry ?? null } };
   };
   const local = async () => {
     checkpoint();
@@ -200,6 +195,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const publish = (candidate: Candidate<R>): Result<R> => {
     checkpoint(); // Rules 1/5: no await between this check and publication.
     const { result, origin } = candidate;
+    // Rules 1/5: an authorization deadline may pass during the final fence.
+    if (origin !== "local" && result.nextExpiry !== null && result.nextExpiry <= Date.now()) {
+      env.serverAnswers.delete(key);
+      return origin === "remembered" && !watch ? { read: { denied: env.offline() }, tables, nextExpiry: null } : loading;
+    }
     if (origin !== "local" || !("data" in result.read)) return result;
     const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
     return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: env.lastSyncAt }) } };
@@ -212,7 +212,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       const stopped = await blocked(candidate.origin === "remembered"); checkpoint();
       if (stopped) return publish(localCandidate());
       if (candidate.origin === "server") {
-        if (remember && "data" in candidate.result.read) env.serverAnswers.set(key, { read: candidate.result.read, at: Date.now(), tables: new Set(tables) });
+        if (remember && "data" in candidate.result.read) env.serverAnswers.set(key, { read: candidate.result.read, at: Date.now(), nextExpiry: candidate.result.nextExpiry, tables: new Set(tables) });
         else env.serverAnswers.delete(key);
       }
     }

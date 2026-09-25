@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
+import { webDevice, memoryPersistence } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -42,6 +43,26 @@ query localNotes(c: cursor ?):
   return notes after c last 1 by byTime
 query presence(p: principal):
   return exists connected[p]
+query wrappedPresence(p: principal):
+  return [{ online: exists connected[p] }]
+query identifiedPresence(p: principal):
+  return { id: p, online: exists connected[p] }
+query shapedNotes():
+  return notes last 5 by byTime { text, at }
+table permits:
+  principal: principal
+  expiresAt: time
+  expire at .expiresAt
+  by byExpiresAt: expiresAt
+  unique byPrincipal: principal
+  read <- .principal = viewer
+  sync to .principal
+table secrets:
+  body: text <=100
+  read <- exists permits[principal = viewer]
+  online only
+query secret(id: secrets):
+  return secrets[id]
 query connections(p: principal):
   return connected[p]
 mutation add(text: text <=100):
@@ -59,7 +80,7 @@ function project(t) {
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
-async function fixture(t, watchSources = false) {
+async function fixture(t, watchSources = false, tier = "native") {
   const directory = project(t);
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", ...(watchSources ? [] : ["--no-watch"])], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exit = once(child, "exit");
@@ -83,17 +104,18 @@ async function fixture(t, watchSources = false) {
     { table: "notes", row: { id: "n2", text: "local two", at: 2, owner: "dev:alice" } },
   ]);
   let offline = false, requests = 0;
-  const deviceReads = [];
+  const deviceReads = [], deviceAnswers = [];
+  const persistence = memoryPersistence();
   const open = async () => {
     const data = join(directory, "device"); mkdirSync(data, { recursive: true });
-    const opener = processDevice({ binary, dir: data, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
+    const opener = tier === "wasm" ? webDevice({ persist: persistence, wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) }) : processDevice({ binary, dir: data, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
     const client = await createLocalClient({ url, persona: "alice", waitSeconds: 1,
       fetch: async (input, init) => { requests++; if (offline) throw new TypeError("test link down"); return fetch(input, init); },
-      device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: (request) => { if (request.op === "query") deviceReads.push(request.name); return core.call(request); } }; } },
+      device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "query") deviceReads.push(request.name); const answer = await core.call(request); if (request.op === "query") deviceAnswers.push({ name: request.name, ...answer.ok }); return answer; } }; } },
     });
     clients.push(client); return client;
   };
-  return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads };
+  return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads, deviceAnswers };
 }
 
 test("server-class watches run locally first and recover remembered server data offline", { timeout: 20000 }, async (t) => {
@@ -231,4 +253,59 @@ test("dev compares residency with the served generation even when check advanced
   assert.match(f.log(), /N_NOW_SERVER[\s\S]*localNotes/);
   const backend = await fetch(`${f.url}/schema`, { headers: { "x-snapback-persona": "alice" } }).then((r) => r.json());
   assert.equal(backend.schema.operations.localNotes.runs, "server");
+});
+
+for (const tier of ["wasm", "native"]) {
+  test(`provenance ${tier}: wrapped presence recovers false, shaped rows without ids stay partial`, { timeout: 20000 }, async t => {
+    const f = await fixture(t, false, tier);
+    // Seed before acquisition: live delivery correctly retains older held rows.
+    await f.seed([{ table: "notes", row: { id: "n3", text: "local three", at: 3, owner: "dev:alice" } }]);
+    const client = await f.open(); await client.sync();
+    for (const name of ["wrappedPresence", "identifiedPresence"]) {
+      const online = await client.query(query(name), { p: "dev:bob" });
+      assert.deepEqual(online.data, name === "wrappedPresence" ? [{ online: false }] : { id: "dev:bob", online: false });
+      const raw = f.deviceAnswers.findLast(answer => answer.name === name);
+      assert.equal(raw.speculative, true); assert.equal(raw.held, false);
+    }
+    f.offline(true); await client.sync();
+    for (const name of ["wrappedPresence", "identifiedPresence"]) {
+      const offline = await client.query(query(name), { p: "dev:bob" });
+      assert.deepEqual(offline.data, name === "wrappedPresence" ? [{ online: false }] : { id: "dev:bob", online: false });
+      assert.equal(offline.fresh, false);
+    }
+    const shaped = await client.query(query("shapedNotes"), {});
+    assert.deepEqual(shaped.data, [{ text: "local three", at: 3 }, { text: "local two", at: 2 }]);
+    assert.equal(shaped.complete, false); assert.equal(shaped.fresh, false);
+    const raw = f.deviceAnswers.findLast(answer => answer.name === "shapedNotes");
+    assert.equal(raw.speculative, false); assert.equal(raw.held, true); assert.equal(raw.unknown, true);
+  });
+}
+test("rule 5: a real process device never recovers private memory after its permit expiry", { timeout: 20000 }, async t => {
+  const f = await fixture(t), client = await f.open(); await client.sync();
+  const expiresAt = Date.now() + 2500;
+  await f.seed([
+    { table: "permits", row: { id: "permit", principal: "dev:alice", expiresAt } },
+    { table: "secrets", row: { id: "secret", body: "private" } },
+  ]);
+  await client.sync();
+  const op = query("secret"), args = { id: "secret" };
+  const server = () => fetch(`${f.url}/q/secret`, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args }) }).then(r => r.json());
+  const first = await server();
+  assert.equal(first.data.body, "private"); assert.equal(first.nextExpiry, expiresAt);
+  assert.equal((await client.query(op, args)).data.body, "private");
+  const watch = client.observe(op, args); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.body === "private", "watch did not acquire the authorized answer");
+  f.offline(true); await client.sync();
+  await until(() => watch.getSnapshot().fresh === false, "watch did not recover stale memory before expiry");
+  assert.equal(watch.getSnapshot().data.body, "private");
+  const deliveries = [];
+  const stop = watch.subscribe(() => deliveries.push({ at: Date.now(), read: watch.getSnapshot() })); t.after(stop);
+  await until(() => Date.now() >= expiresAt + 40, "permit did not expire");
+  assert.equal((await server()).data, null, "authoritative rule denies the expired permit");
+  const after = await client.query(op, args);
+  assert.equal(after.denied.code, "E_OFFLINE"); assert.equal("data" in after, false);
+  await until(() => !("data" in watch.getSnapshot()), "watch kept private memory beyond its scheduled authorization expiry");
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  assert.ok(deliveries.some(item => item.at >= expiresAt && item.read.loading), "the deadline itself must rerun the offline watch");
+  assert.ok(deliveries.filter(item => item.at >= expiresAt).every(item => !("data" in item.read)), JSON.stringify(deliveries));
 });

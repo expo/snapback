@@ -34,7 +34,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
             assert.equal(request.name, "read");
             assert.deepEqual(request.args, input);
             if (++observations === 1) return { ok: {
-              data: { kept: ["local"], current: [] }, complete: false, unknown: true, tables: ["feedFeed"],
+              data: { kept: ["local"], current: [] }, speculative: false, held: true, complete: false, unknown: true, tables: ["feedFeed"],
               components: { kept: { complete: true, retained: true }, current: { complete: false, unknown: true } },
             } };
             assert.equal(observations, 2);

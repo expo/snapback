@@ -28,6 +28,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
 export type ServerAnswer = {
   read: Extract<import("./contract.ts").Read<unknown>, { data: unknown }>;
   at: number;
+  nextExpiry: number | null;
   tables: Set<string>;
 };
 

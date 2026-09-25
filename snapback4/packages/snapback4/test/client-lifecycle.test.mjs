@@ -1349,7 +1349,7 @@ for (const scenario of [
   const backend = { ...emptyBackend, programs: [{ ...emptyBackend.programs[0], body: [{ table: "rows" }] }], schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
   const device = emptyDevice({ call: async request => {
     if (request.op === "backend") return { ok: backend };
-    if (request.op === "query") return { ok: { data: [{ id: "device" }], complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
+    if (request.op === "query") return { ok: { data: [{ id: "device" }], speculative: false, held: true, complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
     if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: ["rows/pending"] }] };
   } });
   const requests = []; let offline = false;

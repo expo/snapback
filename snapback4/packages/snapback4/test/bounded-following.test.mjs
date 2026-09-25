@@ -256,8 +256,8 @@ query remoteProfile():
     const bob = await f.open("bob");
     bob.failQueries = true;
     const failed = await bob.client.query(query("withProfile"), {});
-    assert.ok(failed.data.rows.length > 0); assert.equal(failed.complete, false);
-    assert.equal(bob.client.link(), "offline"); assert.equal(failed.fresh, false); assert.ok(failed.since > 0);
+    assert.equal(failed.denied.code, "E_OFFLINE", "an unfenced speculative profile cannot publish its placeholder");
+    assert.equal(bob.client.link(), "offline");
     bob.failQueries = false; await bob.client.sync(); bob.holdWrites = true;
     await bob.client.mutate(mutation("post"), { postId: "own-profile", parentId: null, at: 20 });
     const before = bob.queries.length;
@@ -265,6 +265,7 @@ query remoteProfile():
     assert.equal(answer.data.rows[0].post.id, "own-profile"); assert.equal(answer.data.rows[0].pending, true);
     assert.equal(answer.data.profile, null); assert.equal(answer.complete, false);
     const raw = bob.observed.at(-1); assert.equal(raw.unknown, true); assert.notEqual(raw.loading, true);
+    assert.equal(raw.speculative, true); assert.equal(raw.held, true);
     assert.equal(bob.queries.length, before, "an available prediction must stay data without fallback");
     const profile = await bob.client.query(query("remoteProfile"), {});
     assert.equal(profile.data.name, "remote");
@@ -579,6 +580,8 @@ query native_held(postId: posts, c: text <=2000 ?) held: native
   const raw = (await bob.core.call({ op: "query", name: op.name, viewer: "dev:bob", args: input, now: Date.now() })).ok;
   assert.equal(raw.loading, true, `native_query must propagate query_unavailable: ${JSON.stringify(raw)}`);
   assert.equal(raw.unknown, true); assert.equal("data" in raw, false); assert.equal("next" in raw, false);
+  assert.equal(raw.speculative, true, "native card misses carry engine provenance");
+  assert.equal(raw.held, true, "native scan inputs include actually held inbox rows");
   assert.ok(raw.tables.includes("posts") && raw.tables.includes("feedFeed"));
   bob.offline = true; await bob.client.sync();
   assert.deepEqual(await bob.client.query(op, input), { loading: true });

@@ -925,8 +925,10 @@ for (const tier of ["native", "web"]) test(`W8a ${tier} held horizon stays local
   const watch = client.observe(op, { room: "normal", q: "absent" });
   t.after(() => watch.close());
   await until(() => observed.some(reply => reply.args.q === "absent"));
-  assert.deepEqual(await client.query(op, { room: "normal", q: "absent" }), { loading: true });
-  assert.deepEqual(watch.getSnapshot(), { loading: true }, "held unknown empty results are placeholders");
+  const empty = await client.query(op, { room: "normal", q: "absent" });
+  assert.deepEqual(empty.data, []); assert.equal(empty.complete, false);
+  assert.deepEqual(watch.getSnapshot().data, [], "an empty horizon scan has no speculative value");
+  assert.equal(watch.getSnapshot().complete, false);
   const raw = observed.find(reply => reply.args.q === "absent");
   assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true); assert.equal(raw.complete, false);
   assert.deepEqual(requests, [], "held must not turn incomplete local coverage into a server call");

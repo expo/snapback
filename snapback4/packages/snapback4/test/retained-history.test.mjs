@@ -239,7 +239,7 @@ query wordBoth():
     const name = "wordBoth";
     const result = await client.query({ kind: "query", name }, {});
     const local = allAnswers.findLast(answer => answer.name === name);
-    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true });
+    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true, speculative: false, held: true });
     assert.equal(local.components.right.unknown, true, "the right horizon needs server knowledge");
     assert.ok(allRequests.includes("/q/wordBoth"), "mixed routing consulted the server");
     assert.deepEqual(result.data.left, horizonFree ? expected("left", 1) : true, "server fallback must keep the left group's delivered matching history");
@@ -255,7 +255,7 @@ query wordBoth():
       const result = await client.query({ kind: "query", name }, {});
       const local = allAnswers.findLast(answer => answer.name === name);
       const hit = name !== "pointMiss";
-      assert.deepEqual(local.components.left, { complete: hit, unknown: !hit, retained: hit }, name);
+      assert.deepEqual(local.components.left, { complete: hit, unknown: !hit, retained: hit, speculative: !hit, held: hit }, name);
       assert.deepEqual(result.data.held, expected("held", 0));
       assert.deepEqual(result.data.left, name === "pointMiss" ? null : name === "pointExists" ? true : rows.find(item => item.row.id === "left-25").row);
       assert.equal(result.complete, true);
