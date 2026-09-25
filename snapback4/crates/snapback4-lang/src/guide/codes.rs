@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_QUARRY_SELF_EQUALITY", "a where equality compares a column of the filtered row with itself. Bind the enclosing row in the named key: members[conversation = .conversation]. guide shapes."),
     ("N_OPTIONAL_FILTER_LIMIT", "at most three optional filter inputs get planned presence variants; the named extra filters remain metered residual predicates. Keep them, or split the screen into queries that branch on those inputs. guide reads."),
     ("E_INIT_CONFLICT", "init found conflicting destination files or package.json entries and wrote nothing. Rename the listed files or reconcile the named package entries, then rerun snapback4 init. Unrelated files are preserved; when README.md exists, setup instructions go in README.snapback.md."),
 

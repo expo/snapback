@@ -54,7 +54,7 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -67,7 +67,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("optimistic", "prediction"), ("pending", "prediction"),
     ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
-    ("sql", "personas"), ("inspect", "personas"),
+    ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
@@ -117,6 +117,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
     let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
     Some(match keyword {
         "language" => LANGUAGE,
+        "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,

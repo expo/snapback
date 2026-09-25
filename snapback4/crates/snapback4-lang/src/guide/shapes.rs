@@ -137,4 +137,9 @@ word discovery. A positive held row proves existence on a device regardless of
 its horizon; only a negative answer past that horizon needs coverage. A cut
 before finding a row returns false on an already capped answer. Mutation prefix
 existence tests require a uniform, plain, non-expiring prefix. Rule probes keep
-exact-key, one-unit semantics. `exists` accepts predicates and seeks, but no `first`/`last` or cursor."##;
+exact-key, one-unit semantics. `exists` accepts predicates and seeks, but no `first`/`last` or cursor.E_QUARRY_SELF_EQUALITY refuses a `where` equality comparing the filtered row
+with itself. In a nested roster, write `members[conversation = .conversation]`:
+the named key reads the enclosing row; the inner predicate's `.` is the member.
+At top level, pass a conversation argument and write `.conversation = conversation`.
+
+"##;

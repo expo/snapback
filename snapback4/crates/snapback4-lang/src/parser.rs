@@ -95,6 +95,7 @@ impl Parser {
             }
             "shape" => self.parse_shape_declaration(),
             "fn" => self.parse_function_declaration(),
+            "aggregate" => Err(unsupported(&token.site, "aggregate declaration", "view messageCounts: count messages by .conversation — name the source table and group column").guide("from-sql")),
             "proc" => Err(unsupported(&self.peek().site, "proc", "fn")),
             "cursor" => Err(unsupported(&token.site, "cursor as a declaration", "cursor is reserved for a future Quarry form; rename this declaration")),
             "channel" => Err(unsupported(&token.site, "channel", "ephemeral channels arrive after the first slice; keep presence and typing in the client for now")),
@@ -238,7 +239,7 @@ impl Parser {
             "sync" => {
                 if table.online_only { return Err(crate::diag::sync_error(&token.site, "online only cannot also sync", "choose online only or sync")); }
                 if table.sync.is_some() {
-                    return Err(syntax_with(&token.site, format!("table {} has more than one sync line", table.name), "one sync line per table"));
+                    return Err(syntax_with(&token.site, format!("table {} has more than one sync line", table.name), "keep one sync line matching the read rule; use sync to members[.conversation] for one membership audience, or online only when the audience cannot be inverted"));
                 }
                 let sync = self.parse_sync()?;
                 table.sync = Some(sync);

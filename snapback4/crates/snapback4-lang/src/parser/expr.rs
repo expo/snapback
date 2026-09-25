@@ -247,9 +247,12 @@ impl Parser {
                 let site = self.take(".")?.site;
                 let name = self.word()?.value;
                 value = Expr::Member { base: Box::new(value), name, site };
-            } else if self.at("(") && matches!(value, Expr::Name { .. }) {
-                let Expr::Name { name, site: name_site } = value else { unreachable!() };
+            } else if self.at("(") && call_name(&value).is_some() {
+                let (name, name_site) = call_name(&value).expect("a helper name");
                 let site = self.take("(")?.site;
+                if name == "count" && self.at("*") {
+                    return Err(unsupported(&name_site, "count(*)", "count(rows) — pass the read, for example count(messages where .roomId = roomId)").guide("from-sql"));
+                }
                 let mut args = Vec::new();
                 while !self.at(")") {
                     args.push(if name == "bucket" && args.len() == 1 { self.maintain_duration(false)? }
@@ -270,6 +273,10 @@ impl Parser {
                 // prefix spelled without brackets, as `chunk` takes it.
                 let Expr::Name { name, site } = value else { unreachable!() };
                 value = Expr::Read(ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: name, keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site });
+            } else if matches!(value, Expr::Name { .. } | Expr::Read(_)) && self.at("limit") && self.peek_at(1).kind == Kind::Number {
+                let site = self.take("limit")?.site;
+                let n = self.number()?;
+                return Err(unsupported(&site, "limit", format!("first {n} — ascending; use last {n} for descending order")).guide("reads"));
             } else if matches!(value, Expr::Read(_)) && self.at("before") {
                 return Err(unsupported(&self.peek().site.clone(), "before", "use after c; reverse display order in the client when needed"));
             } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by" | "where") {
@@ -339,7 +346,7 @@ impl Parser {
         let mut seen = std::collections::BTreeSet::new();
         let mut violation: Option<Token> = None;
         // Non-index modifiers delimit the predicate; a bare inner `by` needs explicit scope.
-        let stops = ["matching", "after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}", ")", "]"];
+        let stops = ["matching", "after", "first", "last", "by", "where", "limit", "<newline>", ":", "{", ",", "}", ")", "]"];
         let mut value_stops = stops.to_vec();
         value_stops.push("<probe-shape>");
         let mut predicate_stops = stops.to_vec();
@@ -353,14 +360,18 @@ impl Parser {
                 "by" => 2,
                 _ => 3,
             };
-            if violation.is_none() && seen.contains(&rank) {
+            if violation.is_none() && rank != 3 && seen.contains(&rank) {
                 violation = Some(key.clone());
             }
             seen.insert(rank);
             match key.value.as_str() {
                 "where" => {
                     let predicate = self.expression(0, &predicate_stops)?;
-                    if read.filter.is_none() { read.filter = Some(Box::new(predicate)); }
+                    refuse_self_equality(&predicate, &read.table)?;
+                    read.filter = Some(Box::new(match read.filter.take() {
+                        Some(previous) => Expr::Binary { op: "and".into(), left: previous, right: Box::new(predicate), site: key.site },
+                        None => predicate,
+                    }));
                 }
                 "matching" => {
                     // The search text: a page over the words of a `words(..)`
@@ -436,7 +447,11 @@ impl Parser {
         }
         self.take("by")?;
         let index = self.word()?.value;
-        let filter = if self.maybe("where") { Some(Box::new(self.expression(0, &[":"])?)) } else { None };
+        let filter = if self.maybe("where") {
+            let predicate = self.expression(0, &[":"])?;
+            refuse_self_equality(&predicate, &table)?;
+            Some(Box::new(predicate))
+        } else { None };
         self.take(":")?;
         self.newline()?;
         if !self.at_kind(Kind::Indent) {
@@ -570,5 +585,51 @@ impl Parser {
         let depth = self.number()?;
         let seed = read.keys.into_iter().next().unwrap().value;
         Ok(Expr::Walk { table, seed: Box::new(seed), column, depth, site })
+    }
+}
+
+// A qualification names a declaration's file, not a runtime method call.
+fn call_name(value: &Expr) -> Option<(String, Site)> {
+    match value {
+        Expr::Name { name, site } => Some((name.clone(), site.clone())),
+        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Name { .. }) => {
+            let Expr::Name { name: module, site } = base.as_ref() else { unreachable!() };
+            Some((format!("{module}.{name}"), site.clone()))
+        }
+        _ => None,
+    }
+}
+
+// @ref LLP 3000.013#2.1 — a predicate's focal row is its own scan candidate.
+// Do not descend into reads or shapes: each establishes its own focal scope.
+pub(super) fn refuse_self_equality(value: &Expr, table: &str) -> Fallible<()> {
+    match value {
+        Expr::Binary { op, left, right, site } => {
+            if op == "="
+                && let (Expr::Member { base: a, name: x, .. }, Expr::Member { base: b, name: y, .. }) = (left.as_ref(), right.as_ref())
+                && x == y && matches!(a.as_ref(), Expr::Focal { .. }) && matches!(b.as_ref(), Expr::Focal { .. }) {
+                return Err(Diagnostic::new(site, "E_QUARRY_SELF_EQUALITY",
+                    format!(".{x} = .{x} compares the filtered {table} row with itself; it does not bind the enclosing row"),
+                    format!("{table}[{x} = .{x}] — the named key binds the enclosing row; without an enclosing row, pass {x} as an argument and use {table} where .{x} = {x}"))
+                    .guide("shapes"));
+            }
+            refuse_self_equality(left, table)?;
+            refuse_self_equality(right, table)
+        }
+        Expr::Unary { value, .. } | Expr::Assert { value, .. } | Expr::Member { base: value, .. } => refuse_self_equality(value, table),
+        Expr::Object { fields, .. } => {
+            for field in fields { if let Some(value) = &field.value { refuse_self_equality(value, table)?; } }
+            Ok(())
+        }
+        Expr::Call { args, .. } | Expr::Array { items: args, .. } => {
+            for value in args { refuse_self_equality(value, table)?; }
+            Ok(())
+        }
+        Expr::If { then, condition, otherwise, .. } => {
+            refuse_self_equality(condition, table)?;
+            refuse_self_equality(then, table)?;
+            refuse_self_equality(otherwise, table)
+        }
+        _ => Ok(()),
     }
 }

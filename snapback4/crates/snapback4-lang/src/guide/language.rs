@@ -1,6 +1,8 @@
 //! The complete, compiled and executed Quarry language card.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
+Coming from SQL or Convex: `snapback4 guide from-sql` translates familiar idioms.
+
 Quarry defines your tables, access rules and backend operations.
 Queries and eligible mutations can run on devices that hold their inputs.
 
@@ -592,7 +594,7 @@ The event-free generation barrier makes devices reacquire; a missing stored
 field reads 0 without an authored literal default. See `guide maintains`
 for disclosure and stream cost, and `guide feeds` for Trending.
 
-Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
+Cards: `snapback4 guide <keyword>` — from-sql, app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal.

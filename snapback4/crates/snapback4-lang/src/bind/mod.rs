@@ -14,6 +14,7 @@ mod server;
 mod key_bound;
 mod index_diagnostics;
 mod mixed_keys;
+mod helper_names;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
@@ -50,6 +51,7 @@ pub struct Bound {
 
 pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    helper_names::normalize(&mut documents, &mut diagnostics);
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
     let feeds = feed_view::expand(&mut documents, &mut diagnostics);

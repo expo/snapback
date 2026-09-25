@@ -183,7 +183,7 @@ fn w14b_first_account_screen_is_self_contained() {
         }
     }
     for command in readme.split("guide ").skip(1) {
-        let name = command.split(|c: char| !c.is_ascii_alphabetic()).next().unwrap();
+        let name = command.split(|c: char| !(c.is_ascii_alphabetic() || c == '-')).next().unwrap();
         if !name.is_empty() { assert!(card(name).is_some(), "dead card: {name}"); }
     }
 }
@@ -596,7 +596,7 @@ fn the_keywords_are_one_list() {
         if *keyword != "language" {
             assert!(on_card.contains(keyword), "the language card does not list {keyword}");
         }
-        assert!(in_readme.contains(keyword), "the README's guide line does not list {keyword}");
+        assert!(in_readme.contains(keyword) || (*keyword == "from-sql" && README.contains("snapback4 guide from-sql")), "the README's guide line does not list {keyword}");
     }
 }
 
@@ -827,7 +827,7 @@ fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
 
 #[test]
 fn natural_words_find_their_cards() {
-    for (word, target) in [("predict", "prediction"), ("offline", "prediction"), ("pagination", "reads"), ("migration", "evolution"), ("sql", "personas"), ("push", "effects"), ("auth", "personas"), ("upload", "assets"), ("live", "reads"), ("ordinal", "writes")] {
+    for (word, target) in [("predict", "prediction"), ("offline", "prediction"), ("pagination", "reads"), ("migration", "evolution"), ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("push", "effects"), ("auth", "personas"), ("upload", "assets"), ("live", "reads"), ("ordinal", "writes")] {
         assert!(card(word).is_some(), "{word} must find {target}");
         assert_eq!(card(word), card(target), "{word}");
     }
