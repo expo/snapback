@@ -29,7 +29,7 @@ fn every_self_comparison_refuses_in_top_level_and_nested_filters_and_repairs_pas
         let nested = format!("members where {predicate} first 50");
         let original = format!("{MODEL}query q(c: cursor ?):\n  return members first 20 after c {{ conversation, roster: {nested} }}\n");
         let d = refusal(&original, "E_QUARRY_SELF_EQUALITY");
-        assert_eq!(d.rewrite, "members[conversation = .conversation] first 50");
+        assert_eq!(d.rewrite, "members[conversation = .conversation] where true first 50");
         clean(&original.replace(&nested, &d.rewrite));
     }
     // Grok's exact singleton-list example, plus a wrapped contradiction.

@@ -76,7 +76,7 @@ fn nested_key_repairs_keep_conjuncts_bounds_and_order() {
     let nested = "members where .active and .conversation = .conversation first 20 by byConversation";
     let source = format!("{model}query q(c: cursor ?):\n  return members first 20 after c {{ roster: {nested} }}\n");
     let d = refusal(&source);
-    assert!(d.rewrite.contains("first 20 by byConversation where .active"), "{d:?}");
+    assert_eq!(d.rewrite, "members[conversation = .conversation] where .active and true first 20 by byConversation");
     clean(&source.replace(nested, &d.rewrite));
     // The other table lacks .body: a key would incorrectly bind the member.
     let model = format!("{MEMBERS}table notes:\n  body: text <=80\n  public\n");
@@ -89,7 +89,7 @@ fn nested_key_repairs_keep_conjuncts_bounds_and_order() {
     // scan, and compare with the operation argument instead of inventing a key.
     let source = format!("{MEMBERS}query q(chat: id, c: cursor ?):\n  return members first 20 after c {{ total: count(members where .conversation = .conversation) }}\n");
     let d = refusal(&source);
-    assert_eq!(d.rewrite, "where (.conversation = chat)");
+    assert_eq!(d.rewrite, "where .conversation = chat");
     clean(&source.replace("where .conversation = .conversation", &d.rewrite));
 }
 

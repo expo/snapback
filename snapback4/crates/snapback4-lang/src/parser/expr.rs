@@ -48,6 +48,9 @@ impl Parser {
                 self.position += 1;
             }
             let right = self.expression(precedence + u8::from(token.value != "??"), stops)?;
+            if precedence == 4 {
+                self.comparison_spans.insert((token.site.line, token.site.col), start..self.position);
+            }
             left = Expr::Binary { op: token.value, left: Box::new(left), right: Box::new(right), site: token.site };
             // Optional-filter guards admit the SQL/host-language equality
             // spellings locally; unrelated guessed == retains its repair.

@@ -14,6 +14,12 @@ the named key reads the enclosing row; the inner predicate's `.` is the member.
 The key repair requires a matching column on the enclosing row and a bounded
 read. It keeps the other conjuncts, page size and ordering. Otherwise use an
 argument repair. Comparisons under `or` or `not` are not moved into keys.
+Repairs splice the author's source instead of reprinting the syntax tree.
+A key repair inserts the named key and replaces only the offending comparison
+with `true`; retained nested keys, comments and grouping keep their original
+scope and spelling. An argument repair changes only that comparison and, when
+needed, the parameter list. Fresh names avoid bindings at every depth in the
+current declaration; bindings in later declarations do not affect the name.
 At top level, use `where .conversation = conversation` with an explicit argument.
 The repair names a compatible existing argument, or adds a typed argument to
 the operation while preserving its body. Projected views use their inferred

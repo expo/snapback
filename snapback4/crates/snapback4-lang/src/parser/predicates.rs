@@ -41,34 +41,24 @@ impl Parser {
             let argument = compatible.iter().find(|a| a.name == column).copied()
                 .or_else(|| (compatible.len() == 1).then(|| compatible[0]));
             if let Some(argument) = argument {
-                let mut repaired = predicate.clone();
-                replace_comparison(&mut repaired, comparison.site(), Expr::Binary {
-                    op: "=".into(), left: left.clone(), right: Box::new(Expr::Name { name: argument.name.clone(), site: comparison.site().clone() }), site: comparison.site().clone(),
-                });
-                (format!("where {}", print::expression(&repaired)), "compare with the operation argument".into())
+                let rewrite = self.predicate_rewrite(start, self.position, comparison.site(), &format!(".{column} = {}", argument.name));
+                (rewrite.map(|text| format!("where {text}")).unwrap_or_default(), "compare with the operation argument".into())
             } else {
-                let mut name = column.to_owned();
-                while args.iter().any(|a| a.name == name) || self.tokens[self.declaration_start..].windows(2).any(|pair| pair[0].kind == Kind::Word && pair[0].value == name && pair[1].value == "=" && pair[0].site.col == 3) { name.push_str("Argument"); }
-                let mut repaired = predicate.clone();
-                replace_comparison(&mut repaired, comparison.site(), Expr::Binary {
-                    op: "=".into(), left: left.clone(), right: Box::new(Expr::Name { name: name.clone(), site: comparison.site().clone() }), site: comparison.site().clone(),
+                let rewrite = self.fresh_parameter(column, args).and_then(|name| {
+                    self.declaration_rewrite(comparison.site(), &format!(".{column} = {name}"),
+                        Some((args_site, format!("{name}: {}{}", print::scalar_type(&type_), if args.is_empty() { "" } else { ", " }))))
                 });
-                let rewrite = self.declaration_rewrite(start, self.position, &print::expression(&repaired),
-                    Some((args_site, format!("{name}: {}{}", print::scalar_type(&type_), if args.is_empty() { "" } else { ", " })))).unwrap_or_default();
-                (rewrite, "add an explicit operation argument and compare with it".into())
+                (rewrite.unwrap_or_default(), "add an explicit operation argument and compare with it".into())
             }
         } else {
             // Aggregate and timeline declarations have no argument scope. Make
             // the constant behavior explicit; do not invent an outer row or key.
-            let mut repaired = predicate.clone();
-            replace_comparison(&mut repaired, comparison.site(), Expr::Literal {
-                value: Literal::Bool(matches!(op.as_str(), "=" | "<=" | ">=" | "in")), site: comparison.site().clone(),
-            });
-            (self.declaration_rewrite(start, self.position, &print::expression(&repaired), None).unwrap_or_default(),
+            let constant = if matches!(op.as_str(), "=" | "<=" | ">=" | "in") { "true" } else { "false" };
+            (self.declaration_rewrite(comparison.site(), constant, None).unwrap_or_default(),
                 "use the explicit constant only if intended, or replace it with a column-to-value predicate; declarations have no operation arguments".into())
         };
         self.diagnostics.push(Diagnostic::new(comparison.site(), "E_QUARRY_SELF_EQUALITY",
-            format!("{} compares the filtered {table} row's .{column} with itself; {advice}", print::expression(comparison)), rewrite).guide("shapes"));
+            format!("{} compares the filtered {table} row's .{column} with itself; {advice}", self.comparison_source(comparison.site()).unwrap_or_else(|| format!(".{column} {op} .{column}"))), rewrite).guide("shapes"));
         // Keep parsing the declaration: the diagnostic blocks binding, while
         // later declarations remain available to complete typed repairs.
         Ok(predicate)
@@ -87,7 +77,7 @@ impl Parser {
         // Views have projected fields but do not admit named-key reads.
         let Some(table) = self.table_decl(&read.table) else { return; };
         if read.keys.iter().any(|key| key.column.is_none() || key.column.as_deref() == Some(column)) { return; }
-        let Some(rest) = without_conjunct(filter, comparison.site()) else { return; };
+        if !is_conjunct(filter, comparison.site()) { return; }
         let has_key = |name: &str| name == column || read.keys.iter().any(|key| key.column.as_deref() == Some(name));
         if let Some(index) = &read.index {
             let Some(index) = table.indexes.iter().find(|i| &i.name == index) else { return; };
@@ -98,35 +88,18 @@ impl Parser {
             || table.caps.iter().any(|cap| cap.by.iter().all(|name| has_key(name)))
             || table.indexes.iter().any(|index| index.unique && index.columns.iter().all(|name| has_key(name)));
         if !bounded { return; }
-        let mut repaired = read.clone();
-        repaired.filter = rest.map(Box::new);
-        repaired.keys.push(KeyPart { column: Some(column.into()), value: *left.clone(), site: comparison.site().clone() });
-        // The general printer can turn named keys into where clauses when an
-        // intent order is present. Here that would rebind '.' to the inner row.
-        let order = std::mem::take(&mut repaired.order_keys);
-        let mut rewrite = print::read_expr(&repaired);
-        if !order.is_empty() { rewrite.push_str(&format!(" by {}", order.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "))); }
+        let Some(rewrite) = self.keyed_read_rewrite(read, comparison.site(), column) else { return; };
+        let description = self.comparison_source(comparison.site()).unwrap_or_else(|| format!(".{column}"));
         if let Some(d) = self.diagnostics[diagnostic_start..].iter_mut().find(|d| d.code == "E_QUARRY_SELF_EQUALITY" && &d.site == comparison.site()) {
             d.rewrite = rewrite;
-            d.message = format!("{} compares the filtered {} row's .{column} with itself; bind the enclosing row with a named read key", print::expression(comparison), read.table);
+            d.message = format!("{} compares the filtered {} row's .{column} with itself; bind the enclosing row with a named read key", description, read.table);
         }
     }
 }
 
-fn without_conjunct(value: &Expr, site: &Site) -> Option<Option<Expr>> {
-    if value.site() == site { return Some(None); }
-    let Expr::Binary { op, left, right, site: and_site } = value else { return None; };
-    if op != "and" { return None; }
-    let join = |a: Option<Expr>, b: &Expr| Some(a.map_or_else(|| b.clone(), |a| Expr::Binary {
-        op: "and".into(), left: Box::new(a), right: Box::new(b.clone()), site: and_site.clone(),
-    }));
-    if let Some(rest) = without_conjunct(left, site) { return Some(join(rest, right)); }
-    if let Some(rest) = without_conjunct(right, site) {
-        return Some(Some(rest.map_or_else(|| *left.clone(), |rest| Expr::Binary {
-            op: "and".into(), left: left.clone(), right: Box::new(rest), site: and_site.clone(),
-        })));
-    }
-    None
+fn is_conjunct(value: &Expr, site: &Site) -> bool {
+    if value.site() == site { return true; }
+    matches!(value, Expr::Binary { op, left, right, .. } if op == "and" && (is_conjunct(left, site) || is_conjunct(right, site)))
 }
 
 fn focal_column(value: &Expr) -> Option<&str> {
@@ -168,26 +141,6 @@ fn children<'a>(value: &'a Expr, visit: &mut impl FnMut(&'a Expr)) {
             if let Some(value) = &read.matching { visit(value); }
             if let Some(value) = read.range.as_ref().and_then(|r| r.cursor.as_deref()) { visit(value); }
             // Inner filters were checked while parsing, in their own scope.
-        }
-        _ => {}
-    }
-}
-
-fn replace_comparison(value: &mut Expr, site: &Site, replacement: Expr) {
-    if value.site() == site { *value = replacement; return; }
-    let visit = |child: &mut Expr| replace_comparison(child, site, replacement.clone());
-    match value {
-        Expr::Binary { left, right, .. } => { visit(left); visit(right); }
-        Expr::Unary { value, .. } | Expr::Assert { value, .. } | Expr::Member { base: value, .. }
-            | Expr::Shape { base: value, .. } | Expr::ShapeUse { base: value, .. } => visit(value),
-        Expr::Object { fields, .. } => { for field in fields { if let Some(value) = &mut field.value { visit(value); } } }
-        Expr::Call { args, .. } | Expr::Array { items: args, .. } => { for value in args { visit(value); } }
-        Expr::If { then, condition, otherwise, .. } => { visit(condition); visit(then); visit(otherwise); }
-        Expr::Read(read) | Expr::Exists { read, .. } | Expr::Created { read, .. } => {
-            for key in &mut read.keys { visit(&mut key.value); }
-            for seek in &mut read.seeks { visit(&mut seek.value); }
-            if let Some(value) = &mut read.matching { visit(value); }
-            if let Some(value) = read.range.as_mut().and_then(|r| r.cursor.as_deref_mut()) { visit(value); }
         }
         _ => {}
     }
