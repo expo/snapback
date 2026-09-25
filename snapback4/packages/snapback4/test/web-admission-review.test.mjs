@@ -66,9 +66,10 @@ query total():
   if (mutant === 'probe-restore') replace('local.ts', 'if (await witnessRestore(head.store_id, head.seq, capture)) return false;', '/* mutant: skip restore validation */');
   if (mutant === 'hidden-registration') replace('web.ts', 'if (suspended) publishCommitted();', '/* mutant: lose the hide during the probe */');
   if (mutant === 'wrapped-owner') replace('app.ts', 'prepareAdmissionAuthority(prepared, {', 'if (sessionReader(backing)) prepareAdmissionAuthority(prepared, {');
-  if (mutant === 'journal-fence') replace('web.ts', 'if (!reply.denied && observesStore) journal.fence(device!);', '/* mutant: retain recovered intents after replacement */');
-  if (mutant === 'fresh-fence') replace('web-journal.ts', 'if (transfer.storeId !== state.store_id)', 'if (transfer.recovered && transfer.storeId !== state.store_id)');
+  if (mutant === 'journal-fence') replace('web.ts', 'if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);', '/* mutant: retain recovered intents after replacement */');
+  if (mutant === 'fresh-fence') replace('web-journal.ts', 'journalStoreBinding(transfer.storeId, state?.store_id)', 'journalStoreBinding(transfer.recovered ? transfer.storeId : undefined, state?.store_id)');
   if (mutant === 'fresh-binding') replace('web-journal.ts', 'absent(transfer.key) && !queued.has(id)', 'absent(transfer.key) && (!transfer.recovered || !queued.has(id))');
+  if (mutant === 'orphan-binding') replace('web.ts', '        if (binding === "defer") { unresolved = true; continue; }\n        if (binding === "retire") { removed.push({ s: "o", k: entry.id, v: null }); continue; }', '/* mutant: delete both orphan binding checks */');
   if (mutant === 'observed') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null && entry.observed_seq == null)) return true;\n    if (!capture.store_id) return false;');
   if (mutant === 'empty-queue') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null)) return true;\n    if (!capture.store_id) return false;');
   if (mutant === 'ordinary-gate') replace('local.ts', 'if (closed || !sendingAllowed) return;', 'if (closed) return;');
@@ -83,7 +84,8 @@ Object.assign(window, { createApp, keepSession, localStorageSessionStore, sessio
 window.ops = { remove: { kind: 'mutation', name: 'removeMember' }, roster: { kind: 'query', name: 'roster' } };
 window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, wrappedDevice = false, holdProbe = false, probeMode = 'accept', backendUrl = url, unavailable = false }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
-  window.sessionLocks = 0; window.exitLocks = []; window.sent = []; window.syncHeld = false; window.openingDone = false; window.probeHeld = false; window.exitRegistrations = 0;
+  window.sessionLocks = 0; window.exitLocks = []; window.sent = []; window.enqueued = []; window.syncHeld = false; window.openingDone = false; window.probeHeld = false; window.exitRegistrations = 0;
+  window.backendUrl = backendUrl;
   const request = navigator.locks.request.bind(navigator.locks);
   navigator.locks.request = (name, ...args) => {
     const callback = args.pop();
@@ -97,6 +99,7 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
   window.unavailable = unavailable;
   const persist = indexedDbPersistence(), save = persist.save;
   persist.save = async (name, changes) => {
+    for (const change of changes) if (change.s === 'o' && change.v !== null) window.enqueued.push(change.k);
     if (window.holdAdmission && changes.some(c => c.s === 'o' && c.v !== null)) {
       window.admissionHeld = true;
       await new Promise(resolve => window.releaseAdmission = () => { window.holdAdmission = false; resolve(); });
@@ -118,7 +121,7 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
     } },
     fetch: async (input, init) => {
       const parsed = new URL(String(input)), route = parsed.pathname;
-      const destination = backendUrl + route + parsed.search;
+      const destination = window.backendUrl + route + parsed.search;
       if (window.unavailable && (route === '/probe' || route === '/sync')) return Response.json({}, { status: 503 });
       if (route === '/probe' && holdProbe) {
         window.probeHeld = true; await probeGate;
@@ -479,6 +482,87 @@ window.captureClick = () => {
         try { assert.equal(await total(observer, replacement.api), 0, 'replacement audit after close'); }
         finally { await replacement.close(); }
       }
+    }
+  });
+
+  for (const hidden of [false, true]) await t.test(`a fresh orphan bound to A is retired before enqueue on B (${hidden ? 'exit' : 'ordinary'} transport)`, async () => {
+    const { session } = await fresh(), before = await total(session);
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true });
+    const peer = await page.context().newPage();
+    let replacement;
+    try {
+      await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
+      await peer.evaluate(options => boot(options), { url, holdPoll: true, blockMutations: true });
+      const captured = await peer.evaluate(() => captureClick());
+      assert.match(captured.store, /:tab-/);
+      assert.equal((await peer.evaluate(() => write)).state, 'pending');
+      const transfer = await peer.evaluate(async ({ store, id }) => JSON.parse(await indexedDbPersistence().read(store, 'j', id)), captured);
+      assert.equal(transfer.recovered, false); assert.equal(transfer.storeId, captured.record.storeId);
+      replacement = await replacementFor(session);
+      const head = await fetch(replacement.api + '/probe', { headers: { authorization: 'Bearer ' + session.token } }).then(r => r.json());
+      await page.evaluate(async destination => { window.backendUrl = destination; await app.client.sync(); }, replacement.api);
+      await until(() => page.evaluate(async storeId => (await core.call({ op: 'sync_state', capture: false })).ok?.store_id === storeId, head.store_id), 'primary adopts replacement B');
+      await page.evaluate(() => { window.sent = []; window.enqueued = []; });
+      if (hidden) await hide();
+      await peer.evaluate(() => app.close());
+      await peer.close();
+      await until(() => page.evaluate(async store => !await indexedDbPersistence().has(store), captured.store), 'orphan retired');
+      // Wait through the destination chain after the source's claim releases.
+      const after = await page.evaluate(async id => {
+        const queued = (await core.call({ op: 'queued' })).ok;
+        return { queued: queued.filter(entry => entry.id === id), sent: sent.filter(entry => entry.id === id), enqueued: enqueued.filter(entry => entry === id) };
+      }, captured.id);
+      assert.deepEqual(after.enqueued, [], 'retire the mismatch before enqueueing it in B');
+      assert.deepEqual(after.queued, []); assert.deepEqual(after.sent, []);
+      assert.equal(await total(session), before); assert.equal(await total(session, replacement.api), 0);
+      t.diagnostic(JSON.stringify({ orphan: captured.id, hidden, enqueuedInB: 0, auditA: before, auditB: 0 }));
+    } finally {
+      if (!peer.isClosed()) { await peer.evaluate(() => app.close()); await peer.close(); }
+      await page.evaluate(() => app.close());
+      if (replacement) {
+        try { assert.equal(await total(session, replacement.api), 0, 'orphan replacement audit after close'); }
+        finally { await replacement.close(); }
+      }
+    }
+  });
+
+  await t.test('a fresh orphan waits for an unidentified destination and delivers its original id after matching sync', async () => {
+    const { session } = await fresh(), before = await total(session);
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true });
+    const peer = await page.context().newPage();
+    try {
+      await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
+      await peer.evaluate(options => boot(options), { url, holdPoll: true, blockMutations: true });
+      const captured = await peer.evaluate(() => captureClick());
+      assert.equal((await peer.evaluate(() => write)).state, 'pending');
+      const base = captured.store.slice(0, captured.store.indexOf(':tab-'));
+      const state = await page.evaluate(async ({ base, orphan }) => {
+        const backend = (await core.call({ op: 'backend' })).ok;
+        await app.close();
+        const persist = indexedDbPersistence(), load = persist.load;
+        await persist.remove(base);
+        window.orphanLoads = 0;
+        persist.load = async name => { if (name === orphan) window.orphanLoads++; return load(name); };
+        window.unidentified = await webDevice({ persist }).open(base, backend);
+        return (await unidentified.call({ op: 'sync_state', capture: false })).ok;
+      }, { base, orphan: captured.store });
+      assert.equal(state.store_id, null);
+      await peer.evaluate(() => app.close()); await peer.close();
+      await page.waitForFunction(() => window.orphanLoads > 0);
+      const deferred = await page.evaluate(async ({ store, id }) => ({
+        queued: (await unidentified.call({ op: 'queued' })).ok,
+        source: await indexedDbPersistence().read(store, 'o', id),
+      }), captured);
+      assert.deepEqual(deferred.queued, []); assert.equal(JSON.parse(deferred.source).id, captured.id);
+      assert.equal(await total(session), before);
+      await page.evaluate(() => unidentified.close());
+      await page.evaluate(options => boot(options), { url, holdPoll: true });
+      await until(() => page.evaluate(async id => (await app.client.write(id))?.state === 'sent', captured.id), 'same-store orphan delivered');
+      assert.equal(await total(session), before + 1);
+      assert.ok(await page.evaluate(id => sent.some(entry => entry.id === id), captured.id));
+    } finally {
+      if (!peer.isClosed()) { await peer.evaluate(() => app.close()); await peer.close(); }
+      await page.evaluate(async () => { await window.unidentified?.close(); await app.close(); });
     }
   });
 

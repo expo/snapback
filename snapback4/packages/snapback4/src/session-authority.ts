@@ -90,11 +90,16 @@ export function indexedDbSessionStore(mirror: () => Mirror, namespace: string | 
       try {
         const epochKey = key + ".epoch", before = mirror().getItem(epochKey), legacy = before ?? "0";
         // Do not repair/delete the legacy marker until its fence is committed.
-        const marker = await read(epochKey, false) ?? "0";
+        const keptMarker = await read(epochKey, false), marker = keptMarker ?? "0";
         const stored = sessionEpoch(await read(key, false)) ?? "0";
         if (![legacy, marker].every(value => /^(0|[1-9][0-9]*)$/.test(value))) throw new Error("invalid session epoch");
-        const epoch = [legacy, marker, stored].reduce((a, b) => BigInt(a) > BigInt(b) ? a : b);
-        await write(epochKey, epoch, before);
+        const authoritative = BigInt(marker) > BigInt(stored) ? marker : stored;
+        if (BigInt(legacy) > BigInt(authoritative)) await write(epochKey, legacy, before);
+        else {
+          // Reopening a committed session needs no allocation. In particular,
+          // no separate epoch key is required when the session carries it.
+          try { updateMirror(epochKey, keptMarker); } catch { /* Best-effort mirror repair; IDB already owns the fence. */ }
+        }
       } catch (error) { throw failed(error); }
     },
   });

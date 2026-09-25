@@ -12,7 +12,7 @@ import type { Write } from "./contract.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { DeviceCore, DeviceOpener, DeviceOpening } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
-import { AdmissionError, AdmissionJournal, journalStores, writeRefusal } from "./web-journal.ts";
+import { AdmissionError, AdmissionJournal, bindingRefusal, journalStoreBinding, journalStores, writeRefusal } from "./web-journal.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
@@ -187,6 +187,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         journal.load(saved);
         committed.clear();
         remember(saved);
+        journal.fence(device);
         await settle();
         needsRecovery = true;
       };
@@ -211,8 +212,8 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           if (typeof window === "undefined" || typeof document === "undefined") return () => {};
           const page = window, doc = document;
           let suspended = doc.visibilityState === "hidden";
-          const beginSend = () => {
-            if (closing || !device) return false;
+          const beginSend = (id: string) => {
+            if (closing || !device || !committed.has(id) || journal.binding(device, id) !== "allow") return false;
             // Invalidate any sync already in flight, including a bfcache page's
             // snapshot. The synchronous VM call precedes the oldest write's send;
             // its metadata is persisted in order behind any current IDB save.
@@ -226,7 +227,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
             if (!suspended || closing || !device) return;
             const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
               .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
-            if (entries.length) flush(entries, beginSend);
+            if (entries.length) flush(entries, () => beginSend(entries[0]!.id));
           };
           const suspend = () => { suspended = true; publishCommitted(); };
           const resume = () => { suspended = false; };
@@ -269,9 +270,17 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               await recoverOpening();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
               const execute = async (): Promise<Record<string, unknown>> => {
-                const reply = request.op === "admit" ? journal.admit(device!, request.entry) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
+                if (request.op === "begin_send" && typeof request.id === "string") {
+                  const binding = journal.binding(device!, request.id);
+                  if (!committed.has(request.id) || binding !== "allow") {
+                    journal.fence(device!);
+                    await settle();
+                    return { denied: bindingRefusal(binding === "defer" ? "defer" : "retire") };
+                  }
+                }
+                const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
                 const observesStore = request.op === "observe_store" || request.op === "apply";
-                if (!reply.denied && observesStore) journal.fence(device!);
+                if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
                 try {
                   await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply));
                 } catch (error) {
@@ -472,7 +481,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       // create it, without recovering the identity needed to admit its journal.
       if (!stores.has(orphan) && !await persist.has?.(orphan)) continue;
       let saved = await persist.load(orphan);
-      const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state" }))).ok;
+      const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state", capture: false }))).ok;
       const destination = state?.store_id;
       if (journalStores(`${name}:tab-`).includes(orphan)) {
         // An evicted/unidentified store cannot establish the journal's owner.
@@ -483,7 +492,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
         sourceJournal.load(saved);
         const sourceDevice = new WebDevice(null, JSON.stringify(saved.filter(c => c.s !== "j")));
         try {
-          const sourceState = JSON.parse(sourceDevice.call(JSON.stringify({ op: "sync_state" }))).ok;
+          const sourceState = JSON.parse(sourceDevice.call(JSON.stringify({ op: "sync_state", capture: false }))).ok;
           if (sourceState?.backend_required && !sourceState.restore_refusal && sourceState.store_id === destination && !state.backend_required && !state.restore_refusal) {
             // The destination has already authenticated and installed this store's backend.
             const backend = JSON.parse(device.call(JSON.stringify({ op: "backend" }))).ok;
@@ -517,8 +526,9 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       let unresolved = false;
       for (const entry of entries) {
         const transfer = transfers.get(entry.id);
-        if (transfer?.recovered && !destination) { unresolved = true; continue; }
-        if (transfer?.recovered && transfer.storeId !== destination) { removed.push({ s: "o", k: entry.id, v: null }); continue; }
+        const binding = journalStoreBinding(transfer?.storeId, destination);
+        if (binding === "defer") { unresolved = true; continue; }
+        if (binding === "retire") { removed.push({ s: "o", k: entry.id, v: null }); continue; }
         const known = entry.sent_seq != null || entry.observed_seq != null;
         if (known && (!source || !destination)) { unresolved = true; continue; }
         if ((!known || source === destination) && !existing.has(entry.id)) {

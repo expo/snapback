@@ -1115,7 +1115,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           ordinarySending = entry.id;
           settling.add(entry.id);
           try {
-            const started = await call({ op: "begin_send" });
+            const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids }, settled.get(entry.id)?.response);
             if (response.ok) {

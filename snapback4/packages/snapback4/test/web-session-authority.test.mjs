@@ -49,6 +49,8 @@ query total():
   if (mutant === 'mirror-repair') replace('session-authority.ts', 'try { updateMirror(key, value); }', 'try { /* mutant: retain speculative mirror */ }');
   if (mutant === 'epoch-migration') replace('app.ts', 'await authority?.reconcileEpoch(sessionKey(url));', '/* mutant: discard the legacy epoch */');
   if (mutant === 'absence') replace('session-authority.ts', 'const value = (request.result ?? null) as string | null;', 'if (request.result === undefined) return null;\n      const value = (request.result ?? null) as string | null;');
+  if (mutant === 'epoch-allocation') replace('session-authority.ts', 'if (BigInt(legacy) > BigInt(authoritative)) await write(epochKey, legacy, before);', 'if (true) await write(epochKey, BigInt(legacy) > BigInt(authoritative) ? legacy : authoritative, before);');
+  if (mutant === 'higher-mirror') replace('session-authority.ts', 'if (BigInt(legacy) > BigInt(authoritative))', 'if (marker === "0" && BigInt(legacy) > BigInt(authoritative))');
   const witness = await launch({ sourceDir, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
@@ -278,9 +280,9 @@ window.capture = () => {
     await page.evaluate(() => app.close());
   });
 
-  for (const storedEpoch of [null, '9']) await t.test(`legacy epoch 5 migrates before sign-in and mutation (IDB ${storedEpoch ?? 'absent'})`, async () => {
+  for (const [legacy, storedEpoch, epoch] of [['5', null, '5'], ['5', '9', '9'], ['10', '9', '10']]) await t.test(`legacy epoch ${legacy} migrates before sign-in and mutation (IDB ${storedEpoch ?? 'absent'})`, async () => {
     const session = await fresh(), before = await total(session);
-    await page.evaluate(async ({ url, session, storedEpoch }) => {
+    await page.evaluate(async ({ url, session, storedEpoch, legacy }) => {
       const key = sessionKey(url);
       await navigator.locks.request(key, async () => {
         const db = await new Promise((resolve, reject) => {
@@ -293,14 +295,13 @@ window.capture = () => {
           if (storedEpoch) store.put(storedEpoch, ['default', key + '.epoch']);
           await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onabort = () => reject(tx.error); });
         } finally { db.close(); }
-        localStorage.setItem(key, JSON.stringify(session)); localStorage.setItem(key + '.epoch', '5');
+        localStorage.setItem(key, JSON.stringify(session)); localStorage.setItem(key + '.epoch', legacy);
       });
-    }, { url, session, storedEpoch });
+    }, { url, session, storedEpoch, legacy });
     assert.equal((await page.evaluate(options => boot(options), { url })).ok, true);
     assert.equal(await page.evaluate(() => app.auth.state), 'signed-out');
     const signed = await page.evaluate(email => app.auth.login(email, 'a-test-password-long-enough'), `authority-${count}@example.com`);
     assert.equal(signed.ok, true);
-    const epoch = storedEpoch ?? '5';
     const captured = await page.evaluate(() => capture());
     assert.equal(captured.immediate, null); assert.ok(captured.record);
     assert.equal(captured.record.authority.epoch, epoch);
@@ -311,6 +312,45 @@ window.capture = () => {
       return { mirror: localStorage.getItem(key + '.epoch'), idb: await store.get(key + '.epoch'), session: JSON.parse(await store.get(key)).snapback4Epoch };
     }, url), { mirror: epoch, idb: epoch, session: epoch });
     await page.evaluate(() => app.close());
+  });
+
+  await t.test('a committed session reopens with actually full localStorage and no separate epoch key', async () => {
+    const session = await fresh();
+    await page.evaluate(options => boot(options), { url, session });
+    const filled = await page.evaluate(async url => {
+      await app.close();
+      const key = sessionKey(url), store = localStorageSessionStore();
+      await navigator.locks.request(key, async () => {
+        const kept = JSON.parse(await store.get(key));
+        await store.set(key, JSON.stringify({ ...kept, snapback4Epoch: '9' }));
+        await store.delete(key + '.epoch');
+      });
+      // Fill the real origin quota, not a mocked setItem failure. Binary search
+      // leaves no room for even the separate epoch key that caused the bug.
+      let low = 0, high = 6 * 1024 * 1024;
+      while (low < high) {
+        const next = Math.ceil((low + high) / 2);
+        try { localStorage.setItem('quota-fill', 'x'.repeat(next)); low = next; }
+        catch (error) { if (error.name !== 'QuotaExceededError') throw error; high = next - 1; }
+      }
+      let refused;
+      try { localStorage.setItem(key + '.epoch', '9'); }
+      catch (error) { refused = error.name; }
+      return { filled: low, refused, epoch: localStorage.getItem(key + '.epoch') };
+    }, url);
+    assert.ok(filled.filled > 4 * 1024 * 1024); assert.equal(filled.refused, 'QuotaExceededError'); assert.equal(filled.epoch, null);
+    try {
+      await navigate('full-storage=1');
+      const ready = await page.evaluate(options => boot(options), { url });
+      assert.equal(ready.ok, true, JSON.stringify(ready));
+      assert.equal(await page.evaluate(() => app.auth.viewer), session.principal);
+      assert.equal(await page.evaluate(() => app.client.acquired), true);
+      assert.equal(await page.evaluate(url => localStorage.getItem(sessionKey(url) + '.epoch'), url), null);
+      const refused = await page.evaluate(() => { const captured = capture(); return { captured, code: write.why?.code }; });
+      assert.equal(refused.captured.immediate, 'failed'); assert.equal(refused.code, 'E_ADMISSION');
+      assert.equal(refused.captured.record, null);
+      t.diagnostic(JSON.stringify({ fullStorageReopen: true, filledCharacters: filled.filled, mutationCode: refused.code }));
+    } finally { await page.evaluate(async () => { localStorage.removeItem('quota-fill'); await app.close(); }); }
   });
 
   await t.test('reopen repairs speculative session B from committed session A before capturing a mutation', async () => {

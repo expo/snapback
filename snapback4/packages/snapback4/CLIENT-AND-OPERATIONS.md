@@ -524,6 +524,10 @@ not prevent healthy stores from opening.
 Every journaled write stays bound to its original backend store identity until
 it leaves the outbox, including a fresh click captured during startup validation.
 A replacement retires these writes without sending them to the new backend.
+Own-tab recovery, fresh admission, orphan adoption and both send paths share
+the same store-binding check. Orphan adoption leaves a bound write in its source
+store while the destination identity is unknown, and retires a mismatch before
+enqueueing it. Matching adoption keeps the original mutation id.
 Under `createApp`, records also capture the session epoch and principal.
 The browser's authoritative session lives in IndexedDB. Login, logout and
 principal replacement mirror their value to localStorage, then await a strict
@@ -560,7 +564,11 @@ On upgrading from a browser session stored only in localStorage, sign in again:
 the mirror alone cannot establish a coherent authority record. Before opening
 a scope, the session lock protects migration of the greatest legacy mirror or
 IndexedDB epoch into the authoritative epoch record and its mirror. This
-preserves the old epoch fence while allowing the new sign-in to mutate. Reads
+preserves the old epoch fence while allowing the new sign-in to mutate. Migration
+writes only when the legacy mirror advances the authoritative epoch. Reopening
+an existing session does not require a separate epoch key or free localStorage
+capacity; mirror repair is best-effort. A new mutation still refuses synchronously
+if its journal cannot be written. Reads
 repair speculative or stale session mirrors from IndexedDB, deleting the mirror
 when authority is absent; they never import mirror credentials. Pre-upgrade
 unadmitted journals are cancelled; committed outbox custody is preserved. The
