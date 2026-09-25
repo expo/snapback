@@ -329,20 +329,21 @@ fn expired_authority_witnesses<H: Host>(mut host: H, aggregate: bool) {
         device.apply(&page, false).unwrap();
         let members = device.store().raw_rows("members");
         assert_eq!(members.len(), expired + 1);
-        // Inspect the actual admission outcome and full rollback after the
-        // insert precedes a witness walk that cannot fit the device allowance.
+        // Ordinary witnesses still walk expired siblings; contribution
+        // witnesses seek directly to the live suffix under the same allowance.
         let reply = snapback4_device::call::call_text(&mut device, &json!({"op":"admit", "entry":{
             "id":"mixed", "seq":1, "op":"mixed", "args":{"work":1}, "viewer":"alice", "now":300, "predictable":true
         }}).to_string());
         let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
-        assert_eq!(queued.predictable, expired == 34, "aggregate={aggregate}, expired={expired}: {queued:?}");
-        assert_eq!(queued.predicted.is_empty(), expired == 9000);
-        assert_eq!(device.store().raw_rows("notes").is_empty(), expired == 9000);
+        let predicts = aggregate || expired == 34;
+        assert_eq!(queued.predictable, predicts, "aggregate={aggregate}, expired={expired}: {queued:?}");
+        assert_eq!(queued.predicted.is_empty(), !predicts);
+        assert_eq!(device.store().raw_rows("notes").is_empty(), !predicts);
         assert_eq!(device.queued().unwrap().len(), 1);
         assert_eq!(device.store().raw_rows("members"), members, "witness reads never sweep");
         // A zero-read insert still predicts, and its later query keeps the
         // existing one-probe contract even through all 9,000 expired siblings.
-        if expired == 9000 {
+        if !predicts {
             let mut entry = queued;
             entry.id = "query-control".into(); entry.seq = 2; entry.predictable = true; entry.args = json!({"work":0});
             assert!(device.admit(entry).unwrap().predictable);
@@ -403,24 +404,27 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
         }
         let counted = Counted { rows: &tx, fetched: Cell::new(0) };
         let program = backend.programs.iter().find(|p| p.name == "mixed").unwrap();
-        for budget in [1, 33, 8192, 9002] {
+        for budget in [1, 2, 33, 8192, 9002] {
             tx.savepoint("attempt").unwrap(); counted.fetched.set(0);
             let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(300),
                 Ceilings { examined: budget, ..Ceilings::unbounded() });
-            if budget == 9002 { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
+            let needed = if aggregate { 2 } else { 9001 };
+            if budget >= needed { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
             else { assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}, budget={budget}: {result:?}"); }
-            assert_eq!(counted.fetched.get(), if budget == 9002 {9001 + usize::from(aggregate)} else {budget as usize});
+            assert_eq!(counted.fetched.get(), budget.min(needed) as usize);
             tx.rollback_to("attempt").unwrap();
         }
         // An early live witness with an oversized, unindexed payload must
         // exhaust allocation before authorizing; a small image still fits.
+        // Use the earliest live deadline at an earlier pinned clock: expiry
+        // ordering puts null after the expired backlog, no longer first by id.
         let old = tx.get("members", "m00000").unwrap().unwrap();
         for payload in [Value::Null, Value::String("x".repeat(40000))] {
             tx.savepoint("heap").unwrap();
             let mut row = old.clone();
-            if let Value::Row(fields) = &mut row { fields.insert("until".into(), Value::Null); fields.insert("payload".into(), payload.clone()); }
+            if let Value::Row(fields) = &mut row { fields.insert("until".into(), Value::Int(199)); fields.insert("payload".into(), payload.clone()); }
             tx.put("members", &backend.schema.tables["members"], &row, Some(&old)).unwrap();
-            let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(300),
+            let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(198),
                 Ceilings { examined: 1 + u64::from(aggregate), heap_bytes: 32768, ..Ceilings::unbounded() });
             if payload == Value::Null { assert!(result.is_ok(), "aggregate={aggregate}: {result:?}"); }
             else { assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}: {result:?}"); }

@@ -226,3 +226,22 @@ fn cost_text_and_json_keep_window_and_expiry_growth_without_empty_rewrites() {
     }
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn expiring_aggregate_certificate_matches_live_population_and_backlog_measurements() {
+    let b=compile(include_str!("../../snapback4-lang/tests/fixtures/expiring-counts.q"));
+    let c=certificate(&b,"unread");
+    assert!(c.line().contains("constant aggregate lookup plus unswept expired receipts contributions"),"{c:?}");
+    assert!(c.line().contains("server expiry sweep"));
+    for live in [100,10_000] {for backlog in [0,500] {
+        let mut e=engine(compile(include_str!("../../snapback4-lang/tests/fixtures/expiring-counts.q")));
+        let rows=(0..live+backlog).map(|n|("receipts".into(),snapback4_core::value::object([
+            ("id",Value::Id(format!("r{n}"))),("chat",Value::Id("chat".into())),("principal",Value::Id("alice".into())),("state",Value::Int(0)),("visible",Value::Bool(true)),("weight",Value::Int(1)),("at",Value::Int(0)),("expiresAt",if n<backlog {Value::Int(100)}else{Value::Null})
+        ])));
+        e.seed(rows).unwrap();
+        let result=e.query("unread",Context::new("alice",BTreeMap::new()).at(100)).unwrap();
+        assert_eq!(result.metered.examined,backlog as u64+2);
+        assert_eq!(result.data,Value::Int(live as i64)); assert!(result.complete);
+        covered(&c,&result);
+    }}
+}

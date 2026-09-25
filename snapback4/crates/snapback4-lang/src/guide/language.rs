@@ -629,6 +629,7 @@ unambiguous declared unique key; named keys make the intended columns explicit.
 `search` declares searchable text, and unnamed `unique` declares a unique key.
 Duration literals are integer milliseconds in any expression.
 
+
 ## Materialized Following
 
 The public activity union supplies a private delivered feed for each reader.
@@ -771,4 +772,26 @@ mutation timelineRemove(postId: timelineCards):
 query timelineHome(c: cursor ?):
   return timeline[viewer] after c last 20 { *, post: timelineCards[.postId] }
 
-```"##;
+```
+
+An unread count can use the same expiring receipts as message history. The
+server reads a total plus its unswept expiry backlog (`guide maintains`).
+
+```quarry
+table receipts:
+  chat: id
+  principal: principal
+  state: int
+  visible: bool
+  expiresAt: time ?
+  expire at .expiresAt
+  read <- .principal = viewer
+  sync last 500 by .id
+view unreadCounts: count receipts where .state < 2 and .visible by .chat, .principal
+query unread(chat: id):
+  return unreadCounts[chat, viewer]
+query inbox(c: cursor ?):
+  return unreadCounts where .principal = viewer first 20 after c
+```
+
+"##;

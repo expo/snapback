@@ -226,7 +226,7 @@ impl Runner<'_> {
     }
 }
 
-fn delta(maintain: &Maintain, source: &Value, direction: i64) -> Result<i128, RuntimeError> {
+pub(super) fn delta(maintain: &Maintain, source: &Value, direction: i64) -> Result<i128, RuntimeError> {
     Ok(match &maintain.kind {
         MaintainKind::Count => i128::from(direction),
         MaintainKind::Sum { of } => i128::from(direction).checked_mul(i128::from(source.field(of)?.as_int()?)).ok_or_else(|| aggregate_overflow(maintain))?,

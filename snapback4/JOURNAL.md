@@ -55516,3 +55516,269 @@ No syntax, refusal, planner or guide change, no design deviation, no
 version change, push or publication. Touched source files remain below
 1,500 lines; the largest is read.rs at 1,392. Full file map, failure record,
 measurements and logs: `reports/20260925-intent-lane-r-round2.md`.
+
+
+## 2026-09-24 — LLP 3000.013 Lane Q: expiring counts read the unswept backlog
+
+Implemented expiry-ordered contribution indexes `(group, expiry, source id)`,
+with null expiry last, and server live reads that subtract the unswept expired
+backlog from the physical total. Existing writes and sweeps retain physical
+occupancy and subtract each deleted contribution exactly once. The final live
+seek preserves candidate semantics and clock invalidation; interrupted scans
+still return unavailable, never zero or a partial total. Added metered, atomic
+0.4.1-shaped index adoption for SQLite, PostgreSQL and memory/device stores,
+including rollback at the unchanged 2,048-byte portable index-key limit.
+The compiled guide, cost certificate and dated LLP 3000.007 §20.9.3 amendment
+state the server backlog bound and the retained device behavior.
+
+Measured server examined rows at live group sizes 100 and 10,000 with backlogs
+0 and 500: respectively 2 and 502 at both sizes. The old live-recomputation
+path retained on devices measures 101 at size 100 and cuts at 8,193 for 10,000;
+this is a device reference-path measurement, not an old server binary run.
+The actual one-second sweep cadence, 2 ms slice and 2,000-row maximum drained
+300 expired receipts among 10,000 in 12 passes / 12,000 ms on the shared host.
+The physical total then became 9,700 and server examined returned to 2. This
+is an observed lag, not a maximum guarantee. Seeded differential tests made
+4,320 comparisons across counts, sums, predicates, computed keys, expiry
+updates, deletes, sweeps and clock advances. Memory/SQLite prediction checks,
+legacy store upgrades, adoption refusal atomicity, certificate metrology and
+an explicitly run isolated real-PostgreSQL regression all pass.
+
+Stopped the physical-total/nextExpiry device protocol under the brief's
+explicit rule. At time 100 an empty table and one unswept receipt expiring at
+100 have the same empty fresh live snapshot; transmitting physical total 1
+and its past deadline distinguishes the expired data. Engine-owned metadata
+does not prevent disclosure to its recipient. Separately, the specified device
+recomputation over 10,000 held receipts after 300 expire cannot return the
+required exact answer within the unchanged 8,192 examined ceiling. Executable
+counterexamples and reproduction commands are in the lane report. Constant
+cost device answers and the new delivery/prediction metadata remain unbuilt;
+the current device returns unavailable when its live scan cannot complete.
+
+The suite exposed a pre-existing client fallback bug: loading did not retire
+a remembered server answer, so later transport failure could revive it. Added
+a regression that failed on the old client and fixed that cache retirement.
+Also made the existing readiness fixture await actual sync after its controlled
+transport loss; all assertions remain and ten repeated runs pass. The exact
+intermediate failure ledger attributes every failure as ours, baseline or
+environmental, including the interrupted disk-full run and two completed runs
+with 2 and 1 failing stages. Final `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 265 s`**. All 882 Rust executions including doctests pass;
+the main client process has 1,479 tests, 1,469 passes, zero failures and ten
+existing explicit skips. Separate shards pass; no new skips or waived failures.
+Final real-PostgreSQL rerun passed and its private server was stopped afterward.
+
+Wasm measures 1,767,654 raw / 492,341 gzip bytes, +1,858 / +701 from the
+recorded integration artifact. Raised the documented artifact ratchet from
+492,000 to 493,000 bytes, leaving 659 bytes headroom; runtime ceilings remain
+unchanged. Builds stayed on the shared disk. No new syntax or refusal code,
+value-order indexes over expiring sources, maintained columns over expiring
+sources, expiring-maintain rule value comparisons, version bump, push or
+publication. The supervisor owns integration and the stopped design decisions.
+Full file map, forms, test proofs, deviations and reproductions:
+`reports/20260925-lane-q-expiring-counts.md`; every intermediate test failure:
+`reports/20260925-lane-q-test-failures.md`. Final suite evidence:
+`~/sb4-intent/lane-q-test-complete.log`.
+
+
+## 2026-09-24 — LLP 3000.013 Lane Q review round 1: bounded adoption and live witnesses
+
+Resolved Astra's two Medium findings and Low differential-test weakness, plus
+Grok's High PostgreSQL adoption finding and Medium physical existence-walk
+finding. Grok's Low cap finding duplicates Astra's. Commits 811dbb1a5,
+9bb1a3261 and 2707b0093 hold the implementation, regressions and guide/LLP
+updates. The supervisor accepted the device stop: local counts that cannot
+complete stay unavailable and use the existing server fallback. No physical
+total or private next-expiry certificate is delivered.
+
+Cap validation now selects only plain indexes. The legacy `cap 1 by expiresAt`
+fixture with Alice's rows expiring at 1000 and 2000 upgrades successfully.
+Activation preflights stored byte lengths and reserves a fitting page before
+fetching serialized rows; contribution decoding/evaluation shares that meter
+while the whole page remains resident. Cap and uniqueness validation now
+stream keys, avoiding a second unmetered source-image buffer. The independent
+allocator regression for 600 receipts with 65,536-byte payloads measured
+33,225,445 additional live Rust bytes before and 2,893,625 after, within the
+unchanged 16,777,216-byte job heap. An oversized final row refuses after earlier
+pages without changing rows, indexes, cap occupancy, catalog or metadata.
+
+PostgreSQL uses its own adaptive serialized-page preflight under the existing
+writer lock, with per-row decoder/index scratch released after consumption.
+Its query scan's conservative reservation is unchanged. Real PostgreSQL tests
+first reproduced E_BOUND for 96 receipts with 4 KiB bodies, then passed that
+case and 600 receipts with 64 KiB bodies after the fix. Live, expired-unswept
+and null-expiry contributions remain exact; physical totals are intact and
+reopen keeps generation 2 instead of retrying adoption. The private socket-only
+PostgreSQL server was stopped afterward.
+
+Existence probes now seek strictly past the pinned instant on the new internal
+index. Independent counters at the store boundary reproduced 9,000 fetched
+expired rows before the fix; after it, absence fetches zero source rows and
+presence one, on memory and SQLite for server reads and device predictions.
+Finite/null live expiry, another principal's group and unselected rows are
+covered. The existing read-authority target passes 20/20, including unchanged
+ordinary-expiry and heap-refusal boundaries; the simulator's one-probe tests
+pass 2/2. This does not make a large device aggregate value available.
+
+The differential test requires every valid write to succeed, checks its stored
+image, and observes all nine transition classes in every seed. Its 4,320
+comparisons now include 63 successful state=1 updates, 9 filter-on and 65
+filter-off transitions, 16 expiry-to-null, 11 earlier-expiry, 109 later-expiry
+or null-to-instant transitions, and 68 computed-day moves. A separate test
+checks 50 scalar reads across 25 chat keys/two principals and two pages with
+all 24 live Alice groups exactly once. Server examined costs remain 2/502 for
+backlogs 0/500 at live populations 100/10,000. Devices retain unavailable at
+8,193 examinations for the large value read; server fallback answers exactly.
+
+The first round-1 complete suite passed `== 0 failure(s) in 353 s`. After
+Grok's fixes, a run ended `== 1 failure(s) in 240 s`: all 883 Rust executions
+passed, but two stale-session client cases and one worker ECONNRESET failed.
+Their unchanged fixture schemas have no expiring maintains; all three passed
+in the prior full run and twice in isolation. Classification is environmental/
+intermittent, inferred with root cause unproven; no client code or assertions
+were changed. The exact names, traces, reproduction command, preliminary
+implementation failures and attribution are in the round-1 report.
+
+Final scripts/test.sh, unchanged source, exit 0:
+**`== 0 failure(s) in 205 s`**. All 883 Rust executions across 175 binaries
+and the separate workspace doctests pass. Main client process: 1,479 tests, 1,469 pass, zero
+failures and ten existing explicit skips; separate shards pass. All three
+intermittent cases pass in this full run. No new skip or failure waiver.
+Wasm is 1,768,024 bytes raw / 492,569 gzip, within the unchanged 493,000-byte
+artifact ratchet with 431 bytes headroom. No runtime ceiling, wire shape,
+new syntax, refusal code, version, push or publication. Build artifacts remain
+on shared disk. Full file map, evidence and remaining accepted limitation:
+`reports/20260925-lane-q-round1.md`; final suite log:
+`~/sb4-intent/lane-q-r1-test-complete.log`.
+
+
+## 2026-09-24 — LLP 3000.013 Lane Q review round 2: fitting adoption pages
+
+Resolved both delta reviews' Medium adoption findings and their Low test gaps.
+Commit dc54cbc8f removes the second decoder multiplier and adds a shared
+SQLite/PostgreSQL admission pass that checks the retained page plus the active
+row's decoder and contribution allowance before any callback writes. A page
+that cannot fit is dropped, its reservation released, and its limit halved.
+Only an oversized singleton may refuse for heap. Preflight decodes charge
+examined work and preserve the meter across retries; optional/default field
+footprints are calculated without allocating them. Callback decoding and
+contribution evaluation retain the complete fetched-page reservation.
+
+The review's 1,000,000-byte body first reproduced E_BOUND at 19,017,459 charged
+bytes on SQLite and 24,014,816 on PostgreSQL, against the unchanged 16,777,216
+job heap. Both now adopt. SQLite also adopts one 1 MiB body, five 512 KiB rows
+and five 1,280 KiB rows. Additional live Rust peaks, measured around complete
+adoption on the final implementation, are 3,003,026; 3,148,754; 3,673,674; and
+3,935,639 bytes respectively. The existing 600 × 65,536-byte fixture remains
+2,893,625 bytes. An oversized 2 MiB singleton after 300 ordinary rows refuses
+atomically, with an unchanged whole-store digest and a 4,591,031-byte Rust peak.
+Native SQLite bytes are excluded from that independent allocator probe and
+remain reserved by the page ledger's native-payload allowance.
+
+Both explicitly enabled real-PostgreSQL tests pass. The new one-million-byte
+and five-by-512-KiB fixtures preserve payloads, every new index key and physical
+counts; reopen stays at generation 2. Existing 96 × 4 KiB and 600 × 64 KiB
+query checks still pass. Two intermediate test drafts attempted a query under
+a 2 MiB source-column bound and hit the evaluation adapter's existing query
+heap reservation (268,466,405 at programs.count.0). That separate query bound
+is unchanged; large-row tests verify adoption directly. The private socket-only
+PostgreSQL server was stopped after its successful final run.
+
+Commit 3c653bb5f adds the live witness expiring at now + 1 on memory and SQLite,
+for server reads and device predictions with zero or 9,000 expired rows. Three
+deliberate mutations were detected: removing page scratch admission refuses
+the five-by-1,280-KiB fixture at 18,370,134 bytes; deleting the retained-buffer
+reservation fails the callback-boundary assertion; advancing the seek to
+gt now + 1 makes both witness tests fail. All mutations were restored.
+
+The first complete suite ended `== 1 failure(s) in 363 s`: two client source
+audit tests rejected the shared helper's direct serde_json decode. This was
+ours, fixed by using the existing json_codec::from_text funnel without adding
+an exception. All 26 codec-census tests then passed, as did the real PostgreSQL
+rerun. The reproductions, negative tests and fixture corrections are also ours;
+no failure this round is attributed to baseline or environment.
+
+Final scripts/test.sh, exit 0: **`== 0 failure(s) in 222 s`**. All 883 Rust
+executions across 175 binaries and separate workspace doctests pass. The main
+client process reports 1,479 tests, 1,469 pass, zero failures and ten existing
+explicit skips; all separate shards pass. No new skip or waived failure.
+Wasm: 1,768,024 raw / 492,568 gzip bytes, within the unchanged 493,000 ratchet.
+Ref-check: 507 LLP docs, 9,276 refs, 25,862 files, zero errors or unchecked refs.
+Server examined-row costs remain 2/502 for backlogs 0/500 at 100/10,000 live
+rows, unchanged before and after this review correction. The device stop is
+still accepted: incomplete local recomputation stays unavailable and the
+existing server fallback answers; no physical T or private nextExpiry delivery.
+
+No runtime ceiling, query reservation, syntax, refusal code, version, push or
+publication changed. Value-order indexes, maintained columns and rule value
+comparisons over expiring sources remain refused. Build artifacts remain on
+the shared disk. File map, complete failure attribution and reproductions:
+`reports/20260925-lane-q-round2.md`. Full suite and measurements:
+`~/sb4-intent/lane-q-r2-test-complete.log`,
+`~/sb4-intent/lane-q-r2-adoption-measurements.log`, and
+`~/sb4-intent/lane-q-r2-postgres-tests.log`.
+
+
+## 2026-09-24 — LLP 3000.013 Lane Q review round 3: every adoption page budget
+
+Commit 8aca506a4 resolves Astra's examination-budget regression and admission
+accounting test gap. A schema-derived per-row budget now limits SQLite and
+PostgreSQL adoption pages by every charged cumulative meter: examined, steps
+and index entries. Heap admission still reserves the retained fetched buffer
+together with active decoder and contribution scratch. Budget checks happen
+before callbacks; rejected attempts keep their examinations and release only
+dropped heap. PostgreSQL now explicitly charges callback decoding separately
+from contribution evaluation. Only a non-fitting singleton refuses; an empty
+range remains legal. No ceiling is raised and no existing charge is removed.
+
+The 256-receipt/63-view regression first reproduced examination 16,385 against
+16,384. It now adopts in pages of 252 and 4, costing 16,380 and 260 examinations
+respectively, including all 256 admission decodes. Adding twenty comparisons
+to each of the 63 views exercises the step budget: 198 and 58 rows per page,
+997,920 and 292,320 steps. All 63 indexes retain every selected row, and
+reinstall preserves the store digest. Four walker tests assert exact callback
+counters, heap retention, singleton refusal and page limits for each meter.
+The five-by-1,280-KiB heap retry case observes examinations [3, 3, 3, 3, 2],
+including work from all four rejected attempts. Additional live Rust peaks
+remain 3,003,026 bytes for one 1,000,000-byte body, 3,935,639 for five 1,280 KiB
+rows, and 2,893,625 for 600 × 65,536-byte rows. Native SQLite bytes remain
+excluded from the independent allocator probe and included in the page ledger.
+
+Grok's completed delta review is READY, with no new High or Medium finding.
+Its surviving native-copy coefficient mutation is now detected by the
+strengthened callback heap assertion. Five deliberate mutations were caught
+and restored: deleting admission charges, omitting admission from page sizing,
+omitting the step budget, erasing rejected-attempt work, and reducing the
+serialized-page reservation from three copies to one. All three real
+PostgreSQL tests pass, including callback-boundary budgets and prior large-row
+upgrade cases; its private socket-only server was stopped afterward.
+
+Two earlier complete runs ended `== 1 failure(s) in 305 s` and
+`== 1 failure(s) in 390 s`, both at the client-test stage. The first timed out
+on native 256-pending-ID transport settlement. The second timed out starting
+servers for logout-online and missing-store slow-first-sync navigation. All
+three unchanged-source cases pass in isolation and in the final complete run.
+Classification: environmental/intermittent, inferred with root cause unproven;
+no baseline claim, timeout change, assertion weakening or failure waiver.
+Exact test names, traces and reproductions are recorded in the round-3 report.
+
+Final scripts/test.sh, exit 0: **`== 0 failure(s) in 1196 s`**. Command uses
+`CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=8
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`, the script's existing shared-host mode.
+All 883 Rust executions across 175 binaries and workspace doctests pass. The
+single client process runs every file, including those ordinarily sharded:
+1,513 tests, 1,503 pass, zero failures and ten existing explicit skips. Wasm
+remains 1,768,024 raw / 492,568 gzip bytes under the unchanged 493,000 budget.
+Ref-check: 507 LLP documents, 9,276 refs, 25,863 files, zero errors or unchecked
+references. Build artifacts stay on shared disk.
+
+Server aggregate read costs remain 2/502 examined rows for backlogs 0/500 at
+100/10,000 live rows. The accepted device stop remains unavailable plus server
+fallback when local recomputation exceeds its meter; no physical-total/private
+next-expiry delivery. The separate PostgreSQL query reservation for a declared
+2 MiB payload bound remains unchanged. Value-order indexes, maintained columns
+and rule value comparisons over expiring sources remain refused. No new syntax,
+refusal code, wire shape, authorization policy, version, push or publication.
+File map, decisions, open-limit reproductions and complete failure attribution:
+`reports/20260925-lane-q-round3.md`. Final suite evidence:
+`~/sb4-intent/lane-q-r3-test-complete.log`.

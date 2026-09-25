@@ -143,14 +143,19 @@ impl Runner<'_> {
                 let group = crate::schema::maintained_key(row, &maintain.by);
                 let (name, prefix) = maintain.source_scan(source, &group);
                 if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { known = false; }
-                let mut bounds = Bounds::default();
+                // @ref LLP 3000.007#20.9.3 — an expiry-ordered existence witness skips the entire expired backlog.
+                let expiry_ordered = source.index(name).is_some_and(|index| matches!(index.components.as_slice(),
+                    [crate::schema::IndexComponent::Contribution(_), crate::schema::IndexComponent::Column(column)] if Some(column) == source.expire.as_ref()));
+                let mut bounds = Bounds { gt: self.context.now.filter(|_| expiry_ordered).map(Value::Int), ..Bounds::default() };
                 live = false;
                 'sources: loop {
-                    let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, 32)?;
+                    let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, if expiry_ordered { 1 } else { 32 })?;
                     let count = rows.len();
                     for (mut candidate, stored) in rows {
                         self.witness_materialize(&mut candidate, source)?;
-                        bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 1), prefix.len())?;
+                        // A contribution component expands to the whole group,
+                        // followed by expiry and source id in the new format.
+                        bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 2), prefix.len())?;
                         if self.device_work_active {
                             self.meter.step(maintain.evaluation_steps())?;
                             self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
@@ -235,62 +240,6 @@ impl Runner<'_> {
         Ok(crate::key::decode(stored).map(|values| values.into_iter().skip(prefix).collect()))
     }
 
-    /// A maintain over expiring source rows is a live fact before the
-    /// physical sweep catches up. Recompute only that fact's group, with
-    /// the usual runtime meter and device coverage rules.
-    pub(crate) fn live_aggregate(&mut self, table_name: &str, row: Value) -> Result<Option<Value>, RuntimeError> {
-        let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
-        let source = self.schema.table(&maintain.source).ok_or_else(|| RuntimeError::Schema("missing maintain source".into()))?;
-        if source.expire.is_none() { return Ok(Some(row)); }
-        let bytes = super::write_target::row_copy_ceiling(source).saturating_mul(32)
-            .saturating_add(super::write_target::row_copy_ceiling(&self.schema.tables[table_name]).saturating_mul(16));
-        self.maintain_scratch(bytes, |runner| runner.live_aggregate_inner(&maintain, row))
-    }
-
-    fn live_aggregate_inner(&mut self, maintain: &crate::schema::Maintain, row: Value) -> Result<Option<Value>, RuntimeError> {
-        let source = &self.schema.tables[&maintain.source];
-        self.read_tables.insert(maintain.source.clone());
-        let group = crate::schema::maintained_key(&row, &maintain.by);
-        let (index, prefix) = maintain.source_scan(source, &group);
-        if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) {
-            self.unknown_fact(&maintain.source, index, &prefix, "live aggregate");
-        }
-        let mut bounds = Bounds::default();
-        let mut total = 0_i128;
-        let mut any = false;
-        'sources: loop {
-            let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 32)?;
-            let count = rows.len();
-            for (mut candidate, key) in rows {
-                materialize_optional_fields(&mut candidate, source);
-                if !self.read_charge(MeterKind::Examined, 1)? { break 'sources; }
-                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
-                if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
-                if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
-                let prior = std::mem::replace(&mut self.beyond_horizon, false);
-                let allowed = self.provisional_readable(&maintain.source, &candidate);
-                let unknown = self.beyond_horizon;
-                self.beyond_horizon |= prior;
-                if !allowed? {
-                    if unknown { return Ok(None); }
-                    continue;
-                }
-                any = true;
-                self.note_expiry(source, &candidate);
-                total += match &maintain.kind { crate::schema::MaintainKind::Count => 1, crate::schema::MaintainKind::Sum { of } => i128::from(candidate.field(of)?.as_int()?) };
-            }
-            if count < 32 { break; }
-        }
-        self.meter.require_uncapped()?;
-        if !any { return Ok(None); }
-        if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {
-            return Err(super::maintains::aggregate_overflow(&maintain));
-        }
-        let mut fields = row.as_object()?.clone();
-        fields.insert("value".into(), Value::Int(total as i64));
-        Ok(Some(Value::Row(fields.into())))
-    }
-
     /// Whether a row is past its table's `expire` column at this run's
     /// clock. Expired is absent: to every reader, on every host, before
     /// any rule (the sweep makes it physical). The system sees no more
@@ -299,7 +248,7 @@ impl Runner<'_> {
         self.context.now.is_some_and(|now| table.expired(row, now))
     }
 
-    fn note_expiry(&mut self, table: &Table, row: &Value) {
+    pub(super) fn note_expiry(&mut self, table: &Table, row: &Value) {
         if let Some(column) = &table.expire
             && let Ok(Value::Int(at)) = row.field(column)
             && self.context.now.is_some_and(|now| *at > now)

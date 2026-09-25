@@ -160,9 +160,10 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   A null time never expires. Disappearing messages
   are one field on insert, `expiresAt: now + ttl if ttl != null else
   null` with `ttl: int ?`; nothing else to write. A maintained `view` over an
-  expiring table recomputes its live source group at read time, before the
-  sweep; a partial device reports `complete: false`. If the meter interrupts
-  a maintained lookup or live group, the query returns `data: null,
+  expiring table subtracts its unswept expired backlog from the physical
+  total on the server. Devices still recompute live contributions; a partial
+  device reports `complete: false`. If the meter interrupts a maintained
+  lookup, backlog scan or device live group, the query returns `data: null,
   complete: false`, without substituting zero or a partial total.
   Value-order indexes over expiring sources are refused
   (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,
