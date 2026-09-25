@@ -902,7 +902,8 @@ Refusals before durable admission, the online tier and mock remember outcomes
 only for that client lifetime, up to 256 terminal outcomes. Before deleting an
 adopted web tab's store, the host copies its value-free terminal receipts into
 a shared window for the same server and viewer, bounded to 256 receipts in
-recovery order. Existing shared ids keep their outcome and position. Every
+recovery order. Verified terminal corrections replace shared `E_STORE_REPLACED`
+in place; authored refusals and retention positions stay unchanged. Every
 opener and `client.write(id)` reads that window alongside its own device's
 256 receipts; reads never copy or refresh it. A different tab winning adoption
 cannot hide the receipt from a reload. Outboxes remain exclusively owned:
@@ -921,6 +922,8 @@ pending and replays the same id against its original store to recover the record
 success or refusal. New sync pages explicitly qualify successful acknowledgements;
 only that evidence, or the original store's replay, can correct `E_STORE_REPLACED`.
 Authored refusals such as `NOT_ADMIN` remain failures.
+Both ordinary and page-hide replay post the retained receipt's original store
+binding before any journal or current-device identity, including after replacement.
 
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent or fixture; arbitrary fixture strings still need an application ledger.

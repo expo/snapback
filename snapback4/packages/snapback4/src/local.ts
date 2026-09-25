@@ -1114,7 +1114,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (!current) return { ok: true as const, retired: true as const };
           const known = await recoverReceipt(history, call, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null);
           if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false };
-          const binding = entry.store_id ?? entry.receipt_store?.id ?? storeIdentity;
+          const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity;
           if (!binding) return { ok: false as const };
           if (settling.has(entry.id)) return { ok: false as const };
           settling.add(entry.id);

@@ -228,7 +228,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           const dispatch = () => {
             if (!suspended || closing || !device) return;
             const entries: PendingSend[] = [...committed.values()].filter(e => successSequence(e) == null).sort((a, b) => a.seq - b.seq)
-              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: journal.boundStore(e.id) ?? e.receipt_store?.id ?? undefined }));
+              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: e.receipt_store?.id ?? journal.boundStore(e.id) ?? undefined }));
             if (entries.length) flush(entries, () => beginSend(entries[0]!.id));
           };
           const suspend = () => { suspended = true; publishCommitted(); };
@@ -316,7 +316,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 }
                 const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
                 if (request.op === "queued" && Array.isArray(reply.ok)) {
-                  reply.ok = reply.ok.map(entry => ({ ...entry, store_id: journal.boundStore(entry.id) }));
+                  reply.ok = reply.ok.map(entry => ({ ...entry, store_id: entry.receipt_store?.id ?? journal.boundStore(entry.id) }));
                 }
                 const observesStore = request.op === "observe_store" || request.op === "apply";
                 if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
@@ -623,9 +623,19 @@ async function shareReceipts(persist: Persistence, name: string, text: string): 
   if (!held) return false;
   try {
     const kept = await receiptHistory(persist, name);
-    const ids = new Set(kept.map(write => write.id));
-    for (const write of terminalReceipts(text)) if (!ids.has(write.id)) { ids.add(write.id); kept.push(write); }
-    // Existing ids are immutable and do not become newer on repeated adoption.
+    const positions = new Map(kept.map((write, index) => [write.id, index]));
+    for (const write of terminalReceipts(text)) {
+      const index = positions.get(write.id);
+      if (index === undefined) { positions.set(write.id, kept.length); kept.push(write); }
+      // @ref LLP 3000.013#6 — a verified outcome resolves replacement's unknown
+      // execution. The source device already validated the correction before
+      // persisting it; adoption must keep it before deleting that source.
+      else {
+        const prior = kept[index]!;
+        if (prior.state === "failed" && prior.why.code === "E_STORE_REPLACED") kept[index] = write;
+      }
+    }
+    // Corrections retain their position; authored outcomes remain immutable.
     await persist.save(`${name}:receipts`, [{ s: "m", k: "client:write-history", v: JSON.stringify(kept.slice(-WRITE_HISTORY_LIMIT)) }]);
     return true;
   } finally { await held.release(); }

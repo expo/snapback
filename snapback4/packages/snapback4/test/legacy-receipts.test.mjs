@@ -70,7 +70,7 @@ test('an aborted replay receipt retains its original-store proof for persistence
   assert.deepEqual(await history.read('legacy'), refusal);
 });
 
-for (const tier of ['memory', 'sqlite']) for (const field of ['observed_seq', 'sent_seq']) for (const prior of ['empty', 'replacement']) {
+for (const tier of ['memory', 'sqlite']) for (const field of ['observed_seq', 'sent_seq', 'old-page']) for (const prior of ['empty', 'replacement']) {
   test(`${tier}: legacy ${field} with ${prior} history replays NOT_ADMIN without executing`, { timeout: 30_000 }, async t => {
     const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-receipt-'));
     const sourceDir = join(dir, 'snapback'); mkdirSync(sourceDir); writeFileSync(join(sourceDir, 'schema.q'), source);
@@ -108,7 +108,15 @@ for (const tier of ['memory', 'sqlite']) for (const field of ['observed_seq', 's
 
     online = false; await client.sync();
     ok(await core.call({ op: 'enqueue', entry: { id, seq: 1, op: operation.name, args: {}, viewer: 'dev:alice', now: Date.now(),
-      new_ids: [], predicted: [], predictable: false, [field]: stored.seq, receipt_store: { id: store } } }));
+      new_ids: [], predicted: [], predictable: false, ...(field === 'old-page' ? {} : { [field]: stored.seq }), receipt_store: { id: store } } }));
+    if (field === 'old-page') {
+      const state = ok(await core.call({ op: 'state' }));
+      ok(await core.call({ op: 'apply', first: false, page: { snapshot: false, generation: state.generation, events: [],
+        watermark: Math.max(stored.seq, state.watermark), more: false, store_id: store, acknowledged: { [id]: stored.seq } } }));
+      const [entry] = ok(await core.call({ op: 'queued' }));
+      assert.equal(entry.observed_seq, stored.seq);
+      assert.equal(entry.receipt_store?.success_seq ?? null, null, 'an old page without sent cannot qualify a refused _ops record');
+    }
     if (prior === 'replacement') ok(await core.call({ op: 'keep_write', value: JSON.stringify({ state: 'failed', id, why: { code: 'E_STORE_REPLACED', family: 'store', message: 'unknown outcome' } }) }));
     else assert.ok(!JSON.parse(ok(await core.call({ op: 'meta', key: 'write-history' })) ?? '[]').some(receipt => receipt.id === id));
     await client.close(); client = await open();
