@@ -58841,3 +58841,133 @@ The first 0.4.2 publication stopped at its full-suite gate. Three published-0.2.
 - **Qualification:** on the black M5 with `SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33`, the full suite ran `== 0 failure(s) in 661 s`, and all three capability fences and the compatibility control passed. A browser typing-expiry test that had failed once under host load 49 ("execution context was destroyed") passed in this run.
 
 The fix lane wrote the change. Its codex session lost its sign-in before qualification, so the supervisor ran the suite and committed.
+
+## 2026-09-25 — Lane U round 11: expiry retry watch edges for 0.4.3
+
+Fetched and merged `origin/main`, fast-forwarding the lane to integrated
+`05382d59f`, then implemented the two ticketed review findings in `93f13ae44`.
+Recovery now keeps the retry's local `nextExpiry` beside remembered data's
+server-clock `serverExpiry`, so an offline speculative middle branch wakes
+at its second permit deadline. Server transport reached by the expiry retry
+uses `retain: false`: an already published pre-deadline value is withdrawn
+during the HTTP round trip. Purely local retries still publish their answer
+without an intermediate loading reset. The numbered procedure and client
+reference state both refinements. Moved the ticket into `issues/closed/`
+and appended its resolution.
+
+Added six real wasm/native process cases: chained permits recover an idle
+watch at T2 without sync; a populated watch straddling T contains no expired
+secret during delayed HTTP; and a server fallback after T keeps its cursor
+and returns the next distinct page. Sixteen router cases cover independent
+local/server clocks, missing/valid/expired memory, queries/watches and
+offline/failed-transport recovery. The affected suite passed **230/230**.
+All three deliberate mutations were rejected: losing recovery's local deadline
+failed 18 cases; retaining the expired watch value failed both device cases;
+nulling the retry's server cursor failed both pagination cases.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 942 s`**.
+Rust: 3,196 passed, 19 existing ignored, zero failures. Clients including
+shards: 1,990 passed, ten existing skips, zero failures/cancellations. Models:
+78 passed at the unchanged 5,000 / 5,000 / 3,000 sequences. No full-suite
+failure, baseline exemption or environmental exemption. New fixture shape
+and clock-interleaving mistakes were corrected during test development;
+negative-control mutation failures were expected. Wasm remains **1,850,576 B
+raw / 521,814 B gzip**, within the unchanged 522,000 B budget.
+
+No design deviation, authorization relaxation, contract change, runtime-meter
+change, model-count reduction, timeout increase, acquisition remeasurement,
+version bump, push or publication. The separately ticketed whole remembered
+answer row-expiry limitation remains open as instructed. File map, rule/test
+coverage, mutation runner, exact suite command and compressed evidence:
+`reports/20260925-bounded-following-r11/REPORT.md`.
+
+## 2026-09-25 — Lane U round 12: remembered validity and local wakeups
+
+Read both round-11 delta reviews and fixed their shared Medium on round-11
+head `d5c2f6d20` (integrated main base `05382d59f`). Implementation/test commit:
+`22d665202`. Final publication now judges remembered data only by its own
+server deadline. An elapsed local wakeup is consumed and sets `watch.dirty`,
+including attempt zero, without withdrawing valid memory. Future local
+wakeups stay scheduled, including when the memory's own server deadline
+expires. The five-rule comment and client reference state this distinction.
+No expiry cutoff was relaxed.
+
+Added six real wasm/native process cases: Astra's `branch()` recovers server
+`true` when its speculative T−1 local result arrives at T, as both a query and
+watch; a watched server fallback after an expiry retry preserves `next` and
+returns the next distinct page. The watch page is checked at its first data
+notification so a clock-triggered rerun cannot hide a lost cursor. Sixteen
+router cases cross the recovered local deadline during the final publication
+await, on the initial attempt and on retry, offline and after failed fallback,
+with null/future memory expiry, as queries/watches. Four controls cross the
+memory's actual server deadline and require withdrawal/deletion while retaining
+future local wakeups. The affected suite passed **256/256** in 55.533 seconds.
+
+All four deliberate mutations were rejected: expiring memory by a local
+wakeup failed 20 tests; omitting the dirty-watch mark failed ten; returning the
+consumed wakeup failed 16; nulling only a watched retry server cursor failed
+both device tests. The initial watched-pagination harness assumed no extra
+clock-triggered request; capturing the first publication corrected that owned
+test-development error. Mutation failures were expected negative controls.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 626 s`**.
+Rust: 3,196 passed, 19 existing ignored, zero failures. Clients with shards:
+2,016 passed, ten existing skips, zero failures/cancellations. Models: 78 passed
+at unchanged 5,000 / 5,000 / 3,000 sequences. No full-suite failure or baseline/
+environmental exemption. Wasm is unchanged at **1,850,576 B raw / 521,814 B
+gzip**, below the unchanged 522,000 B budget. Changed source/test files are
+286, 805 and 263 lines, below the 1,500-line ceiling.
+
+No design deviation, authorization/disclosure/durability relaxation, runtime
+meter change, model-count reduction, timeout increase, acquisition remeasurement,
+version bump, push or publication. The whole remembered-page row-expiry issue
+remains deferred as instructed, pending engine per-row expiry facts and later
+design. File map, rule/test coverage, exact suite command, mutation runner and
+compressed evidence: `reports/20260925-bounded-following-r12/REPORT.md`.
+
+## 2026-09-26 — Lane U round 13: remembered pages survive local timer wakeups
+
+Read both round-12 delta reviews and implemented Grok's Medium after round-12
+head `e880cf39c`. Implementation/test commit: `30dd08cd5`. Final query results
+now carry whether their local deadline is a remembered-answer wakeup. Watch
+scheduling uses that explicit provenance: only a local wakeup reruns without
+reset or notification. Actual local/composed row deadlines, server deadlines
+and session refusals still withdraw the snapshot. A future server cutoff stays
+armed while a local rerun is slow. The attempt-zero consume/dirty logic remains
+intact. The procedure comment and client reference describe both timer and
+in-flight wakeups.
+
+Added real wasm/native timer cases that publish remembered `true` before T,
+let T elapse, and hold the device reply: snapshot identity and notification
+count stay unchanged throughout the rerun. Five controlled-clock cases cover
+null, simultaneous and future server deadlines, an early timer that rearms,
+and a composed page with a real local-row deadline but no server deadline.
+Also closed Astra's Low test gap with four retry/server-expiry publication
+controls requiring private memory withdrawal and cache deletion. The affected
+suite passed **281/281** in 56.728 seconds; the final strengthened clock controls
+passed **19/19** in 0.524 seconds.
+
+Five deliberate mutations were rejected: resetting remembered data at its
+local wakeup failed five tests; inferring wakeups from missing server expiry
+failed the composed-row control; disarming the server cutoff during a held
+rerun failed; dropping provenance on timer rearm failed; allowing remembered
+authorization to expire unnoticed after retry failed four controls. The optional
+early-timer mutation initially survived because the fixture did not actually
+fire early. Explicitly arming the first timer before its real deadline fixed
+that owned test-strength issue. No unmodified product test failed during
+implementation; mutation failures were expected negative controls.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 626 s`**.
+Rust: 3,196 passed, 19 existing ignored, zero failures. Clients with shards:
+2,027 passed, ten existing skips, zero failures/cancellations. Models: 78 passed
+at unchanged 5,000 / 5,000 / 3,000 sequences. No full-suite failure or baseline/
+environmental exemption. Wasm remains **1,850,576 B raw / 521,814 B gzip**,
+within the unchanged 522,000 B budget. Every changed source/test file remains
+under 1,500 lines; the largest is `local.ts`, 1,431 lines.
+
+No design deviation, authorization/disclosure/durability relaxation, runtime
+meter change, model-count reduction, timeout increase, acquisition remeasurement,
+version bump, push or publication. Whole remembered-page row expiry remains
+deferred pending engine per-row facts and later design. File map, numbered
+rule coverage, exact suite command, mutation runner and compressed evidence:
+`reports/20260926-bounded-following-r13/REPORT.md`.

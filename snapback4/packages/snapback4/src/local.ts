@@ -908,7 +908,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((table) => tables.has(table))) void rerun(watch);
   }
 
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null) {
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
     if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
     watch.expiryTimer = null;
     if ((nextExpiry == null && serverExpiry == null) || closed) return;
@@ -916,12 +916,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     watch.expiryTimer = setTimeout(() => {
       watch.expiryTimer = null;
       if (watches.get(watch.key) !== watch) return;
-      if ((nextExpiry == null || clock.deviceDelay(nextExpiry) > 0) && (serverExpiry == null || clock.serverDelay(serverExpiry) > 0)) { scheduleExpiry(watch, nextExpiry, serverExpiry); return; }
+      const localDue = nextExpiry != null && clock.deviceDelay(nextExpiry) === 0;
+      const serverDue = serverExpiry != null && clock.serverDelay(serverExpiry) === 0;
+      if (!localDue && !serverDue) { scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup); return; }
       // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before
       // asynchronous recovery, including an already-running replacement.
       const denied = unavailable();
-      watch.reset(denied ? { denied } : { loading: true });
-      notify(watch);
+      if (denied || !localWakeup || serverDue) {
+        watch.reset(denied ? { denied } : { loading: true });
+        notify(watch);
+      } else {
+        // A remembered page survives its local wakeup. Its server deadline
+        // must still withdraw it if the local reobservation is slow.
+        scheduleExpiry(watch, null, serverExpiry, localWakeup);
+      }
       void rerun(watch);
     }, delay);
     (watch.expiryTimer as { unref?: () => void }).unref?.();
@@ -935,12 +943,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, serverExpiry, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
-      scheduleExpiry(watch, nextExpiry, serverExpiry);
+      scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
       if (watch.snapshot !== read) {
         const denied = unavailable(); // Rule 1: immediately before notifying observers.
         watch.publish(denied ? { denied } : read);

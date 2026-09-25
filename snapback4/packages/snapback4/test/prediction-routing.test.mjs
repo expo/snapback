@@ -716,3 +716,98 @@ for (const mode of ["publish", "issued expiry", "server expiry"]) {
     assert.equal(f.env.serverAnswers.size, 0, "retained composition never enters whole-page memory");
   });
 }
+
+// Round 11: recovery keeps the next local branch wakeup, independently of
+// the remembered answer's validity in the server clock domain.
+for (const transport of ["offline", "failed fallback"]) for (const memory of ["missing", null, 150, 50]) for (const observing of [false, true]) {
+  test(`rules 4/5: retry recovery preserves chained deadline (${transport}, memory=${memory}, watch=${observing})`, async t => {
+    const { f, calls } = expiryRetry(t, { ...unknownRetry(true), nextExpiry: 300 });
+    f.env.serverNow = () => 50;
+    let posts = 0;
+    if (transport === "offline") f.env.link = "offline";
+    else f.env.post = async () => { posts++; f.env.link = "offline"; return { ok: false }; };
+    const key = `read:${JSON.stringify(input)}`;
+    const remembered = { read: { data: ["remembered"], complete: true, fresh: true, cut: null, next: "memory-cursor" }, at: 25, nextExpiry: memory, tables: new Set(["posts"]) };
+    if (memory !== "missing") f.env.serverAnswers.set(key, remembered);
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    assert.equal(result.nextExpiry, 300, "loading, E_OFFLINE and remembered data all keep the next local wakeup");
+    if (memory === null || memory === 150) {
+      assert.deepEqual(result.read.data, ["remembered"]);
+      assert.equal(result.read.fresh, false); assert.equal(result.read.since, 25);
+      assert.equal(result.read.next, "memory-cursor"); assert.equal(result.serverExpiry, memory);
+      assert.equal(f.env.serverAnswers.get(key), remembered, "local time cannot retire valid server-clock memory");
+    } else {
+      assert.deepEqual(result.read, observing ? { loading: true } : { denied: f.env.offline() });
+      assert.equal(result.serverExpiry, null); assert.equal(f.env.serverAnswers.size, 0);
+    }
+    assert.equal(calls(), 2); assert.equal(posts, transport === "offline" ? 0 : 1);
+    if (watch) assert.equal(watch.dirty, false, "the future deadline schedules the next observation");
+  });
+}
+
+// Round 12: a recovered local deadline is a wakeup, not memory's expiry.
+for (const retry of [false, true]) for (const transport of ["offline", "failed fallback"]) for (const memoryExpiry of [null, 900]) for (const observing of [false, true]) {
+  test(`rule 5: memory survives a local deadline crossed at publication (retry=${retry}, ${transport}, expiry=${memoryExpiry}, watch=${observing})`, async () => {
+    const f = routing(); f.entries = [];
+    let issued = 100, calls = 0, recovered = false, crossed = false;
+    const deadline = retry ? 300 : 150;
+    f.env.deviceNow = () => issued; f.env.serverNow = () => 50;
+    f.env.call = async request => {
+      assert.equal(request.now, issued); calls++;
+      if (retry && calls === 1) {
+        issued = 200;
+        return { ok: { data: ["expired"], unknown: false, complete: true, nextExpiry: 200, tables: ["posts"] } };
+      }
+      return { ok: { ...unknownRetry(true), nextExpiry: deadline } };
+    };
+    if (transport === "offline") f.env.link = "offline";
+    else f.env.post = async () => { f.env.link = "offline"; return { ok: false }; };
+    const key = `read:${JSON.stringify(input)}`;
+    const memory = { read: { data: ["permanent"], complete: true, fresh: true, cut: null, next: "memory-cursor" }, at: 25, nextExpiry: memoryExpiry, tables: new Set(["posts"]) };
+    f.env.serverAnswers.set(key, memory);
+    const get = f.env.serverAnswers.get.bind(f.env.serverAnswers);
+    f.env.serverAnswers.get = key => { recovered = true; return get(key); };
+    f.env.queued = async () => {
+      if (recovered) { issued = deadline; crossed = true; }
+      return [];
+    };
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    assert.equal(crossed, true, "time must cross after recovery, at the final publication fence");
+    assert.deepEqual(result.read.data, ["permanent"]); assert.equal(result.read.fresh, false);
+    assert.equal(result.read.since, 25); assert.equal(result.read.next, "memory-cursor");
+    assert.equal(result.nextExpiry, null, "consume the due wakeup so scheduleExpiry cannot wipe memory");
+    assert.equal(result.serverExpiry, memoryExpiry); assert.equal(get(key), memory);
+    assert.equal(calls, retry ? 2 : 1);
+    if (watch) assert.equal(watch.dirty, true, "including attempt zero, a consumed wakeup must rerun the watch");
+  });
+}
+
+for (const retry of [false, true]) for (const localDue of [false, true]) for (const observing of [false, true]) {
+  test(`rule 5: memory's own server deadline still expires at publication (retry=${retry}, localDue=${localDue}, watch=${observing})`, async () => {
+    const f = routing(); f.entries = []; f.env.link = "offline";
+    let issued = 100, estimated = 50, recovered = false, calls = 0;
+    const localDeadline = retry ? 300 : 150;
+    f.env.deviceNow = () => issued; f.env.serverNow = () => estimated;
+    f.env.call = async () => {
+      if (++calls === 1 && retry) {
+        issued = 200;
+        return { ok: { data: ["expired"], unknown: false, complete: true, nextExpiry: 200, tables: ["posts"] } };
+      }
+      return { ok: { ...unknownRetry(true), nextExpiry: localDeadline } };
+    };
+    const key = `read:${JSON.stringify(input)}`;
+    f.env.serverAnswers.set(key, { read: { data: ["private"], complete: true, fresh: true, cut: null, next: null }, at: 25, nextExpiry: 60, tables: new Set(["posts"]) });
+    const get = f.env.serverAnswers.get.bind(f.env.serverAnswers);
+    f.env.serverAnswers.get = key => { recovered = true; return get(key); };
+    f.env.queued = async () => { if (recovered) { estimated = 60; if (localDue) issued = localDeadline; } return []; };
+    const watch = observing ? retryWatch() : undefined;
+    const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+    assert.deepEqual(result.read, observing ? { loading: true } : { denied: f.env.offline() });
+    assert.equal(f.env.serverAnswers.size, 0, "only the remembered answer's server deadline retires it");
+    assert.equal(result.nextExpiry, localDue ? null : localDeadline, "a future local wakeup survives even when memory expires");
+    assert.equal(calls, retry ? 2 : 1);
+    if (watch) assert.equal(watch.dirty, localDue || retry);
+  });
+}
