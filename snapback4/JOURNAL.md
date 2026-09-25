@@ -55782,3 +55782,52 @@ refusal code, wire shape, authorization policy, version, push or publication.
 File map, decisions, open-limit reproductions and complete failure attribution:
 `reports/20260925-lane-q-round3.md`. Final suite evidence:
 `~/sb4-intent/lane-q-r3-test-complete.log`.
+
+
+## 2026-09-25 — Integration round 8: combined main qualification for 0.4.2
+
+Created `sb4-intent/integration-042` from fetched main `83719d7ac`, containing
+S round 1, R read extrema, Q expiring counts and the M5 session-model fix.
+The first combined suite found two integration defects: clean TypeScript
+checks depended on generated `#fetch` declarations, and uncapped legacy stores
+skipped Q's contribution-index upgrade when lazy cap readiness said ready.
+Source resolution now works before `dist` exists; engine open checks the
+stored schema before and after preparation within one loaded generation,
+independently of cap readiness, and adopts through the existing
+metered transaction. A new compiler-host regression hides generated files;
+the strengthened legacy-store regression requires one generation advance,
+correct expiry counts, stable reopen and no unused cap table or marker.
+Three adoption-test digests now account for optional cap-table presence and
+contents, preserving heap, bounded-work and rollback assertions.
+
+The second suite exposed the deferred-presence worker fixture stopping after
+the server commit but before consuming settlement. The unchanged test passed
+alone. A held response reproduces the AbortError with the old stopping point;
+waiting for the worker's next claim fixes the fixture, with all 34 worker tests
+passing and every outcome assertion retained. Runtime worker behavior is
+unchanged. A third run exposed a direct auth-probe socket failure and a replay
+fixture overlapping its head probe with `begin_send`; both passed alone.
+The auth probe now uses the existing bounded socket-only retry, and replay
+inspection holds the send revision stable before releasing the original-ID
+request. All seven auth cases and both replay adapters pass. The production
+generation guard and every outcome assertion remain. The final suite uses
+its existing serial-client-files mode with every test and full model count.
+The report classifies every failure; none is waived.
+
+Build, all 80 guide tests, docs budget (README 300/300), release guard and
+ref-check pass (508 LLP docs, 9,282 refs in 25,903 files; zero errors/unchecked).
+Final `scripts/test.sh`, exit 0: **`== 0 failure(s) in 1529 s`**. The three models
+pass their full counts: E online 5,000, E real-wasm local 5,000, J online 3,000.
+Focused checks: source typecheck/transport 26; core adoption 5; device expiring
+counts 9 with its existing sweep-lag witness ignored; expiry writes 32,
+including the refused legacy occupancy upgrade's byte preservation.
+
+The combined web artifact measures **1,775,799 B raw / 495,276 B gzip** with
+Rust 1.97.0 and wasm-bindgen 0.2.127, without wasm-opt. Rebuilds after the fixes
+reproduce it. The smallest rounded ratchet is still **496,000 B**, leaving
+724 B; 495,000 would be too small. `metrics/wasm-budget.json` now records this
+measurement instead of relying on the summed estimate. No ceiling increases.
+Q's accepted device fallback/disclosure boundary and documented PostgreSQL
+query-reservation limitation remain. No new authoring form, package version
+bump, simulator qualification, push or publication. Full file map, regressions,
+all suite attempts and evidence: [round-8 report](reports/20260925-intent-integration-r8.md).
