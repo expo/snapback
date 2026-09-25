@@ -14,16 +14,11 @@ const why = { code: "E_MODEL_REFUSED", family: "input", message: "authoritative 
 
 for (const tier of ["wasm", "native"]) for (const operation of ["mutation-sent", "mutation-failed", "action-done", "action-failed", "query"]) {
   test(`local ${tier}: ${operation} held across app.close keeps its outcome unknown`, { timeout: 20_000 }, async t => {
-    const { url, dir } = await server(t), held = gate(), id = mintId(); let received;
+    const { url, dir } = await server(t, operation === "query" ? "online only" : "sync to .owner"), held = gate(), id = mintId(); let received;
     const device = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });
     const sessionStore = memorySessionStore();
     const options = { url, device, sessionStore, fetch: async (input, init) => {
       const path = new URL(input).pathname;
-      if (operation === "query" && path === "/schema") {
-        const backend = await (await fetch(input, init)).json();
-        backend.schema.operations.list.runs = "server";
-        return Response.json(backend);
-      }
       if (operation.startsWith("mutation") && path === "/m/add") {
         received = operation === "mutation-sent" ? await (await fetch(input, init)).json() : { state: "failed", id, why };
       } else if (operation.startsWith("action") && path === "/a/work") {

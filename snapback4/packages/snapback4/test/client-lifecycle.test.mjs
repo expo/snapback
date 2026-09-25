@@ -412,7 +412,7 @@ test("local auth invalidation notifies viewer listeners before session deletion 
     schema: { tables: { remote: { columns: {}, indexes: {} } } },
     programs: [{ name: "read", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] }],
   };
-  const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice().opener, fetch: async (input, init) => {
+  const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice({ call: async request => request.op === "query" ? { ok: { loading: true, unknown: true, tables: ["remote"] } } : undefined }).opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/schema") return Response.json(backend);
     if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
@@ -1048,7 +1048,7 @@ for (const tier of ["wasm", "native"]) {
     const stale = await client.query(thread, args);
     assert.equal(stale.fresh, false);
     assert.ok(stale.since >= changedAt, "since names the latest followed sync, not initial open");
-    assert.equal((await client.query(query("message"), { messageId: "msg-a" })).denied?.code, "E_OFFLINE");
+    assert.equal((await client.query(query("message"), { messageId: "msg-a" })).denied?.code, "NOT_FOUND", "an available local refusal is preserved offline");
     await client.close();
     const cold = await f.open(tier, { fetch: transport });
     const restored = await cold.query(thread, args);

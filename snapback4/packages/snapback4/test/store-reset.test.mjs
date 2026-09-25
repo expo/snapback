@@ -98,7 +98,7 @@ test("wasm: persisted device reacquires after two backend replacements and prese
   assert.equal(b.watermark, 0); assert.equal(queue.length, 1); assert.equal(queue[0].id, pending.id);
   assert.equal(queue[0].predictable, false); assert.deepEqual(queue[0].predicted, []);
   f.offline(true); await client.sync(); await client.close(); client = await f.open();
-  assert.equal((await client.query(query, {})).denied?.code, "E_OFFLINE");
+  assert.deepEqual(await client.query(query, {}), { loading: true });
   f.interrupt(false); f.offline(false); await client.sync();
   await until(async () => (await f.core().call({ op: "queued" })).ok.length === 0, "pending write did not flush");
   await client.sync();

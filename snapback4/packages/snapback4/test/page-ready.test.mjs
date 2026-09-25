@@ -172,12 +172,12 @@ test("unavailable server list responses end retention in both clients", { timeou
   const watches = clients.map(client => client.observe(query("costly"), {}));
   for (const watch of watches) await until(() => "data" in watch.getSnapshot(), "initial cached server list");
   assert.ok((await local.query(query("costly"), {})).data.length === 1);
-  // A transient transport loss may remember a genuinely available answer.
+  // A transient fallback failure preserves the available local partial answer.
   queryOffline = true;
   const remembered = listRead(await local.query(query("costly"), {}));
-  assert.equal(remembered.fresh, false);
+  assert.equal(remembered.complete, false);
   queryOffline = false;
-  // An offline local query may use remembered data; it does not reconnect.
+  // A partial local query does not reconnect by itself.
   // Complete a sync before asserting the next HTTP availability response.
   await local.sync();
   await setCost(true);
@@ -193,8 +193,10 @@ test("unavailable server list responses end retention in both clients", { timeou
   // Invalidate the online observation once more while its next query fails.
   await setCost(false);
   await until(() => clients.every(client => client.link() === "offline"), "transport loss");
-  for (const watch of watches) assert.deepEqual(watch.getSnapshot(), { loading: true });
-  assert.equal((await local.query(query("costly"), {})).denied.code, "E_OFFLINE", "local commits also retire remembered answers");
+  assert.deepEqual(watches[0].getSnapshot(), { loading: true });
+  assert.equal(watches[1].getSnapshot().complete, false);
+  const partial = await local.query(query("costly"), {});
+  assert.ok(Array.isArray(partial.data)); assert.equal(partial.complete, false);
   for (const watch of watches) watch.close();
 });
 

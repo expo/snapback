@@ -18,7 +18,7 @@ export const until = async (read, label = "condition") => {
   }
   assert.fail(`timed out: ${label}`);
 };
-export async function server(t) {
+export async function server(t, residency = "sync to .owner") {
   const dir = mkdtempSync(join(tmpdir(), "sb4-app-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), `use identity
@@ -28,7 +28,7 @@ export async function server(t) {
   by byOwner: owner, id
   read <- .owner = viewer
   insert <- .owner = viewer
-  sync to .owner
+  ${residency}
 mutation add(body: text <=200):
   insert notes { owner: viewer, body }
 query list():

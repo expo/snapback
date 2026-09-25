@@ -99,6 +99,7 @@ test("the local client rotates near expiry and keeps every protected request on 
         case "install_native": native = request.digest; return { ok: true };
         case "apply": return { ok: { touched: [] } };
         case "queued": return { ok: [] };
+        case "query": return { ok: { loading: true, unknown: true, tables: ["remote"] } };
         default: return { ok: true };
       }
     },
@@ -193,6 +194,7 @@ test("a stale-token mutation refusal remains durable and retries after rotation"
         case "apply": return { ok: { touched: [] } };
         case "admit": admittedId = request.entry.id; queued.push(request.entry); return { ok: request.entry };
         case "queued": return { ok: queued };
+        case "query": return { ok: { loading: true, unknown: true, tables: ["remote"] } };
         case "begin_send": return { ok: { send_revision: 1 } };
         case "settle": settlements += 1; queued.splice(0, 1); return { ok: null };
         default: return { ok: true };
@@ -268,6 +270,7 @@ test("an online-only watch retries a stale-token refusal after rotation", async 
         case "set_meta": return { ok: true };
         case "apply": return { ok: { touched: [] } };
         case "queued": return { ok: [] };
+        case "query": return { ok: { loading: true, unknown: true, tables: ["remote"] } };
         default: return { ok: true };
       }
     },
@@ -347,6 +350,7 @@ test("a current-token sign-out cannot reclassify a stale write refusal", async (
         case "apply": return { ok: { touched: [] } };
         case "admit": queued.push(request.entry); return { ok: request.entry };
         case "queued": return { ok: queued };
+        case "query": return { ok: { loading: true, unknown: true, tables: ["remote"] } };
         case "begin_send": return { ok: { send_revision: 1 } };
         case "settle": settlements += 1; queued.splice(0, 1); return { ok: null };
         default: return { ok: true };

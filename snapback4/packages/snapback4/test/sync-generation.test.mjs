@@ -504,7 +504,8 @@ for (const tier of ["wasm", "process"]) for (const transfer of ["deferred stream
       assert.equal(links.at(-1), "offline", "malformed early heads surface a retryable link failure");
       const result = await f.client.query({ kind: "query", name: "remoteCounter" }, {});
       assert.ok(queued.some(entry => entry.predictable && entry.observed_seq == null && entry.predicted.length > 0));
-      assert.deepEqual(result, { loading: true }, "the unexecuted query has all possible tables; pending prediction precedes E_OFFLINE");
+      assert.equal(result.data, null);
+      assert.equal(result.complete, false, "an executed available local result remains partial during pending prediction");
     }
     stripHead = false;
     await f.client.sync();
