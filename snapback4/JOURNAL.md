@@ -58873,5 +58873,16 @@ The version commit is local. Reports and this append remain uncommitted;
 the suite-generated following fixture lock version change is retained and
 captured as a patch in the report directory. Complete errors, every command
 attempt, timing and source evidence:
-[publication stop report](reports/20260925-publication-0.4.2/REPORT.md).
+[publication stop report](reports/20260925-publication-0.4.2/attempt-1/REPORT.md).
 The supervisor owns disposition of the comparisons and any next attempt.
+
+## 2026-09-25 — 0.4.2 publication fix: false provenance stays off the wire
+
+The first 0.4.2 publication stopped at its full-suite gate. Three published-0.2.33 capability fences failed at `schema-capabilities.test.mjs:202`: a current binary answering from an old store added `speculative: false`, which 0.2.33's answer lacks. Lane U's round 6 had added query provenance to every device reply.
+
+- **The device** now writes `speculative` only when it is true (`call.rs`), and component `Coverage` skips it when false and decodes an absent field as false.
+- **The client** treats only `speculative === true` as speculative. An absent field is false, including on replies from older devices.
+- **Tests:** an ordinary reply carries no `speculative` key, and a speculative one carries `true`, in Rust and in the client routing matrix.
+- **Qualification:** on the black M5 with `SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33`, the full suite ran `== 0 failure(s) in 661 s`, and all three capability fences and the compatibility control passed. A browser typing-expiry test that had failed once under host load 49 ("execution context was destroyed") passed in this run.
+
+The fix lane wrote the change. Its codex session lost its sign-in before qualification, so the supervisor ran the suite and committed.

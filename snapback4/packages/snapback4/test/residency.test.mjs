@@ -278,7 +278,7 @@ for (const tier of ["wasm", "native"]) {
     assert.deepEqual(shaped.data, [{ text: "local three", at: 3 }, { text: "local two", at: 2 }]);
     assert.equal(shaped.complete, false); assert.equal(shaped.fresh, false);
     const raw = f.deviceAnswers.findLast(answer => answer.name === "shapedNotes");
-    assert.equal(raw.speculative, false); assert.equal(raw.unknown, true);
+    assert.equal(Object.hasOwn(raw, "speculative"), false); assert.equal(raw.unknown, true);
   });
 }
 test("rule 5: a real process device never recovers private memory after its permit expiry", { timeout: 20000 }, async t => {

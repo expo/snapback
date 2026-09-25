@@ -423,7 +423,7 @@ query remoteProfile():
     assert.equal(bob.queries.length, before, "a prediction fences speculative profile recovery");
     const partial = await bob.client.query(query("partialWithProfile"), {});
     assert.equal(partial.data.rows[0].post.id, "own-profile"); assert.equal(partial.data.rows[0].pending, true);
-    assert.equal(partial.complete, false); assert.equal(bob.observed.at(-1).speculative, false);
+    assert.equal(partial.complete, false); assert.equal(Object.hasOwn(bob.observed.at(-1), "speculative"), false);
     const profile = await bob.client.query(query("remoteProfile"), {});
     assert.equal(profile.data.name, "remote");
     assert.equal(bob.queries.at(-1).path, "/q/remoteProfile", "unrelated profiles are not fenced by a pending post");
