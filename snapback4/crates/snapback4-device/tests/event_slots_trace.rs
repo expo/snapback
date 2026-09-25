@@ -16,6 +16,9 @@ mutation conditionalPost(postId: id, parentId: posts ?):
     insert posts { id: postId, authorId: viewer, parentId: null, at: now }
   else:
     insert posts { id: postId, authorId: viewer, parentId, at: now }
+mutation conditionalRemove(postId: posts, removeIt: bool):
+  if removeIt:
+    update posts[postId] { removed: true }
 mutation edit(postId: posts):
   update posts[postId] { body: 'edited' }
 mutation birthAndEdit(postId: id, at: time):
@@ -266,6 +269,46 @@ fn aggregate_unrepost(online: bool) -> Json {
     t.finish()
 }
 
+fn aggregate_conditional_remove(online: bool) -> Json {
+    let s = source("sync public last 10 by .at", "sync public")
+        + "\nview totals: count feedPosts by .actorId\n" + if online { "  online only\n" } else { "" };
+    let (mut e, backend) = common::compile(&s); post(&mut e, "p");
+    // A conditional write is only a Horizon site. A static Server refusal
+    // would hide a missing runtime guard, so require prediction eligibility.
+    assert_eq!(backend.schema.operations["conditionalRemove"].predicts.as_deref(), Some("eligible"));
+    let mut t = Trace::new(&format!("conditional original removal aggregate online={online}"), backend);
+    t.acquire(&mut e);
+    let before = t.device.store().raw_rows("posts");
+    assert_eq!(before[0].field("$timeline:feed:post").unwrap(), &Value::Bool(true));
+    predicts(&t.predict("conditionalRemove", json!({"postId":"p", "removeIt":false})));
+    assert_eq!(t.device.store().raw_rows("posts"), before, "the untaken branch remains predictable");
+    t.withdraw();
+    let out = t.predict("conditionalRemove", json!({"postId":"p", "removeIt":true}));
+    if online {
+        predicts(&out);
+        let rows = t.device.store().raw_rows("posts");
+        assert_eq!(rows[0].field("removed").unwrap(), &Value::Bool(true));
+        assert_eq!(rows[0].field("$timeline:feed:post").unwrap(), &Value::Bool(false));
+        assert_eq!(t.query("tombstone", json!({"eventId":"p"}))["ok"]["data"], true);
+    } else {
+        assert!(out["ok"]["denied"]["message"].as_str().is_some_and(|s|s.contains("totals")), "{out}");
+        assert!(out["ok"].get("predicted").is_none(), "{out}");
+        assert_eq!(t.device.store().raw_rows("posts"), before, "the refused removal preserves the row and live slot");
+        assert_eq!(t.query("tombstone", json!({"eventId":"p"}))["ok"]["data"], false);
+        let queued = t.admit("conditionalRemove", json!({"postId":"p", "removeIt":true}));
+        assert_eq!(queued["ok"]["predictable"], false);
+        assert_eq!(queued["ok"]["predicted"], json!([]));
+        assert_eq!(t.device.store().raw_rows("posts"), before);
+    }
+    t.finish()
+}
+
+#[test]
+fn conditional_original_removal_reaches_runtime_aggregate_guard() {
+    aggregate_conditional_remove(false);
+    aggregate_conditional_remove(true);
+}
+
 fn shared() -> Json {
     let s=source("sync public last 10 by .at","sync public last 10 by .at") + "\nview allActivity:\n  posts where not .removed { post: .id, actor: .authorId, at, repost: false }\n  reposts { post: .postId, actor: .actorId, at, repost: true }\nview other: allActivity where .actor = viewer or exists follows[viewer, .actor]\nquery otherTombstone(eventId: id):\n  return exists otherRemovedEvents[eventId = eventId]\n";
     let (mut e,backend)=common::compile(&s); post(&mut e,"p"); repost(&mut e,"r","p","first-event");
@@ -406,7 +449,7 @@ fn unheld() -> Json {
 
 #[test]
 fn emit_fault_schedules_for_wasm_and_native() {
-    let mut traces=vec![log_order(),snapshot_reincarnation(false),snapshot_reincarnation(true),mixed("sync public last 1 by .at"),mixed("online only"),aggregates(false),aggregates(true),aggregate_unrepost(false),aggregate_unrepost(true),shared(),activation(),deferred(),unheld()];
+    let mut traces=vec![log_order(),snapshot_reincarnation(false),snapshot_reincarnation(true),mixed("sync public last 1 by .at"),mixed("online only"),aggregates(false),aggregates(true),aggregate_unrepost(false),aggregate_unrepost(true),aggregate_conditional_remove(false),aggregate_conditional_remove(true),shared(),activation(),deferred(),unheld()];
     for full in [false,true] { for split in [false,true] { traces.push(reused_event(full,split)); } }
     for posts in ["sync public","sync public last 10 by .at"] {
         for reposts in ["sync public","sync public last 10 by .at"] { traces.push(transition_cases(posts,reposts)); }

@@ -1,15 +1,16 @@
 //! Snapshot progress is charged for excluded kinds, independently of output.
 use snapback4_core::{RuntimeError, Value, partition::{self, LogSpan, PartitionRows}, rows::{Bounds, Dir, MemoryRows, Rows}, schema::{Index, Table}, store::LogEvent, value::object};
-use std::{cell::Cell, collections::{BTreeMap, BTreeSet}};
+use std::{cell::{Cell, RefCell}, collections::{BTreeMap, BTreeSet}};
 
 #[derive(Default)]
-struct Counted { rows: MemoryRows, examined: Cell<usize>, requested: Cell<usize>, calls: Cell<usize> }
+struct Counted { rows: MemoryRows, examined: Cell<usize>, requested: Cell<usize>, calls: Cell<usize>, scans: RefCell<Vec<(String, usize, usize)>> }
 impl Rows for Counted {
     fn get(&self, t: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.rows.get(t, id) }
     fn lookup(&self, t: &str, n: &str, i: &Index, k: &[Value]) -> Result<Option<Value>, RuntimeError> { self.rows.lookup(t,n,i,k) }
     fn scan(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let rows = self.rows.scan(t,i,p,b,d,limit)?;
-        if t == "feedPosts" {
+        if t == "feedPosts" || t == "otherPosts" {
+            self.scans.borrow_mut().push((t.into(), limit, rows.len()));
             self.examined.set(self.examined.get()+rows.len()); self.requested.set(self.requested.get()+limit); self.calls.set(self.calls.get()+1);
         }
         Ok(rows)
@@ -27,7 +28,7 @@ impl PartitionRows for Counted {
     fn read_log_spans(&self, _: &[LogSpan], _: u64, _: Option<u64>, _: usize) -> Result<Vec<LogEvent>, RuntimeError> { Ok(vec![]) }
 }
 
-fn exercise(full_kind: Option<bool>) {
+fn exercise(full_kind: Option<bool>, limit: usize) {
     let source = include_str!("../../snapback4-lang/tests/fixtures/following-view.q")
         .replacen("sync public", if full_kind == Some(false) { "sync public" } else { "sync public last 1 by .at" },1)
         .replace("sync public\n\ntable follows", if full_kind == Some(true) { "sync public\n\ntable follows" } else { "sync public last 1 by .at\n\ntable follows" });
@@ -47,11 +48,11 @@ fn exercise(full_kind: Option<bool>) {
     }
     let mut cursor = None; let mut got = BTreeSet::new(); let mut total = 0; let mut empty_progress = 0;
     for _ in 0..5000 {
-        tx.examined.set(0); tx.requested.set(0); tx.calls.set(0);
+        tx.examined.set(0); tx.requested.set(0); tx.calls.set(0); tx.scans.borrow_mut().clear();
         let before = cursor.clone();
-        let page = partition::snapshot_page(&tx,&bound.schema,"alice",cursor,7,10000).unwrap();
-        assert!(tx.examined.get() <= 7,"{} examined for {} emitted rows",tx.examined.get(),page.events.len());
-        assert!(tx.requested.get() <= 7,"fetch request must be bounded independently of returned rows");
+        let page = partition::snapshot_page(&tx,&bound.schema,"alice",cursor,limit,10000).unwrap();
+        assert!(tx.examined.get() <= limit,"{} examined for {} emitted rows",tx.examined.get(),page.events.len());
+        assert!(tx.requested.get() <= limit,"fetch request must be bounded independently of returned rows");
         if full_kind.is_none() { assert_eq!(tx.calls.get(),0,"neither kind synced: never open the owned table"); }
         total += tx.examined.get();
         if page.events.is_empty() && tx.examined.get() > 0 { empty_progress += 1; }
@@ -65,6 +66,48 @@ fn exercise(full_kind: Option<bool>) {
     assert_eq!(total,if full_kind.is_some() {4096} else {0},"no skipped row is fetched twice");
     if full_kind.is_some() { assert!(empty_progress > 500,"exercise empty bounded pages"); }
 }
-#[test] fn neither_kind_opens_no_event_rows() { exercise(None); }
-#[test] fn mixed_originals_bound_reads_and_keep_scanned_progress() { exercise(Some(false)); }
-#[test] fn mixed_reposts_bound_reads_and_keep_scanned_progress() { exercise(Some(true)); }
+#[test] fn neither_kind_opens_no_event_rows() { for limit in [1, 2, 3, 5, 7] { exercise(None, limit); } }
+#[test] fn mixed_originals_bound_reads_and_keep_scanned_progress() { for limit in [1, 2, 3, 5, 7] { exercise(Some(false), limit); } }
+#[test] fn mixed_reposts_bound_reads_and_keep_scanned_progress() { for limit in [1, 2, 3, 5, 7] { exercise(Some(true), limit); } }
+
+#[test]
+fn examined_work_spends_the_budget_before_the_next_owned_group() {
+    let source = include_str!("../../snapback4-lang/tests/fixtures/following-view.q")
+        .replace("sync public\n\ntable follows", "sync public last 1 by .at\n\ntable follows")
+        + "\nview other: activity where .actor = viewer or exists follows[viewer, .actor]\n";
+    let bound = snapback4_lang::compile(&[("snapshot.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let tables: Vec<_> = bound.schema.synced().map(|(name, _, _)| name).collect();
+    let first = tables.iter().position(|name| *name == "feedPosts").unwrap();
+    let second = tables.iter().position(|name| *name == "otherPosts").unwrap();
+    let between = second - first - 1;
+    // Two public audience groups, owned by declarations sharing the sources.
+    // The first exhausts after an excluded run; the second has much more work.
+    // Empty intervening groups cost one each, exactly as snapshot_page specifies.
+    let prefix = between + 3;
+    let tx = Counted::default();
+    for (table, count) in [("feedPosts", prefix), ("otherPosts", 100)] {
+        for n in 0..count {
+            let event = format!("event-{n:05}");
+            let row = object([("id", Value::Id(event.clone())), ("postId", Value::Id(event)),
+                ("actorId", Value::Id("alice".into())), ("authorId", Value::Id("alice".into())),
+                ("at", Value::Int(n as i64)), ("repost", Value::Bool(true))]);
+            tx.put(table, &bound.schema.tables[table], &row, None).unwrap();
+        }
+    }
+    for remaining in [1, 2, 3, 5] {
+        let limit = prefix + between + remaining;
+        let cursor = partition::SnapshotCursor { table: first, watermark: 1, ..Default::default() };
+        tx.examined.set(0); tx.scans.borrow_mut().clear();
+        let page = partition::snapshot_page(&tx, &bound.schema, "alice", Some(cursor), limit, 10000).unwrap();
+        assert!(page.events.is_empty(), "excluded rows must not become output");
+        let scans = tx.scans.borrow();
+        assert_eq!(scans.len(), 2, "both owned groups must be examined: {scans:?}");
+        assert_eq!(scans[0], ("feedPosts".into(), limit, prefix));
+        assert!(tx.examined.get() <= limit, "page examined {} rows across both groups for budget {limit}: {scans:?}", tx.examined.get());
+        assert_eq!(scans[1], ("otherPosts".into(), remaining, remaining), "the second group must receive only the remaining budget");
+        let next = page.next.unwrap();
+        assert_eq!(next.table, second);
+        assert!(next.after.is_some(), "the excluded suffix must still advance");
+    }
+}
