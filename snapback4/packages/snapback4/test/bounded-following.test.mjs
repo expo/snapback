@@ -146,6 +146,8 @@ query conditionalEvents():
   return []
 query filteredEvents():
   return feedPosts last 10 by .at where exists eventSwitch['gate']
+query speculativePage():
+  return feedPosts last 10 by .at { post: .postId, online: exists connected[.authorId] }
 `);
     await f.seed([
       { table: "notes", row: { id: "n2", body: "held" } },
@@ -153,7 +155,7 @@ query filteredEvents():
       { table: "eventSwitch", row: { id: "gate", enabled: true } },
     ]);
     const bob = await f.open("bob");
-    for (const name of ["guarded", "conditionalEvents", "filteredEvents"]) {
+    for (const name of ["guarded", "conditionalEvents", "filteredEvents", "speculativePage"]) {
       const answer = await bob.client.query(query(name), {});
       if (name === "guarded") assert.equal(answer.data.id, "a1");
       else assert.ok(answer.data.length > 0, "server takes the true gate branch");
@@ -165,13 +167,17 @@ query filteredEvents():
     for (const table of ["posts", "notes"]) assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith(table + "/"))));
     for (const offline of [false, true]) {
       bob.offline = offline; await bob.client.sync();
-      for (const name of ["guarded", "conditionalEvents", "filteredEvents"]) {
+      for (const name of ["guarded", "conditionalEvents", "filteredEvents", "speculativePage"]) {
         const before = bob.queries.length;
         assert.deepEqual(await bob.client.query(query(name), {}), { loading: true }, name);
         const raw = bob.observed.at(-1);
         assert.equal(raw.unknown, true); assert.equal(raw.speculative, true);
         if (name === "guarded") assert.equal(raw.denied.code, "NOT_FOUND");
-        else assert.deepEqual(raw.data, []);
+        else if (name === "speculativePage") {
+          assert.ok(raw.data.length > 0, "a nonempty page can still contain placeholder values");
+          assert.ok(raw.data.some(row => row.post === "own-gated"), "even a prediction cannot validate speculative presence");
+          assert.ok(raw.data.every(row => row.online === true));
+        } else assert.deepEqual(raw.data, []);
         assert.equal(bob.queries.length, before, "neither a server nor remembered answer can pass the fence");
       }
     }

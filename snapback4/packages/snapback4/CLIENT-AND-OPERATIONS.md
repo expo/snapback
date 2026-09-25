@@ -307,8 +307,8 @@ already manage their own session lifetime:
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
 
 The local client runs locally first: known complete answers win regardless of `runs` and alone narrow possible dependencies. Engine provenance keeps unknown, non-speculative values as partial data; speculative values and refusals stay `loading` while fenced, otherwise recovering unexpired server memory with `fresh: false` and the original `since`, or `E_OFFLINE` (`loading` for watches).
-Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads with independent retained components keep their local value offline or on transport failure, including beside speculative components, and never recover a remembered whole server answer.
-Every await and publication checks the session; every external answer rechecks the prediction fence and authorization expiry. Watches rerun at that expiry, and local freshness requires an online, caught-up, identity-checked partition.
+Engine-unavailable reads (or reads the device cannot run) stay `loading` offline, while `held`, or while an intersecting prediction is unobserved; otherwise fallback uses the original arguments and preserves server refusals and loading. Composed reads never recover a remembered whole server answer. Retained components keep non-speculative local data offline or on transport failure; a speculative sibling withholds the whole composition because `Read<T>` has no component loading metadata.
+Every await and publication checks the session; every external answer rechecks the prediction fence, and all data rechecks expiry at publication, including local and retained data. Watches rerun at that expiry, and local freshness requires an online, caught-up, identity-checked partition.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier

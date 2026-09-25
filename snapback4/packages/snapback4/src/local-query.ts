@@ -5,10 +5,12 @@
 //    intersecting prediction, or held => loading; otherwise try original args.
 // 4. Unknown non-speculative values remain partial data. Speculative values
 //    (including refusals) recover unexpired memory or loading/E_OFFLINE, and
-//    stay loading while fenced. Independent retained components keep local data.
+//    stay loading while fenced. A speculative component withholds the whole
+//    composition: Read<T> cannot express an absent field with loading metadata.
 // 5. Recheck session and P ∩ S before any external answer lands. S is static
 //    (opaque programs read everything), narrowed only by a known COMPLETE L.
-//    Remembered answers share this fence; freshness is decided at publication.
+//    Remembered answers share this fence; all data rechecks expiry, and local
+//    freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
 import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
@@ -59,11 +61,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // Missing provenance from an older device is conservatively speculative.
   const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
     && latest.outcome.speculative !== false;
-  // Rule 4: only independent component coverage certifies retained history.
-  // An unrelated point hit or filtered scan cannot validate a placeholder.
-  const retainedComposition = () => latest && "data" in latest.result.read
-    && Object.values(latest.outcome.components ?? {}).some(c => c.retained);
-  const fallback = () => placeholder() && !retainedComposition() ? loading : latest?.result ?? loading;
+  // Rule 4: retained siblings cannot validate a speculative component. The
+  // atomic Read<T> contract has no per-component loading word; withhold it all.
+  const fallback = () => placeholder() ? loading : latest?.result ?? loading;
   const localCandidate = (): Candidate<R> => ({ result: fallback(), origin: "local" });
   // Rule 1. This check also preserves the local-commit invalidation fence.
   const checkpoint = () => {
@@ -200,7 +200,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     checkpoint(); // Rules 1/5: no await between this check and publication.
     const { result, origin } = candidate;
     // Rules 1/5: an authorization deadline may pass during the final fence.
-    if (origin !== "local" && "data" in result.read && result.nextExpiry !== null && result.nextExpiry <= Date.now()) {
+    if ("data" in result.read && result.nextExpiry !== null && result.nextExpiry <= Date.now()) {
       env.serverAnswers.delete(key);
       return origin === "remembered" && !watch ? { read: { denied: env.offline() }, tables, nextExpiry: null } : loading;
     }

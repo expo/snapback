@@ -382,21 +382,40 @@ for (const fenced of [false, true]) test(`rule 4: speculative refusal is a place
   else assert.deepEqual(read.data, ["server"], "a speculative refusal recovers memory like a speculative null");
 });
 
-for (const fenced of [false, true]) for (const failed of [false, true]) {
-  test(`rule 4: retained composition beside speculative null (fenced=${fenced}, failed=${failed})`, async () => {
+for (const left of [[{ body: "retained" }], [], 0]) for (const fenced of [false, true]) for (const failed of [false, true]) {
+  test(`rule 4: retained composition beside speculative null (left=${JSON.stringify(left)}, fenced=${fenced}, failed=${failed})`, async () => {
     const f = routing(); f.entries = fenced ? [prediction] : [];
-    const data = { left: [{ body: "retained" }], right: null };
+    const data = { left, right: null };
     f.outcome = { data, unknown: true, complete: false, speculative: true, tables: ["posts"],
       components: { left: { retained: true, unknown: false, speculative: false }, right: { unknown: true, speculative: true } } };
     f.env.serverAnswers.set(`read:${JSON.stringify(input)}`, { read: { data: "obsolete" }, at: 1, nextExpiry: null, tables: new Set() });
     let attempts = 0;
     if (failed) f.env.post = async () => { attempts++; f.env.link = "offline"; return { ok: false }; }; else f.env.link = "offline";
     const read = await f.read();
-    assert.deepEqual(read.data, data); assert.equal(read.complete, false);
+    assert.deepEqual(read, { loading: true }, "Read<T> cannot publish a missing sibling as T or express component loading");
     assert.equal(attempts, failed && !fenced ? 1 : 0);
     assert.equal(f.env.serverAnswers.size, 0, "independent components never recover whole-answer memory");
   });
 }
+
+for (const complete of [false, true]) test(`rules 2/4/5: delayed local data expires (complete=${complete})`, async t => {
+  let now = 100; t.mock.method(Date, "now", () => now);
+  const f = routing(); f.env.link = "offline";
+  const data = complete ? [{ body: "local" }] : { left: [{ body: "retained" }], right: [] };
+  f.outcome = { data, unknown: !complete, complete, speculative: false, tables: ["posts"], nextExpiry: 200,
+    ...(!complete ? { components: { left: { retained: true, unknown: false, speculative: false }, right: { unknown: true, speculative: false } } } : {}) };
+  assert.deepEqual((await f.read()).data, data, "the pre-deadline local value is publishable");
+  const call = f.env.call;
+  let release, reached;
+  const gate = new Promise(resolve => { release = resolve; });
+  const waiting = new Promise(resolve => { reached = resolve; });
+  f.env.call = async (...args) => { const reply = await call(...args); reached(); await gate; return reply; };
+  const pending = evaluateLocal(f.env, op, input, 0, 0);
+  await waiting; now = 200; release();
+  const result = await pending;
+  assert.deepEqual(result.read, { loading: true }); assert.equal(result.nextExpiry, null);
+  assert.equal(f.requests.length, 0);
+});
 
 for (const composed of [false, true]) for (const boundary of ["transport", "publication"]) {
   test(`rule 5: delayed ${composed ? "composed" : "server"} data expires during ${boundary}`, async t => {
