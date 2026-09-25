@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
+mod activation_walk;
 mod caps;
 mod authority;
 mod successor;

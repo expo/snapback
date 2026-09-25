@@ -7,6 +7,8 @@ use crate::ir::Program;
 use crate::schema::{Constraint, materialize_optional_fields};
 use crate::value::digest;
 use std::collections::BTreeSet;
+pub(super) use super::activation_walk::walk;
+use super::activation_walk::walk_metered;
 
 pub(super) type Identity = (Option<String>, Option<String>, Option<String>, Option<String>);
 
@@ -105,11 +107,7 @@ impl Store {
             for (name, table) in &schema.tables {
                 let t = catalog[name];
                 for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
-                let mut contribution_meter = crate::meter::Meter::new(crate::meter::Ceilings::job(), crate::meter::Cut::Abort);
-                let mut contribution_rows = 0;
-                walk(&tx, t, |id, mut row| {
-                    if contribution_rows % 256 == 0 { contribution_meter = crate::meter::Meter::new(crate::meter::Ceilings::job(), crate::meter::Cut::Abort); }
-                    contribution_rows += 1;
+                walk_metered(&tx, t, |id, mut row, contribution_meter| {
                     let original = row.clone();
                     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
                     // Persist only a destructive projection. Defaults and
@@ -171,7 +169,7 @@ impl Store {
                 }
                 for constraint in &table.constraints {
                     if let Constraint::Cap { by, max } = constraint {
-                        let (index_name, _) = table.indexes.iter().find(|(_, i)| i.columns().starts_with(by)).ok_or_else(|| RuntimeError::Schema(format!("{name} cap has no matching index")))?;
+                        let (index_name, _) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)).ok_or_else(|| RuntimeError::Schema(format!("{name} cap has no matching index")))?;
                         validate_groups(&tx, name, index_name, by.len(), u64::from(*max), false)?;
                     }
                 }
@@ -205,41 +203,39 @@ impl Store {
     }
 }
 
-/// Bounded row buffers even for a large activation. Updating an image does
-/// not change the primary key the next page resumes after.
-pub(super) fn walk(tx: &Tx<'_>, table: i64, mut visit: impl FnMut(&str, Value) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
-    let mut after: Option<String> = None;
-    loop {
-        // Keep the continuation predicate sargable: `? IS NULL OR id > ?`
-        // makes SQLite scan each preceding page again instead of seeking.
-        let query = if after.is_some() { "SELECT id, data FROM r WHERE t = ?1 AND id > ?2 ORDER BY id LIMIT 500" } else { "SELECT id, data FROM r WHERE t = ?1 AND ?2 IS NULL ORDER BY id LIMIT 500" };
-        let rows: Vec<(String, String)> = tx.tx.prepare(query)?
-            .query_map(params![table, after], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
-        for (id, data) in &rows { visit(id, serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?)?; }
-        if rows.len() < 500 { return Ok(()); }
-        after = rows.last().map(|row| row.0.clone());
-    }
-}
-
 /// Equal prefixes are adjacent in an index. Validate uniqueness and caps
 /// in one bounded pass per invariant, retaining one key rather than one
 /// allocation for every group/row in a potentially large activation.
 fn validate_groups(tx: &Tx<'_>, table: &str, index: &str, prefix_len: usize, max: u64, nulls_distinct: bool) -> Result<(), RuntimeError> {
-    let mut bounds = Bounds::default();
+    use crate::{error::MeterKind, meter::{Ceilings, Cut, Meter}, rows::word_heap as heap};
+    // Only encoded group keys matter. Fetching source images here would
+    // recreate an unmetered 500-row payload buffer after the metered rebuild.
+    let mut statement = tx.tx.prepare_cached("SELECT k FROM i WHERE ti = ?1 ORDER BY k")?;
+    let mut rows = statement.query([tx.num(&format!("{table}.{index}"))?])?;
     let mut previous: Option<Vec<Value>> = None;
     let mut count = 0;
-    loop {
-        let rows = tx.scan(table, index, &[], &bounds, Dir::Asc, 500)?;
-        for (_, key) in &rows {
-            let full = crate::key::decode(key).ok_or_else(|| RuntimeError::Store("invalid rebuilt index key".into()))?;
-            let group = full[..prefix_len].to_vec();
-            bounds.after = Some(full);
-            if nulls_distinct && group.contains(&Value::Null) { continue; }
+    let mut visited = 0;
+    let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
+    while let Some(row) = rows.next()? {
+        if visited % 256 == 0 {
+            meter = Meter::new(Ceilings::job(), Cut::Abort);
+            meter.at(&format!("adopt {table}.{index} groups"));
+            meter.once(crate::meter::HeapSite::SqliteColumns, 2 * tx.page_size)?;
+        }
+        visited += 1;
+        let scratch = meter.mark();
+        meter.charge(MeterKind::Examined, 1)?;
+        let key = row.get_ref(0)?.as_blob().map_err(|e| RuntimeError::Store(e.to_string()))?;
+        meter.heap(heap::key_decode(key.len(), key.len()) + previous.as_deref().map_or(0, heap::values))?;
+        let mut group = crate::key::decode(key).ok_or_else(|| RuntimeError::Store("invalid rebuilt index key".into()))?;
+        group.truncate(prefix_len);
+        if !(nulls_distinct && group.contains(&Value::Null)) {
             if previous.as_ref() == Some(&group) { count += 1; } else { previous = Some(group); count = 1; }
             if count > max { return Err(RuntimeError::Constraint(format!("cannot activate {table}.{index}: existing group exceeds {}", if nulls_distinct { "a unique key".to_owned() } else { format!("cap {max}") }))); }
         }
-        if rows.len() < 500 { return Ok(()); }
+        meter.release_heap(scratch);
     }
+    Ok(())
 }
 
 fn contains_asset_type(kind: &crate::schema::ColumnType) -> bool {

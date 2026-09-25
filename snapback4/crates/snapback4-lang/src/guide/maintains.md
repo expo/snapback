@@ -225,6 +225,8 @@ When a zero sum needs an occupancy decision, a held source witness keeps the
 candidate; local absence needs complete source coverage (held, no horizon).
 Otherwise the write queues without a predicted row. Devices still recompute
 live contributions under the read meter; a large group can be unavailable.
+The client then asks the server, which uses the backlog-bounded read. Physical
+totals and private next-expiry metadata are not delivered to bypass that limit.
 Live scalar misses and empty pages remain incomplete when source coverage is
 incomplete. An inherited
 aggregate over a public source with subset delivery runs on the server;
