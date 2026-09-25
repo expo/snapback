@@ -1,3 +1,4 @@
+import { defaultFetch } from "#fetch";
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
 import { createClient } from "./client.ts";
 import { holdClose } from "./closing-responses.ts";
@@ -67,7 +68,7 @@ export function createApp(options: AppOptions): App {
       site: "app.assets", rewrite: 'createApp({ url, device, assets: { keep: "viewed", maxBytes: 67108864 } })' });
   }
   const url = options.url.replace(/\/$/, "");
-  const fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const fetcher = options.fetch ?? defaultFetch;
   const backing = options.sessionStore ?? memorySessionStore();
   const storage: SessionStore = { set: (key, value) => backing.set(key, value), delete: key => backing.delete(key), async get(key) {
     const bytes = await backing.get(key);

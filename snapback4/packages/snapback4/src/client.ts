@@ -1,3 +1,4 @@
+import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import { deferStart, trackRotation } from "./client-start.ts";
 // The online tier (LLP 2000.000 §7.4): no store, no interpreter. Reads go
@@ -98,7 +99,7 @@ export function mintId(now = Date.now()): string {
 }
 
 export function createClient(options: ClientOptions): Client {
-  const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const doFetch = options.fetch ?? defaultFetch;
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;

@@ -1,3 +1,4 @@
+import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import type { Queued, StoreCapture } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
@@ -103,7 +104,7 @@ function responsePageTooLarge(denied: Refusal): boolean {
 
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const retention = assetRetention(options.assets);
-  const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const doFetch = options.fetch ?? defaultFetch;
   const fetchSync = syncTransport(doFetch);
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
