@@ -1066,11 +1066,13 @@ fn w9a_expiry_cards_explain_and_select_the_readers_deadline() {
         let text = card(name).unwrap();
         let prose = text.split_whitespace().collect::<Vec<_>>().join(" ");
         for sentence in [
-            "A row already returned stays in that answer until the next answer; a live reader that must hide it at its deadline drops it locally by `expiresAt`.",
-            "The server will not return the row again after expiry, but does not push a removal at the instant of expiry.",
-            "The local client reschedules its watch at `Read.nextExpiry`; keep the render filter so the row hides at its deadline rather than at the refetch.",
+            "Held device observations republish at `nextExpiry`, including offline; render those rows directly.",
+            "Only server-answered reads need a render-deadline filter to hide a returned row while its next network answer is pending.",
+            "`client.now()` estimates the server's time and never moves backward; `null` never expires.",
         ] { assert!(prose.contains(sentence), "{name}: missing {sentence}"); }
-        assert!(text.contains("const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));\npaint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);"), "{name}: missing two-line client form");
+        assert!(text.contains("const now = useNow(Number.isFinite(deadline) ? deadline : null);"), "{name}: missing server-clock render timer");
+        assert!(text.contains("row.expiresAt > client.now()"), "{name}: deadlines must use server time");
+        assert!(text.contains("row.expiresAt === null || row.expiresAt > now"), "{name}: missing render filter for server answers");
         let block = quarry(text).into_iter().find(|block| block.contains("query expiring")).expect("compiled expiry query");
         let bound = clean(name, &in_context(&block));
         let query = bound.programs.iter().find(|p| p.program.name.starts_with("expiring")).unwrap();
