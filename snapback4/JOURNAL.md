@@ -58789,3 +58789,44 @@ round. No push or publication. Implementation/test commit: `7df63b7d1`. The
 file map, examples, failure accounting and reproductions are in
 `reports/20260925-lane-v-r11.md` and
 `reports/20260925-lane-v-r11-evidence/`.
+
+
+## 2026-09-25 — Intent integration round 11: refused writes are not acknowledgements
+
+Merged V's exact head `9a96e042e` into `sb4-intent/integration-042b` over
+round-10 candidate `4126e145a`, with `--no-ff`, in `78ec322cf`. The only
+conflict was the journal; all prior entries were preserved and V's new entry
+was appended. Source, tests and contracts merged cleanly, preserving every
+earlier clock, routing, retained-history, binding and admission integration fix.
+
+The server's bounded, principal-scoped lookup now puts only stored `sent`
+outcomes in `acknowledged` and `committed_above`. A refused `_ops` idempotency
+row is not success evidence. Client selection preserves known authored refusals
+over legacy acknowledgement data, and final send preflight returns that
+guarded receipt. Positive success continues to repair an unknown-outcome
+`E_STORE_REPLACED` under the existing transactional outbox proof.
+
+Imported V's core success/refusal receipt-range regression, the history test
+requiring zero success saves for an authored refusal, and three real-browser
+cases: lost `NOT_ADMIN` response across sync/reopen; a known refusal against
+legacy outbox acknowledgement; and durable lookup-only replacement-refusal
+repair from `sent_seq`, followed by catch-up and offline reopen. All pass in
+the integrated full suite. No integration-specific code/test change was needed.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 726 s`**.
+Rust target summaries: 3,196 passed, 19 existing ignored, zero failed. Clients:
+1,968 passed, ten existing skips, zero failures/cancellations. All 78 model
+tests passed at **5,000 / 5,000 / 3,000** sequences. Both stream-receipts tests
+and all 83 guide tests passed. `ref-check`: **509 LLP documents, 9,338 refs,
+zero errors, zero unchecked**. No integration test failed, no intermittent
+rerun was needed, and no baseline or environmental exemption was used.
+
+Wasm remains **1,850,576 B raw / 521,814 B gzip**, unchanged from round 10 and
+within the unchanged **522,000 B** ratchet. All six changed source/test files
+are below 1,500 lines (largest: `local.ts`, 1,423). No model-count reduction,
+timeout increase, authorization or runtime-meter relaxation, storage-bound
+change, acquisition remeasurement, new syntax/API, design deviation, version
+bump, push or publication. No new open scoped problem. V's raw diagnostic
+logs are retained verbatim, including their whitespace. File-by-file changes,
+constraints and compressed full-suite/reference evidence:
+[round-11 report](reports/20260925-intent-integration-r11/REPORT.md).
