@@ -135,9 +135,11 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                     },
                     Err(refusal) => json!({ "denied": encoded(&refusal)? }),
                 };
-                for (field, value) in [("unknown", unknown), ("retained", retained), ("speculative", provenance.speculative)] {
+                for (field, value) in [("unknown", unknown), ("retained", retained)] {
                     reply[field] = Json::Bool(value);
                 }
+                // Absence means false; ordinary replies retain the published 0.2.33 wire.
+                if provenance.speculative { reply["speculative"] = Json::Bool(true); }
                 reply
             }
             "backend" => encoded(&device.backend())?,

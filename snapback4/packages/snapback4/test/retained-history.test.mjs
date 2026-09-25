@@ -393,7 +393,7 @@ query wordBoth():
         if (queryCalls === 1) {
           assert.equal(request.now, deadline - 1, "the engine clock must still precede the deadline on the first call");
           assert.equal(reply.ok.nextExpiry, deadline);
-          assert.equal(reply.ok.speculative, false);
+          assert.equal(Object.hasOwn(reply.ok, "speculative"), false);
           assert.equal(reply.ok.components.left.retained, true);
           assert.deepEqual(reply.ok.data, beforeData, "the first snapshot really contains the expiring row or authorized secret");
           if (permitCase) evaluated = true;
@@ -503,7 +503,7 @@ query wordBoth():
     const name = "wordBoth";
     const result = await client.query({ kind: "query", name }, {});
     const local = allAnswers.findLast(answer => answer.name === name);
-    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true, speculative: false });
+    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true });
     assert.equal(local.components.right.unknown, true, "the right horizon needs server knowledge");
     assert.ok(allRequests.includes("/q/wordBoth"), "mixed routing consulted the server");
     assert.deepEqual(result.data.left, horizonFree ? expected("left", 1) : true, "server fallback must keep the left group's delivered matching history");
@@ -519,7 +519,7 @@ query wordBoth():
       const result = await client.query({ kind: "query", name }, {});
       const local = allAnswers.findLast(answer => answer.name === name);
       const hit = name !== "pointMiss";
-      assert.deepEqual(local.components.left, { complete: hit, unknown: !hit, retained: hit, speculative: !hit }, name);
+      assert.deepEqual(local.components.left, { complete: hit, unknown: !hit, retained: hit, ...(!hit ? { speculative: true } : {}) }, name);
       assert.deepEqual(result.data.held, expected("held", 0));
       assert.deepEqual(result.data.left, name === "pointMiss" ? null : name === "pointExists" ? true : rows.find(item => item.row.id === "left-25").row);
       assert.equal(result.complete, true);
