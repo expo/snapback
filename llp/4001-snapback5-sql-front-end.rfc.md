@@ -636,10 +636,38 @@ Postgres 17 and Opus against a scratch cluster. They converged on:
 | The SQL arm still reads Quarry; generated `.q` in the tree (Opus 17) | §2 and §4: listed under SURFACE; build directory only |
 | LLP 4000 §13's first sentence; #19's full quotes (Opus 18, Grok) | §1 and LLP 4000 §13 corrected |
 
-### Round 3 (revision 3)
+### Round 3 (revision 3, `b1edaa05cf`)
 
-Pending. Recorded here when the three reviews return; the document then
-goes to the author regardless of verdict.
+Three blind delta reviews, all **NOT READY**, all saying no redesign is
+needed and that the remaining edits are local: [Astra](./reviews/4001-snapback5-sql-front-end.astra.md)
+(the transition row composes to no grant without an explicit permissive
+policy and cannot preserve a custom code; the null ruling does not close
+ordered comparisons under `not`; `activity_card(a activity)` cannot take a
+`following` row; the pre-test stop is already entailed by the table),
+[Grok](./reviews/4001-snapback5-sql-front-end.grok.md) (maintains inherit
+their source's residency, so "no publish call" is wrong for them;
+`timestamptz default 0` does not parse and `time` is integer milliseconds;
+probe residuals may be any rule term; `coalesce(point, 0)` turns hidden
+groups into 0; block helpers have no non-`api.ts` spelling; `substr` versus
+0-based `slice`; a job is a sequence of sweeps; a dozen #19 forms still have
+no row; pre-test 1 as registered stops on Muse's helper and triggers before
+verification), [Opus](./reviews/4001-snapback5-sql-front-end.opus.md)
+(pre-test 1's idiom stop fires by construction and its rate depends on an
+unregistered class; `check --json` carries neither the schema nor the IR, so
+the equivalence gate must compare in-process; verification must call the
+plpgsql bodies, where six spellings fail; reading (A) must be "not shown"
+rather than a fail on one to three phrases; the joint power of the primary
+and the floors must be stated). Opus verified the table by executing it.
+
+**The bounded stop.** Under the refine loop's rule this document has had its
+three rounds. Both remaining paths are the author's: a small revision 4 (the
+reviewers' own estimate: "an hour of text" for the instruments, plus the
+table rows), then §9 step 3's verification and pre-test 1; or accept the
+registered stop now and shelve this bet beside LLP 4000, keeping LLP
+3000.015's additions as Snapback 4 work. The lead's recommendation is the
+first, at about 80% confidence, because every remaining defect is in the
+text and the pre-test is the instrument that can settle the premise for two
+days of work and no Snapback 5 code.
 
 ## Non-claims
 
