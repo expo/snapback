@@ -62,8 +62,7 @@ NOT_FOUND carries no row, index, column or branch detail. A missing update
 target or an incomplete upsert insert patch returns NOT_FOUND. An update
 condition on an unreadable target returns NOT_FOUND even if it would match; on a
 readable target, a false condition returns E_CONFLICT with a read-rule
-`current`. Delete returns NOT_FOUND for a missing id, and E_RULE if an existing
-row's delete rule refuses, whether that row is readable or hidden. Reading a
+`current`. Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses. Reading a
 hidden row returns null. Use a write admitted by its rule; NOT_FOUND on an
 update or upsert-patch does not prove absence.
 
@@ -171,8 +170,10 @@ is not ordered, so even `next.secret >= old.secret` can reveal nullness.
 Retained write-target copies are charged at declared column bounds, so hidden
 lengths cannot change the writer's meter or exhaustion boundary.
 Private fields cannot supply indexes/cursors, expiry, recorded attribution,
-other rules' probes, aggregate inputs, or Following mappings and predicates; make the field readable by audience
-before using it there. This applies to both `view` and `maintain … timeline`.
+other rules' probes, aggregate source inputs, or Following mappings and predicates; make the field readable by audience
+before using it there. A row-keyed count may use a private member predicate
+when the member read rule requires that field's owner; `guide maintains` gives
+the admission rule. This applies to both `view` and `maintain … timeline`.
 Your meter charges only fixed reservations from declared bounds and results
 that pass both row-read and field authorization; hidden candidates and rule
 witnesses cannot change its charges or exhaustion boundary.

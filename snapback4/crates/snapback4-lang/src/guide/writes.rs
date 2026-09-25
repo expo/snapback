@@ -414,8 +414,7 @@ The generated harness compares hidden siblings, witnesses and counter history
 across refusals, logical meters, expiry deadlines, pages/cursors, sync images and watermarks, and
 device prediction, admission, reopened outboxes and settlement. It separately
 checks successful assignments and these limits; it does not promise identical
-outcomes when the caller's actual authority changes. Authorization-dependent
-scans prepay a fixed logical allowance from their schema and requested page size before examining occupants. This applies to cap
+outcomes when the caller's actual authority changes. Authorization-dependent scans follow the shared caller accounting law in `guide rules`. This applies to cap
 checks on insertion and upsert, unique collisions, counter reads, rule witnesses,
 and pages with simple or compound read rules. Every effect prepays its whole
 rule before its first witness, so short-circuiting compound write rules cannot

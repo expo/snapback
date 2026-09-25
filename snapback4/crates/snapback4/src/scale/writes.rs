@@ -22,7 +22,7 @@ impl Analysis<'_> {
                     Constraint::Unique { index } => self.lookup_growth(name, index, &site),
                     Constraint::FinalExistsOnInsert { table, index, .. } => self.lookup_growth(table, index, &site),
                     Constraint::Cap { .. } if table.expire.is_some() => self.per_write(format!(
-                        "{name}: cap uses a maintained physical count; unswept expired rows count until removed; no population scan")),
+                        "{name}: cap uses a maintained physical count as an upper bound; below it no population scan is needed, otherwise live occupancy shares the 8,192-row physical authorization allowance")),
                     _ => {}
                 }
             }
@@ -51,7 +51,7 @@ impl Analysis<'_> {
     }
 
     pub(super) fn expiry_write(&mut self, name: &str, index: &str) {
-        self.per_write(format!("{name}.{index}: constant full-key lookup plus only expired collisions on the same full key; skipping those collisions is bounded by the examined meter; server expiry sweep: 1-second tick, at most 2,000 rows per pass (backlog, downtime or failures can leave older rows)"));
+        self.per_write(format!("{name}.{index}: constant full-key lookup plus only expired collisions on the same full key; skipping those collisions uses the internal ledger and shared 8,192-row physical authorization allowance; server expiry sweep: 1-second tick, at most 2,000 rows per pass (backlog, downtime or failures can leave older rows)"));
     }
 
     fn per_write(&mut self, text: String) {

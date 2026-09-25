@@ -226,7 +226,7 @@ fn delete_rule_refusals() {
             let before = e.store().rows("records").unwrap();
             let out = call(&mut e, "remove", json!({"id":"target"}));
             if allowed { null(out); assert!(e.store().rows("records").unwrap().is_empty()); }
-            else { denied(&out, "E_RULE"); assert_eq!(e.store().rows("records").unwrap(), before); }
+            else { denied(&out, if owner == "alice" { "NOT_FOUND" } else { "E_RULE" }); assert_eq!(e.store().rows("records").unwrap(), before); }
         }
     }
 }

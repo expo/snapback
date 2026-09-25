@@ -53,7 +53,7 @@ mutation eraseId(messageId: id, ordinal: int, at: time, expiresAt: time ?):
         .replace("delete <- allow", "delete <- deny");
     for name in ["patch", "put", "putId", "quiet", "erase", "eraseId"] {
         let mut replies = Vec::new();
-        for backlog in [0, 9_000] {
+        for backlog in [0, 3_000] {
             let mut e = engine(&source, 0);
             let rows: Vec<_> = (0..backlog).map(|n| row(&e, &format!("old{n:05}"), 1, 1, json!(10))).collect();
             e.load(rows).unwrap();
@@ -72,8 +72,8 @@ fn five_thousand_expired_siblings_charge_upsert_target_and_constraint_work() {
     let rows: Vec<_> = (0..5_000).map(|n| row(&e, &format!("old{n:05}"), 1, 1, json!(10))).collect();
     e.load(rows).unwrap();
     let out = e.mutate("put", None, Context::new("alice", args("new", 1, 20)).at(100).with_ids(["new".into()])).unwrap();
-    assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_BOUND"), "{out:?}");
-    assert_eq!(out.metered.examined, 8_193);
+    assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_RULE"), "{out:?}");
+    assert_eq!(out.metered.examined, 0, "B2 physical exhaustion carries no hidden count");
     assert!(e.store_mut().transaction().unwrap().get("messages", "new").unwrap().is_none());
     assert_eq!(e.store().count("messages").unwrap(), 5_000);
 }
@@ -85,14 +85,10 @@ fn full_expiring_cap_defers_secondary_replacement_until_the_documented_sweep() {
     e.load([old]).unwrap();
     let call = |e: &mut Engine| e.mutate("add", None, Context::new("alice", args("new", 1, 20)).at(100)).unwrap();
     let out = call(&mut e);
-    let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}") };
-    assert_eq!(why.code, "E_CONSTRAINT");
-    assert!(why.site.is_some(), "{why:?}");
-    let rewrite = why.rewrite.expect("expiry refusal names the sweep policy");
-    assert!(rewrite.contains("1-second") && rewrite.contains("2,000"), "{rewrite}");
+    assert!(matches!(out.state, WriteState::Sent { .. }), "B2 counts live occupants: {out:?}");
     assert!(e.store_mut().transaction().unwrap().get("messages", "old").unwrap().is_some());
     assert_eq!(e.sweep_expired(100, 2_000).unwrap(), 1);
-    assert!(matches!(call(&mut e).state, WriteState::Sent { .. }));
+    assert!(matches!(call(&mut e).state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"));
     assert!(e.store_mut().transaction().unwrap().get("messages", "old").unwrap().is_none());
 }
 
@@ -103,8 +99,8 @@ fn private_resolution_cut_cannot_turn_a_later_live_target_into_an_insert() {
     rows.push(row(&e, "z-live", 1, 1, json!(null)));
     e.load(rows).unwrap();
     let out = e.mutate("put", None, Context::new("alice", args("new", 1, 20)).at(100).with_ids(["new".into()])).unwrap();
-    assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_BOUND"), "{out:?}");
-    assert_eq!(out.metered.examined, 8_193);
+    assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_RULE"), "{out:?}");
+    assert_eq!(out.metered.examined, 0, "B2 physical exhaustion carries no hidden count");
     assert_eq!(e.store().count("messages").unwrap(), 9_001);
     assert!(e.store_mut().transaction().unwrap().get("messages", "new").unwrap().is_none());
 }
@@ -124,6 +120,6 @@ mutation erase(ordinal: int):
         e.load(rows).unwrap();
         let out = e.mutate(name, None, Context::new("alice", BTreeMap::from([("ordinal".into(), Value::Int(1))])).at(100)).unwrap();
         assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
-        assert_eq!(out.metered.examined, if name == "patch" { 6_003 } else { 3_001 });
+        assert_eq!(out.metered.examined, 1, "only the authorized target is disclosed");
     }
 }

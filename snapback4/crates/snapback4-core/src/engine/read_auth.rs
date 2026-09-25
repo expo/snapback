@@ -168,3 +168,36 @@ mod tests {
     }
 
 }
+
+#[cfg(all(test, feature="sqlite"))]
+mod row_view_tests {
+    use super::*;
+    use crate::{Context, Schema, meter::{Ceilings,Cut,Meter}, rows::{MemoryRows,Rows}, value::object};
+    #[test]
+    fn provisional_row_view_witness_uses_complete_rule_deadline() {
+        let witness="exists unread[member = .member]";
+        for rule in [format!("{witness} or viewer = 'alice'"),format!("{witness} or not {witness}"),format!("{witness} or exists unread[member = .backup]"),witness.into()] {
+            let source=include_str!("../../../snapback4-lang/tests/fixtures/row-keyed-view.q").replace("  joinedAt: int default 0","  joinedAt: int default 0\n  deadline: time ?\n  expire at .deadline")
+                + &format!("\ntable gates:\n  member: members\n  backup: members\n  read <- {rule}\n  online only\n");
+            let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
+            assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+            let schema:Schema=crate::json_codec::from_text(&crate::json_codec::to_text(&b.schema).unwrap()).unwrap();
+            for until in [1001,1100] {
+                let rows=MemoryRows::default();
+                for (id,expiry) in [("b",until),("c",1200)] {
+                    let member=object([("id",Value::Id(id.into())),("conversationId",Value::Id("chat".into())),("principal",Value::Id(id.into())),("readUpTo",Value::Int(0)),("joinedAt",Value::Int(0)),("deadline",Value::Int(expiry))]);
+                    rows.put("members",&schema.tables["members"],&member,None).unwrap();
+                    let view=object([("id",Value::Id(id.into())),("member",Value::Id(id.into())),("value",Value::Int(0)),("recountPending",Value::Bool(false))]);
+                    rows.put("unread",&schema.tables["unread"],&view,None).unwrap();
+                }
+                let gate=object([("id",Value::Id("gate".into())),("member",Value::Id("b".into())),("backup",Value::Id("c".into()))]);
+                let mut runner=Runner::new(&rows,&schema,Context::new("alice",Default::default()).at(1000),Meter::new(Ceilings::default(),Cut::Cap),0);
+                runner.device=true;
+                runner.provisional_rows.insert(("gates".into(),"gate".into()));
+                runner.next_expiry=Some(9000);
+                assert!(runner.authorize_read("gates",&gate,false).unwrap());
+                assert_eq!(runner.next_expiry,Some(if rule==witness {until} else if rule.contains(".backup") {1200} else {9000}),"{rule}");
+            }
+        }
+    }
+}

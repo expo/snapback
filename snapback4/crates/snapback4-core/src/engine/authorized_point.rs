@@ -27,6 +27,23 @@ impl RowAuthorization {
 }
 
 impl<'r> Runner<'r> {
+    // @ref LLP 3000.015#1 — member reads share the row-read and field-disclosure capability.
+    pub(super) fn authorized_member(&mut self, name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        let table = &self.schema.tables[name];
+        let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
+        let expiry = self.next_expiry;
+        let row = self.authorized_scratch(bytes, &[(MeterKind::Examined, 1), (MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, scope| {
+            let Some(mut row) = runner.tx.get(scope, name, id)? else { return Ok(None); };
+            crate::schema::materialize_optional_fields(&mut row, table);
+            let until = table.expire.as_ref().and_then(|f|row.field(f).ok()).and_then(|v|v.as_int().ok());
+            let authorized = runner.authorize_image(name, row)?;
+            if authorized.is_some() { runner.next_expiry = super::rules::earliest(runner.next_expiry, until); }
+            Ok(authorized)
+        })?;
+        if row.is_none() { self.next_expiry = expiry; }
+        row.map(|row|row.charge(&mut self.meter)).transpose()
+    }
+
     pub(super) fn authorize_image(&mut self, name: &str, row: Value) -> Result<Option<AuthorizedRow<'r>>, RuntimeError> {
         let table = &self.schema.tables[name];
         let expiry = self.next_expiry;
@@ -59,7 +76,7 @@ impl<'r> Runner<'r> {
         let mut cursor = bounds.clone();
         let mut out = Vec::with_capacity(limit);
         for _ in 0..limit {
-            let candidate = self.authorized_scratch(bytes, &[], |runner, scope| {
+            let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| {
                 let Some((mut row,key)) = runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)?.pop() else { return Ok(None); };
                 // Advancing over a rejected candidate is internal decoder work.
                 cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
@@ -92,7 +109,7 @@ impl<'r> Runner<'r> {
             let row = self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,&read.table,&read.index,key,&Default::default(),crate::rows::Dir::Asc,1,&mut runner.meter))?.pop();
             self.meter.release_heap(scratch);
             let Some((mut row,_)) = row else {
-                if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table,&read.index,key,&read.site); }
+                if self.device && (table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) || self.schema.maintain_for(&read.table).and_then(|m|m.row_key.as_ref()).is_some_and(|k|self.schema.tables[&k.table].sync.as_ref().is_none_or(|s|s.horizon.is_some()))) { self.unknown_fact(&read.table,&read.index,key,&read.site); }
                 return Ok(None);
             };
             if self.device && self.retained_row(&read.table,&row)? { self.components.note(|frame|frame.retained=true); }
@@ -104,7 +121,7 @@ impl<'r> Runner<'r> {
         let expiry_mark = self.next_expiry;
         let authorized = self.authorized_scratch(bytes, &[(MeterKind::Examined, 1)], |runner, scope| {
             let Some(row) = runner.live_lookup(scope,&read.table, &read.index, index, key)? else {
-                if runner.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { runner.unknown_fact(&read.table, &read.index, key, &read.site); }
+                if runner.device && (table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) || runner.schema.maintain_for(&read.table).and_then(|m|m.row_key.as_ref()).is_some_and(|k|runner.schema.tables[&k.table].sync.as_ref().is_none_or(|s|s.horizon.is_some()))) { runner.unknown_fact(&read.table, &read.index, key, &read.site); }
                 return Ok(None);
             };
             if runner.expired(table, &row) { return Ok(None); }

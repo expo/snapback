@@ -838,6 +838,12 @@ impl crate::rows::Rows for Tx<'_> {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         Tx::scan(self, table, index_name, prefix, bounds, dir, limit)
     }
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
+        let Some((lo,hi)) = crate::rows::scan_range(prefix,bounds,Dir::Asc) else { return Ok(None); };
+        let ti = self.num(&format!("{table}.{index}"))?;
+        let key: Option<Vec<u8>> = self.tx.prepare_cached("SELECT k FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 ORDER BY k LIMIT 1")?.query_row(params![ti,lo,hi], |row|row.get(0)).optional()?;
+        Ok(key.and_then(|key|crate::key::decode(&key)))
+    }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
         heap::range(prefix, bounds, scope).charge(meter,scope)?;

@@ -253,6 +253,9 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         self.tx.scan(table, index_name, prefix, bounds, dir, limit).map(|rows| rows.into_iter().map(|(row, key)| (predictions::without_pending(row), key)).collect())
     }
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.tx.index_head(table,index,prefix,bounds)
+    }
     fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter)?;
         for (row, _) in &mut rows {
@@ -390,6 +393,7 @@ impl<S: DeviceStore> Device<S> {
             previous.clone().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?
         } else { backend.unwrap() };
         check_version(&backend.schema)?;
+        backend.schema.check_row_view_audiences()?;
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
@@ -502,6 +506,7 @@ impl<S: DeviceStore> Device<S> {
 
     pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         check_version(&backend.schema)?;
+        backend.schema.check_row_view_audiences()?;
         backend.schema.prepare_contribution_indexes();
         let required = self.store.meta(BACKEND_REQUIRED)?;
         expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());

@@ -78,7 +78,7 @@ fn w15a_fifty_members_write_one_effect_and_dependency_per_recipient() {
         assert_eq!((effects.len(), dependencies), (49, 49));
         let m = sent.metered;
         meters.push(unconfirmed::fields(m));
-        assert_eq!([m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, m.rows_written], [52, 2, 3, 1356, 69718, 27, 1]);
+        assert_eq!([m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, m.rows_written], [52, 2, 4, 1356, 69718, 27, 1]);
         for effect in &effects {
             assert_eq!(effect.next_at, Some(deadline));
             let recipient = effect.payload.field("targetUserId").unwrap().as_str().unwrap();

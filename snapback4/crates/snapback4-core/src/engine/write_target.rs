@@ -338,7 +338,7 @@ impl Runner<'_> {
     // @ref LLP 3000.007#20.9 — pay for both hidden contributions before the old image; no predicate-dependent success/budget channel.
     pub(in crate::engine) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
         if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
-        let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none()).collect();
+        let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none() && m.row_key.is_none()).collect();
         if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.expire.is_some()) { return Ok(()); }
         let mut steps = 0_u64;
         let mut entries = 0_u64;

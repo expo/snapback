@@ -410,6 +410,7 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
 
 // @ref LLP 3000.007.001#3.11 — this evaluation backend claims no maintained-column parity.
 fn refuse_maintained_columns(schema: &Schema) -> Result<(), RuntimeError> {
+    if schema.maintains.iter().any(|m|m.row_key.is_some()) {return Err(RuntimeError::Structural {code:"E_VIEW_KEY",message:"Postgres evaluation has no background recount runner; use the SQLite engine for row-keyed views (guide maintains)".into()});}
     if schema.tables.values().any(|table| !table.maintained.is_empty())
         || schema.maintains.iter().any(|maintain| maintain.private.is_some())
     {

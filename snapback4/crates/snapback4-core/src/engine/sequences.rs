@@ -307,7 +307,8 @@ mod tests {
         store.install(&schema).unwrap();
         let tx = store.transaction().unwrap();
         let original = object([("id", Value::Id("pending".into())), ("parent", Value::Id("p".into())), ("ordinal", Value::Int(1)), ("payload", Value::String("x".repeat(20000)))]);
-        let copy = word_heap::object_copy(&original) + word_heap::insertion::<String, Value>(original.as_object().unwrap().len()) + word_heap::text("pending");
+        let mut pricing = Runner::new(&tx, &schema, Context::new("alice", Default::default()), Meter::new(Ceilings::default(), Cut::Abort), 0);
+        let copy = pricing.project_row("messages", original.clone()).unwrap().heap_bytes() + word_heap::insertion::<String, Value>(original.as_object().unwrap().len()) + word_heap::text("pending");
         for room in [copy - 1, copy] {
             let ceiling = Ceilings::default().heap_bytes;
             let mut runner = Runner::new(&tx, &schema, Context::new("alice", Default::default()), Meter::new(Ceilings::default(), Cut::Abort), 0);

@@ -318,7 +318,7 @@ fn a_signal_still_cleans_up_the_application_worker() {
         if verb == "serve" { assert!(dir.run(&["deploy", release.to_str().unwrap()]).status.success()); }
         let args = if verb == "dev" { vec!["dev"] } else { vec!["serve", release.to_str().unwrap(), "--worker", source.to_str().unwrap()] };
         let mut host = Host::start(&dir, &args);
-        host.until(|_| dir.0.join("worker-pid").exists());
+        host.until(|_| fs::read_to_string(dir.0.join("worker-pid")).ok().and_then(|text| text.parse::<u32>().ok()).is_some());
         let credential = if verb == "serve" {
             let out = dir.run(&["token", "--service", "probe", "--release", release.to_str().unwrap()]);
             assert!(out.status.success(), "{out:?}");
@@ -565,7 +565,7 @@ fn killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_child
     let store = snapback4_core::Store::open(&release.join("store.sqlite")).unwrap();
     let manual = snapback4_core::identity::service_session(&store, "worker", snapback4_core::now_ms(), 30).unwrap();
     let mut host = Host::start(&dir, &["serve", release.to_str().unwrap(), "--worker", source.to_str().unwrap()]);
-    host.until(|_| dir.0.join("worker-pid").exists());
+    host.until(|_| fs::read_to_string(dir.0.join("worker-pid")).ok().and_then(|text| text.parse::<u32>().ok()).is_some());
     struct Orphan(u32);
     impl Drop for Orphan { fn drop(&mut self) { unsafe { libc::kill(self.0 as i32, libc::SIGKILL); } } }
     let orphan = Orphan(fs::read_to_string(dir.0.join("worker-pid")).unwrap().parse().unwrap());

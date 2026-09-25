@@ -46,7 +46,7 @@ impl Runner<'_> {
                     let imported = self.import_targets.and_then(|rows| rows.get(&(field.table.clone(), id.clone()))).cloned();
                     #[cfg(not(feature = "sqlite"))]
                     let imported: Option<Value> = None;
-                    match imported { Some(row) => Some(row), None => self.metered_scan(|runner, allowance| runner.tx.get(allowance, &field.table, id))? }
+                    match imported { Some(row) => Some(row), None => self.lookup_stored(&field.table, "byId", target.index("byId").expect("id index"), &[Value::Id(id.clone())], false)? }
                 },
                 _ => None,
             };

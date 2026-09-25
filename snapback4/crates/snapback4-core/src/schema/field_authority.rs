@@ -51,6 +51,11 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 }
             }
             for maintain in &schema.maintains {
+                if let Some(key) = &maintain.row_key
+                    && key.table == *name && key.fields().contains(field)
+                    && !requires_owner(&table.rules.read, &authority.owner) {
+                    issue(name, field, "is private and can feed a row-keyed count only when the member read rule requires its owner; restrict the member audience or declare readable by audience".into());
+                }
                 if maintain.source == *name && maintain.dependencies().contains(field) {
                     issue(name, field, "is private and cannot feed a readable aggregate; declare readable by audience first".into());
                 }
@@ -66,6 +71,17 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         }
     }
     issues
+}
+
+// Every admitted member reader must also be allowed to see the predicate input.
+// A conjunctive owner grant proves that; an alternative grant does not.
+fn requires_owner(rule: &RuleExpr, owner: &str) -> bool {
+    match rule {
+        RuleExpr::Eq(RuleTerm::Field(field), RuleTerm::Viewer)
+        | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(field)) => field == owner,
+        RuleExpr::And(parts) => parts.iter().any(|part| requires_owner(part, owner)),
+        _ => false,
+    }
 }
 
 fn private_rule(schema: &Schema, name: &str, rule: &RuleExpr, update: bool, issue: &mut impl FnMut(&str, &str, String)) {

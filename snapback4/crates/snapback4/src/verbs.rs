@@ -212,13 +212,17 @@ pub fn check(options: &Options) -> i32 {
     let scale_summary = crate::scale::summary(&certificates);
     let field_authority: Vec<_> = bound.schema.visible_tables().flat_map(|(name,table)| table.written_by.iter().map(move |(column,authority)|
         format!("{name}.{column}: written by .{}; visibility: {}", authority.owner, if authority.audience { "readable by audience" } else { "private to owner" }))).collect();
+    let row_views = bound.schema.maintains.iter().filter_map(|m| m.row_key.as_ref().map(|k| json!({
+        "view": m.target, "source": m.source, "sourceKey": k.source_key, "member": k.table,
+        "memberKey": k.member_key, "fanout": k.fanout, "writerRecount": snapback4_core::engine::row_views::WRITER_RECOUNT, "recountChunk": snapback4_core::engine::row_views::RECOUNT_CHUNK
+    }))).collect::<Vec<_>>();
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     let sequences: Vec<_> = bound.schema.visible_tables().flat_map(|(name, table)| table.sequences.iter().map(move |(column, reference)| {
         format!("sequence {name}.{column}: counter per {} row through .{reference}; immutable, provisional while pending", table.columns[reference])
     })).collect();
     if options.json {
-        println!("{}", json!({ "ok": true, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         for line in &sequences { println!("  {line}"); }
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
@@ -239,6 +243,9 @@ pub fn check(options: &Options) -> i32 {
     if !options.json && options.flags.contains_key("residency") && acquisition.is_none() {
         println!("residency (measurements): not measured — no dev store; use check --residency --fixture <fixture-directory> --as <principal>");
     }
+    if !options.json { for m in &bound.schema.maintains { if let Some(k)=&m.row_key {
+        println!("  view {}: key {}.{} = {}.{}; one value per {} row; source fanout <= {}; writer recount <= {} examined source rows within remaining meter, then pending/background chunks <= {}",m.target,m.source,k.source_key,k.table,k.member_key,k.table,k.fanout,snapback4_core::engine::row_views::WRITER_RECOUNT,snapback4_core::engine::row_views::RECOUNT_CHUNK);
+    } } }
     if !options.json && !options.flags.contains_key("residency") {
         for (name, fact) in bound.schema.operations.iter().filter(|(_, fact)| fact.held) {
             println!("{}", present(&snapback4_lang::bind::residency::operation_lines(name, fact)));

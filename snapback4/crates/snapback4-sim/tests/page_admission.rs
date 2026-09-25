@@ -161,8 +161,8 @@ fn w2_a_uniform_hidden_page_after_metered_work_has_the_same_complete_observation
             e.seed([("grants".into(), grant)]).unwrap();
             let (result, observation) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("page", json!({"owner":"bob"})));
             if budget == "steps" { assert!(matches!(result.state, WriteState::Sent { result: Value::Int(100), .. })); }
-            else { assert_eq!(observation.body()["why"]["code"], if budget == "probes" { "E_RULE" } else { "E_BOUND" }); }
-            assert_eq!(result.metered.examined, if budget == "steps" {1} else if budget == "probes" {8192} else {8193});
+            else { assert_eq!(observation.body()["why"]["code"], "E_BOUND"); }
+            assert_eq!(result.metered.examined, if budget == "steps" {1} else {8193});
             assert_eq!(result.metered.rule_probes, if budget == "probes" {8192} else {0});
             assert_eq!(result.metered.rows_written, 0);
             observations.push(observation);
@@ -236,8 +236,8 @@ fn w3_upsert_condition_is_one_compiler_refusal_and_update_condition_is_admitted(
 
 #[test]
 fn w4_negated_self_probe_empty_and_hidden_pages_match_at_probe_ceiling() {
-    // The full walk reaches the physical allowance first; the smaller
-    // probe-only ceiling still checks logical admission independently.
+    // Repeated unchanged points reuse the physical fetch. Both logical
+    // ceilings still cut before discovering the hidden population.
     for (work, probe_ceiling) in [(0, 8192), (8192, 8192), (4, 4)] {
         let source = format!("table secrets:\n  read <- deny\ntable work:\n  read <- exists work[.id]\nmutation pass(): server\n  for i in range(0, {work}):\n    r = work[id = 'work']\n  rows = secrets[] first 1 by byId\n  return count(rows)\nquery one():\n  return null\n");
         let mut observations = Vec::new();
@@ -257,8 +257,8 @@ fn w4_negated_self_probe_empty_and_hidden_pages_match_at_probe_ceiling() {
             e.set_ceilings(snapback4_core::meter::Ceilings { rule_probes: probe_ceiling, ..e.ceilings() });
             let (result, observed) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("one", json!({})));
             if work == 0 { assert!(matches!(result.state, WriteState::Sent { result: Value::Int(0), .. })); }
-            else { assert_eq!(observed.body()["why"]["code"], if work == 8192 { "E_RULE" } else { "E_BOUND" }); }
-            assert_eq!((result.metered.examined, result.metered.rule_probes), match work { 0 => (1, 1), 4 => (5, 5), _ => (8192, 8192) });
+            else { assert_eq!(observed.body()["why"]["code"], "E_BOUND"); }
+            assert_eq!((result.metered.examined, result.metered.rule_probes), match work { 0 => (1, 1), 4 => (5, 5), _ => (8193, 8192) });
             observations.push(observed);
         }
         observations[0].assert_same(&observations[1]);
@@ -282,21 +282,14 @@ fn maintain_probe_world(source: &str, population: usize, live: bool) -> Engine {
 fn w4_live_maintain_existence_walk_has_one_probe_with_bounded_expired_sources() {
     for live in [false, true] {
         let mut observations = Vec::new();
-        let mut exhausted = Vec::new();
         for population in [0, 8000, 9000, 20000] {
             let mut e = maintain_probe_world(MAINTAIN_PROBE, population, live);
             let (result, observed) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("one", json!({})));
-            if population >= 8192 {
-                assert!(matches!(&result.state, WriteState::Failed { why, .. } if why.code == "E_RULE"));
-                exhausted.push(observed);
-                continue;
-            }
             assert!(matches!(result.state, WriteState::Sent { result: Value::Int(n), .. } if n == i64::from(live)));
             assert_eq!((result.metered.rule_probes, result.metered.examined), (1, if live {2} else {1}));
             observations.push(observed);
         }
-        observations[0].assert_same(&observations[1]);
-        exhausted[0].assert_same(&exhausted[1]);
+        for observation in &observations[1..] { observations[0].assert_same(observation); }
     }
 }
 

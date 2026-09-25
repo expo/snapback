@@ -237,9 +237,12 @@ pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
 /// declaration text. Optionality can override a formerly effective default.
 // @ref LLP 3000.007.001#3.11 — rebuild on resolved source dependency changes.
 pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &crate::schema::Maintain) -> bool {
-    from.maintain_for(&maintain.target) != Some(maintain)
+    maintain.row_key.as_ref().is_some_and(|k|from.table(&k.table)!=to.table(&k.table))
+        || from.maintain_for(&maintain.target) != Some(maintain)
         || retired_timeline_tables(from, to).contains(&maintain.target)
         || from.table(&maintain.source).and_then(|t| t.expire.as_ref()) != to.table(&maintain.source).and_then(|t| t.expire.as_ref())
+        || to.table(&maintain.source).and_then(|t|t.expire.as_ref()).is_some_and(|field|
+            interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))
         || maintain.dependencies().iter().any(|field| interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))
 }
 

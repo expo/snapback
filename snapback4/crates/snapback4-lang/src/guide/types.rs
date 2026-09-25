@@ -120,6 +120,7 @@ An explicit store reset clears them with its rows. Adding or rebinding a sequenc
 on a populated table refuses E_ADOPT with an empty-table rewrite; there is no
 implicit historical backfill. An empty table may adopt the declaration.
 E_SEQUENCE_EXHAUSTED refuses a transaction that would exceed the maximum int.
+Create a new parent for subsequent writes; the refused transaction consumes no value.
 The generated schema carries the `sequence-by` engine capability; upgrade
 older engines and devices that refuse it with E_SCHEMA_CAPABILITY.
 See `guide writes` for prediction, ordering and the complete chat example.
@@ -182,17 +183,18 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   absent to every reader on every host from that moment, before any rule;
   the server sweeps on a one-second tick, at most 2,000 rows per pass, and
   the deletion streams to each device holding it. Backlog or downtime can
-  delay physical deletion. A `cap` on an expiring table uses a maintained
-  physical count: unswept expired rows still occupy capacity. Unique checks
-  skip expired collisions at the same full key under the examined meter;
-  secondary-key predecessors remain until the sweep, so replacement at a full
-  cap refuses until that sweep frees room. The refusal names the sweep timing.
+  delay physical deletion. A `cap` counts live rows. Its maintained physical
+  count proves room when below the cap; otherwise a bounded authorization
+  walk checks live occupancy. Unique checks skip expired collisions at the
+  same full key. These candidates use the internal ledger described in
+  `guide rules`; exhausting the shared physical allowance refuses with E_RULE.
+  Secondary-key predecessors remain until the sweep.
   A row inserted already expired by a program is retired at its commit's end,
   releasing its cap occupancy without a later deletion event. Reviving it
   within that commit preserves it. Seeds and loads keep expired rows for sweep.
   Devices queue occupancy-increasing writes on expiring capped tables without
   predicted rows: even a complete live snapshot omits unswept expired rows.
-  Unrelated live or expired rows are never scanned for a write's constraints. An already returned answer keeps the row until the
+  Unique checks never scan unrelated keys; a saturated cap may inspect its group. An already returned answer keeps the row until the
   next answer; a live reader that must hide it at its deadline drops it
   locally by `expiresAt` (the client example in CLIENT-AND-OPERATIONS.md).
   A typing indicator or short-lived presence row especially needs this

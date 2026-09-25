@@ -533,14 +533,21 @@ impl Parser {
             self.maybe(".");
             column = Some(self.word()?.value);
         }
-        let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
+        let mut filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
         self.take("by")?;
+        let row_key = if self.peek().kind == Kind::Word && self.peek_at(1).kind == Kind::Word && self.peek_at(1).value != "where" {
+            Some((self.word()?.value, self.word()?.value))
+        } else { None };
         let mut keys = Vec::new();
-        loop {
+        while row_key.is_none() {
             let mut key = self.expression(0, &[",", "<newline>"])?;
             views::unfocal_key(&mut key);
             keys.push(key);
             if !self.maybe(",") { break; }
+        }
+        if row_key.is_some() {
+            if self.maybe("where") { filter = Some(self.maintain_predicate(0)?); }
+            keys.push(Expr::Name { name: "member".into(), site: site.clone() });
         }
         let by = keys.iter().map(|key| match key {
             Expr::Name { name, .. } | Expr::Call { name, .. } => name.clone(),
@@ -559,6 +566,10 @@ impl Parser {
             }
             let result: Fallible<()> = (|| {
                 let effect = self.word()?;
+                if effect.value == "where" && row_key.is_some() {
+                    filter = Some(self.maintain_predicate(0)?);
+                    return self.newline();
+                }
                 if effect.value == "online" {
                     self.take("only")?;
                     if online_only { return Err(syntax_with(&effect.site, "duplicate online only", "keep one online only line")); }
@@ -598,7 +609,7 @@ impl Parser {
             }
         }
         if block { self.take_kind(Kind::Dedent)?; }
-        Ok(MaintainDecl { filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, online_only, site })
+        Ok(MaintainDecl { row_key, filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, online_only, site })
     }
 
     fn maintain_duration(&mut self, offset: bool) -> Fallible<Expr> {

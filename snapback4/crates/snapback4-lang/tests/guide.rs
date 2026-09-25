@@ -1217,3 +1217,11 @@ mod definitions;
 mod rules;
 #[path = "guide/recovery.rs"]
 mod recovery;
+
+#[test]
+fn following_cards_pin_examinations() {
+    for (name, doc) in [("feeds", card("feeds").unwrap()), ("orientation destination", readme_reference("feeds"))] {
+        assert!(doc.contains("82 examinations"), "{name} must count examinations, including lookups");
+        assert!(doc.contains("41 tombstone probes"), "{name} must pin the tombstone work");
+    }
+}

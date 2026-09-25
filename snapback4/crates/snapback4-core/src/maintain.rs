@@ -90,6 +90,7 @@ impl Maintain {
     pub fn evaluation_steps(&self) -> u64 { self.filter.as_ref().map_or(0, Predicate::steps) + self.by.len() as u64 + self.computed.len() as u64 + self.computed.values().filter(|key| key.offset != 0).count() as u64 }
     pub fn dependencies(&self) -> BTreeSet<String> {
         let mut fields = BTreeSet::new();
+        if let Some(k)=&self.row_key { k.predicate.fields(&mut fields); fields.retain(|f|!f.starts_with("$row.")); return fields; }
         if let Some(p) = &self.filter { p.fields(&mut fields); }
         for field in &self.by { fields.insert(self.computed.get(field).map_or(field, |key| &key.column).clone()); }
         if let crate::schema::MaintainKind::Sum { of } = &self.kind { fields.insert(of.clone()); }
@@ -113,11 +114,12 @@ impl Maintain {
 impl crate::schema::Schema {
     // @ref LLP 3000.007#20.9 — every expiring maintain has a selected physical contribution index, including raw schema callers.
     pub fn prepare_contribution_indexes(&mut self) {
+        self.prepare_row_views();
         for table in self.tables.values_mut() {
             table.indexes.retain(|_, index| !matches!(index.components.first(), Some(crate::schema::IndexComponent::Contribution(_))));
         }
         for maintain in &self.maintains {
-            if let Some(source) = self.tables.get_mut(&maintain.source).filter(|source| source.expire.is_some()) {
+            if let Some(source) = self.tables.get_mut(&maintain.source).filter(|source| source.expire.is_some() && maintain.row_key.is_none()) {
                 source.indexes.insert(maintain.contribution_index(), crate::schema::Index {
                     components: vec![crate::schema::IndexComponent::Contribution(Box::new(maintain.clone())),
                         crate::schema::IndexComponent::Column(source.expire.clone().expect("expiring source"))], unique: false,
@@ -132,3 +134,6 @@ impl crate::schema::Schema {
             source.rules.read.is_uniformly_readable() && source.sync.as_ref().is_some_and(|s| s.audience != crate::schema::Audience::Public))
     }
 }
+
+mod row_key;
+pub use row_key::RowKey;

@@ -166,7 +166,7 @@ impl Catalog {
         super::columns::resolve(&mut tables, diagnostics);
         super::columns::recorded(&mut tables, diagnostics);
         // Resolve every path against application declarations before generating any target.
-        for maintain in maintains.values() {
+        for maintain in maintains.values().filter(|m|m.row_key.is_none()) {
             match super::maintains::recorded_paths(&tables, maintain) {
                 Ok(paths) => { if let Some(source) = tables.get_mut(&maintain.source) { source.recorded.extend(paths); } }
                 Err(diagnostic) => diagnostics.push(diagnostic),
@@ -181,7 +181,7 @@ impl Catalog {
                 continue;
             };
             source.columns.extend(source.recorded.clone());
-            match super::schema::maintain_target(&source, &maintain) {
+            match if maintain.row_key.is_some() { super::row_views::target(&tables, &maintain) } else { super::schema::maintain_target(&source, &maintain) } {
                 Ok(decl) => {
                     let columns: BTreeMap<String, ScalarType> = decl.columns.iter().map(|c| (c.name.clone(), c.type_.clone())).collect();
                     let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: decl.site.clone() }];
@@ -194,7 +194,7 @@ impl Catalog {
         let mut source = crate::source::SourceMap::default();
         for document in &documents { source.extend(&document.source); }
         let mut catalog = Self { canonical_read_origins: BTreeMap::new(), source, feed_views: BTreeMap::new(), read_origins: BTreeMap::new(), view_reads: BTreeMap::new(), view_types: BTreeMap::new(), documents, tables, maintains, shapes, functions, effects, synthesized: Default::default(), planner_notes: Vec::new() };
-        for maintain in catalog.maintains.values().filter(|m| m.read.is_none()) {
+        for maintain in catalog.maintains.values().filter(|m| m.read.is_none() && m.row_key.is_none()) {
             // A colliding ordinary table can exist even when target generation failed.
             if !catalog.tables.get(&maintain.name).is_some_and(|info| info.maintained.is_some()) { continue; }
             match super::maintains::derived_read(&catalog, maintain) {

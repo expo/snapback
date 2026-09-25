@@ -275,6 +275,10 @@ impl RuntimeError {
                 refusal.rewrite = Some("create a new parent row for subsequent sequence values".into());
                 refusal.guide = Some("types".into());
             }
+            Self::Structural { code: "E_VIEW_KEY", message } => {
+                refusal.guide = Some("maintains".into());
+                refusal.rewrite = Some(message.clone());
+            }
             Self::Structural { code: "E_RECORDED_FIELD", .. } => {
                 refusal.guide = Some("maintains".into());
                 refusal.rewrite = Some("omit engine-recorded fields from the payload; write only application columns".into());
@@ -314,7 +318,7 @@ impl RuntimeError {
                 refusal.message = message.clone();
                 refusal.site = Some(site.clone());
                 refusal.guide = Some("types".into());
-                refusal.rewrite = Some("retry after expired rows are swept: the server runs a 1-second tick, at most 2,000 rows per pass; a larger backlog takes more passes. If the cap holds live rows, delete an existing row before inserting".into());
+                refusal.rewrite = Some("delete an existing live row before inserting, or wait for its expiry; expired rows do not occupy this live cap".into());
             }
             Self::Conflict { current } => {
                 refusal.site = Some(current.site.clone());

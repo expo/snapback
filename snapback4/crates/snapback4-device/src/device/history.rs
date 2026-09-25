@@ -141,6 +141,7 @@ impl<T: DeviceTx> Rows for Reading<'_, T> {
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.tx.get(table, id) }
     fn lookup(&self, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.tx.lookup(table, name, index, key) }
     fn scan(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.tx.scan(table, index, prefix, bounds, dir, limit) }
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> { self.tx.index_head(table,index,prefix,bounds) }
     fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.tx.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter) }
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
         self.tx.cap_count(table, by, group)

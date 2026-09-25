@@ -36,7 +36,7 @@ fn expired_unique_keys_can_be_reused_and_background_sweep_removes_the_old_row() 
         let out = e.mutate(name, None, Context::new("alice", args(id, 1, 20)).at(100).with_ids(["new".into()])).unwrap();
         assert!(matches!(out.state, WriteState::Sent { .. }), "{name}: {out:?}");
         assert_eq!(out.metered.rows_written, if name == "putId" { 2 } else { 1 });
-        assert!(out.metered.examined >= 1 && out.metered.examined <= 3, "{name}: {out:?}");
+        assert_eq!(out.metered.examined, u64::from(name.starts_with("put")), "only the upsert result read is disclosed: {name}: {out:?}");
         assert_eq!(e.store().count("messages").unwrap(), if name == "putId" { 1 } else { 2 });
         assert_eq!(e.sweep_expired(100, 2_000).unwrap(), if name == "putId" { 0 } else { 1 });
         assert_eq!(e.store().count("messages").unwrap(), 1);
@@ -55,7 +55,7 @@ fn secondary_unique_checks_examine_only_their_full_key_collisions() {
     e.load(rows).unwrap();
     let out = e.mutate("add", None, Context::new("alice", args("new", 1, 20)).at(100)).unwrap();
     assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
-    assert_eq!(out.metered.examined, 2);
+    assert_eq!(out.metered.examined, 0, "only disclosed results reach the logical meter");
     assert_eq!(out.metered.rows_written, 1);
     assert!(physical(&mut e, "by-at").is_some());
     assert!(physical(&mut e, "by-ordinal").is_some());
@@ -70,10 +70,11 @@ fn expiry_caps_count_unswept_rows_until_the_sweep_for_table_and_group_caps() {
         e.load([old]).unwrap();
         let call = |e: &mut Engine| e.mutate("add", None, Context::new("alice", args("new", 2, 20)).at(100)).unwrap();
         let out = call(&mut e);
-        assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{cap}: {out:?}");
+        assert!(matches!(out.state, WriteState::Sent { .. }), "B2 counts live occupants: {cap}: {out:?}");
         assert_eq!(out.metered.examined, 0);
         assert_eq!(e.sweep_expired(100, 2_000).unwrap(), 1);
-        assert!(matches!(call(&mut e).state, WriteState::Sent { .. }));
+        // Sweeping the expired predecessor does not free a second live slot.
+        assert!(matches!(call(&mut e).state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"));
     }
 }
 
@@ -87,10 +88,10 @@ fn same_key_backlog_is_metered_for_insert_if_absent_and_upsert() {
             let out = e.mutate(name, None, Context::new("alice", args("new", 1, 20)).at(100).with_ids(["new".into()])).unwrap();
             if backlog == 3_000 {
                 assert!(matches!(out.state, WriteState::Sent { .. }), "{name}: {out:?}");
-                assert!(out.metered.examined >= 3_000 && out.metered.examined <= 6_001, "{name}: {out:?}");
+                assert_eq!(out.metered.examined, u64::from(name == "put"), "only the upsert result read is disclosed: {name}: {out:?}");
             } else {
-                assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_BOUND"), "{name}: {out:?}");
-                assert_eq!(out.metered.examined, 8_193);
+                assert!(matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_RULE"), "{name}: {out:?}");
+                assert_eq!(out.metered.examined, 0, "physical exhaustion carries no hidden population");
                 assert!(physical(&mut e, "new").is_none());
                 let tx = e.store_mut().transaction().unwrap();
                 assert_eq!(tx.cap_count("messages", &[], &[]).unwrap(), backlog);

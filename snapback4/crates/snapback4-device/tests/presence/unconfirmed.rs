@@ -26,7 +26,7 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool) {
     println!("w15a fifty prediction {label}: {meter:?}");
     // The membership point read reserves its server-equivalent probe even
     // when the device trusts its delivered image, in addition to insertion.
-    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 2, 1367, 70161, 27, 1]);
+    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 4, 1367, 70161, 27, 1]);
     let mut meters = Vec::new();
     for (state, live, deadline) in [("held", 1, 16_000), ("graced", 0, 36_000)] {
         let (mut engine, _) = compile(source);
@@ -37,12 +37,12 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool) {
         assert_eq!(engine.effects(None, 100).unwrap().len(), 49);
         meters.push(w15a_meter_fields(sent.metered));
         if boundary {
-            for ceiling in [3, 2] {
+            for ceiling in [4, 3, 2] {
                 let limits = Ceilings { rule_probes: ceiling, ..Default::default() };
                 let tx = store.transaction().unwrap();
                 let prediction = local::predict(&tx, &backend.schema, program, ctx.clone(), limits);
                 tx.rollback().unwrap();
-                if ceiling == 3 { assert!(prediction.is_ok(), "{label}/{ceiling}: {prediction:?}"); }
+                if ceiling == 4 { assert!(prediction.is_ok(), "{label}/{ceiling}: {prediction:?}"); }
                 else { assert!(matches!(&prediction, Err(snapback4_core::RuntimeError::Bound { kind: snapback4_core::error::MeterKind::RuleProbes, .. })), "{label}/{ceiling}: {prediction:?}"); }
                 let (mut engine, _) = compile(source);
                 engine.seed(seed.clone()).unwrap();
@@ -50,7 +50,7 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool) {
                 engine.set_ceilings(limits);
                 let sent = engine.mutate("send", None, ctx.clone()).unwrap();
                 println!("w15a5 probe boundary {label}/{state} ceiling={ceiling}: prediction={prediction:?} server={:?}", sent.state);
-                if ceiling == 3 { assert!(matches!(sent.state, WriteState::Sent { .. })); }
+                if ceiling == 4 { assert!(matches!(sent.state, WriteState::Sent { .. })); }
                 else {
                     assert!(matches!(&sent.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"));
                     assert!(engine.effects(None, 100).unwrap().is_empty());

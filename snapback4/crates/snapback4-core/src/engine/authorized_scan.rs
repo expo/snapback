@@ -1,6 +1,6 @@
 //! One logical allowance for work whose shape can depend on unreadable rows.
 use super::runner::Runner;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 // @ref LLP 3000.015#2 — one physical allowance per request, nested work included.
 pub(super) const AUTHORIZATION_WALK_LIMIT: usize = 8192;
@@ -25,9 +25,9 @@ impl Authorization {
 
 // No Rows implementation, Deref or raw accessor: row reads require the
 // unforgeable token even when a caller has access to Runner's store facade.
-pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64> }
+pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
 impl<'a> GuardedRows<'a> {
-    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0) } }
+    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
     pub(super) fn revision(&self) -> u64 { self.revision.get() }
     pub(super) fn remaining(&self) -> usize { self.remaining.get() }
     fn limit(&self, requested: usize) -> Result<usize, RuntimeError> {
@@ -44,10 +44,22 @@ impl<'a> GuardedRows<'a> {
         self.charge(usize::from(row.is_some()));
         Ok(row)
     }
+    /// A key-only witness still consumes the shared physical authorization allowance.
+    pub(crate) fn index_head(&self, _authorization: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.limit(1)?;
+        let key = self.raw.index_head(table, index, prefix, bounds)?;
+        self.charge(usize::from(key.is_some()));
+        Ok(key)
+    }
     pub(crate) fn lookup(&self, _authorization: &Authorization, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        // @ref LLP 3000.015#2 — repeated unchanged points share decoded storage,
+        // while every logical read still prepays its complete rule.
+        if let Some((cached_table, cached_index, cached_key, row)) = &*self.lookup_cache.borrow()
+            && cached_table == table && cached_index == name && cached_key == key { return Ok(row.clone()); }
         self.limit(1)?;
         let row = self.raw.lookup(table, name, index, key)?;
         self.charge(usize::from(row.is_some()));
+        *self.lookup_cache.borrow_mut() = Some((table.into(), name.into(), key.to_vec(), row.clone()));
         Ok(row)
     }
     pub(crate) fn scan(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
@@ -75,8 +87,8 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn sequence_value(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.sequence_value(parent, id) }
     pub(crate) fn provisional_sequence_floor(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.provisional_sequence_floor(parent, id) }
     pub(crate) fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> { self.raw.set_sequence(parent, id, value) }
-    pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.raw.put(name, table, row, old) }
-    pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.raw.delete(name, table, old) }
+    pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.put(name, table, row, old) }
+    pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.delete(name, table, old) }
     pub(crate) fn holds_assets(&self) -> bool { self.raw.holds_assets() }
     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
@@ -96,12 +108,20 @@ impl Runner<'_> {
     // @ref LLP 3000.015#1 — declaration-only scratch is admitted before any
     // candidate/witness access. The logical heap retains only disclosed output.
     pub(super) fn authorized_scratch<T: Default>(&mut self, bytes: u64, allowance: &[(MeterKind, u64)], work: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
-        if self.device_work_active { return self.authorized_scan(allowance, work); }
-        if self.context.is_system() { return self.authorized_scan(allowance, work); }
+        self.reserved_scratch(bytes, allowance, true, work)
+    }
+
+    /// Count certification follows an admitted member and source-group verdict.
+    /// Nested authorization still shares any enclosing physical allowance.
+    pub(super) fn disclosed_scratch<T: Default>(&mut self, bytes: u64, allowance: &[(MeterKind, u64)], work: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        self.reserved_scratch(bytes, allowance, false, work)
+    }
+
+    pub(super) fn reserved_scratch<T: Default>(&mut self, bytes: u64, allowance: &[(MeterKind, u64)], physical: bool, work: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        if self.device_work_active || self.context.is_system() { return self.prepaid_scan(allowance, physical, work); }
         let mark = self.meter.mark();
         self.meter.heap(bytes)?;
-        let result = self.authorized_scan(allowance, work);
-        // Failure of fixed admission retains its cut; internal work cannot cut.
+        let result = self.prepaid_scan(allowance, physical, work);
         self.meter.release_row_heap(mark, bytes);
         result
     }
@@ -185,7 +205,7 @@ mod tests {
             let result = if lookup {
                 let index=&schema.tables["records"].indexes["byId"];
                 runner.lookup_stored("records","byId",index,&[Value::Id("absent".into())],false)
-            } else { runner.fetch("records","absent") };
+            } else { runner.metered_scan(|runner, scope|runner.fetch(scope,"records","absent")) };
             assert!(matches!(result,Err(RuntimeError::Bound {kind:MeterKind::HeapBytes,..})),"lookup={lookup}: {result:?}");
         }
     }
@@ -254,4 +274,27 @@ impl InternalLedger {
         work(&mut self.0, &Authorization::internal())
     }
     pub fn into_meter(self) -> crate::meter::Meter { self.0 }
+}
+
+#[cfg(all(test,feature="sqlite"))]
+mod row_view_tests {
+    use super::*;
+    use crate::{Context, rows::MemoryRows, Schema, meter::Meter};
+    #[test]
+    fn internal_work_cannot_change_reserved_receipt_or_cut() {
+        let rows=MemoryRows::new(); let schema=Schema::default();
+        for hidden in [0,1,17<<20] {
+            for error in [false,true] {
+                let mut r=Runner::new(&rows,&schema,Context::new("alice",Default::default()),Meter::new(Ceilings::default(),Cut::Cap),0);
+                let out=r.authorized_scratch(8192,&[(MeterKind::Examined,1),(MeterKind::Steps,1)],|r,_| {
+                    r.meter.heap(hidden)?; r.meter.charge(MeterKind::Examined,hidden)?;
+                    if error {Err(RuntimeError::Input("internal test error".into()))} else {Ok(())}
+                });
+                assert_eq!(out.is_err(),error);
+                assert_eq!(r.meter.used.examined,1); assert_eq!(r.meter.used.steps,1);
+                assert_eq!(r.meter.used.heap_bytes,0); assert_eq!(r.meter.heap_peak,8192);
+                assert!(r.meter.capped_at.is_none()); assert_eq!(r.meter.ceilings,Ceilings::default());
+            }
+        }
+    }
 }

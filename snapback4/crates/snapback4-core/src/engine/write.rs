@@ -83,7 +83,6 @@ impl Runner<'_> {
             return Err(if upsert_index.is_some() { self.no_write_target() } else { error });
         }
         if upsert_index.is_some() {
-            if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
             self.authorize_fields(table_name, &row, &supplied).map_err(|_| self.no_write_target())?;
         } else { self.authorize_fields(table_name, &row, &supplied)?; }
         let (row, sequence_full) = self.sequence_fields(table_name, row)?;
@@ -141,7 +140,11 @@ impl Runner<'_> {
             } else { "byId" };
             self.prove_upsert_insert(table_name, index, &row)?;
         }
-        let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, allowance| {
+        // An upsert has already resolved this exact address (or minted the id)
+        // and reserved both target proofs. Retiring an expired predecessor
+        // uses that same allowance, not a third read-rule reservation.
+        let collision_probes = if upsert_index.is_some() { 0 } else { super::rules::rule_probes(&table.rules.read) };
+        let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, collision_probes)], |runner, allowance| {
             let existing = runner.tx.get(allowance, table_name, &id)?;
             if let Some(row) = &existing && !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
             Ok(existing)
@@ -150,7 +153,8 @@ impl Runner<'_> {
             if !self.expired(&table, &existing) {
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
             }
-            self.meter.charge(MeterKind::Examined, 1)?;
+            // The expired predecessor is internal authorization work, not a
+            // disclosed examination (LLP 3000.015 §§1–2).
             self.remove(table_name, existing)?;
         }
         // The server's same-id expired replacement preserves occupancy in
@@ -514,9 +518,16 @@ impl Runner<'_> {
                         (MeterKind::Examined, if private_cap { *max as u64 } else { 0 }),
                         (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 }),
                     ], |runner, allowance| {
-                        if !private_cap && (table.expire.is_none() || table.sequences.is_empty()) {
-                            return if table.expire.is_none() { runner.tx.count_prefix(allowance, table_name, &index_name, &group, *max as u64 + 1) }
-                            else { runner.tx.cap_count(allowance, table_name, by, &group) };
+                        if !private_cap && table.expire.is_none() {
+                            return runner.tx.count_prefix(allowance, table_name, &index_name, &group, *max as u64 + 1);
+                        }
+                        // Main's transactional occupancy is a cheap upper bound
+                        // on live rows. Below the cap it proves room without a
+                        // walk; at the cap, B2's bounded live scan decides. A
+                        // private sequence cap must still authorize occupants.
+                        if !private_cap {
+                            let physical = runner.tx.cap_count(allowance, table_name, by, &group)?;
+                            if physical < *max as u64 { return Ok(physical); }
                         }
                         let mut count = 0;
                         let mut bounds = Bounds::default();
@@ -674,8 +685,12 @@ impl Runner<'_> {
         if old.is_some() && new.is_none() { self.timeline_purge_charge(table_name)?; }
         if self.schema.visible(table_name) { self.written_tables.insert(table_name.to_owned()); }
         if origin == Origin::Source {
+            for m in self.schema.maintains.iter().filter(|m|m.row_key.as_ref().is_some_and(|k|k.table == table_name)) {
+                self.written_tables.insert(m.target.clone());
+            }
             for m in self.schema.maintains.iter().filter(|m|m.source == table_name) {
                 if let Some(owner) = &m.private { self.written_tables.insert(owner.table.clone()); }
+                if m.row_key.is_some() { self.written_tables.insert(m.target.clone()); }
             }
         }
         self.rows_written += 1;
@@ -717,9 +732,22 @@ impl Runner<'_> {
         if self.device { if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new, origin)?; } }
         else if !self.event_free { partition::row_changed(self, table_name, old, new, origin)?; }
         if origin == Origin::Source {
-            self.place_assets(table_name, &table, old, new)?;
-            self.maintain(table_name, old, new)?;
-            if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
+            // @ref LLP 3000.015#3 — a source born expired never enters the count basis.
+            // Retire it now, in the same transaction, so a later correction/sweep
+            // cannot subtract a contribution which was never added. Other derived
+            // consumers see the same physical deletion (including an expiring update).
+            let new = if let Some(row) = new.filter(|row| self.expired(&table, row))
+                && self.schema.maintains.iter().any(|m| m.source == table_name && m.row_key.is_some())
+            {
+                let entries = self.tx.delete(table_name, &table, row)?;
+                self.meter.charge(MeterKind::IndexEntries, entries)?;
+                None
+            } else { new };
+            if old.is_some() || new.is_some() {
+                self.place_assets(table_name, &table, old, new)?;
+                self.maintain(table_name, old, new)?;
+                if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
+            }
         }
         Ok(())
     }

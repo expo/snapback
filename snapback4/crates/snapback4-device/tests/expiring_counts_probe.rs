@@ -17,8 +17,8 @@ impl Rows for Counted<'_> {
     fn scan(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
         let rows=self.rows.scan(t,n,k,b,d,l)?; self.observed(t,&rows); Ok(rows)
     }
-    fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
-        let rows=self.rows.scan_metered(t,n,k,b,d,l,m)?; self.observed(t,&rows); Ok(rows)
+    fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize,scope:&snapback4_core::engine::Authorization,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+        let rows=self.rows.scan_metered(t,n,k,b,d,l,scope,m)?; self.observed(t,&rows); Ok(rows)
     }
     fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,RuntimeError>{self.rows.count_prefix(t,n,k,l)}
     fn put(&self,t:&str,s:&Table,r:&Value,o:Option<&Value>)->Result<u64,RuntimeError>{self.rows.put(t,s,r,o)}

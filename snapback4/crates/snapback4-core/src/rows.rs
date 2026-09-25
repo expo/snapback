@@ -247,6 +247,10 @@ pub trait Rows {
     /// Word expansion cannot bound nominal ID payloads from schema alone. A
     /// store must charge before decoding/cloning its fetched row/key and before
     /// result-vector growth. The default refuses before calling an unpriced store.
+    /// First index entry only: existence/expiry metadata without decoding a row.
+    fn index_head(&self, _table: &str, _index: &str, _prefix: &[Value], _bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
+        Err(RuntimeError::Store("key-only witness unsupported by this store".into()))
+    }
     fn scan_metered(&self, _table: &str, _index_name: &str, _prefix: &[Value], _bounds: &Bounds, _dir: Dir, _limit: usize, _scope: &crate::engine::Authorization, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         meter.heap(u64::MAX)?;
         Err(RuntimeError::Store("word fetch requires a metered store adapter".into()))
@@ -334,6 +338,11 @@ impl Rows for MemoryRows {
             Some((lo, hi)) => self.range(table, index_name, &lo, &hi, dir, limit),
             None => Vec::new(),
         })
+    }
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds) -> Result<Option<Vec<Value>>, RuntimeError> {
+        let Some((lo,hi)) = scan_range(prefix,bounds,Dir::Asc) else { return Ok(None); };
+        let ti = format!("{table}.{index}");
+        Ok(self.entries.borrow().range((ti.clone(),lo)..(ti,hi)).next().and_then(|((_,key),_)| key::decode(key)))
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         word_heap::range(prefix, bounds, scope).charge(meter,scope)?;

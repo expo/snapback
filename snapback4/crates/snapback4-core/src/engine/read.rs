@@ -147,12 +147,25 @@ impl<'r> Runner<'r> {
         let mut sites = Vec::new();
         rules::probe_sites(rule, &mut sites);
         for (table, _) in sites {
+            if let Some(key) = self.schema.maintain_for(&table).and_then(|m|m.row_key.as_ref()) {
+                self.read_tables.insert(key.table.clone());
+            }
             if let Some(maintain) = self.schema.maintain_for(&table)
                 && self.schema.table(&maintain.source).is_some_and(|source| source.expire.is_some()) {
                 self.read_tables.insert(maintain.source.clone());
             }
             self.read_tables.insert(table);
         }
+    }
+
+    // @ref LLP 3000.015#2 — prediction reserves the same complete rule as
+    // the server even when delivered evidence avoids evaluating it locally.
+    fn reserve_delivered_scan(&mut self, table: &Table, visibility: rules::Visibility, admitted: bool) -> Result<(), RuntimeError> {
+        if self.device && self.meter.cut == crate::meter::Cut::Abort && !self.context.is_system()
+            && admitted && visibility.uniform && !visibility.decided_true && !table.rules.read.is_uniformly_readable() {
+            self.authorized_scan(&[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |_, _| Ok(()))?;
+        }
+        Ok(())
     }
 
     fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr, uniform: bool) -> Result<bool, RuntimeError> {
@@ -170,6 +183,30 @@ impl<'r> Runner<'r> {
     fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
         if !self.device { return; }
         let Some(maintain) = self.schema.maintain_for(table) else { return };
+        if let Some(k) = &maintain.row_key {
+            // A projected view uses its member's acquisition; absence beyond that
+            // horizon is unknown even though the projection has no order columns.
+            if self.schema.tables[&k.table].sync.as_ref().is_none_or(|s| s.horizon.is_some()) {
+                self.read_tables.insert(k.table.clone());
+                // A held point value is checked against the member by live_row_view.
+                let index_def = &self.schema.tables[table].indexes[index];
+                if !index_def.unique || key.len() != index_def.components.len() {
+                    let whole = self.schema.tables[&k.table].sync.as_ref().is_some_and(|sync| {
+                        let Some(horizon) = &sync.horizon else { return false; };
+                        let group = match &sync.audience {
+                            crate::schema::Audience::Public => Some(vec![]),
+                            crate::schema::Audience::Column(field) => index_def.columns().iter()
+                                .position(|f| f == field).and_then(|i| key.get(i)).map(|v| vec![v.clone()]),
+                            _ => None,
+                        };
+                        group.is_some_and(|group| matches!(self.tx.acquired_boundary(&k.table, &horizon.by, &group),
+                            Ok(Some(crate::rows::AcquiredBoundary::Whole))))
+                    });
+                    if !whole { self.unknown_fact(table, index, key, site); }
+                }
+            }
+            return;
+        }
         let source = &self.schema.tables[&maintain.source];
         if self.schema.maintain_subset_unknown(table) || (source.expire.is_some() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
             self.read_tables.insert(maintain.source.clone());
@@ -205,7 +242,52 @@ impl<'r> Runner<'r> {
         result
     }
 
+    fn probe_row_view(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool,bool),RuntimeError> {
+        self.schema.refuse_private(table)?;
+        let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
+        self.read_tables.insert(table.to_owned());
+        let Some(maintain) = self.schema.maintain_for(table).filter(|m| m.row_key.is_some()) else {
+            unreachable!("row view selected before shared witness dispatch");
+        };
+        self.read_tables.insert(maintain.row_key.as_ref().unwrap().table.clone());
+        let Some(mut row) = self.live_lookup(allowance, table, index, index_def, key)? else {
+            let known = !self.device || (definition.sync.as_ref().is_some_and(|s| s.horizon.is_none())
+                && self.schema.tables[&maintain.row_key.as_ref().unwrap().table].sync.as_ref().is_some_and(|s|s.horizon.is_none()));
+            return Ok((false, known));
+        };
+        let (present, expiry) = self.row_view_member_exists(maintain, &row)?;
+        if !present { return Ok((false, !self.device || definition.sync.as_ref().is_some_and(|s|s.horizon.is_none()))); }
+        let mut known = !self.device || if current { self.witness_covered(table, index, key, &row)? }
+            else { definition.sync.is_some() };
+        if equalities.iter().any(|(field,_)|field == "value") {
+            let prior = self.timeline_pending;
+            self.timeline_pending = false;
+            let found = self.live_row_view(maintain, row)?;
+            let pending = self.timeline_pending;
+            self.timeline_pending |= prior;
+            if pending { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or retry after recount settlement (guide maintains)".into() }); }
+            let Some(found) = found else { return Ok((false, known)); };
+            row = found;
+        }
+        if self.device && self.schema.maintain_subset_unknown(table) { known = false; }
+        let live = equalities.iter().all(|(column,value)| row.field(column).unwrap_or(&Value::Null) == value);
+        if live && known { self.next_expiry = rules::earliest(self.next_expiry, expiry); }
+        Ok((live, known))
+    }
+
+
     fn probe_witness_uncached(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        if self.schema.maintain_for(table).is_some_and(|m|m.row_key.is_some()) {
+            let bytes = crate::rows::disclosed::decode_reservation(&self.schema.tables[table])
+                .saturating_add(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4);
+            let expiry = self.next_expiry;
+            let result = self.authorized_scratch(bytes, &[(MeterKind::Examined,1)], |runner, scope|
+                runner.probe_row_view(scope, table, index, key, equalities, current));
+            if !matches!(result, Ok((true, true))) { self.next_expiry = expiry; }
+            return result;
+        }
+
         self.observe_sequence_selection(table, index, key)?;
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
@@ -560,6 +642,7 @@ impl<'r> Runner<'r> {
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery and shared by its generated lanes.
         let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         self.private_scan_authority(&scan.table, visibility.uniform, admitted)?;
+        self.reserve_delivered_scan(table, visibility, admitted)?;
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             return Ok(None);
@@ -946,8 +1029,12 @@ impl<'r> Runner<'r> {
         };
         let visibility = if word.is_some_and(|w| w.metered) { rules::Visibility { uniform: true, decided_true: true } }
             else { rules::scan_visibility(self.schema, scan) };
+        if !visibility.uniform && !self.context.is_system() && self.schema.maintain_for(&scan.table).is_some_and(|m|m.row_key.is_some()) {
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "pin the view's read audience or query by member (guide maintains)".into() });
+        }
         let always_visible = word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         self.private_scan_authority(&scan.table, visibility.uniform, always_visible)?;
+        if word.is_none() { self.reserve_delivered_scan(table, visibility, always_visible)?; }
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }
@@ -1015,6 +1102,13 @@ impl<'r> Runner<'r> {
             let fetched = if private_page {
                 self.authorized_candidate(scan, &prefix, &cursor, dir, &mut walk_remaining)?
             } else { self.scan_authorized(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict)? };
+            if private_page && (metered_payload || transient || job_page || private_payload) {
+                self.meter.heap(word_heap::slots::<(Option<super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(fetched.len()))?;
+                for (row, key) in &fetched {
+                    if let Some(row) = row { self.meter.heap(row.heap_bytes() + row.projection_heap() + row.materialization_heap()
+                        + word_heap::key_decode(index.components.len() + 1, key.len()))?; }
+                }
+            }
             if self.view_scan_active && !private_payload { self.meter.heap(fetched.iter().filter_map(|(row,_)|row.as_ref()).map(|row|row.heap_bytes()).sum())?; }
             if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
             if fetched.is_empty() {

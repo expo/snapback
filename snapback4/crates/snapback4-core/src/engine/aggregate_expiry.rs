@@ -9,6 +9,7 @@ impl Runner<'_> {
     // @ref LLP 3000.007#20.9.3 — physical totals minus unswept expiry; device physical delivery remains stopped.
     pub(crate) fn live_aggregate(&mut self, table_name: &str, row: Value) -> Result<Option<Value>, RuntimeError> {
         let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
+        if maintain.row_key.is_some() { return self.live_row_view(&maintain, row); }
         let source = self.schema.table(&maintain.source).ok_or_else(|| RuntimeError::Schema("missing maintain source".into()))?;
         if source.expire.is_none() { return Ok(Some(row)); }
         let bytes = super::write_target::row_copy_ceiling(source).saturating_mul(32)

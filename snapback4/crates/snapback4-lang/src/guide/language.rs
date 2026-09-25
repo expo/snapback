@@ -53,7 +53,7 @@ table messages:
   update <- .authorId = viewer
   delete <- .authorId = viewer
   retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
-  expire at .expiresAt                -- absent to reads at its deadline; null never expires; caps count unswept rows
+  expire at .expiresAt                -- absent to reads at its deadline; null never expires; caps count live rows
   sync last 500 by .at     -- the horizon: a device acquires the newest N per group; older rows are online-only
 
 table receipts:
@@ -449,6 +449,13 @@ table intentIssues:
 query intentBoard(status: enum('todo', 'doing', 'done') ?, assignee: principal ?, c: cursor ?):
   return intentIssues where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .at after c
 ```
+
+A maintained count can use another table's row as its key:
+`view unread: count messages by members m where .conversationId = m.conversationId
+and .ordinal > m.readUpTo`. Read `unread[m.id]` under the member's read rule;
+a large mark change reports `complete: false` while its recount settles.
+The complete, compiled Clique recipe is on `guide maintains`.
+
 
 One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
 programs and schedules, in any order; more `.q` files beside it are modules

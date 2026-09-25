@@ -151,7 +151,7 @@ fn one_large_json_winner_fits_the_default_heap() {
         assert!(result.complete, "{op}: {result:?}");
         assert_eq!(result.data, Value::Bool(true));
         assert_eq!(result.metered.examined, 1);
-        assert!(result.metered.heap_bytes >= payload.heap_bytes());
+        assert!(result.metered.heap_bytes >= retained_heap(&payload));
         assert!(result.metered.heap_bytes < Ceilings::default().heap_bytes);
         eprintln!("one 2.5 MB JSON {op}: examined={}, heap={}", result.metered.examined, result.metered.heap_bytes);
     }
@@ -168,7 +168,7 @@ fn replacing_a_large_json_winner_fits_eighteen_mib() {
     assert!(result.complete, "{result:?}");
     assert_eq!(result.data, Value::Bool(true));
     assert_eq!(result.metered.examined, 2);
-    assert!(result.metered.heap_bytes >= payload("b").heap_bytes());
+    assert!(result.metered.heap_bytes >= retained_heap(&payload("b")));
     assert!(result.metered.heap_bytes < 18 << 20);
     eprintln!("two 2.5 MB JSON max with replacement: examined={}, heap={}", result.metered.examined, result.metered.heap_bytes);
 }
@@ -215,7 +215,7 @@ fn replacing_a_json_winner_releases_its_full_retained_charge() {
             assert!(result.complete, "{op}, growing={growing}: {result:?}");
             assert_eq!(result.data, payload(127));
             assert_eq!(result.metered.examined, 128);
-            let retained = result.data.heap_bytes();
+            let retained = retained_heap(&result.data);
             assert!(result.metered.heap_bytes >= retained, "{op}, growing={growing}: winner undercharged");
             assert!(result.metered.heap_bytes < retained + 4096, "{op}, growing={growing}: old reservation leaked");
             assert!(result.metered.heap_bytes < 128 * 1024);
@@ -432,4 +432,11 @@ fn expiring_maintained_values_scan_live_totals_and_refuse_stale_order() {
         assert_eq!(scans[0].index, "byId");
         assert!(!scans[0].orders_field(&b.schema, "value"));
     }
+}
+
+// Test fixture prices use a standalone internal ledger, never a caller receipt.
+fn retained_heap(value: &Value) -> u64 {
+    let mut ledger = snapback4_core::engine::InternalLedger::new(snapback4_core::meter::Meter::new(Ceilings::unbounded(), snapback4_core::meter::Cut::Abort));
+    ledger.run(|meter, scope| value.retained_internal(scope).charge(meter, scope)).unwrap();
+    ledger.into_meter().used.heap_bytes
 }

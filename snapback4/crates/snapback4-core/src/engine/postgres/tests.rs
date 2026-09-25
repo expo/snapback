@@ -393,3 +393,12 @@ fn private_scans_bypass_postgres_payload_factor() {
     let mut runner=Runner::new(&rows,&schema,Context::new("alice",BTreeMap::new()),Meter::new(Ceilings::default(),Cut::Abort),1);
     assert!(matches!(runner.scan_disclosed("records","byId",&[],&Bounds::default(),Dir::Asc,1),Err(RuntimeError::Bound{..})));
 }
+
+#[test]
+fn row_keyed_views_need_the_sqlite_background_runner() {
+    let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let schema: Schema = serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
+    let error=supported(&schema,&BTreeMap::new()).unwrap_err();
+    assert_eq!(error.code(),"E_VIEW_KEY");assert!(error.to_string().contains("background recount"));
+}

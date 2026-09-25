@@ -40,10 +40,16 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
     writeFileSync(join(temporary, "index.html"), '<!doctype html><div id="app"></div><script type="module" src="/harness.jsx"></script>');
     writeFileSync(join(temporary, "harness.jsx"), harness);
     server = await createServer({ root: temporary, configFile: false, logLevel: "error",
-      server: { host: "127.0.0.1", port: 0, fs: { allow: [root, temporary] } },
+      // The temporary root has no package manifest. Prebundle its known CJS
+      // dependencies up front so late discovery cannot reload open clients.
+      optimizeDeps: { noDiscovery: true, include: ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom/client"] },
+      // This fixture is immutable: development reloads must not replace the
+      // browsing context while the real deadline assertions are running.
+      server: { host: "127.0.0.1", port: 0, hmr: false, watch: null, fs: { allow: [root, temporary] } },
       resolve: { alias: [
         { find: /^react$/, replacement: require.resolve("react") },
         { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
+        { find: /^react\/jsx-dev-runtime$/, replacement: require.resolve("react/jsx-dev-runtime") },
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         ...["react", "client", "local", "web"].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === "react" ? "tsx" : "ts"}`) })),
       ] },

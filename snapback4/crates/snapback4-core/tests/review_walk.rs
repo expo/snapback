@@ -46,6 +46,7 @@ impl Rows for Counted {
     fn count_prefix(&self, t: &str, n: &str, p: &[Value], l: u64) -> Result<u64, RuntimeError> {
         self.inner.count_prefix(t, n, p, l)
     }
+    fn cap_count(&self, table: &str, by: &[String], key: &[Value]) -> Result<u64, RuntimeError> { self.inner.cap_count(table, by, key) }
     fn put(&self, t: &str, def: &Table, r: &Value, o: Option<&Value>) -> Result<u64, RuntimeError> {
         self.inner.put(t, def, r, o)
     }
@@ -150,7 +151,7 @@ fn cap_group_updates_share_the_declared_physical_limit() {
 #[test]
 fn nested_expired_witnesses_share_the_cap_allowance() {
     let source = "table parents:\n  public\n  online only\ntable grants:\n  parent: parents\n  who: principal\n  until: time ?\n  expire at .until\n  by byParentWho: parent, who\n  read <- deny\n  online only\ntable messages:\n  parent: parents\n  owner: principal default viewer\n  ordinal: sequence by parent\n  fresh: bool\n  until: time ?\n  expire at .until\n  cap 2 by parent\n  read <- .fresh = true or exists grants[parent = .parent, who = viewer] or .owner = viewer\n  insert <- allow\n  online only\nmutation send(parent: parents):\n  return insert messages { parent, fresh: true }\n";
-    for aggregate in [false, true] {
+    for (aggregate, deadline) in [(false, 500), (true, 500), (true, 2000)] {
         let source = if aggregate {
             source.replace(
                 "exists grants[parent = .parent, who = viewer]",
@@ -178,7 +179,7 @@ fn nested_expired_witnesses_share_the_cap_allowance() {
                     .unwrap();
             }
             for n in 0..count {
-                let row=snapback4_core::wire::row_from_json(&b.schema.tables["grants"],&serde_json::json!({"id":format!("expired{n}"),"parent":"p","who":"alice","until":500})).unwrap();
+                let row=snapback4_core::wire::row_from_json(&b.schema.tables["grants"],&serde_json::json!({"id":format!("expired{n}"),"parent":"p","who":"alice","until":deadline})).unwrap();
                 rows.put("grants", &b.schema.tables["grants"], &row, None)
                     .unwrap();
             }
@@ -201,8 +202,16 @@ fn nested_expired_witnesses_share_the_cap_allowance() {
                 rows.fetched.get() <= 8192,
                 "nested witnesses escaped the physical allowance"
             );
-            assert_eq!(result.as_ref().unwrap_err().refusal().code, "E_RULE");
-            observations.push(result.as_ref().unwrap_err().refusal());
+            if aggregate && deadline == 500 {
+                // Main's contribution index skips the expired range. The
+                // same bound applies to work actually fetched, not skipped.
+                assert!(result.is_ok(), "{result:?}");
+                assert!(rows.fetched.get() < 32);
+                observations.push(None);
+            } else {
+                assert_eq!(result.as_ref().unwrap_err().refusal().code, "E_RULE");
+                observations.push(Some(result.as_ref().unwrap_err().refusal()));
+            }
             println!(
                 "expired_grants={count} physical_rows_fetched={} result={result:?}",
                 rows.fetched.get()

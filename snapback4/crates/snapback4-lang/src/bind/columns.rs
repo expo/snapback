@@ -58,7 +58,7 @@ pub fn resolve(tables: &mut BTreeMap<String,TableInfo>, diagnostics: &mut Vec<Di
 pub fn recorded(tables: &mut BTreeMap<String,TableInfo>, diagnostics: &mut Vec<Diagnostic>) {
     let declarations = tables.values().flat_map(|t|t.decl.columns.iter().filter_map(|c|c.maintained.as_ref().map(|a|(t.decl.name.clone(),c.clone(),a.clone())))).collect::<Vec<_>>();
     for (table,column,a) in declarations {
-        let decl = MaintainDecl { name:format!("{table}.{}",column.name), aggregate:if a.of.is_some() { "sum" } else { "count" }.into(),
+        let decl = MaintainDecl { row_key: None, name:format!("{table}.{}",column.name), aggregate:if a.of.is_some() { "sum" } else { "count" }.into(),
             source:a.source.clone(),column:a.of,by:vec![a.by.clone()],keys:vec![Expr::Name {name:a.by,site:column.site.clone()}],filter:a.filter,
             indexes:vec![],read:Some(RuleDecl {effect:Effect::Read,bindings:vec![],value:Expr::Name {name:"deny".into(),site:column.site.clone()},site:column.site.clone()}),online_only:true,site:column.site };
         match super::maintains::recorded_paths(tables,&decl) {
@@ -81,7 +81,7 @@ pub fn lower(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &mut Vec
             let Some(reference_type) = schema.table(&a.source).and_then(|t|t.columns.get(&a.by)).cloned() else { continue };
             let owner = ColumnOwner { table: name.clone(), column: column.name.clone() };
             let target = owner.target();
-            let m = core::Maintain { private: Some(owner), source: a.source.clone(), target: target.clone(), by: vec![a.by.clone()],
+            let m = core::Maintain { row_key: None, private: Some(owner), source: a.source.clone(), target: target.clone(), by: vec![a.by.clone()],
                 kind: a.of.as_ref().map_or(core::MaintainKind::Count, |of|core::MaintainKind::Sum { of: of.clone() }),
                 filter, computed: BTreeMap::new(), residency: core::Residency { online_only: true, ..Default::default() }, readable: None };
             let parent = schema.tables.get_mut(name).expect("bound parent");

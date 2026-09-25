@@ -460,14 +460,23 @@ fn existential_alternatives_and_correlations_use_the_complete_timeline() {
 #[test]
 fn repeated_authorization_scopes_share_one_request_allowance() {
     use snapback4_core::{Context, WriteState};
-    let case = generated::compound_write_case("or-public-allowed", "insert", true, true, 8192, None);
-    case.pair.assert_equal();
-    for world in 0..2 {
-        let mut e = case.pair.engine(world);
-        let args = paired_worlds::inputs(&e, "probe", &serde_json::json!({"parent":"p"}));
-        let out = e.mutate("probe", None, Context::new("alice", args).at(paired_worlds::NOW)).unwrap();
-        let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}") };
-        assert_eq!(why.code, "E_RULE");
-        assert!(out.metered.rule_probes <= 8192, "the physical allowance must refuse before the logical probe ceiling");
+    for alternating in [false, true] {
+        let mut case = generated::compound_write_case("or-public-allowed", "insert", true, true, if alternating {4096} else {8192}, None);
+        if alternating {
+            // Alternating points cannot reuse the single-entry cache: all
+            // their actual fetches still share the request-wide allowance.
+            case.pair.source = case.pair.source.replace("    seen = burnRows[id = 'burn']", "    seen = burnRows[id = 'burn']\n    other = burnRows[id = 'other']");
+            for seed in &mut case.pair.seeds { seed.push(("burnRows".into(), serde_json::json!({"id":"other","parent":"p"}))); }
+        }
+        case.pair.assert_equal();
+        for world in 0..2 {
+            let mut e = case.pair.engine(world);
+            let args = paired_worlds::inputs(&e, "probe", &serde_json::json!({"parent":"p"}));
+            let out = e.mutate("probe", None, Context::new("alice", args).at(paired_worlds::NOW)).unwrap();
+            let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}") };
+            assert_eq!(why.code, if alternating { "E_RULE" } else { "E_BOUND" });
+            if alternating { assert!(out.metered.rule_probes <= 8192, "physical refusal precedes logical exhaustion"); }
+            else { assert!(out.metered.rule_probes > 8192, "unchanged points still pay every logical probe"); }
+        }
     }
 }

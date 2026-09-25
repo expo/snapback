@@ -55,7 +55,9 @@ fn nested_ladder<H:Host>(mut h:H,mut store:H::Store) {
     for p in &programs {
         let (out,unknown,_)=d.query_with_coverage(&p.name,"alice",&json!({}),100);
         if p.name == "ladder8192" {
-            assert_eq!(out.unwrap_err().code, "E_RULE", "the whole request's physical allowance includes the precharge and witness");
+            let out = out.unwrap();
+            assert!(!out.complete && out.cut == Some(snapback4_core::engine::ReadCut::Meter));
+            assert_eq!(out.metered.rule_probes, 8193, "cached points still pay every logical probe");
             assert!(!unknown);
             continue;
         }
@@ -278,7 +280,7 @@ query note():
 "#;
 
 fn mixed_probe_boundary<H: Host>(mut host: H) {
-    for reads in [1, 8188, 8189, 8190] {
+    for reads in [1, 8188, 8189, 8190, 8191] {
         let (mut engine, backend) = compile(PROBE_BOUNDARY);
         engine.seed([("members".into(), snapback4_core::value::object([
             ("id", id("member")), ("groupId", id("group")), ("principal", id("alice")),
@@ -286,17 +288,23 @@ fn mixed_probe_boundary<H: Host>(mut host: H) {
         let mut device = host.open(&format!("mixed-{reads}"), Some(backend)).unwrap();
         for (n, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
         let server = engine.mutate("mixed", Some("mixed"), context("alice", &[("work", Value::Int(reads))]).at(100)).unwrap();
-        assert_eq!(server.metered.rule_probes, reads as u64 + 3);
+        assert_eq!(server.metered.rule_probes, reads as u64 + 2);
         let reply = snapback4_device::call::call_text(&mut device, &json!({"op":"admit", "entry":{
             "id":"mixed", "seq":1, "op":"mixed", "args":{"work":reads}, "viewer":"alice", "now":100, "predictable":true
         }}).to_string());
-        if reads < 8190 { assert!(matches!(server.state, WriteState::Sent { .. }), "{server:?}"); }
+        if reads <= 8190 { assert!(matches!(server.state, WriteState::Sent { .. }), "{server:?}"); }
         else {
             let WriteState::Failed { why, .. } = server.state else { panic!("{server:?}") };
             assert_eq!(why.code, "E_BOUND");
         }
+        if reads == 8191 {
+            assert_eq!(reply["denied"]["code"], "E_BOUND", "{reply}");
+            assert!(device.queued().unwrap().is_empty());
+            assert!(device.store().raw_rows("notes").is_empty());
+            continue;
+        }
         let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
-        assert_eq!(queued.predictable, reads == 1, "{reads}: {queued:?}");
+        assert_eq!(queued.predictable, reads <= 8190, "{reads}: {queued:?}");
         if queued.predictable { assert_eq!(queued.predicted, ["notes/note"]); }
         else {
             assert!(queued.predicted.is_empty(), "physical authority exhaustion queues without prediction");
@@ -346,13 +354,13 @@ fn expired_authority_witnesses<H: Host>(mut host: H, aggregate: bool) {
         assert_eq!(device.store().raw_rows("members"), members, "witness reads never sweep");
         // A zero-read insert still predicts. Its later query shares the
         // request allowance and refuses beyond it, without a physical count.
-        if expired == 9000 {
+        if expired == 9000 && !aggregate {
             let mut entry = queued;
             entry.id = "query-control".into(); entry.seq = 2; entry.predictable = true; entry.args = json!({"work":0});
             assert!(device.admit(entry).unwrap().predictable);
         }
         let result = device.query("note", "alice", &json!({}), 300);
-        if expired == 9000 {
+        if expired == 9000 && !aggregate {
             assert_eq!(result.unwrap_err().code, "E_RULE");
             continue;
         }
@@ -412,13 +420,17 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
         }
         let counted = Counted { rows: &tx, fetched: Cell::new(0) };
         let program = backend.programs.iter().find(|p| p.name == "mixed").unwrap();
-        for budget in [1, 2, 33, 8192, 9002] {
+        for budget in [1, 2, 3, 33, 8192, 9002, 9003] {
             tx.savepoint("attempt").unwrap(); counted.fetched.set(0);
             let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(300),
                 Ceilings { examined: budget, ..Ceilings::unbounded() });
-            assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}, budget={budget}: {result:?}");
+            if aggregate && budget >= 3 {
+                assert!(result.is_ok(), "live contribution seek, budget={budget}: {result:?}");
+            } else {
+                assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}, budget={budget}: {result:?}");
+            }
             assert!(counted.fetched.get() <= (budget as usize).min(8192), "both physical allowances bind");
-            if budget < 8192 { assert_eq!(counted.fetched.get(), budget as usize); }
+            if budget < 8192 && (!aggregate || budget < 3) { assert_eq!(counted.fetched.get(), budget as usize); }
             tx.rollback_to("attempt").unwrap();
         }
         // Logical decoder admission depends on the declaration, not the witness
