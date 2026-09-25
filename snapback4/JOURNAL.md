@@ -55449,3 +55449,61 @@ feature, broad guide rewrite, push or publication was added. The requested
 restriction deliberately supersedes the round-2 cap exception and its old
 refusal code. File map, examples, negative controls and complete failure
 accounting: [round-3 report](reports/20260925-intent-lane-t-round3.md).
+
+
+### 2026-09-25 — Lane T round 4: constant aggregate dependencies and denied expiry
+
+Addressed the Astra/Grok round-3 delta reviews. Keyed reads and raw rule probes
+of aggregates over expiring sources now register the source table before
+occupancy or authorization is discovered. Empty, expired-only, live and denied
+groups share that dependency. The schema-derived helper also covers aggregate
+pages and the live-recount wrapper; removed the conditional insertion inside
+the recount. Existing denial expectations now include the source as required.
+
+The expiry snapshot precedes synthetic authorization. Every denial restores it,
+including the later stored-value path; failed or cut aggregate reads retain
+charges and cuts but discard deadlines learned within that read. A successful
+earlier read keeps its own deadline. No public inspection API was added:
+native MemoryRows unit tests inspect the server runner inside the core.
+
+The author accepted the cost channel from an authorized group's unswept expired
+backlog. Recounts still charge every visited row and step and can become
+unavailable at the examined ceiling. LLP 3000.014 §5 records that decision in
+one sentence, and the maintains card explains it alongside the metadata rule.
+A 40-row expired backlog costs 41 examined rows versus one for a miss and cuts
+at a ceiling of 16; denied readers have identical replies and meters.
+
+Five shared scenarios cover constant dependencies, the absent/300/500 private
+gate worlds, ordinary expiring pages, positive/negative I53 sum overflow, and
+backlog work. Two native MemoryRows tests cover metadata and direct raw probes.
+The shared cases pass on SQLite, native MemoryStore and PostgreSQL; SQL query
+adapters assert completeness and availability. Five current regressions fail
+against round 3. All six mutations fail: stale stored page, late expiry restore,
+conditional source insertion, missing raw-probe dependency, removed I53 check,
+and missing shortcut expiry restore. Every mutation was restored.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 428 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 3,008 passed, zero failed, 16 ignored. Clients: 1,557 total, 1,547 passed,
+zero failed, ten skipped. All 80 guide tests pass. Additional PostgreSQL:
+22 passed on the isolated cluster, stopped afterward. Ref-check: 508 LLP docs,
+9,285 references, zero errors and zero unchecked references.
+
+The first full run was `== 1 failure(s) in 481 s`: two client codec-census
+failures, both ours. The new native unit-test module lacked the neighboring
+native tests' SQLite feature gate, so the census classified its test-only
+cross-crate serde round trips as web-reachable. Added the same test/SQLite gates;
+all 26 census checks then passed, with no census changes or added allowance.
+The report names both failures and the earlier fixture compile correction.
+No baseline or environmental failure was waived or repaired.
+
+The preceding round-3 wasm artifact remeasured at 1,795,777 raw / 501,638 gzip
+bytes; final round 4 measures 1,795,984 / 501,788 on Rust 1.97.0 and
+wasm-bindgen 0.2.127: +207 raw / +150 gzip for the whole artifact, without
+individual component attribution. Keep the 503,000-byte size budget, with
+1,212 bytes headroom, and all runtime ceilings unchanged.
+
+No requested fix remains open. No syntax, refusal code, cursor/store format,
+sync/device feature, broad guide rewrite, push or publication was added.
+File map, examples, mutation controls and complete failure accounting:
+[round-4 report](reports/20260925-intent-lane-t-round4.md).
