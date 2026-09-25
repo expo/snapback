@@ -173,12 +173,15 @@ test("unavailable server list responses end retention in both clients", { timeou
   const remembered = listRead(await local.query(query("costly"), {}));
   assert.equal(remembered.fresh, false);
   queryOffline = false;
-  await local.query(query("ping"), {});
+  // An offline local query may use remembered data; it does not reconnect.
+  // Complete a sync before asserting the next HTTP availability response.
+  await local.sync();
   await setCost(true);
   for (const watch of watches) await until(() => watch.getSnapshot().loading, "heap-aborted fetch ends retention");
   await until(() => fetched.some(reply => reply.loading === true), "server evaluated the new heap-aborting control");
   for (const client of clients) {
-    await client.query(query("ping"), {}); // End the earlier deliberate transport failure before testing HTTP loading.
+    if (client === local) await local.sync();
+    else await client.query(query("ping"), {});
     assert.deepEqual(await client.query(query("costly"), {}), { loading: true });
   }
   assert.ok(fetched.some(reply => reply.loading === true && reply.data === null && reply.complete === false), "legacy clients see an incomplete placeholder; current clients see loading");
