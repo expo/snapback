@@ -9,7 +9,10 @@ import { ServerClock, onClock, clockDelay } from '../dist/clock.js';
 import { ReadObservation } from '../dist/read-observation.js';
 
 const read = { kind: 'query', name: 'read' };
-const backend = { generation: 1, schema: { tables: {} }, programs: [{ name: 'read', kind: 'Query', args: {}, body: [] }] };
+const backend = { generation: 1, schema: { tables: {} }, programs: [
+  { name: 'read', kind: 'Query', args: {}, body: [] },
+  { name: 'server', kind: 'Query', args: {}, body: [], runs: 'server' },
+] };
 const drain = async () => { for (let n = 0; n < 100; n++) await Promise.resolve(); };
 async function close(client, t) {
   let done = false;
@@ -40,7 +43,11 @@ function fixture(t, tier) {
       case 'queued': return { ok: [] };
       case 'observe_store': return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {}, adoption_capture: {} } };
       case 'apply': return { ok: { touched: [] } };
-      case 'query': f.deviceReads++; return { ok: f.outcome?.(request) ?? (tier === 'composition'
+      // U remembers a server answer only for an executed speculative local
+      // observation, never for a missing program or a withheld observation.
+      case 'query': f.deviceReads++; return { ok: request.name === 'server'
+        ? { data: [], unknown: true, speculative: true, complete: false, tables: [], nextExpiry: null }
+        : f.outcome?.(request) ?? (tier === 'composition'
         ? { data: { remote: [], kept: [] }, complete: false, tables: [], nextExpiry: null, components: { remote: { unknown: true }, kept: { retained: true, complete: true } } }
         : { data: [], complete: false, unknown: true, tables: [], nextExpiry: null }) };
       case 'keep_write': return { ok: null };
@@ -101,6 +108,7 @@ test('syncedAt, device since and remembered server since remain wall time under 
   f.outcome = () => ({ data: ['kept'], complete: true, tables: [], nextExpiry: null });
   f.offline = true; await client.sync();
   const local = await client.query(read, {}), remembered = await client.query(remote, {});
+  assert.deepEqual(remembered.data, ['live']); assert.equal(remembered.fresh, false);
   assert.equal(local.since, Date.now());
   assert.equal(remembered.since, Date.now());
   assert.equal(client.now() - local.since, 90_000_000, 'execution time is independent of freshness age');
@@ -194,7 +202,9 @@ test('freshness is clamped at publication after wall time rolls back', async t =
   f.offline = true; await client.sync();
   t.mock.timers.setTime(Date.now() - 4000);
   assert.equal((await client.query(read, {})).since, Date.now());
-  assert.equal((await client.query(remote, {})).since, Date.now());
+  const remembered = await client.query(remote, {});
+  assert.deepEqual(remembered.data, ['live']); assert.equal(remembered.fresh, false);
+  assert.equal(remembered.since, Date.now());
   let release;
   const replacing = observation.fetch(() => new Promise(resolve => { release = resolve; }), () => {}, { retain: true });
   assert.equal(observation.snapshot.since, Date.now());
