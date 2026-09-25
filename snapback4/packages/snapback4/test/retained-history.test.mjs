@@ -228,6 +228,9 @@ query wordBoth():
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: directoryDevice, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   let clockNow;
   const clock = new ServerClock(() => clockNow ?? Date.now());
+  let clientClock;
+  const fork = clock.fork.bind(clock);
+  clock.fork = () => clientClock = fork();
   const clientOptions = { url, persona: "bob", waitSeconds: 1,
     fetch: async (input, init) => {
       if (offline) throw new TypeError("test offline");
@@ -278,10 +281,18 @@ query wordBoth():
     const observing = scenario.includes("watch");
     const op = { kind: "query", name: permitCase ? "permitBoth" : "both" };
     const deadline = permitCase ? permitDeadline : rows.find(item => item.row.id === "left-25").row.expiresAt;
+    // A positive network estimate makes missing fork calibration fail
+    // deterministically instead of only on a subset of host schedules.
+    const sampledWall = Date.now();
+    clientClock.sample(sampledWall + 5, sampledWall, sampledWall);
     // Y captures its wall source at construction. Advance the actual shared
     // issued clock instead of replacing Date.now after the client opened.
     clockNow = deadline - 1;
     clock.sample(clockNow, clockNow, clockNow);
+    // createLocalClient forks the transport clock. Calibrate that instance
+    // too, or its measured network offset can cross this one-ms boundary.
+    clientClock.sample(clockNow, clockNow, clockNow);
+    assert.equal(client.now(), deadline - 1);
     const before = await client.query(op, {});
     const beforeData = permitCase
       ? { left: expected("left", 1), right: expected("held", 1), secret: { id: "secret", room: "vault", body: "private" } }
