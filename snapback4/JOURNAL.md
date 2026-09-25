@@ -56333,3 +56333,39 @@ Not done: no acquisition or packed-format remeasurement, no residency/history
 redesign, no increased ceilings/timeouts, no push or publication. The prior
 2.387× acquisition result and unmet 5× target remain explicit; fully synced
 events alone prevent a 5× reduction in the prior raw row-count/row-byte units.
+
+
+### 2026-09-25 — Lane U round 7: no held-bit exception for speculative answers
+
+Removed the fenced-and-held exception from the five-rule query publication
+procedure. Unknown speculative data and refusals load while fenced; unknown
+non-speculative pages still publish partial data, including predicted rows.
+Independent retained components keep their local composite beside a speculative
+null offline or after a failed fallback, with no whole-answer memory. Removed
+the now-unused held provenance bit from the engine/device reply and updated the
+three client-reference lines. This supersedes round 6's held-based exception;
+query declarations marked `held` and retained history are unchanged.
+
+Measured: the three review reproductions run on real wasm and process devices;
+retained-left/speculative-right runs on both too. Delayed server/composed data
+crosses deadlines during transport and final publication. The requested expiry
+mutation and mutations restoring the held exception or discarding retained
+composition all fail tests. Wasm is 1,769,867 B raw / 494,617 B gzip, 1,081 gzip
+bytes less than round 6 and below the unchanged 496,000 B budget.
+Final `scripts/test.sh`: **`== 0 failure(s) in 1528 s`**, exit 0, with the
+suite's existing serial-client mode and eight Rust test processes on 16 CPUs.
+Rust passed in 200 s; 1,653 client tests passed (zero failures, ten existing
+skips); all 78 models passed, including both 5,000-sequence I1–I13 sweeps.
+No counts or timeouts changed. Two earlier full-run failures and their complete
+disposition are preserved in the [round-7 report](reports/20260925-bounded-following-r7/REPORT.md):
+first, expiry/adoption witness synchronization errors (corrected); second,
+three resource-contention timeouts (unchanged isolated and serial-full passes).
+
+Not done: no value-level provenance, acquisition/packed-format remeasurement,
+ceiling increase, push or publication. Grok's proposed held-based recovery is
+superseded by the explicit round-7 rule. Its proposed distinction between row
+and authorization deadlines needs a new engine signal/design decision: a
+client cannot infer that an expired nextExpiry was merely a row deadline when
+it might be the permit authorizing a private row. Kept expiry rejection and
+recorded the concrete counterexample and conservative availability limitation.
+The earlier 2.387× cold acquisition result and unmet 5× target remain explicit.
