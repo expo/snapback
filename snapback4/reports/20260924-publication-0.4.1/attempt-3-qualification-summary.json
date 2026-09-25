@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-25T04:04:49.632343+00:00",
+  "source": "3feff5c0596a0a88827f579eb999beb9fef41ef1",
+  "suiteSeconds": 1398,
+  "suiteFailures": 0,
+  "rust": {
+    "passed": 2980,
+    "failed": 0,
+    "ignored": 16,
+    "resultSummaries": 890,
+    "stageSeconds": 348
+  },
+  "ordinaryClients": {
+    "tests": 1514,
+    "passed": 1509,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 5,
+    "seconds": 828.613045167
+  },
+  "models": {
+    "tests": 78,
+    "passed": 78,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "seconds": 203.682960791
+  },
+  "fixtures": {
+    "passed": 9,
+    "failed": 0,
+    "seconds": 16.82319525
+  },
+  "published0233FencesPassed": 4,
+  "consumerDryRun": "passed",
+  "consumerResume": "passed",
+  "publicationAttempts": {
+    "dryRun": 1,
+    "resume": 1,
+    "expoPublish": 1
+  }
+}

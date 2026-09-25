@@ -1,0 +1,16 @@
+{
+  "source": "3feff5c0596a0a88827f579eb999beb9fef41ef1",
+  "buildPassed": true,
+  "releaseAppRebuilt": false,
+  "nativeWitnessRun": false,
+  "qualifiedForPublication": false,
+  "files": {
+    "ios/Snapback4Device.xcframework/Info.plist": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "d7de0c808019e25d20af24ff318556f3fa41c6a06235e49d09f1258252c7a763",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "30e8bdf73b66538984c0b5be8bdea5fd979b04949efec10e5324ec85a511cdac"
+  }
+}

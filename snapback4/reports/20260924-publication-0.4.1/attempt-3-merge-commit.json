@@ -1,0 +1,15 @@
+{
+  "name": "attempt-3-merge-commit",
+  "command": [
+    "git",
+    "commit",
+    "-m",
+    "Snapback 4: merge session-model publication fixes from main"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T03:18:58.056707+00:00",
+  "finished_at": "2026-09-25T03:18:58.156950+00:00",
+  "seconds": 0.1,
+  "exit_code": 0,
+  "log": "attempt-3-merge-commit.log"
+}

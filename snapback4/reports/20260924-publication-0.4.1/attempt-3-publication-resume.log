@@ -1,0 +1,161 @@
+== resume exact qualified tarballs from /Users/ccheever/projects/snapback-pub-041b/snapback4/target/publication/snapback4-darwin-arm64-0.4.1/resume.json
+== installed-consumer proof
+snapback4 0.4.1; production; 11401392 packed binary bytes; sha256 6661de6001b315489dca317669d03ed52a0527c44a885fa27d850096c70a8b48
+consumer ok: query complete+fresh, online write sent, offline write pending
+== npm publish snapback4-darwin-arm64-0.4.1.tgz
+npm warn Ignoring workspaces for specified package(s)
+npm notice
+npm notice 📦  snapback4-darwin-arm64@0.4.1
+npm notice Tarball Contents
+npm notice 1.2kB THIRD-PARTY-NOTICES
+npm notice 457B package.json
+npm notice 11.4MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-darwin-arm64
+npm notice version: 0.4.1
+npm notice filename: snapback4-darwin-arm64-0.4.1.tgz
+npm notice package size: 5.6 MB
+npm notice unpacked size: 11.4 MB
+npm notice shasum: c16630de48e592a5228bf71081910f89e2d1b2dd
+npm notice integrity: sha512-LkSBon10QohJE[...]ef5JHk3G5K41g==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-darwin-arm64@0.4.1 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.1 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.1 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.1 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.1 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.1 to become readable
+== npm publish snapback4-0.4.1.tgz
+npm warn Ignoring workspaces for specified package(s)
+npm notice
+npm notice 📦  snapback4@0.4.1
+npm notice Tarball Contents
+npm notice 123.1kB CLIENT-AND-OPERATIONS.md
+npm notice 15.5kB README.md
+npm notice 52.8kB SERVER.md
+npm notice 1.2kB bin/snapback4.js
+npm notice 6.3kB bin/web-shell.js
+npm notice 475B dist/actions.d.ts
+npm notice 1.7kB dist/actions.js
+npm notice 522B dist/app-client.d.ts
+npm notice 7.4kB dist/app-client.js
+npm notice 352B dist/app-global.d.ts
+npm notice 1.3kB dist/app-global.js
+npm notice 1.4kB dist/app-journal.d.ts
+npm notice 7.7kB dist/app-journal.js
+npm notice 454B dist/app-online.d.ts
+npm notice 13.2kB dist/app-online.js
+npm notice 818B dist/app-revocations.d.ts
+npm notice 11.3kB dist/app-revocations.js
+npm notice 484B dist/app-storage.d.ts
+npm notice 2.0kB dist/app-storage.js
+npm notice 1.6kB dist/app.d.ts
+npm notice 45.8kB dist/app.js
+npm notice 877B dist/assets.d.ts
+npm notice 7.4kB dist/assets.js
+npm notice 2.6kB dist/auth.d.ts
+npm notice 6.0kB dist/auth.js
+npm notice 1.8kB dist/backend.d.ts
+npm notice 916B dist/backend.js
+npm notice 468B dist/changes.d.ts
+npm notice 3.7kB dist/changes.js
+npm notice 527B dist/client-start.d.ts
+npm notice 988B dist/client-start.js
+npm notice 1.4kB dist/client.d.ts
+npm notice 42.2kB dist/client.js
+npm notice 1.0kB dist/closing-responses.d.ts
+npm notice 2.3kB dist/closing-responses.js
+npm notice 10.7kB dist/contract.d.ts
+npm notice 418B dist/contract.js
+npm notice 49B dist/default-fetch.d.ts
+npm notice 142B dist/default-fetch.js
+npm notice 80B dist/identity-principal.d.ts
+npm notice 312B dist/identity-principal.js
+npm notice 544B dist/identity-runtime.d.ts
+npm notice 4.7kB dist/identity-runtime.js
+npm notice 3.8kB dist/identity.d.ts
+npm notice 29.0kB dist/identity.js
+npm notice 1.4kB dist/local-assets.d.ts
+npm notice 6.9kB dist/local-assets.js
+npm notice 366B dist/local-backend.d.ts
+npm notice 894B dist/local-backend.js
+npm notice 411B dist/local-exit.d.ts
+npm notice 2.3kB dist/local-exit.js
+npm notice 623B dist/local-reads.d.ts
+npm notice 420B dist/local-reads.js
+npm notice 985B dist/local-sync.d.ts
+npm notice 3.4kB dist/local-sync.js
+npm notice 719B dist/local-types.d.ts
+npm notice 11B dist/local-types.js
+npm notice 3.0kB dist/local.d.ts
+npm notice 92.6kB dist/local.js
+npm notice 1.5kB dist/mock.d.ts
+npm notice 8.8kB dist/mock.js
+npm notice 866B dist/native.d.ts
+npm notice 5.2kB dist/native.js
+npm notice 49B dist/node-fetch.d.ts
+npm notice 776B dist/node-fetch.js
+npm notice 647B dist/online-dispatch.d.ts
+npm notice 635B dist/online-dispatch.js
+npm notice 3.6kB dist/react.d.ts
+npm notice 16.4kB dist/react.js
+npm notice 779B dist/read-observation.d.ts
+npm notice 2.7kB dist/read-observation.js
+npm notice 682B dist/request-wait.d.ts
+npm notice 1.3kB dist/request-wait.js
+npm notice 49B dist/resolve-binary.d.ts
+npm notice 1.2kB dist/resolve-binary.js
+npm notice 570B dist/server-context.d.ts
+npm notice 6.8kB dist/server-context.js
+npm notice 694B dist/server-effect-context.d.ts
+npm notice 5.8kB dist/server-effect-context.js
+npm notice 735B dist/server-json.d.ts
+npm notice 4.2kB dist/server-json.js
+npm notice 1.3kB dist/server-lifetime.d.ts
+npm notice 3.9kB dist/server-lifetime.js
+npm notice 1.4kB dist/server-private.d.ts
+npm notice 339B dist/server-private.js
+npm notice 1.8kB dist/server-routes.d.ts
+npm notice 7.4kB dist/server-routes.js
+npm notice 630B dist/server-steps.d.ts
+npm notice 3.6kB dist/server-steps.js
+npm notice 790B dist/server-verify.d.ts
+npm notice 7.4kB dist/server-verify.js
+npm notice 3.4kB dist/server.d.ts
+npm notice 11.9kB dist/server.js
+npm notice 1.8MB dist/wasm/snapback4_device_bg.wasm
+npm notice 819B dist/wasm/snapback4_device_bg.wasm.d.ts
+npm notice 2.6kB dist/wasm/snapback4_device.d.ts
+npm notice 14.1kB dist/wasm/snapback4_device.js
+npm notice 1.3kB dist/web-journal.d.ts
+npm notice 9.1kB dist/web-journal.js
+npm notice 2.4kB dist/web.d.ts
+npm notice 35.4kB dist/web.js
+npm notice 6.0kB dist/worker.d.ts
+npm notice 19.3kB dist/worker.js
+npm notice 1.6kB dist/writes.d.ts
+npm notice 7.9kB dist/writes.js
+npm notice 2.6kB package.json
+npm notice Tarball Details
+npm notice name: snapback4
+npm notice version: 0.4.1
+npm notice filename: snapback4-0.4.1.tgz
+npm notice package size: 695.2 kB
+npm notice unpacked size: 2.5 MB
+npm notice shasum: 4bc67414ed2137d419d4894c019b69ff3d8cca6d
+npm notice integrity: sha512-ifpgpF2EM9K7p[...]o1DIxHCVqdx+Q==
+npm notice total files: 106
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4@0.4.1 to become readable
+publish: waiting for snapback4@0.4.1 to become readable
+publish: waiting for snapback4@0.4.1 to become readable
+publish: waiting for snapback4@0.4.1 to become readable
+publish: waiting for snapback4@0.4.1 to become readable
+publish: waiting for snapback4@0.4.1 to become readable
+publish: waiting for snapback4@0.4.1 to become readable
+{"at":"2026-09-25T03:59:55.477Z","version":"0.4.1","tarballBytes":695249,"platformTarballBytes":5616775,"tarballIntegrity":"sha512-ifpgpF2EM9K7pEGxw2785Cj+cEBq5VhbPB2cnGL7l06Vdd4KbkiUAoeejiDdq742/VBvuKqQoo1DIxHCVqdx+Q==","platformTarballIntegrity":"sha512-LkSBon10QohJEyRCS1ZDGxgsndioHSi1u8pY92Uk/NQiIm990QykwUnxcUkxK+gBmNgnxwgGpef5JHk3G5K41g==","resume":"/Users/ccheever/projects/snapback-pub-041b/snapback4/target/publication/snapback4-darwin-arm64-0.4.1/resume.json","files":106,"binaryBytes":11401392,"binarySha256":"6661de6001b315489dca317669d03ed52a0527c44a885fa27d850096c70a8b48","binaryVersion":"snapback4 0.4.1","binaryProfile":"production","sqliteBuildFlags":"-USQLITE_ENABLE_MEMORY_MANAGEMENT","cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null,"platform":"darwin-arm64","publish_s":207.3,"dry":false}

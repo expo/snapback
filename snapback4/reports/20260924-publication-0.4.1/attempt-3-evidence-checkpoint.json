@@ -1,0 +1,15 @@
+{
+  "name": "attempt-3-evidence-checkpoint",
+  "command": [
+    "git",
+    "commit",
+    "-m",
+    "Snapback 4: preserve publication attempts 1 and 2 before requalification"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T03:18:31.747362+00:00",
+  "finished_at": "2026-09-25T03:18:31.921058+00:00",
+  "seconds": 0.174,
+  "exit_code": 0,
+  "log": "attempt-3-evidence-checkpoint.log"
+}

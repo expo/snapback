@@ -1,0 +1,13 @@
+{
+  "source": "3feff5c0596a0a88827f579eb999beb9fef41ef1",
+  "node": "24.18.0",
+  "SNAPBACK4_FENCE_PUBLISHED": "/Users/ccheever/sb4-03-lanes/published-0.2.33",
+  "codesignRelay": "/Users/ccheever/sb4-03-lanes/codesign-relay/codesign",
+  "codesignRelaySha256": "06fa7db565ac920a7ee7d5d413410c3113757682c9549e3c7c9ddd1da1c46acf",
+  "publisherChanged": false,
+  "signingRelayChanged": false,
+  "keychainOrCredentialChanges": false,
+  "scheduling": "Merged default suite scheduling; no Rust-process, client-file-concurrency or binary override.",
+  "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT (set by unchanged publisher)",
+  "pushTarget": "origin sb4-intent/publish-041"
+}

@@ -1,0 +1,13 @@
+{
+  "phase": "journal restoration and version preparation",
+  "command": "python3 - (inline Python script)",
+  "error": "ModuleNotFoundError: No module named 'tomllib'",
+  "python": "3.9.6",
+  "scriptExitCode": 1,
+  "timing": "Not separately captured. Failed before bun install at 2026-09-25T03:18:57.798389+00:00.",
+  "mutationBeforeFailure": false,
+  "explanation": "Import failed before restoring journal additions. The surrounding shell did not stop on this command, so frozen install, merge commit and xcframework build ran before the agent observed the error.",
+  "releaseSequenceStopped": true,
+  "journalRecovery": "Saved additions appended unchanged after stopping; archive hashes verified.",
+  "published": false
+}

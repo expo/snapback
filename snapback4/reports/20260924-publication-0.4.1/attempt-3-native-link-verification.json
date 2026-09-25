@@ -1,0 +1,13 @@
+{
+  "name": "attempt-3-native-link-verification",
+  "command": [
+    "/opt/homebrew/bin/python3",
+    "/tmp/pub041b-native-link.py"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T03:25:26.067831+00:00",
+  "finished_at": "2026-09-25T03:25:26.335708+00:00",
+  "seconds": 0.268,
+  "exit_code": 0,
+  "log": "attempt-3-native-link-verification.log"
+}

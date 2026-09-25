@@ -1,0 +1,53 @@
+{
+  "at": "2026-09-25T04:01:53.820058+00:00",
+  "artifacts": [
+    {
+      "package": "snapback4-darwin-arm64@0.4.1",
+      "bytes": 5616775,
+      "integrity": "sha512-LkSBon10QohJEyRCS1ZDGxgsndioHSi1u8pY92Uk/NQiIm990QykwUnxcUkxK+gBmNgnxwgGpef5JHk3G5K41g==",
+      "registryDist": {
+        "shasum": "c16630de48e592a5228bf71081910f89e2d1b2dd",
+        "tarball": "https://registry.npmjs.org/snapback4-darwin-arm64/-/snapback4-darwin-arm64-0.4.1.tgz",
+        "fileCount": 3,
+        "integrity": "sha512-LkSBon10QohJEyRCS1ZDGxgsndioHSi1u8pY92Uk/NQiIm990QykwUnxcUkxK+gBmNgnxwgGpef5JHk3G5K41g==",
+        "signatures": [
+          {
+            "sig": "MEUCIEm3MyTfHF6j8y61M9UQqGEVr2B2PIJ64aTwUqX7DZ4wAiEArDg8NHZRX28WqFXKcZSDxvtJfuQY7ZlXsVUOmDSMDlQ=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIE/6UjALOqnwkPKYvohTZfPUjm4MdazGXreZbcko5d5QAiEAly7hSEbH6YnkY8xvFhQ46ZzTipxV1RJV7/J4vAkWYjM="
+          }
+        ],
+        "unpackedSize": 11403075
+      },
+      "registryMetadataMatches": true,
+      "downloadedTarballMatches": true
+    },
+    {
+      "package": "snapback4@0.4.1",
+      "bytes": 695249,
+      "integrity": "sha512-ifpgpF2EM9K7pEGxw2785Cj+cEBq5VhbPB2cnGL7l06Vdd4KbkiUAoeejiDdq742/VBvuKqQoo1DIxHCVqdx+Q==",
+      "registryDist": {
+        "shasum": "4bc67414ed2137d419d4894c019b69ff3d8cca6d",
+        "tarball": "https://registry.npmjs.org/snapback4/-/snapback4-0.4.1.tgz",
+        "fileCount": 106,
+        "integrity": "sha512-ifpgpF2EM9K7pEGxw2785Cj+cEBq5VhbPB2cnGL7l06Vdd4KbkiUAoeejiDdq742/VBvuKqQoo1DIxHCVqdx+Q==",
+        "signatures": [
+          {
+            "sig": "MEYCIQCCvgkUywQ0rl2fXfchcxvO7+tPcLu/Xw+MJXXQuMyiBgIhAP00Lm/WO+zo0ybxz53e07/r1iU83WiE60XO1FEeBzSQ",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEQCIHjjie2ZCLY3oechLsDGnp1KdrkVDegPNd7atyHFli0YAiAsLFqOFgArNH6N06Lw3VYihd4hIOV8obMX1Q5LfHvBJQ=="
+          }
+        ],
+        "unpackedSize": 2510500
+      },
+      "registryMetadataMatches": true,
+      "downloadedTarballMatches": true
+    }
+  ]
+}
