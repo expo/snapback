@@ -1,5 +1,44 @@
 use super::*;
 use crate::rows::{Bounds, Dir};
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn contribution_pages_admit_all_cumulative_budgets_before_callbacks() {
+    use crate::{error::MeterKind, meter::{Cut, Meter}, rows::adoption::Work};
+    let bound=snapback4_lang::compile(&[("schema.q".into(),
+        "table receipts:\n  principal: principal\n  expiresAt: time ?\n  expire at .expiresAt\n  read <- .principal = viewer\nview counts: count receipts by .principal\n".into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let schema:Schema=serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+    let connection=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let name=format!("sb4_eval_q_budget_{:x}",crate::ids::seed());
+    let mut engine=PostgresEngine::create(Client::connect(&connection,postgres::NoTls).unwrap(),&name,schema,[]).unwrap();
+    engine.seed_at((0..8).map(|n|("receipts".into(),object([
+        ("id",Value::Id(format!("r{n}"))),("principal",Value::Id("alice".into())),("expiresAt",Value::Null),
+    ]))),0).unwrap();
+    let work=Work::DECODE.with_contribution(&engine.schema.maintains[0]);
+    let tx=engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    for (ceilings, expected) in [
+        (Ceilings {examined:7,..Ceilings::job()},2),
+        (Ceilings {steps:3,..Ceilings::job()},3),
+        (Ceilings {index_entries:2,..Ceilings::job()},2),
+    ] {
+        let mut meter=Meter::new(ceilings,Cut::Abort);
+        meter.heap(4096).unwrap();
+        let page=super::super::contribution_upgrade::source_page(&tx,"receipts",&engine.schema.tables["receipts"],None,&mut meter,work).unwrap();
+        assert_eq!(page.len(),expected);
+        assert_eq!(meter.used.examined,expected as u64,"every admitted image was decoded before callbacks");
+        assert_eq!((meter.used.steps,meter.used.index_entries),(0,0));
+        for (offset, _) in page.iter().enumerate() {
+            assert_eq!(meter.used.examined,expected as u64+offset as u64*2);
+            meter.charge(MeterKind::Examined,2).unwrap();
+            meter.step(1).unwrap();
+            meter.charge(MeterKind::IndexEntries,1).unwrap();
+        }
+    }
+    tx.rollback().unwrap();
+    engine.store.client.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
+}
+
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
 fn expiry_counts_and_041_upgrade_match_sqlite() {

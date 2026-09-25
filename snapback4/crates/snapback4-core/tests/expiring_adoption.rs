@@ -34,6 +34,10 @@ unsafe impl std::alloc::GlobalAlloc for Allocator {
 
 fn schemas(cap: &str) -> (Schema, Schema) {
     let source = format!("table receipts:\n  principal: principal\n  expiresAt: time ?\n  payload: text <=65536\n  expire at .expiresAt\n{cap}  read <- .principal = viewer\nview counts: count receipts by .principal\n");
+    schemas_from(source)
+}
+
+fn schemas_from(source: String) -> (Schema, Schema) {
     let compiled = snapback4_lang::compile(&[("adoption.q".into(), source)]);
     assert!(compiled.diagnostics.is_empty(), "{:?}", compiled.diagnostics);
     let modern = compiled.schema;
@@ -46,6 +50,31 @@ fn schemas(cap: &str) -> (Schema, Schema) {
         }
     }
     (legacy, modern)
+}
+
+#[test]
+fn sixty_three_views_adopt_within_the_examination_and_step_page_budgets() {
+    for comparisons in [0, 20] {
+        let mut source = "table receipts:\n  principal: principal\n  expiresAt: time ?\n  payload: text <=65536\n  expire at .expiresAt\n  read <- .principal = viewer\n".to_owned();
+        let filter = if comparisons == 0 { String::new() } else {
+            format!(" where {}", vec![".payload = ''"; comparisons].join(" and "))
+        };
+        for n in 0..63 { source.push_str(&format!("view c{n}: count receipts{filter} by .principal\n")); }
+        let (legacy, modern) = schemas_from(source);
+        let mut store = Store::memory().unwrap();
+        store.install(&legacy).unwrap();
+        seed(&mut store, &legacy, 256, 0);
+        store.install(&modern).unwrap_or_else(|error| panic!("comparisons={comparisons}: {error:?}"));
+        let tx = store.transaction().unwrap();
+        for maintain in &modern.maintains {
+            assert_eq!(tx.count_prefix("receipts", &maintain.contribution_index(), &[], 300).unwrap(), 256);
+        }
+        tx.rollback().unwrap();
+        let adopted = stored_digest(&store);
+        store.install(&modern).unwrap();
+        assert_eq!(stored_digest(&store), adopted);
+        println!("ADOPTION views=63 rows=256 comparisons={comparisons} indexes=63 reopen=stable");
+    }
 }
 
 fn seed(store: &mut Store, schema: &Schema, count: usize, payload: usize) {

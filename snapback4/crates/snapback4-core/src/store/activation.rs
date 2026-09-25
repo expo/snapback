@@ -107,8 +107,8 @@ impl Store {
             for (name, table) in &schema.tables {
                 let t = catalog[name];
                 for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
-                let has_contributions = table.indexes.values().any(|index| matches!(index.components.first(), Some(crate::schema::IndexComponent::Contribution(_))));
-                walk_metered(&tx, t, |row| if has_contributions { crate::rows::adoption::contribution_bytes(row, table) } else { 0 }, |id, mut row, contribution_meter| {
+                let work = crate::rows::adoption::Work::table(table);
+                walk_metered(&tx, t, work, |row| if work.index_entries != 0 { crate::rows::adoption::contribution_bytes(row, table) } else { 0 }, |id, mut row, contribution_meter| {
                     let original = row.clone();
                     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
                     // Persist only a destructive projection. Defaults and

@@ -15,17 +15,19 @@ pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, Run
                 let Some(IndexComponent::Contribution(maintain)) = index.components.first() else {continue};
                 if previous.table(name).and_then(|t|t.index(index_name)) == Some(index) {continue;}
                 tx.execute("DELETE FROM i WHERE t = $1 AND ix = $2", &[name,index_name])?;
+                let work=adoption::Work::DECODE.with_contribution(maintain);
                 let mut after: Option<String> = None;
                 loop {
                     let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
                     meter.at(&format!("adopt {name}.{index_name}"));
                     meter.heap(4096 + after.as_deref().map_or(0, heap::text))?;
-                    let page=source_page(&tx,name,table,after.as_deref(),&mut meter)?;
+                    let page=source_page(&tx,name,table,after.as_deref(),&mut meter,work)?;
                     if page.is_empty() { break; }
                     for raw in &page {
                         let scratch=meter.mark();
                         let id=raw.get::<_,&str>(0);
                         let data=raw.get::<_,&str>(1);
+                        meter.charge(MeterKind::Examined,1)?;
                         meter.heap(adoption::decode_bytes(data))?;
                         let row: Value=super::store::decode(data)?;
                         meter.charge(MeterKind::Examined,1)?;
@@ -56,7 +58,7 @@ pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, Run
 }
 
 // @ref LLP 3000.007#20.9.3 — adoption reserves fetched images separately from per-row contribution scratch.
-fn source_page(tx: &super::store::Tx<'_>, table: &str, schema: &Table, after: Option<&str>, meter: &mut Meter) -> Result<Vec<postgres::Row>, RuntimeError> {
+pub(super) fn source_page(tx: &super::store::Tx<'_>, table: &str, schema: &Table, after: Option<&str>, meter: &mut Meter, work: adoption::Work) -> Result<Vec<postgres::Row>, RuntimeError> {
     let sizes=if after.is_some() {
         "SELECT COALESCE(SUM(octet_length(id) + octet_length(data)),0)::bigint, COUNT(*) FROM (SELECT id,data FROM r WHERE t=$1 AND id>$2 ORDER BY id LIMIT $3) AS picked"
     } else {
@@ -65,6 +67,7 @@ fn source_page(tx: &super::store::Tx<'_>, table: &str, schema: &Table, after: Op
     let mut limit=32i64;
     let page_mark=meter.mark();
     loop {
+        limit=work.limit(meter,limit as usize) as i64;
         let size=tx.query(sizes,&[&table,&after,&limit])?;
         let bytes=size[0].get::<_,i64>(0) as u64;
         let count=size[0].get::<_,i64>(1) as u64;
@@ -82,7 +85,7 @@ fn source_page(tx: &super::store::Tx<'_>, table: &str, schema: &Table, after: Op
             "SELECT id,data FROM r WHERE t=$1 AND $2::text IS NULL ORDER BY id LIMIT $3"
         };
         let page=tx.query(query,&[&table,&after,&limit])?;
-        if adoption::page_fits(page.iter().map(|raw| raw.get::<_,&str>(1)), page.len() == 1, meter,
+        if adoption::page_fits(page.iter().map(|raw| raw.get::<_,&str>(1)), meter, work,
             |row| adoption::contribution_bytes(row,schema))? { return Ok(page); }
         limit=(page.len() as i64/2).max(1);
         drop(page);
