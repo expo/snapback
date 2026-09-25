@@ -20,7 +20,8 @@ export function runsOnServer(backend: BackendJson, op: Query<unknown, unknown>, 
 }
 
 export function predictedTables(predicted: readonly string[]): Set<string> {
-  return new Set(predicted.map(row => row.slice(0, row.lastIndexOf("/"))).filter(Boolean));
+  // Footprints are table/id; ids may themselves contain slashes.
+  return new Set(predicted.map(row => row.slice(0, row.indexOf("/"))).filter(Boolean));
 }
 
 export interface LocalWatch extends ReadObservation<unknown> {

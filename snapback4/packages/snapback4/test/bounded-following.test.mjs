@@ -131,6 +131,10 @@ query conditionalFeed(c: cursor ?):
   if exists switches['gate']:
     return feed last 20 by .at after c { *, card: reposts[.actor, .post] }
   return []
+query conditionalOriginal(postId: posts):
+  if exists switches['gate']:
+    return posts[postId]
+  return null
 query conditionalHelper(c: cursor ?):
   if exists switches['gate']:
     return conditionalRows(c)
@@ -143,11 +147,12 @@ query conditionalHelper(c: cursor ?):
       assert.ok((await bob.client.query(query(name), input)).data.length > 0);
     }
     bob.holdWrites = true;
-    await bob.client.mutate(mutation("post"), { postId: "own-conditional", parentId: null, at: 20 });
+    await bob.client.mutate(mutation("post"), { postId: "own/conditional", parentId: null, at: 20 });
     const entries = (await bob.core.call({ op: "queued" })).ok;
     assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith("feedFeed/"))));
     for (const offline of [false, true]) {
       bob.offline = offline; await bob.client.sync();
+      assert.deepEqual(await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" }), { loading: true }, "a slash inside the predicted ID cannot hide its source-table write");
       for (const name of ["conditionalFeed", "conditionalHelper"]) {
         const before = bob.queries.length;
         assert.deepEqual(await bob.client.query(query(name), input), { loading: true });
@@ -162,7 +167,7 @@ query conditionalHelper(c: cursor ?):
     assert.deepEqual(await bob.client.query(query("conditionalHelper"), input), { loading: true });
     bob.holdSync = false; f.releaseSync();
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "conditional prediction not observed");
-    assert.ok((await bob.client.query(query("conditionalHelper"), input)).data.some(row => row.post === "own-conditional"));
+    assert.ok((await bob.client.query(query("conditionalHelper"), input)).data.some(row => row.post === "own/conditional"));
   });
 
   test(`bounded Following ${tier}: a late card miss and oversized withheld output still use fallback`, { timeout: 30000 }, async t => {

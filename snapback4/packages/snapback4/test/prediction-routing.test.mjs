@@ -71,6 +71,13 @@ test("prediction publication fence: transport failure cannot recover an answer a
   assert.deepEqual(await f.read(), { loading: true });
 });
 
+test("prediction publication fence: row IDs containing slashes still intersect their source table", async () => {
+  const f = routing();
+  f.entries = [{ ...prediction, predicted: ["posts/author/own"] }];
+  assert.deepEqual(await f.read(), { loading: true });
+  assert.equal(f.requests.length, 0);
+});
+
 test("prediction publication fence: established branches and disjoint writes remain answerable", async () => {
   const f = routing(); f.program.held = true;
   f.outcome = { data: false, unknown: false, complete: true, tables: [] };
