@@ -57191,3 +57191,363 @@ retuning or cold-acquisition measurement. No push or publication. Implementation
 and test commits: 6ea85f28b, 0efdc1638, 251336465, 2b47ba061, 44e21d0ef,
 0a8996caf. The file map, examples, failures and reproductions are in
 `reports/20260925-lane-v-r9.md` and its evidence folder.
+
+
+## 2026-09-25 — Lane Y: devices keep the server's time (0.4.3)
+
+Committed the server response stamps, a bounded minimum-RTT offset estimator,
+per-store clock persistence and monotonic device time. Queries, predictions,
+expiry timers and asset homes use the estimate; `client.now()` and React's
+`useNow(deadline)` expose it. Clock revisions carry development advances at the
+next response, including a held poll's final body. Confirmed rows still use only
+the server's execution clock. The expire/read cards now reserve render-deadline
+filtering for server answers; held observations already republish locally.
+
+In real Chromium with IndexedDB and `--clock-offset +25h`, pending messages stayed
+first in the latest 20 across an offline reload and a second offline send. The
+final full run measured a 90,000,001 ms offset both before and after reload;
+settlement after a two-minute server advance replaced the prediction timestamp
+with a server timestamp 120,495 ms later. Held typing removals published
+2, 1, 1, 1 and 2 ms after their deadlines. A response after `clock advance 2m`
+removed typing even with sync deletions held. Native JSON/SQLite cold starts at
++25h and -31d passed; React replacement, shrinking-offset and cleanup cases passed.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 497 s`**.
+Regular clients: 1,524 passed, 10 existing skips. All 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. First full attempt was
+`== 2 failure(s) in 1630 s`: one Rust and 23 client cases, all lane-owned and
+fixed. These were stale recipe/coalescing expectations, an incomplete doc snippet,
+and final clock-save errors escaping journal teardown; all 62 existing navigation
+cases pass unchanged. No baseline or environmental failure remained or was waived.
+Wasm is unchanged at 1,775,799 B raw / 495,258 B gzip (budget 496,000 B).
+
+No Quarry grammar, refusal code, interpreter, authorization, disclosure, meters,
+native bridge or web admission journal changed. No iOS simulator or service-worker
+shell qualification, package version bump, push or publication. Supervisor owns
+integration and blind review. Implementation revision: `1d0960c07`; full file map,
+engineering decisions, test meanings, every failed first-run case and reproduction
+commands: [Lane Y report](reports/20260925-lane-y.md).
+
+
+## 2026-09-25 — Lane Y round 1: separate estimated, issued and wall time
+
+Fixed all findings from the two round-0 blind reviews. Unfloored estimated
+server time schedules server-answer refetches, including local fallback and mixed
+reads. Monotonic issued device time drives execution, predictions, expiry and
+rendering. Freshness `since` / `syncedAt` is wall time. Clock forks preserve
+request-order restart barriers; streaming final stamps use provisional receipt
+time and yield to real RTT samples. Startup restores the floor from pending
+admissions before issuing time, preserving synchronous web journal capture.
+`useNow` catches deadlines and corrections between render and effect installation.
+The clock card and wire reference name these distinct responsibilities.
+
+Added deterministic request-count, freshness, frame-bound, effect-gap, restart/fork
+and streaming-error regressions. A deliberate +500 ms scheduling mutation failed
+the frame assertion and was removed. Real Chromium/IndexedDB crash-style reload
+with wall-clock rollback passed without `close()` or a post-admission query; the
+synchronous journal and pending timestamp survived. The real 25-second poll now
+checks upper bounds before and after a short response. The mutation wire test
+reads back the row and rejects the submitted `now: 1`. Held browser removals in
+the full run were 2, 1, 1, 1 and 2 ms late. Existing journal/navigation tests pass
+unchanged; native +25h and -31d cold starts still pass.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 407 s`**.
+Regular clients: 1,535 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No full-suite failure or waived baseline issue.
+Wasm remains 1,775,799 B raw / 495,258 B gzip against the 496,000 B budget.
+No server implementation, authorization, disclosure, meter, admission bridge,
+public API or Quarry form changed. No push, package publication or iOS simulator
+qualification. Implementation commits: `834f2f377`, `c5471def0`.
+Finding-by-finding fixes, complete file map, fixture corrections and reproductions:
+[Lane Y round-1 report](reports/20260925-lane-y-r1.md).
+
+
+## 2026-09-25 — Lane Y round 2: admission time survives settlement
+
+Implemented the round-1 delta review fixes in `7e871b545`. The device now commits
+an admission's maximum issued floor atomically with its outbox entry and retains
+that record after settlement. Startup restores it before issuing time, preserving
+synchronous web journal capture. Short RTTs (at most one second) outrank provisional
+streaming receipt stamps; long samples may refine estimated server time but never
+change the offset used to issue device time. Both offsets persist and fork.
+A short confirmation that changes only the issued offset still notifies watches.
+Freshness uses versioned wall-time metadata, omits ambiguous legacy values until
+resync, and clamps future stamps at publication. The clock card and wire reference
+state these policies.
+
+The real Chromium/IndexedDB regression admits, settles, catches up to an empty
+outbox, crashes without close or a query flush, rolls wall time back 4,000 ms,
+and reopens offline without losing the admission floor. Memory and SQLite tests
+prove retirement/reopen durability; an injected transaction failure proves the
+outbox and floor roll back together. Controlled composition tests give both
+answers distinct deadlines and publish at either earlier deadline. Deliberate
+mutations dropping the device deadline or preferring every real sample both fail
+the new regressions. Legacy offline upgrade and wall rollback tests pass.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 449 s`**.
+Regular clients: 1,546 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No full-suite failure or baseline/environmental
+waiver. An earlier run was deliberately interrupted before completion to include
+the issued-only notification correction; it is not counted as a pass. Full-run
+held browser expiry lateness was 1, 1, 1, 1 and 2 ms; deterministic coverage still
+enforces the 16.7 ms frame bound. Wasm is 1,776,076 B raw / 495,314 B gzip, 56 gzip
+bytes above round 1 and within the unchanged 496,000 B limit. Reference audit has
+zero errors and zero unchecked refs. `local.ts` remains below 1,500 lines (1,497).
+
+No public form, API, refusal code, server authorization, disclosure or meter policy
+changed. The four-line device transaction extension is required by the atomic
+admission-floor instruction. No push, publication or iOS simulator qualification.
+File map, forms, tests, development fixture corrections and final qualification:
+[Lane Y round-2 report](reports/20260925-lane-y-r2.md).
+
+
+## 2026-09-25 — Lane Y round 3: slow responses keep server time
+
+Implemented the round-2 delta review fixes in `438bfb032`. Responses with RTT
+above 1,000 ms now use `serverNow - received` as a provisional sample for both
+estimated server time and issued device time. Any measured sample within the
+threshold outranks them. This replaces round 2's policy of leaving issued time
+unchanged for slow responses; midpoint error cannot enter either clock from a
+long hold. The monotonic floor, bounded sample window, durable admission record,
+freshness metadata and server settlement semantics are unchanged.
+
+Audited every requested response path. Sync, queries, mutations, session
+endpoints, schema and buffered changes stamp their headers after execution/wait
+and JSON serialization. Streaming changes now omit early clock headers and use
+the existing final JSON end stamp; bounded overflow refusals retain it too.
+This is the brief's explicit end-stamp option. The clock card and wire reference
+state the rule and the distinction between buffered and streaming responses.
+
+The actual native client/SQLite bridge opens successfully under `-31d` with
+1,500 ms refresh and schema responses, retaining its valid thirty-day session
+without credential deletion. The real `changeFeed` in controlled no-stream mode
+learns +120 seconds from three buffered two-second polls, keeping device/server
+delays aligned. New 1,000/1,001/2,000 ms boundary cases check issuance and short
+refinement; threshold mutations to 5,000 and 10,000 each fail two assertions and
+were restored. The contradictory lone-slow test now proves receipt-time offset
+persistence and fork/reopen behavior. All earlier crash, composition, frame,
+wall-freshness and epoch-ordering regressions remain covered.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 418 s`**.
+Regular clients: 1,550 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Full-run held browser expiry lateness was 1, 1, 2, 1 and 2 ms.
+Wasm is unchanged at 1,776,076 B raw / 495,314 B gzip, within the 496,000 B limit.
+Reference audit has zero errors and zero unchecked references.
+
+No new public form, API or refusal code, no authorization/disclosure/meter
+weakening, and no changes to the device admission transaction. No push, package
+publication, iOS simulator claim or ceiling increase. Endpoint-by-endpoint stamp
+audit, file map, tests, examples and final qualification:
+[Lane Y round-3 report](reports/20260925-lane-y-r3.md).
+
+
+## 2026-09-25 — Lane Y round 4: only admissions restore the floor
+
+Implemented all round-3 delta review findings in `8a64ffaf8`. Clock attachment
+unconditionally ignores the old offset metadata's non-admission `last`, and
+persistence stops writing that field. Only the atomic `server-clock-floor`
+record and queued `entry.now` restore an issued floor across reopening. Live
+issuance remains monotonic. The clock card and client operations reference now
+state this distinction. No migration of unpublished round-2 metadata is needed.
+
+Two unit regressions exercise a nonzero wall-time `last` with stored issued
+offsets of zero and -31 days, attached after a slow negative-offset sample.
+The actual native JSON/SQLite bridge retains its valid thirty-day session with
+that metadata after 1,500 ms refresh/schema responses, without deleting
+credentials or relying on an admission floor. Both provisional arrival orders
+now distinguish a slow sample 500 ms behind the streaming stamp. Separate
+measured and streaming RTT-tie tests require the newest estimate even when the
+monotonic floor masks its correction. Deliberate mutations restoring nonzero
+`last`, preferring older RTT ties, and always preferring the newest provisional
+sample each fail; all were restored. Existing crash tests still prove pending
+and settled admission durability, and now require no serialized `last`.
+
+Focused checks: 38 clock/regression tests and 9 browser/wire/native tests pass.
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 408 s`**.
+Regular clients: 1,555 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Held browser expiry lateness was 2 ms in all five measurements.
+Wasm remains 1,776,076 B raw / 495,314 B gzip against the unchanged 496,000 B
+ceiling. Reference audit: zero errors, zero unchecked references.
+
+No new public form, API, refusal code, server implementation change,
+authorization/disclosure/meter weakening, admission transaction change, push,
+package publication or iOS simulator claim. File map, examples, intentional
+expectation changes and qualification:
+[Lane Y round-4 report](reports/20260925-lane-y-r4.md).
+
+
+## 2026-09-25 — Lane Y round 5: legacy admission floors survive retirement
+
+Implemented all round-4 delta review findings in `1d4a49b6b`. Clock attachment
+now requests a transactional queue read that raises `server-clock-floor` to the
+maximum of its saved value and every queued admission's `now`, before replay
+can retire those entries. This repairs stores written by older clients that
+never committed a floor record. The shared device dispatcher carries the
+internal `restore_clock_floor` option; memory/Wasm and SQLite use the same
+writer transaction. Ordinary queue reads remain read transactions, and an
+unchanged floor causes no metadata write. Synchronous web admission capture
+and the new-admission transaction are unchanged.
+
+Three Rust regressions cover legacy retirement on both stores with absent,
+lower and higher saved floors, failed-backfill preservation, and idempotence.
+Actual Wasm and native bridge tests upgrade a legacy queue, require the floor
+before retirement, retire it, roll wall time back 4,000 ms and reopen without
+a clock flush: issued time stays at the legacy admission. New clock tests pin
+the legacy offset fallback without a live sample or `issuedOffset`, and ignore
+a non-admission `last` above wall time. A native offline reopen with old -31-day
+metadata retains its valid thirty-day session with zero credential deletions.
+Deliberate mutations removing the legacy fallback, trusting future `last`, and
+skipping the backfill each fail; all were restored.
+
+Focused checks: 6 Rust clock tests, 40 clock/regression tests and 12
+browser/wire/native tests pass. Full `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 557 s`**. Regular clients: 1,560 passed, 10 existing skips;
+all 78 model tests passed with 5,000 / 5,000 / 3,000 sequences. No lane-owned,
+baseline or environmental failure was waived. Held browser expiry lateness was
+2, 2, 1, 1 and 2 ms. Wasm is 1,776,539 B raw / 495,418 B gzip, up 463 raw / 104
+gzip bytes and below the unchanged 496,000 B ceiling. Reference audit: zero
+errors, zero unchecked references.
+
+No new Quarry form, public client API or refusal code, server implementation
+change, authorization/disclosure/meter weakening, push, package publication or
+iOS simulator claim. No known open finding. File map, examples, implementation
+choice and qualification: [Lane Y round-5 report](reports/20260925-lane-y-r5.md).
+
+
+## 2026-09-25 — Lane Y round 6: every outbox writer preserves admission time
+
+Implemented all round-5 delta review findings in `2a4cb8e36`. A shared helper
+now raises `server-clock-floor` in every admission outbox write transaction:
+own admission, recovered enqueue/orphan transfer, and replay/receipt upsert.
+The audit found two production insert sites and one upsert site; all call the
+helper. Unchanged floors cause no metadata write, and a failed floor update
+rolls back the outbox write. Startup backfill remains for old persisted queues.
+The clock card and operations reference state the recovery-after-attachment
+rule. Synchronous web journal capture is unchanged.
+
+The real Wasm regression attaches while a sibling's legacy store is held,
+releases it, and triggers normal orphan recovery through `observe_store`.
+Entry and floor share one durable batch. Settlement retires the entry, wall
+time rolls back 4,000 ms, and reopening still issues the admission's time.
+An injected `DeviceCore` backfill refusal rejects startup without sending or
+retiring the legacy entry; retry succeeds and sends once. Rust cases prove
+atomic recovery batches and rollback, and memory/SQLite floor preservation
+through recovered enqueue, receipt upsert, retirement and restart. The legacy
+queue maximum is now in the middle. Bridge upgrade fixtures write old records
+directly because current enqueue now correctly preserves the floor; Rust
+fixtures restore their intended legacy floor after constructing the queue.
+
+Focused checks: 9 Rust clock tests, 40 clock/regression tests and 14
+browser/wire/native tests pass. Four deliberate mutations fail and were
+restored: first-entry-only backfill, enqueue without a floor update, upsert
+without a floor update, and ignoring the backfill refusal. Full
+`scripts/test.sh`, exit 0: **`== 0 failure(s) in 463 s`**.
+Regular clients: 1,562 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Held browser expiry lateness was 1, 2, 1, 1 and 1 ms. Wasm is
+1,776,761 B raw / 495,516 B gzip, up 222 raw / 98 gzip bytes and below the
+unchanged 496,000 B ceiling. Reference audit: zero errors, zero unchecked refs.
+
+No new Quarry form, public client API or refusal code, server implementation
+change, authorization/disclosure/meter weakening, push, package publication or
+iOS simulator claim. No known open finding. File map, examples, fixture changes,
+mutation results and qualification:
+[Lane Y round-6 report](reports/20260925-lane-y-r6.md).
+
+
+## 2026-09-25 — Lane Y round 7: recovery advances live device time
+
+Implemented both round-6 delta review findings in `e39a43dec`.
+`ServerClock.raiseIssued(time)` raises the live issued floor without changing
+estimated server time and notifies deadline subscribers, including a 1 ms
+crossing. Orphan adoption reports the maximum transferred admission time after
+the destination commit, on the serialized device chain. The local client
+registers its listener before attachment and the first store observation.
+Admissions already waiting behind recovery clamp their execution timestamp to
+the durable floor; their journal capture remains synchronous before the first
+await. Journal replay uses the same helper. The clock card and operations
+reference describe this behavior.
+
+New live local-client/Wasm tests attach at wall 1000000, recover admissions at
+1002000 and 1004000, and require the same client's clock and its next admission
+to reach 1004000 without reopening. One recovers during the first startup
+observation; another holds the persistence commit while a mutation captures its
+journal record, then requires the queued admission's actual time to respect the
+recovered floor. A controlled held read republishes at a 1 ms recovered deadline
+crossing without wall-time advancement. Unit coverage checks invalid/lower
+floors and isolation from estimated server time. Memory/SQLite recovery tests
+now start from a nonzero 1002000 floor and require 1004000 after retirement and
+rollback; the web transfer has two increasing times and keeps its atomic-batch
+and live/reopen assertions.
+
+Focused checks: 44 clock/live/regression tests, 14 browser/wire/native tests,
+and 9 Rust durability tests pass. Five deliberate mutations fail and were
+restored: zero-only floor writes, late listener registration, unclamped waiting
+admissions, silent floor increases, and first-transferred-time selection.
+Wasm remains 1776761 B raw / 495516 B gzip, below the unchanged 496000 B
+ceiling. Held browser expiry lateness in the final full run was 2, 2, 2, 2 and
+2 ms. No changed source exceeds 1500 lines. Reference audit: zero errors and
+zero unchecked references.
+
+The first full run reported `== 1 failure(s) in 627 s`: an environmental
+5000 ms timeout in the unchanged revoked-bearer streaming HTTP test. It passed
+alone in 1117 ms and in the full retry in 1040 ms. No test or timeout was relaxed.
+The full retry used the suite's existing serial-client-file option and passed:
+**`== 0 failure(s) in 1385 s`**, exit 0. All 1566 regular client tests passed,
+with 10 existing skips, and all 78 model tests passed with 5000 / 5000 / 3000
+seeded sequences. Final failures: lane-owned 0, baseline 0, environmental 0.
+The report also records the corrected development-only typing/fixture failures.
+
+No new Quarry form, public client API or refusal code; no server implementation
+change, authorization/disclosure/meter weakening, push, publication, ceiling
+increase or iOS simulator claim. No deviation from the round-7 brief and no
+known open finding. File map, examples, implementation choice and qualification:
+[Lane Y round-7 report](reports/20260925-lane-y-r7.md).
+
+
+## 2026-09-25 — Lane Y round 8: every admission commit reaches the live clock
+
+Implemented all round-7 delta review findings in `db1ae3c00`. The web host now
+notifies the live clock from its shared outbox commit boundary, using the maximum
+admission time in the existing bounded change batch. This covers ordinary
+admission, deferred journal recovery, orphan transfer and receipt/replay upserts.
+Notification follows successful persistence and committed-answer invalidation,
+before another serialized device call can execute. The separate orphan-only
+notification has been removed; no new queue scan or device round trip was added.
+Restore commits available orphan outboxes and their floor before its own journal
+replay. Failed saves reject restoration and leave the journal unadmitted.
+Backend adoption and store observation use the same recovery order. Synchronous
+journal capture and execution-time clamping remain intact.
+
+Four actual-Wasm regressions cover an idle client whose journal recovers only
+after backend adoption, adoption of a returned admission timestamp without host
+notifications, reload from a held-save crash checkpoint, and repeated rejected
+saves followed by successful lazy restoration. The crash checkpoint contains
+only durable stores and the synchronous journal. A waiting admission captured
+at 1000000 must replay after orphan times 1002000 and 1004000 and use 1004000.
+Failed restoration must preserve the captured record byte-for-byte and keep it
+out of the outbox. Both the live clock and stored timestamps are asserted.
+Four deliberate mutations fail and were restored: journal-first restore,
+suppressed notifications, ignored returned admission time, and notification
+before persistence. Initial held-save fixtures needed a published store identity
+before journal capture; those lane-owned development test errors were corrected
+without relaxing production identity checks.
+
+Focused checks: 48 clock/live/recovery/regression tests and 76 existing
+navigation/durability tests pass. Full `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 416 s`**. All 1570 regular client tests passed, with 10
+existing skips; all 78 model tests passed with 5000 / 5000 / 3000 seeded
+sequences. Full-run failures: lane-owned 0, baseline 0, environmental 0; none
+waived. Held browser expiry lateness was 1, 1, 2, 2 and 1 ms. Wasm remains
+1776761 B raw / 495516 B gzip, below the unchanged 496000 B ceiling. Reference
+audit: zero errors and zero unchecked references. No changed source exceeds
+1500 lines.
+
+No new Quarry form, public client API or refusal code; no server implementation
+change, authorization/disclosure/meter weakening, push, publication, ceiling
+increase or iOS simulator claim. No deviation from the round-8 brief and no
+known open finding. The clock card and operations reference describe the full
+commit and restore rule. File map, examples, implementation choice and evidence:
+[Lane Y round-8 report](reports/20260925-lane-y-r8.md).

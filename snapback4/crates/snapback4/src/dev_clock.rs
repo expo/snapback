@@ -39,17 +39,22 @@ pub struct Clock {
     dev: bool,
     base: i64,
     started: Instant,
+    epoch: String,
+    revision: u64,
 }
 
 impl Clock {
     pub fn new(dev: bool, offset: i64) -> Result<Self, Refusal> {
         if !dev && offset != 0 { return Err(release()); }
-        Ok(Self { dev, base: time(snapback4_core::now_ms().checked_add(offset))?, started: Instant::now() })
+        Ok(Self { dev, base: time(snapback4_core::now_ms().checked_add(offset))?, started: Instant::now(),
+            epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).map_err(|e| e.refusal())?, revision: 0 })
     }
     pub fn now(&self) -> i64 {
         if !self.dev { return snapback4_core::now_ms(); }
         self.base.saturating_add(self.started.elapsed().as_millis().min(MAX_TIME as u128) as i64).min(MAX_TIME)
     }
+    /// Identifies samples taken before/after a restart or deliberate clock jump.
+    pub fn revision(&self) -> String { format!("{}:{}", self.epoch, self.revision) }
     pub fn presence_now(&self) -> i64 {
         // Production grace is elapsed real time, unaffected by wall-clock corrections.
         if self.dev { self.now() } else { self.started.elapsed().as_millis().min(MAX_TIME as u128) as i64 }
@@ -58,6 +63,7 @@ impl Clock {
         if !self.dev { return Err(release()); }
         if milliseconds <= 0 { return Err(input("clock advance cannot move backwards; use a positive duration such as +2m")); }
         let next = time(self.now().checked_add(milliseconds))?;
+        self.revision += 1;
         self.base = next;
         self.started = Instant::now();
         Ok(next)

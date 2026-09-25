@@ -248,7 +248,7 @@ query wordBoth():
       if (intercept && path === `/q/${delayedName}`) await intercept(init);
       return response;
     },
-    device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "set_meta" && request.key === "syncedAt") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); if (interceptDevice) await interceptDevice(request, reply); return reply; } }; } },
+    device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "set_meta" && request.key === "syncedAt:wall:1") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); if (interceptDevice) await interceptDevice(request, reply); return reply; } }; } },
   };
   if (session) { delete clientOptions.persona; clientOptions.session = session; }
   client = await createLocalClient(clientOptions);
@@ -610,7 +610,7 @@ query wordBoth():
     assert.ok(Number.isInteger(before) && before > 0);
     await until(() => Date.now() > before, "clock must advance before the next sync");
     await client.sync();
-    const after = Number((await core.call({ op: "meta", key: "syncedAt" })).ok);
+    const after = Number((await core.call({ op: "meta", key: "syncedAt:wall:1" })).ok);
     assert.ok(after > before, "a later sync completed while the server reply was delayed");
     release();
     const result = await pending;

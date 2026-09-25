@@ -17,7 +17,7 @@ import { operationTables, type BackendJson } from "./backend.ts";
 import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
 
-type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null };
+type Result<R> = { read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -45,6 +45,8 @@ export interface QueryEnvironment {
   installNative(signal?: AbortSignal): Promise<boolean>;
   notify(watch: Watch): void;
   offline(): Refusal;
+  deviceNow(): number;
+  serverNow(): number;
   serverAnswers: Map<string, ServerAnswer>;
 }
 
@@ -93,17 +95,17 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const stopped = await blocked(true); checkpoint();
     if (stopped) return localCandidate();
     let last = env.serverAnswers.get(key);
-    if (last?.nextExpiry != null && last.nextExpiry <= Date.now()) {
+    if (last?.nextExpiry != null && last.nextExpiry <= env.serverNow()) {
       env.serverAnswers.delete(key); last = undefined;
     }
     if (last) for (const table of last.tables) tables.add(table);
-    const read: Read<R> = last ? { ...last.read, fresh: false, since: last.at } as Read<R>
+    const read: Read<R> = last ? { ...last.read, fresh: false, since: Math.min(last.at, Date.now()) } as Read<R>
       : watch ? { loading: true } : { denied: env.offline() };
-    return { origin: "remembered", result: { read, tables, nextExpiry: last?.nextExpiry ?? null } };
+    return { origin: "remembered", result: { read, tables, nextExpiry: null, serverExpiry: last?.nextExpiry ?? null } };
   };
   const local = async () => {
     checkpoint();
-    const answer = await env.call({ op: "query", name: op.name, viewer: env.principal, args, now: Date.now() }); checkpoint();
+    const answer = await env.call({ op: "query", name: op.name, viewer: env.principal, args, now: env.deviceNow() }); checkpoint();
     const outcome = (answer.ok ?? {}) as Outcome;
     for (const table of outcome.tables ?? []) tables.add(table);
     if (program && !program.native) possible = outcome.unknown === false && outcome.complete === true
@@ -144,7 +146,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null };
-        return { result: { read, tables, nextExpiry }, origin: "server" };
+        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
@@ -194,8 +196,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const kept = coverage.filter(([, c]) => !wantsServer(c));
     const data = { ...remote.result.read.data as Record<string, unknown> };
     for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-    const expiries = [remote.result.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
-    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null } };
+    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null } };
   };
   const publish = async (initial: Candidate<R>): Promise<Result<R>> => {
     let candidate = initial;
@@ -204,7 +205,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       checkpoint(); // Rules 1/5: no await between this check and publication.
       const { result, origin } = candidate;
       // Rules 1/5: an authorization deadline may pass during the final fence.
-      if ((attempt > 0 || "data" in result.read) && snapshot.nextExpiry !== null && snapshot.nextExpiry <= Date.now()) {
+      if ((attempt > 0 || "data" in result.read) && ((snapshot.nextExpiry !== null && snapshot.nextExpiry <= env.deviceNow())
+        || (snapshot.serverExpiry != null && snapshot.serverExpiry <= env.serverNow()))) {
         env.serverAnswers.delete(key);
         if (origin === "local") {
           if (attempt === 0) {
@@ -225,7 +227,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       }
       if (origin !== "local" || !("data" in result.read)) return result;
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
-      return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: env.lastSyncAt }) } };
+      return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) } };
     }
   };
   try {
@@ -236,7 +238,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       const stopped = await blocked(candidate.origin === "remembered"); checkpoint();
       if (stopped) candidate = localCandidate();
       else if (candidate.origin === "server") {
-        if (remember && "data" in candidate.result.read) env.serverAnswers.set(key, { read: candidate.result.read, at: Date.now(), nextExpiry: candidate.result.nextExpiry, tables: new Set(tables) });
+        if (remember && "data" in candidate.result.read) env.serverAnswers.set(key, { read: candidate.result.read, at: Date.now(), nextExpiry: candidate.result.serverExpiry ?? null, tables: new Set(tables) });
         else env.serverAnswers.delete(key);
       }
     }

@@ -36,18 +36,18 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     let principal = match principal_of(&request, shared) {
         Ok(principal) => principal,
         Err(refusal) => {
-            respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+            respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
             return;
         }
     };
     let input = match serde_json::from_str::<SyncRequest>(body) {
         Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
-        _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { generation?, from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
+        _ => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { generation?, from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
     };
     let SyncRequest { generation: requested_generation, from, limit, mut after, stream, pending, store_id: requested_store } = input;
     let store_id = match lock(&shared.engine).store().meta("store_id") {
         Ok(Some(id)) => id,
-        _ => return respond(request, 503, json!({ "denied": refusal_json(&snapback4_core::error::RuntimeError::Store("the server store has no identity".into()).refusal()) })),
+        _ => return respond_timed(request, shared, 503, json!({ "denied": refusal_json(&snapback4_core::error::RuntimeError::Store("the server store has no identity".into()).refusal()) })),
     };
     // An old snapshot cursor belongs to its database, not merely its schema.
     if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
@@ -76,10 +76,10 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                 respond_with_sync(request, 200, SnapshotReply {
                     acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
                     held, more: next.is_some(), next, after, snapshot: true, watermark,
-                }, true, Some(overflow));
+                }, true, Some(overflow), Some(shared));
             }
-            Ok(SyncOutcome::Generation(reply)) => respond(request, 200, reply),
-            Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
+            Ok(SyncOutcome::Generation(reply)) => respond_timed(request, shared, 200, reply),
+            Err(error) => { let refusal = error.refusal(); respond_timed(request, shared, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
         }
     } else {
         let (outcome, generation) = {
@@ -105,10 +105,10 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                 respond_with_sync(request, 200, StreamReply {
                     images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                     joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
-                }, true, Some(overflow));
+                }, true, Some(overflow), Some(shared));
             }
-            Ok(SyncOutcome::Generation(reply)) => respond(request, 200, reply),
-            Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
+            Ok(SyncOutcome::Generation(reply)) => respond_timed(request, shared, 200, reply),
+            Err(error) => { let refusal = error.refusal(); respond_timed(request, shared, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
         }
     }
 }

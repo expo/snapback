@@ -1,6 +1,7 @@
 import { admitNow, failedAdmission } from "./admission.ts";
 import { attachAdmissionAuthority } from "./admission-authority.ts";
 import { acquisitionProgress } from "./acquisition.ts";
+import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import type { Queued, StoreCapture } from "./local-types.ts";
@@ -55,7 +56,8 @@ const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const retention = assetRetention(options.assets);
-  const doFetch = options.fetch ?? defaultFetch;
+  const clock = serverClock(options.fetch ?? defaultFetch).fork();
+  const doFetch = clock.wrap(options.fetch ?? defaultFetch);
   const fetchSync = syncTransport(doFetch);
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -63,8 +65,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let session: Session | null = null;
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
-    session = options.session ?? await restoreSession(base, sessions);
-    if (session && (!Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now())) {
+    session = options.session ?? await restoreSession(base, sessions, () => 0);
+    if (session && (!Number.isFinite(session.expiresAt) || session.expiresAt <= 0)) {
       session = null;
       await forgetSession(base, sessions);
     }
@@ -74,7 +76,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       session = signedIn.session;
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
-    if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) {
+    if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - clock.estimatedServerNow() <= REFRESH_BEFORE_EXPIRY_MS) {
       const refreshed = await rotateSession(base, session.token, doFetch);
       if (refreshed.ok) {
         if (refreshed.session.principal !== session.principal) {
@@ -110,7 +112,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
-
   // Restore the kept backend before installing anything from the server.
   // A generation change can erase the evidence needed to detect a restore;
   // the ordinary sync preflight and captured adoption must run first.
@@ -146,6 +147,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // Web mutations can arrive after publication but before startup validation.
   let sendingAllowed = !core.onSuspend;
   let stopOutbox: (() => void) | undefined;
+  let flushRecovered: (() => void) | undefined;
+  let stopClock: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
   attachAdmissionAuthority(core, options);
@@ -160,7 +163,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const state = await call({ op: "state" });
   generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
-  media = new MediaCache(core, principal, retention);
+  stopOutbox = core.onOutbox?.(time => { clock.raiseIssued(time ?? 0); flushRecovered?.(); });
+  await clock.attach(core);
+  if (session && session.expiresAt <= clock.issuedDeviceNow()) {
+    await forgetSession(base, sessions);
+    throw new Error("createLocalClient: E_AUTH: this session expired; sign in again");
+  }
+  media = new MediaCache(core, principal, retention, clock.issuedDeviceNow);
   await media.open();
   // The app's native module (LLP 3000.005 §9): fetched once per digest and
   // installed on the device, which keeps it; offline, the device answers
@@ -232,7 +241,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const answers = new LocalReads();
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
-  let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
+  // Unversioned syncedAt may be server time; omit it until a wall-time resync.
+  let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt:wall:1" })).ok ?? 0);
   let caughtUp = false;
   let identityChecked = false;
   let partitionCurrent = true;
@@ -260,6 +270,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
     }
   }
+  stopClock = clock.subscribe((shift, revised) => {
+    // Sub-frame sampling noise must not make a query response refetch itself.
+    if (closed || (!revised && Math.abs(shift) < 10)) return;
+    for (const watch of watches.values()) void rerun(watch);
+    void media?.reconcile().catch(() => {});
+    scheduleRefresh();
+  });
   await refreshAcquired();
   // A kept sent entry can disappear on the first catch-up, before a screen mounts.
   for (const entry of await queued()) {
@@ -291,20 +308,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     };
     if (delivery) delivery.push(deliver); else deliver();
   }
-
   function invalidateAnswers(delivery: (() => void)[] = []) {
     answers.clear(watches.values());
     delivery.push(() => { for (const watch of watches.values()) { notify(watch); void rerun(watch); } });
     return delivery;
   }
-
   function refuseRestore(denied?: Refusal) {
     if (denied?.code !== "E_STORE_RESTORE") return;
     partitionDenied = denied;
     observeIncarnation(storeIdentity, true);
     for (const watch of watches.values()) { watch.publish({ denied }); notify(watch); }
   }
-
   // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the device validates head observations against private progress and retained image heads before replay or freshness decisions.
   async function witnessRestore(storeId: unknown, head: unknown, capture: StoreCapture): Promise<boolean> {
     if (!Number.isSafeInteger(head) || Number(head) < 0) return true;
@@ -316,7 +330,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (observed.denied) { refuseRestore(observed.denied); return true; }
     return false;
   }
-
   async function captureStore(): Promise<StoreCapture | undefined> {
     const reply = await call({ op: "sync_state", capture: false });
     if (reply.denied) return;
@@ -324,7 +337,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (capture.restore_refusal) { refuseRestore(capture.restore_refusal); return; }
     return capture;
   }
-
   async function call(request: Record<string, unknown>, committedTables?: Set<string>): Promise<{ ok?: unknown; denied?: Refusal }> {
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     let observed = false;
@@ -345,7 +357,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) observeIncarnation(undefined, true, delivery);
       if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery);
     };
-    const work = core.call(request, committed);
+    const work = typeof request.now === "number" ? clock.persist().then(() => core.call(request, committed)) : core.call(request, committed);
     active.add(work);
     try {
       const result = (await work) as { ok?: unknown; denied?: Refusal };
@@ -356,10 +368,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     finally { active.delete(work); deliver(); }
   }
-
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
   const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
-
   setLink = (next: Link) => {
     if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
@@ -376,7 +386,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (next === "online") void flush();
     for (const watch of watches.values()) void rerun(watch);
   };
-
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let refreshing: Promise<SignIn> | null = null;
   let rotatingSession: Promise<SignIn> | null = null;
@@ -386,7 +395,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const signedOut = (): SignIn => ({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
   let stopRefresh!: () => void;
   const refreshStopped = new Promise<SignIn>(resolve => { stopRefresh = () => resolve(signedOut()); });
-
   // @ref LLP 3000.011.003.000#2 — local sign-out fences refresh before durable credential deletion; it never deletes the replica or outbox.
   const endSession = (): Promise<void> => {
     if (endingSession) return endingSession;
@@ -422,16 +430,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     return work;
   };
-
   const refusedSession = async (denied: unknown, revision: number) => {
     if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
   };
-
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     if (closed || sessionDead || options.persona || !session || session.kind === "action") return;
-    const untilDue = Math.max(0, session.expiresAt - Date.now() - REFRESH_BEFORE_EXPIRY_MS);
+    const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - REFRESH_BEFORE_EXPIRY_MS);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
     refreshTimer = setTimeout(() => {
@@ -660,7 +666,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const observedState = observedRead.ok as { store_id?: string | null } | undefined;
             publishedStore = observedState?.store_id;
             storeIdentity = publishedStore ?? undefined;
-            await call({ op: "set_meta", key: "syncedAt", value: "0" });
+            await call({ op: "set_meta", key: "syncedAt:wall:1", value: "0" });
             for (const [id, sentSeq] of Object.entries(observation.retired)) {
               const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
               settled.get(id)?.resolve(receipt); settled.delete(id);
@@ -752,7 +758,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await refreshAcquired();
       seq = watermark;
       lastSyncAt = Date.now();
-      await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
+      await call({ op: "set_meta", key: "syncedAt:wall:1", value: String(lastSyncAt) });
       // A later reconnect can establish custody that startup could not validate.
       const resumeSending = !sendingAllowed;
       listenForExit();
@@ -875,6 +881,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
       principal, signal: aborter.signal, unavailable, queued, call, post, installNative, notify,
+      deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
       offline, serverAnswers: answers.serverAnswers,
     };
     const work = (async () => {
@@ -901,15 +908,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((table) => tables.has(table))) void rerun(watch);
   }
 
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null) {
     if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
     watch.expiryTimer = null;
-    if (nextExpiry == null || closed) return;
-    const delay = Math.min(Math.max(0, nextExpiry - Date.now()), 2_147_483_647);
+    if ((nextExpiry == null && serverExpiry == null) || closed) return;
+    const delay = Math.min(nextExpiry == null ? Infinity : clock.deviceDelay(nextExpiry), serverExpiry == null ? Infinity : clock.serverDelay(serverExpiry), 2_147_483_647);
     watch.expiryTimer = setTimeout(() => {
       watch.expiryTimer = null;
       if (watches.get(watch.key) !== watch) return;
-      if (Date.now() < nextExpiry) { scheduleExpiry(watch, nextExpiry); return; }
+      if ((nextExpiry == null || clock.deviceDelay(nextExpiry) > 0) && (serverExpiry == null || clock.serverDelay(serverExpiry) > 0)) { scheduleExpiry(watch, nextExpiry, serverExpiry); return; }
       // @ref LLP 3000.007#6.5 — Rule 5: expiry ends stale retention before
       // asynchronous recovery, including an already-running replacement.
       const denied = unavailable();
@@ -928,12 +935,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
+      const { read, tables, nextExpiry, serverExpiry, incarnation: revision, authority } = await runLocal(watch.op, watch.args, watch);
       if (revision !== incarnation || authority !== answers.revision) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       watch.incarnation = revision;
       watch.tables = tables;
-      scheduleExpiry(watch, nextExpiry);
+      scheduleExpiry(watch, nextExpiry, serverExpiry);
       if (watch.snapshot !== read) {
         const denied = unavailable(); // Rule 1: immediately before notifying observers.
         watch.publish(denied ? { denied } : read);
@@ -1096,6 +1103,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   let stopHost: void | (() => void);
   const client: LocalClient = {
+    now: clock.issuedDeviceNow,
     act(op, args, options) {
       const response = closingResponses.request();
       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => unavailable() ?? (link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return response.take(); } });
@@ -1159,7 +1167,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const schema = backend!.schema;
         const program = backend!.programs.find((p) => p.name === op.name);
         const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
-        const request = { op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued };
+        const request = { op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.issuedDeviceNow(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued };
         const denied = admitNow(core, request);
         if (denied) return failedAdmission<R>(id, denied);
         return (async () => {
@@ -1174,6 +1182,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             return admitted.denied.code === "E_WRITE_ID_REUSE" ? failed : emitLocalFailure(failed);
           }
           const entry = admitted.ok as Queued;
+          clock.raiseIssued(entry.now ?? 0);
           if (!entry.predictable && !entry.predicted.length) Object.assign(pending, { reason: !acquired
             ? "queued without a row: not acquired yet"
             : "queued without a row: local data does not justify prediction" });
@@ -1324,6 +1333,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       acquiredListeners.clear();
       stopSuspend?.();
       stopOutbox?.();
+      stopClock?.();
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -1342,6 +1352,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         await Promise.allSettled([following, syncing, flushing, persistingSession, endingSession, ...active]);
         for (const [id, { resolve }] of settled) resolve({ state: "pending", id });
         await media?.close();
+        // A failed admission can leave storage unavailable until reopen; clock
+        // bookkeeping must still release the core and its recovery journal.
+        await Promise.allSettled([clock.detach()]);
         await core.close();
       })().finally(() => { settled.clear(); closingResponses.finish(); });
       return closing;
@@ -1377,9 +1390,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !history.hasUnpersisted(entries[0]!.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
     });
   }
+  flushRecovered = () => { void flush(); };
   const start = async () => {
     if (closed) return;
-    if (prepared && session && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
+    if (prepared && session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
     // Exit and ordinary replay share the same startup checks, even offline.
     // Native owners retain their existing snapshot/receipt coordination first.
     const replayAllowed = core.onSuspend && await replayOnOpen();
@@ -1388,7 +1402,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     // Slow delivery and snapshots must not consume the page's exit opportunity.
     if (replayAllowed && link === "online") await flushOnce(false);
     if (link === "online") await syncOnce();
-    stopOutbox = core.onOutbox?.(() => { void flush(); });
     follow();
     void flush();
     scheduleRefresh();
@@ -1402,6 +1415,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   } catch (error) {
     stopSuspend?.();
     stopOutbox?.();
+    stopClock?.();
     aborter.abort();
     // Opening the device transfers its lifetime to this constructor. Until a
     // client is returned, every later startup failure must release it here.

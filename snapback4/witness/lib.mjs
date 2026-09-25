@@ -51,12 +51,12 @@ export function scaleSeed({ groups, messages, members }) {
 }
 
 /** A `snapback4 dev` on the chat backend in a temporary project, seeded. */
-export async function devServer({ seed, extraSource = "", sourceDir, port = 0 }) {
+export async function devServer({ seed, extraSource = "", sourceDir, port = 0, clockOffset }) {
   const app = mkdtempSync(join(tmpdir(), "sb4-witness-app-"));
   cpSync(sourceDir ?? join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
   if (extraSource) writeFileSync(join(app, "snapback/media.q"), extraSource);
-  const server = spawn(binary(), ["dev", "--port", String(port), "--no-watch"], { cwd: app, stdio: ["ignore", "pipe", "pipe"] });
+  const server = spawn(binary(), ["dev", "--port", String(port), "--no-watch", ...(clockOffset ? ["--clock-offset", clockOffset] : [])], { cwd: app, stdio: ["ignore", "pipe", "pipe"] });
   let output = "", log = "", spawnError;
   server.stdout.on("data", data => { output += data; });
   server.stderr.on("data", data => { log += data; });
@@ -95,7 +95,7 @@ export async function devServer({ seed, extraSource = "", sourceDir, port = 0 })
 }
 
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */
-export async function launch({ seed, extraSource = "", headless = true, sourceDir, entrySource = "", sourceOverrides = {} }) {
+export async function launch({ seed, extraSource = "", headless = true, sourceDir, entrySource = "", sourceOverrides = {}, clockOffset }) {
   const require = createRequire(join(root, "package.json"));
   const { chromium } = require("playwright-core");
   const exe = chromiumExecutable();
@@ -104,11 +104,11 @@ export async function launch({ seed, extraSource = "", headless = true, sourceDi
   // beside it (`scripts/build-wasm.sh` first), served from a directory.
   const harness = mkdtempSync(join(tmpdir(), "sb4-witness-"));
   const entry = join(harness, "harness.ts");
-  writeFileSync(entry, `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice, indexedDbPersistence } from "${join(root, "packages/snapback4/src/web.ts")}";\nimport { WebDevice } from "${join(root, "packages/snapback4/src/wasm/snapback4_device.js")}";\nObject.assign(window, { webDevice, indexedDbPersistence, WebDevice });\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice(), ...options });\n${entrySource}\n`);
+  writeFileSync(entry, `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice, indexedDbPersistence } from "${join(root, "packages/snapback4/src/web.ts")}";\nimport { WebDevice } from "${join(root, "packages/snapback4/src/wasm/snapback4_device.js")}";\nimport { createApp } from "${join(root, "packages/snapback4/src/app.ts")}";\nimport { localStorageSessionStore } from "${join(root, "packages/snapback4/src/auth.ts")}";\nObject.assign(window, { webDevice, indexedDbPersistence, WebDevice, createApp, localStorageSessionStore });\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice(), ...options });\n${entrySource}\n`);
   writeFileSync(join(harness, "index.html"), `<!doctype html><title>witness</title><script type="module" src="./harness.ts"></script>`);
   await build({ root: harness, logLevel: "silent", plugins: [{ name: "witness-source-overrides", enforce: "pre", transform(code, id) { return sourceOverrides[id] ? { code: sourceOverrides[id], map: null } : null; } }], build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
 
-  const dev = await devServer({ seed, extraSource, sourceDir });
+  const dev = await devServer({ seed, extraSource, sourceDir, clockOffset });
   const { api, app, seeded, seedMs } = dev;
 
   const types = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm" };

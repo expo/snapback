@@ -7,6 +7,7 @@ import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
+import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
 
 const ClientContext = createContext<Client | null>(null);
@@ -40,6 +41,29 @@ export function useClient(): Client {
   const client = useContext(ClientContext);
   if (!client) throw new Error("useClient: no <AppProvider> or <SnapbackProvider> above this component");
   return client;
+}
+
+/** Server time for a render deadline. Re-render at that deadline and whenever
+ * the estimate changes; held device queries already publish their own expiry. */
+export function useNow(deadline: number | null = null): number {
+  const client = useClient();
+  const renderedNow = client.now();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      const remaining = deadline === null ? 0 : clockDelay(client.now, deadline);
+      if (remaining > 0) timer = setTimeout(() => { tick(n => n + 1); schedule(); }, Math.min(remaining, 2_147_483_647));
+    };
+    const stop = onClock(client.now, () => { tick(n => n + 1); schedule(); });
+    schedule();
+    // Render and subscription are separate phases: catch a missed correction
+    // or a deadline crossed before this effect could install its timer.
+    if (client.now() !== renderedNow) tick(n => n + 1);
+    return () => { stop(); clearTimeout(timer); };
+  }, [client, deadline]);
+  return renderedNow;
 }
 
 const LOADING: Read<never> = { loading: true };

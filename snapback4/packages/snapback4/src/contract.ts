@@ -173,6 +173,8 @@ export type MutationPromise<R = unknown> = Promise<Write<R>> & {
 };
 
 export interface Client {
+  /** Estimated server Unix milliseconds; never goes backward on this device. */
+  now(): number;
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
   /** Retry-safe intents: pass { id } to reuse the original write. A client

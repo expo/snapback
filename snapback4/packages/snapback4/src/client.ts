@@ -1,4 +1,5 @@
 import { admissionRefusal, browserAdmission, failedAdmission } from "./admission.ts";
+import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import { deferStart, trackRotation } from "./client-start.ts";
@@ -100,7 +101,8 @@ export function mintId(now = Date.now()): string {
 }
 
 export function createClient(options: ClientOptions): Client {
-  const doFetch = options.fetch ?? defaultFetch;
+  const clock = serverClock(options.fetch ?? defaultFetch);
+  const doFetch = clock.wrap(options.fetch ?? defaultFetch);
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;
@@ -254,7 +256,7 @@ export function createClient(options: ClientOptions): Client {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     if (closed || storeRefusal || !credentials || !session || session.kind === "action") return;
-    const untilDue = Math.max(0, session.expiresAt - Date.now() - refreshBeforeExpiry);
+    const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - refreshBeforeExpiry);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
     refreshTimer = setTimeout(() => {
@@ -418,7 +420,7 @@ export function createClient(options: ClientOptions): Client {
     if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
     watch.expiryTimer = null;
     if (nextExpiry == null || closed) return;
-    const delay = Math.min(Math.max(0, nextExpiry - Date.now()), 2_147_483_647);
+    const delay = Math.min(clock.serverDelay(nextExpiry), 2_147_483_647);
     watch.expiryTimer = setTimeout(() => {
       watch.expiryTimer = null;
       if (watches.get(watch.key) === watch) void refresh(watch);
@@ -592,7 +594,14 @@ export function createClient(options: ClientOptions): Client {
     return result;
   }
 
+  const stopClock = clock.subscribe((shift, revised) => {
+    // Sub-frame sampling noise must not make a query response refetch itself.
+    if (closed || (!revised && Math.abs(shift) < 10)) return;
+    for (const watch of watches.values()) void refresh(watch);
+    scheduleRefresh();
+  });
   const client: Client = {
+    now: clock.issuedDeviceNow,
     act(op, args, options) {
       const response = closingResponses.request();
       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : response.take(); } });
@@ -766,6 +775,7 @@ export function createClient(options: ClientOptions): Client {
     close() {
       if (closing) return closing;
       closed = true;
+      stopClock();
       closingResponses.begin();
       stopRefresh(ended());
       aborter.abort();
@@ -793,7 +803,7 @@ export function createClient(options: ClientOptions): Client {
   trackDispatch(client, dispatch);
   const start = () => {
     if (closed) return;
-    if (session && session.kind !== "action" && session.expiresAt - Date.now() <= refreshBeforeExpiry) void refreshCurrent();
+    if (session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
     else scheduleRefresh();
   };
   trackRotation(client, () => refreshing);

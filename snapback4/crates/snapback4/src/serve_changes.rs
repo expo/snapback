@@ -1,5 +1,5 @@
 //! Held change polls: JSON whitespace heartbeats, followed by one JSON result.
-use super::{JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond};
+use super::{JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond_timed};
 use serde_json::{Value as Json, json};
 use std::io;
 use std::time::{Duration, Instant};
@@ -14,10 +14,10 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let deadline = Instant::now() + Duration::from_secs(wait);
     let connected = match principal_of(&request, shared) {
         Ok(principal) => principal,
-        Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+        Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
     };
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
-    let mut response = PollResponse { request: Some(request), started: false };
+    let mut response = PollResponse { request: Some(request), started: false, shared };
     {
         let mut engine = lock(&shared.engine);
         if let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
@@ -94,17 +94,20 @@ fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64
     Ok((head, store_id, tables))
 }
 
-struct PollResponse {
+struct PollResponse<'a> {
     request: Option<Request>,
     started: bool,
+    shared: &'a Shared,
 }
 
-impl PollResponse {
+impl PollResponse<'_> {
     fn heartbeat(&mut self) -> io::Result<()> {
         let request = self.request.as_mut().unwrap();
         let mut frame = String::new();
         if !self.started {
             frame.push_str("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store, no-transform\r\nX-Accel-Buffering: no\r\nTransfer-Encoding: chunked\r\n");
+            // Clock time belongs to the final body, after the hold. A buffering
+            // transport must not mistake early headers for an end stamp.
             for header in cors(request) { frame.push_str(&format!("{header}\r\n")); }
             frame.push_str("\r\n");
             self.started = true;
@@ -113,15 +116,20 @@ impl PollResponse {
         request.write_response_frame(frame.as_bytes())
     }
 
-    fn finish(mut self, status: u16, body: Json) {
-        if !self.started { return respond(self.request.take().unwrap(), status, body); }
+    fn finish(mut self, status: u16, mut body: Json) {
+        if !self.started { return respond_timed(self.request.take().unwrap(), self.shared, status, body); }
+        // Stamp after the hold, including any development clock advance.
+        let clock = lock(&self.shared.clock);
+        body["serverNow"] = json!(clock.now());
+        body["clockRevision"] = json!(clock.revision());
+        drop(clock);
         // Once heartbeats began the status is 200; the final JSON still
         // carries a typed denial, including a session revoked during the wait.
         let mut bytes = JsonBuffer(Vec::new());
         if serde_json::to_writer(&mut bytes, &body).is_err() {
             let refusal = snapback4_core::error::Refusal::new("E_BOUND", "bound", "the HTTP JSON response exceeds 16 MiB; request fewer changes").guide("reads");
             bytes.0.clear();
-            serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal) })).unwrap();
+            serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal), "serverNow": body["serverNow"], "clockRevision": body["clockRevision"] })).unwrap();
         }
         let mut frame = format!("{:x}\r\n", bytes.0.len()).into_bytes();
         frame.extend_from_slice(&bytes.0);
@@ -132,7 +140,7 @@ impl PollResponse {
     }
 }
 
-impl Drop for PollResponse {
+impl Drop for PollResponse<'_> {
     fn drop(&mut self) {
         // A failed or panicking stream cannot append a second response after
         // incomplete chunk framing, including on pipelined connections.

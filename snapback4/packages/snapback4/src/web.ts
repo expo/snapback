@@ -93,7 +93,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       let orphanRetry: ReturnType<typeof setTimeout> | undefined;
       let retryCount = 0;
       const waiting = new Map<string, AbortController>();
-      const outboxListeners = new Set<() => void>();
+      const outboxListeners = new Set<(issuedFloor?: number) => void>();
       const recoverInBackground = () => {
         chain = chain.then(() => run(async () => {
           if (closing) return;
@@ -133,9 +133,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         waiting.clear();
       };
       const recoverOrphans = async () => {
-        const retry = await adoptOrphans(device!, name, store.name, persist, settle, () => {
-          for (const notify of outboxListeners) notify();
-        }, waitForLock, journal.authority);
+        const retry = await adoptOrphans(device!, name, store.name, persist, settle, waitForLock, journal.authority);
         if (retry) retryOrphans();
       };
       // Committed outbox entries, mirrored from persisted changes, so a page
@@ -170,9 +168,17 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       const settle = async (extra: Change[] = [], committedReply?: () => void): Promise<void> => {
         const changes = [...JSON.parse(device!.drain()) as Change[], ...journal.cleanup(committed), ...extra];
+        let issuedFloor: number | undefined;
+        for (const change of changes) if (change.s === "o" && change.v !== null) {
+          const now = (JSON.parse(change.v) as { now?: number }).now;
+          if (Number.isSafeInteger(now) && now! >= 0) issuedFloor = Math.max(issuedFloor ?? 0, now!);
+        }
         if (changes.length) await persist.save(store.name, changes);
         // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the durable result reaches invalidation before any fallible host bookkeeping or recovery.
         committedReply?.();
+        // Every outbox commit, including deferred journal replay, reaches the
+        // live clock before the serialized chain can stamp another admission.
+        if (issuedFloor !== undefined) for (const notify of outboxListeners) notify(issuedFloor);
         if (changes.length) {
           remember(changes);
           journal.cleanup(committed);
@@ -193,8 +199,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       const recoverOpening = async (): Promise<void> => {
         if (!needsRecovery) return;
-        await journal.recover(device!, settle, admissions);
+        // Commit orphan admission floors before recovering this tab's journal.
         await recoverOrphans();
+        await journal.recover(device!, settle, admissions);
         needsRecovery = false;
       };
       try {
@@ -325,8 +332,10 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 return denied;
               }) : await execute();
               const observesStore = request.op === "observe_store" || request.op === "apply";
-              if (!reply.denied && (request.op === "adopt" || observesStore)) await journal.recover(device!, settle, admissions);
-              if (!reply.denied && observesStore) await recoverOrphans();
+              if (!reply.denied && (request.op === "adopt" || observesStore)) {
+                await recoverOrphans();
+                await journal.recover(device!, settle, admissions);
+              }
               if (request.op === "meta" && request.key === "write-history" && !reply.denied) {
                 // Read through on every lookup: a sibling may have recovered a
                 // receipt after this client opened. Never copy it into this VM.
@@ -488,7 +497,7 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
-async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void, authority?: AdmissionAuthorityContext): Promise<boolean> {
+async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, waitForLock: (name: string) => void, authority?: AdmissionAuthorityContext): Promise<boolean> {
   if (!persist.others || !persist.remove) return false;
   let retry = false;
   const orphanPrefix = `${name}:tab-`;
@@ -501,7 +510,6 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
     const held = await claimStore(persist, orphan, false);
     if (!held) { waitForLock(orphan); continue; }
     let destinationDirty = false;
-    let enqueued = false;
     try {
       // @ref LLP 3000.007#18.2 — orphan receipts retain their source store until ownership can be resolved.
       // A journal can outlive its database. Loading a missing IDB store would
@@ -564,13 +572,11 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
           const reply = JSON.parse(device.call(JSON.stringify({ op: "enqueue", entry: { ...entry, seq: next.ok ?? entry.seq, predictable: false, predicted: [] } })));
           if (reply.denied) throw new Error(refusalText(JSON.stringify(reply)));
           existing.add(entry.id);
-          enqueued = true;
         }
         removed.push({ s: "o", k: entry.id, v: null });
       }
       await settle(saved.filter(c => c.s === "j" && !entries.some(e => e.id === c.k && !removed.some(r => r.k === e.id))));
       destinationDirty = false;
-      if (enqueued) adopted();
       if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) { if (removed.length) await persist.save(orphan, removed); }
       else await persist.remove(orphan);
     } catch (error) {

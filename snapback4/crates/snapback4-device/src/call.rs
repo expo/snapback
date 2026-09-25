@@ -177,7 +177,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 device.enqueue(&queued_entry(entry)?)?;
                 Json::Null
             }
-            "queued" => encoded(&device.queued()?)?,
+            "queued" => encoded(&device.queued_with_clock_floor(request.get("restore_clock_floor").and_then(Json::as_bool).unwrap_or(false))?)?,
             "next_submission" => json!(device.next_submission()?),
             "dequeue" => {
                 device.dequeue(text(&request, "id")?)?;

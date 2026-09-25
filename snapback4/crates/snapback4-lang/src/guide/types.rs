@@ -148,11 +148,11 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   within that commit preserves it. Seeds and loads keep expired rows for sweep.
   Devices queue occupancy-increasing writes on expiring capped tables without
   predicted rows: even a complete live snapshot omits unswept expired rows.
-  Unrelated live or expired rows are never scanned for a write's constraints. An already returned answer keeps the row until the
-  next answer; a live reader that must hide it at its deadline drops it
-  locally by `expiresAt` (the client example in CLIENT-AND-OPERATIONS.md).
-  A typing indicator or short-lived presence row especially needs this
-  filter and a render timer; `guide reads` shows the typing table and query.
+  Unrelated live or expired rows are never scanned for a write's constraints.
+  Held device observations republish at the deadline, including offline.
+  Only server-answered reads need a render-deadline filter while their next
+  answer is pending: use `client.now()` and `useNow(deadline)` as shown in
+  `guide reads` and CLIENT-AND-OPERATIONS.md.
   This is an application table, separate from the server's `connected[p]`.
   That server-decided connection signal has no `expiresAt`.
   The server will not return it again after expiry, but does not push a

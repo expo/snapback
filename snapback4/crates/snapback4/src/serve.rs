@@ -544,6 +544,7 @@ fn dev_request(request: &Request, shared: &Shared) -> Result<(), Refusal> {
 pub(crate) fn cors(request: &Request) -> Vec<Header> {
     let mut headers = vec![
         Header::from_bytes("Vary", "Origin").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Time, X-Snapback-Clock").unwrap(),
         Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, x-snapback-meter, authorization, range").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap(),
     ];
@@ -576,15 +577,26 @@ impl io::Write for JsonBuffer {
 
 use crate::sync_wire::{SnapshotReply, SyncEvents, StreamReply};
 
+/// Sample at response construction, after execution and any admission wait.
+pub(crate) fn clock_headers(shared: &Shared) -> [Header; 2] {
+    let clock = lock(&shared.clock);
+    [Header::from_bytes("X-Snapback-Time", clock.now().to_string()).unwrap(),
+     Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()]
+}
+
+pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl serde::Serialize) {
+    respond_with_sync(request, status, body, true, None, Some(shared))
+}
+
 pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize) {
     respond_with_cors(request, status, body, true)
 }
 
 fn respond_with_cors(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool) {
-    respond_with_sync(request, status, body, allow_origin, None)
+    respond_with_sync(request, status, body, allow_origin, None, None)
 }
 
-fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool, sync_overflow: Option<Json>) {
+fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>) {
     let mut bytes = JsonBuffer(Vec::new());
     let encoded = serde_json::to_writer(&mut bytes, &body);
     drop(body);
@@ -599,6 +611,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize,
     } else { status };
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
+    if let Some(shared) = shared { for header in clock_headers(shared) { response.add_header(header); } }
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
     if allow_origin {
@@ -731,8 +744,8 @@ fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusal> {
 fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
     let metadata = { response_head(&mut lock(&shared.engine)) };
     match metadata {
-        Ok((store_id, head)) => respond(request, status, json!({ "denied": refusal_json(&why), "store_id": store_id, "head": head })),
-        Err(why) => respond(request, 503, json!({ "denied": refusal_json(&why) })),
+        Ok((store_id, head)) => respond_timed(request, shared, status, json!({ "denied": refusal_json(&why), "store_id": store_id, "head": head })),
+        Err(why) => respond_timed(request, shared, 503, json!({ "denied": refusal_json(&why) })),
     }
 }
 
@@ -751,25 +764,25 @@ fn handle(mut request: Request, shared: &Shared) {
         return routes::ingress(request, shared, &name, route);
     }
     if let Err(refusal) = dev_request(&request, shared) {
-        respond_with_cors(request, 403, json!({ "denied": refusal_json(&refusal) }), false);
+        respond_with_sync(request, 403, json!({ "denied": refusal_json(&refusal) }), false, None, Some(shared));
         return;
     }
     if path.starts_with("/dev/clock") && !shared.personas {
-        return respond(request, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
+        return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
     }
     if method == Method::Get && path == "/dev/status" {
-        if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "status inspection requires dev"))})); }
+        if !shared.personas { return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "status inspection requires dev"))})); }
         // No engine lock: doctor must remain usable while an adoption waits on SQLite.
         let generation = *lock(&shared.generation);
         let status = lock(&shared.adoption);
-        return respond(request, 200, json!({"storeId":status.store_id, "generation":generation, "adoption":status.failure, "now":shared.now()}));
+        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "generation":generation, "adoption":status.failure, "now":shared.now()}));
     }
     if method == Method::Options {
         respond_empty(request, 204);
         return;
     }
     if method == Method::Post && path == "/seed" && !shared.personas {
-        return respond(request, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
+        return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
     }
     // Check identity before upload admission or allocating any large body.
     // The route rechecks after reading, so expiry/revocation during a slow
@@ -780,17 +793,17 @@ fn handle(mut request: Request, shared: &Shared) {
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
-            return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+            return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
         }
     }
     if method == Method::Post && (path == "/auth/revoke" || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
-            return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+            return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
         }
     }
     if method == Method::Get && matches!(path.as_str(), "/" | "/schema" | "/api.ts" | "/native.wasm" | "/changes") {
         if let Err(refusal) = principal_of(&request, shared) {
-            return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+            return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
         }
     }
     let _upload_permit = if method == Method::Post && path == "/assets" {
@@ -799,7 +812,7 @@ fn handle(mut request: Request, shared: &Shared) {
             None => {
                 let mut refusal = Refusal::new("E_RATE_LIMIT", "auth", "too many concurrent uploads; retry shortly");
                 refusal.retryable = true;
-                return respond(request, 429, json!({ "denied": refusal_json(&refusal) }));
+                return respond_timed(request, shared, 429, json!({ "denied": refusal_json(&refusal) }));
             }
         }
     } else { None };
@@ -815,21 +828,21 @@ fn handle(mut request: Request, shared: &Shared) {
         let length = request.body_length();
         let too_large = || Refusal::new("E_INPUT", "input", format!("the request body exceeds its {ceiling}-byte limit; split it into smaller requests"));
         if length.is_some_and(|length| length > ceiling) {
-            return respond(request, 413, json!({ "denied": refusal_json(&too_large()) }));
+            return respond_timed(request, shared, 413, json!({ "denied": refusal_json(&too_large()) }));
         }
         let mut buffer = [0; 8 * 1024];
         loop {
             let length = buffer.len().min(ceiling - bytes.len() + 1);
             match request.as_reader().read(&mut buffer[..length]) {
                 Ok(0) => break,
-                Ok(read) if read > ceiling - bytes.len() => return respond(request, 413, json!({ "denied": refusal_json(&too_large()) })),
+                Ok(read) if read > ceiling - bytes.len() => return respond_timed(request, shared, 413, json!({ "denied": refusal_json(&too_large()) })),
                 Ok(read) => bytes.extend_from_slice(&buffer[..read]),
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-                Err(error) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("cannot read the request body: {error}"))) })),
+                Err(error) => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("cannot read the request body: {error}"))) })),
             }
         }
         if length.is_some_and(|length| length != bytes.len()) {
-            return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "the request body ended before its declared Content-Length")) }));
+            return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "the request body ended before its declared Content-Length")) }));
         }
     }
     if method == Method::Post && path == "/assets" {
@@ -840,7 +853,7 @@ fn handle(mut request: Request, shared: &Shared) {
     }
     let body = match String::from_utf8(bytes) {
         Ok(body) => body,
-        Err(_) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")) })),
+        Err(_) => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")) })),
     };
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
@@ -857,20 +870,20 @@ fn handle(mut request: Request, shared: &Shared) {
             Ok(_) => {
                 let identity = { let engine = lock(&shared.engine); engine.store().meta("store_id").and_then(|id| engine.store().seq().map(|seq| (id, seq))) };
                 match identity {
-                    Ok((store_id, seq)) => respond(request, 200, json!({ "ok": true, "store_id": store_id, "seq": seq })),
-                    Err(error) => respond(request, 500, json!({ "denied": refusal_json(&error.refusal()) })),
+                    Ok((store_id, seq)) => respond_timed(request, shared, 200, json!({ "ok": true, "store_id": store_id, "seq": seq })),
+                    Err(error) => respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error.refusal()) })),
                 }
             },
-            Err(refusal) => respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+            Err(refusal) => respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
         },
         (Method::Get, "/auth/config") => {
             let auth = lock(&shared.bound).schema.auth.clone();
-            respond(request, 200, json!({ "guests": auth.guests, "password": auth.password }));
+            respond_timed(request, shared, 200, json!({ "guests": auth.guests, "password": auth.password }));
         }
         (Method::Get, "/") => {
             let seq = match lock(&shared.engine).seq() {
                 Ok(seq) => seq,
-                Err(error) => return respond(request, 500, json!({ "denied": refusal_json(&error.refusal()) })),
+                Err(error) => return respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error.refusal()) })),
             };
             let body = {
                 let bound = lock(&shared.bound);
@@ -878,7 +891,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 let tables: Vec<Json> = bound.schema.visible_tables().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
                 json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *lock(&shared.generation), "seq": seq, "ops": ops, "tables": tables })
             };
-            respond(request, 200, body);
+            respond_timed(request, shared, 200, body);
         }
         (Method::Get, "/schema") => {
             // The compiled backend a device runs locally: the schema and the
@@ -888,7 +901,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 (bound.schema.public_projection(), snapback4_lang::emit::backend_programs(&bound), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
             };
             let native = native.map(|(digest, jobs, reads)| json!({ "digest": digest, "jobs": jobs, "reads": reads }));
-            respond(request, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native }));
+            respond_timed(request, shared, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native }));
         }
         (Method::Get, "/native.wasm") => {
             // The app's module, for a device to run its native reads over
@@ -903,7 +916,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     for header in cors(&request) { response.add_header(header); }
                     let _ = request.respond(response);
                 }
-                None => respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_NATIVE", "schema", "this backend has no native module")) })),
+                None => respond_timed(request, shared, 404, json!({ "denied": refusal_json(&Refusal::new("E_NATIVE", "schema", "this backend has no native module")) })),
             }
         }
         (Method::Get, "/api.ts") => {
@@ -919,7 +932,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let principal = match principal_of(&request, shared) {
                 Ok(principal) => principal,
                 Err(refusal) => {
-                    respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+                    respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
                     return;
                 }
             };
@@ -937,10 +950,10 @@ fn handle(mut request: Request, shared: &Shared) {
                     let replay = intent_store(&engine, &payload).and_then(|()| engine.replay_mutation(&principal, id, &op, &args_json).map_err(|error| error.refusal()));
                     (replay, response_head(&mut engine))
                 };
-                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match replay {
-                    Ok(Some(outcome)) => { let mut reply = outcome.reply(Some(id)); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond(request, 200, reply); return; }
-                    Err(why) => { respond(request, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
+                    Ok(Some(outcome)) => { let mut reply = outcome.reply(Some(id)); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
+                    Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
                     Ok(None) => {}
                 }
             }
@@ -998,7 +1011,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         (engine.query(&op, context), metadata)
                     },
                 };
-                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
@@ -1026,12 +1039,12 @@ fn handle(mut request: Request, shared: &Shared) {
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
                             if let Some(meter) = meter { reply["meter"] = meter; }
-                            respond(request, 200, reply);
+                            respond_timed(request, shared, 200, reply);
                         } else {
-                            respond(request, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
+                            respond_timed(request, shared, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
                         }
                     }
-                    Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
+                    Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
                 }
             } else {
                 if kind == ProgramKind::Query {
@@ -1051,7 +1064,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     (outcome, response_head(&mut engine))
                 };
-                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
                         if let WriteState::Sent { seq, .. } = &outcome.state {
@@ -1062,9 +1075,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut body = outcome.reply(id.as_deref());
                         body["store_id"] = json!(store_id);
                         body["head"] = json!(head);
-                        respond(request, 200, body);
+                        respond_timed(request, shared, 200, body);
                     }
-                    Err(refusal) => { respond(request, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
+                    Err(refusal) => { respond_timed(request, shared, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
                 }
             }
         }
@@ -1097,26 +1110,26 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             };
             match outcome {
-                Ok(body) => respond(request, 200, body),
-                Err((status, refusal)) => respond(request, status, json!({ "denied": refusal_json(&refusal) })),
+                Ok(body) => respond_timed(request, shared, 200, body),
+                Err((status, refusal)) => respond_timed(request, shared, status, json!({ "denied": refusal_json(&refusal) })),
             }
         }
         (Method::Post, "/auth/revoke") => {
             let _service = match service_of(&request, shared) {
                 Ok(service) => service,
-                Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+                Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
             };
             let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
             let Some(principal) = payload.get("principal").and_then(Json::as_str).map(str::to_owned) else {
-                return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"member:42\" }")) }));
+                return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"member:42\" }")) }));
             };
             let outcome = {
                 let engine = lock(&shared.engine);
                 snapback4_core::identity::revoke_principal(engine.store(), &principal)
             };
             match outcome {
-                Ok(revoked) => respond(request, 200, json!({ "revoked": revoked, "principal": principal })),
-                Err(error) => respond(request, if error.is_refusal() { 200 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
+                Ok(revoked) => respond_timed(request, shared, 200, json!({ "revoked": revoked, "principal": principal })),
+                Err(error) => respond_timed(request, shared, if error.is_refusal() { 200 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
             }
         }
         (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login")
@@ -1125,13 +1138,13 @@ fn handle(mut request: Request, shared: &Shared) {
         }
         (Method::Post, "/seed") => {
             if !shared.personas || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {
-                respond(request, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
+                respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
                 return;
             }
             let rows: Vec<Json> = match serde_json::from_str(&body) {
                 Ok(Json::Array(rows)) => rows,
                 _ => {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "seed takes a JSON array of {table, row}")) }));
+                    respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "seed takes a JSON array of {table, row}")) }));
                     return;
                 }
             };
@@ -1139,17 +1152,17 @@ fn handle(mut request: Request, shared: &Shared) {
             let mut typed = Vec::new();
             for entry in &rows {
                 let (Some(table), Some(row)) = (entry.get("table").and_then(Json::as_str), entry.get("row")) else {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "each seed entry is {table, row}")) }));
+                    respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "each seed entry is {table, row}")) }));
                     return;
                 };
                 let Some(definition) = schema.table(table) else {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("unknown table {table}"))) }));
+                    respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("unknown table {table}"))) }));
                     return;
                 };
                 match wire::row_from_json(definition, row) {
                     Ok(value) => typed.push((table.to_owned(), value)),
                     Err(why) => {
-                        respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("{table}: {why}"))) }));
+                        respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("{table}: {why}"))) }));
                         return;
                     }
                 }
@@ -1162,12 +1175,12 @@ fn handle(mut request: Request, shared: &Shared) {
                         *current = (*current).max(seq);
                         shared.committed.notify_all();
                     }
-                    respond(request, 200, json!({ "seeded": count }));
+                    respond_timed(request, shared, 200, json!({ "seeded": count }));
                 }
-                Err(error) => respond(request, 200, json!({ "denied": refusal_json(&error.refusal()) })),
+                Err(error) => respond_timed(request, shared, 200, json!({ "denied": refusal_json(&error.refusal()) })),
             }
         }
-        _ => respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("no route {path}; operations are POST /q/<op> and POST /m/<op>"))) })),
+        _ => respond_timed(request, shared, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("no route {path}; operations are POST /q/<op> and POST /m/<op>"))) })),
     }
 }
 

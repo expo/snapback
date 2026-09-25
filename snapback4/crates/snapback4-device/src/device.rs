@@ -183,6 +183,7 @@ const ACQUIRED: &str = "device:acquired-generation";
 const BACKEND: &str = "device:backend";
 const SEND_REVISION: &str = "device:send_revision";
 const SUBMISSION: &str = "device:submission";
+const ISSUED_FLOOR: &str = "client:server-clock-floor";
 const SNAPSHOT_OWNER: &str = "device:snapshot:owner";
 const SNAPSHOT_OWNERS: &str = "device:snapshot:owners";
 const SNAPSHOT_WATERMARK: &str = "device:snapshot:watermark";
@@ -280,6 +281,15 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
 
 fn meta_u64<T: DeviceTx>(tx: &T, key: &str) -> Result<u64, RuntimeError> {
     tx.meta(key)?.map(|s| s.parse::<u64>().map_err(|_| RuntimeError::Store(format!("invalid device metadata {key}")))).transpose().map(|n| n.unwrap_or(0))
+}
+
+// Every outbox writer preserves admission time, including transfers and replay
+// after clock attachment. The floor and the entry commit or roll back together.
+fn keep_issued_floor<T: DeviceTx>(tx: &T, now: i64) -> Result<(), RuntimeError> {
+    let before = meta_u64(tx, ISSUED_FLOOR)?;
+    let floor = before.max(now.max(0) as u64);
+    if floor > before { tx.set_meta(ISSUED_FLOOR, &floor.to_string())?; }
+    Ok(())
 }
 
 // @ref LLP 3000.008.001#4-read-and-write-outcomes — unacquired facts cannot justify a value or a predicted refusal.
@@ -950,6 +960,9 @@ impl<S: DeviceStore> Device<S> {
         }
         tx.outbox_insert(entry.seq, &entry.id, &encoded(&entry)?)?;
         tx.set_meta(SUBMISSION, &entry.seq.to_string())?;
+        // Admission's time survives settlement in the same durable commit as
+        // its outbox entry, including synchronous web journal recovery.
+        keep_issued_floor(&tx, entry.now)?;
         tx.commit()?;
         Ok(entry)
     }
@@ -980,14 +993,27 @@ impl<S: DeviceStore> Device<S> {
         if self.programs.get(&entry.op).is_some_and(|p| p.kind == snapback4_core::ProgramKind::Action) { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
         tx.outbox_insert(entry.seq, &entry.id, &encoded(entry)?)?;
+        keep_issued_floor(&tx, entry.now)?;
         tx.commit()
     }
 
     /// Every queued write in submission order.
     pub fn queued(&mut self) -> Result<Vec<Queued>, RuntimeError> {
-        let tx = self.store.read_transaction()?;
+        self.queued_with_clock_floor(false)
+    }
+
+    /// Clock attachment preserves legacy admission times before replay can
+    /// retire them. Read the queue and raise its durable floor in one writer
+    /// transaction, so a concurrent admission's higher floor cannot be lost.
+    pub fn queued_with_clock_floor(&mut self, restore_clock_floor: bool) -> Result<Vec<Queued>, RuntimeError> {
+        let tx = if restore_clock_floor { self.store.transaction()? } else { self.store.read_transaction()? };
         let entries = tx.outbox_entries()?.iter().map(|entry| decoded(entry)).collect::<Result<Vec<Queued>, _>>()?;
-        tx.rollback()?;
+        if restore_clock_floor {
+            let before = meta_u64(&tx, ISSUED_FLOOR)?;
+            let floor = entries.iter().fold(before, |floor, entry| floor.max(entry.now.max(0) as u64));
+            if floor > before { tx.set_meta(ISSUED_FLOOR, &floor.to_string())?; }
+            tx.commit()?;
+        } else { tx.rollback()?; }
         Ok(entries)
     }
 

@@ -15,8 +15,8 @@ export interface DeviceCore {
   /** Native host instrumentation, absent on ordinary launches. Uses this client, never a second one. */
   onClient?(client: LocalClient, url: string): void | (() => void);
   readonly media?: MediaStorage;
-  /** Web recovery may acquire an orphan outbox without a backend change. */
-  onOutbox?(listener: () => void): () => void;
+  /** Web recovery reports committed admission time before later device calls. */
+  onOutbox?(listener: (issuedFloor?: number) => void): () => void;
   /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
   onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
   /** A host with fallible work after commit must synchronously expose the
