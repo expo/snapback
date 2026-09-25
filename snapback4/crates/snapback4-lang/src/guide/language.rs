@@ -664,7 +664,7 @@ table timelineReposts:
   public 'timelineReposts'
   insert <- .actorId = viewer
   delete <- .actorId = viewer
-  sync public last 1000 by .at
+  online only
 table timelineFollows:
   followerId: principal
   followedId: principal
