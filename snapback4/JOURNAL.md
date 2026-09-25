@@ -56369,3 +56369,40 @@ client cannot infer that an expired nextExpiry was merely a row deadline when
 it might be the permit authorizing a private row. Kept expiry rejection and
 recorded the concrete counterexample and conservative availability limitation.
 The earlier 2.387× cold acquisition result and unmet 5× target remain explicit.
+
+
+### 2026-09-25 — Lane U round 8: expire every data origin and withhold speculative compositions
+
+Applied nextExpiry at final publication to local as well as external data.
+Removed the retained-component exception: a speculative sibling cannot become
+data because another component is retained. Read<T> has no per-component
+loading variant, so used the round-8 brief's authorized whole-result loading
+fallback. Kept non-speculative partial and retained data. Updated the numbered
+procedure and three client-reference lines; implementation commit 2919dd93d.
+
+Measured: 227 affected client tests passed. Real wasm/process devices cross a
+retained row's deadline while delivering its reply and a synced secret's permit
+deadline while awaiting the outbox. Both withhold the expired value. Real
+speculative-component and nonempty-page tests pass on both hosts. Four mutations
+fail their regressions: skipping local expiry (4 failures), restoring retained
+recovery (12), broadening it to any non-speculative component (12), and accepting
+nonempty speculative arrays (2). All built-module mutations are restored.
+Final scripts/test.sh: **== 0 failure(s) in 1578 s**, exit 0. Rust passed in
+179 s; 1,669 client tests passed, zero failed, ten existing skips, in 1,152 s;
+all 78 model tests passed in 233 s, including both 5,000-sequence I1–I13 sweeps.
+The existing serial-client mode ran every test without changing any timeout or
+count. This round's single full run has no baseline or environmental waiver.
+Development fixture mistakes and the exact evidence are recorded in the
+[round-8 report](reports/20260925-bounded-following-r8/REPORT.md).
+
+Not done: no public composition-contract extension, engine deadline/provenance
+redesign, acquisition/packed-storage remeasurement, ceiling increase, push or
+publication. Stopped the repeated proposal to retain unaffected cached rows at
+ordinary expiry: nextExpiry does not distinguish an expired permit from an
+ordinary row, and a client exception would disclose the former. A projected
+value also need not identify which field to remove. The concrete counterexample
+and remaining whole-page availability limitation are in the report. The exact
+filtered home record has no component plan under the current conservative
+compiler; an independent homePage control proves the actual composition path.
+Historical acquisition remains 2.387x faster, below the 5x target, with fully
+synced owned events dominant.
