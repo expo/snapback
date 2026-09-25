@@ -55507,3 +55507,49 @@ No requested fix remains open. No syntax, refusal code, cursor/store format,
 sync/device feature, broad guide rewrite, push or publication was added.
 File map, examples, mutation controls and complete failure accounting:
 [round-4 report](reports/20260925-intent-lane-t-round4.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round-5 aggregate cut metadata
+
+Addressed the remaining Astra page-cut disclosure and all three mutation gaps
+from the round-4 reviews. `scan_consumed` restores the pre-row expiry mark
+before exiting on an authorization cut. The private probe's deadline cannot
+enter the empty capped reply; prior successful expiry marks, work charges and
+the cut survive. Implementation commit: `ce769c9dc`.
+
+Four shared scenarios cover gate deadlines 300/500 on a capped page, a source
+whose deadline comes only through a parent and middle without local expiry,
+an authorized two-probe shortcut cut, and a live recount cut after the first
+of two finite contributions. Native MemoryRows tests also inspect raw-probe
+dependencies and the shortcut boundary without adding a production API.
+Both shortcut guards are tested independently, because later restoration can
+otherwise mask their removal.
+
+The new page test fails against round 4. All five individual mutations fail:
+remove the page restore; use only declared source expiry; remove either
+shortcut cut guard; remove the failed/cut point-read restore. All mutations
+were restored before qualification. Targeted shared tests: 24 passed on
+SQLite/native MemoryStore. Selected native aggregate unit tests: four passed.
+PostgreSQL: 26 passed on the lane's isolated cluster, stopped afterward.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 1162 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust step: 3,014 passed, zero failed, 16 ignored. Clients: 1,591 total,
+1,581 passed, zero failed, ten skipped. All 80 guide tests passed. Ref-check:
+508 LLP documents, 9,286 references, zero errors and zero unchecked references.
+
+The first full run returned `== 1 failure(s) in 272 s`: two client HTTP
+`ECONNRESET` failures in the shared-logout and bounded-route-response tests.
+Classified as transient environmental connection resets: both affected files
+passed all 91 tests together without source changes, and both tests then
+passed in the final full run with client files serialized. The baseline tail
+was checked; its failure was the Rust step, not these client tests. The report
+names every failure. No product/test assertion was changed or waived.
+
+Round-4 wasm was 1,795,984 raw / 501,788 gzip bytes; round 5 is 1,796,003 /
+501,797 on Rust 1.97.0 and wasm-bindgen 0.2.127: +19 raw / +9 gzip for the
+whole artifact, with 1,203 bytes left under the unchanged 503,000-byte budget.
+Runtime ceilings and backlog charges are unchanged. The largest modified
+source is 1,435 lines. No syntax, refusal code, store/cursor format, sync/device
+feature, guide rewrite, push or publication was added. No requested fix
+remains open. File map, examples, mutation witnesses and full failure accounting:
+[round-5 report](reports/20260925-intent-lane-t-round5.md).
