@@ -242,3 +242,325 @@ For §11, my answers are:
 3. **Use a separate experimental `snapback5` package**, sharing the exact engine and client build with the control. Decide any eventual `--sql` product mode after the experiment.
 
 **Overall verdict: NOT READY.**
+
+---
+
+## Round 2 — revision 2 (`9bc2ea9c83`), 2026-09-25
+
+**Mode:** blind delta review, read-only, over a detached worktree at that commit; `codex exec -m gpt-6-astra -c model_reasoning_effort=max`. **Brief:** `~/projects/snapback-sb5-reviews/4001-r2.brief.md` (reproduced in the Opus round-2 section).
+
+### Verbatim review
+
+**Revision 2 is not ready.** It fixes the runtime reference, chooses the correct declaration AST, and makes the experiment substantially more honest. But the normative table still contains incorrect translations, omits forms used by the targets, and promises verification that its current pipeline cannot perform.
+
+I reviewed `9bc2ea9c83` against `8a2637efa5`, following the requested reading order, including the local Supabase lanes. This was a static source and grammar review; I did not execute the proposed compiler or database verification. The checkout remains unchanged.
+
+What is now sound: Snapback 4 is explicitly the runtime of record; `through` and maintained extrema are excluded; the SQL parser belongs outside the device build; published tables must pass audience inversion; default-time prediction is distinguished from branching on time; jobs have an explicit declaration category; diagnostics have a bounded translation tier; and the experiment now includes a control, symmetric restriction complaints, and an actual score prediction. These are substantive corrections.
+
+**1. The §12 dispositions are mostly partial.**
+
+“Real” below means the text resolves the design finding, not that implementation has already been verified.
+
+| §12 row | Disposition | Remaining issue |
+|---|---|---|
+| Premise overclaims | **Real** | Summary and §1 now frame an open question and acknowledge the counter-evidence. |
+| Wrong runtime; no `sync` spelling | **Partial — High** | §2 and LLP 4000 §13 are corrected. The publication statement’s appended `WITH` is invalid, and the default is ambiguous for maintained views. |
+| §3 cannot spell the target | **Partial — Blocker** | A table and a future verification requirement are real improvements. They do not resolve the missing forms or incorrect mappings identified below. |
+| Policies, transitions, recursion, roles, omitted checks | **Partial — High** | Raw probes and a restricted grammar are stated. Update-policy composition, role semantics, trigger composition, and required probe forms remain wrong or incomplete. |
+| Extrema, `latest`, in-table counts | **Partial — High** | Withdrawing `latest` and extrema is real. The count macro still lacks reference selection and admission rules. |
+| Recorded attribution, day, zero groups | **Partial — High** | The named operations exist. Missing-group versus hidden-group behavior and recorded-path admission are not fully specified. |
+| LLP 3000.015 additions | **Partial — High** | All three concepts have entries. The owner/audience marker composition is unspecified; sequence lacks its required reference-column spelling; none binds on this checkout’s existing AST. |
+| Views, shapes, Following | **Partial — High** | Nullable point subselects and the planned/maintained distinction improve matters. The post-card expression is ill-typed, Following’s admission is incomplete, and the blanket transactional-maintenance statement is false. |
+| `socialProfile`, `insights`, cursor, references | **Partial — High** | PL/pgSQL bodies and `%TYPE` offer workable building blocks. The range mapping is off by one; the cursor rule excludes #19; the social-profile row names the wrong lookup. |
+| DML, statement grammar, jobs, schedules | **Partial — High** | The statement inventory and job category are real. Conflict targets, general upserts, nullable guards, heterogeneous effect keys, and sweep classification remain unresolved. |
+| SQL value semantics | **Only asserted — High** | “Guard insertion” is not a compositional semantics. The expression list also misidentifies builtins and omits target expressions. |
+| Exhaustive differences; wrong Quarry names | **Partial — High** | `retain` and `cap` are corrected. The three-category organization helps, but neither the categories nor their contents are exhaustive or internally consistent. |
+| Immutability | **Partial — High** | Mutability is now explicit. Its complement includes engine-maintained columns and conflates role privileges with global immutability. |
+| Silent device downgrade | **Real** | §5 explicitly requires `E_SYNC`; no fallback to online-only is permitted. The publication syntax still needs repair. |
+| Reading-only pre-test | **Partial — High** | Corpus replay and blind writing address the right questions. Their counting units, completion requirements, and stop thresholds remain vulnerable. |
+| Comparison passes by construction | **Partial — High** | The directional score prediction and symmetric class resolve important parts. Equality still satisfies the mechanism gate; masking, floors, and interpretation remain underspecified. |
+| Wrong lowering target, parser, diagnostic scope | **Partial — High** | `ast::Document` and tiered diagnostics are correct choices. There is no document printer in `print.rs`; parser output is not a resolved, typed SQL program. |
+| Increment D unreconciled | **Partial — High** | Shared availability is addressed. Arbitrary unlowerable PostgreSQL reads are not the authorized, store-dialect projection reads specified by LLP 3000.009 §6.2. |
+| Spelling, refusal codes, API naming | **Partial — Medium** | The code family and naming direction are decided. Semantic aliasing, SQL name resolution, collisions, module names, and return-field names remain unresolved. |
+| Evidence rows overstate | **Real** | §1 now records what the evidence actually supports. |
+
+**2. The normative table needs both corrections and additional rows.**
+
+There are three different checks here:
+
+- **Parsing:** acceptance by PostgreSQL’s grammar.
+- **Analysis:** names, types, access methods, options, and function bodies form a valid PostgreSQL program.
+- **Lowering:** the proposed Quarry declaration binds and preserves the stated behavior.
+
+§3 and §4 currently conflate them. `libpg_query` parses without a database catalog. Domains and functions do not alter its grammar. Conversely, raw parsing does not validate a composite-versus-integer `COALESCE`, an index access method, or an opaque trigger-argument string. Its PL/pgSQL output also contains embedded SQL expression strings that need further parsing. [libpg_query](https://github.com/pganalyze/libpg_query)
+
+In the following audit, **Yes** under PostgreSQL means syntactically legal after expanding the table’s obvious abbreviations. **Conditional** under Quarry means the engine supports the intended form, but the RFC has not supplied all necessary lowering conditions. **Future** means LLP 3000.015 or increment D must first extend the shared baseline.
+
+For §3.1:
+
+| Row | PostgreSQL / Quarry | Assessment and smallest repair |
+|---|---|---|
+| Identity configuration | Yes / Yes | **Sound as a declared extension.** |
+| Effect and payload type | Yes / Conditional | **Medium:** Quarry’s effect declaration has no payload-type contract. A typed SQL composite cannot silently add validation or lose it. Specify that the type is only authoring metadata, or put identical validation in the shared baseline. |
+| `auth.uid()` | Yes / Yes | **Sound as a viewer alias**, subject to defining its principal type and unauthenticated behavior rather than inheriting Supabase’s implicitly. |
+
+For §3.2:
+
+| Row | PostgreSQL / Quarry | Assessment and smallest repair |
+|---|---|---|
+| Client-minted implicit ID | Yes / Yes | **Sound as an explicit difference.** |
+| Text length | Yes / Yes | **Sound for the shown non-null, bounded text form.** |
+| Named format | Yes / Yes | **Sound as a recognized declaration macro**, not arbitrary regex support. |
+| Enum | Yes / Yes | **Sound**, with nullability handled separately. |
+| Nullable column | Yes / Yes | **Sound**, once the scalar-type mapping is defined. |
+| Defaults | Yes / Conditional | **Medium:** prediction is addressed, but `timestamptz` precision/range and literal conversion are not. #19 has `time default 0`. Define the time representation and literal lowering. |
+| Image/video/once types | Yes / Conditional | **Medium:** ordinary domain stubs do not provide arbitrary type modifiers. Supply suitable base-type/typmod stubs or choose a domain-compatible annotation. |
+| Unique key | Yes / Yes | **Sound for the supported full-column key**, including ordinary null-distinct uniqueness. |
+| Coded unique | Yes / Yes | **Medium:** the custom message is disclosure-sensitive in Quarry. A collision with a hidden row does not necessarily expose `HANDLE_TAKEN`. State that exception and its existing error behavior. |
+| Immutability through grants | Yes / **No as a general complement** | **High:** on `posts`, the complement includes generated `likeCount` and `repostCount`; immutable constraints over maintained columns fail validation. Exclude engine-owned fields and define how owner-written fields and system jobs interact with this declaration. |
+| Search index | Yes / Yes | **Medium:** parsing is fine, but domains/functions alone do not create an access method. Either provide an access-method stub for database analysis or explicitly make this a parser-only check. Preserve the engine’s word-prefix search contract. |
+| Cap | Yes / Yes | **Sound as an explicitly cross-row macro.** Add it to §3.7’s actual enumeration. |
+| Retain | Yes / Yes | **Medium:** a namespaced table option parses but is not made executable by function/domain stubs. State the validation level and list it in §3.7. |
+| Expiry | Yes / Yes | **Medium:** same catalog-validation problem as retain; also list it in §3.7. |
+| Online-only default | Yes / Yes for ordinary tables | **Sound for ordinary tables.** It is not a correct universal default for derived maintains. |
+| Publication/residency | **No with the appended `WITH`** / Conditional | **High:** `ALTER PUBLICATION … ADD TABLE` has no trailing options clause of this form. Keep the valid publication statement and put per-table horizon/recipient metadata in a separately valid declaration. |
+| Generated count | Yes / Conditional | **High:** the binder infers only a unique reference from contributor to owner, rejects ambiguous references and expiring sources, and supports explicit `by`. None is specified. Add reference-column and explicit-correlation forms. |
+| Public reason | Yes / Conditional | **Medium:** complete `COMMENT ON POLICY … ON table …`; require that the composed read rule is actually public. A true restrictive or role-limited policy alone does not establish that. |
+| Owner-written column | Yes / Future | **High:** “in the same check” does not define the Boolean syntax of the audience opt-out, nor its interaction with the grant complement. Give exact default-private and opted-out declarations that lower to the baseline’s field authority. |
+| Sequence | Yes / Future | **High:** the parent column must carry a nominal table reference, currently missing from the table. Define that spelling and exclude the generated ordinal from ordinary update-grant inference. |
+
+Two distinctions matter particularly here:
+
+First, `snapback.sequence(conversation_id)` is **not inherently a PostgreSQL syntax error**. PostgreSQL type-modifier processing can accept a simple identifier; it needs a suitable type implementation. Likewise, the new generated-count expression is syntactically an ordinary function call. These should not be described as grammar made valid by domains. [PostgreSQL type-modifier implementation](https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/backend/parser/parse_type.c)
+
+Second, a generated count remains a substantial semantic extension: ordinary stored generated columns derive from the current row and do not update when another table changes. An immutable stub can help validate a fixture without implementing that behavior. The RFC now acknowledges the cross-table difference, which is progress; it still needs the macro’s precise admission rules. [Generated columns](https://www.postgresql.org/docs/18/ddl-generated-columns.html)
+
+The publication repair must not merely change `WITH` to publication-wide `SET`: horizon and recipient belong to a particular table’s delivery declaration. [ALTER PUBLICATION](https://www.postgresql.org/docs/18/sql-alterpublication.html)
+
+For §3.3:
+
+| Row | PostgreSQL / Quarry | Assessment and smallest repair |
+|---|---|---|
+| Read policy | Yes / Conditional | **High:** raw-probe semantics are now stated, but the admitted probe grammar excludes target probes with extra equalities, such as `role = 'admin'`. Admit the binder’s actual keyed-probe grammar. |
+| Insert policy | Yes / Conditional | **Medium:** the direct rule mapping works; define role filtering, default deny, and implicit RLS activation globally. |
+| Delete policy | Yes / Conditional | **High:** SQL visibility requirements and Quarry write authority differ. State the interaction with SELECT policies and hidden rows, rather than marking the whole mapping exact. |
+| Single-image update | Yes / Conditional | **High:** the sentence about `USING` alone is ambiguous between old-only and old-plus-next. Specify both old-row eligibility and next-row acceptance, including omitted `WITH CHECK`. |
+| Transition trigger | Yes as an outer trigger statement / Conditional | **High:** the dollar-quoted body is opaque data, not a parsed PL/pgSQL trigger body. Specify `FOR EACH ROW`, the inner grammar, composition with update policies, and system-job behavior. |
+| Multiple policies | Yes / Conditional | **High:** “permissive OR; restrictive AND” is insufficient. There must be an applicable permissive grant; UPDATE’s old and new policy combinations must be assembled separately. |
+| Service-role policy | Yes / **No as stated** | **High:** `TO service_role` restricts a policy’s applicability; it does not identify `'service:x'` or unconditionally OR in a grant. Define named-service identity mapping and preserve the policy predicate. |
+| `through` | Explicit GAP | **Sound exclusion.** |
+| Public reason cross-reference | As above | Carries the same policy-composition qualification as §3.2. |
+
+A concrete multiple-policy counterexample: one permissive update policy accepts old/new `status = 'draft'`; another accepts old/new `status = 'published'`. PostgreSQL combines old eligibility separately from new acceptance. A draft-to-published update can satisfy those two combinations, while `OR`-ing two already-paired transition predicates rejects it. Restrictive-only policies provide another counterexample: AND-ing their predicates into a grant incorrectly admits rows. The smallest fix is to write the composition algebra explicitly before lowering it to one Quarry rule. [CREATE POLICY](https://www.postgresql.org/docs/18/sql-createpolicy.html)
+
+The trigger spelling also does not yet recognize what Muse wrote: Muse defines ordinary named trigger functions, including conditions outside Quarry’s rule grammar. A string passed to `snapback.transition` is a new macro convention. It may be a reasonable convention, but calling it the existing lane’s form overstates compatibility. PostgreSQL trigger arguments are strings, and omission of `FOR EACH ROW` selects a statement trigger. [CREATE TRIGGER](https://www.postgresql.org/docs/18/sql-createtrigger.html)
+
+For §3.4:
+
+| Row | PostgreSQL / Quarry | Assessment and smallest repair |
+|---|---|---|
+| Activity union | Yes / Conditional | **Sound in principle.** Spell the complete two branches and retain source/branch identity; ordinary SQL `UNION ALL` does not itself provide the engine cursor identity. |
+| Following | Yes / Conditional | **High:** publication plus immutable mapped columns is insufficient. Import the actual public-source, edge, ownership, shape, and lifecycle restrictions from LLP 3000.013. |
+| Follower count | Yes / Yes | **High semantic omission:** authorized absent groups return zero; hidden groups do not become zero. Define result-column naming and visibility separately from SQL’s absent-row behavior. |
+| Recorded received likes | Yes / Conditional | **High:** require the supported immutable reference path, public target, and immutable attributed field. State missing-target capture and deletion/ID-reuse behavior. |
+| Daily likes | Sketch / Conditional | **Medium:** provide the full projection, including the day key, not merely an added `GROUP BY`. The ordinal difference itself is correctly stated. |
+| Row-keyed unread | Yes / Future | **Sound zero-preserving relational shape. High remaining contract gap:** explicitly inherit member-row authority, bounded admission, and pending recount/coverage behavior from LLP 3000.015. It is not an ordinary synchronous aggregate. |
+| Post card | Parses; **fails type analysis** / Not the stated exact mapping | **High:** `SELECT c FROM reply_count c` returns a composite row, which cannot be coalesced with integer `0`. Select an explicitly named scalar aggregate column; preserve hidden-null versus absent-zero behavior. |
+| Object spread | Yes / Conditional | **Medium:** `SELECT p.* FROM profiles p` scans a relation; spreading an already-bound record does not. Define record-variable expansion and the point-read predicate rather than relying on this fragment. |
+
+The introductory sentence that every materialized view is maintained in the writing transaction is **High severity and false** for the advertised class. Following uses delivery/backfill machinery; LLP 3000.015’s large mark advance permits pending recount. Nor does “rule-filtered” mean every aggregate is computed separately over each reader’s visible source rows: the engine explicitly supports declared aggregate disclosure.
+
+Smallest fix: split the contract into ordinary maintained groups, row-keyed pending counts, and Following. State each one’s visibility, readiness, update timing, and activation restrictions. The current blanket statement would teach a competent implementer the wrong observable behavior.
+
+For §3.5:
+
+| Row | PostgreSQL / Quarry | Assessment and smallest repair |
+|---|---|---|
+| Home | Yes / **Wrong source** | **High:** SQL reads `activity_card` without selecting `following`. An unfollowed actor can appear. Define the reusable card separately and apply it to Following explicitly. |
+| `%TYPE` reference argument | Yes / Conditional | **Medium:** PostgreSQL copies the column’s data type; it does not preserve nominal table identity when every ID has type `snapback.id`. Resolve the original column reference before erasing `%TYPE`, and mark this an extension rather than ✓. |
+| Bounded query argument | Sketch / Conditional | **Medium:** “in the body” is not a syntax rule. Specify the marker’s exact placement, mandatory execution-independent interpretation, minimum length, format, and nullable variants. |
+| Matching | Yes / Yes | **Sound as a recognized search macro**, with row-variable/alias resolution defined. |
+| Required point/social profile | Sketch / Conditional | **High:** the target looks up `profiles` by `handle`; the row says `posts[postId]`. Supply the actual function, record type, return shape, and narrowly recognized exception block. |
+| Insights range | Yes / **Wrong bounds** | **High:** PL/pgSQL `a..b` includes `b`; Quarry `range(a,b)` excludes it. The seven-day target becomes eight days. Use `a..b-1` in the paired SQL or lower inclusive bounds explicitly, preserving once-only evaluation and overflow behavior. |
+| Trending | Yes / **Wrong plan claim** | **High:** the shown predicate has only a lower time bound. The binder’s bucket expansion needs a finite upper bound too. Restore `at <= now()` and the target’s parent/removal filters. |
+| Streaming count | Yes / Yes for `count(*)` | **Sound for the specified metered count.** Do not generalize this row to `count(nullable_column)`, empty `sum`, or other aggregates without defining them. |
+| Server-only SQL read | Incomplete marker / Future | **High:** this is not enough to invoke increment D safely or portably. See the pipeline finding below. |
+
+The range discrepancy is directly visible in the [Quarry loop binder](/Users/ccheever/projects/snapback-sb5-reviews/r4001b-astra/snapback4/crates/snapback4-lang/src/bind/program/control.rs:432), which constructs an exclusive end. PostgreSQL’s integer loop is inclusive. [PL/pgSQL control structures](https://www.postgresql.org/docs/18/plpgsql-control-structures.html)
+
+The `%TYPE` choice is syntactically good. Its nominal-reference interpretation must simply be acknowledged and implemented as Snapback metadata, rather than attributed to PostgreSQL. [CREATE FUNCTION](https://www.postgresql.org/docs/18/sql-createfunction.html)
+
+For §3.6:
+
+| Row | PostgreSQL / Quarry | Assessment and smallest repair |
+|---|---|---|
+| Insert if absent | Yes / Conditional | **High:** naming a full unique key is insufficient. With two unique keys, a collision on the non-target key raises in PostgreSQL but Quarry’s `if absent` can suppress it. Restrict admission to a proven deciding-key case or state and test the broader difference. |
+| Upsert | Yes / **Not for the general form** | **High:** SQL can have different insert/update expressions and refer to existing and `excluded` values. Quarry’s single patch is not that whole language. Define the exact equivalent subset and reject the rest. |
+| Point update | Yes / Yes | **High omission:** `NOT_FOUND` is only part of the difference. Define hidden-row writes, readback/RETURNING, and authority behavior. |
+| Conditional point update | Yes / Conditional | **High:** the condition is subject to readable-target requirements and SQL null semantics. State when failure is `NOT_FOUND`, `E_CONFLICT`, or a rule refusal. |
+| Point delete | Yes / Yes | **High omission:** likewise specify hidden-row and read-rule interaction, not just missing-row failure. |
+| Require | Yes / Conditional | **High:** if `cond` is SQL NULL, `IF NOT cond` does not raise. It is not generally a Quarry `require`. Require a non-null Boolean or define an explicit true-test lowering. |
+| Effect once key | Yes; potentially fails type analysis / Conditional | **High:** the target key contains a principal and a time. PostgreSQL arrays require a common element type. Define a heterogeneous tuple macro, such as an explicitly admitted JSON-array constructor, preserving typed key components. |
+| Procedure/job | Yes / Conditional | **High:** distinguish stable unpaged top-level sweeps from paged prelude loops; state system authority, retry/chunk behavior, and local-state lifetime. “Top-level FOR” alone is too broad. |
+| Cron schedule | Yes as an outer call / Conditional | **Medium:** define UTC and exact expression admission; the command’s period variables are macro placeholders. Fixed engine periods such as 90 seconds also need a spelling or an explicit GAP. |
+| Connected/effects-only branch | Yes / Yes | **Sound**, provided the existing effects-only restriction is retained. |
+| After-insert | Explicit GAP | **Soundly disclosed**, rather than silently simulated by a different mutation contract. |
+
+The insert-if-absent counterexample is implemented by the loop over **all unique indexes** in [engine/write.rs](/Users/ccheever/projects/snapback-sb5-reviews/r4001b-astra/snapback4/crates/snapback4-core/src/engine/write.rs:52). The array issue follows PostgreSQL’s common-element-type rule. [Array expressions](https://www.postgresql.org/docs/18/sql-expressions.html)
+
+**The missing-form inventory is still a Blocker for §3’s coverage claim.**
+
+I am counting distinct forms, not demanding a separate row for every function name.
+
+| Source | Form without an adequate normative row | Smallest repair |
+|---|---|---|
+| Committed target and #19 | Ordinary `principal`, nominal table-reference columns, generic `id`, `bool`, bounded `int`, and `time` mappings | Add a scalar/reference table. `%TYPE` arguments do not declare reference columns. State that nominal references do not automatically impose PostgreSQL FK existence/cascade semantics. |
+| Committed target | Nullable reference arguments; argument minimum length and `format handle` | Extend the argument declarations beyond `bound(q,100)`. |
+| Committed target | `activityCard` containing a point read with reusable `postCard`, plus nested actor data | Define named shape declaration, application, and nesting independently of a view’s base relation. |
+| Committed target | Filtered maintains: `originalPosts`, `dailyPosts`; complete multi-key/day projections | Add exact filtered-aggregate and multi-key projection forms. The other unfiltered counts are instances of existing rows. |
+| Committed target and #19 | Optional point results, unpaged returned collections, scalar first-row reads, returned nested objects | Give complete return signatures and lowering rules, including cursor/meter/pending behavior. |
+| Committed target and #19 | General program `exists`/`not exists`, beyond the narrowly described policy probe | Define program expression forms separately from policy forms. |
+| #19 | Private reusable `fn` helpers, row-valued helper parameters, helper calls within shapes | Add a helper declaration/exposure rule. Currently STABLE means query and VOLATILE means client mutation. |
+| #19 | Multiple mutually exclusive returned pages in `people`; page/fallback branches in `homeFeed` | Replace “one page in the body” with the existing returned-page ownership rule, or register this deliberate loss. |
+| #19 | Explicit dynamic-lane `merge … by byActorTime`, named read indexes, list-built actor lanes | Add these forms or explicitly exclude #19 from the coverage claim. Replacing them with Following is not a spelling-only translation. |
+| #19 | Explicit maintained-column `by post` / `by parent` | Add a count-correlation argument. |
+| #19 | Maintained views explicitly `online only` | Define derived-view residency separately from ordinary-table publication absence. |
+| #19 | Forced-server mutations `edit` and `deleteMessage` | Give the existing Quarry `: server` flag a spelling distinct from increment D’s unlowerable SQL read. |
+| #19 | Bounded reference-list argument `ids: [messages] <=50`; optional enum/media arguments | Define argument element types, bounds, nullability, and media variants. |
+| #19 | `group`, `first`, `slice`, scalar `min`/`max`, list accumulation, nested conditional expressions, media coalescing and `.duration` | Add exact expression mappings. “The IR’s builtins” is not a SQL grammar. |
+| #19 | Module-qualified functions, helper lookup, and schedule target `insights.daily` | Define file/module naming and name resolution. |
+| LLP 3000.015 | Exact `readable by audience` opt-out; owner-field authority composed with row authority | Supply complete declarations and an explicit inheritance of B1’s authority contract. |
+| LLP 3000.015 | Parent reference and generated/immutable sequence-column treatment | Supply the reference mapping and precedence over grant inference. |
+| LLP 3000.015 | Row-keyed aggregate authorization and pending recount contract | Bind the SQL row explicitly to B3’s complete contract, including the large-range case. |
+
+The relevant targets are the [committed Clique fixture](/Users/ccheever/projects/snapback-sb5-reviews/r4001b-astra/snapback4/crates/snapback4-sim/tests/fixtures/intent-clique.q) and [#19’s program directory](/Users/ccheever/projects/snapback-sb5-reviews/r4001b-astra/benchmarks/runs/2026-09-24-snapback4-clique-astra-0.4.0/astra/source/snapback). A coverage manifest pointing every declaration and expression form to an exact paired fixture would be the smallest reliable way to close this finding.
+
+**3. Revision 2 introduces new defects as well as leaving old ones open.**
+
+The publication options, grant-complement failure, inclusive range, heterogeneous array, incorrect `home` source, and missing printer are new concrete problems. Several broader contracts also need correction.
+
+**High — §3.2, §3.7: residency defaults are not uniform across declaration kinds.**  
+Ordinary unpublished tables are online-only. Maintained views can inherit residency from their source unless explicitly marked online-only. #19 deliberately uses that override. Applying the RFC’s blanket “absent publication means online-only” to every declaration changes the committed target; exempting maintains without supplying an override loses #19.
+
+**Smallest fix:** specify defaults and opt-outs separately for ordinary tables, maintained groups, row-keyed views, and Following.
+
+**High — §3.2, §3.7: column privileges are not global immutability.**  
+Beyond the maintained-column rejection, a PostgreSQL grant constrains a role. Quarry immutability constrains row changes, including changes attempted by other principals or system work. A service job that updates a field omitted from the authenticated grant is therefore another counterexample. B1’s owner-written field creates an additional precedence question.
+
+**Smallest fix:** define this as a schema annotation over ordinary author-writable columns, with explicit treatment of engine-owned and owner-written columns. State that it is not PostgreSQL’s privilege model. [GRANT](https://www.postgresql.org/docs/18/sql-grant.html)
+
+**High — §3.7 and §11.5: guard insertion is not yet SQL null semantics.**  
+For nullable `x`, suppose equality lowers to:
+
+```text
+x != null and x = 1
+```
+
+Then lowering `NOT (x = 1)` by negating that result produces true for null, while SQL produces unknown. Similarly, `IF NOT cond THEN RAISE` skips its body when `cond` is null; a general `require cond` cannot be substituted.
+
+`IN` and `EXISTS` also cease to be interchangeable when unknown can survive into a projection or negation. A nullable record introduces another trap: PostgreSQL row `IS NOT NULL` does not merely mean “a row was found.”
+
+**Smallest fix:** define compositional true/false/unknown lowering and consuming contexts—policy, WHERE, IF, CHECK, returned value—then restrict unsupported cases. Preserve the resulting pin, completeness, and metering effects. Alias canonicalization must use those rules. [Comparison predicates](https://www.postgresql.org/docs/18/functions-comparison.html), [subquery expressions](https://www.postgresql.org/docs/18/functions-subquery.html)
+
+**High — §3.7: the claimed expression inventory is not the existing language inventory.**  
+`length` is not the Quarry builtin named here; scalar two-argument Quarry `min`/`max` are not PostgreSQL aggregate `min`/`max`. #19’s list grouping, slicing, media expressions, and helper calls remain outside the described grammar. The scalar contract also omits integer range, timestamp precision, ordering/null behavior, and aggregate empty-input behavior.
+
+**Smallest fix:** enumerate SQL expression patterns with their result types and exact Quarry forms. Use `least`/`greatest` or an explicit macro for scalar extrema, and specify their null behavior. Mark unsupported expressions as actual GAPs.
+
+**High — §4, §10: the equivalence gate can be green while the claimed equivalence is false.**  
+Equal complete Quarry programs, under the same filenames, configuration, binary, and inputs, are strong evidence of equal engine behavior. That part is sound.
+
+But the gate does not establish that the SQL source means what the table promises. Lowering inclusive `a..b` to exclusive `range(a,b)` can produce the expected Quarry bytes and still mistranslate SQL. It also covers only one pinned program, not programs written in the comparison. Front-end argument validation, effect typing, API names, or external SQL configuration can differ outside the printed source.
+
+Conversely, two equivalent programs can fail byte comparison because of harmless local names, helper expansion, or independently authored declaration organization.
+
+**Smallest fix:** retain the strict pinned-program gate, freeze the independent Quarry target, and add small semantic counterexample fixtures for every mapping above. Compare complete named source trees and all externally observable front-end artifacts. Require the blind-writing programs to be lowered and behavior-checked after the compiler exists; §10 currently mentions that second sample without scheduling it.
+
+**High — §7: both pre-tests can be gamed without improving the surface.**
+
+- In corpus replay, one large `CREATE FUNCTION` can contain most of an application’s unsupported implementation yet count as one refused statement among many admitted DDL statements. The Astra dispatcher is a concrete instance of this shape.
+- Counting inner statements instead produces a different denominator; SQL and Quarry statement counts are not comparable.
+- Moving difficult reads to “server-only” can lower refusal rate while losing offline or completeness behavior.
+- “Refused in all three lanes” is undefined for a capability that some lanes never implemented in SQL.
+- Blind writing has no mandatory feature-completion gate. A smaller or incomplete program can have fewer refusals. Predicting its own incomplete behavior correctly does not show understanding of the required application.
+- The five scenario names do not fix initial state, expected outcome, or scoring of pending/unknown results.
+
+**Smallest fix:** hash an explicit corpus manifest; classify common semantic operations/features; distinguish syntax-only rewrites from changes in execution capability; require brief coverage before computing refusal rates; and score predictions against fixed independent scenarios.
+
+The one-third threshold currently has no stable interpretation. The zero-tolerance SQL-versus-Quarry threshold can stop on one additional error among fifteen predictions. Those may be conservative investment rules, but they are not calibrated falsification thresholds. State that distinction and justify the margins before observing results.
+
+**High — §8: SURFACE can still pass without supporting the mechanism.**  
+Equal nonzero counts satisfy reading A. Zero/zero also satisfies its inequality, despite the adjacent sentence saying it supports nothing. Thus an unrelated or noisy three-point score increase can pass while language learning burden is unchanged.
+
+It can also fail despite a large overall improvement: treatment counts of `2,0,0` versus control `1,10,10` fail the per-pair condition.
+
+Phrase counts additionally depend on note verbosity and how one complaint is split into phrases.
+
+**Smallest fix:** define the unit of burden, distinguish reduction from non-inferiority, and make the no-evidence case consistent with the pass rule. If the intended mechanism is reduced learning cost, require a predeclared meaningful reduction over comparable observations; report pair regressions separately.
+
+**Medium — §8: the masking dictionary cannot ensure that the arm is unidentifiable.**  
+Remaining syntax, “RPC,” “trigger,” “foreign key,” identifier conventions, and descriptions of refusals can reveal the arm. Masking words such as “policy” and “rule” can also remove information needed to classify the complaint.
+
+**Smallest fix:** describe masking as an attempted blinding measure, freeze the full dictionary and classification examples, test arm-guessing on held-out notes, and register adjudication. Do not assert successful blinding from the token list alone.
+
+**High — §8: the directional prediction and floors need a reproducible statistical contract.**  
+A three-point difference across three runs can occur without a real advantage; a real smaller advantage fails the rule. “One scorer sd” does not establish between-build uncertainty. Seven one-SD floors add additional opportunities for a noisy failure. Their SD values, provenance, aggregation, and control-validity rule are not given.
+
+The phrase “where the control passes” also needs care: a broken control must not make treatment correctness failures acceptable.
+
+**Smallest fix:** freeze numerical category margins and their calibration source, paired run/order procedure, correctness prerequisites, and uncertainty reporting. A binary shipping decision is reasonable; it should not be described as proving or falsifying the causal familiarity claim.
+
+**4. The §4 pipeline is architecturally plausible, but not yet bounded and correct as written.**
+
+**High — §4: the advertised document printer does not exist.**  
+The current [print.rs](/Users/ccheever/projects/snapback-sb5-reviews/r4001b-astra/snapback4/crates/snapback4-lang/src/print.rs:8) prints expressions, reads, quoted strings, and scalar types. It does not serialize `ast::Document`, declarations, or complete program bodies. Its merge-expression printer is not a complete merge-program serializer.
+
+**Smallest fix:** explicitly budget a complete serializer under `snapback5/`, preserving the no-change boundary for `snapback4-lang`. Require parse–print–parse coverage over every admitted AST form. Do not count the existing diagnostic expression printer as that component.
+
+**High — §4: name and type resolution are missing from the pipeline.**  
+A competent implementer following the current text could:
+
+- resolve `%TYPE` to the common ID type and lose nominal references;
+- confuse PL/pgSQL variables with columns;
+- lowercase or camel-case names before resolving quoted identifiers;
+- silently collide `read_up_to` with `"readUpTo"`;
+- flatten files and change module-qualified operations;
+- change JSON field names as though they were SQL identifiers;
+- accept an embedded SQL string without parsing it.
+
+The binder derives operation modules from filenames, as shown in [bind/mod.rs](/Users/ccheever/projects/snapback-sb5-reviews/r4001b-astra/snapback4/crates/snapback4-lang/src/bind/mod.rs:86). Byte-identical file contents alone therefore do not guarantee identical APIs.
+
+**Smallest fix:** specify a SQL symbol/type-resolution phase, a version-pinned parser interface, recursive parsing of embedded expressions, collision rejection, and a named-file output contract before constructing `Document`.
+
+**High — §3.5, §4, §6: increment D is not an automatic fallback for arbitrary PostgreSQL.**  
+LLP 3000.009 §6.2 permits bounded server reads over authorized projections or database-owned keyed relations, in the store’s dialect. It does not authorize arbitrary reads of managed application storage. A PostgreSQL function over `messages` does not become a safe SQLite/store query by marking it server-only.
+
+**Smallest fix:** define the declaration’s permitted relations, dialect, parameters, result shape, authorization channel, bounds, and live/one-shot behavior. Otherwise withdraw this row before corpus classification. Shared availability in both arms solves experimental asymmetry, not the missing access contract.
+
+**High — §9: prerequisites are ordered after their consumers.**  
+Step 2 requires unchanged-binder verification of B1–B3, but step 5 lands the baseline that supplies them. Step 5 also freezes holdouts and the rubric after compiler lanes, conflicting with the inherited preimplementation holdout requirement.
+
+**Smallest fix:** separate baseline preparation from treatment work. Freeze the complete target, scenario contracts, holdouts, rubric, and grammar before the corresponding work or measurement depends on them.
+
+**Medium — §2/§6 and repository instructions: the local fence still names the shelved runtime.**  
+`snapback5/AGENTS.md` continues to direct work toward LLP 4000 §4–§5 and its earlier surface boundary.
+
+**Smallest fix:** update the fence in the same design revision so an implementer receives one governing runtime and scope.
+
+With these changes, the architecture can be bounded: PostgreSQL parsing; a deliberately limited resolver and recognizer; explicit semantic lowering; a complete Quarry serializer; and delegation to the unchanged binary. “Postgres AST → Document” currently hides most of that compiler work.
+
+**5. Answers to §11’s questions 4–7.**
+
+**4 — Canonicalize admitted alternatives? Yes, with semantic conditions.**  
+`<>` and `!=` are straightforward. `IN`/`EXISTS` and `COALESCE`/`CASE` require null, type, context, and evaluation analysis. Register proven transformations rather than blanket equivalences.
+
+**5 — SQL or Quarry null semantics? Prefer SQL semantics.**  
+That matches the stated familiarity hypothesis. Require a compositional specification and focused counterexamples before implementation. Until then, refuse unsupported nullable expressions rather than promising that generic guard insertion handles them.
+
+**6 — `auth.uid()` or `current_principal()`? `auth.uid()`.**  
+It is the stronger prior for the targeted builders. Document the actual Snapback principal type, service identities, and unauthenticated behavior.
+
+**7 — When should the pre-tests run? After this review and the table repairs, before compiler lanes.**  
+A read-only corpus inventory can begin earlier. Counted pre-tests should not use invalid forms or mutable classification rules. They can inform whether compiler investment is worthwhile; they cannot settle Opus’s expectation about the later three-point `data_modeling` result.
+
+**Overall verdict: NOT READY.**
