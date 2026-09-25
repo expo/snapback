@@ -66,7 +66,7 @@ async function fixture(t, online = false) {
   return { client, post, requests, core: () => core, hold: (name = 'serverPage') => { held = name; entered = false; }, entered: () => entered, release: () => release?.(), offline: () => { offline = true; }, failServer: value => { failServer = value; }, loadingServer: () => { serverLoading = true; }, failAfterApply: () => { failApply = true; }, holdWrites: () => { holdWrites = true; } };
 }
 
-test('a loading server reply cannot replace the local prefix on a later transport failure', async t => {
+test('a loading server reply retires memory before a speculative transport failure', async t => {
   const f = await fixture(t);
   assert.equal((await f.client.query(query('serverPage'), {})).data[0].body, 'private');
   // Change only the query response: no replica commit may clear the cache
@@ -75,8 +75,10 @@ test('a loading server reply cannot replace the local prefix on a later transpor
   assert.deepEqual(await f.client.query(query('serverPage'), {}), { loading: true });
   f.failServer(true);
   const unavailable = await f.client.query(query('serverPage'), {});
-  assert.equal(unavailable.data[0].body, 'private', 'failed fallback keeps the available local prefix');
-  assert.equal(unavailable.complete, false);
+  assert.equal(unavailable.denied.code, 'E_OFFLINE', 'unfenced speculative reads have no answer after loading retires memory');
+  const local = (await f.core().call({ op: 'query', name: 'serverPage', viewer: 'dev:alice', args: {}, now: Date.now() })).ok;
+  assert.equal(local.data[0].body, 'private', 'the device still holds its authorized prefix');
+  assert.equal(local.unknown, true); assert.equal(local.speculative, true); assert.equal(local.held, true);
 });
 
 for (const postCommitFailure of [false, true]) test(`applied revocation clears kept and remembered answers and fences in-flight server publications (post-commit failure: ${postCommitFailure})`, { timeout: 30_000 }, async t => {

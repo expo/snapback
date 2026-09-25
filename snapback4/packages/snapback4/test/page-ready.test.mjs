@@ -93,7 +93,11 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   let history = app.client.observe(query("history"), { chat });
   history.subscribe(() => snapshots.push(history.getSnapshot()));
   listRead(await app.client.query(query("history"), { chat }));
-  assert.equal((await app.client.query(query("history"), { chat })).denied?.code, "E_OFFLINE", "an unknown empty chat is not data while acquisition is offline");
+  const partial = await app.client.query(query("history"), { chat });
+  assert.deepEqual(partial.data, [], "an unknown non-speculative scan is partial data even when empty");
+  assert.equal(partial.complete, false);
+  const observation = replies.findLast(row => row.name === "history").reply.ok;
+  assert.equal(observation.unknown, true); assert.equal(observation.speculative, false);
   holdSync = false;
   await until(async () => (await app.client.query(query("inbox"), {})).data?.some(row => row.chat === chat), "chat acquired");
   for (let n = 0; n < 3; n++) assert.equal((await bob.mutate(mutation("send"), { chat, body: `message ${n}` })).state, "sent");

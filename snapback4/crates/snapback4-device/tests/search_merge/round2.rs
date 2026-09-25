@@ -68,8 +68,8 @@ fn r2_n3_mixed_returned_history_exposes_independent_components() {
         assert_eq!(local["unknown"], true);
         assert_eq!(local["retained"], false, "unknown held coverage selects whole-query server fallback online");
         assert_eq!(local["components"], serde_json::json!({
-            "left": {"complete": false, "unknown": false, "retained": true},
-            "held": {"complete": false, "unknown": true, "retained": false}
+            "left": {"complete": false, "unknown": false, "retained": true, "speculative": false, "held": true},
+            "held": {"complete": false, "unknown": true, "retained": false, "speculative": false, "held": true}
         }));
         let expected = |room: &str, start| serde_json::Value::Array((start..26).rev().map(|at| serde_json::json!({"id": format!("{room}-{at}"), "room": room, "at": at, "body": if at == 0 {"needle"} else {"coffee car"}})).collect());
         assert_eq!(local["data"], serde_json::json!({"left": expected("left", 1), "held": expected("held", 1)}));
@@ -91,7 +91,7 @@ fn retained_point_hits_and_misses_on_both_stores() {
         for name in ["pointMiss", "pointIndex", "pointId", "pointExists"] {
             let local = query(device, name, "dev:bob", serde_json::json!({}), 100);
             let hit = name != "pointMiss";
-            assert_eq!(local["components"]["left"], serde_json::json!({"complete": hit, "unknown": !hit, "retained": hit}), "{name}");
+            assert_eq!(local["components"]["left"], serde_json::json!({"complete": hit, "unknown": !hit, "retained": hit, "speculative": !hit, "held": hit}), "{name}");
             assert_eq!(local["retained"], false, "whole query words do not change");
             assert_eq!(local["unknown"], true);
             assert_eq!(local["complete"], false);

@@ -196,7 +196,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     checkpoint(); // Rules 1/5: no await between this check and publication.
     const { result, origin } = candidate;
     // Rules 1/5: an authorization deadline may pass during the final fence.
-    if (origin !== "local" && result.nextExpiry !== null && result.nextExpiry <= Date.now()) {
+    if (origin !== "local" && "data" in result.read && result.nextExpiry !== null && result.nextExpiry <= Date.now()) {
       env.serverAnswers.delete(key);
       return origin === "remembered" && !watch ? { read: { denied: env.offline() }, tables, nextExpiry: null } : loading;
     }

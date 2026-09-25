@@ -206,11 +206,11 @@ fn conformance_programs_keep_whole_query_outcomes_with_plans() {
     assert!(independent, "component-independent-record.json must participate in the differential");
 }
 
-#[test]
-fn empty_and_scalar_retained_components_have_provenance_without_row_shaped_values() {
+fn empty_provenance<S: DeviceStore>(mut store: S) {
     let (_, backend) = compile(SOURCE);
-    let memory = snapback4_core::rows::MemoryRows::new();
-    let rows = Retained(&memory);
+    store.install(&backend.schema, &Default::default(), true).unwrap();
+    let tx = store.transaction().unwrap();
+    let rows = Retained(&tx);
     for name in ["empty", "scalar"] {
         let program = backend.programs.iter().find(|p| p.name == name).unwrap();
         let (answer, unknown, _, components, facts) = local::observe_query(&rows, &backend.schema, program, context("viewer", &[]).at(100), Ceilings::default(), true);
@@ -222,4 +222,15 @@ fn empty_and_scalar_retained_components_have_provenance_without_row_shaped_value
         assert_eq!(data.field("left").unwrap(), &if name == "empty" { Value::Array(vec![]) } else { Value::Int(0) });
         assert_eq!(data.field("held").unwrap(), &if name == "empty" { Value::Array(vec![]) } else { Value::Null });
     }
+}
+
+#[test]
+fn empty_and_scalar_retained_provenance_memory() { empty_provenance(snapback4_device::memory::MemoryStore::new()); }
+#[test]
+fn empty_and_scalar_retained_provenance_sqlite() {
+    let host = Sqlite::new("empty-provenance");
+    let path = host.path("frames");
+    let (_, backend) = compile(SOURCE);
+    drop(snapback4_device::device::Device::open(&path, Some(backend)).unwrap());
+    empty_provenance(snapback4_core::Store::open(&path).unwrap());
 }
