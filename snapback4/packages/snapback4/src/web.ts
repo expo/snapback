@@ -243,6 +243,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           doc.addEventListener("visibilitychange", hidden);
           committedListeners.add(dispatch);
           suspendListeners.add(stop);
+          if (suspended) publishCommitted();
           return stop;
         },
         media: {

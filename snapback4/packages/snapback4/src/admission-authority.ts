@@ -5,7 +5,8 @@ import { logoutEpoch, sessionEpoch } from "./app-storage.ts";
 export interface AdmissionAuthority { key: string; epoch: string; principal: string }
 export interface AdmissionAuthorityContext {
   capture(): AdmissionAuthority;
-  read(key: string): string | null;
+  // Ownership exists even when a wrapped/asynchronous store has no reader.
+  read: ((key: string) => string | null) | undefined;
 }
 const plans = new WeakMap<object, AdmissionAuthorityContext>();
 const hosts = new WeakMap<DeviceCore, (context: AdmissionAuthorityContext) => void>();
@@ -20,6 +21,7 @@ export const attachAdmissionAuthority = (core: DeviceCore, options: object) => {
  * A rotation may replace a bearer in the same epoch; logout/account changes
  * must not promote an older, as-yet-unadmitted journal record. */
 export function sameAdmissionAuthority(stamp: AdmissionAuthority, context: AdmissionAuthorityContext, viewer: string): boolean {
+  if (!context.read) return false;
   if (stamp.key !== context.capture().key || stamp.principal !== viewer) return false;
   const raw = context.read(stamp.key);
   if (!raw || logoutEpoch(raw) !== null) return false;

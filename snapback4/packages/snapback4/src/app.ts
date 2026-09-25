@@ -448,7 +448,7 @@ export function createApp(options: AppOptions): App {
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
         const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch };
         const read = sessionReader(backing);
-        if (browserAdmission() && read) prepareAdmissionAuthority(prepared, {
+        prepareAdmissionAuthority(prepared, {
           capture: () => ({ key: sessionKey(url), epoch, principal: scope.session.principal }), read,
         });
         const local = await prepareClient(prepared, () => createLocalClient(prepared));

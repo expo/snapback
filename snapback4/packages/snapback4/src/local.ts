@@ -1152,22 +1152,27 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   // @ref LLP 3000.007#18.2 — early replay needs the persisted store's identity and head; a replacement must retire known receipts through sync first.
-  async function replayOnOpen() {
+  async function replayOnOpen(): Promise<boolean> {
     const capture = await captureStore();
-    if (!capture?.store_id || capture.backend_required || !(await queued()).some(entry => entry.sent_seq == null && entry.observed_seq == null)) return;
+    if (!capture || capture.backend_required || closed || sessionDead) return false;
+    if (!(await queued()).some(entry => entry.sent_seq == null)) return true;
+    if (!capture.store_id) return false;
+    const request = requestCredentials();
+    let response: Response;
+    try { response = await doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal }); }
+    catch { return !closed && !sessionDead; } // An unreachable probe leaves the kept store's offline custody intact.
     try {
-      const request = requestCredentials();
-      const response = await doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal });
       const head = await response.json();
       await refusedSession(head.denied ?? head.why, request.revision);
-      if (!response.ok || head.ok !== true || sessionDead || request.revision !== credentialRevision) return;
-      if (await witnessRestore(head.store_id, head.seq, capture)) return;
-      if (head.store_id !== capture.store_id) return;
+      if (!response.ok || head.ok !== true || closed || sessionDead || request.revision !== credentialRevision) return false;
+      if (await witnessRestore(head.store_id, head.seq, capture)) return false;
+      if (head.store_id !== capture.store_id) return false;
       // A slow snapshot must not hold an unknown write behind acquisition.
       // Receipt settlement still runs in the ordinary network queue; these
       // sends retain their IDs and the first sync collects their effects.
       await flushOnce(false);
-    } catch { /* The ordinary sync/retry path owns an unreachable probe. */ }
+      return !closed && !sessionDead;
+    } catch { return false; } // Failed validation or persistence cannot authorize exit transport.
   }
 
   let stopHost: void | (() => void);
@@ -1427,22 +1432,29 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   const prepared = startDeferred(options);
-  if (core.onSuspend) {
+  const listenForExit = () => {
+    if (!core.onSuspend || stopSuspend || closed) return;
     const sendOnExit = exitTransport(doFetch, base, aborter.signal);
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
       exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
     });
-  }
+  };
   const start = async () => {
     if (closed) return;
     if (prepared && session && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
+    // Exit and ordinary replay share the same startup checks, even offline.
+    // Native owners retain their existing snapshot/receipt coordination first.
+    const replayAllowed = core.onSuspend && await replayOnOpen();
+    if (replayAllowed) listenForExit();
     if (link === "online") {
-      // Web stores have one owner. Native owners may share an outbox with an
-      // active sender, so their existing snapshot/receipt coordination runs first.
-      if (core.onSuspend) await replayOnOpen();
-      await syncOnce();
+      const synced = await syncOnce();
+      // First installation or backend adoption may establish custody in sync.
+      if (synced && !replayAllowed && core.onSuspend) {
+        const capture = await captureStore();
+        if (capture?.store_id && !capture.backend_required && !sessionDead) listenForExit();
+      }
     }
     stopOutbox = core.onOutbox?.(() => { void flush(); });
     follow();

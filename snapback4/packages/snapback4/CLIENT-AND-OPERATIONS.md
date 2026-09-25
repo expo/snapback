@@ -529,10 +529,24 @@ lock through the admission commit. A logout or changed epoch/principal cancels
 an unadmitted record; a live caller receives `E_AUTH`. A subsequent sign-in
 cannot revive that earlier click. Synchronous journaling still precedes waiting
 for the lock, so a navigation while the session is unchanged keeps its intent.
-App ownership is attached before recovery. An unadmitted legacy record with no
-epoch stamp is cancelled because its originating login cannot be established;
-already committed outbox entries keep their custody. Page-hide transport starts
-after the admission lock releases, and is installed before the initial sync wait.
+App ownership is attached before recovery, including with wrapped or asynchronous
+session stores. An unadmitted legacy record with no epoch stamp, or an app record
+whose authority cannot be read, is cancelled because its originating login cannot
+be established; already committed outbox entries keep their custody.
+Page-hide transport starts after the admission lock releases. Startup installs
+it after the ordinary replay checks permit sending, before the initial sync
+wait, including offline. A refused probe, backend mismatch, restore refusal or
+required backend adoption prevents early exit sending. An unreachable probe
+leaves the kept store's offline custody intact. If the page became hidden during
+the probe, registration makes one send attempt. A successful sync can establish
+the backend needed to validate and install the sender afterward.
+
+Cross-tab epoch validation has an unresolved coherence limitation: Chromium can
+return an older localStorage session even after granting its Web Lock. The lock
+alone therefore does not prove that an unadmitted journal still has authority.
+The [round-3 report](../../reports/20260925-lane-v-r3.md) records the two-tab
+counterexample; this authorization protocol needs a design correction.
+
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
 device store, and at most 64 KiB per serialized record. A browser mutation that
 cannot synchronously acquire custody refuses with `E_ADMISSION`, a site and a
