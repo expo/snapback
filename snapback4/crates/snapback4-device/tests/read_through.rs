@@ -167,3 +167,20 @@ fn retained_parent<H:Host>(host:&mut H) {
     let page=query(&mut d,"page","t",100);assert_eq!(page["unknown"],true,"{page}");assert_eq!(page["data"],json!([]),"{page}");
 }
 both!(retained_parent_queues_without_a_row,retained_parent);
+
+fn nonexpiring_scratch<H:Host>(host:&mut H) {
+    let source=SOURCE.replace("  expire at .until\n", "").replace("text <= 40", "text <= 200000");
+    let mut replies=Vec::new();
+    for occupied in [false,true] {
+        let(mut e,b)=setup(&source);assert!(!b.schema.tables["comments"].is_expiring());
+        if occupied {write(&mut e,"post",&[("id",id("c")),("task",id("t")),("body",snapback4_core::Value::String("small actual row".into()))]);}
+        let mut d=host.open(if occupied {"scratch-live"}else{"scratch-empty"},Some(b)).unwrap();acquire(&mut e,&mut d,100);
+        let result=d.query("countFor","alice",&json!({"task":"t"}),100).unwrap();
+        assert!(result.unavailable && !result.complete,"recount reserves its source batch before discovering occupancy: {result:?}");
+        assert!(matches!(result.capped_at.as_ref(),Some((snapback4_core::error::MeterKind::HeapBytes,_))),"{result:?}");
+        assert_eq!(result.metered.examined,0,"{result:?}");
+        replies.push(result);
+    }
+    assert_eq!(replies[0],replies[1]);
+}
+both!(nonexpiring_parent_counts_reserve_source_scratch,nonexpiring_scratch);

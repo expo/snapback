@@ -19,7 +19,7 @@ impl Runner<'_> {
                     .fold(0_u64, u64::saturating_add)
                     .saturating_mul(8),
             )
-            .saturating_add(if source.is_expiring() {
+            .saturating_add(if source.is_expiring() || (self.device && maintain.parent_key.is_some()) {
                 row_copy_ceiling(source).saturating_mul(32)
             } else {
                 0
