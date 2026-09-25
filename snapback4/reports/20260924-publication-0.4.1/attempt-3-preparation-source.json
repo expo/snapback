@@ -1,0 +1,16 @@
+{
+  "source": "3feff5c0596a0a88827f579eb999beb9fef41ef1",
+  "mergedMain": "7811b01e4ab6b7b2e9a34cb4259278840ce78437",
+  "branch": "sb4-intent/publish-041",
+  "versions": {
+    "snapback4": "0.4.1",
+    "snapback4-darwin-arm64": "0.4.1",
+    "snapback4-expo": "0.4.1"
+  },
+  "undici": "8.8.0",
+  "journalAdditionsRestoredUnchanged": true,
+  "attempt2ArchiveFilesVerified": 145,
+  "productionQualificationRun": false,
+  "published": false,
+  "at": "2026-09-25T03:21:15.518917+00:00"
+}

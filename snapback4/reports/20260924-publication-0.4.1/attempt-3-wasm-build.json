@@ -1,0 +1,13 @@
+{
+  "name": "attempt-3-wasm-build",
+  "command": [
+    "bash",
+    "scripts/build-wasm.sh"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T03:23:22.883272+00:00",
+  "finished_at": "2026-09-25T03:23:25.281415+00:00",
+  "seconds": 2.398,
+  "exit_code": 0,
+  "log": "attempt-3-wasm-build.log"
+}

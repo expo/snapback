@@ -1,0 +1,152 @@
+diff --git a/snapback4/Cargo.lock b/snapback4/Cargo.lock
+index 00ba25e918..0addaf8f27 100644
+--- a/snapback4/Cargo.lock
++++ b/snapback4/Cargo.lock
+@@ -816,7 +816,7 @@ checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
+ 
+ [[package]]
+ name = "snapback4"
+-version = "0.4.0"
++version = "0.4.1"
+ dependencies = [
+  "libc",
+  "rusqlite",
+@@ -831,7 +831,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-core"
+-version = "0.4.0"
++version = "0.4.1"
+ dependencies = [
+  "argon2",
+  "getrandom 0.3.4",
+@@ -849,7 +849,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-device"
+-version = "0.4.0"
++version = "0.4.1"
+ dependencies = [
+  "js-sys",
+  "rusqlite",
+@@ -863,7 +863,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-lang"
+-version = "0.4.0"
++version = "0.4.1"
+ dependencies = [
+  "serde",
+  "serde_json",
+@@ -874,7 +874,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-native"
+-version = "0.4.0"
++version = "0.4.1"
+ dependencies = [
+  "serde",
+  "serde_json",
+@@ -882,7 +882,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "snapback4-sim"
+-version = "0.4.0"
++version = "0.4.1"
+ dependencies = [
+  "serde_json",
+  "snapback4-core",
+diff --git a/snapback4/Cargo.toml b/snapback4/Cargo.toml
+index 962503cc99..8ea561e644 100644
+--- a/snapback4/Cargo.toml
++++ b/snapback4/Cargo.toml
+@@ -8,7 +8,7 @@ exclude = ["vendor/tiny_http"]
+ tiny_http = { path = "vendor/tiny_http" }
+ 
+ [workspace.package]
+-version = "0.4.0"
++version = "0.4.1"
+ edition = "2024"
+ license = "MIT"
+ 
+diff --git a/snapback4/bun.lock b/snapback4/bun.lock
+index 390e8486d7..c6851b2e7d 100644
+--- a/snapback4/bun.lock
++++ b/snapback4/bun.lock
+@@ -45,7 +45,7 @@
+     },
+     "packages/snapback4": {
+       "name": "snapback4",
+-      "version": "0.4.0",
++      "version": "0.4.1",
+       "bin": {
+         "snapback4": "bin/snapback4.js",
+       },
+@@ -60,7 +60,7 @@
+         "typescript": "5.9.3",
+       },
+       "optionalDependencies": {
+-        "snapback4-darwin-arm64": "0.4.0",
++        "snapback4-darwin-arm64": "0.4.1",
+       },
+       "peerDependencies": {
+         "react": "^19.0.0",
+@@ -71,11 +71,11 @@
+     },
+     "packages/snapback4-darwin-arm64": {
+       "name": "snapback4-darwin-arm64",
+-      "version": "0.4.0",
++      "version": "0.4.1",
+     },
+     "packages/snapback4-expo": {
+       "name": "snapback4-expo",
+-      "version": "0.4.0",
++      "version": "0.4.1",
+       "devDependencies": {
+         "expo-modules-core": "*",
+         "typescript": "5.9.3",
+diff --git a/snapback4/packages/snapback4-darwin-arm64/package.json b/snapback4/packages/snapback4-darwin-arm64/package.json
+index 0d34b4b137..5f03003cc2 100644
+--- a/snapback4/packages/snapback4-darwin-arm64/package.json
++++ b/snapback4/packages/snapback4-darwin-arm64/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "snapback4-darwin-arm64",
+-  "version": "0.4.0",
++  "version": "0.4.1",
+   "description": "The snapback4 binary for macOS on Apple silicon; installed by the snapback4 package.",
+   "license": "MIT",
+   "os": [
+diff --git a/snapback4/packages/snapback4-expo/package.json b/snapback4/packages/snapback4-expo/package.json
+index 91c6d74586..d116a1d316 100644
+--- a/snapback4/packages/snapback4-expo/package.json
++++ b/snapback4/packages/snapback4-expo/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "snapback4-expo",
+-  "version": "0.4.0",
++  "version": "0.4.1",
+   "type": "module",
+   "description": "Snapback 4's native module for Expo: the device in Rust (the partition in its own SQLite, the stream applied, the outbox kept, queries and predictions answered) behind one JSON call, and the opener `snapback4/native` takes.",
+   "main": "src/index.ts",
+diff --git a/snapback4/packages/snapback4/package.json b/snapback4/packages/snapback4/package.json
+index 2c021d9b85..d7eb35b209 100644
+--- a/snapback4/packages/snapback4/package.json
++++ b/snapback4/packages/snapback4/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "snapback4",
+-  "version": "0.4.0",
++  "version": "0.4.1",
+   "type": "module",
+   "description": "Snapback 4: the card (contract), the online and local-first clients (IndexedDB, SQLite), React hooks, sign-in, a labelled mock, and the `snapback4` CLI. LLP 3000.",
+   "bin": {
+@@ -64,7 +64,7 @@
+     "CLIENT-AND-OPERATIONS.md"
+   ],
+   "optionalDependencies": {
+-    "snapback4-darwin-arm64": "0.4.0"
++    "snapback4-darwin-arm64": "0.4.1"
+   },
+   "dependencies": {
+     "openid-client": "6.8.8"

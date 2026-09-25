@@ -1,0 +1,12 @@
+{
+  "passed": 2976,
+  "failed": 0,
+  "ignored": 16,
+  "resultSummaries": 887,
+  "inventory": [
+    "-- rust inventory: 172 test binaries, 882 executions; at most 4 concurrent processes"
+  ],
+  "step": [
+    "-- ok: cargo test (1059 s)"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "attempt-3-expo-registry-wait",
+  "command": [
+    "node",
+    "/tmp/pub041-attempt3-wait-expo.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T04:02:36.596466+00:00",
+  "finished_at": "2026-09-25T04:04:39.369472+00:00",
+  "seconds": 122.771,
+  "exit_code": 0,
+  "log": "attempt-3-expo-registry-wait.log"
+}

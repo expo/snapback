@@ -1,0 +1,13 @@
+{
+  "name": "version-bump",
+  "command": [
+    "python3",
+    "/tmp/pub041-bump.py"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:10:12.432505+00:00",
+  "finished_at": "2026-09-24T23:10:12.487832+00:00",
+  "seconds": 0.055,
+  "exit_code": 0,
+  "log": "version-bump.log"
+}

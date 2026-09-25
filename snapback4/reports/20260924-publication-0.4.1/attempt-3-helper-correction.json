@@ -1,0 +1,10 @@
+{
+  "python": "/opt/homebrew/opt/python@3.14/bin/python3.14",
+  "pythonVersion": "3.14.6 (main, Jun 10 2026, 10:03:53) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "tomllibAvailable": true,
+  "mergeRetained": "3feff5c0596a0a88827f579eb999beb9fef41ef1",
+  "frameworkInputsUnchanged": true,
+  "frameworkHashesVerified": true,
+  "priorNativeArtifactsArchived": "/Users/ccheever/projects/snapback-pub-041b/snapback4/reports/20260924-publication-0.4.1/attempt-2/20260924-expo-0.4.1",
+  "helperErrorDisposition": "Preparation note; user authorized correction and continuation."
+}

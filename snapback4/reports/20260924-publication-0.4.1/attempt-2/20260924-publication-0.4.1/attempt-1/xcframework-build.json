@@ -1,0 +1,13 @@
+{
+  "name": "xcframework-build",
+  "command": [
+    "bash",
+    "scripts/build-xcframework.sh"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:10:27.518067+00:00",
+  "finished_at": "2026-09-24T23:11:59.187421+00:00",
+  "seconds": 91.668,
+  "exit_code": 0,
+  "log": "xcframework-build.log"
+}

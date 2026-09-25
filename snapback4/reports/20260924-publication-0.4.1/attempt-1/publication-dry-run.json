@@ -1,0 +1,16 @@
+{
+  "name": "publication-dry-run",
+  "command": [
+    "env",
+    "SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33",
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:17:06.227348+00:00",
+  "finished_at": "2026-09-24T23:39:46.704191+00:00",
+  "seconds": 1360.462,
+  "exit_code": 1,
+  "log": "publication-dry-run.log"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "simulator-shutdown",
+  "command": [
+    "xcrun",
+    "simctl",
+    "shutdown",
+    "9A88E5C4-9F5B-4FE5-B8D0-F2199FE6E63B"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:16:55.729997+00:00",
+  "finished_at": "2026-09-24T23:16:58.987360+00:00",
+  "seconds": 3.257,
+  "exit_code": 0,
+  "log": "simulator-shutdown.log"
+}

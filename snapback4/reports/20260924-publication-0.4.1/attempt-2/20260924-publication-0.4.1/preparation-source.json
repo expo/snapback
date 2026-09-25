@@ -1,0 +1,13 @@
+{
+  "base": "0af449bb757b5a89f4df24a88f60cba681bf8b7d",
+  "head": "0af449bb757b5a89f4df24a88f60cba681bf8b7d",
+  "branch": "sb4-intent/publish-041",
+  "worktree": "/Users/ccheever/projects/snapback-pub-041b",
+  "oldWorktree": "/Users/ccheever/projects/snapback-pub-041",
+  "oldBranchRenamedTo": "sb4-intent/publish-041-attempt-1",
+  "signingRelay": "/Users/ccheever/sb4-03-lanes/codesign-relay/codesign",
+  "signingRelaySha256": "06fa7db565ac920a7ee7d5d413410c3113757682c9549e3c7c9ddd1da1c46acf",
+  "versionFilesUnchanged": true,
+  "published": false,
+  "at": "2026-09-25T01:13:31.236399+00:00"
+}

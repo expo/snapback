@@ -1,0 +1,14 @@
+{
+  "name": "version-bump",
+  "command": [
+    "git",
+    "apply",
+    "/tmp/sb4-pub-041b-version.patch"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T01:12:03.615613+00:00",
+  "finished_at": "2026-09-25T01:12:03.630041+00:00",
+  "seconds": 0.014,
+  "exit_code": 1,
+  "log": "version-bump.log"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "native-link-verification",
+  "command": [
+    "python3",
+    "/tmp/pub041-native-link.py"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4",
+  "started_at": "2026-09-24T23:15:54.334444+00:00",
+  "finished_at": "2026-09-24T23:15:54.655510+00:00",
+  "seconds": 0.321,
+  "exit_code": 0,
+  "log": "native-link-verification.log"
+}

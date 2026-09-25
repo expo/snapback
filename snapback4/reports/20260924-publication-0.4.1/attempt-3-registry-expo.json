@@ -1,0 +1,14 @@
+{
+  "name": "attempt-3-registry-expo",
+  "command": [
+    "/opt/homebrew/bin/python3",
+    "/tmp/pub041b-registry-verify.py",
+    "expo"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T04:04:43.757905+00:00",
+  "finished_at": "2026-09-25T04:04:44.677297+00:00",
+  "seconds": 0.919,
+  "exit_code": 0,
+  "log": "attempt-3-registry-expo.log"
+}

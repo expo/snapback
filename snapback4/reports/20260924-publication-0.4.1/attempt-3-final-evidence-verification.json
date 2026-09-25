@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-25T04:04:49.632343+00:00",
+  "source": "3feff5c0596a0a88827f579eb999beb9fef41ef1",
+  "productInputsUnchanged": true,
+  "nativePackageFilesVerified": 18,
+  "attempt1OriginalFilesVerified": 45,
+  "attempt2ArchivedFilesVerified": 145,
+  "historicalJournalAdditionsPreserved": true,
+  "registryPackagesVerified": [
+    "snapback4-darwin-arm64@0.4.1",
+    "snapback4@0.4.1",
+    "snapback4-expo@0.4.1"
+  ]
+}

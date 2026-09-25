@@ -1,0 +1,16 @@
+{
+  "name": "attempt-3-simulator-install",
+  "command": [
+    "xcrun",
+    "simctl",
+    "install",
+    "81961F7D-DF85-4A7A-B376-20D9073AC101",
+    "target/expo-release/Snapback4chat.app"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041b/snapback4",
+  "started_at": "2026-09-25T03:25:21.897626+00:00",
+  "finished_at": "2026-09-25T03:25:26.013703+00:00",
+  "seconds": 4.116,
+  "exit_code": 0,
+  "log": "attempt-3-simulator-install.log"
+}

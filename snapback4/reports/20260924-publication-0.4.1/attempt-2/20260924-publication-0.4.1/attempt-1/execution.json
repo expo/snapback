@@ -1,0 +1,11 @@
+{
+  "node": "24.18.0",
+  "SNAPBACK4_FENCE_PUBLISHED": "/Users/ccheever/sb4-03-lanes/published-0.2.33",
+  "codesignRelay": "/Users/ccheever/sb4-03-lanes/codesign-relay/codesign",
+  "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT (set by unchanged publisher)",
+  "publisherChanged": false,
+  "signingRelayChanged": false,
+  "keychainOrCredentialChanges": false,
+  "releaseSource": "8e35a19f0e370cc3dd063da288d5750820b18c40",
+  "pushTarget": "origin sb4-intent/publish-041"
+}

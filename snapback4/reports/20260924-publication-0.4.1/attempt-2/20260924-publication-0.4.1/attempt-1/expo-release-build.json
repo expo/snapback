@@ -1,0 +1,23 @@
+{
+  "name": "expo-release-build",
+  "command": [
+    "env",
+    "EXPO_PUBLIC_SNAPBACK_URL=http://127.0.0.1:44441",
+    "node",
+    "../../node_modules/expo/bin/cli",
+    "run:ios",
+    "--configuration",
+    "Release",
+    "--device",
+    "generic",
+    "--no-bundler",
+    "--output",
+    "../../target/expo-release"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-041/snapback4/apps/chat-expo",
+  "started_at": "2026-09-24T23:13:48.124331+00:00",
+  "finished_at": "2026-09-24T23:15:20.823867+00:00",
+  "seconds": 92.698,
+  "exit_code": 0,
+  "log": "expo-release-build.log"
+}

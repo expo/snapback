@@ -1,0 +1,42 @@
+{
+  "format": 2,
+  "version": "0.4.1",
+  "platform": "snapback4-darwin-arm64",
+  "qualification": {
+    "suite": "passed"
+  },
+  "binaryProfile": "production",
+  "binarySha256": "6661de6001b315489dca317669d03ed52a0527c44a885fa27d850096c70a8b48",
+  "binaryVersion": "snapback4 0.4.1",
+  "binaryBytes": 11401392,
+  "cargoProfile": {
+    "opt_level": "3",
+    "debuginfo": 0,
+    "debug_assertions": false,
+    "overflow_checks": false,
+    "test": false
+  },
+  "sqliteBuildFlags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "signing": {
+    "signingAuthority": "Developer ID Application: Charles Cheever (UD2ZVW5WU5)",
+    "signingTeamId": "UD2ZVW5WU5",
+    "notarized": false,
+    "notarySubmissionId": null
+  },
+  "client": {
+    "name": "snapback4",
+    "version": "0.4.1",
+    "filename": "snapback4-0.4.1.tgz",
+    "integrity": "sha512-ifpgpF2EM9K7pEGxw2785Cj+cEBq5VhbPB2cnGL7l06Vdd4KbkiUAoeejiDdq742/VBvuKqQoo1DIxHCVqdx+Q==",
+    "bytes": 695249,
+    "files": 106
+  },
+  "platformArtifact": {
+    "name": "snapback4-darwin-arm64",
+    "version": "0.4.1",
+    "filename": "snapback4-darwin-arm64-0.4.1.tgz",
+    "integrity": "sha512-LkSBon10QohJEyRCS1ZDGxgsndioHSi1u8pY92Uk/NQiIm990QykwUnxcUkxK+gBmNgnxwgGpef5JHk3G5K41g==",
+    "bytes": 5616775,
+    "files": 3
+  }
+}
