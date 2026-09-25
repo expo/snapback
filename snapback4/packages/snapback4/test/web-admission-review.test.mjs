@@ -70,6 +70,16 @@ query total():
   if (mutant === 'fresh-fence') replace('web-journal.ts', 'journalStoreBinding(transfer.storeId, state?.store_id)', 'journalStoreBinding(transfer.recovered ? transfer.storeId : undefined, state?.store_id)');
   if (mutant === 'fresh-binding') replace('web-journal.ts', 'absent(transfer.key) && !queued.has(id)', 'absent(transfer.key) && (!transfer.recovered || !queued.has(id))');
   if (mutant === 'orphan-binding') replace('web.ts', '        if (binding === "defer") { unresolved = true; continue; }\n        if (binding === "retire") { removed.push({ s: "o", k: entry.id, v: null }); continue; }', '/* mutant: delete both orphan binding checks */');
+  if (mutant === 'transport-guards') {
+    const source = readFileSync(path('web.ts'), 'utf8');
+    const ordinary = 'if (request.op === "begin_send" && typeof request.id === "string") {';
+    const exit = ' || journal.binding(device, id) !== "allow"';
+    assert.ok(source.includes(ordinary) && source.includes(exit));
+    sourceOverrides[path('web.ts')] = source.replace(ordinary, 'if (false) {').replace(exit, '');
+  }
+  if (mutant === 'ordinary-store-field') replace('local.ts', ', store_id: binding', '');
+  if (mutant === 'exit-store-field') replace('local-exit.ts', ', store_id: entry.store_id', '');
+  if (mutant === 'exit-retirement') replace('local-exit.ts', 'await refused?.(entry, why)', 'undefined');
   if (mutant === 'observed') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null && entry.observed_seq == null)) return true;\n    if (!capture.store_id) return false;');
   if (mutant === 'empty-queue') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null)) return true;\n    if (!capture.store_id) return false;');
   if (mutant === 'ordinary-gate') replace('local.ts', 'if (closed || !sendingAllowed) return;', 'if (closed) return;');
@@ -134,7 +144,7 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
       }
       if (route === '/sync' && holdSync) { window.syncHeld = true; await gate; }
       if (route.startsWith('/m/')) {
-        window.sent.push({ id: JSON.parse(init.body).id, keepalive: !!init.keepalive });
+        window.sent.push({ id: JSON.parse(init.body).id, store_id: JSON.parse(init.body).store_id, keepalive: !!init.keepalive });
         if (blockMutations && !init.keepalive) {
           if (blockMutations === 'hold') {
             window.mutationHeld = true;
@@ -480,6 +490,58 @@ window.captureClick = () => {
       await page.evaluate(async () => { releaseProbe(); releaseSync(); await app.ready; await app.close(); });
       if (replacement) {
         try { assert.equal(await total(observer, replacement.api), 0, 'replacement audit after close'); }
+        finally { await replacement.close(); }
+      }
+    }
+  });
+
+  for (const hidden of [false, true]) await t.test(`replacement after validation refuses the original orphan binding at the server (${hidden ? 'exit' : 'ordinary'} transport)`, async () => {
+    const { session } = await fresh(), before = await total(session);
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true, blockMutations: hidden });
+    const peer = await page.context().newPage();
+    let replacement;
+    try {
+      await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
+      await peer.evaluate(options => boot(options), { url, holdPoll: true, blockMutations: true });
+      const captured = await peer.evaluate(() => captureClick());
+      assert.equal((await peer.evaluate(() => write)).state, 'pending');
+      // Validate A and install orphan recovery while the source still holds its
+      // provider claim. The endpoint changes later, without another sync/probe.
+      await page.evaluate(() => app.client.sync());
+      const validated = await page.evaluate(async () => (await core.call({ op: 'sync_state', capture: false })).ok.store_id);
+      assert.equal(validated, captured.record.storeId);
+      replacement = await replacementFor(session);
+      await page.evaluate(destination => { window.backendUrl = destination; window.sent = []; }, replacement.api);
+      if (hidden) await hide();
+      const response = page.waitForResponse(response => response.url() === replacement.api + '/m/removeMember'
+        && JSON.parse(response.request().postData()).id === captured.id, { timeout: 5000 });
+      void response.catch(() => {});
+      await peer.evaluate(() => app.close()); await peer.close();
+      const rejected = await response;
+      const body = await rejected.json();
+      assert.equal(await total(session, replacement.api), 0, 'B must not execute even when local validation still says A');
+      assert.equal(body.why?.code, 'E_STORE_REPLACED');
+      assert.equal(JSON.parse(rejected.request().postData()).store_id, captured.record.storeId);
+      await until(() => page.evaluate(async id => (await app.client.write(id))?.state === 'failed', captured.id), 'replacement refusal retired');
+      const failed = await page.evaluate(id => app.client.write(id), captured.id);
+      assert.equal(failed.why.code, 'E_STORE_REPLACED');
+      assert.deepEqual(await page.evaluate(async id => (await core.call({ op: 'queued' })).ok.filter(entry => entry.id === id), captured.id), []);
+      assert.ok((await page.evaluate(() => sent)).some(send => send.id === captured.id && send.keepalive === hidden));
+      assert.equal(await total(session), before);
+      await page.evaluate(() => app.close());
+      await navigate('server-binding=' + hidden);
+      await page.evaluate(options => boot(options), { url, backendUrl: replacement.api, holdPoll: true });
+      const recovered = await page.evaluate(id => app.client.write(id), captured.id);
+      assert.equal(recovered.state, 'failed'); assert.equal(recovered.why.code, 'E_STORE_REPLACED');
+      assert.deepEqual(await page.evaluate(id => sent.filter(send => send.id === id), captured.id), []);
+      assert.equal(await total(session, replacement.api), 0, 'reopening on B cannot retry the retired write');
+      t.diagnostic(JSON.stringify({ afterValidation: true, transport: hidden ? 'keepalive' : 'ordinary', id: captured.id,
+        originalStore: captured.record.storeId, refusal: failed.why.code, auditA: before, auditB: 0 }));
+    } finally {
+      if (!peer.isClosed()) { await peer.evaluate(() => app.close()); await peer.close(); }
+      await page.evaluate(() => app.close());
+      if (replacement) {
+        try { assert.equal(await total(session, replacement.api), 0, 'replacement audit after close'); }
         finally { await replacement.close(); }
       }
     }

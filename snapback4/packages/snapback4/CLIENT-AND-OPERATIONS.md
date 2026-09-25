@@ -528,6 +528,8 @@ Own-tab recovery, fresh admission, orphan adoption and both send paths share
 the same store-binding check. Orphan adoption leaves a bound write in its source
 store while the destination identity is unknown, and retires a mismatch before
 enqueueing it. Matching adoption keeps the original mutation id.
+Ordinary and keepalive mutation requests carry that original `store_id`; the
+server refuses a replacement before execution or deduplication with terminal `E_STORE_REPLACED`.
 Under `createApp`, records also capture the session epoch and principal.
 The browser's authoritative session lives in IndexedDB. Login, logout and
 principal replacement mirror their value to localStorage, then await a strict

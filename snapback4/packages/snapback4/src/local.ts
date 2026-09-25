@@ -1112,12 +1112,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
           if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
+          const binding = entry.store_id ?? storeIdentity;
+          if (!binding) return { ok: false as const };
           ordinarySending = entry.id;
           settling.add(entry.id);
           try {
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
-            const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids }, settled.get(entry.id)?.response);
+            const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
             if (response.ok) {
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
               if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
@@ -1436,7 +1438,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function listenForExit() {
     if (!core.onSuspend || stopSuspend || closed || sessionDead) return;
     sendingAllowed = true;
-    const sendOnExit = exitTransport(doFetch, base, aborter.signal);
+    const sendOnExit = exitTransport(doFetch, base, aborter.signal, async (entry, why) => {
+      if (closed) return; // Reopen retains the original binding if teardown won.
+      const work = (async () => {
+        const write = { state: "failed" as const, id: entry.id, why };
+        await history.keep(write);
+        const applied = await call({ op: "settle", id: entry.id });
+        if (applied.denied) retryFlush();
+        settled.get(entry.id)?.resolve(write); settled.delete(entry.id);
+        emitWrite(write);
+        for (const watch of watches.values()) void rerun(watch);
+      })();
+      active.add(work);
+      try { await work; } finally { active.delete(work); }
+    });
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.

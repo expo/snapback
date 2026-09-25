@@ -100,6 +100,10 @@ export class AdmissionJournal {
   private sequence = 0;
   constructor(private readonly name: string, private readonly exclusive: boolean) {}
 
+  // Keep the captured identity on the wire even if the endpoint changes after
+  // local validation. Legacy outboxes use their kept device's identity.
+  boundStore(id: string): string | undefined { return this.transfers.get(id)?.storeId ?? this.storeId; }
+
   load(saved: Change[]): void {
     this.transfers.clear();
     this.storeId = undefined;

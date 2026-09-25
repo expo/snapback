@@ -226,7 +226,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           const dispatch = () => {
             if (!suspended || closing || !device) return;
             const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
-              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
+              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: journal.boundStore(e.id) }));
             if (entries.length) flush(entries, () => beginSend(entries[0]!.id));
           };
           const suspend = () => { suspended = true; publishCommitted(); };
@@ -279,6 +279,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                   }
                 }
                 const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
+                if (request.op === "queued" && Array.isArray(reply.ok)) {
+                  reply.ok = reply.ok.map(entry => ({ ...entry, store_id: journal.boundStore(entry.id) }));
+                }
                 const observesStore = request.op === "observe_store" || request.op === "apply";
                 if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
                 try {

@@ -142,7 +142,7 @@ test("stalled exit wait stops immediately on close without cancelling delivery",
     assert.equal(init.signal, undefined);
     return Promise.resolve(new Response(new ReadableStream({ start(controller) { body = controller; } })));
   }, "https://example.test", closed.signal);
-  const waiting = send([{ id: "close", op: "send", args: {}, newIds: [] }], {});
+  const waiting = send([{ id: "close", op: "send", args: {}, newIds: [], store_id: "kept-store" }], {});
   try {
     closed.abort();
     await within(waiting, 100, "close did not release the exit wait immediately");
@@ -276,7 +276,7 @@ test("keepalive counts UTF-8 bytes across clients and releases quota on failure"
     return new Promise(resolve => finish.push(() => resolve(new Response("{}"))));
   };
   const a = exitTransport(transport, "https://example.test"), b = exitTransport(transport, "https://example.test");
-  const entry = (id, n) => ({ id, op: "write", args: { body: "😀".repeat(n) }, newIds: [] });
+  const entry = (id, n) => ({ id, op: "write", args: { body: "😀".repeat(n) }, newIds: [], store_id: "kept-store" });
   const first = entry("a", 8000), second = entry("b", 8000), third = entry("c", 8000);
   a([first, second, third, entry("oversize", 20000)], { authorization: "Bearer session" });
   b([entry("other client", 8000)], {});
@@ -303,7 +303,7 @@ test("exit ordering survives reversed server processing", async () => {
     resolve(new Response("{}"));
   }));
   const send = exitTransport(transport, "https://example.test");
-  const entries = [1, 2].map(value => ({ id: String(value), op: "set", args: { value }, newIds: [] }));
+  const entries = [1, 2].map(value => ({ id: String(value), op: "set", args: { value }, newIds: [], store_id: "kept-store" }));
   send(entries, {});
   const outstanding = pending.length;
   pending.splice(0).reverse().forEach(f => f()); await tick();
@@ -317,7 +317,7 @@ test("exit ordering survives reversed server processing", async () => {
 test("exit never bypasses an oversized or quota-blocked predecessor", async () => {
   const sent = [], finish = [];
   const transport = (_url, init) => { sent.push(JSON.parse(init.body).id); return new Promise(resolve => finish.push(() => resolve(new Response("{}")))); };
-  const entry = (id, n) => ({ id, op: "set", args: "x".repeat(n), newIds: [] });
+  const entry = (id, n) => ({ id, op: "set", args: "x".repeat(n), newIds: [], store_id: "kept-store" });
   const a = exitTransport(transport, "https://example.test"), b = exitTransport(transport, "https://example.test");
   a([entry("oversized", 65536), entry("small successor", 1)], {});
   const oversize = [...sent];
