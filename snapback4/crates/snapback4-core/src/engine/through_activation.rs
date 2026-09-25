@@ -94,8 +94,11 @@ pub fn activate(
             let next = &next.tables[name];
             let old = previous.table(name);
             next.through != old.and_then(|t| t.through.clone())
-                || next.through.is_some() && (next.expire.as_ref() != old.and_then(|t|t.expire.as_ref())
-                    || next.expire.as_ref().is_some_and(|field| old.is_some_and(|t|t.defaults.get(field) != next.defaults.get(field))))
+                || next.through.is_some()
+                    && (next.expire.as_ref() != old.and_then(|t| t.expire.as_ref())
+                        || next.expire.as_ref().is_some_and(|field| {
+                            old.is_some_and(|t| t.defaults.get(field) != next.defaults.get(field))
+                        }))
         })
         .collect();
     for name in affected.iter().rev() {
@@ -160,23 +163,23 @@ pub fn activate(
             continue;
         };
         let parent = &next.tables[&t.parent];
-        let recapture = previous.table(&name).and_then(|t|t.through.as_ref()) != Some(t);
+        let recapture = previous.table(&name).and_then(|t| t.through.as_ref()) != Some(t);
         let mut invalid = 0;
         rows(tx, &name, |old| {
             let mut row = old.clone();
             if recapture {
-            let parent_row = old
-                .field(&t.reference)
-                .ok()
-                .and_then(|id| id.as_str().ok())
-                .map(|id| tx.get(&t.parent, id))
-                .transpose()?
-                .flatten();
-            let Some(parent_row) = parent_row.filter(|r| !parent.expired(r, now)) else {
-                invalid += 1;
-                return Ok(());
-            };
-            super::through::stamp(parent, t, &parent_row, &mut row)?;
+                let parent_row = old
+                    .field(&t.reference)
+                    .ok()
+                    .and_then(|id| id.as_str().ok())
+                    .map(|id| tx.get(&t.parent, id))
+                    .transpose()?
+                    .flatten();
+                let Some(parent_row) = parent_row.filter(|r| !parent.expired(r, now)) else {
+                    invalid += 1;
+                    return Ok(());
+                };
+                super::through::stamp(parent, t, &parent_row, &mut row)?;
             }
             table.recompute_deadline(&mut row)?;
             let before = previous.table(&name).and_then(|table| table.deadline(&old));
@@ -290,4 +293,78 @@ pub fn validate_indexes(tx: &dyn Rows, schema: &Schema) -> Result<(), RuntimeErr
         }
     }
     Ok(())
+}
+
+impl super::runner::Runner<'_> {
+    /// Authoritative adapters feed an ancestor-ordered batch to the ordinary
+    /// insert/update path; captures always resolve inside this transaction.
+    pub fn seed_server_rows(
+        &mut self,
+        rows: impl IntoIterator<Item = (String, Value)>,
+    ) -> Result<u64, RuntimeError> {
+        if !self.context.is_system() || self.device {
+            return Err(RuntimeError::Input(
+                "server seed requires system authority".into(),
+            ));
+        }
+        let order = self.schema.through_order();
+        let mut rows: Vec<_> = rows.into_iter().collect();
+        rows.sort_by_key(|(n, _)| order.iter().position(|x| x == n));
+        let count = rows.len() as u64;
+        for (name, row) in rows {
+            super::timeline::check_import(self.schema, &name)?;
+            self.upsert(&name, &row.field("id")?.clone(), row)?;
+        }
+        self.check_final_exists()?;
+        Ok(count)
+    }
+
+    /// A bounded child-first sweep on the common Rows interface.
+    pub fn sweep_server_rows(&mut self, limit: usize) -> Result<u64, RuntimeError> {
+        if !self.context.is_system() || self.device {
+            return Err(RuntimeError::Input(
+                "server sweep requires system authority".into(),
+            ));
+        }
+        let now = self
+            .context
+            .now
+            .ok_or_else(|| RuntimeError::Input("sweep clock is not pinned".into()))?;
+        let mut count = 0;
+        for name in self.schema.through_order().into_iter().rev() {
+            let Some((index, _)) = self.schema.tables[&name].expiry_index() else {
+                continue;
+            };
+            while count < limit as u64 {
+                let page = self.tx.scan(
+                    &name,
+                    index,
+                    &[],
+                    &Bounds {
+                        gte: Some(Value::Int(i64::MIN)),
+                        lte: Some(Value::Int(now)),
+                        ..Default::default()
+                    },
+                    Dir::Asc,
+                    (limit - count as usize).min(256),
+                )?;
+                if page.is_empty() {
+                    break;
+                }
+                let mut progress = false;
+                for (row, _) in page {
+                    if self.physical_children(&name, row.field("id")?)? {
+                        continue;
+                    }
+                    self.remove(&name, &row)?;
+                    count += 1;
+                    progress = true;
+                }
+                if !progress {
+                    break;
+                }
+            }
+        }
+        Ok(count)
+    }
 }

@@ -8,6 +8,7 @@ mod caps;
 mod authority;
 mod prefetch;
 mod tail;
+mod through;
 #[cfg(test)]
 mod tests;
 pub use store::WriteMode;
@@ -75,7 +76,8 @@ impl PostgresEngine {
         Self::attach(client, schema, programs)
     }
 
-    /// Reopen persisted, immutable compiled content. No activation/migration API.
+    /// Reopen the persisted compiled generation; subsequent transactions refuse
+    /// if another connection activates a successor.
     pub fn open(mut client: Client, name: &str) -> Result<Self, RuntimeError> {
         let name = namespace(name)?;
         client.batch_execute(&format!("SET search_path = {name}, pg_catalog;"))?;
@@ -98,10 +100,20 @@ impl PostgresEngine {
     }
 
     fn attach(mut client: Client, schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
+        client.batch_execute("ALTER TABLE _backend ADD COLUMN IF NOT EXISTS generation BIGINT NOT NULL DEFAULT 1")?;
+        client.batch_execute("ALTER TABLE _backend ADD COLUMN IF NOT EXISTS through_shortened TEXT NOT NULL DEFAULT '{}'")?;
+        let held=client.query_one("SELECT generation,schema,programs FROM _backend WHERE singleton",&[])?.to_owned();
+        let generation=held.get::<_,i64>(0) as u64;
+        let held_schema:Schema=decode(held.get(1))?;
+        let held_programs:BTreeMap<String,Program>=decode(held.get(2))?;
+        if held_schema.hash()!=schema.hash() || canonical_json(&held_programs)!=canonical_json(&programs) {
+            return Err(RuntimeError::Generation("the backend changed while opening; reopen its current generation".into()));
+        }
         client.batch_execute("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         client.batch_execute("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&mut client, &schema)?;
-        Ok(Self { store: Store::new(client), schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
+        let mut store=Store::new(client); store.generation=generation;
+        Ok(Self { store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
     }
 
     pub fn schema(&self) -> &Schema {
@@ -111,7 +123,7 @@ impl PostgresEngine {
         &self.programs
     }
     pub fn generation(&self) -> u64 {
-        1
+        self.store.generation
     }
     pub fn set_ceilings(&mut self, ceilings: Ceilings) {
         self.ceilings = ceilings;
@@ -288,6 +300,7 @@ impl PostgresEngine {
     /// and aggregates skipped, partition events emitted. For fixtures whose
     /// aggregates are already computed and for the conformance corpus.
     pub fn load(&mut self, rows: impl IntoIterator<Item = (String, Value)>) -> Result<u64, RuntimeError> {
+        if self.schema.tables.values().any(|t|t.through.is_some()) { return self.seed_at(rows,crate::now_ms()); }
         let now = crate::now_ms();
         let tx = self.store.transaction(Some(WriteMode::Serialized))?;
         let seq = tx.next_seq()?;
@@ -316,6 +329,10 @@ impl PostgresEngine {
 
     /// Fixture loading still uses the real validation, maintains and sync paths.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+        let mut rows: Vec<_> = rows.into_iter().collect();
+        if self.schema.tables.values().any(|t|t.through.is_some()) {
+            let order=self.schema.through_order(); rows.sort_by_key(|(n,_)| order.iter().position(|x|x==n));
+        }
         let tx = self.store.transaction(Some(WriteMode::Serialized))?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
@@ -403,6 +420,10 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
 
 // @ref LLP 3000.007.001#3.11 — this evaluation backend claims no maintained-column parity.
 fn refuse_maintained_columns(schema: &Schema) -> Result<(), RuntimeError> {
+    if schema.tables.iter().all(|(name,table)| table.maintained.keys().all(|field|
+        schema.maintains.iter().any(|m| m.private.as_ref().is_some_and(|o| &o.table == name && &o.column == field)
+            && schema.table(&m.source).is_some_and(|s| !s.is_expiring() && s.through.as_ref().is_some_and(|t| &t.parent == name && m.by == [t.reference.clone()])))))
+        && schema.maintains.iter().filter_map(|m|m.private.as_ref()).all(|o| schema.table(&o.table).is_some_and(|t|t.maintained.contains_key(&o.column))) { return Ok(()); }
     if schema.tables.values().any(|table| !table.maintained.is_empty())
         || schema.maintains.iter().any(|maintain| maintain.private.is_some())
     {
