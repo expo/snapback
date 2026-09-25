@@ -55856,3 +55856,64 @@ rewrite, push or publication. No requested fix is deferred. Implementation
 commits: `04db26c43`, `7ba43b80b`, `88b13aae7`. File-by-file changes, examples,
 test purposes, intentional conservative fallback and failure accounting:
 [round-10 report](reports/20260925-intent-lane-t-round10.md).
+
+## 2026-09-25 — Lane T, LLP 3000.014 round 11: partial provenance and emitted masks
+
+Addressed Grok's round-10 Medium and Low, both requested mutation gaps, and
+Astra's nonblocking duplicate-source test gap. Fallback now pairs only source
+identities present and unique on both sides, without discarding identified
+siblings when another element has no unique source. Source-free object
+wrappers recurse through field masks. Unpaired local elements survive only
+when their own masks contain retained history; an unpaired current row cannot
+reappear after the server omits it. A missing server envelope still keeps the
+local subtree incomplete. Anonymous array elements remain unpaired: server
+elements stay, and retained local wrappers append without positional guesses.
+LLP 3000.014 §5 records this round's refinement of round 10.
+
+The output meter now charges mask construction and bytes only when the reply
+carries a mask: retained rows on devices, explicit provenance requests on the
+server. Source stamping still pays its existing charges. A device page with
+no retained rows now succeeds at its exact 46-byte data ceiling. The server
+provenance fixture asserts exactly 218 bytes: 73 data + 145 mask.
+
+Added four real-mask regressions across wasm and native: an identityless
+wrapper containing comments and retained reactions sharing `x`, and a parent
+page with an unidentified sibling plus an unpaired current parent omitted by
+the server. Added local-only, server-only and two-sided duplicate-source
+witnesses, each preserving unique siblings. Existing reordered/shifted pages,
+projected fields, missing envelopes, parent-delete and ordinary retained-point
+regressions remain green. Updated the anonymous array-wrapper expectation to
+round 11's per-element behavior; no history is attached by guessed identity.
+
+Before the fixes, the four new client cases returned stale local data and the
+device page refused with `E_BOUND`. Both requested source mutations failed:
+omitting the append's retained check failed on wasm and native; charging one
+byte failed the exact envelope assertion (74 versus 218). Removing duplicate
+rejection failed all three ambiguity cases. Every mutation was restored.
+Focused final checks: 27 client cases, three Rust provenance tests, package
+build and typecheck, all passing. Two initial fixture drafts hit
+`E_QUARRY_SHAPE_JOIN`; these were ours and were corrected to consistent spread
+row objects before the regression runs and full qualification.
+
+Required full run, exit 0, exact summary: **`== 0 failure(s) in 1161 s`**.
+Rust target runner: **3,048 passed, 16 ignored, zero failed**; docs budget
+separately rechecked one guide case. Client: **1,608 passed, 10 skipped, zero
+failed (1,618 total)**. Every blocking phase passed on this round's first full
+run. No failure was waived as baseline or environmental. Read the baseline
+log tail; bounded this lane with CPU affinity 32–47, eight build jobs, eight
+Rust target processes, four Rust test threads and serial client files, using
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`. Full log:
+`~/sb4-intent/lane-t-r11-test.log`.
+
+Final wasm: **1,834,177 bytes raw / 515,152 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127 without wasm-opt. The **516,000-byte budget is unchanged**
+(848 bytes headroom). Compared with round 10's recorded artifact: +8 raw /
++69 gzip bytes, a whole-artifact comparison, not independent component
+attribution. Runtime ceilings are unchanged. `ref-check --verbose` and
+`git diff --check` passed; all changed source files are below 1,500 lines
+(largest: `runner.rs`, 1,082). No clock site, public Read contract, persisted
+row format, authorization rule or server physical-child protection changed.
+No new syntax, refusal code, guide rewrite, push or publication; no requested
+fix is deferred. Implementation commits: `97b181fec`, `ea2b2df7c`. File map,
+examples, decisions and full evidence:
+[round-11 report](reports/20260925-intent-lane-t-round11.md).
