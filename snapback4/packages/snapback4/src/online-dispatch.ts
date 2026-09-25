@@ -6,7 +6,7 @@ export interface DispatchOwner {
   observe(store: string): void;
   before(id: string, store: string | undefined): Promise<Write | undefined>;
 }
-export interface DispatchState { store?: string; owner?: DispatchOwner }
+export interface DispatchState { store?: string; owner?: DispatchOwner; identify?: () => Promise<void> }
 const clients = new WeakMap<Client, DispatchState>();
 export function trackDispatch(client: Client, state: DispatchState): void { clients.set(client, state); }
 export function ownDispatch(client: Client, owner: DispatchOwner): void {
@@ -17,4 +17,9 @@ export function ownDispatch(client: Client, owner: DispatchOwner): void {
 }
 export function dispatchIdentity(client: Client): string | undefined {
   return clients.get(client)!.store;
+}
+export async function identifyDispatch(client: Client): Promise<string | undefined> {
+  const state = clients.get(client)!;
+  if (!state.store) await state.identify?.();
+  return state.store;
 }
