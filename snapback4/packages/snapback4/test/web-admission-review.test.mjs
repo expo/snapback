@@ -71,7 +71,8 @@ query total():
   if (mutant === 'empty-queue') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null)) return true;\n    if (!capture.store_id) return false;');
   if (mutant === 'ordinary-gate') replace('local.ts', 'if (closed || !sendingAllowed) return;', 'if (closed) return;');
   if (mutant === 'replay-delivery') replace('local.ts', 'if (replayAllowed) listenForExit();', 'if (replayAllowed) { sendingAllowed = true; await flushOnce(false); listenForExit(); }');
-  if (mutant === 'reconnect-exit') replace('local.ts', '      listenForExit();\n      return true;', '      return true;');
+  if (mutant === 'reconnect-exit') replace('local.ts', '      listenForExit();', '      /* mutant: reconnect never installs exit */');
+  if (mutant === 'reconnect-delivery') replace('local.ts', '      if (resumeSending && sendingAllowed) void flush();', '      /* mutant: ordinary delivery never wakes */');
   const witness = await launch({ sourceDir, seed: [{ table: 'removals', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
@@ -409,6 +410,7 @@ window.captureClick = () => {
         assert.equal(await page.evaluate(() => exitRegistrations), 0);
         await page.evaluate(async () => { window.unavailable = false; await app.client.sync(); });
         await page.waitForFunction(() => app.client.acquired);
+        await until(() => page.evaluate(() => sent.some(send => !send.keepalive)), 'successful reconnect wakes ordinary delivery before page hide');
       } else await page.waitForFunction(() => window.mutationHeld);
       assert.equal(await page.evaluate(() => exitRegistrations), 1);
       const delivered = page.waitForResponse(response => response.url().endsWith('/m/removeMember')

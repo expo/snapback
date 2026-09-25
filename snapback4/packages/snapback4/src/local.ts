@@ -758,7 +758,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       lastSyncAt = Date.now();
       await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
       // A later reconnect can establish custody that startup could not validate.
+      const resumeSending = !sendingAllowed;
       listenForExit();
+      if (resumeSending && sendingAllowed) void flush();
       return true;
     } finally {
       if (!closed && adoptedGeneration) {
@@ -1450,7 +1452,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (replayAllowed) listenForExit();
     // Install the same-head exit retry before awaiting ordinary delivery.
     // Slow delivery and snapshots must not consume the page's exit opportunity.
-    if (replayAllowed) await flushOnce(false);
+    if (replayAllowed && link === "online") await flushOnce(false);
     if (link === "online") await syncOnce();
     stopOutbox = core.onOutbox?.(() => { void flush(); });
     follow();
