@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { launch, root, binary } from '../../../witness/lib.mjs';
+import { until } from './helpers/app-server.mjs';
 const source = `use identity
 
 table members:
@@ -146,7 +147,7 @@ window.mountProgress = (app) => {
       window.app = createApp({ url: api, sessionStore: localStorageSessionStore(), device: webDevice(), waitSeconds: 1 });
       await app.ready;
     }, api);
-    await page.waitForFunction(async id => (await app.client.write(id))?.state === 'sent', click.id);
+    await until(() => page.evaluate(async id => (await app.client.write(id))?.state === 'sent', click.id), 'recovered write sent');
     const total = await page.evaluate(() => app.client.query(api.total, {}));
     assert.equal(total.data, 1);
     assert.ok(sent.length > 0); assert.ok(sent.every(write => write.id === click.id));
@@ -171,7 +172,7 @@ window.mountProgress = (app) => {
       window.app = createApp({ url: api, sessionStore: localStorageSessionStore(), device: webDevice(), waitSeconds: 1 });
       await app.ready;
     }, api);
-    await page.waitForFunction(async id => (await app.client.write(id))?.state === 'sent', click.id);
+    await until(() => page.evaluate(async id => (await app.client.write(id))?.state === 'sent', click.id), 'recovered write sent');
     assert.equal((await page.evaluate(() => app.client.query(api.total, {}))).data, 2);
     assert.ok(sent.some(write => write.id === click.id));
     await page.evaluate(() => app.close());
@@ -262,7 +263,7 @@ window.mountProgress = (app) => {
         return { id, record, store: decodeURIComponent(key.split(':')[1]) };
       });
       assert.equal(captured.record.authority.principal, session.principal);
-      await page.waitForFunction(async api => (await navigator.locks.query()).pending.some(lock => lock.name === sessionKey(api)), api);
+      await until(() => page.evaluate(async api => (await navigator.locks.query()).pending.some(lock => lock.name === sessionKey(api)), api), 'admission queued on the session lock');
       const outbox = await page.evaluate(async ({ store, id }) => indexedDbPersistence().read(store, 'o', id), captured);
       assert.equal(outbox, null, 'the journal must wait for the session lock before device admission');
       assert.equal(sent.length, before);
