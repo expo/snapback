@@ -55612,3 +55612,61 @@ No requested fix remains open. No new form, refusal code, store/cursor/wire
 format, sync/device feature, broad guide rewrite, push or publication was added.
 File map, examples, mutation witnesses, decisions and complete failure accounting:
 [round-6 report](reports/20260925-intent-lane-t-round6.md).
+
+
+## 2026-09-25 — LLP 3000.014 Lane T round-7 predicate expiry dependencies
+
+Addressed the shared Astra/Grok finding that a rejected candidate discarded
+its filter's completed, authorized reads. Implementation commit: `a27d2b1f6`.
+Filters now use a separate provisional scope that commits to the page on both
+match and mismatch. Interrupted predicates still discard their scope. The
+candidate's pending private authorization deadline is inherited only after
+retention or scalar consumption; rejected and lookahead candidates keep it
+private. Charges and cuts are unchanged. This reuses the existing scope
+mechanism, with no new ad hoc restoration.
+
+Five shared scenarios cover intrinsic-ID and secondary-key existence predicates,
+matched-only/rejected-only/mixed rows reading one expiring point predicate,
+a rejected row with private authorization at 300/500 and a public predicate at
+700, and streaming `count(gates)` changing from one to zero at expiry. Every
+predicate case also covers `count(docs where ...)`. Denied witnesses publish
+no deadline. The earlier `unreturned_candidates_discard_expiry` remains green.
+
+All four predicate scenarios fail against round-6 production with a missing
+deadline. Three individual mutations fail: omit the filter emission, publish
+private candidate metadata with the filter, and omit the streaming scalar's
+emission. The last is Astra's surviving mutation. All mutations were restored
+before qualification. Shared review suite: 33 passed on SQLite/native MemoryStore.
+PostgreSQL: 35 passed (seven original and 28 review tests), with ignored tests
+enabled on the lane's isolated cluster; that cluster was stopped afterward.
+
+Full `scripts/test.sh`: **`== 0 failure(s) in 1149 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust: 3,025 passed, zero failed, 16 ignored. Clients: 1,591 total, 1,581 passed,
+zero failed, ten existing skips. All 80 guide tests passed. Ref-check: 508 LLP
+documents, 9,287 references across 25,911 files, zero errors and zero unchecked
+references. Frozen Bun install changed nothing. No baseline or environmental
+failure was waived or repaired; no assertion was weakened.
+
+The initial fixture run had four compile-time failures, all ours: an overly
+wide text argument, distinct intrinsic-ID reference types, an ambiguous
+positional key and an untyped literal rule key. Corrected only the fixtures.
+The intrinsic-ID reproduction uses `rawId(.id)` through the supported generic
+`id` type because the exact cross-table `.id` spelling is already refused by
+this checkout's binder with `E_QUARRY_TYPE`. The named `docId` reproduction is
+unchanged. No compiler or authorization restriction was relaxed. The report
+records this fixture deviation, the negative controls and every failed test
+attempt separately from the successful full qualification.
+
+Round 6 was 1,799,122 raw / 503,028 gzip bytes; round 7 is 1,799,206 / 503,057
+on Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt: +84 raw / +29 gzip for
+the whole artifact, without independent component attribution. The unchanged
+504,000-byte artifact ratchet has 943 bytes of headroom. All runtime ceilings
+and charges are unchanged. `engine/read.rs` is 1,440 lines and the new fixture
+module is 224 lines. LLP 3000.014 §5 records the predicate/candidate distinction.
+
+No requested engine fix remains open. Sync/devices and the guide remain for
+increments 2 and 4 as directed. No syntax, refusal code, store/cursor/wire
+format, publication or push was added. File map, examples, test purposes,
+mutation witnesses and full failure accounting:
+[round-7 report](reports/20260925-intent-lane-t-round7.md).
