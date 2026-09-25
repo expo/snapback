@@ -120,45 +120,100 @@ scenario!(aggregate_denial_work);
 scenario!(aggregate_denial_dependencies);
 
 #[test]
-fn aggregate_authorization_requires_a_physical_recount_bound() {
+fn expiring_aggregate_authorization_is_key_determined() {
     let model = include_str!("read_through/lifetime.q");
-    let tail = "\nview totals: count children by .parent\n  read <- .value = 2\nquery total(p: parents):\n  return totals[p]\n";
-    for cap in ["", "\n  cap 4 by body"] {
-        let source = format!(
-            "{}{tail}",
-            model.replace("immutable parent", &format!("immutable parent{cap}"))
-        );
-        let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
-        let d = b
-            .diagnostics
-            .iter()
-            .find(|d| d.code == "E_MAINTAIN_READ_BOUND")
-            .expect("an unpinned source cap cannot bound the recount");
-        assert!(d.message.contains("cap 100 by parent"), "{d:?}");
+    for model in [
+        model.to_owned(),
+        model.replace("read through .parent", "read <- allow"),
+        model.replacen("  expire at .until\n  read through", "  read through", 1),
+    ] {
+        for cap in ["", "\n  cap 4 by parent"] {
+            for rule in [".value = 2", ".value != 1", ".value = .value"] {
+                let source = format!(
+                    "{}\nview totals: count children by .parent\n  read <- {rule}\nquery total(p: parents):\n  return totals[p]\n",
+                    model.replace("immutable parent", &format!("immutable parent{cap}"))
+                );
+                assert_expiring_rule_refused(&source, rule);
+                assert_expiring_rule_refused(
+                    &source.replace(
+                        &format!("  read <- {rule}\nquery"),
+                        &format!("  online only\n  read <- {rule}\nquery"),
+                    ),
+                    rule,
+                );
+            }
+        }
     }
     let source = format!(
-        "{}{tail}",
-        model.replace("immutable parent", "immutable parent\n  cap 4 by parent")
+        "{model}\nview totals: count children by .parent\n  read <- .parent = .parent\nquery total(p: parents):\n  return totals[p]\n"
     );
     let mut b = cases::bound(&source);
-    b.schema
-        .tables
-        .get_mut("children")
-        .unwrap()
-        .constraints
-        .retain(|c| !matches!(c, snapback4_core::schema::Constraint::Cap { .. }));
+    b.schema.tables.get_mut("totals").unwrap().rules.read = snapback4_core::schema::RuleExpr::Eq(
+        snapback4_core::schema::RuleTerm::Field("value".into()),
+        snapback4_core::schema::RuleTerm::Literal(snapback4_core::Value::Int(2)),
+    );
     assert!(
         snapback4_core::schema::validate(&b.schema)
             .iter()
-            .any(|issue| issue
-                .message
-                .contains("value-dependent aggregate authorization")),
-        "raw schema callers cannot bypass the bound"
+            .any(|issue| issue.message.contains("expiring aggregate authorization")),
+        "raw schema callers obey the same restriction"
     );
-    cases::bound(&format!(
-        "{model}{}",
-        tail.replace(".value = 2", ".parent = .parent")
-    ));
+}
+
+fn assert_expiring_rule_refused(source: &str, rule: &str) {
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let d = b
+        .diagnostics
+        .iter()
+        .find(|d| d.code == "E_MAINTAIN_READ_EXPIRE")
+        .expect("expiring value authorization must refuse regardless of caps");
+    assert!(d.site.line > 1 && d.message.contains("group keys"), "{d:?}");
+    cases::bound(&source.replace(&format!("read <- {rule}"), &d.rewrite));
+}
+
+#[test]
+fn stored_total_page_authorization_is_refused() {
+    let source = format!(
+        "{}\nview totals: count children by .parent\n  read <- .value = 2\nmutation setup():\n  insert parents {{ id: 'p', owner: viewer, until: null }}\n  insert children {{ id: 'a', parent: 'p', body: 'one', until: null }}\n  insert children {{ id: 'b', parent: 'p', body: 'two', until: 150 }}\nquery pageTotals(p: parents):\n  return totals where .parent = p first 10\n",
+        include_str!("read_through/lifetime.q")
+            .replace("immutable parent", "immutable parent\n  cap 4 by parent")
+    );
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(
+        b.diagnostics
+            .iter()
+            .any(|d| d.code == "E_MAINTAIN_READ_EXPIRE"),
+        "{:?}",
+        b.diagnostics
+    );
+}
+
+#[test]
+fn signed_sum_overflow_before_authorization_is_refused() {
+    let model = include_str!("read_through/lifetime.q").replace(
+        "  body: text <=100",
+        "  n: int default 0\n  cap 4 by parent\n  body: text <=100",
+    );
+    let source = format!(
+        "{model}\nview totals: sum children of .n by .parent\n  read <- .value = 2\nmutation setup():\n  insert parents {{ id: 'p', owner: viewer, until: null }}\n  insert children {{ id: 'a', parent: 'p', body: '', n: 9007199254740991, until: null }}\n  insert children {{ id: 'b', parent: 'p', body: '', n: -9007199254740991, until: 150 }}\n  insert children {{ id: 'c', parent: 'p', body: '', n: 9007199254740991, until: null }}\nquery total(p: parents):\n  return totals[p]\n"
+    );
+    assert_expiring_rule_refused(&source, ".value = 2");
+}
+
+#[test]
+fn explicit_parent_key_aggregate_scans_are_refused() {
+    let source = format!(
+        "{}\nview totals: count children by .parent\n  read <- .parent = .parent\nquery totalsPage(p: parents):\n  return totals where .parent = p first 10\n",
+        include_str!("read_through/lifetime.q")
+    );
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(
+        b.diagnostics
+            .iter()
+            .any(|d| d.code == "E_READ_THROUGH_SCAN"),
+        "{:?}",
+        b.diagnostics
+    );
 }
 
 #[test]
@@ -168,3 +223,6 @@ fn a_non_expiring_aggregate_needs_no_recount_cap() {
         "{source}\nview totals: count children by .parent\n  read <- .value = 2\nquery total(p: parents):\n  return totals[p]\n"
     ));
 }
+
+scenario!(aggregate_sequential_reads);
+scenario!(aggregate_multi_batch);

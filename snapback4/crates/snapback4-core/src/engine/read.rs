@@ -327,15 +327,37 @@ impl Runner<'_> {
     fn get_inner(&mut self, read: &Read) -> Result<Value, RuntimeError> {
         let key = read.key.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
-        let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
         self.read_tables.insert(read.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
-        let inherited = self.schema.maintain_for(&read.table).filter(|m| self.schema.tables[&m.source].through.is_some());
-        let mut inherited_admitted = false;
+        let Some(maintain) = self.schema.maintain_for(&read.table) else { return self.get_prepared(read, &key); };
+        if let Some(message) = maintain.expiring_read_refusal(self.schema) {
+            return Err(RuntimeError::Structural { code: "E_MAINTAIN_READ_EXPIRE", message });
+        }
+        let scratch = self.aggregate_point_scratch(maintain, &key);
+        self.meter.heap(scratch)?;
+        let result = (|| {
+            self.read_charge(MeterKind::Examined, 1)?;
+            self.meter.require_uncapped()?;
+            self.get_prepared(read, &key)
+        })();
+        // Transfer only the returned image to retained ownership. Keep the
+        // high-water mark, work counters and any cut when releasing scratch.
+        self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(scratch);
+        let value = result?;
+        self.meter.heap(value.clone_heap_bytes())?;
+        Ok(value)
+    }
+
+    fn get_prepared(&mut self, read: &Read, key: &[Value]) -> Result<Value, RuntimeError> {
+        let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
+        let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
+        let maintained = self.schema.maintain_for(&read.table);
+        let inherited = maintained.filter(|m| self.schema.tables[&m.source].through.is_some());
+        let mut key_admitted = false;
         // @ref LLP 3000.014#5-what-derives-from-the-capture — only key-determined inputs may authorize a synthetic aggregate row.
-        if let Some(m) = inherited.filter(|m| m.parent_key.is_some() || rules::deciding_fields(&read.table, table, &table.rules.read).iter().all(|field| index.columns().iter().take(key.len()).any(|column| column == field))) {
+        if let Some(m) = inherited.filter(|m| m.parent_key.is_some() || rules::deciding_fields(&read.table, table, &table.rules.read).iter().all(|field| index.columns().iter().take(key.len()).any(|column| column == field) || (field == "id" && m.group_fields().iter().all(|f| index.columns().iter().take(key.len()).any(|column| column == f))))) {
             let visible = if let Some(parent) = &m.parent_key {
                 let Some(at) = index.columns().iter().position(|f| f == &parent.reference) else { return Err(RuntimeError::Structural {code:"E_READ_THROUGH_SCAN",message:format!("{} must be read by its full parent key; use {}[parent] (guide maintains)",read.table,read.table)}); };
                 let parent_id = key.get(at).ok_or_else(|| RuntimeError::Input("read through aggregate needs its full parent key".into()))?;
@@ -345,53 +367,58 @@ impl Runner<'_> {
                     _ => false,
                 }
             } else {
-                let row = Value::Row(index.columns().into_iter().zip(key.iter().cloned()).collect());
-                self.meter.charge(MeterKind::RuleProbes,rules::rule_probes(&table.rules.read))?;
+                let mut fields: std::collections::BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
+                let group_fields = m.group_fields();
+                if group_fields.iter().all(|f| fields.contains_key(f)) {
+                    let group: Vec<_> = group_fields.iter().map(|f| fields[f].clone()).collect();
+                    fields.insert("id".into(), Value::Id(crate::schema::maintained_id(&group)));
+                }
+                let row = Value::Row(fields.into());
+                self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))?;
                 let viewer = self.context.viewer.clone();
                 self.context.is_system() || rules::evaluate(&table.rules.read,&viewer,None,&row,false,&mut PrefixProbe {runner:self})?
             };
             if !visible { return Ok(crate::value::object([("value",Value::Null)])); }
-            inherited_admitted = true;
+            key_admitted = true;
         }
         if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
         }
-        if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(&key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
+        if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
             // A null key on a required column addresses nothing.
             return Ok(Value::Null);
         }
         // @ref LLP 3000.007#20.12 — reserve authorization before knowing hit, miss or hidden; an exhausted probe is not a false verdict to roll back.
-        let trusted = inherited_admitted || self.context.is_system() || self.trust_synced_read(table);
+        let trusted = key_admitted || self.context.is_system() || self.trust_synced_read(table);
         // Prediction keeps the server's reservation even for delivered rows.
         // Only the additional physical authority work uses the device allowance.
         let prepaid = !trusted || (self.device_allowance.is_some() && !self.context.is_system());
         if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
         // Hidden and absent cost one examined row and the same static probe
         // allowance, including probes that a rule would short-circuit.
-        let actual_aggregate = inherited.is_some() && !inherited_admitted;
-        let recount = if actual_aggregate { Some(self.reserve_aggregate_read(inherited.unwrap(), &key)?) } else { None };
+        let stored_authorization = inherited.is_some_and(|m| !self.schema.tables[&m.source].is_expiring()) && !key_admitted;
         let mark = self.meter.mark();
         let expiry_mark = self.next_expiry;
         let tables_mark = self.read_tables.clone();
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
         // An expiring lookup already charged its live candidate while
         // passing expired siblings. A miss still costs one point read.
-        if !actual_aggregate && (!table.is_expiring() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
+        if maintained.is_none() && (!table.is_expiring() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
         let mut group_exists = found.is_some();
-        let mut row = if actual_aggregate {
-            // A value-dependent rule sees the live aggregate, including its
-            // logical zero on a missing group, never a null value or stale total.
-            let live = found.map(|row| self.prepaid_aggregate(inherited.unwrap(), row, recount.unwrap())).transpose()?.flatten();
+        let mut row = if stored_authorization {
+            // Only non-expiring sources reach this path: the stored total
+            // is already live. A missing group authorizes its logical zero.
+            let live = found;
             group_exists = live.is_some();
             match live {
                 Some(row) => row,
                 None => {
                     // The same reservation owns a live row or a logical zero.
                     let mut fields: std::collections::BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
-                    let m = inherited.expect("inherited aggregate");
+                    let m = maintained.expect("maintained aggregate");
                     if !m.by.iter().all(|field| fields.contains_key(field)) { return Ok(crate::value::object([("value", Value::Null)])); }
                     let group: Vec<_> = m.by.iter().map(|field| fields[field].clone()).collect();
                     fields.insert("id".into(), Value::Id(crate::schema::maintained_id(&group)));
@@ -419,15 +446,17 @@ impl Runner<'_> {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
-            let value = if actual_aggregate { if group_exists { row } else { Value::Null } }
-                else { self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null) };
+            let value = if stored_authorization { if group_exists { row } else { Value::Null } }
+                else if let Some(m) = maintained.filter(|m| self.schema.tables[&m.source].is_expiring()) {
+                    self.live_aggregate_inner(m, row)?.unwrap_or(Value::Null)
+                } else { row };
             Ok(super::recorded::public_image(table, value))
         } else {
             self.next_expiry = expiry_mark;
             self.read_tables = tables_mark;
             if !provisional {
                 self.meter.restore(mark);
-                if !actual_aggregate { self.read_charge(MeterKind::Examined, 1)?; }
+                if maintained.is_none() { self.read_charge(MeterKind::Examined, 1)?; }
             }
             Ok(if inherited.is_some() { crate::value::object([("value", Value::Null)]) } else { Value::Null })
         }
@@ -858,7 +887,10 @@ impl Runner<'_> {
     }
 
     fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<(&mut i128, Option<&Expr>)>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
-        if self.schema.maintain_for(&scan.table).is_some_and(|m| m.parent_key.is_some()) {
+        if let Some(message) = self.schema.maintain_for(&scan.table).and_then(|m| m.expiring_read_refusal(self.schema)) {
+            return Err(RuntimeError::Structural { code: "E_MAINTAIN_READ_EXPIRE", message });
+        }
+        if self.schema.maintain_for(&scan.table).is_some_and(|m| m.groups_by_parent(self.schema)) {
             return Err(RuntimeError::Structural {code:"E_READ_THROUGH_SCAN",message:format!("{} at {} is keyed by its parent; read {}[parent] instead of scanning groups (guide maintains)",scan.table,scan.site,scan.table)});
         }
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;

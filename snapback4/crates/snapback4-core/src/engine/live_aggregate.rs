@@ -1,4 +1,4 @@
-//! Live aggregate evaluation and the fixed allowance for pre-authorization work.
+//! Live recounts run only after key authorization; point-read scratch is reusable.
 use super::{runner::Runner, write_target::row_copy_ceiling};
 use crate::{
     error::{MeterKind, RuntimeError},
@@ -8,23 +8,10 @@ use crate::{
 };
 
 impl Runner<'_> {
-    // @ref LLP 3000.014#11-review-record — a denied empty or occupied group pays one bounded recount before either can be discovered.
-    pub(super) fn reserve_aggregate_read(
-        &mut self,
-        maintain: &Maintain,
-        key: &[Value],
-    ) -> Result<u32, RuntimeError> {
-        let bound = maintain
-            .recount_bound(self.schema)
-            .ok_or_else(|| RuntimeError::Schema(maintain.read_bound_refusal()))?;
+    // @ref LLP 3000.014#5-what-derives-from-the-capture — a point hit, miss or denial reserves the same reusable row scratch before discovering occupancy.
+    pub(super) fn aggregate_point_scratch(&self, maintain: &Maintain, key: &[Value]) -> u64 {
         let source = &self.schema.tables[&maintain.source];
-        if source.is_expiring() && !source.indexes.contains_key(&maintain.contribution_index()) {
-            return Err(RuntimeError::Schema(
-                "bounded aggregate recount needs its contribution index".into(),
-            ));
-        }
-        let target = &self.schema.tables[&maintain.target];
-        let bytes = row_copy_ceiling(target)
+        row_copy_ceiling(&self.schema.tables[&maintain.target])
             .saturating_mul(17)
             .saturating_add(
                 key.iter()
@@ -36,31 +23,7 @@ impl Runner<'_> {
                 row_copy_ceiling(source).saturating_mul(32)
             } else {
                 0
-            });
-        for (kind, amount) in [
-            (MeterKind::HeapBytes, bytes),
-            (MeterKind::Examined, u64::from(bound) + 1),
-            (
-                MeterKind::Steps,
-                u64::from(bound).saturating_mul(maintain.evaluation_steps() + 1),
-            ),
-        ] {
-            self.read_charge(kind, amount)?;
-            self.meter.require_uncapped()?;
-        }
-        Ok(bound)
-    }
-
-    pub(super) fn prepaid_aggregate(
-        &mut self,
-        maintain: &Maintain,
-        row: Value,
-        bound: u32,
-    ) -> Result<Option<Value>, RuntimeError> {
-        if !self.schema.tables[&maintain.source].is_expiring() {
-            return Ok(Some(row));
-        }
-        self.live_aggregate_inner(maintain, row, Some(bound))
+            })
     }
 
     /// A maintain over expiring source rows is a live fact before the
@@ -87,17 +50,18 @@ impl Runner<'_> {
                 super::write_target::row_copy_ceiling(&self.schema.tables[table_name])
                     .saturating_mul(16),
             );
-        self.maintain_scratch(bytes, |runner| {
-            runner.live_aggregate_inner(&maintain, row, None)
-        })
+        self.maintain_scratch(bytes, |runner| runner.live_aggregate_inner(&maintain, row))
     }
 
-    fn live_aggregate_inner(
+    pub(super) fn live_aggregate_inner(
         &mut self,
         maintain: &crate::schema::Maintain,
         row: Value,
-        prepaid: Option<u32>,
     ) -> Result<Option<Value>, RuntimeError> {
+        debug_assert!(
+            maintain.expiring_read_refusal(self.schema).is_none(),
+            "authorize expiring aggregates from their keys before recounting"
+        );
         let source = &self.schema.tables[&maintain.source];
         self.read_tables.insert(maintain.source.clone());
         let group = crate::schema::maintained_key(&row, &maintain.by);
@@ -113,28 +77,20 @@ impl Runner<'_> {
         let mut bounds = Bounds::default();
         let mut total = 0_i128;
         let mut any = false;
-        let mut remaining = prepaid.map(u64::from);
         'sources: loop {
-            let limit = remaining.map_or(32, |left| (left + 1).min(32) as usize);
+            let limit = 32;
             let rows = self
                 .tx
                 .scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, limit)?;
             let count = rows.len();
-            if let Some(left) = &mut remaining {
-                *left = left.checked_sub(count as u64).ok_or_else(|| {
-                    RuntimeError::Schema("aggregate source exceeds its physical cap".into())
-                })?;
-            }
             for (mut candidate, key) in rows {
                 materialize_optional_fields(&mut candidate, source);
-                if prepaid.is_none() && !self.read_charge(MeterKind::Examined, 1)? {
+                if !self.read_charge(MeterKind::Examined, 1)? {
                     break 'sources;
                 }
                 bounds.after = crate::key::decode(&key)
                     .map(|values| values.into_iter().skip(prefix.len()).collect());
-                if prepaid.is_none()
-                    && !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())?
-                {
+                if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? {
                     break 'sources;
                 }
                 if self.expired(source, &candidate)

@@ -306,7 +306,7 @@ impl<'a> Binder<'a> {
     }
 
     fn scan_at(&mut self, read: &ReadExpr, out: &mut setup::Body, position: prefix::Position) -> Fallible<(Scan, u32)> {
-        if self.schema.maintain_for(&read.table).is_some_and(|m| m.parent_key.is_some()) {
+        if self.schema.maintain_for(&read.table).is_some_and(|m| m.groups_by_parent(self.schema)) {
             return Err(Diagnostic::new(&read.site,"E_READ_THROUGH_SCAN",format!("{} groups are readable only by their parent key",read.table),format!("{}[parent]",read.table)).guide("maintains"));
         }
         let info = self.table(&read.table, &read.site)?;

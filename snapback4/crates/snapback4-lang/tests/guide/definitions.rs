@@ -182,7 +182,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_MAINTAINED_COLUMN_PRIVATE", "E_MAINTAINED_COLUMN_PRIVATE refuses addressing the column's private storage."),
     ("E_MAINTAINED_COLUMN_REFERENCE", "With no reference or several, E_MAINTAINED_COLUMN_REFERENCE lists the candidates: declare a reference if needed, then select it with `likeCount: count likes by .postId`."),
     ("E_MAINTAINED_COLUMN_RESULT", "Read the row under its read rule to see the aggregate; selecting the field from a write result refuses with E_MAINTAINED_COLUMN_RESULT."),
-    ("E_MAINTAIN_READ_BOUND", "E_MAINTAIN_READ_BOUND means a value-dependent rule on an expiring read-through aggregate cannot reserve bounded work before authorization."),
+    ("E_MAINTAIN_READ_EXPIRE", "E_MAINTAIN_READ_EXPIRE means an aggregate over an expiring source has a read rule that uses fields its group keys do not determine."),
     ("E_MAINTAIN_READ_RULE", "E_MAINTAIN_READ_RULE names missing fields; state an explicit `read <-` when the aggregate needs its own audience."),
     ("E_NATIVE", "E_NATIVE means a native declaration or loaded module cannot perform the requested operation."),
     ("E_NATIVE_BUILD", "E_NATIVE_BUILD means the native crate could not be built or its generated files could not be written or loaded."),

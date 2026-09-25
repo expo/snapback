@@ -71,3 +71,6 @@ scenario!(probe_meter_equivalence);
 
 scenario!(aggregate_denial_work);
 scenario!(aggregate_denial_dependencies);
+
+scenario!(aggregate_sequential_reads);
+scenario!(aggregate_multi_batch);

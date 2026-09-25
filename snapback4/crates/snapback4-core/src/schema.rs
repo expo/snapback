@@ -1029,9 +1029,7 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     if target.is_expiring() {
         issue(issues, format!("maintain {} cannot expire; give its source {} the lifetime", maintain.target, maintain.source));
     }
-    if maintain.read_needs_recount(schema) && maintain.recount_bound(schema).is_none() {
-        issue(issues, maintain.read_bound_refusal());
-    }
+    if let Some(message) = maintain.expiring_read_refusal(schema) { issue(issues, message); }
     if maintain.by.is_empty() {
         issue(issues, "maintain by needs at least one source column".into());
     }

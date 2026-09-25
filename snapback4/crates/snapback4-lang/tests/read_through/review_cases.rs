@@ -45,69 +45,79 @@ fn system(e: &mut dyn Backend, op: &str, args: &[(&str, Value)]) {
 const MODEL: &str = include_str!("lifetime.q");
 
 pub fn aggregate_actual_row(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
-    for rule in [".value != 1", ".value = 2"] {
-        let source = format!(
-            "{}\nview totals: count children by .parent\n  read <- {rule}\nquery total(p: parents):\n  return totals[p]\n",
-            MODEL.replace("immutable parent", "immutable parent\n  cap 4 by parent")
-        );
-        let mut e = factory(&source);
-        system(
-            &mut *e,
-            "parent",
-            &[
-                ("id", id("p")),
-                ("owner", id("alice")),
-                ("until", Value::Null),
-            ],
-        );
-        system(
-            &mut *e,
-            "child",
-            &[("id", id("c")), ("parent", id("p")), ("until", Value::Null)],
-        );
-        for viewer in ["alice", "bob"] {
+    for inherited in [false, true] {
+        for rule in [".value != 1", ".value = 2"] {
+            let source = format!(
+                "{}\nview totals: count children by .parent\n  read <- {rule}\nquery total(p: parents):\n  return totals[p]\n",
+                MODEL.replace("  expire at .until\n", "").replace(
+                    "read through .parent",
+                    if inherited {
+                        "read through .parent"
+                    } else {
+                        "read <- allow"
+                    }
+                )
+            );
+            let mut e = factory(&source);
+            system(
+                &mut *e,
+                "parent",
+                &[
+                    ("id", id("p")),
+                    ("owner", id("alice")),
+                    ("until", Value::Null),
+                ],
+            );
+            system(
+                &mut *e,
+                "child",
+                &[("id", id("c")), ("parent", id("p")), ("until", Value::Null)],
+            );
+            for viewer in ["alice", "bob"] {
+                assert_eq!(
+                    run(&mut *e, "total", viewer, 100, &[("p", id("p"))])
+                        .0
+                        .unwrap(),
+                    if inherited { Value::Null } else { Value::Int(0) },
+                    "{rule}: preserve each aggregate form's denied result"
+                );
+            }
+            system(
+                &mut *e,
+                "child",
+                &[
+                    ("id", id("d")),
+                    ("parent", id("p")),
+                    ("until", Value::Int(150)),
+                ],
+            );
             assert_eq!(
-                run(&mut *e, "total", viewer, 100, &[("p", id("p"))])
+                run(&mut *e, "total", "bob", 100, &[("p", id("p"))])
                     .0
                     .unwrap(),
-                Value::Null,
-                "{rule}: hidden aggregate is null"
+                Value::Int(2)
+            );
+            // Without an expiry declaration the stored total remains the live total.
+            assert_eq!(
+                run(&mut *e, "total", "bob", 200, &[("p", id("p"))])
+                    .0
+                    .unwrap(),
+                Value::Int(2)
+            );
+            system(&mut *e, "eraseChild", &[("id", id("c"))]);
+            system(&mut *e, "eraseChild", &[("id", id("d"))]);
+            assert_eq!(
+                run(&mut *e, "total", "bob", 200, &[("p", id("p"))])
+                    .0
+                    .unwrap(),
+                if rule == ".value != 1" || !inherited {
+                    Value::Int(0)
+                } else {
+                    Value::Null
+                },
+                "authorize the logical zero too"
             );
         }
-        system(
-            &mut *e,
-            "child",
-            &[
-                ("id", id("d")),
-                ("parent", id("p")),
-                ("until", Value::Int(150)),
-            ],
-        );
-        assert_eq!(
-            run(&mut *e, "total", "bob", 100, &[("p", id("p"))])
-                .0
-                .unwrap(),
-            Value::Int(2)
-        );
-        // The stored total is still two; authorization must see the live total one.
-        assert_eq!(
-            run(&mut *e, "total", "bob", 200, &[("p", id("p"))])
-                .0
-                .unwrap(),
-            Value::Null
-        );
-        system(&mut *e, "eraseChild", &[("id", id("c"))]);
-        assert_eq!(
-            run(&mut *e, "total", "bob", 200, &[("p", id("p"))])
-                .0
-                .unwrap(),
-            if rule == ".value != 1" {
-                Value::Int(0)
-            } else {
-                Value::Null
-            },
-            "authorize the logical zero too"
-        );
     }
 }
 
@@ -448,7 +458,7 @@ pub fn aggregate_denial_dependencies(factory: impl FnMut(&str) -> Box<dyn Backen
     aggregate_denial_cases(factory, false);
 }
 fn aggregate_denial_cases(mut factory: impl FnMut(&str) -> Box<dyn Backend>, cuts: bool) {
-    // Both logical zero and one are denied. Expired physical rows also leave
+    // The explicit key rule denies every group before recounting. Expired physical rows also leave
     // a stored aggregate candidate, but must disclose no extra dependency.
     for wide in [false, true] {
         let model = MODEL.replace("immutable parent", "immutable parent\n  cap 4 by parent");
@@ -458,7 +468,7 @@ fn aggregate_denial_cases(mut factory: impl FnMut(&str) -> Box<dyn Backend>, cut
             model
         };
         let source = format!(
-            "{model}\nview totals: count children by .parent\n  read <- .value = 2\nquery total(p: parents):\n  return totals[p]\n"
+            "{model}\nview totals: count children by .parent\n  read <- .parent != .parent\nquery total(p: parents):\n  return totals[p]\n"
         );
         for ceilings in [
             Ceilings {
@@ -466,12 +476,7 @@ fn aggregate_denial_cases(mut factory: impl FnMut(&str) -> Box<dyn Backend>, cut
                 ..Ceilings::default()
             },
             Ceilings {
-                examined: 3,
-                heap_bytes: 256 << 20,
-                ..Ceilings::default()
-            },
-            Ceilings {
-                steps: 3,
+                examined: 0,
                 heap_bytes: 256 << 20,
                 ..Ceilings::default()
             },
@@ -482,8 +487,7 @@ fn aggregate_denial_cases(mut factory: impl FnMut(&str) -> Box<dyn Backend>, cut
             },
         ] {
             let enough = ceilings.heap_bytes >= (if wide { 256 << 20 } else { 1 << 20 })
-                && ceilings.examined > 3
-                && ceilings.steps > 3;
+                && ceilings.examined > 0;
             if !cuts && !enough {
                 continue;
             }
@@ -567,5 +571,117 @@ fn aggregate_denial_cases(mut factory: impl FnMut(&str) -> Box<dyn Backend>, cut
                 assert_eq!(o, &replies[0]);
             }
         }
+    }
+}
+
+pub fn aggregate_sequential_reads(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
+    for rule in [".parent = .parent", ".parent != .parent", ".id = .id"] {
+        let model = MODEL.replace("text <=100", "text <=100000");
+        let source = format!(
+            "{model}\nview totals: count children by .parent\n  read <- {rule}\nquery total(p: parents):\n  return totals[p]\nquery twice(p: parents):\n  return [totals[p], totals[p]]\n"
+        );
+        for world in ["empty", "occupied", "expired"] {
+            let mut e = factory(&source);
+            system(
+                &mut *e,
+                "parent",
+                &[
+                    ("id", id("p")),
+                    ("owner", id("alice")),
+                    ("until", Value::Null),
+                ],
+            );
+            if world != "empty" {
+                system(
+                    &mut *e,
+                    "child",
+                    &[
+                        ("id", id("c")),
+                        ("parent", id("p")),
+                        (
+                            "until",
+                            if world == "expired" {
+                                Value::Int(150)
+                            } else {
+                                Value::Null
+                            },
+                        ),
+                    ],
+                );
+            }
+            let one = run(&mut *e, "total", "bob", 200, &[("p", id("p"))]);
+            let value = if rule.contains("!=") {
+                Value::Null
+            } else {
+                Value::Int(i64::from(world == "occupied"))
+            };
+            assert_eq!(one.0, Ok(value.clone()));
+            let two = run(&mut *e, "twice", "bob", 200, &[("p", id("p"))]);
+            assert_eq!(
+                two.0,
+                Ok(Value::Array(vec![value.clone(), value].into())),
+                "{rule}/{world}"
+            );
+            assert!(
+                two.1.heap_bytes < 1 << 20,
+                "scratch has been released: {two:?}"
+            );
+            assert!(
+                two.1.heap_bytes >= one.1.heap_bytes,
+                "retained results stay owned"
+            );
+            assert_eq!(two.1.examined, one.1.examined * 2, "work is not refunded");
+            let tight = Ceilings {
+                heap_bytes: 10 << 20,
+                ..Ceilings::default()
+            };
+            let context = ctx("bob", 200, &[("p", id("p"))]);
+            if let Some(o) = e.query("twice", context.clone(), tight) {
+                assert!(
+                    !o.complete && o.unavailable && o.capped_at.is_some(),
+                    "{o:?}"
+                );
+            } else {
+                assert_eq!(
+                    e.run("twice", context, tight).0.unwrap_err().code,
+                    "E_BOUND"
+                );
+            }
+        }
+    }
+}
+
+pub fn aggregate_multi_batch(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
+    let source = format!(
+        "{MODEL}\nview totals: count children by .parent\n  read <- .parent = .parent\nquery total(p: parents):\n  return totals[p]\n"
+    );
+    let mut e = factory(&source);
+    system(
+        &mut *e,
+        "parent",
+        &[
+            ("id", id("p")),
+            ("owner", id("alice")),
+            ("until", Value::Null),
+        ],
+    );
+    for n in 0..65 {
+        system(
+            &mut *e,
+            "child",
+            &[
+                ("id", id(&format!("c{n:02}"))),
+                ("parent", id("p")),
+                ("until", if n < 33 { Value::Int(150) } else { Value::Null }),
+            ],
+        );
+    }
+    for (now, count) in [(100, 65), (200, 32)] {
+        let o = run(&mut *e, "total", "bob", now, &[("p", id("p"))]);
+        assert_eq!(o.0, Ok(Value::Int(count)));
+        assert!(
+            o.1.examined >= 66 && o.1.steps >= 65,
+            "all contributions stay metered: {o:?}"
+        );
     }
 }
