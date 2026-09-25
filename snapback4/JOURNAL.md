@@ -55301,3 +55301,59 @@ must be authored explicitly. Full file map, individual tests, deviations and
 reproductions are in the report. Sync/devices remain increment 2 and inherited
 `sync` refuses `E_READ_THROUGH_SYNC`; the broader guide rewrite remains
 increment 4. Did not push, publish, bump package versions or redesign the RFC.
+
+## 2026-09-25 — LLP 3000.014 Lane T round 1: blind review fixes
+
+Closed all three High and two Medium findings from Astra and Grok. Aggregate
+point reads hoist authorization only when their key determines the rule inputs;
+otherwise the rule sees the live aggregate, including its logical zero. Denial
+stays null and aggregate existence is false for absent/unreadable parents.
+Capture identity now includes the parent expiry column's type and default,
+so changing a default recaptures descendants in ancestor order. Expired-id
+reuse checks read authority before child probes; every child table is probed
+under one fixed reservation, and an occupied result restores that charge and
+returns the ordinary live-collision constraint/meter. Parent deletion uses one
+message for every occupied table and for live or expired children.
+
+Six shared regression scenarios pass on SQLite, native memory and PostgreSQL.
+They cover value-dependent aggregate rules, stale stored totals and zero,
+time-100 adoption of defaults 300 then 150 through a grandchild, live/expired
+collision equivalence with two differently sized child tables, insufficient
+examined/heap reservations, aggregate existence, deletion disclosure, and real
+`exists`-probe meters in missing/unreadable worlds. All five High/Medium cases
+failed against the reviewed production code before the fixes. The cursor
+witness now follows all 25 tied-sort ids exactly once and checks exhaustion.
+Deliberately ignoring its continuation fails that test; deliberately charging
+the parent probe only after finding the row fails the meter test. Both temporary
+mutations were restored before qualification.
+
+The author confirmed that any physical child blocks parent removal until
+deleted or swept. This implementation decision, including the single refusal
+message and reuse disclosure boundary, is recorded in LLP 3000.014 §11 beside
+the design. The rules card and its definition/action pins match that decision.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 213 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 2,992 passed, zero failures, 16 ignores. Clients: 1,591 tests, 1,581 passed,
+zero failures/cancellations, ten skips. Fixture wrappers: 9/9. All 80 guide tests
+pass; both session models ran all 5,000 sequences under unchanged limits.
+The 13 additional PostgreSQL inheritance/review tests passed on an isolated
+PostgreSQL 16 cluster, which was stopped afterward. No failure waiver.
+
+The first full run was `== 1 failure(s) in 412 s`: ours, the guide definition
+test still pinned "deleting the named live children" after the required message
+change. Updated the two expectation tables to require deleting live children,
+sweeping expired children and naming no occupied table. The final run passes.
+
+Fresh same-toolchain wasm control `ea65b80a2`: 1,790,122 raw / 499,539 gzip
+bytes. Round 1: 1,793,057 / 500,855, a whole-artifact delta of +2,935 raw /
++1,316 gzip. Shared aggregate authorization/existence and collision/probe code
+exceeded the old 500,000-byte size ratchet by 855 bytes; raise it to 501,000,
+leaving 145 bytes. This is not independent component attribution. The compiler
+expiry-identity change stays outside wasm; runtime meter ceilings are unchanged.
+
+File map, negative controls and complete failure history:
+[round-1 report](reports/20260925-intent-lane-t-round1.md). Logs are
+`~/sb4-intent/lane-t-r1-*.log`. No new open review findings or design deviations.
+Sync/devices and the broader guide rewrite remain deferred. Did not push,
+publish or bump package versions.

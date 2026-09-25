@@ -163,12 +163,14 @@ impl Runner<'_> {
             .children(parent)
             .map(|(n, _, _)| n.clone())
             .collect();
+        // Reserve the complete schema-fixed probe set before its first seek.
+        // Never short-circuit on an occupied table, including at low ceilings.
+        self.meter.charge(MeterKind::Examined, children.len() as u64)?;
+        self.meter.step(children.len() as u64)?;
+        self.meter.heap(children.iter().map(|name| super::write_target::row_copy_ceiling(&self.schema.tables[name])).fold(0_u64, u64::saturating_add))?;
+        let mut occupied = false;
         for name in children {
-            self.meter.charge(MeterKind::Examined, 1)?;
-            self.meter.heap(super::write_target::row_copy_ceiling(
-                &self.schema.tables[&name],
-            ))?;
-            if !self
+            occupied |= !self
                 .tx
                 .scan(
                     &name,
@@ -178,12 +180,9 @@ impl Runner<'_> {
                     Dir::Asc,
                     1,
                 )?
-                .is_empty()
-            {
-                return Ok(true);
-            }
+                .is_empty();
         }
-        Ok(false)
+        Ok(occupied)
     }
 
     // A deadline suffix skips an arbitrary expired backlog in one seek.
@@ -200,6 +199,10 @@ impl Runner<'_> {
         if self.device && !children.is_empty() {
             return Err(RuntimeError::Prediction("parent deletion needs authoritative read-through child coverage; queue until server settlement".into()));
         }
+        let refusal = || RuntimeError::Structural {
+            code: "E_PARENT_HAS_CHILDREN",
+            message: format!("{parent} at {} has stored children; delete its live read-through children and sweep expired children, then retry `delete {parent}[id]` (guide rules)", self.statement_site),
+        };
         self.meter
             .charge(MeterKind::Examined, children.len() as u64 * 3)?;
         self.meter.step(children.len() as u64 * 3)?;
@@ -236,21 +239,10 @@ impl Runner<'_> {
                 1,
             )?;
             if !never.is_empty() || !finite.is_empty() {
-                return Err(RuntimeError::Structural {
-                    code: "E_PARENT_HAS_CHILDREN",
-                    message: format!(
-                        "{parent} at {} has live {name} children; delete `{name} where .{} = parent` first, then delete the parent (guide rules)",
-                        self.statement_site,
-                        self.schema.tables[&name]
-                            .through
-                            .as_ref()
-                            .unwrap()
-                            .reference
-                    ),
-                });
+                return Err(refusal());
             }
             // §3.3 forbids physical removal even when §6's live probe is empty.
-            // Keep this case fail-closed pending resolution of that design conflict.
+            // The author's implementation ruling keeps this case fail-closed.
             if !self
                 .tx
                 .scan(
@@ -263,13 +255,7 @@ impl Runner<'_> {
                 )?
                 .is_empty()
             {
-                return Err(RuntimeError::Structural {
-                    code: "E_PARENT_HAS_CHILDREN",
-                    message: format!(
-                        "{parent} at {} still has stored {name} children; sweep the expired children before deleting the parent (guide rules)",
-                        self.statement_site
-                    ),
-                });
+                return Err(refusal());
             }
         }
         Ok(())

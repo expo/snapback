@@ -133,6 +133,6 @@ fields. Adding or redefining the column recounts and mirrors live parents
 without consulting parent write rules; its event-free generation barrier
 reacquires devices and wakes server-run parent watches. See `guide maintains`.
 
-E_READ_THROUGH requires `read through .ref` as the complete read rule, a required immutable reference without a default, and immutable parent rule inputs and expiry. Put service grants on the parent. E_READ_THROUGH_SYNC requires `online only` until the device increment. E_PARENT_HAS_CHILDREN requires deleting the named live children before deleting their parent.
+E_READ_THROUGH requires `read through .ref` as the complete read rule, a required immutable reference without a default, and immutable parent rule inputs and expiry. Put service grants on the parent. E_READ_THROUGH_SYNC requires `online only` until the device increment. E_PARENT_HAS_CHILDREN requires deleting live children and sweeping expired children before retrying `delete parents[id]`; its message does not identify an occupied child table.
 
 E_READ_THROUGH_ADOPT refuses activation or restore when children have no live parent, captures disagree, or old audience fields have no unambiguous correspondence. Reconcile the named table before adoption.

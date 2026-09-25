@@ -5,7 +5,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_READ_THROUGH", &["read through .ref"]),
     ("E_READ_THROUGH_SYNC", &["online only"]),
     ("E_READ_THROUGH_ADOPT", &["Reconcile the named table before adoption."]),
-    ("E_PARENT_HAS_CHILDREN", &["deleting the named live children"]),
+    ("E_PARENT_HAS_CHILDREN", &["deleting live children and sweeping expired children", "does not identify an occupied child table"]),
     ("E_READ_THROUGH_SCAN", &["complete key"]),
     ("E_QUARRY_DUPLICATE_FIELD", &["Rename or remove the second field"]),
     ("E_QUARRY_SPREAD", &["Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`"]),

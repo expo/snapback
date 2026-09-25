@@ -1,0 +1,60 @@
+#[path = "../../../crates/snapback4-lang/tests/read_through/review_cases.rs"]
+mod cases;
+use cases::{Backend, Outcome};
+use snapback4_core::{
+    Context,
+    engine::{WriteState, postgres::PostgresEngine},
+    meter::Ceilings,
+};
+use snapback4_postgres_evaluation::{connect, namespace};
+
+struct Pg(PostgresEngine);
+impl Backend for Pg {
+    fn run(&mut self, op: &str, context: Context, ceilings: Ceilings) -> Outcome {
+        self.0.set_ceilings(ceilings);
+        if self.0.programs()[op].kind == snapback4_core::ir::ProgramKind::Query {
+            let o = self.0.query(op, context).unwrap();
+            (Ok(o.data), o.metered)
+        } else {
+            let o = self.0.mutate(op, None, context).unwrap();
+            (
+                match o.state {
+                    WriteState::Sent { result, .. } => Ok(result),
+                    WriteState::Failed { why, .. } => Err(why),
+                },
+                o.metered,
+            )
+        }
+    }
+    fn adopt(&mut self, source: &str, now: i64) {
+        let b = cases::bound(source);
+        self.0
+            .adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), now)
+            .unwrap();
+    }
+}
+fn factory(source: &str) -> Box<dyn Backend> {
+    let b = cases::bound(source);
+    Box::new(Pg(PostgresEngine::create(
+        connect(),
+        &namespace("through_review"),
+        b.schema,
+        b.programs.into_iter().map(|p| p.program),
+    )
+    .unwrap()))
+}
+macro_rules! scenario {
+    ($name:ident) => {
+        #[test]
+        #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+        fn $name() {
+            cases::$name(factory);
+        }
+    };
+}
+scenario!(aggregate_actual_row);
+scenario!(aggregate_existence);
+scenario!(expiry_default);
+scenario!(reuse_refusal);
+scenario!(delete_refusal);
+scenario!(probe_meter_equivalence);

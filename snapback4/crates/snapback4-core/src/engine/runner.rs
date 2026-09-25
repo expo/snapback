@@ -723,7 +723,12 @@ impl<'a> Runner<'a> {
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
-            Expr::Exists(read) => Ok(Value::Bool(self.get(read)? != Value::Null)),
+            Expr::Exists(read) => {
+                let value = self.get(read)?;
+                // The private null-value aggregate result preserves scalar
+                // denial versus authorized zero; it is not an existing row.
+                Ok(Value::Bool(value != Value::Null && !(self.schema.maintain_for(&read.table).is_some() && value.field("value").ok() == Some(&Value::Null))))
+            }
             Expr::Scan(scan) => {
                 let values = self.scan(scan)?;
                 self.meter.heap(values.iter().map(Value::heap_bytes).sum::<u64>())?;

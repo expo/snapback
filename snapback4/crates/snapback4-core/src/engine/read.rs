@@ -390,7 +390,8 @@ impl Runner<'_> {
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
         let inherited = self.schema.maintain_for(&read.table).filter(|m| self.schema.tables[&m.source].through.is_some());
         let mut inherited_admitted = false;
-        if let Some(m) = inherited {
+        // @ref LLP 3000.014#5-what-derives-from-the-capture — only key-determined inputs may authorize a synthetic aggregate row.
+        if let Some(m) = inherited.filter(|m| m.parent_key.is_some() || rules::deciding_fields(&read.table, table, &table.rules.read).iter().all(|field| index.columns().iter().take(key.len()).any(|column| column == field))) {
             let visible = if let Some(parent) = &m.parent_key {
                 let Some(at) = index.columns().iter().position(|f| f == &parent.reference) else { return Err(RuntimeError::Structural {code:"E_READ_THROUGH_SCAN",message:format!("{} must be read by its full parent key; use {}[parent] (guide maintains)",read.table,read.table)}); };
                 let parent_id = key.get(at).ok_or_else(|| RuntimeError::Input("read through aggregate needs its full parent key".into()))?;
@@ -432,7 +433,29 @@ impl Runner<'_> {
         if (!table.is_expiring() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
-        let Some(mut row) = found else {
+        let actual_aggregate = inherited.is_some() && !inherited_admitted;
+        let mut group_exists = found.is_some();
+        let mut row = if actual_aggregate {
+            // A value-dependent rule sees the live aggregate, including its
+            // logical zero on a missing group, never a null value or stale total.
+            let live = found.map(|row| self.live_aggregate(&read.table, row)).transpose()?.flatten();
+            group_exists = live.is_some();
+            match live {
+                Some(row) => row,
+                None => {
+                    // Own the zero image, copied group key and JSON id only
+                    // after reserving their schema/key-bounded allocation.
+                    self.meter.heap(super::write_target::row_copy_ceiling(table).saturating_add(key.iter().map(Value::clone_heap_bytes).fold(0_u64, u64::saturating_add).saturating_mul(8)))?;
+                    let mut fields: std::collections::BTreeMap<_, _> = index.columns().into_iter().zip(key.iter().cloned()).collect();
+                    let m = inherited.expect("inherited aggregate");
+                    if !m.by.iter().all(|field| fields.contains_key(field)) { return Ok(crate::value::object([("value", Value::Null)])); }
+                    let group: Vec<_> = m.by.iter().map(|field| fields[field].clone()).collect();
+                    fields.insert("id".into(), Value::Id(crate::schema::maintained_id(&group)));
+                    fields.insert("value".into(), Value::Int(0));
+                    Value::Row(fields.into())
+                }
+            }
+        } else if let Some(row) = found { row } else {
             if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
             return Ok(Value::Null);
         };
@@ -452,14 +475,16 @@ impl Runner<'_> {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
-            Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
+            let value = if actual_aggregate { if group_exists { row } else { Value::Null } }
+                else { self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null) };
+            Ok(super::recorded::public_image(table, value))
         } else {
             self.next_expiry = expiry_mark;
             if !provisional {
                 self.meter.restore(mark);
                 self.read_charge(MeterKind::Examined, 1)?;
             }
-            Ok(Value::Null)
+            Ok(if inherited.is_some() { crate::value::object([("value", Value::Null)]) } else { Value::Null })
         }
     }
 

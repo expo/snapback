@@ -34,7 +34,9 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         let Some(t) = schema.tables[&name].through.clone() else { continue; };
         let parent=&schema.tables[&t.parent];
         let fields: Vec<_> = t.fields.values().map(|f| (f,parent.columns.get(f),parent.defaults.get(f))).collect();
-        let identity=snapback4_core::value::digest(&(&parent.rules.read,fields,&parent.expire,&parent.through,&schema.tables[&name].columns[&t.reference],schema.tables[&name].defaults.get(&t.reference)));
+        // @ref LLP 3000.014#4-the-capture — expiry interpretation changes recapture every descendant, even when the rule never reads the deadline.
+        let expiry = parent.expire.as_ref().map(|field| (field, parent.columns.get(field), parent.defaults.get(field)));
+        let identity=snapback4_core::value::digest(&(&parent.rules.read,fields,expiry,&parent.through,&schema.tables[&name].columns[&t.reference],schema.tables[&name].defaults.get(&t.reference)));
         schema.tables.get_mut(&name).unwrap().through.as_mut().unwrap().identity=identity;
     }
     // @ref LLP 3000.007#6.7 — inherit the resolved audience, unless explicitly online only.

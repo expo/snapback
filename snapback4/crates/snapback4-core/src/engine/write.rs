@@ -76,9 +76,24 @@ impl Runner<'_> {
             self.prove_upsert_insert(table_name, index, &row)?;
         }
         let predecessor = self.tx.get(table_name, &id)?;
-        if predecessor.as_ref().is_none_or(|old| self.expired(&table, old)) && self.physical_children(table_name, &Value::Id(id.clone()))? {
-            if let Some(old) = &predecessor { self.visible_collision(table_name,old,Effect::Insert)?; }
-            return Err(RuntimeError::Rule {table:table_name.into(),effect:Effect::Insert});
+        if predecessor.as_ref().is_none_or(|old| self.expired(&table, old)) && self.schema.children(table_name).next().is_some() {
+            // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical children collides like a live birth, without exposing its descendants.
+            if let Some(old) = &predecessor {
+                // Check the old image's authority without treating expiry as
+                // denial. A non-reader never probes the child populations.
+                if !self.check_rule(table_name, Effect::Read, None, old)? {
+                    return Err(RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert });
+                }
+            }
+            let mark = self.meter.mark();
+            if self.physical_children(table_name, &Value::Id(id.clone()))? {
+                // The bounded probes have completed. Their occupancy is not
+                // disclosed by the collision's logical meter or heap peak.
+                self.meter.restore(mark);
+                return Err(if predecessor.is_some() {
+                    RuntimeError::Constraint(format!("{table_name} already has a row with id {id}"))
+                } else { RuntimeError::Rule {table:table_name.into(),effect:Effect::Insert} });
+            }
         }
         if let Some(existing) = &predecessor {
             if !self.expired(&table, existing) {

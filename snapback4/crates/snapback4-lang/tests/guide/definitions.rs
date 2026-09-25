@@ -115,7 +115,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_READ_THROUGH", "read through .ref"),
     ("E_READ_THROUGH_SYNC", "online only"),
     ("E_READ_THROUGH_ADOPT", "Reconcile the named table before adoption."),
-    ("E_PARENT_HAS_CHILDREN", "deleting the named live children"),
+    ("E_PARENT_HAS_CHILDREN", "deleting live children and sweeping expired children"),
     ("E_READ_THROUGH_SCAN", "complete key"),
     ("E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name"),
     ("E_QUARRY_SPREAD", "E_QUARRY_SPREAD refuses nullable operands and values without statically known fields"),

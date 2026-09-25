@@ -334,7 +334,10 @@ fn memory_activation_and_restore_share_the_capture_barrier() {
 
 #[test]
 fn cursors_and_dependencies_contain_no_captured_audience() {
-    let mut e = engine(MODEL);
+    // Every sort value ties; only the complete continuation key can visit
+    // each child once across the four pages.
+    let source = MODEL.replace("first 20 after c", "first 7 by .body after c");
+    let mut e = engine(&source);
     let mut batch = rows(Value::Int(200));
     batch.remove(0);
     for n in 0..25 {
@@ -349,7 +352,7 @@ fn cursors_and_dependencies_contain_no_captured_audience() {
         ));
     }
     e.seed_at(batch, 100).unwrap();
-    let b = bound(MODEL);
+    let b = bound(&source);
     let page = e
         .query(
             "page",
@@ -365,6 +368,16 @@ fn cursors_and_dependencies_contain_no_captured_audience() {
     assert!(cursor.values.iter().all(|v| v != &id("alice")));
     assert!(page.tables.contains(&"parents".into()));
     assert_eq!(page.next_expiry, Some(200));
+    let mut ids = Vec::new();
+    let mut page = page;
+    let mut exhausted = false;
+    for _ in 0..8 {
+        ids.extend(page.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()));
+        let Some(next) = page.next else { assert!(page.complete); exhausted = true; break; };
+        page = e.query("page", ctx("alice",100,&[("id",id("p")),("c",Value::String(next))])).unwrap();
+    }
+    assert!(exhausted,"the cursor chain must end");
+    assert_eq!(ids,(0..25).map(|n|format!("c{n:02}")).collect::<Vec<_>>(),"all 25 tied-sort ids must appear exactly once through exhaustion");
     let mut outcomes = Vec::new();
     for hidden in [false, true] {
         let mut e = engine(MODEL);
