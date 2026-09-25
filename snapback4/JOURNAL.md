@@ -55182,3 +55182,68 @@ the shared disk. File map, complete failure attribution and reproductions:
 `~/sb4-intent/lane-q-r2-test-complete.log`,
 `~/sb4-intent/lane-q-r2-adoption-measurements.log`, and
 `~/sb4-intent/lane-q-r2-postgres-tests.log`.
+
+
+## 2026-09-25 — LLP 3000.013 Lane Q review round 3: every adoption page budget
+
+Commit 8aca506a4 resolves Astra's examination-budget regression and admission
+accounting test gap. A schema-derived per-row budget now limits SQLite and
+PostgreSQL adoption pages by every charged cumulative meter: examined, steps
+and index entries. Heap admission still reserves the retained fetched buffer
+together with active decoder and contribution scratch. Budget checks happen
+before callbacks; rejected attempts keep their examinations and release only
+dropped heap. PostgreSQL now explicitly charges callback decoding separately
+from contribution evaluation. Only a non-fitting singleton refuses; an empty
+range remains legal. No ceiling is raised and no existing charge is removed.
+
+The 256-receipt/63-view regression first reproduced examination 16,385 against
+16,384. It now adopts in pages of 252 and 4, costing 16,380 and 260 examinations
+respectively, including all 256 admission decodes. Adding twenty comparisons
+to each of the 63 views exercises the step budget: 198 and 58 rows per page,
+997,920 and 292,320 steps. All 63 indexes retain every selected row, and
+reinstall preserves the store digest. Four walker tests assert exact callback
+counters, heap retention, singleton refusal and page limits for each meter.
+The five-by-1,280-KiB heap retry case observes examinations [3, 3, 3, 3, 2],
+including work from all four rejected attempts. Additional live Rust peaks
+remain 3,003,026 bytes for one 1,000,000-byte body, 3,935,639 for five 1,280 KiB
+rows, and 2,893,625 for 600 × 65,536-byte rows. Native SQLite bytes remain
+excluded from the independent allocator probe and included in the page ledger.
+
+Grok's completed delta review is READY, with no new High or Medium finding.
+Its surviving native-copy coefficient mutation is now detected by the
+strengthened callback heap assertion. Five deliberate mutations were caught
+and restored: deleting admission charges, omitting admission from page sizing,
+omitting the step budget, erasing rejected-attempt work, and reducing the
+serialized-page reservation from three copies to one. All three real
+PostgreSQL tests pass, including callback-boundary budgets and prior large-row
+upgrade cases; its private socket-only server was stopped afterward.
+
+Two earlier complete runs ended `== 1 failure(s) in 305 s` and
+`== 1 failure(s) in 390 s`, both at the client-test stage. The first timed out
+on native 256-pending-ID transport settlement. The second timed out starting
+servers for logout-online and missing-store slow-first-sync navigation. All
+three unchanged-source cases pass in isolation and in the final complete run.
+Classification: environmental/intermittent, inferred with root cause unproven;
+no baseline claim, timeout change, assertion weakening or failure waiver.
+Exact test names, traces and reproductions are recorded in the round-3 report.
+
+Final scripts/test.sh, exit 0: **`== 0 failure(s) in 1196 s`**. Command uses
+`CARGO_BUILD_JOBS=8 SNAPBACK4_RUST_TEST_PROCESSES=8
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`, the script's existing shared-host mode.
+All 883 Rust executions across 175 binaries and workspace doctests pass. The
+single client process runs every file, including those ordinarily sharded:
+1,513 tests, 1,503 pass, zero failures and ten existing explicit skips. Wasm
+remains 1,768,024 raw / 492,568 gzip bytes under the unchanged 493,000 budget.
+Ref-check: 507 LLP documents, 9,276 refs, 25,863 files, zero errors or unchecked
+references. Build artifacts stay on shared disk.
+
+Server aggregate read costs remain 2/502 examined rows for backlogs 0/500 at
+100/10,000 live rows. The accepted device stop remains unavailable plus server
+fallback when local recomputation exceeds its meter; no physical-total/private
+next-expiry delivery. The separate PostgreSQL query reservation for a declared
+2 MiB payload bound remains unchanged. Value-order indexes, maintained columns
+and rule value comparisons over expiring sources remain refused. No new syntax,
+refusal code, wire shape, authorization policy, version, push or publication.
+File map, decisions, open-limit reproductions and complete failure attribution:
+`reports/20260925-lane-q-round3.md`. Final suite evidence:
+`~/sb4-intent/lane-q-r3-test-complete.log`.
