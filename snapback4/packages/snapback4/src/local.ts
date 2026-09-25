@@ -1100,7 +1100,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (entry.sent_seq == null) await settleReceipt(history, call, receipt);
         settled.get(entry.id)?.resolve(receipt); settled.delete(entry.id);
         emitWrite(receipt);
-        if (acquire) await syncOnce();
+        // A published acknowledgement already includes this effect. Starting
+        // another sync would withdraw freshness from a completed acquisition.
+        if (acquire && (entry.observed_seq == null || !caughtUp)) await syncOnce();
         continue;
       }
       let ownsSettlement = false;

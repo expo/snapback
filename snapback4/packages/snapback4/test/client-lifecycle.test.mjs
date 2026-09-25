@@ -967,8 +967,8 @@ for (const tier of ["wasm", "native"]) {
     const read = await client.query(counter, counterArgs);
     assert.equal(read.data.value, 1);
     assert.equal(read.data.pending, undefined);
+    assert.equal((await write).state, "sent", "stream acknowledgement establishes the terminal outcome despite the lost reply");
     await client.close();
-    assert.equal((await write).state, "pending");
   });
 
   for (const loseReply of [false, true]) {
@@ -1012,15 +1012,15 @@ for (const tier of ["wasm", "native"]) {
       if (loseReply) {
         offline = true;
         await client.close();
-        const pending = await first;
-        assert.equal(pending.state, "pending");
+        const acknowledged = await first;
+        assert.equal(acknowledged.state, "sent", "a correlated terminal outcome is never reported as pending");
         const cold = await f.open(tier, { fetch: transport });
         assert.equal((await cold.query(counter, counterArgs)).data.value, 1, "an offline reopen preserves the correlated confirmed state");
         await cold.close();
         offline = false;
         reply.resolve(); laterPost.resolve();
         const resumed = await f.open(tier, { fetch: transport });
-        assert.equal((await resumed.write(pending.id)).state, "sent", "the correlated receipt settles locally after the lost response");
+        assert.equal((await resumed.write(acknowledged.id)).state, "sent", "the correlated receipt settles locally after the lost response");
         assert.equal(sends, 1, "a known terminal receipt is never reposted to recover its historical result");
         await resumed.sync();
         assert.equal((await f.server.query(counter, counterArgs)).data.value, 1, "deduplication preserves one authoritative increment");

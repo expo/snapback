@@ -80,11 +80,12 @@ async function within(work, ms, message) {
   finally { clearTimeout(timer); }
 }
 
-for (const applyExit of [false, true]) test(`stalled exit body recovers in order (${applyExit ? "already applied replay" : "not applied"})`, async t => {
+for (const applyExit of [false, true]) test(`stalled exit body recovers in order (${applyExit ? "already applied acknowledgement" : "not applied"})`, async t => {
   const f = await fixture(t, { stallExitBody: true, applyExit });
   const writes = [];
   for (const body of ["first", "second"]) writes.push(await f.client.mutate(send, { conversationId: "c1", body }));
   assert.ok(writes.every(w => w.state === "pending"));
+  const entries = (await f.cores[0].call({ op: "queued" })).ok;
   await tick();
   f.document.visibilityState = "hidden";
   f.document.dispatchEvent(new Event("visibilitychange"));
@@ -97,22 +98,25 @@ for (const applyExit of [false, true]) test(`stalled exit body recovers in order
   f.document.visibilityState = "visible";
   f.document.dispatchEvent(new Event("visibilitychange"));
   await f.client.sync();
-  // Stop the recovery request too: no successor can pass the unknown head.
+  // An acknowledged head settles locally; an unknown head must replay first.
+  const expected = applyExit ? writes.slice(1) : writes;
   try {
     await within(until(() => f.ordinary.length === 1), 3000, "ordinary flush wedged behind stalled exit body");
     assert.equal(f.count(), before + 1);
-    assert.deepEqual(f.ordinaryRequests.at(-1), JSON.parse(f.requests[0].init.body));
+    const head = entries.find(entry => entry.id === expected[0].id);
+    assert.deepEqual(f.ordinaryRequests.at(-1), { id: head.id, args: head.args, newIds: head.new_ids, store_id: JSON.parse(f.requests[0].init.body).store_id });
+    if (applyExit) assert.equal((await f.client.write(writes[0].id)).state, "sent");
     f.window.dispatchEvent(new Event("pagehide"));
     assert.equal(f.requests.length, 1);
   } finally { f.resume(); }
   await until(() => confirmed.length === 2);
-  assert.deepEqual(f.ordinaryRequests.slice(before).map(r => r.id), writes.map(w => w.id));
+  assert.deepEqual(f.ordinaryRequests.slice(before).map(r => r.id), expected.map(w => w.id));
   assert.deepEqual(confirmed.map(w => w.id), writes.map(w => w.id));
   assert.ok(confirmed[0].seq < confirmed[1].seq);
   assert.equal(confirmed[0].replayed === true, applyExit);
   assert.deepEqual((await f.rows()).map(r => r.body).sort(), ["first", "second"]);
   assert.equal(f.stalledBodies.length, 1, "exit body is still stalled after recovery");
-  console.log(`stalled exit: applied=${applyExit}; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery ${Math.round(performance.now() - resumedAt)} ms`);
+  console.log(`stalled exit: applied=${applyExit}; 2 writes; 1 exit request; ${expected.length} ordered ordinary sends; 2 rows; 0 duplicates; recovery ${Math.round(performance.now() - resumedAt)} ms`);
 });
 
 test("close during a stalled exit body resolves promptly", async t => {

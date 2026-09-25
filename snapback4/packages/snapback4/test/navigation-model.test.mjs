@@ -1003,8 +1003,9 @@ test("W6R1 journal: an evicted guarded caller ID survives failed admission persi
   offline = false; await recovered.sync();
   assert.ok(await until(async () => (await recovered.write(id))?.state === "sent", 15000));
   assert.deepEqual(await recovered.write(id), { state: "sent", id, seq: original.seq, replayed: true });
-  assert.equal(posts.length, 1); assert.equal((await f.rows()).length, 2); assert.equal(await f.audit(), null);
-  t.diagnostic("evicting_writes=256 recovered_replay_candidates=1 replay_posts=1 duplicate_rows=0");
+  assert.equal(posts.length, 0, "sync already correlated the original id; its known terminal receipt is settled without replay");
+  assert.equal((await f.rows()).length, 2); assert.equal(await f.audit(), null);
+  t.diagnostic("evicting_writes=256 recovered_replay_candidates=1 correlated_receipts=1 replay_posts=0 duplicate_rows=0");
 });
 
 test("device close model: cancelled callers retain their ids across offline and online reopen", { timeout: 60000 }, async t => {
