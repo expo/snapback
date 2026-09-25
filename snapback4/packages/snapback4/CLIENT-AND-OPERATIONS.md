@@ -523,6 +523,12 @@ intact until a later matching open can establish ownership; a broken orphan does
 not prevent healthy stores from opening.
 Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
+Under `createApp`, records also capture the session epoch and principal.
+Device admission and recovery check that authority while holding the session
+lock through the admission commit. A logout or changed epoch/principal cancels
+an unadmitted record; a live caller receives `E_AUTH`. A subsequent sign-in
+cannot revive that earlier click. Synchronous journaling still precedes waiting
+for the lock, so a navigation while the session is unchanged keeps its intent.
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
 device store, and at most 64 KiB per serialized record. A browser mutation that
 cannot synchronously acquire custody refuses with `E_ADMISSION`, a site and a

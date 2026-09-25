@@ -1,4 +1,5 @@
 import { admitNow, failedAdmission } from "./admission.ts";
+import { attachAdmissionAuthority } from "./admission-authority.ts";
 import { acquisitionProgress } from "./acquisition.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
@@ -150,6 +151,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let stopOutbox: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
+  attachAdmissionAuthority(core, options);
   history = new WriteHistory({
     read: async () => (await call({ op: "meta", key: "write-history" })).ok as string | null,
     save: async value => {

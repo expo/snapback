@@ -1,4 +1,6 @@
 import { admissionRefusal, browserAdmission } from "./admission.ts";
+import { sameAdmissionAuthority, type AdmissionAuthority, type AdmissionAuthorityContext } from "./admission-authority.ts";
+import { storeLock } from "./app-storage.ts";
 // Synchronous custody until the web device's ordinary admission commits.
 // No transport, result, or server settlement lives here.
 import type { Change } from "./web.ts";
@@ -18,7 +20,7 @@ interface Entry {
   replay_candidate?: boolean;
 }
 
-export interface AdmissionRecord { key: string; storeId: string; entry: Entry }
+export interface AdmissionRecord { key: string; storeId: string; entry: Entry; authority?: AdmissionAuthority }
 interface Transfer { key: string; storeId: string; recovered: boolean }
 const PREFIX = "snapback4-admission:";
 const RECORD_BYTES = 64 * 1024;
@@ -81,6 +83,7 @@ function records(name: string, cleanup = false): AdmissionRecord[] {
 }
 
 export class AdmissionJournal {
+  authority: AdmissionAuthorityContext | undefined;
   private transfers = new Map<string, Transfer>();
   private storeId: string | undefined;
   private sequence = 0;
@@ -114,7 +117,7 @@ export class AdmissionJournal {
       const requested = request.entry as Entry;
       const entry = { ...requested, seq: this.sequence = Math.max(this.sequence + 1, requested.seq) };
       const key = `${prefix(this.name)}${encodeURIComponent(this.storeId)}:${entry.id}`;
-      const record = JSON.parse(JSON.stringify({ key, storeId: this.storeId, entry })) as AdmissionRecord;
+      const record = JSON.parse(JSON.stringify({ key, storeId: this.storeId, entry, authority: this.authority?.capture() })) as AdmissionRecord;
       const text = JSON.stringify(record);
       if (bytes(text) > RECORD_BYTES) return refuse("mutation admission exceeds 64 KiB; reduce the arguments before retrying");
       const held = keys(store).filter(key => key.startsWith(prefix(this.name)));
@@ -170,6 +173,9 @@ export class AdmissionJournal {
     for (const record of records(this.name, true)) {
       const id = record.entry.id;
       if (live.has(id)) continue;
+      // App opening binds the reader after the host returns its core. Until
+      // then, leave stamped records intact rather than guessing an authority.
+      if (record.authority && !this.authority) continue;
       if (this.transfers.has(id)) { remove(record.key); continue; }
       // A transferred outbox receipt wins over any leftover journal copy.
       const queued = invoke(device, { op: "queued" }).ok as Entry[];
@@ -185,10 +191,19 @@ export class AdmissionJournal {
       // admission did not durably finish. Its retained rows may be stale, so a
       // local authored refusal cannot settle the intent. Replay admission keeps
       // a successful prediction, or rolls refusal back and lets the server decide.
-      const reply = this.admit(device, { ...record.entry, replay_candidate: true });
-      if (reply.denied && !writeRefusal(reply)) throw new Error(JSON.stringify(reply));
-      await settle(reply.denied ? this.refused(record) : [this.transfer(record, true)]);
+      await this.authorize(record, async () => {
+        const reply = this.admit(device, { ...record.entry, replay_candidate: true });
+        if (reply.denied && !writeRefusal(reply)) throw new Error(JSON.stringify(reply));
+        await settle(reply.denied ? this.refused(record) : [this.transfer(record, true)]);
+      }, async () => { await settle(this.refused(record)); });
     }
+  }
+
+  async authorize<T>(record: AdmissionRecord, admitted: () => Promise<T>, refused: () => Promise<T>): Promise<T> {
+    const stamp = record.authority;
+    if (!stamp) return admitted();
+    if (!this.authority) throw new Error("the journal's session reader has not been attached");
+    return storeLock(stamp.key, () => sameAdmissionAuthority(stamp, this.authority!, record.entry.viewer) ? admitted() : refused());
   }
 
   // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.

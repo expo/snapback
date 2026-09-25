@@ -1,5 +1,6 @@
 import { indexedDbStore } from "./web-idb.ts";
 import { admissionHost, admissionRefusal, browserAdmission } from "./admission.ts";
+import { admissionAuthorityHost, admissionAuthorityRefusal, type AdmissionAuthorityContext } from "./admission-authority.ts";
 // The device on the web: the same device, as wasm, over memory (the
 // interpreter's store boundary is synchronous and IndexedDB is not), with
 // the host persisting each call's changes behind it. A cold start with no
@@ -133,7 +134,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       const recoverOrphans = async () => {
         const retry = await adoptOrphans(device!, name, store.name, persist, settle, () => {
           for (const notify of outboxListeners) notify();
-        }, waitForLock);
+        }, waitForLock, journal.authority);
         if (retry) retryOrphans();
       };
       // Committed outbox entries, mirrored from persisted changes, so a page
@@ -245,18 +246,27 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               // on the kept backend, with no store copy on successful calls.
               if (!device) await restore();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
-              const reply = request.op === "admit" ? journal.admit(device!, request.entry) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
-              const observesStore = request.op === "observe_store" || request.op === "apply";
-              if (!reply.denied && observesStore) journal.fence(device!);
-              try {
-                await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply));
-              } catch (error) {
-                if (!admission || !writeRefusal(reply)) throw error;
-                // The refusal is known even when both cancellation stores fail.
-                // Discard any uncommitted memory; the docs call recovery indeterminate.
-                discard();
+              const execute = async (): Promise<Record<string, unknown>> => {
+                const reply = request.op === "admit" ? journal.admit(device!, request.entry) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
+                const observesStore = request.op === "observe_store" || request.op === "apply";
+                if (!reply.denied && observesStore) journal.fence(device!);
+                try {
+                  await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply));
+                } catch (error) {
+                  if (!admission || !writeRefusal(reply)) throw error;
+                  // The refusal is known even when both cancellation stores fail.
+                  // Discard any uncommitted memory; the docs call recovery indeterminate.
+                  discard();
+                  return reply;
+                }
                 return reply;
-              }
+              };
+              const reply = admission ? await journal.authorize(admission, execute, async () => {
+                const denied = { denied: admissionAuthorityRefusal() };
+                await settle(journal.refused(admission), () => committedReply?.(denied));
+                return denied;
+              }) : await execute();
+              const observesStore = request.op === "observe_store" || request.op === "apply";
               if (!reply.denied && (request.op === "adopt" || observesStore)) await journal.recover(device!, settle, admissions);
               if (!reply.denied && observesStore) await recoverOrphans();
               if (request.op === "meta" && request.key === "write-history" && !reply.denied) {
@@ -284,6 +294,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         },
       };
       admissionHost(core, capture);
+      admissionAuthorityHost(core, context => { journal.authority = context; });
       return core;
     },
   };
@@ -414,7 +425,7 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
-async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void): Promise<boolean> {
+async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void, authority?: AdmissionAuthorityContext): Promise<boolean> {
   if (!persist.others || !persist.remove) return false;
   let retry = false;
   const orphanPrefix = `${name}:tab-`;
@@ -441,6 +452,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
         // Leave it intact for a later matching open; never guess from the key.
         if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) continue;
         const sourceJournal = new AdmissionJournal(orphan, true);
+        sourceJournal.authority = authority;
         sourceJournal.load(saved);
         const sourceDevice = new WebDevice(null, JSON.stringify(saved.filter(c => c.s !== "j")));
         try {

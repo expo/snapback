@@ -47,6 +47,22 @@ test('web startup: immediate admin navigation, synchronous refusals and acquisit
   assert.equal(checked.status, 0, checked.stdout + checked.stderr);
   const sourceOverrides = process.env.SNAPBACK4_WEB_START_OLD_GUARD === '1'
     ? { [join(root, 'packages/snapback4/src/app-client.ts')]: execFileSync('git', ['show', 'a52b48cad:snapback4/packages/snapback4/src/app-client.ts'], { cwd: root, encoding: 'utf8' }) } : {};
+  if (process.env.SNAPBACK4_WEB_START_AUTHORITY_MUTANT === '1') {
+    const path = join(root, 'packages/snapback4/src/web-journal.ts');
+    sourceOverrides[path] = readFileSync(path, 'utf8').replace(
+      'return storeLock(stamp.key, () => sameAdmissionAuthority(stamp, this.authority!, record.entry.viewer) ? admitted() : refused());', 'return admitted();');
+  }
+  if (process.env.SNAPBACK4_WEB_START_AUTHORITY_MUTANT === 'recovery') {
+    const path = join(root, 'packages/snapback4/src/web-journal.ts');
+    sourceOverrides[path] = readFileSync(path, 'utf8').replace('await this.authorize(record, async () => {',
+      'await (async (_record, admitted) => admitted())(record, async () => {');
+  }
+  if (process.env.SNAPBACK4_WEB_START_AUTHORITY_MUTANT === 'fence') {
+    const path = join(root, 'packages/snapback4/src/app.ts');
+    sourceOverrides[path] = readFileSync(path, 'utf8').replace(
+      'if (!scope.valid || currentEpoch !== epoch) return new SessionEpochChanged().why;',
+      'if (!scope.valid || currentEpoch !== epoch) { fence(scope, new SessionEpochChanged()); return new SessionEpochChanged().why; }');
+  }
   const witness = await launch({ seed: [], sourceDir, sourceOverrides, entrySource: `
 import { createApp } from '${join(root, 'packages/snapback4/src/app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${join(root, 'packages/snapback4/src/auth.ts')}';
@@ -73,7 +89,7 @@ window.mountProgress = (app) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   const signed = await fetch(api + '/auth/guest', { method: 'POST' }).then(r => r.json());
   assert.ok(signed.session?.principal, 'guest session issued');
-  const session = signed.session;
+  let session = signed.session;
   const seed = [{ table: 'removals', row: { id: 'audit', total: 0 } }];
   for (let room = 0; room < 5; room++) seed.push(
     { table: 'members', row: { id: `a${room}`, room: `room${room}`, principal: session.principal, admin: true } },
@@ -224,6 +240,83 @@ window.mountProgress = (app) => {
     assert.ok(progress.some(p => p.acquired && p.rows === 7 && p.tables.members === 7), JSON.stringify(progress));
     assert.ok(progress.every(p => p.acquired === p.acquiredLegacy));
     await page.evaluate(() => app.close());
+  });
+  for (const change of ['logout', 'principal', 'epoch', 'recovery']) await t.test(`session-locked journal refuses stale authority: ${change}`, async () => {
+    session = (await fetch(api + '/auth/guest', { method: 'POST' }).then(r => r.json())).session;
+    await fetch(api + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'members', row: { id: 'authority-' + change, room: 'room3', principal: session.principal, admin: true } }]) });
+    await witness.reload(); await prepare();
+    const peer = await page.context().newPage();
+    await peer.goto(page.url()); await peer.waitForFunction(() => !!window.sessionKey);
+    try {
+      await peer.evaluate(api => new Promise(resolve => {
+        void navigator.locks.request(sessionKey(api), async () => {
+          resolve(); await new Promise(release => window.releaseSession = release);
+        });
+      }), api);
+      const before = sent.length;
+      const captured = await page.evaluate(() => {
+        const id = mintId();
+        window.racingWrite = app.mutate(api.removeMember, { room: 'room3', principal: 'user:other' }, { id });
+        const key = Object.keys(localStorage).find(k => k.startsWith('snapback4-admission:'));
+        const record = JSON.parse(localStorage.getItem(key));
+        return { id, record, store: decodeURIComponent(key.split(':')[1]) };
+      });
+      assert.equal(captured.record.authority.principal, session.principal);
+      await page.waitForFunction(async api => (await navigator.locks.query()).pending.some(lock => lock.name === sessionKey(api)), api);
+      const outbox = await page.evaluate(async ({ store, id }) => indexedDbPersistence().read(store, 'o', id), captured);
+      assert.equal(outbox, null, 'the journal must wait for the session lock before device admission');
+      assert.equal(sent.length, before);
+      if (change === 'recovery') {
+        await page.evaluate(() => location.assign('/?logout-recovery=1'));
+        await page.waitForURL('**/?logout-recovery=1'); await page.waitForFunction(() => !!window.createApp);
+      }
+      const other = change === 'principal' ? (await fetch(api + '/auth/guest', { method: 'POST' }).then(r => r.json())).session : session;
+      await peer.evaluate(({ api, change, other, epoch }) => {
+        const value = change === 'principal' ? { ...other, snapback4Epoch: epoch }
+          : change === 'epoch' ? { ...other, snapback4Epoch: String(BigInt(epoch) + 1n) }
+          : { snapback4Logout: String(BigInt(epoch) + 1n) };
+        localStorage.setItem(sessionKey(api), JSON.stringify(value));
+        window.releaseSession();
+      }, { api, change, other, epoch: captured.record.authority.epoch });
+      if (change === 'recovery') {
+        await page.evaluate(async ({ api, session, epoch }) => {
+          // A subsequent sign-in must not promote the older unadmitted click.
+          localStorage.setItem(sessionKey(api), JSON.stringify({ ...session, snapback4Epoch: String(BigInt(epoch) + 1n) }));
+          window.app = createApp({ url: api, sessionStore: localStorageSessionStore(), device: webDevice(), waitSeconds: 1 });
+          await app.ready;
+        }, { api, session, epoch: captured.record.authority.epoch });
+        await page.waitForFunction(id => !Object.keys(localStorage).some(key => key.startsWith('snapback4-admission:') && key.endsWith(id)), captured.id);
+        assert.equal(await page.evaluate(id => app.client.write(id), captured.id), undefined, 'recovery must cancel the stale intent before adding it to the outbox');
+      } else {
+        const outcome = await page.evaluate(() => racingWrite);
+        assert.equal(outcome.state, 'failed'); assert.equal(outcome.why.code, 'E_AUTH');
+      }
+      await page.evaluate(() => app.close());
+      assert.equal(sent.length, before, 'no stale journal may send /m');
+      const observer = (await fetch(api + '/auth/guest', { method: 'POST' }).then(r => r.json())).session;
+      const total = await fetch(api + '/q/total', { method: 'POST', headers: { authorization: `Bearer ${observer.token}` }, body: '{}' }).then(r => r.json());
+      assert.equal(total.data, 3, JSON.stringify(total));
+      t.diagnostic(JSON.stringify({ change, journaled: true, outboxWhileLocked: outbox, mutationRequests: sent.length - before, serverTotal: total.data }));
+    } finally {
+      await peer.evaluate(() => window.releaseSession?.());
+      await peer.close();
+    }
+  });
+  await t.test('a transient unlocked epoch observation refuses only that call', async () => {
+    await witness.reload(); await prepare();
+    const result = await page.evaluate(async apiUrl => {
+      const client = app.client, get = Storage.prototype.getItem, key = sessionKey(apiUrl) + '.epoch';
+      Storage.prototype.getItem = function (name) { return name === key ? '9999999' : get.call(this, name); };
+      let write;
+      try { write = client.mutate(api.removeMember, { room: 'room3', principal: 'user:other' }); }
+      finally { Storage.prototype.getItem = get; }
+      const immediate = { state: write.state, code: write.why?.code };
+      const roster = await client.query(api.roster, { room: 'room3' });
+      await app.close();
+      return { immediate, rows: roster.data?.length, denied: roster.denied };
+    }, api);
+    assert.deepEqual(result.immediate, { state: 'failed', code: 'E_AUTH' });
+    assert.equal(result.denied, undefined); assert.ok(result.rows > 0);
   });
   await t.test('the bare online browser transport refuses without custody', async () => {
     const outcome = await page.evaluate(async ({ api, session }) => {

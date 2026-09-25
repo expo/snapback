@@ -1,4 +1,5 @@
 import { admissionRefusal, browserAdmission, failedAdmission, sessionReader } from "./admission.ts";
+import { prepareAdmissionAuthority } from "./admission-authority.ts";
 import { mintId } from "./client.ts";
 import { defaultFetch } from "#fetch";
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
@@ -335,7 +336,9 @@ export function createApp(options: AppOptions): App {
         const marker = read(epochKey) ?? "0";
         const stored = sessionEpoch(read(sessionKey(url))) ?? "0";
         const currentEpoch = BigInt(marker) > BigInt(stored) ? marker : stored;
-        if (!scope.valid || currentEpoch !== epoch) { fence(scope, new SessionEpochChanged()); return new SessionEpochChanged().why; }
+        // An unlocked observation may catch our own session commit before its
+        // in-memory epoch assignment. Refuse this call without retiring scope.
+        if (!scope.valid || currentEpoch !== epoch) return new SessionEpochChanged().why;
       } catch (error) { return admissionRefusal(`session storage is unavailable: ${String(error)}`, "app.mutate"); }
       return undefined;
     }
@@ -441,6 +444,10 @@ export function createApp(options: AppOptions): App {
         // when an untyped caller supplies lower-level sign-in options.
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
         const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch };
+        const read = sessionReader(backing);
+        if (browserAdmission() && read) prepareAdmissionAuthority(prepared, {
+          capture: () => ({ key: sessionKey(url), epoch, principal: scope.session.principal }), read,
+        });
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
         raw = local.client; startClient = local.start;
       } else {
