@@ -32,6 +32,7 @@ pub mod read;
 mod read_point;
 mod read_auth;
 mod read_candidate;
+mod provenance;
 mod expiry;
 pub mod rules;
 pub mod runner;
@@ -116,6 +117,7 @@ pub struct Context {
     pub args: BTreeMap<String, Value>,
     pub now: Option<i64>,
     pub read_time: Option<i64>,
+    pub(crate) row_provenance: bool,
     /// Digest only: the core resolves it in the admission transaction.
     pub(crate) session_digest: Option<String>,
     /// Original HTTP arguments, before typed decoding or default insertion.
@@ -132,7 +134,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -140,6 +142,9 @@ impl Context {
         self.session_digest = Some(crate::identity::digest(token));
         self
     }
+
+    /// Request the metered, output-only source-identity envelope for a query.
+    pub fn with_row_provenance(mut self) -> Self { self.row_provenance = true; self }
 
     pub fn with_wire_args(mut self, args: serde_json::Value) -> Self {
         self.wire_args = Some(args);

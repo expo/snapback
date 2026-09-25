@@ -125,7 +125,7 @@ fn reused<H:Host>(host:&mut H) {
         for name in ["page","search","shaped","spread"] {
         let answer=query(&mut d,name,"t",100);
         assert_eq!(answer["unknown"],true,"{answer}");assert_eq!(answer["complete"],false,"{answer}");
-        if retained {assert_eq!(answer["data"][0]["id"],"c","{answer}");assert_eq!(answer["data"][0]["retained"],true,"{answer}");assert_eq!(answer["retainedRows"][0],true,"{answer}");}
+        if retained {assert_eq!(answer["data"][0]["id"],"c","{answer}");assert_eq!(answer["data"][0]["retained"],true,"{answer}");assert_eq!(answer["retainedRows"][0]["retained"],true,"{answer}");assert_eq!(answer["retainedRows"][0]["source"],json!(["comments","c"]),"{answer}");}
         else {assert_eq!(answer["data"],json!([]),"mismatched current child stays out: {answer}");assert!(answer.get("retainedRows").is_none(),"{answer}");}
         }
         let count=query(&mut d,"countFor","t",100);assert_eq!(count["data"],Json::Null,"{count}");assert_eq!(count["unknown"],true,"{count}");

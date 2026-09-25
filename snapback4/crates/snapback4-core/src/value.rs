@@ -9,6 +9,9 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use thiserror::Error;
 
+mod provenance;
+pub use provenance::SourceIdentity;
+
 pub const I53_MAX: i64 = (1_i64 << 53) - 1;
 pub const I53_MIN: i64 = -I53_MAX;
 
@@ -27,11 +30,14 @@ pub enum Value {
 
 // Row images are shared immutably (`Arc`) so a result, a page head and a
 // partition event can hold one copy; serialization is the plain map.
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>, bool);
+#[derive(Clone, Debug, Eq, Default)]
+pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>, bool, Option<std::sync::Arc<SourceIdentity>>);
+impl PartialEq for ObjectFields {
+    fn eq(&self, other: &Self) -> bool { self.0 == other.0 && self.1 == other.1 }
+}
 impl From<BTreeMap<String, Value>> for ObjectFields {
     fn from(value: BTreeMap<String, Value>) -> Self {
-        Self(std::sync::Arc::new(value), false)
+        Self(std::sync::Arc::new(value), false, None)
     }
 }
 impl FromIterator<(String, Value)> for ObjectFields {
@@ -101,17 +107,7 @@ impl Value {
             _ => false,
         }
     }
-    /// A parallel transport mask, independent of application fields. It cannot
-    /// exceed the input's heap size: leaves collapse to bools, keys stay shared
-    /// in structure, and retained rows collapse to true.
-    pub fn retained_rows_mask(&self) -> Self {
-        match self {
-            Self::Row(fields) | Self::Map(fields) if fields.is_retained() => Self::Bool(true),
-            Self::Row(fields) | Self::Map(fields) => Self::Row(fields.iter().map(|(key, value)| (key.clone(), value.retained_rows_mask())).collect()),
-            Self::Array(items) => Self::Array(items.iter().map(Self::retained_rows_mask).collect()),
-            _ => Self::Bool(false),
-        }
-    }
+
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]

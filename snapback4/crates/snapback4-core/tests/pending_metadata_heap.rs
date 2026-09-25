@@ -139,18 +139,18 @@ fn retained_provenance_is_distinct_from_application_fields_and_survives_shapes()
     let retained = Value::Row(fields);
     let inner = shape(retained.clone(), BTreeMap::new());
     let nested = Expr::Shape { base: Box::new(inner), fields: BTreeMap::new() };
-    let kept = query(&rows, nested.clone(), 512);
+    let kept = query(&rows, nested.clone(), 1456);
     assert!(kept.complete);
     assert_eq!(kept.data.field("retained").unwrap(), &Value::Bool(true));
-    assert_eq!(kept.metered.heap_bytes, 512, "two marker projections plus the reserved transport mask");
-    assert_eq!(query_result(&rows, nested, 511).unwrap_err().code, "E_BOUND");
+    assert_eq!(kept.metered.heap_bytes, 1456, "two marker projections plus the reserved transport mask");
+    assert_eq!(query_result(&rows, nested, 1455).unwrap_err().code, "E_BOUND");
 
     // Durable/application decoding cannot manufacture the reader's provenance.
     let decoded: Value = serde_json::from_str(&serde_json::to_string(&retained).unwrap()).unwrap();
     let decoded = query(&rows, shape(decoded, BTreeMap::new()), 40);
     assert!(decoded.complete && decoded.data.as_object().unwrap().is_empty());
     let bases = Expr::Array(vec![Expr::Literal(retained), Expr::Literal(object([("pending", Value::Bool(true))]))]);
-    let merged = query(&rows, Expr::Shape { base: Box::new(bases), fields: BTreeMap::new() }, 2048);
+    let merged = query(&rows, Expr::Shape { base: Box::new(bases), fields: BTreeMap::new() }, 4096);
     assert!(merged.complete);
     assert_eq!(merged.data.field("retained").unwrap(), &Value::Bool(true));
     assert_eq!(merged.data.field("pending").unwrap(), &Value::Bool(true));

@@ -661,6 +661,7 @@ impl<'a> Runner<'a> {
                 // A spread can merge multiple row bases. Application fields named
                 // retained are ordinary data; only the reader creates provenance.
                 let bases = if let Value::Array(bases) = &base { bases.as_slice() } else { std::slice::from_ref(&base) };
+                fields.inherit_source(bases);
                 for base in bases {
                     if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
                     if matches!(base, Value::Row(base) | Value::Map(base) if base.is_retained()) { fields.mark_retained(); }
@@ -976,10 +977,12 @@ impl<'a> Runner<'a> {
         // second result-sized string. A shaped/scalar result cannot be
         // truncated without changing its type or inventing a continuation.
         let mut count = crate::json_codec::value_bytes(value).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        if self.device && value.has_retained_rows() {
+        if self.context.row_provenance || (self.device && value.has_retained_rows()) {
             // Reserve before constructing the mask and its transport image.
             // Application data cannot forge which rows the fallback preserves.
-            self.meter.heap(value.heap_bytes().saturating_mul(2))?;
+            let (heap, steps) = value.provenance_allowance();
+            self.meter.step(steps)?;
+            self.meter.heap(heap.saturating_mul(2))?;
             count = count.saturating_add(crate::json_codec::value_bytes(&value.retained_rows_mask()).map_err(|e| RuntimeError::Store(e.to_string()))?);
         }
         if !self.meter.charge(MeterKind::OutputBytes, count)? {

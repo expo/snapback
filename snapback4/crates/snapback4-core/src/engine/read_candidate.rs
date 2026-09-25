@@ -28,6 +28,9 @@ impl Runner<'_> {
         }
         // Authorization is not emission. Filters, lookahead and retention still
         // have to finish before the caller can commit this candidate's deadline.
-        Ok(row.map(|row| (super::recorded::public_image(table, row), expiry.defer())))
+        row.map(|mut row| {
+            self.stamp_source(table_name, &mut row)?;
+            Ok((super::recorded::public_image(table, row), expiry.defer()))
+        }).transpose()
     }
 }

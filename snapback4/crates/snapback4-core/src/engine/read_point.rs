@@ -11,9 +11,9 @@ impl Runner<'_> {
         // @ref LLP 3000.007#20.21 — an unfinished maintained value is unavailable, never an absent group coerced to zero.
         let maintained = self.schema.maintain_for(&read.table).is_some();
         if maintained { self.meter.require_uncapped()?; }
-        let value = self.get_inner(read, &mut emitted)?;
+        let mut value = self.get_inner(read, &mut emitted)?;
         if maintained { self.meter.require_uncapped()?; }
-        if emitted && self.meter.capped_at.is_none() { expiry.emit(); }
+        if emitted && self.meter.capped_at.is_none() { self.stamp_source(&read.table, &mut value)?; expiry.emit(); }
         Ok(value)
     }
 
@@ -151,7 +151,10 @@ impl Runner<'_> {
         if self.read_capped() { return Ok(Value::Null); }
         if allowed {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
-            if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
+            if self.device && self.retained_row(&read.table, &row)? {
+                self.components.note(|frame| frame.retained = true);
+                if self.context.row_provenance && let Value::Row(fields) = &mut row { fields.mark_retained(); }
+            }
             self.note_expiry(table, &row);
             let value = if stored_authorization { if group_exists { row } else { Value::Null } }
                 else if let Some(m) = maintained.filter(|m| self.schema.tables[&m.source].is_expiring()) {
