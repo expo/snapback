@@ -2,7 +2,7 @@
 //! @ref LLP 3000.011.001.001#5 — avoid allocating unused payload before deciding whether capacity improved.
 use super::*;
 use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, VariantAccess, Visitor};
-use snapback4_core::{Context, Engine, Value, wire};
+use super::snapback4_core::{Context, Engine, Value, wire};
 use std::{collections::BTreeMap, fmt, time::Instant};
 
 const FIELDS: &[&str] = &["id","conversationId","senderId","at","expiresAt","tombstone"];
@@ -82,7 +82,9 @@ fn matched_period_projection_avoids_rust_payload_but_does_not_prove_engine_capac
     let source = include_str!("../../../snapback4-sim/tests/digest_count.q");
     let b = snapback4_lang::compile(&[("schema.q".into(),source.into())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
-    let mut e = Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let schema = serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap();
+    let programs: Vec<crate::Program> = b.programs.into_iter().map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
+    let mut e = Engine::memory(schema, programs).unwrap();
     e.set_ceilings(meter::Ceilings::job());
     let seed: Vec<_> = (0..5000).map(|n|("messages".into(),wire::row_from_json(e.schema().table("messages").unwrap(),&serde_json::json!({
         "id":format!("m{n:011}"),"conversationId":"chat0","senderId":if n%50==0 {"a".repeat(31)} else {"b".repeat(31)},"body":"x".repeat(31),

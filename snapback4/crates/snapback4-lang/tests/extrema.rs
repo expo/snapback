@@ -434,9 +434,14 @@ fn expiring_maintained_values_scan_live_totals_and_refuse_stale_order() {
     }
 }
 
-// Test fixture prices use a standalone internal ledger, never a caller receipt.
+// Independent lower bound on the caller-owned result's retained payload.
+// This test deliberately has no raw-ledger counter access.
 fn retained_heap(value: &Value) -> u64 {
-    let mut ledger = snapback4_core::engine::InternalLedger::new(snapback4_core::meter::Meter::new(Ceilings::unbounded(), snapback4_core::meter::Cut::Abort));
-    ledger.run(|meter, scope| value.retained_internal(scope).charge(meter, scope)).unwrap();
-    ledger.into_meter().used.heap_bytes
+    match value {
+        Value::String(s) | Value::Id(s) => s.len() as u64,
+        Value::Bytes(b) => b.len() as u64,
+        Value::Array(a) => (a.len() * std::mem::size_of::<Value>()) as u64 + a.iter().map(retained_heap).sum::<u64>(),
+        Value::Row(m) | Value::Map(m) => m.iter().map(|(k, v)| k.len() as u64 + retained_heap(v)).sum(),
+        _ => 0,
+    }
 }

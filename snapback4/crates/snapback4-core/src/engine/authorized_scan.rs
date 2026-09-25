@@ -266,12 +266,25 @@ mod tests {
 /// only for `run`, never constructible on a caller ledger or returned by it.
 pub struct InternalLedger(crate::meter::Meter);
 pub struct InternalMeter<'a>(&'a mut Meter);
-impl std::ops::Deref for InternalMeter<'_> {
-    type Target = Meter;
-    fn deref(&self) -> &Meter { self.0 }
-}
-impl std::ops::DerefMut for InternalMeter<'_> {
-    fn deref_mut(&mut self) -> &mut Meter { self.0 }
+impl InternalMeter<'_> {
+    pub fn heap(&mut self, bytes: u64) -> Result<(), RuntimeError> { self.0.heap(bytes) }
+    pub fn charge(&mut self, kind: MeterKind, amount: u64) -> Result<bool, RuntimeError> { self.0.charge(kind, amount) }
+    pub fn at(&mut self, site: &str) { self.0.at(site); }
+    pub fn step(&mut self, steps: u64) -> Result<(), RuntimeError> { self.0.step(steps) }
+    /// Release temporary allocations without exposing the saved heap counter.
+    pub fn scratch<T>(&mut self, work: impl FnOnce(&mut Self) -> T) -> T {
+        let mark = self.0.mark();
+        let result = work(self);
+        self.0.release_heap(mark);
+        result
+    }
+    pub fn examined_room(&self, rows: usize) -> bool { self.0.room(MeterKind::Examined, rows as u64) }
+    pub(crate) fn room(&self, kind: MeterKind, amount: u64) -> bool { self.0.room(kind, amount) }
+    pub(crate) fn grow<T>(&mut self, len: usize, capacity: usize) -> Result<usize, RuntimeError> {
+        crate::rows::word_heap::grow::<T>(self.0, len, capacity)
+    }
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn once(&mut self, site: crate::meter::HeapSite, bytes: u64) -> Result<(), RuntimeError> { self.0.once(site, bytes) }
 }
 impl InternalLedger {
     pub(crate) fn with_meter<T>(meter: &mut crate::meter::Meter, work: impl FnOnce(&mut InternalMeter<'_>, &Authorization) -> T) -> T {
@@ -281,7 +294,6 @@ impl InternalLedger {
     pub fn run<T>(&mut self, work: impl FnOnce(&mut InternalMeter<'_>, &Authorization) -> T) -> T {
         work(&mut InternalMeter(&mut self.0), &Authorization::internal())
     }
-    pub fn into_meter(self) -> crate::meter::Meter { self.0 }
 }
 
 #[cfg(all(test,feature="sqlite"))]

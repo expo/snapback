@@ -155,7 +155,10 @@ impl Pair {
                 }
                 let mut sequence = Vec::new();
                 for tick in 0..1000 {
-                    let timeline = e.run_timeline_chunk(self.now).unwrap();
+                    // Compare the same cooperative schedule in both worlds:
+                    // a zero-duration slice processes exactly one atomic row,
+                    // independent of host load at the ordinary 1 ms boundary.
+                    let timeline = e.run_timeline_chunk_for(self.now, std::time::Duration::ZERO).unwrap();
                     let aggregate = e.run_job_chunk(self.now).unwrap();
                     sequence.push(e.seq().unwrap() - base);
                     if timeline.is_none() && aggregate.is_none() {

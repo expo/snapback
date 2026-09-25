@@ -72,6 +72,26 @@ use crate::{engine::runner::SystemAccess, schema::{ColumnDefault, Table}};
 ///     });
 /// }
 /// ```
+/// Internal counters cannot relay a raw price to a captured caller ledger.
+/// ```compile_fail
+/// use snapback4_core::{Value, RuntimeError, engine::InternalLedger, meter::Meter};
+/// fn counter_delta(raw: &Value, internal: &mut InternalLedger, caller: &mut Meter) -> Result<(), RuntimeError> {
+///     internal.run(|physical, scope| {
+///         let before = physical.used.heap_bytes;
+///         raw.clone_heap_bytes(scope).charge(physical, scope)?;
+///         caller.heap(physical.used.heap_bytes - before)?;
+///         Ok(())
+///     })
+/// }
+/// ```
+/// Consuming a ledger cannot export its counters either.
+/// ```compile_fail
+/// use snapback4_core::{Value, engine::InternalLedger, meter::Meter};
+/// fn exported(raw: &Value, mut internal: InternalLedger, caller: &mut Meter) {
+///     internal.run(|physical, scope| raw.clone_heap_bytes(scope).charge(physical, scope)).unwrap();
+///     caller.heap(internal.into_meter().used.heap_bytes).unwrap();
+/// }
+/// ```
 /// An unscoped raw scalar price is unavailable too.
 /// ```compile_fail
 /// use snapback4_core::{Value, meter::Meter};

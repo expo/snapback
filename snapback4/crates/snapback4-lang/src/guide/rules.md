@@ -190,6 +190,9 @@ Authorization witnesses expose their verdict and the earliest expiry instant
 at which the complete rule's verdict can change. All witnesses expiring at
 that instant disappear together; correlated alternatives share this timeline.
 A stable grant needs no deadline, while necessary expiring authority does.
+The bounded branch walk depends on rule structure and verdicts, never on
+whether a private witness is permanent or expiring. Alternatives needed for
+the complete timeline are visited in both cases.
 Failed predicates and denied rows export no deadline.
 
 Clique read marks use this recipe. Add `readable by audience` after

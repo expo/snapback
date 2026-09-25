@@ -31,7 +31,7 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
             // candidates than the remaining allowance.
             let mut bounds = Bounds::default();
             loop {
-                let limit = meter.ceilings.examined.saturating_sub(meter.used.examined).min(32) as usize;
+                let limit = (1..=32).rev().find(|&n| meter.examined_room(n)).unwrap_or(0);
                 if limit == 0 { meter.charge(MeterKind::Examined, 1)?; break false; }
                 let members = rows.tx.scan_metered(target, &binding.group_index, &key, &bounds, Dir::Asc, limit, scope, meter)?;
                 let count = members.len();
@@ -141,7 +141,6 @@ mod tests {
     fn covered_test<T: DeviceTx>(rows: &Predicting<'_,T>, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut Meter) -> Result<bool,RuntimeError> {
         let mut ledger = snapback4_core::meter::InternalLedger::new(meter.clone());
         let result = ledger.run(|meter,scope| covered(rows,name,row,viewer,now,scope,meter));
-        *meter = ledger.into_meter();
         result
     }
 
@@ -179,14 +178,11 @@ table posts:
         let mut meter = Meter::new(Ceilings { examined: 8192, ..Ceilings::unbounded() }, Cut::Abort);
         assert!(matches!(covered_test(&rows, "posts", &post, "alice", 300, &mut meter),
             Err(RuntimeError::Bound { kind: MeterKind::Examined, actual: 8193, ceiling: 8192, .. })));
-        assert_eq!(meter.used.examined, 8193);
-        assert!(meter.used.heap_bytes > 0, "membership row/key allocation is charged");
         let mut heap = Meter::new(Ceilings { heap_bytes: 1024, ..Ceilings::unbounded() }, Cut::Abort);
         assert!(matches!(covered_test(&rows, "posts", &post, "alice", 300, &mut heap),
             Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })));
         let mut enough = Meter::new(Ceilings { examined: 9001, ..Ceilings::unbounded() }, Cut::Abort);
         assert!(covered_test(&rows, "posts", &post, "alice", 300, &mut enough).unwrap());
-        assert_eq!(enough.used.examined, 9001);
         tx.rollback().unwrap();
     }
     #[test]

@@ -13,3 +13,26 @@ Whole-artifact measurements only; no lane attributed components independently. C
 ## Done when
 
 A measured attribution (twiggy or the build-stage delta method the lanes used) names the top five contributors, and the ratchet moves back below 520,000 without changing any runtime ceiling or the three features' contracts. The final landing review's item (e) names what its reviewer saw as avoidable; start there.
+
+## Final landing review candidates (2026-09-25)
+
+Astra named three avoidable contributions, without attributing individual byte
+counts:
+
+- **Server work-schema construction during device preparation.** Device
+  initialization calls contribution-index preparation, which reaches
+  `maintain/row_key.rs:102` (`prepare_row_views`) and constructs `$recount`
+  and `$basis` tables. Those names occur in the wasm artifact. Separate device
+  index preparation from server work-table construction.
+- **Duplicated predicate evaluation.** `RowKey::matches` duplicates the ordinary
+  `Predicate::matches` boolean/comparison walker. Sharing evaluation with
+  different operand resolution is a plausible reduction.
+- **Server branches retained behind runtime device checks.** Shared row-view
+  code contains `if !self.device` maintenance paths worth separating at
+  compilation boundaries.
+
+Grok identified a fourth: the two-seek lifetime path is server-only, so the
+web device retains the fallback decode loop in `engine/witness.rs` alongside
+`probe_witness_uncached`. Check whether those two similar loops can share code.
+These are optimization candidates, not measured explanations for the whole
+artifact increase; neither reviewer found tests or parser/binder code in wasm.

@@ -190,19 +190,20 @@ impl MemoryStore {
             for (name, index) in &table.indexes {
                 if let Some(IndexComponent::Contribution(maintain)) = index.components.first() {
                     meter.at(&format!("adopt {table_name}.{name}"));
-                    let heap_before = meter.used.heap_bytes;
-                    meter.charge(MeterKind::Examined, 1)?;
-                    meter.step(maintain.evaluation_steps().saturating_mul(2))?;
-                    row.retained_internal(scope).times(4).fixed(4096).charge(meter, scope)?;
-                    // At most one physical contribution per row, even when
-                    // its predicate will exclude it from the rebuilt index.
-                    meter.charge(MeterKind::IndexEntries, 1)?;
-                    for key in stored_index_keys(table, index, row, id) {
-                        if key.len() > snapback4_core::rows::MAX_INDEX_KEY_BYTES {
-                            return Err(snapback4_core::rows::index_key_refusal(table_name, name, 1));
+                    meter.scratch(|meter| {
+                        meter.charge(MeterKind::Examined, 1)?;
+                        meter.step(maintain.evaluation_steps().saturating_mul(2))?;
+                        row.retained_internal(scope).times(4).fixed(4096).charge(meter, scope)?;
+                        // At most one physical contribution per row, even when
+                        // its predicate will exclude it from the rebuilt index.
+                        meter.charge(MeterKind::IndexEntries, 1)?;
+                        for key in stored_index_keys(table, index, row, id) {
+                            if key.len() > snapback4_core::rows::MAX_INDEX_KEY_BYTES {
+                                return Err(snapback4_core::rows::index_key_refusal(table_name, name, 1));
+                            }
                         }
-                    }
-                    meter.used.heap_bytes = heap_before;
+                        Ok::<_, RuntimeError>(())
+                    })?;
                 }
             }
             Ok::<_, RuntimeError>(())

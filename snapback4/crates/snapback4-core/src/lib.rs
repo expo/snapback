@@ -1,4 +1,5 @@
-#![forbid(unsafe_code)]
+#![cfg_attr(not(test), forbid(unsafe_code))]
+#![cfg_attr(test, deny(unsafe_code))]
 //! Snapback 4's core (LLP 3000 §5, week 2): the value model, the schema
 //! with `sync`, the program IR, the SQLite store with one key encoding, rule
 //! evaluation with hoisting, the runtime meter, the interpreter, and the
@@ -7,6 +8,9 @@
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — the native web-policy witness stays out of the published profiles (`production`, `wasm`); `scripts/check-release-guard.sh` builds this refusal.
 #[cfg(all(feature = "web-device-check", not(debug_assertions)))]
 compile_error!("web-device-check is only for debug test witnesses of the web device policy; it cannot be enabled in release, production, or wasm profiles");
+
+#[cfg(test)]
+extern crate self as snapback4_core;
 
 pub mod assets;
 pub(crate) mod authority;

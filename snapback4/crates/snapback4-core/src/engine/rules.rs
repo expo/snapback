@@ -258,12 +258,20 @@ pub(super) fn earliest(a: Option<i64>, b: Option<i64>) -> Option<i64> {
     match (a, b) { (Some(a), Some(b)) => Some(a.min(b)), (a, b) => a.or(b) }
 }
 
-struct Timeline { value: Verdict, changes: Vec<(i64, Verdict)> }
+struct Timeline {
+    value: Verdict,
+    changes: Vec<(i64, Verdict)>,
+    // Proven from rule structure and verdicts, never from witness deadlines.
+    invariant: bool,
+}
 impl Timeline {
-    fn constant(value: Verdict) -> Self { Self { value, changes: Vec::new() } }
+    fn constant(value: Verdict) -> Self { Self { value, changes: Vec::new(), invariant: true } }
     fn combine(self, other: Self, conjunction: bool) -> Self {
         let (mut left, mut right) = (self.value, other.value);
         let mut result = Self::constant(left.combine(right, conjunction));
+        let decisive = if conjunction { Verdict::Denied } else { Verdict::Readable };
+        result.invariant = (self.invariant && left == decisive)
+            || (other.invariant && right == decisive) || (self.invariant && other.invariant);
         let (mut a, mut b) = (self.changes.into_iter().peekable(), other.changes.into_iter().peekable());
         let mut previous = result.value;
         while let Some(time) = earliest(a.peek().map(|(t, _)| *t), b.peek().map(|(t, _)| *t)) {
@@ -290,8 +298,11 @@ fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, cr
             let mut answer = Timeline::constant(decisive.not());
             for term in terms {
                 answer = answer.combine(timeline(term, viewer, old, next, created_allowed, probe)?, conjunction);
-                // Only a verdict stable over the whole future may short circuit.
-                if answer.value == decisive && answer.changes.is_empty() { break; }
+                // Whole-rule expiry needs the remaining alternatives unless
+                // structure/verdicts alone prove them irrelevant. An exists
+                // with a permanent witness visits exactly the same branches
+                // as one with a finite witness, under the same physical bound.
+                if answer.value == decisive && answer.invariant { break; }
             }
             Ok(answer)
         }
@@ -305,6 +316,10 @@ fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, cr
             let value = evaluate_leaf(rule, viewer, old, next, created_allowed, probe)?;
             let expiry = probe.replace_expiry(None);
             let mut answer = Timeline::constant(if probe.take_unknown() { Verdict::Unknown } else if value { Verdict::Readable } else { Verdict::Denied });
+            // An absent witness stays absent as rows expire. Positive probes
+            // (including created facts with extra tests) need their alternatives
+            // in both lifetime worlds; the observed deadline cannot decide this.
+            answer.invariant = rule_probes(rule) == 0 || answer.value == Verdict::Denied;
             if answer.value == Verdict::Readable && let Some(time) = expiry { answer.changes.push((time, Verdict::Denied)); }
             Ok(answer)
         }
@@ -372,5 +387,40 @@ pub fn probe_sites(rule: &RuleExpr, out: &mut Vec<(String, String)>) {
         RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().for_each(|item| probe_sites(item, out)),
         RuleExpr::Not(inner) => probe_sites(inner, out),
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod lifetime_tests {
+    use super::*;
+    struct Witness { present: bool, until: Option<i64>, expiry: Option<i64>, visited: Vec<String> }
+    impl Probe for Witness {
+        fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.expiry, expiry) }
+        fn exists(&mut self, table: &str, _: &str, _: &[Value], _: &[(String,Value)]) -> Result<bool, crate::RuntimeError> {
+            self.visited.push(table.into());
+            if table == "early" { self.expiry = self.until; Ok(self.present) } else { Ok(true) }
+        }
+        fn created(&mut self, _: &str, _: &str, _: &[Value]) -> bool { true }
+    }
+    #[test]
+    fn branch_selection_uses_verdicts_and_structure_including_created_tests() {
+        let exists = |name: &str| RuleExpr::Exists { table: name.into(), index: "byId".into(), key: vec![], provenance: crate::ir::KeyProvenance::Const, equalities: vec![] };
+        let created = RuleExpr::Created { table: "early".into(), index: "byId".into(), key: vec![], provenance: crate::ir::KeyProvenance::Const,
+            equalities: vec![("kind".into(), RuleTerm::Literal(Value::Int(1)))] };
+        for early in [exists("early"), created] {
+            for until in [None, Some(2000)] {
+                for (rule, present, verdict, visits) in [
+                    (RuleExpr::Or(vec![early.clone(), exists("stable")]), true, true, vec!["early", "stable"]),
+                    (RuleExpr::And(vec![early.clone(), exists("stable")]), false, false, vec!["early"]),
+                    (RuleExpr::Or(vec![RuleExpr::Allow, early.clone()]), true, true, vec![]),
+                    (RuleExpr::And(vec![RuleExpr::Deny, early.clone()]), true, false, vec![]),
+                ] {
+                    let mut probe = Witness { present, until, expiry: None, visited: vec![] };
+                    assert_eq!(evaluate(&rule, "alice", None, &Value::Null, true, &mut probe).unwrap(), verdict);
+                    assert_eq!(probe.visited, visits);
+                    assert_eq!(probe.expiry, None, "stable authority or denial exports no deadline");
+                }
+            }
+        }
     }
 }

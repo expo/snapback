@@ -368,3 +368,124 @@ fn sqlite_and_memory_server_fetch_counts_cover_expired_points_and_private_lifeti
         assert_eq!(outcomes[0],outcomes[1]);
     }
 }
+
+
+// Astra's landing pair: populations and permanent authority are identical;
+// only an unreadable early witness's deadline changes.
+fn compound_lifetime_pair(sqlite: bool, operation: &str) {
+    let early = "exists early[parent = .parent]";
+    let stable = "exists stable[parent = .parent]";
+    for rule in [format!("{early} or {stable}"),
+        format!("not (not {early} and not {stable})"),
+        format!("({early} or {stable}) and viewer = 'alice'")] {
+        let source = format!(r#"table parents:
+  public
+  online only
+table early:
+  parent: parents
+  until: time ?
+  expire at .until
+  by byParent: parent
+  read <- deny
+  online only
+table stable:
+  parent: parents
+  until: time ?
+  expire at .until
+  by byParent: parent
+  read <- deny
+  online only
+table messages:
+  parent: parents
+  ordinal: sequence by parent
+  read <- {rule}
+  insert <- allow
+  online only
+query one():
+  return messages['old']
+query compound():
+  left = messages['old']
+  right = messages['old']
+  return {{ left, right }}
+mutation send():
+  return insert messages {{ parent: 'p' }}
+"#);
+        let b = snapback4_lang::compile(&[("compound.q".into(), source)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        for count in [8193, 2] {
+            let mut observations = Vec::new();
+            for until in [None, Some(2000)] {
+                let run = |rows: &dyn Rows| {
+                    let put = |table: &str, json: serde_json::Value| {
+                        let row = snapback4_core::wire::row_from_json(&b.schema.tables[table], &json).unwrap();
+                        rows.put(table, &b.schema.tables[table], &row, None).unwrap();
+                    };
+                    put("parents", serde_json::json!({"id":"p"}));
+                    put("messages", serde_json::json!({"id":"old","parent":"p","ordinal":1}));
+                    put("early", serde_json::json!({"id":"early","parent":"p","until":until}));
+                    for n in 0..count {
+                        put("stable", serde_json::json!({"id":format!("s{n:05}"),"parent":"p","until":null}));
+                    }
+                    rows.set_sequence("parents", "p", 1).unwrap();
+                    let mut runner = Runner::new(rows, &b.schema,
+                        Context::new("alice", Default::default()).at(1000).with_ids(["new".into()]),
+                        Meter::new(Ceilings::default(), Cut::Abort), 0);
+                    let result = runner.run(&b.programs.iter().find(|p| p.program.name.ends_with(&format!(".{operation}"))).unwrap().program)
+                        .map_err(|e| e.refusal());
+                    if count == 2 {
+                        let value = result.as_ref().unwrap();
+                        if operation == "send" { assert_eq!(value.field("ordinal").unwrap(), &Value::Int(2)); }
+                    }
+                    result
+                };
+                let observation = if sqlite {
+                    let dir = std::env::temp_dir().join(format!("sb4-compound-lifetime-{}-{operation}", std::process::id()));
+                    std::fs::create_dir_all(&dir).unwrap();
+                    let path = dir.join("store.sqlite");
+                    let mut engine = snapback4_core::Engine::new(snapback4_core::Store::open(&path).unwrap(), b.schema.clone(), vec![]).unwrap();
+                    let tx = engine.store_mut().transaction().unwrap();
+                    let rows = Counted { inner: tx, fetched: Cell::new(0) };
+                    let observation = (run(&rows), rows.fetched.get());
+                    assert!(observation.1 <= 8192);
+                    drop(rows);
+                    drop(engine);
+                    std::fs::remove_dir_all(dir).unwrap();
+                    observation
+                } else {
+                    let rows = Counted { inner: MemoryRows::default(), fetched: Cell::new(0) };
+                    let observation = (run(&rows), rows.fetched.get());
+                    assert!(observation.1 <= 8192);
+                    observation
+                };
+                observations.push(observation);
+            }
+            assert_eq!(observations[0], observations[1], "{operation}/{rule}/sqlite={sqlite}/count={count}");
+            if count == 8193 { assert_eq!(observations[0].0.as_ref().unwrap_err().code, "E_RULE"); }
+        }
+    }
+}
+
+#[test]
+fn compound_witness_lifetime_cannot_select_point_read_exhaustion_memory() {
+    compound_lifetime_pair(false, "one");
+}
+#[test]
+fn compound_witness_lifetime_cannot_select_point_read_exhaustion_sqlite() {
+    compound_lifetime_pair(true, "one");
+}
+#[test]
+fn compound_witness_lifetime_cannot_select_sequence_insert_exhaustion_memory() {
+    compound_lifetime_pair(false, "send");
+}
+#[test]
+fn compound_witness_lifetime_cannot_select_sequence_insert_exhaustion_sqlite() {
+    compound_lifetime_pair(true, "send");
+}
+#[test]
+fn compound_witness_lifetime_cannot_select_compound_read_exhaustion_memory() {
+    compound_lifetime_pair(false, "compound");
+}
+#[test]
+fn compound_witness_lifetime_cannot_select_compound_read_exhaustion_sqlite() {
+    compound_lifetime_pair(true, "compound");
+}

@@ -379,14 +379,14 @@ fn expired_authority_witnesses<H: Host>(mut host: H, aggregate: bool) {
 // the interpreter must stop fetching at its remaining device allowance.
 fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
     use std::cell::Cell;
-    use snapback4_core::{RuntimeError, rows::{Bounds, Dir}, schema::{Index, Table}, meter::Meter};
+    use snapback4_core::{RuntimeError, rows::{Bounds, Dir}, schema::{Index, Table}};
     struct Counted<'a> { rows: &'a dyn Rows, fetched: Cell<usize> }
     impl Rows for Counted<'_> {
         fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.rows.get(t,id)}
         fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.rows.lookup(t,n,i,k)}
         fn scan(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.rows.scan(t,n,k,b,d,l)}
         fn scan_metered(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize, scope: &snapback4_core::engine::Authorization,m:&mut snapback4_core::engine::InternalMeter<'_>)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
-            assert!(l as u64 <= m.ceilings.examined.saturating_sub(m.used.examined));
+            assert!(m.examined_room(l));
             let result=self.rows.scan_metered(t,n,k,b,d,l, scope,m)?;
             self.fetched.set(self.fetched.get()+result.len()); Ok(result)
         }

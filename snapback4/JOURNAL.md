@@ -58443,3 +58443,125 @@ and compile-fail doctests pass; client tests: 1,534 passed, 9 existing skips,
 passes. The per-item fixes, regression names, physical-allowance design and
 qualification details are in
 `/Users/ccheever/projects/snapback-sb5-program/landing-fixes.final.md`.
+
+## 2026-09-25 — Landing fix 2: lifetime-independent branches and sealed counters
+
+Worked only in `snapback-sb5-land` on `sb5/land`, starting at `b2011ab067`,
+under the author's no-push commission. Read Astra's landing (c)/(d) and
+Grok's (a) before editing. The llp-orient context is LLP 3000.015 §§1–2
+(the caller/internal ledger boundary, one 8,192-candidate allowance and
+complete-rule expiry), LLP 3000's SB4 fence and LLP 4001 §2 (these additions
+belong to the shared control, not SQL-specific runtime hooks). The rules,
+reads and writes guide cards supply the current authoring forms. Updated
+the governing spec and rules card with the implemented branch policy.
+
+Compound evaluation now carries an invariant flag derived only from rule
+structure and current verdicts. An `exists` is never treated as structurally
+invariant because its observed timeline is empty. Complete-rule alternatives
+are visited in both permanent and finite-witness worlds; a decisive field
+comparison still short-circuits. This keeps simultaneous/correlated timelines
+and the later deadline of alternative witnesses, without allowing a private
+expiry to select physical admission. The allowance is unchanged. With one
+early witness plus 8,193 permanent alternatives both worlds refuse with
+`E_RULE`; with two permanent alternatives both succeed, including ordinal 2
+on insertion. The paired point-read, sequence-insert and compound-read tests
+cover MemoryRows and on-disk SQLite, plain disjunction, a negated conjunction,
+and a nested compound rule. All six regressions fail on the original source
+with success versus `E_RULE`, and pass with the correction.
+
+Removed both `InternalMeter` dereference implementations and the unused
+public `InternalLedger::into_meter` export. Adapters use explicit charge,
+admission and scratch operations; contribution rebuild scratch restores its
+heap internally, without exposing a saved counter. Added the exact
+before/charge/after caller-transfer compile-fail example and a consumed-ledger
+export example. Both compile on the original source (failing the doctest)
+and fail to compile with the fix. No product caller used the removed export.
+Existing low-level allocation probes now live inside the core's test module,
+where private accounting remains inspectable; the SQLite allocator probes
+run in an isolated child process so they install before SQLite initializes.
+Production retains `forbid(unsafe_code)`; only that test module admits the
+existing allocator instrumentation. The extrema integration tests use an
+independent payload lower bound rather than an internal price export.
+
+Appended all four review candidates to the existing device-bundle diet
+ticket: server `$recount`/`$basis` schema construction during device preparation,
+`RowKey::matches`/`Predicate::matches` duplication, runtime `!self.device`
+server branches, and the device lifetime decode fallback alongside the
+server-only two-seek path. These remain unmeasured optimization candidates.
+Final blocking-suite, reference and wasm results follow below.
+
+The first full-suite attempt found one remaining test adapter reading the
+removed `ceilings`/`used` fields. Interrupted that run through its recorded
+tool session (exit 130), confirmed its suite/client launchers had exited,
+and preserved the log. The adapter now checks examined-row admission.
+Restricted generic heap admission checks to the crate; the public helper
+only answers whether an examined-row batch fits. Final qualification follows.
+
+Self-review before qualification preserved the original denied-conjunction
+shortcut: an absent witness cannot become present through expiry, so its
+verdict proves invariance without consulting its lifetime. Positive `created`
+probes with extra predicates follow the same policy as positive `exists`.
+A focused branch-selection test covers both probe forms, finite/permanent
+lifetimes, absent-witness conjunctions, and decisive constant rules. Interrupted
+the in-progress second suite via its recorded session before treating it as
+qualification; retained that log as `suite-interrupted-self-review.log`.
+
+Final-source wasm measurement: **1,930,400 B raw / 549,183 B gzip /
+416,271 B brotli**, Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt.
+The suite rebuild and independent family/forbidden-symbol-checked
+`measure-wasm.sh` agree. The **550,038 B** ratchet is unchanged, with
+**855 B** slack; runtime ceilings are unchanged. Relative to the recorded
+549,038 B local landing artifact this is +145 B gzip, a whole-artifact
+comparison, not component attribution. `metrics/wasm.jsonl` records the
+final dirty-source measurement alongside the earlier intermediate measurement.
+
+The next suite's Rust phase had one failure: the existing CLI admission-deadline
+case exceeded its 18-second upper wall-clock assertion. Its authority and
+no-admission assertions passed; the focused unchanged test then passed in
+15.56 seconds. The host reported load averages 19.14 / 28.93 / 30.20.
+Interrupted the failing suite through its recorded session and preserved
+`suite-interrupted-deadline.log`. The qualification retry uses the runner's
+supported `SNAPBACK4_RUST_TEST_PROCESSES=4`, the same complete test inventory,
+unchanged deadlines, and a process-scoped `caffeinate -i -w <suite-pid>` that
+ends with that launcher. No test or product code changed for this retry.
+
+The reduced-concurrency run exposed a separate paired-harness scheduling
+flake: `following_with_an_unmapped_private_field_preserves_every_channel`
+compared two worlds across the ordinary 1 ms cooperative slice, yielding one
+versus two maintenance commits. Its unchanged isolated repeat passed in
+0.02 seconds. The harness now calls the existing `run_timeline_chunk_for`
+with `Duration::ZERO`: one atomic row per slice, the same schedule in both
+worlds, with all result/meter/stream/sequence comparisons retained. This is a
+test-only scheduling input, not a runtime policy or ceiling change. Preserved
+`suite-interrupted-following-schedule.log` and restarted qualification after
+the focused check. Wasm source and measured bytes are unchanged.
+
+Toolchain clarification: `wasm-opt` is installed on this host and the build
+scripts tried its candidate. `wasmOpt: false` in the measurement means the
+candidate was not selected because it did not compress smaller; the bytes
+above are the retained unoptimized artifact. The earlier wording "without
+wasm-opt" describes the selected artifact, not the tool's availability.
+
+The next full run passed all Rust targets but found two source-census failures:
+the relocated allocation test file sits under `src/`, and the census does not
+follow its enclosing external module's test-only cfg gate. Added explicit
+`#[cfg(test)]` attributes to the two decoder test helpers. All 26 codec-census
+tests then passed; neither the census policy nor any production code changed.
+The pre-correction run is diagnostic evidence only; final qualification is
+repeated with those explicit test gates in place.
+
+Final qualification passed: the required `scripts/test.sh` invocation with
+`FORCE_COLOR` unset, incremental/debug code disabled, serial client files and
+the supported four-process Rust runner ended **`== 0 failure(s) in 2596 s`**
+(exit 0). The complete Rust inventory and workspace doctests passed; client
+tests passed **1,534** with **9** existing skips; all **78** seeded model
+tests passed. Both previously failing census checks passed in that full run.
+The launcher and its scoped sleep inhibitor exited. The complete log is
+`snapback5/.work/landing-fix-2/suite.log`; the earlier census-failing run is
+preserved as `suite-failed-census.log`.
+
+`./ref-check --verbose` passes **509 LLP documents / 9,311 references / zero
+errors / zero unchecked**. Final diff checks pass. The final suite rebuilt
+the same **1,930,400 B raw / 549,183 B gzip** wasm; the independent measurement
+also records **416,271 B brotli**. The **550,038 B** gzip ratchet remains
+unchanged, with **855 B** slack. Committed on `sb5/land`; no push.

@@ -852,7 +852,7 @@ impl crate::rows::Rows for Tx<'_> {
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
         // @ref LLP 3000.007#20.24.1 — stream preflight allowances before stepping to the next row.
-        // Per-execution statement storage and the page cache are shared images outside this payload ledger, as for every store scan; tests/word_heap.rs::sqlite_empty_scan_statement_storage_is_pinned_and_transient pins the excluded execution storage.
+        // Per-execution statement storage and the page cache are shared images outside this payload ledger, as for every store scan; engine/word_heap/tests.rs::sqlite_empty_scan_statement_storage_is_pinned_and_transient pins the excluded execution storage.
         // Within one preflight execution the first row's resident copy (one
         // page_size buffer per column, two registers) precedes its charge;
         // every later row's copy follows the previous row's charge. Across
@@ -887,7 +887,7 @@ impl crate::rows::Rows for Tx<'_> {
             let key = row.get_ref(1)?.as_blob().map_err(|e| RuntimeError::Store(e.to_string()))?;
             heap::stored_row(data,scope).charge(meter, scope)?;
             meter.heap(heap::allocation(key.len()))?;
-            let additional = heap::grow::<(Value, Vec<u8>)>(meter, out.len(), out.capacity())?;
+            let additional = meter.grow::<(Value, Vec<u8>)>(out.len(), out.capacity())?;
             if additional != 0 { out.reserve_exact(additional); }
             out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, key.to_vec()));
         }

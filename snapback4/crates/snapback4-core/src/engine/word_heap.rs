@@ -9,7 +9,7 @@
 //! scan in the engine. Statement execution storage is bounded per execution
 //! and transient, freed by the same reset chain as resident-payload registers;
 //! unlike those payload copies it is measured and pinned, not charged, by
-//! sqlite_empty_scan_statement_storage_is_pinned_and_transient in tests/word_heap.rs.
+//! sqlite_empty_scan_statement_storage_is_pinned_and_transient in engine/word_heap/tests.rs.
 //! Tables with non-audience `written by` fields use `scan_disclosed` instead
 //! of serialized-payload preflight: fixed fetch slots, a declared-row transient
 //! decode reservation and the typed Disclosed image (LLP 3000.015 §1). Raw
@@ -227,9 +227,9 @@ pub fn stored_row(json: &str, _scope: &crate::engine::Authorization) -> crate::v
 
 /// Copy a memory-store row handle/key into a precharged result vector. Row/Map
 /// images share their Arc; payloads of a non-row Value are priced recursively.
-pub fn memory_result(meter: &mut Meter, out: &mut Vec<(Value, Vec<u8>)>, row: &Value, key: &[u8], _scope: &crate::engine::Authorization) -> Result<(), RuntimeError> {
+pub fn memory_result(meter: &mut crate::engine::InternalMeter<'_>, out: &mut Vec<(Value, Vec<u8>)>, row: &Value, key: &[u8], _scope: &crate::engine::Authorization) -> Result<(), RuntimeError> {
     meter.heap(value(row) + allocation(key.len()))?;
-    let additional = grow::<(Value, Vec<u8>)>(meter, out.len(), out.capacity())?;
+    let additional = meter.grow::<(Value, Vec<u8>)>(out.len(), out.capacity())?;
     if additional != 0 { out.reserve_exact(additional); }
     out.push((row.clone(), key.to_vec()));
     Ok(())
@@ -256,3 +256,8 @@ pub fn cursor_build(table: &crate::schema::Table, index: &crate::schema::Index, 
 pub fn vec_growth<T>(n: usize) -> u64 {
     if n == 0 { 0 } else { slots::<T>(if n <= 4 { 4 } else { 2 * n.next_power_of_two() - 4 }) }
 }
+
+#[cfg(all(test, feature = "sqlite"))]
+#[allow(unsafe_code)] // Test-only allocator probes; production still forbids unsafe.
+#[path = "word_heap/tests.rs"]
+mod tests;

@@ -1,8 +1,7 @@
 //! The metered tokenizer keeps the index tokenizer's complete contract.
-use snapback4_core::{cursor, engine, error, meter, rows, schema, value, words};
-#[path = "../src/engine/word_heap.rs"]
-#[allow(dead_code)]
-mod accounting;
+use crate as snapback4_core;
+use crate::{cursor, engine, meter, rows, schema, value, words};
+use super as accounting;
 
 #[test]
 fn metered_tokenization_matches_index_tokens_across_columns_and_unicode() {
@@ -47,6 +46,9 @@ fn measured<T>(f: impl FnOnce() -> T) -> (T, u64) {
     (value, bytes as u64)
 }
 
+// Keep test-only decoder custody visible to the source census as well as the
+// enclosing external module's cfg gate.
+#[cfg(test)]
 #[test]
 fn stored_row_bound_covers_decoder_growth_and_btree_splits() {
     use value::{Value, object, canonical_json};
@@ -66,7 +68,7 @@ fn stored_row_bound_covers_decoder_growth_and_btree_splits() {
     }
 }
 
-#[test]
+#[cfg(test)]
 fn declared_private_decode_reservation_covers_utf8_and_escaping() {
     use snapback4_core::{Engine, Value, wire};
     configure_sqlite_probe();
@@ -74,8 +76,9 @@ fn declared_private_decode_reservation_covers_utf8_and_escaping() {
         ("escaped", "\n".repeat(1_000_000)), ("utf8", "𐐨".repeat(1_000_000))] {
         let b = snapback4_lang::compile(&[("schema.q".into(), "table records:\n  owner: principal\n  secret: text <=1000000 default '' written by .owner\n  extra: int ?\n  public\n  sync public\n".into())]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-        let reservation = rows::disclosed::decode_reservation(&b.schema.tables["records"]);
-        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let schema: schema::Schema = serde_json::from_value(serde_json::to_value(&b.schema).unwrap()).unwrap();
+        let reservation = rows::disclosed::decode_reservation(&schema.tables["records"]);
+        let mut e = Engine::memory(schema, vec![]).unwrap();
         let row = wire::row_from_json(&e.schema().tables["records"], &serde_json::json!({"id":"row","owner":"bob","secret":text})).unwrap();
         e.seed([("records".into(), row)]).unwrap();
         let tx = e.store_mut().read_transaction().unwrap();
@@ -137,10 +140,9 @@ fn cursor_decode_and_canonical_reencode_fit_the_preparse_allowance() {
     }
 }
 
-#[path = "common/meter.rs"]
+#[path = "../../../tests/common/meter.rs"]
 mod fixture;
-
-#[path = "word_heap/cal18_projection.rs"]
+#[path = "../../../tests/word_heap/cal18_projection.rs"]
 mod cal18_projection;
 
 const PREFLIGHT: &str = "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5";
@@ -242,7 +244,6 @@ fn measured_sqlite_range<T>(min_json: usize, max_json: usize, f: impl FnOnce() -
     (value, rust, native, payload)
 }
 
-#[test]
 fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
     use rows::{Bounds, Dir, Rows};
     use rusqlite::StatementStatus::Run;
@@ -290,7 +291,6 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
     }
 }
 
-#[test]
 fn sqlite_increasing_resident_preflight_charges_before_the_next_row() {
     use rows::{Bounds, Dir, Rows};
     use value::{Value, object};
@@ -333,17 +333,14 @@ fn sqlite_increasing_resident_preflight_charges_before_the_next_row() {
     println!("W14A increasing positive_rows=22 rust_allocated={rust} native_allocated={native} charged={}", ample.used.heap_bytes);
 }
 
-#[test]
 fn sqlite_resident_payload_is_prepaid_before_preflight() {
     sqlite_payload_probe("resident", 650);
 }
 
-#[test]
 fn sqlite_overflow_payload_is_prepaid_before_preflight() {
     sqlite_payload_probe("overflow", 4000);
 }
 
-#[test]
 fn sqlite_scratch_uses_the_open_connections_actual_page_size() {
     use rows::{Bounds, Dir, Rows};
     configure_sqlite_probe();
@@ -457,19 +454,35 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
 }
 
 fn physical<T>(meter: &mut meter::Meter, work: impl FnOnce(&mut engine::InternalMeter<'_>,&engine::Authorization) -> T) -> T {
-    let mut ledger = meter::InternalLedger::new(meter.clone());
-    let result = ledger.run(work);
-    *meter = ledger.into_meter();
-    result
+    meter::InternalLedger::with_meter(meter, work)
 }
 fn stored_price(json: &str) -> u64 {
-    let mut ledger = meter::InternalLedger::new(meter::Meter::new(meter::Ceilings::unbounded(),meter::Cut::Abort));
-    ledger.run(|meter,scope| accounting::stored_row(json,scope).charge(meter,scope).unwrap());
-    ledger.into_meter().used.heap_bytes
+    let mut meter = meter::Meter::new(meter::Ceilings::unbounded(), meter::Cut::Abort);
+    physical(&mut meter, |meter,scope| accounting::stored_row(json,scope).charge(meter,scope)).unwrap();
+    meter.used.heap_bytes
+}
+fn range_price(prefix: &[value::Value], bounds: &rows::Bounds) -> u64 {
+    let mut meter = meter::Meter::new(meter::Ceilings::unbounded(), meter::Cut::Abort);
+    physical(&mut meter, |meter,scope| accounting::range(prefix,bounds,scope).charge(meter,scope)).unwrap();
+    meter.used.heap_bytes
 }
 
-fn range_price(prefix: &[value::Value], bounds: &rows::Bounds) -> u64 {
-    let mut ledger = meter::InternalLedger::new(meter::Meter::new(meter::Ceilings::unbounded(), meter::Cut::Abort));
-    ledger.run(|meter, scope| accounting::range(prefix,bounds,scope).charge(meter,scope)).unwrap();
-    ledger.into_meter().used.heap_bytes
+// These allocation probes need private ledger access and must configure SQLite
+// before any other test initializes it. Run them together in a fresh process.
+#[test]
+fn sqlite_allocation_probes() {
+    const CHILD: &str = "SNAPBACK4_SQLITE_ALLOCATION_PROBES";
+    if std::env::var_os(CHILD).is_none() {
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "rows::word_heap::tests::sqlite_allocation_probes", "--nocapture"])
+            .env(CHILD, "1").status().unwrap();
+        assert!(status.success(), "isolated SQLite allocation probes: {status}");
+        return;
+    }
+    declared_private_decode_reservation_covers_utf8_and_escaping();
+    sqlite_empty_scan_statement_storage_is_pinned_and_transient();
+    sqlite_increasing_resident_preflight_charges_before_the_next_row();
+    sqlite_resident_payload_is_prepaid_before_preflight();
+    sqlite_overflow_payload_is_prepaid_before_preflight();
+    sqlite_scratch_uses_the_open_connections_actual_page_size();
 }
