@@ -252,6 +252,7 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
     let certificate = bound.programs.iter().find(|p| p.program.name == program.name).map_or_else(
         || crate::scale::analyze(&bound.schema, program), |p| crate::scale::analyze_bound(&bound.schema, p));
     let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {}", certificate.line())];
+    for aggregate in &certificate.aggregates { lines.push(format!("    {aggregate}")); }
     for growth in &certificate.growth_sites {
         let rewrite = if growth.rewrite.is_empty() { String::new() } else { format!("; rewrite: {}", growth.rewrite) };
         lines.push(format!("      {}: {}{rewrite}", growth.site, growth.reason));
