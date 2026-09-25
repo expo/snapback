@@ -1,16 +1,5 @@
 import type { Query } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
-import type { BackendJson } from "./backend.ts";
-
-export function runsOnServer(backend: BackendJson, op: Query<unknown, unknown>, nativeReady: boolean): boolean {
-  const program = backend.programs.find(program => program.name === op.name);
-  if (program?.native) return !nativeReady;
-  return (backend.schema.operations?.[op.name]?.runs ?? program?.runs ?? op.runs) === "server";
-}
-
-export function predictedTables(predicted: readonly string[]): Set<string> {
-  return new Set(predicted.map(row => row.slice(0, row.lastIndexOf("/"))).filter(Boolean));
-}
 
 export interface LocalWatch extends ReadObservation<unknown> {
   op: Query<unknown, unknown>;

@@ -1,6 +1,6 @@
 //! Materialized Following: no authored graph bounds; all source audiences stay public.
 use crate::{ast::*, diag::{Diagnostic, Fallible}};
-use snapback4_core::schema::{timeline::{Timeline, HISTORY_WINDOW}, Audience, ColumnDefault, ColumnType, Horizon, RuleExpr, RuleTerm, Schema, Table};
+use snapback4_core::schema::{timeline::Timeline, Audience, ColumnDefault, ColumnType, RuleExpr, RuleTerm, Schema, Table};
 use super::catalog::Catalog;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -48,26 +48,13 @@ fn owner(rule: &RuleExpr, name: &str) -> bool {
     }
 }
 
-fn source<'a>(schema: &'a Schema, decl: &TimelineDecl, name: &str, actor: &str, time: Option<&str>, columns: &[(&str, ColumnType)]) -> Fallible<&'a Table> {
-    let acquisition = time.map_or_else(|| "sync public".into(), |at| format!("sync public, sync public last 1000 by .{at}, or online only"));
+fn source<'a>(schema: &'a Schema, decl: &TimelineDecl, name: &str, actor: &str, columns: &[(&str, ColumnType)]) -> Fallible<&'a Table> {
     let fail = |message| refusal(decl, "E_TIMELINE_SHAPE", message,
-        format!("declare {name} public with {acquisition}; require .{actor} = viewer for inserts and allowed deletes/updates; keep mapped fields immutable"));
+        format!("declare {name} public with full sync public; require .{actor} = viewer for inserts and allowed deletes/updates; keep mapped fields immutable"));
     let t = schema.table(name).ok_or_else(|| fail(format!("missing timeline source {name}")))?;
-    if !t.rules.read.is_public() || t.expire.is_some() || schema.maintain_for(name).is_some() {
-        return Err(fail(format!("{name} must be explicitly public, non-expiring application data")));
-    }
-    // @ref LLP 3000.016#2.1 — source acquisition is global and ordered by event time; edges remain fully held.
-    let valid_sync = match (&t.sync, time) {
-        (None, Some(_)) => true,
-        (Some(sync), time) if sync.audience == Audience::Public => match &sync.horizon {
-            None => true,
-            Some(horizon) => time.is_some_and(|at| t.index(&horizon.by)
-                .is_some_and(|index| index.is_plain() && index.columns() == [at, "id"])),
-        },
-        _ => false,
-    };
-    if !valid_sync {
-        return Err(fail(format!("{name} needs {acquisition}; a source floor must order by its mapped time then id")));
+    if !t.rules.read.is_public() || t.expire.is_some() || schema.maintain_for(name).is_some()
+        || !t.sync.as_ref().is_some_and(|s| s.audience == Audience::Public && s.horizon.is_none()) {
+        return Err(fail(format!("{name} must be explicitly public, fully synced, non-expiring application data")));
     }
     if !owner(&t.rules.insert, actor) || [&t.rules.update, &t.rules.delete].iter().any(|r| **r != RuleExpr::Deny && !owner(r, actor)) {
         return Err(fail(format!("{name} must retain its owner's write authority")));
@@ -90,9 +77,7 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             if mapped.len() != 3 || !owned.is_disjoint(&mapped) || owned.iter().any(|n| !schema.tables.contains_key(n)) {
                 return Err(refusal(decl, "E_TIMELINE_SHAPE", "timeline sources and owned tables must be distinct", "map three distinct public tables: events, reposts and edges"));
             }
-            let posts = source(schema, decl, &decl.posts[0], &decl.posts[1], Some(&decl.posts[2]), &[(&decl.posts[1], ColumnType::Principal), (&decl.posts[2], ColumnType::Time)])?;
-            let mut event_sync = posts.sync.clone();
-            if let Some(horizon) = event_sync.as_mut().and_then(|sync| sync.horizon.as_mut()) { horizon.by = "byTime".into(); }
+            let posts = source(schema, decl, &decl.posts[0], &decl.posts[1], &[(&decl.posts[1], ColumnType::Principal), (&decl.posts[2], ColumnType::Time)])?;
             if posts.rules.delete != RuleExpr::Deny {
                 return Err(refusal(decl, "E_TIMELINE_SHAPE", "original cards must survive removal for independent reposts", "deny post deletion and set removed: true instead"));
             }
@@ -109,8 +94,8 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
                 }
                 Ok(filter)
             }).transpose()?;
-            let reposts = source(schema, decl, &decl.reposts[0], &decl.reposts[1], Some(&decl.reposts[3]), &[(&decl.reposts[1], ColumnType::Principal), (&decl.reposts[2], ColumnType::Ref { table: decl.posts[0].clone() }), (&decl.reposts[3], ColumnType::Time)])?;
-            let edges = source(schema, decl, &decl.edges[0], &decl.edges[1], None, &[(&decl.edges[1], ColumnType::Principal), (&decl.edges[2], ColumnType::Principal)])?;
+            let reposts = source(schema, decl, &decl.reposts[0], &decl.reposts[1], &[(&decl.reposts[1], ColumnType::Principal), (&decl.reposts[2], ColumnType::Ref { table: decl.posts[0].clone() }), (&decl.reposts[3], ColumnType::Time)])?;
+            let edges = source(schema, decl, &decl.edges[0], &decl.edges[1], &[(&decl.edges[1], ColumnType::Principal), (&decl.edges[2], ColumnType::Principal)])?;
             for (t, pair) in [(reposts, &decl.reposts[1..3]), (edges, &decl.edges[1..3])] {
                 if t.rules.update != RuleExpr::Deny || !owner(&t.rules.delete, &pair[0]) || !t.indexes.values().any(|i| i.unique && i.is_plain() && i.columns() == pair) {
                     return Err(refusal(decl, "E_TIMELINE_SHAPE", "edges and reposts need immutable attribution and a total unique pair", format!("unique byPair: {}\n  update <- deny", pair.join(", "))));
@@ -120,9 +105,6 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             // an arbitrary authored name can silently reinterpret a saved cursor.
             let followed_index = format!("$timeline:{}:followers", decl.name);
             reserve_followed_index(decl, &mut schema.tables.get_mut(&decl.edges[0]).unwrap().indexes, &followed_index)?;
-            schema.tables.get_mut(&format!("{}Posts", decl.name)).unwrap().sync = event_sync;
-            schema.tables.get_mut(&format!("{}Feed", decl.name)).unwrap().sync.as_mut().unwrap().horizon =
-                Some(Horizon { last: HISTORY_WINDOW as u32, by: "byReaderPage".into() });
             Ok(Timeline { name: decl.name.clone(), version: 2, filter, authors: Default::default(), posts: decl.posts.clone(), reposts: decl.reposts.clone(), edges: decl.edges.clone(),
                 author_cap: 1000, edge_cap: 100000, followed_index, purge: String::new(), owned, mapped })
         })();
@@ -139,12 +121,10 @@ pub fn write_site(schema: &Schema, table: &str, kind: &str, fact: &mut snapback4
     use snapback4_core::schema::{ResidencySite, SiteClass};
     for timeline in schema.timelines.iter().filter(|timeline| timeline.maps(table)) {
         for (input, index) in timeline.inputs(table, kind) {
-            let sync = schema.tables[&input].sync.as_ref();
-            let online = table == timeline.edges[0] || sync.is_none();
-            let horizon = sync.is_some_and(|sync| sync.horizon.is_some());
+            let online = table == timeline.edges[0] || schema.tables[&input].sync.is_none();
             fact.sites.push(ResidencySite { site: format!("{kind} {table}: {input}/{index}"), table: input.clone(), index,
-                kind: "timeline transition".into(), class: if online { SiteClass::Server } else if horizon { SiteClass::Horizon } else { SiteClass::Held },
-                reason: format!("timeline {} implicit input {input}: {}", timeline.name, if online { "server-owned background work" } else if horizon { "a miss past the acquisition floor queues without rows; must be currently held to predict" } else { "must be currently held to predict; retained-only coverage queues without rows" }),
+                kind: "timeline transition".into(), class: if online { SiteClass::Server } else { SiteClass::Held },
+                reason: format!("timeline {} implicit input {input}: {}", timeline.name, if online { "server-owned background work" } else { "must be currently held to predict; retained-only coverage queues without rows" }),
                 rewrite: if table == timeline.edges[0] { "queue the whole mutation without predicted rows: backfill and cleanup are server-owned".into() } else { "queue the whole mutation without predicted rows when any input is online, unheld or retained-only".into() } });
         }
     }

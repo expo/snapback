@@ -37,25 +37,19 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
     runner.device = true;
     runner.component_observation = components;
     let result = (|| {
-    let data = match runner.run(program) {
-        Ok(data) => data,
-        // A require/unwrap after an unheld card is no more authoritative
-        // than a null card; the original query must be answered remotely.
-        Err(_) if runner.query_unavailable => Value::Null,
-        Err(error) => return Err(error.refusal()),
-    };
+    let data = runner.run(program)?;
     let capped = runner.meter.capped_at.is_some();
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
-    let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };    Ok(QueryOutcome {
+    let next = runner.outcome_next_cursor()?;    Ok(QueryOutcome {
         unavailable: runner.query_unavailable,
         complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
         capped_at: runner.meter.capped_at.clone(),
         word_cut_at: runner.word_cut_at.clone(),
         next,
-        data: if runner.query_unavailable { Value::Null } else { data },
+        data,
         seq: 0,
         metered: runner.meter.used,
         tables: runner.read_tables.iter().cloned().collect(),
@@ -130,11 +124,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
     runner.device = true;
     let (value, mut runner) = super::native::run_read(module, runner, &program.name, &args, now);
     let result = (|| {
-        let data = match value {
-            Ok(data) => data,
-            Err(_) if runner.query_unavailable => Value::Null,
-            Err(error) => return Err(error.refusal()),
-        };
+        let data = value?;
         runner.charge_output(&data)?;
         Ok(QueryOutcome {
             unavailable: runner.query_unavailable,
@@ -143,7 +133,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),
             next: None,
-            data: if runner.query_unavailable { Value::Null } else { data },
+            data,
             seq: 0,
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
@@ -155,13 +145,6 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
 
 
 impl Runner<'_> {
-    // @ref LLP 3000.016#2.2 — a missing Following card withholds the whole query, including its continuation.
-    pub(super) fn withhold_unheld_card(&mut self, table: &str) {
-        if self.schema.timelines.iter().any(|timeline| table == timeline.posts[0] || table == timeline.reposts[0]) {
-            self.query_unavailable = true;
-        }
-    }
-
     // @ref LLP 3000.007.003#3.2 — device-only authority work may prevent
     // prediction, but cannot spend the server-equivalent mutation budget.
     pub(super) fn device_work<T>(&mut self, work: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {

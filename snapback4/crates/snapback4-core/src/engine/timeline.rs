@@ -117,8 +117,6 @@ impl Runner<'_> {
                     let post = required(post, "FEED_APP_NOT_FOUND")?;
                     let original = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(&post, &t.posts[1])?, field(&post, "id")?, Value::Bool(false)])?;
                     require(original.is_some(), "FEED_POST_NOT_FOUND")?;
-                    // @ref LLP 3000.016#2.3 — held event metadata alone cannot justify repost prediction when removal has arrived.
-                    self.timeline_require_live_id(t, &field(&post, "id")?)?;
                     let id = self.context.mint()?;
                     self.timeline_require_live_id(t, &Value::Id(id.clone()))?;
                     let event = object([("id", Value::Id(id)), ("postId", field(&post, "id")?),

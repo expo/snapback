@@ -72,4 +72,4 @@ mutation post(postId: id):
 query noteRows(c: cursor ?):
   return notes after c first 50
 query ownCopies():
-  return feedFeed[viewer] last 20 by byReaderPage
+  return feedFeed[viewer] first 20 by byReaderTime

@@ -173,7 +173,7 @@ fn redefinition_refuses_atomically_and_delivery_keeps_running() {
     // copy, admission record or dependent count can be deleted/reconstructed.
     let alternate = source().replace("posts", "entries").replace("follows", "links")
         .replace("activity", "alternateActivity").replace("following", "alternateFollowing")
-        .replace("mutation ", "mutation alternate_").replace("query ", "query alternate_");
+        .replace("mutation ", "mutation alternate_").replace("query home", "query alternateHome");
     for revised in [s.replace(".parentId = null and not .removed", "not .removed"),
         format!("{}\n{alternate}", s.replace("view following: activity where .actor = viewer or exists follows[viewer, .actor]",
             "view following: alternateActivity where .actor = viewer or exists links[viewer, .actor]"))] {

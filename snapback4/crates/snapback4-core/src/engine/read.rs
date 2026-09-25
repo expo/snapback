@@ -333,7 +333,6 @@ impl Runner<'_> {
         if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
-            self.withhold_unheld_card(&read.table);
         }
         if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(&key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
             // A null key on a required column addresses nothing.
@@ -356,10 +355,7 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) {
-                self.unknown_fact(&read.table, &read.index, &key, &read.site);
-                self.withhold_unheld_card(&read.table);
-            }
+            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
             return Ok(Value::Null);
         };
         if self.expired(table, &row) {

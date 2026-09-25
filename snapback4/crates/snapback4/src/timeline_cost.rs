@@ -3,12 +3,8 @@ use snapback4_core::{ir, schema::{Schema, ColumnType, Table}, Value};
 
 pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<String>) {
     let writes = ir::write_tables(program);
-    let reads = ir::read_sites(program);
     for t in &schema.timelines {
         let affected: std::collections::BTreeSet<_> = writes.iter().filter(|(table,_)| t.maps(table)).map(|(table,_)| table.as_str()).collect();
-        if !affected.is_empty() || reads.iter().any(|read| t.owns(&read.table) || t.maps(&read.table)) {
-            acquisition(schema, t, lines);
-        }
         if affected.is_empty() { continue; }
         lines.push(format!("    timeline {}: background delivery; derived + application writes share the 1024-row mutation ceiling", t.name));
         if affected.contains(t.posts[0].as_str()) || affected.contains(t.reposts[0].as_str()) {
@@ -25,26 +21,6 @@ pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<Str
             for (op,bytes) in bounds { lines.push(format!("      {op}: derived stream <= {bytes} B (application rows excluded)")); }
         }
     }
-}
-
-// @ref LLP 3000.016#4 — the certificate distinguishes acquisition from delivery and the history window.
-fn acquisition(schema: &Schema, t: &snapback4_core::schema::timeline::Timeline, lines: &mut Vec<String>) {
-    lines.push(format!("    following {} acquisition: global, non-sliding source floors; new arrivals accumulate", t.name));
-    for name in [&t.posts[0], &t.reposts[0], &t.table("Posts"), &t.table("Feed")] {
-        let description = match &schema.tables[name].sync {
-            None => "online only".into(),
-            Some(sync) => match &sync.horizon {
-                None => "full sync".into(),
-                Some(floor) => format!("newest {} by ({}){}", floor.last,
-                    schema.tables[name].indexes[&floor.by].columns().join(", "),
-                    if name == &t.table("Feed") { " per reader" } else { " globally" }),
-            },
-        };
-        lines.push(format!("      {name}: {description}"));
-    }
-    lines.push(format!("      {} and {}: full sync; private edge epochs and work stay synced", t.edges[0], t.table("RemovedEvents")));
-    lines.push(format!("      history: newest {} events per followed author, unchanged; acquisition never changes delivery", snapback4_core::schema::timeline::HISTORY_WINDOW));
-    lines.push("      cards: an unheld original withholds the whole query and continuation; retry original input online, loading offline or while a prediction is unobserved".into());
 }
 
 fn row_bounds(table: &Table, event: bool) -> Option<(usize, usize, usize, usize)> {
