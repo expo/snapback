@@ -1500,8 +1500,11 @@ within a live clock. Each admission atomically commits its issued floor with its
 outbox entry; that separate `server-clock-floor` record outlives settlement.
 Orphan transfers and recovery writes raise the same floor in their outbox
 transaction, including recovery after clock attachment.
-Committed orphan transfers raise the live issued clock and reschedule its deadlines
-before later admissions. Admissions already waiting behind recovery use at least
+Every outbox commit raises the live issued clock and reschedules its deadlines
+before later admissions, including journal recovery deferred until backend adoption.
+Restore commits available orphan outboxes and their floor before replaying its own
+journal; if that save fails, restore fails and leaves the journal unadmitted.
+Admissions already waiting behind recovery use at least
 the recovered floor at device execution; synchronous journal capture still happens
 before the first await.
 Startup restores a floor only from this record and queued `entry.now` values.
