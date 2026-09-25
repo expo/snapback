@@ -163,12 +163,21 @@ export type AssetRead =
   | { readonly denied: Refusal };
 
 /** The whole client, as a screen sees it. Everything else is `why`. */
+/** Existing callers await the write. A web admission refusal is also available
+ * in the calling stack, before any storage or network wait. Absence of these
+ * fields is not a server acknowledgement; await the ordinary Write outcome. */
+export type MutationPromise<R = unknown> = Promise<Write<R>> & {
+  readonly state?: "failed";
+  readonly id?: string;
+  readonly why?: Refusal;
+};
+
 export interface Client {
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
   /** Retry-safe intents: pass { id } to reuse the original write. A client
    * never admits a known id twice; an evicted receipt requires reopening. */
-  mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>>;
+  mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): MutationPromise<R>;
   /** Recover a write by mutation id. Unknown ids return undefined. Local
    * clients keep terminal receipts with their store, without historical results. */
   write(id: string): Promise<Write | undefined>;

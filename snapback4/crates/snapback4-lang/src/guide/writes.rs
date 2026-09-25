@@ -105,6 +105,8 @@ receives pending with its id. Late responses are consumed and discarded.
 `createApp` and device mutation intent recover on reopen; raw online callers
 retain their retry id, and action callers collect the same server action id.
 
+`useAcquisition()` reports `{ acquired, rows, tables }` as snapshot pages commit.
+Keep the UI usable through server fallback while it prepares offline access.
 `client.acquired` and `useAcquired()` report completed snapshot and catch-up
 for the current store, stay true offline, and reset with invalidated acquisition.
 The online tier has no partition and reports false. In an opener, use
@@ -241,11 +243,19 @@ intact until a later matching open can establish ownership; a broken orphan does
 not prevent healthy stores from opening.
 Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
+
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
-device store; a serialized record over 64 KiB is not journaled. Unavailable,
-throwing or full localStorage, an unidentified backend store,
-exceeded journal limits, or browser storage clearing leave unawaited navigation
-best-effort: that write can still be lost before IndexedDB commits. A destination must open
+device store, and 64 KiB per record. A browser call that cannot synchronously
+keep its intent refuses `E_ADMISSION` with a site and rewrite: no new intent
+is accepted. Its promise is already fulfilled with `failed`, and exposes
+`state`, `id` and `why` in the calling stack. Missing restored identity,
+unknown backend identity, unavailable/full storage, an exhausted journal, or
+an app without a durable web device therefore cannot silently lose a click.
+Use `webDevice()` and `localStorageSessionStore()`, wait for readiness or repair
+storage, then retry the original id. Browser storage clearing after admission
+can still erase the journal.
+
+A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
 best-effort and sends only admitted writes. Built-in IndexedDB requires Web
 Locks and refuses opening without them. Custom persistence must provide an

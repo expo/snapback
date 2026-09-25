@@ -1,3 +1,4 @@
+import { synchronousSessionStore } from "./admission.ts";
 import { defaultFetch } from "#fetch";
 // Sign-in (H0): a guest session, or a password account. Each returns a
 // bearer token the client sends as `authorization`; the token is the
@@ -92,11 +93,11 @@ export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "se
     if (!found) throw new Error("localStorage is unavailable in this runtime");
     return found;
   };
-  return {
+  return synchronousSessionStore({
     async get(key) { return target().getItem(key); },
     async set(key, value) { target().setItem(key, value); },
     async delete(key) { target().removeItem(key); },
-  };
+  }, key => target().getItem(key));
 }
 
 export const sessionKey = (url: string) => storeKey("session", url.replace(/\/$/, ""));

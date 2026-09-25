@@ -1,3 +1,5 @@
+import { admissionRefusal, browserAdmission, failedAdmission, sessionReader } from "./admission.ts";
+import { mintId } from "./client.ts";
 import { defaultFetch } from "#fetch";
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
 import { createClient } from "./client.ts";
@@ -185,7 +187,13 @@ export function createApp(options: AppOptions): App {
   }
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
   const listeners = new Set<() => void>();
-  let current = createClient({ url, fetch: fetcher });
+  const anonymous = () => {
+    const client = createClient({ url, fetch: fetcher });
+    if (browserAdmission()) client.mutate = (_op, _args, options) => failedAdmission(options?.id ?? mintId(),
+      admissionRefusal("session restoration or sign-in is incomplete; mutation was not admitted", "app.mutate", "await app.ready; await app.auth.login(email, password); retry with the same id"));
+    return client;
+  };
+  let current = anonymous();
   type Scope = { valid: boolean; sealing?: boolean; waitRotation?: () => Promise<void>; epoch: string; session: Session; consumed?: string | undefined; issued: Set<string>; aborter: AbortController; client?: Client; view?: Client; expose?: () => Client; fenceView?: () => () => void; save?: () => Promise<void>; logout?: Promise<void>; stop(): void; pause(): void };
   const scopes = new Set<Scope>();
   let owner: (Scope & { client: Client }) | undefined;
@@ -212,7 +220,7 @@ export function createApp(options: AppOptions): App {
     if (pause) owner?.pause();
     const notifyHidden = [...scopes].map(scope => scope.fenceView?.());
     if (current !== owner?.view) void current.close();
-    current = createClient({ url, fetch: fetcher });
+    current = anonymous();
     publish(closed ? "signed-out" : state, null);
     for (const notify of notifyHidden) notify?.();
   };
@@ -318,6 +326,18 @@ export function createApp(options: AppOptions): App {
         fence(scope, new SessionEpochChanged()); return false;
       }
       return true;
+    }
+    function admit(): Refusal | undefined {
+      if (!options.device) return admissionRefusal("this browser app has no durable web device", "app.mutate", "createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })");
+      const read = sessionReader(backing);
+      if (!read) return admissionRefusal("the session store cannot be checked synchronously", "app.mutate", "use localStorageSessionStore() on the web, then retry with the same id");
+      try {
+        const marker = read(epochKey) ?? "0";
+        const stored = sessionEpoch(read(sessionKey(url))) ?? "0";
+        const currentEpoch = BigInt(marker) > BigInt(stored) ? marker : stored;
+        if (!scope.valid || currentEpoch !== epoch) { fence(scope, new SessionEpochChanged()); return new SessionEpochChanged().why; }
+      } catch (error) { return admissionRefusal(`session storage is unavailable: ${String(error)}`, "app.mutate"); }
+      return undefined;
     }
     const scopedFetch: typeof fetch = async (input, init) => {
       // Cancel backend acquisition before a local Client exists. Once open,
@@ -478,7 +498,7 @@ export function createApp(options: AppOptions): App {
       recoverStore();
       const baseClient = custody?.client ?? raw;
       scope.expose = () => {
-        const guarded = guardClient(baseClient, authorized, () => scope.valid, () => changedStore ?? new SessionEpochChanged().why, () => retirement);
+        const guarded = guardClient(baseClient, authorized, () => scope.valid, () => changedStore ?? new SessionEpochChanged().why, () => retirement, admit);
         const client = guarded.client;
         scope.view = client; scope.fenceView = guarded.fence;
         const exposed = () => owner === scope && current === client;

@@ -344,13 +344,39 @@ a snapshot and catch-up finish, partition-dependent reads fall back to the
 server or return `E_OFFLINE`, and writes queue without invented predictions.
 `client.acquired` and React's `useAcquired()` become true after the snapshot
 and catch-up finish for the current store, including an empty partition.
-They stay true offline and across an offline reopen, and become false when
-store replacement or schema adoption invalidates acquisition. The online tier
-has no local partition and reports false. `onAcquired` observes changes.
-Await `client.sync()` when `client.link() === "online"` before exposing a
-screen that needs offline prediction immediately; skip that wait on an offline
-cold start. A sync interrupted by link loss or a refused partition can return
-without acquisition, so the flag remains the authority.
+`useAcquisition()` returns `{ acquired, rows, tables }`: `rows` counts snapshot
+row images durably applied during this runtime's current acquisition, and
+`tables` maps source table names to those counts. Counts reset when an
+acquisition restarts or its store is replaced; a warm reopen can be acquired
+with zero rows received in this runtime. These are progress counts, not estimates
+of the total or permission to read a partly acquired partition.
+
+Keep the UI usable while preparing offline access. Ordinary reads fall back to
+the server until acquisition completes; `held` reads still require the device.
+This component runs inside `<AppProvider app={app}>`:
+
+```tsx
+import { useAcquisition, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+
+function Inbox() {
+  const { acquired, rows, tables } = useAcquisition();
+  const read = useQuery(api.inbox, {});
+  return <>
+    {!acquired && <p role="status">Preparing offline: {rows} rows across {Object.keys(tables).length} tables</p>}
+    {"data" in read ? <ul>{read.data.map(room => <li key={room.conversationId}>{room.conversationId}</li>)}</ul>
+      : <p>{"denied" in read ? read.denied.message : "Loading conversations…"}</p>}
+  </>;
+}
+```
+
+Acquisition stays true offline and across an offline reopen, and becomes false
+when store replacement or schema adoption invalidates it. The online tier has
+no local partition and reports false with zero progress. `onAcquired` observes
+completion changes. Await `client.sync()` when `client.link() === "online"`
+only for an operation that needs offline prediction immediately. A sync
+interrupted by link loss or a refused partition can return without acquisition,
+so `acquired` remains the authority.
 Network fetch failures resolve `sync()` normally and set `link()` to `"offline"`;
 the public method resolves without a value. A transient network failure must
 not block opening. An opener's catch should close and rethrow only an unexpected
@@ -487,10 +513,38 @@ not prevent healthy stores from opening.
 Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
-device store; a serialized record over 64 KiB is not journaled. Unavailable,
-throwing or full localStorage, an unidentified backend store,
-exceeded journal limits, or browser storage clearing leave unawaited navigation
-best-effort: that write can still be lost before IndexedDB commits. A destination must open
+device store, and at most 64 KiB per serialized record. A browser mutation that
+cannot synchronously acquire custody refuses with `E_ADMISSION`, a site and a
+rewrite. This includes unavailable, throwing or full localStorage, exceeded
+journal limits, an unidentified backend store, an unrestored session, and a
+`createApp` without a durable device or with an asynchronous-only session store.
+No new intent is admitted in those cases. The returned promise is already
+fulfilled with a failed write and exposes `state: "failed"`, `id` and `why`
+in the calling stack. Awaiting it still uses the ordinary Write API:
+
+```ts
+import { createApp } from "snapback4/app";
+import { webDevice } from "snapback4/web";
+import { localStorageSessionStore } from "snapback4/auth";
+import { api } from "../snapback/generated/api";
+
+const app = createApp({ url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore() });
+await app.ready;
+const write = app.mutate(api.send, { conversationId: "c1", body: "hello" });
+if (write.state === "failed") console.error(write.why?.message);
+else {
+  // The web journal owns the intent now; same-origin navigation is safe.
+  const outcome = await write;
+  if (outcome.state === "failed") console.error(outcome.why.message);
+}
+```
+
+`createApp` checks the builtin session store's epoch synchronously before
+entering web admission; its network paths retain their locked epoch checks.
+Restoration does not queue an intent for whichever account might sign in later.
+Before the first store identification the caller retries after readiness, using
+the same id. Clearing browser storage after admission can still erase its bytes.
+A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
 best-effort and sends only admitted writes.
 For programmatic navigation, `await client.mutate(...)` before navigating

@@ -1,3 +1,4 @@
+import { admissionRefusal, browserAdmission } from "./admission.ts";
 // Synchronous custody until the web device's ordinary admission commits.
 // No transport, result, or server settlement lives here.
 import type { Change } from "./web.ts";
@@ -104,22 +105,24 @@ export class AdmissionJournal {
 
   // @ref LLP 3000.007#20.4 — capture before mutate's first await; only ordinary IDB admission may expose the write to transport.
   capture(request: Record<string, unknown>): AdmissionRecord | undefined {
-    if (!this.exclusive) return;
+    const refuse = (message: string): never => { throw new AdmissionError(message); };
+    if (!this.exclusive) refuse("no exclusive provider claim; open a webDevice before writing");
     try {
       const store = storage();
-      if (!store || !this.storeId) return;
+      if (!store) return refuse("localStorage is unavailable; mutation was not admitted");
+      if (!this.storeId) return refuse("the backend store is not identified yet; mutation was not admitted");
       const requested = request.entry as Entry;
       const entry = { ...requested, seq: this.sequence = Math.max(this.sequence + 1, requested.seq) };
       const key = `${prefix(this.name)}${encodeURIComponent(this.storeId)}:${entry.id}`;
       const record = JSON.parse(JSON.stringify({ key, storeId: this.storeId, entry })) as AdmissionRecord;
       const text = JSON.stringify(record);
-      if (bytes(text) > RECORD_BYTES) return;
+      if (bytes(text) > RECORD_BYTES) return refuse("mutation admission exceeds 64 KiB; reduce the arguments before retrying");
       const held = keys(store).filter(key => key.startsWith(prefix(this.name)));
       const total = held.reduce((n, key) => n + bytes(key) + bytes(store.getItem(key) ?? ""), 0);
-      if (held.length >= JOURNAL_RECORDS || total + bytes(key) + bytes(text) > JOURNAL_BYTES) return;
+      if (held.length >= JOURNAL_RECORDS || total + bytes(key) + bytes(text) > JOURNAL_BYTES) return refuse("the admission journal is full (32 records or 256 KiB); wait for queued writes to commit before retrying");
       store.setItem(key, text);
       return record;
-    } catch { return; } // Quota, disabled storage, accessors and serialization keep today's admission path.
+    } catch (error) { if (!browserAdmission()) return; throw error instanceof AdmissionError ? error : new AdmissionError(`localStorage could not keep the mutation: ${String(error)}`); }
   }
 
   transfer(record: AdmissionRecord, recovered: boolean): Change {
@@ -199,4 +202,9 @@ export class AdmissionJournal {
 export function writeRefusal(reply: Record<string, unknown>): boolean {
   const why = reply.denied as Refusal | undefined;
   return !!why && !why.retryable && !["E_STORE", "E_STORE_RESTORE", "E_GENERATION", "E_PREDICT"].includes(why.code);
+}
+
+export class AdmissionError extends Error {
+  readonly why: Refusal;
+  constructor(message: string) { super(message); this.why = admissionRefusal(message); }
 }

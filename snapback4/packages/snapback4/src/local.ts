@@ -1,3 +1,5 @@
+import { admitNow, failedAdmission } from "./admission.ts";
+import { acquisitionProgress } from "./acquisition.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import type { Queued, StoreCapture } from "./local-types.ts";
@@ -41,55 +43,8 @@ import {
   type SignIn,
 } from "./auth.ts";
 
-/** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
-export interface DeviceCore {
-  /** Native host instrumentation, absent on ordinary launches. Uses this client, never a second one. */
-  onClient?(client: LocalClient, url: string): void | (() => void);
-  readonly media?: MediaStorage;
-  /** Web recovery may acquire an orphan outbox without a backend change. */
-  onOutbox?(listener: () => void): () => void;
-  /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
-  onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
-  /** A host with fallible work after commit must synchronously expose the
-   * durable reply through committed before that work. Forward this callback
-   * through adapters. Hosts returning directly may omit it; the client also
-   * observes the returned reply. A failed save must never invoke it. The
-   * callback invalidates memory only; application delivery waits for call
-   * completion (including rejection) so it cannot reenter host bookkeeping. */
-  call(request: Record<string, unknown>, committed?: (reply: Record<string, unknown>) => void): Promise<Record<string, unknown>>;
-  close(): Promise<void>;
-}
-
-/** A first-install request must preserve a backend another owner installed. */
-export type DeviceOpening = BackendJson | { initial_backend: BackendJson };
-
-/** How a host opens its device: a store name the client derives from the
- * server and the viewer (the host decides where that lives), and the
- * backend the server sent — null to open on the one kept from last time,
- * or { initial_backend } to install only if empty and otherwise open the kept
- * backend. Hosts must preserve this envelope across their native boundary. */
-export interface DeviceOpener {
-  open(name: string, backend: DeviceOpening | null): Promise<DeviceCore>;
-}
-
-export interface LocalOptions {
-  readonly url: string;
-  readonly persona?: string;
-  readonly session?: Session;
-  readonly guest?: boolean;
-  readonly sessionStore?: SessionStore;
-  readonly fetch?: typeof fetch;
-  /** The device: `webDevice()` on the web, `nativeDevice` from
-   * `snapback4-expo`, `processDevice({ dir })` in Node. */
-  readonly device: DeviceOpener;
-  readonly waitSeconds?: number;
-  /** Ordinary viewed media only; default is no retained bytes. */
-  readonly assets?: AssetRetention;
-}
-
-export type LocalClient = Client & {
-  sync(): Promise<void>;
-};
+export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
+import type { LocalOptions, LocalClient } from "./local-device.ts";
 
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -287,11 +242,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let storeIdentity = initialSync?.store_id ?? undefined;
   partitionDenied = initialSync?.restore_refusal ?? null;
   let incarnation = 0;
+  const progress = acquisitionProgress();
   let acquired = false;
   const acquiredListeners = new Set<(value: boolean) => void>();
   function setAcquired(value: boolean) {
     if (acquired === value) return;
     acquired = value;
+    if (value) progress.acquired(true); else progress.reset();
     for (const listener of acquiredListeners) listener(value);
   }
   // @ref LLP 3000.007#18.2 — acquisition belongs to the current store; a reconnect alone cannot bless an old partition.
@@ -314,11 +271,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
   function observeIncarnation(id?: string, force = false, delivery?: (() => void)[]) {
     if (!force && (id === undefined || id === storeIdentity)) return;
+    const resetProgress = force || storeIdentity !== undefined;
     storeIdentity = id;
     incarnation++;
     partitionCurrent = false;
     const wasAcquired = acquired;
     acquired = false;
+    if (resetProgress) progress.reset();
     caughtUp = false;
     identityChecked = false;
     seq = 0;
@@ -379,6 +338,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!result.denied && ["apply", "admit", "settle", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery);
       if (!result.denied && request.op === "apply") {
         for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
+        delivery.push(() => { if (!closed && !sessionDead) progress.page(request.page as Record<string, unknown>, request.first === true); });
       }
       // A committed replacement has already retired the client's partition.
       // Fence it before even media reconciliation can fail; native identity
@@ -1254,14 +1214,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
+    mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
       const unavailableWhy = unavailable();
       if (unavailableWhy) {
         const failed = { state: "failed" as const, id, why: unavailableWhy };
-        return mutationIds.knows(id) ? failed : emitLocalFailure(failed);
+        if (!mutationIds.knows(id)) emitLocalFailure(failed);
+        return failedAdmission<R>(id, unavailableWhy);
       }
-      return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, pending) => {
+      return mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
         const submission = ++submissions;
         const newIds: string[] = [];
         // The module mints ids for `new` from the ids we pass, so the server
@@ -1270,11 +1231,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const schema = backend!.schema;
         const program = backend!.programs.find((p) => p.name === op.name);
         const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
+        const request = { op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued };
+        const denied = admitNow(core, request);
+        if (denied) return failedAdmission<R>(id, denied);
+        return (async () => {
         const response = closingResponses.request();
         const result = new Promise<Write>((resolve) => settled.set(id, { resolve, response }));
         try {
           // @ref LLP 3000.007#20.4 — capture replay eligibility with the synchronous journal entry; recovery must also defer local refusals to the server.
-          const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued });
+          const admitted = await call(request);
           if (admitted.denied) {
             settled.delete(id);
             const failed = { state: "failed" as const, id, why: admitted.denied };
@@ -1299,6 +1264,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           return outcome;
         }
         finally { clearTimeout(timer); settled.delete(id); }
+        })();
       });
     },
     async write(id) {
@@ -1481,6 +1447,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void flush();
     scheduleRefresh();
   };
+  progress.bind(client);
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) await start();

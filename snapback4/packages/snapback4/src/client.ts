@@ -1,3 +1,4 @@
+import { admissionRefusal, browserAdmission, failedAdmission } from "./admission.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import { deferStart, trackRotation } from "./client-start.ts";
@@ -645,12 +646,17 @@ export function createClient(options: ClientOptions): Client {
         },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
+    mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
       if (closed || !credentials || link === "signed-out" || storeRefusal) {
         const failed = { state: "failed" as const, id, why: storeRefusal ?? (closed ? ended() : auth()) };
-        return mutationIds.knows(id) ? failed : emitWrite(failed);
+        return Object.assign(Promise.resolve(mutationIds.knows(id) ? failed : emitWrite(failed)), failed);
       }
+      // The bare online transport has no browser admission journal. An app's
+      // private online custody may replay an intent it already persisted.
+      if (browserAdmission() && !dispatch.owner) return failedAdmission<R>(id, admissionRefusal(
+        "this online client has no synchronous browser admission journal", "client.mutate",
+        "use createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() }) on the web"));
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;
         const settled = new Promise<Write>((resolve) => { settle = resolve; });

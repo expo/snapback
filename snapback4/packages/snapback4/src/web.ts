@@ -1,3 +1,4 @@
+import { admissionHost } from "./admission.ts";
 // The device on the web: the same device, as wasm, over memory (the
 // interpreter's store boundary is synchronous and IndexedDB is not), with
 // the host persisting each call's changes behind it. A cold start with no
@@ -9,7 +10,7 @@ import type { Write } from "./contract.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { DeviceCore, DeviceOpener, DeviceOpening } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
-import { AdmissionJournal, journalStores, writeRefusal } from "./web-journal.ts";
+import { AdmissionError, AdmissionJournal, journalStores, writeRefusal } from "./web-journal.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
@@ -71,6 +72,12 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       if (!store) throw new Error("webDevice: persistence could not claim an exclusive device store");
       const journal = new AdmissionJournal(store.name, true);
       const admissions = new Set<string>();
+      const prepared = new WeakMap<Record<string, unknown>, ReturnType<AdmissionJournal["capture"]>>();
+      const capture = (request: Record<string, unknown>) => {
+        try { prepared.set(request, journal.capture(request)); }
+        catch (error) { if (error instanceof AdmissionError) return error.why; throw error; }
+        return undefined;
+      };
       let device: WebDevice | undefined;
       // A lock can release during opening; recovery must wait for restore/adoption.
       let opened!: () => void;
@@ -219,7 +226,12 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         },
         call(request, committedReply) {
           if (closing) return Promise.reject(new Error("the device is closed"));
-          const admission = request.op === "admit" ? journal.capture(request) : undefined;
+          if (request.op === "admit" && !prepared.has(request)) {
+            const denied = capture(request);
+            if (denied) return Promise.resolve({ denied });
+          }
+          const admission = prepared.get(request);
+          prepared.delete(request);
           if (admission) { request = { ...request, entry: admission.entry }; admissions.add(admission.entry.id); }
           const answer = chain.then(async () => {
             try {
@@ -266,6 +278,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           });
         },
       };
+      admissionHost(core, capture);
       return core;
     },
   };

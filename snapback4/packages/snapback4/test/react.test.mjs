@@ -32,6 +32,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react$/, replacement: require.resolve("react") },
         { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
+        { find: "test-online-custody", replacement: join(root, "packages/snapback4/src/app-online.ts") },
         { find: "snapback4/app", replacement: join(root, "packages/snapback4/src/app.ts") },
         { find: "snapback4/auth", replacement: join(root, "packages/snapback4/src/auth.ts") },
         { find: "snapback4/client", replacement: join(root, "packages/snapback4/src/client.ts") },
@@ -113,7 +114,8 @@ import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
-import { memorySessionStore, keepSession } from "snapback4/auth";
+import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
+import { onlineCustody } from "test-online-custody";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
@@ -200,6 +202,15 @@ async function submit() {
   });
 }
 
+// Exercise the existing online custody/hook contract directly. Public browser
+// createApp now requires synchronous web custody and refuses this async tier.
+async function onlineHooks(options) {
+  const session = options.persona ? undefined : await restoreSession(options.url, options.sessionStore);
+  const raw = createClient({ ...options, session });
+  const { client } = await onlineCustody(raw, options.url, options.sessionStore, () => {});
+  return { client, mutate: client.mutate, close: client.close, ready: Promise.resolve() };
+}
+
 const cases = {
   async "AppProvider switches real clients, resets account state and routes existing mutation/query hooks"() {
     const seen = [];
@@ -237,7 +248,9 @@ const cases = {
       for (let n = 0; n < 200 && read.data !== "Bearer bob"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
       equal(read.data, "Bearer bob", "query hook uses Bob: " + JSON.stringify(read));
       await act(async () => { await write.run({ body: "bob write" }); });
-      equal(seen.map(entry => entry[0]), ["Bearer alice", "Bearer bob"], "existing mutation hook follows the current client");
+      equal(write.last?.state, "failed", "the current browser client refuses unsafe admission");
+      equal(write.last?.why.code, "E_ADMISSION", "no durable web device is explicit");
+      equal(seen, [], "an unjournaled browser write never reaches transport");
       await act(async () => { await auth.logout(); });
       equal(auth.state, "signed-out", "logout updates useAuth");
       check(client !== alice && client.viewer() === null, "no stale account client remains");
@@ -253,7 +266,7 @@ const cases = {
       if (fail && key.endsWith(".writes") && JSON.parse(text).receipts.length) { failures++; throw Error("disk full"); }
       await memory.set(key, text);
     } };
-    const app = createApp({ url, sessionStore: store, fetch: async (input, init) => {
+    const app = await onlineHooks({ url, sessionStore: store, fetch: async (input, init) => {
       if (new URL(input).pathname === "/probe") return Response.json({ ok: true, store_id: "react-receipt", seq: 0 });
       if (new URL(input).pathname !== "/m/write") throw Error("unexpected route");
       sends++; await held.promise;
@@ -268,12 +281,12 @@ const cases = {
       // witness mounts against an admitted intent, with its response held.
       for (let n = 0; n < 100 && !sends; n++) await new Promise(resolve => setTimeout(resolve, 5));
       equal(sends, 1, "the intent was admitted before mounting its receipt lookup");
-      await mount(h(AppProvider, { app }, h(Pending)));
+      await mount(h(SnapbackProvider, { client: app.client }, h(Pending)));
       for (let n = 0; n < 100 && latest.last?.state !== "pending"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
       equal(latest.last?.state, "pending", "hook observed the admitted intent");
       await act(async () => { held.resolve(); await writing; });
       check(settled && !latest.pending && latest.last?.state === "sent", "known outcome must notify without durable receipt");
-      await mount(h(AppProvider, { app }, h(Pending)));
+      await mount(h(SnapbackProvider, { client: app.client }, h(Pending)));
       for (let n = 0; n < 100 && !latest.last; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
       equal(latest.last?.state, "sent", "remount looks up the same confirmed id while disk still fails");
       check(!latest.pending && failures >= 2, "persistent fault cannot turn sent back into pending");
@@ -299,7 +312,7 @@ const cases = {
     };
     try {
       for (let index = 0; index < 2; index++) {
-        const app = createApp({ url: "https://shared.invalid", sessionStore: store, fetch: async (url, init) => {
+        const app = await onlineHooks({ url: "https://shared.invalid", sessionStore: store, fetch: async (url, init) => {
           if (new URL(url).pathname === "/probe") return Response.json({ ok: true, store_id: "react-shared", seq: 0 });
           if (new URL(url).pathname !== "/m/write") throw Error("unexpected route " + url);
           if (++calls[index] === 1) throw Error("initial request offline");
@@ -313,7 +326,7 @@ const cases = {
       a = owners[0]; b = owners[1];
       equal((await a.mutate(mutation, { body: "shared" }, { id })).state, "pending", "A queued");
       equal((await b.mutate(mutation, { body: "shared" }, { id })).state, "pending", "B queued same ID");
-      await mount(h("div", null, ...owners.map((app, index) => h(AppProvider, { app, key: index }, h(Pending, { index })))));
+      await mount(h("div", null, ...owners.map((app, index) => h(SnapbackProvider, { client: app.client, key: index }, h(Pending, { index })))));
       for (let n = 0; n < 100 && ![...host.querySelectorAll("p")].every(p => p.textContent === "pending"); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
       equal([...host.querySelectorAll("p")].map(p => p.textContent), ["pending", "pending"], "both hooks pending");
       await until(() => entered.every(Boolean), "both retry requests held");
@@ -572,8 +585,9 @@ const cases = {
   async "online observations clear pages during fetches and on unavailable settlement, refusal and close"() {
     let phase = "ready", seq = 0, latest;
     const held = [];
-    const client = createClient({ url: "http://observation.test", persona: "alice", fetch: async (input, init) => {
+    const { client } = await onlineHooks({ url: "http://observation.test", persona: "alice", sessionStore: memorySessionStore(), fetch: async (input, init) => {
       const path = new URL(input).pathname;
+      if (path === "/probe") return Response.json({ ok: true, store_id: "observation-test", seq });
       if (path === "/changes") return new Promise((_, reject) => {
         if (init.signal.aborted) reject(Error("closed"));
         else init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true });

@@ -1,3 +1,4 @@
+import { failedAdmission } from "./admission.ts";
 import type { Write } from "./contract.ts";
 
 type Terminal = Exclude<Write, { state: "pending" }>;
@@ -21,7 +22,7 @@ function inputKey(op: string, args: unknown): string {
   return JSON.stringify([op, sorted(args)]);
 }
 
-function refused(id: string, code: string, message: string): Write {
+function refused(id: string, code: string, message: string): Extract<Write, { state: "failed" }> {
   return { state: "failed", id: typeof id === "string" ? id : "", why: { code, family: "input", message, guide: "writes" } };
 }
 
@@ -53,12 +54,12 @@ export class MutationIds {
   }
 
   run<R>(id: string, op: string, args: unknown, recover: () => Promise<Write | undefined>, submit: (args: unknown, pending: PendingWrite) => Promise<Write<R>>): Promise<Write<R>> {
-    if (typeof id !== "string" || !/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(id)) return Promise.resolve(refused(id, "E_WRITE_ID", "write id must be 26 uppercase Crockford base32 digits, starting with 0–7 (the mintId() form)") as Write<R>);
+    if (typeof id !== "string" || !/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(id)) return failedAdmission<R>(id, refused(id, "E_WRITE_ID", "write id must be 26 uppercase Crockford base32 digits, starting with 0–7 (the mintId() form)").why);
     let snapshot: unknown, key: string;
     try { snapshot = JSON.parse(JSON.stringify(args)); key = inputKey(op, snapshot); }
-    catch { return Promise.resolve(refused(id, "E_INPUT", "mutation arguments must be JSON-serializable") as Write<R>); }
+    catch { return failedAdmission<R>(id, refused(id, "E_INPUT", "mutation arguments must be JSON-serializable").why); }
     let entry = this.submissions.get(id);
-    if (entry?.key !== undefined && entry.key !== key) return Promise.resolve(refused(id, "E_WRITE_ID_REUSE", "write id already belongs to a different operation or arguments; retry the original input or use a new id") as Write<R>);
+    if (entry?.key !== undefined && entry.key !== key) return failedAdmission<R>(id, refused(id, "E_WRITE_ID_REUSE", "write id already belongs to a different operation or arguments; retry the original input or use a new id").why);
     if (this.seen.has(id)) {
       if (!entry) { entry = {}; this.submissions.set(id, entry); }
       const held = entry;
@@ -79,14 +80,22 @@ export class MutationIds {
     this.submissions.set(id, entry);
     const held = entry;
     const running = submit(snapshot, pending);
+    // Synchronous refusal happened before any custody or dispatch. Keeping
+    // this reservation would make the documented same-id retry impossible.
+    const immediate = running as Promise<Write<R>> & { state?: string; why?: { code: string } };
+    if (immediate.state === "failed" && immediate.why?.code === "E_ADMISSION") {
+      this.seen.delete(id); this.submissions.delete(id); this.terminal.delete(id);
+      return running;
+    }
     held.running = running;
     void running.then(write => {
+      delete held.running;
       if (write.state === "failed" && write.why.code === "E_WRITE_ID_REUSE" && write.why.family === "input") {
         // Another owner won durable admission. This reservation never owned
         // the id; the next call must recover/compare the original input.
         this.seen.delete(id); this.submissions.delete(id);
       } else if (write.state !== "pending") this.finish(id);
-    }, () => {}).finally(() => { delete held.running; });
+    }, () => { delete held.running; });
     return running;
   }
 }
