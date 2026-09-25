@@ -56438,3 +56438,53 @@ Not done: no acquisition or packed-format remeasurement, no residency/history
 redesign, no increased ceilings/timeouts, no push or publication. The prior
 2.387× acquisition result and unmet 5× target remain explicit; fully synced
 events alone prevent a 5× reduction in the prior raw row-count/row-byte units.
+
+
+## 2026-09-25 — Lane Z round 2: event-slot mutation coverage and speculative routing
+
+Addressed the Astra/Grok round-1 delta findings for LLP 3000.016 revision 12.
+Added the conditional removal of a live, held, floored original with a synced
+event count. The operation remains statically eligible; its true branch reaches
+the runtime aggregate fence, refuses without predicted rows, preserves the
+source and live slot, and leaves no tombstone. The untaken branch predicts.
+An online-only count permits removal and tombstoning. Both cases join the real
+wasm/native fault schedules: 23 schedules, 271 dispatcher calls and four reopen
+boundaries per host; all 46 host replays passed.
+
+Expanded snapshot instrumentation to page budgets 1, 2, 3, 5 and 7 and to a page
+crossing two public owned groups. The second group receives exactly the 1, 2,
+3 or 5 remaining units after the first group's excluded rows and intervening
+empty groups. Independently executed mutants all fail: bypassing original
+aggregate guards incorrectly predicts the conditional removal; charging only
+returned rows reads 16 rows against a budget of 14; a minimum scan of seven
+reads seven rows at budget one. Restored implementations pass all four snapshot
+tests and both device trace tests. No production guard or meter was loosened.
+
+Merged U round seven 633e566fc and follow-up f6dd23f3e (merge commits 77b9a358f
+and 032b4a70a). Query-wide held provenance and its fenced publication exception
+are removed. Z's unknown event reads still mark speculative provenance, and
+known full-kind point hits remain non-speculative. Internal transition images
+retain slots while application images hide them. Both blind-review client
+reproductions were demonstrated red before the merge on both hosts: an
+unrelated held post before an unknown conditional, and a fully synced owned
+scan filtered by an online-only exists. Both now publish loading under the
+prediction fence. The six combined focused routing cases pass on wasm/native.
+No direct Z edits to local-query.ts or local.ts; both lanes' journal entries
+and regressions were preserved during integration.
+
+Full qualification at 032b4a70a: `== 0 failure(s) in 696 s`, exit 0. Rust passed
+in 233 s; client tests in 198 s (main run 1,671 passes, ten existing skips);
+all 78 models passed in 252 s. No introduced, baseline or environmental failure
+remains in that completed run. An earlier pre-U run was stopped to merge U.
+A second interrupted run passed Rust but saw two existing online global-logout
+tests fail transiently under host load 105.48/96 CPUs. Both passed unchanged in
+isolation and in the final full run; classified environmental/transient, not
+baseline. No timeouts or assertions were weakened. Compressed logs preserve
+these attempts, the pre-merge routing failures, and every intentional mutant.
+
+The rebuilt wasm is 1,781,822 B raw / 498,394 B gzip, below the unchanged 500,000 B
+budget. No acquisition inventory rerun, author syntax, diagnostics, residency
+redesign, authorization/disclosure change, push or publication. No known open
+implementation issue or design deviation remains. The [round-2 report](reports/20260925-event-slots-r2/REPORT.md)
+records changes file by file, forms, reproductions, merge decisions, failure
+accounting and the executable mutation harness.
