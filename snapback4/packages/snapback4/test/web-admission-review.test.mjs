@@ -98,6 +98,8 @@ query total():
   if (mutant === 'receipt-fallthrough') replace('local.ts', 'retryFlush(); return { ...response, persistencePending: true };', 'retryFlush();');
   if (mutant === 'receipt-replay') replace('local-receipts.ts', 'if (!known || known.state === "pending") return;', 'return;');
   if (mutant === 'receipt-barrier') replace('local.ts', 'try { await history.persistPending(); } catch { retryFlush(); return false; }', '/* mutant: sync can retire volatile custody */');
+  if (mutant === 'observe-store-barrier') replace('local.ts', '["observe_store", "apply", "adopt", "settle_exit"]', '["apply", "adopt", "settle_exit"]');
+  if (mutant === 'acknowledged-refusal') replace('writes.ts', 'const known = await this.read(id, true);', 'const known = await this.read(id, true); if (known?.state === "failed") return known;');
   // Record the actual retry callback and entry into sync, without changing either.
   const localPath = path('local.ts');
   sourceOverrides[localPath] = (sourceOverrides[localPath] ?? readFileSync(localPath, 'utf8'))
@@ -121,7 +123,7 @@ window.ops = { remove: { kind: 'mutation', name: 'removeMember' }, roster: { kin
 window.boot = async ({ url, session, holdAdmission = false, holdSync = false, holdPoll = false, offline = false, blockMutations = false, wrappedStore = false, wrappedDevice = false, holdProbe = false, probeMode = 'accept', backendUrl = url, unavailable = false, holdOrdinaryResponse = false, holdExitResponse = false }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
   window.sessionLocks = 0; window.exitLocks = []; window.sent = []; window.enqueued = []; window.syncHeld = false; window.openingDone = false; window.probeHeld = false; window.exitRegistrations = 0;
-  window.backendUrl = backendUrl; window.exitCompleted = []; window.exitBlocked = []; window.outcomes = []; window.receiptBatches = []; window.retryTicks = 0; window.syncAttempts = []; window.syncRequests = 0;
+  window.backendUrl = backendUrl; window.exitCompleted = []; window.exitBlocked = []; window.outcomes = []; window.receiptBatches = []; window.keptReceipts = []; window.appliedAcks = []; window.pollCount = 0; window.retryTicks = 0; window.syncAttempts = []; window.syncRequests = 0;
   window.holdOrdinaryResponse = holdOrdinaryResponse; window.holdExitResponse = holdExitResponse;
   const request = navigator.locks.request.bind(navigator.locks);
   navigator.locks.request = (name, ...args) => {
@@ -148,7 +150,12 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
       window.admissionHeld = true;
       await new Promise(resolve => window.releaseAdmission = () => { window.holdAdmission = false; resolve(); });
     }
-    return save(name, changes);
+    const result = await save(name, changes);
+    for (const change of changes) {
+      if (change.s === 'm' && change.k === 'client:write-history' && change.v) window.keptReceipts.push(...JSON.parse(change.v));
+      if (change.s === 'o' && change.v && JSON.parse(change.v).observed_seq != null) window.appliedAcks.push(JSON.parse(change.v));
+    }
+    return result;
   };
   const opener = webDevice({ persist });
   const gate = new Promise(resolve => window.releaseSync = resolve);
@@ -174,8 +181,13 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
         if (probeMode === 'restore') { const head = await fetch(destination, init).then(r => r.json()); return Response.json({ ...head, seq: 0 }); }
       }
       if (route === '/changes' && holdPoll) {
-        window.pollHeld = true;
-        await new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true }));
+        window.pollHeld = true; window.pollCount++;
+        const reply = await new Promise((resolve, reject) => {
+          window.releasePoll = resolve;
+          init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true });
+        });
+        window.pollReleased = true;
+        return Response.json(reply);
       }
       if (route === '/sync' && holdSync) { window.syncHeld = true; await gate; }
       if (route.startsWith('/m/')) {
@@ -192,12 +204,14 @@ window.boot = async ({ url, session, holdAdmission = false, holdSync = false, ho
       }
       if (offline) throw new TypeError('startup is offline');
       const response = await fetch(destination, init);
+      if (route === '/sync' && window.traceSync) window.traceSync.push({ request: JSON.parse(init.body), reply: await response.clone().json() });
       if (route.startsWith('/m/')) {
         const kind = init.keepalive ? 'Exit' : 'Ordinary';
         if (window['hold' + kind + 'Response']) {
           window[kind + 'Body'] = await response.clone().json();
           await new Promise(resolve => window['release' + kind + 'Response'] = resolve);
         }
+        if (!init.keepalive && window.dropOrdinaryResponse) { window.dropOrdinaryResponse = false; throw new TypeError('committed response lost'); }
       }
       return response;
     } });
@@ -217,6 +231,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     const request = put.call(this, value);
     if (window.receiptAbortEnabled && this.transaction.db.name === store && value.s === 'm' && value.k === 'client:write-history') {
       receiptAborts++; this.transaction.abort(); if (receiptAborts >= limit) window.receiptAbortEnabled = false;
+      if (window.holdReceiptAfterAbort) { window.holdReceiptAfterAbort = false; window.holdReceipt = true; }
     }
     return request;
   };
@@ -672,6 +687,81 @@ window.abortReceipts = (store, limit = Infinity) => {
       assert.equal((await page.evaluate(id => app.client.write(id), captured.id)).state, 'sent');
       assert.equal(await total(session), before + 1); assert.equal(await total(session, replacement.api), 0);
     } finally { await page.evaluate(async () => { window.receiptAbortEnabled = false; window.releaseOrdinaryResponse?.(); window.releaseExitResponse?.(); await app.close(); }); await replacement.close(); }
+  });
+
+  await check('sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen', async () => {
+    const { session } = await fresh(), before = await total(session);
+    const replacement = await replacementFor(session);
+    await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }));
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true, holdOrdinaryResponse: true });
+    try {
+      const captured = await page.evaluate(() => captureClick());
+      await page.waitForFunction(() => window.OrdinaryBody?.state === 'sent');
+      const committed = await page.evaluate(() => OrdinaryBody);
+      await page.evaluate(({ store, destination }) => {
+        abortReceipts(store); window.backendUrl = destination; window.dropOrdinaryResponse = true;
+        window.OrdinaryBody = undefined; releaseOrdinaryResponse();
+      }, { store: captured.store, destination: replacement.api });
+      await page.waitForFunction(() => window.OrdinaryBody?.why?.code === 'E_STORE_REPLACED');
+      // Queue sync behind the held ordinary response, before retryFlush can
+      // own the id again. Its receipt repair waits on the provider gate.
+      await page.evaluate(() => {
+        window.traceSync = []; window.syncAttempts = []; window.holdReceiptAfterAbort = true; window.syncRepair = app.client.sync();
+      });
+      await page.waitForFunction(() => syncAttempts.length > 0);
+      await page.evaluate(() => releaseOrdinaryResponse());
+      await page.waitForFunction(() => receiptAborts > 0 && window.receiptHeld);
+      await page.evaluate(async destination => {
+        window.receiptAbortEnabled = false; window.backendUrl = destination;
+        window.holdOrdinaryResponse = false; releaseReceipt(); await syncRepair;
+      }, url);
+      // Inspect committed batches, independent of whether the timer already
+      // settled the row: sync saved the refusal before A acknowledged the id.
+      assert.ok(await page.evaluate(id => keptReceipts.some(write => write.id === id && write.why?.code === 'E_STORE_REPLACED'), captured.id));
+      assert.equal(await page.evaluate(id => appliedAcks.find(entry => entry.id === id)?.observed_seq, captured.id), committed.seq,
+        JSON.stringify(await page.evaluate(async () => ({ sent, keptReceipts, receiptAborts, syncRequests, traceSync, outcomes, state: (await core.call({ op: 'sync_state', capture: false })).ok, queued: (await core.call({ op: 'queued' })).ok }))));
+      await until(() => page.evaluate(async ({ id, store }) => JSON.parse(await indexedDbPersistence().read(store, 'm', 'client:write-history') ?? '[]').some(write => write.id === id && write.state === 'sent'), captured), 'acknowledgement repairs stored replacement refusal');
+      const write = await page.evaluate(id => app.client.write(id), captured.id);
+      assert.equal(write.state, 'sent'); assert.equal(write.seq, committed.seq);
+      await page.evaluate(() => app.close()); await navigate('acknowledgement-repairs-refusal');
+      await page.evaluate(options => boot(options), { url, holdPoll: true });
+      const reopened = await page.evaluate(id => app.client.write(id), captured.id);
+      assert.equal(reopened.state, 'sent'); assert.equal(reopened.seq, committed.seq);
+      assert.deepEqual(await page.evaluate(() => sent), []);
+      assert.equal(await total(session), before + 1); assert.equal(await total(session, replacement.api), 0);
+    } finally { await page.evaluate(async () => { window.receiptAbortEnabled = false; window.releaseReceipt?.(); window.releaseOrdinaryResponse?.(); await app.close(); }); await replacement.close(); }
+  });
+
+  await check('a pending changes rewind waits for an aborted successful receipt to become durable', async () => {
+    const { session } = await fresh(), before = await total(session);
+    await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }));
+    await page.evaluate(options => boot(options), { url, session, holdPoll: true, holdOrdinaryResponse: true });
+    await page.waitForFunction(() => window.pollHeld);
+    const captured = await page.evaluate(() => captureClick());
+    await page.waitForFunction(() => window.OrdinaryBody);
+    const committed = await page.evaluate(() => OrdinaryBody);
+    try {
+      // The first poll preceded begin_send. Its capture is obsolete; let it
+      // drain, then hold a poll whose send revision includes this request.
+      await page.evaluate(storeId => releasePoll({ store_id: storeId, seq: 0, tables: [] }), captured.record.storeId);
+      await page.waitForFunction(() => pollCount >= 2);
+      await page.evaluate(() => { window.pollReleased = false; });
+      await page.evaluate(store => { abortReceipts(store); releaseOrdinaryResponse(); }, captured.store);
+      assert.equal((await page.evaluate(() => write)).state, 'sent');
+      const aborts = await page.evaluate(() => receiptAborts);
+      await page.evaluate(storeId => releasePoll({ store_id: storeId, seq: 0, tables: [] }), captured.record.storeId);
+      await page.waitForFunction(() => window.pollReleased);
+      await page.waitForFunction(prior => receiptAborts > prior || !app.client.acquired, aborts);
+      const during = await page.evaluate(async () => (await core.call({ op: 'sync_state', capture: false })).ok);
+      assert.ok(!during.restore_refusal, 'observe_store must not install a restore fence over volatile receipt custody');
+      await page.evaluate(() => { window.receiptAbortEnabled = false; });
+      await until(() => page.evaluate(async ({ id, store }) => JSON.parse(await indexedDbPersistence().read(store, 'm', 'client:write-history') ?? '[]').some(write => write.id === id && write.state === 'sent'), captured), 'original receipt repaired after the refused rewind');
+      await page.evaluate(() => app.close()); await navigate('receipt-before-rewind');
+      await page.evaluate(options => boot(options), { url, holdPoll: true });
+      const recovered = await page.evaluate(id => app.client.write(id), captured.id);
+      assert.equal(recovered.state, 'sent'); assert.equal(recovered.seq, committed.seq);
+      assert.equal(await total(session), before + 1);
+    } finally { await page.evaluate(async () => { window.receiptAbortEnabled = false; window.releaseOrdinaryResponse?.(); await app.close(); }); }
   });
 
   for (const marker of ['sent_seq', 'observed_seq']) await check(`outbox-only ${marker} evidence rejects a replacement refusal without terminal history`, async () => {
