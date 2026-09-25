@@ -82,7 +82,7 @@ pub struct Runner<'a> {
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
     pub(crate) rows_written: u64,
-    pub(crate) next_expiry: Option<i64>,
+    pub(crate) next_expiry: super::expiry::Expiry,
     /// Partition events, accumulated for the commit; a logless host builds none.
     #[cfg(feature = "sqlite")]
     pub(crate) events: PendingEvents,
@@ -207,7 +207,7 @@ impl<'a> Runner<'a> {
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,
-            next_expiry: None,
+            next_expiry: Default::default(),
             #[cfg(feature = "sqlite")]
             events: PendingEvents::default(),
             #[cfg(feature = "sqlite")]

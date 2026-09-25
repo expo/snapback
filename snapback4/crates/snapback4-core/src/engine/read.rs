@@ -26,6 +26,7 @@ struct WordRead {
     admitted: bool,
     metered: bool,
     retained: bool,
+    expiry: super::expiry::Pending,
     fields: Vec<String>,
     terms: Vec<String>,
 }
@@ -87,21 +88,21 @@ impl Runner<'_> {
         }
     }
 
-    fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr, uniform: bool) -> Result<bool, RuntimeError> {
+    fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr, uniform: bool) -> Result<(bool, super::expiry::Pending), RuntimeError> {
+        let expiry = self.next_expiry.scope();
         if let Some(through) = &table.through && let Some(id) = index.columns().iter().zip(prefix).find_map(|(name,v)| (name == &through.reference).then_some(v)) {
             let verdict = self.parent_verdict(through,id)?;
             if verdict == super::through::ParentVerdict::Unknown { self.beyond_horizon = true; }
-            return Ok(verdict == super::through::ParentVerdict::Readable);
+            let admitted = verdict == super::through::ParentVerdict::Readable;
+            return Ok((admitted, if admitted { expiry.defer() } else { Default::default() }));
         }
         let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
         let viewer = self.context.viewer.clone();
-        let expiry = self.next_expiry;
         let verdict = rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner: self });
-        // Partial admission says nothing about any returned row's lifetime.
-        if !uniform || !matches!(verdict, Ok(true)) { self.next_expiry = expiry; }
         let verdict = verdict?;
         // A partial conjunction denial costs the same static allowance as a uniform denial.
-        Ok(self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
+        let admitted = self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict;
+        Ok((admitted, if uniform && admitted { expiry.defer() } else { Default::default() }))
     }
 
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
@@ -259,7 +260,7 @@ impl Runner<'_> {
             && let Ok(Value::Int(at)) = row.field(column)
             && self.context.now.is_some_and(|now| *at > now)
         {
-            self.next_expiry = Some(self.next_expiry.map_or(*at, |prior| prior.min(*at)));
+            self.next_expiry.note(*at);
         }
     }
 
@@ -321,50 +322,50 @@ impl Runner<'_> {
     /// A point read: the row when it exists and the viewer may read it, else
     /// `null`. Hidden and absent are the same word on purpose.
     pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
+        let expiry = self.next_expiry.scope();
+        let mut emitted = false;
         self.schema.refuse_private(&read.table)?;
         // @ref LLP 3000.007#20.21 — an unfinished maintained value is unavailable, never an absent group coerced to zero.
         let maintained = self.schema.maintain_for(&read.table).is_some();
         if maintained { self.meter.require_uncapped()?; }
-        let value = self.get_inner(read)?;
+        let value = self.get_inner(read, &mut emitted)?;
         if maintained { self.meter.require_uncapped()?; }
+        if emitted && self.meter.capped_at.is_none() { expiry.emit(); }
         Ok(value)
     }
 
-    fn get_inner(&mut self, read: &Read) -> Result<Value, RuntimeError> {
+    fn get_inner(&mut self, read: &Read, emitted: &mut bool) -> Result<Value, RuntimeError> {
         let key = read.key.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         self.read_tables.insert(read.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
-        let Some(maintain) = self.schema.maintain_for(&read.table) else { return self.get_prepared(read, &key); };
+        let Some(maintain) = self.schema.maintain_for(&read.table) else { return self.get_prepared(read, &key, emitted); };
         if let Some(message) = maintain.expiring_read_refusal(self.schema) {
             return Err(RuntimeError::Structural { code: "E_MAINTAIN_READ_EXPIRE", message });
         }
         let scratch = self.aggregate_point_scratch(maintain, &key);
         self.meter.heap(scratch)?;
-        let expiry_mark = self.next_expiry;
         let result = (|| {
             self.read_charge(MeterKind::Examined, 1)?;
             self.meter.require_uncapped()?;
-            self.get_prepared(read, &key)
+            self.get_prepared(read, &key, emitted)
         })();
         // Transfer only the returned image to retained ownership. Keep the
         // high-water mark, work counters and any cut when releasing scratch.
         self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(scratch);
-        if result.is_err() || self.read_capped() { self.next_expiry = expiry_mark; }
         let value = result?;
         self.meter.heap(value.clone_heap_bytes())?;
         Ok(value)
     }
 
-    fn get_prepared(&mut self, read: &Read, key: &[Value]) -> Result<Value, RuntimeError> {
+    fn get_prepared(&mut self, read: &Read, key: &[Value], emitted: &mut bool) -> Result<Value, RuntimeError> {
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
         let maintained = self.schema.maintain_for(&read.table);
         let inherited = maintained.filter(|m| self.schema.tables[&m.source].through.is_some());
         let mut key_admitted = false;
-        let expiry_mark = self.next_expiry;
         // @ref LLP 3000.014#5-what-derives-from-the-capture — only key-determined inputs may authorize a synthetic aggregate row.
         if let Some(m) = inherited.filter(|m| m.parent_key.is_some() || rules::deciding_fields(&read.table, table, &table.rules.read).iter().all(|field| index.columns().iter().take(key.len()).any(|column| column == field) || (field == "id" && m.group_fields().iter().all(|f| index.columns().iter().take(key.len()).any(|column| column == f))))) {
             let visible = (|| Ok(if let Some(parent) = &m.parent_key {
@@ -387,8 +388,6 @@ impl Runner<'_> {
                 let viewer = self.context.viewer.clone();
                 self.context.is_system() || rules::evaluate(&table.rules.read,&viewer,None,&row,false,&mut PrefixProbe {runner:self})?
             }))();
-            // A failed shortcut owns its work, but none of its private probe deadlines.
-            if !matches!(visible, Ok(true)) || self.read_capped() { self.next_expiry = expiry_mark; }
             if !visible? || self.read_capped() { return Ok(crate::value::object([("value",Value::Null)])); }
             key_admitted = true;
         }
@@ -437,6 +436,7 @@ impl Runner<'_> {
                 }
             }
         } else if let Some(row) = found { row } else {
+            *emitted = key_admitted; // An authorized missing aggregate emits its logical zero.
             if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
             return Ok(Value::Null);
         };
@@ -451,7 +451,7 @@ impl Runner<'_> {
         } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })? };
         // A failed authorization owns its charges and its cut. Hidden-candidate
         // rollback must never erase exhaustion or convert it into coverage.
-        if self.read_capped() { self.next_expiry = expiry_mark; return Ok(Value::Null); }
+        if self.read_capped() { return Ok(Value::Null); }
         if allowed {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
@@ -460,9 +460,9 @@ impl Runner<'_> {
                 else if let Some(m) = maintained.filter(|m| self.schema.tables[&m.source].is_expiring()) {
                     self.live_aggregate_inner(m, row)?.unwrap_or(Value::Null)
                 } else { row };
+            *emitted = true;
             Ok(super::recorded::public_image(table, value))
         } else {
-            self.next_expiry = expiry_mark;
             self.read_tables = tables_mark;
             if !provisional {
                 self.meter.restore(mark);
@@ -569,6 +569,7 @@ impl Runner<'_> {
         }
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery and shared by its generated lanes.
         let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        let mut prefix_expiry = super::expiry::Pending::default();
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             return Ok(None);
@@ -581,9 +582,11 @@ impl Runner<'_> {
             if visibility.uniform { self.meter.heap(word_heap::verdict(index, &scope, &self.context.viewer, rule))?; }
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
             if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
-            if !self.prefix_verdict(table, index, &scope, rule, visibility.uniform)? {
+            let (allowed, pending) = self.prefix_verdict(table, index, &scope, rule, visibility.uniform)?;
+            if !allowed {
                 return Ok(None);
             }
+            prefix_expiry = pending;
             admitted = visibility.uniform;
             }
         }
@@ -629,7 +632,7 @@ impl Runner<'_> {
             return Ok(None);
         }
         terms.remove(0); // Move the remaining terms once; every word lane shares them.
-        Ok(Some((words, scope, WordRead { admitted, metered: metered_words, retained, fields, terms })))
+        Ok(Some((words, scope, WordRead { admitted, metered: metered_words, retained, expiry: prefix_expiry, fields, terms })))
     }
 
     // The non-uniform traversal retains its eager order and disclosure contract.
@@ -795,6 +798,13 @@ impl Runner<'_> {
     }
 
     pub(super) fn scan_with_keys(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        let expiry = self.next_expiry.scope();
+        let rows = self.scan_with_keys_inner(scan)?;
+        expiry.emit();
+        Ok(rows)
+    }
+
+    fn scan_with_keys_inner(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
         if !scan.existence { return self.scan_with_words(scan, None); }
         self.page_depth += 1;
@@ -851,6 +861,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
     pub(super) fn stream_aggregate(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
+        let expiry = self.next_expiry.scope();
         // Prefixes may be hoisted, and filter/projection locals evaluated
         // before this frame. Without input provenance, conservatively retain
         // earlier unknown coverage. An enclosing page's non-uniformity alone
@@ -872,6 +883,7 @@ impl Runner<'_> {
             self.scalar_unavailable = true;
             return Err(RuntimeError::Prediction(format!("{}: streaming aggregate needs complete domain coverage", scan.site)));
         }
+        expiry.emit();
         Ok(value)
     }
 
@@ -897,6 +909,7 @@ impl Runner<'_> {
     }
 
     fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<(&mut i128, Option<&Expr>)>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        let page_expiry = self.next_expiry.scope();
         if let Some(message) = self.schema.maintain_for(&scan.table).and_then(|m| m.expiring_read_refusal(self.schema)) {
             return Err(RuntimeError::Structural { code: "E_MAINTAIN_READ_EXPIRE", message });
         }
@@ -934,11 +947,14 @@ impl Runner<'_> {
         let mut capped = false;
         let mut filter_interrupted = false;
         let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
+        let mut prefix_expiry = word.map_or_else(Default::default, |word| word.expiry);
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
-            if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
+            let (allowed, pending) = self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)?;
+            if !allowed { return Ok((Vec::new(), Vec::new())); }
+            prefix_expiry = pending;
             if visibility.uniform { uniform_verdict = Some(true); }
         }
         // Non-uniform hidden runs cost examined rows, never a materialized
@@ -1025,33 +1041,14 @@ impl Runner<'_> {
                 if unmatched {
                     continue;
                 }
-                let row_expiry_mark = self.next_expiry;
-                let allowed = match uniform_verdict {
-                    Some(verdict) => verdict && self.provisional_readable(&scan.table, &row)?,
-                    None => {
-                        let verdict = self.check_rule(&scan.table, Effect::Read, None, &row)?;
-                        verdict
-                    }
-                };
+                let candidate = self.read_candidate(&scan.table, row, uniform_verdict, prefix_expiry)?;
                 if self.read_capped() {
-                    // @ref LLP 3000.014#5 — a cut cannot disclose a private probe's deadline.
-                    self.next_expiry = row_expiry_mark;
                     capped = true;
                     break 'outer;
                 }
-                if allowed {
-                    self.note_expiry(table, &row);
-                    let live_row = self.live_aggregate(&scan.table, row)?;
-                    // @ref LLP 3000.007#20.21 — a cut aggregate is unavailable, not a
-                    // partial contribution presented as a total. The push that used to
-                    // happen here matched maintained point reads, which now refuse
-                    // under a cap rather than answer with an unfinished value.
-                    if self.read_capped() {
-                        capped = true;
-                        break 'outer;
-                    }
-                    let Some(row) = live_row else { continue; };
-                    let row = super::recorded::public_image(table, row);
+                if let Some((row, pending)) = candidate {
+                    let row_expiry = self.next_expiry.scope();
+                    self.next_expiry.inherit(pending);
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;
@@ -1091,6 +1088,7 @@ impl Runner<'_> {
                         } else { 1 };
                         **total += amount;
                         consumed += 1;
+                        row_expiry.emit();
                         if scan.existence && consumed == take { break 'outer; }
                         continue;
                     }
@@ -1118,10 +1116,9 @@ impl Runner<'_> {
                         visible.push(row);
                         keys.push(key.clone());
                     }
+                    row_expiry.emit();
                     if (scan.existence || job_page) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
-                } else {
-                    self.next_expiry = row_expiry_mark;
                 }
             }
             if fetched_len < batch {
@@ -1169,6 +1166,7 @@ impl Runner<'_> {
             if filter_interrupted && visible.is_empty() && next.is_some() && next == bounds.at_or_after { next = None; }
             self.record_page(scan.site.clone(), PagePosition { variant: scan.variant, view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
         }
+        page_expiry.emit();
         Ok((visible, keys))
     }
 
@@ -1247,7 +1245,10 @@ impl Runner<'_> {
     /// Merge ordered lanes into a page. Seekable uniform lanes use a heap
     /// of heads. Other lanes retain their page scan and stable union sort.
     pub(super) fn merge(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
-        self.merge_with_words(merge, None)
+        let expiry = self.next_expiry.scope();
+        let rows = self.merge_with_words(merge, None)?;
+        expiry.emit();
+        Ok(rows)
     }
 
     fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {

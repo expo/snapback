@@ -1,4 +1,4 @@
-//! The shortcut has its own stop/restore contract, before the outer point wrapper.
+//! A point read owns shortcut deadlines and stops before lookup when that shortcut cuts.
 use super::*;
 use crate::rows::{MemoryRows, Rows};
 use std::cell::RefCell;
@@ -81,7 +81,7 @@ fn authorized_aggregate_shortcut_stops_at_its_own_cut_boundary() {
         site: "shortcut".into(),
         table: "totals".into(),
         index: index.clone(),
-        key: vec![],
+        key: vec![Expr::Literal(id("p"))],
         provenance: KeyProvenance::Const,
     };
     for deadline in [300, 500] {
@@ -139,18 +139,18 @@ fn authorized_aggregate_shortcut_stops_at_its_own_cut_boundary() {
                 ),
                 0,
             );
-            r.next_expiry = prior;
+            r.next_expiry = prior.into();
             // The static two-probe reservation caps, but PrefixProbe can still
             // evaluate true and record the gate's deadline. Stop at this boundary,
-            // without relying on get_inner's later failure cleanup to mask it.
-            let result = r.get_prepared(&read, &[id("p")]).unwrap();
-            assert_eq!(r.next_expiry, prior);
+            // without fetching aggregate state after that cut.
+            let result = r.get(&read);
+            assert_eq!(r.next_expiry.get(), prior);
             assert_eq!(
                 rows.reads.borrow().as_slice(),
                 &["gates", "guards"],
                 "a cut shortcut must not fetch the aggregate or its contributions"
             );
-            assert_eq!(result, object([("value", Value::Null)]));
+            assert!(matches!(result, Err(RuntimeError::Bound { kind: MeterKind::RuleProbes, .. })));
             assert_eq!(r.metered().rule_probes, 2);
             assert_eq!(
                 r.meter.capped_at.as_ref().map(|cut| cut.0),
@@ -165,12 +165,12 @@ fn authorized_aggregate_shortcut_stops_at_its_own_cut_boundary() {
             );
             assert_eq!(
                 allowed
-                    .get_prepared(&read, &[id("p")])
+                    .get(&read)
                     .unwrap()
                     .field("value"),
                 Ok(&Value::Int(1))
             );
-            assert_eq!(allowed.next_expiry, Some(deadline));
+            assert_eq!(allowed.next_expiry.get(), Some(deadline));
         }
     }
 }

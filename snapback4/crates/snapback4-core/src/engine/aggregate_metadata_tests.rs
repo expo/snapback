@@ -146,10 +146,10 @@ fn memory_denied_aggregate_restores_probe_expiry() {
                 let rows = MemoryRows::new();
                 seed(&rows, &schema, Some(900), gate);
                 let mut r = reader(&rows, &schema);
-                r.next_expiry = prior;
+                r.next_expiry = prior.into();
                 let data = r.run(&program).unwrap();
                 assert_eq!(data, Value::Null);
-                assert_eq!(r.next_expiry, prior);
+                assert_eq!(r.next_expiry.get(), prior);
                 assert!(!r.query_unavailable && r.meter.capped_at.is_none());
                 results.push((r.metered(), r.read_tables));
             }

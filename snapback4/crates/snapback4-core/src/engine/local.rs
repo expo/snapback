@@ -53,7 +53,7 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
         seq: 0,
         metered: runner.meter.used,
         tables: runner.read_tables.iter().cloned().collect(),
-        next_expiry: runner.next_expiry,
+        next_expiry: runner.next_expiry.get(),
     })
     })();
     let components = if result.as_ref().is_ok_and(|outcome| matches!(outcome.data, Value::Row(_))) { runner.component_coverage() } else { Default::default() };
@@ -137,7 +137,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
             seq: 0,
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
-            next_expiry: runner.next_expiry,
+            next_expiry: runner.next_expiry.get(),
         })
     })();
     (result, runner.missing_fact.is_some() || runner.presence_unknown, runner.only_retained_incomplete())

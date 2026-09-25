@@ -129,7 +129,6 @@ impl Runner<'_> {
         };
         let viewer = self.context.viewer.clone();
         let row = crate::schema::row_image(&row, &parent);
-        let previous_expiry = self.next_expiry;
         let readable = self.context.is_system()
             || rules::evaluate(
                 &parent.rules.read,
@@ -141,10 +140,8 @@ impl Runner<'_> {
             )?;
         if readable {
             if let Some(at) = parent.deadline(&row) {
-                self.next_expiry = Some(self.next_expiry.map_or(at, |n| n.min(at)));
+                self.next_expiry.note(at);
             }
-        } else {
-            self.next_expiry = previous_expiry;
         }
         Ok(if readable {
             ParentVerdict::Readable

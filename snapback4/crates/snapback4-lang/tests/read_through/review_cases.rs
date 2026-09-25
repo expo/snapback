@@ -10,6 +10,9 @@ pub use metadata::*;
 #[path = "review_cuts.rs"]
 mod cuts;
 pub use cuts::*;
+#[path = "review_emission.rs"]
+mod emission;
+pub use emission::*;
 
 pub type Outcome = (Result<Value, Refusal>, Metered);
 pub trait Backend {

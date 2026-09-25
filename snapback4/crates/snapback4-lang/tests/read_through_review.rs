@@ -241,3 +241,8 @@ scenario!(aggregate_page_cut_expiry);
 scenario!(aggregate_inherited_only_dependencies);
 scenario!(aggregate_live_recount_cut_expiry);
 scenario!(aggregate_authorized_shortcut_cut);
+
+scenario!(admitted_aggregate_emission_expiry);
+scenario!(uniform_prefix_emission_expiry);
+scenario!(partial_page_keeps_emitted_expiry);
+scenario!(unreturned_candidates_discard_expiry);

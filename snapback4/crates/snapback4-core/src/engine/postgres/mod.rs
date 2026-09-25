@@ -172,7 +172,7 @@ impl PostgresEngine {
             seq,
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
-            next_expiry: runner.next_expiry,
+            next_expiry: runner.next_expiry.get(),
         };
         drop(runner);
         tx.rollback()?;
