@@ -23,6 +23,8 @@ query rows():
   const path = name => join(root, 'packages/snapback4/src', name);
   if (mutant === 'reset') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replace('reset() { publish(empty); }', 'reset() {}');
   if (mutant === 'tables') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replaceAll('Object.create(null)', '{}');
+  if (mutant === 'overflow-delete') sourceOverrides[path('web-idb-buckets.ts')] = readFileSync(path('web-idb-buckets.ts'), 'utf8')
+    .replace('if (prior === undefined && spill) store.delete([s, change.k]);', '/* mutant: leave deleted overflow rows on disk */');
   for (const [name, selected] of [['local.ts', 'progress'], ['web-idb.ts', 'buckets']]) if (mutant === selected) {
     sourceOverrides[path(name)] = execFileSync('git', ['show', `18f3754fc:snapback4/packages/snapback4/src/${name}`], { cwd: root, encoding: 'utf8' });
   }
@@ -131,6 +133,11 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
           changed: await store.read(name, 'r', keys[0]), last: await store.read(name, 'r', keys[count - 1]) });
         await store.save(name, [{ s: 'r', k: keys[count - 1], v: 'overflow update' }, { s: 'r', k: keys[0], v: null }]);
         if (await store.read(name, 'r', keys[0]) !== null || await store.read(name, 'r', keys[count - 1]) !== 'overflow update') throw Error('packed/overflow update or delete lost');
+        await store.save(name, [{ s: 'r', k: keys[count - 1], v: null }]);
+        if (await store.read(name, 'r', keys[count - 1]) !== null) throw Error('deleted overflow row remains readable');
+        const reopened = await indexedDbPersistence().load(name);
+        if (reopened.some(c => c.s === 'r' && c.k === keys[count - 1])) throw Error('deleted overflow row resurrected on load');
+        if (reopened.filter(c => c.s === 'r').length !== count - 2) throw Error('overflow deletion changed the wrong row');
       }
       return output;
     });
