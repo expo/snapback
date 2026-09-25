@@ -977,7 +977,9 @@ impl<'a> Runner<'a> {
         // second result-sized string. A shaped/scalar result cannot be
         // truncated without changing its type or inventing a continuation.
         let mut count = crate::json_codec::value_bytes(value).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        if self.context.row_provenance || (self.device && value.has_retained_rows()) {
+        // Devices stamp provenance even when no retained image needs transport.
+        let carries_mask = if self.device { value.has_retained_rows() } else { self.context.row_provenance };
+        if carries_mask {
             // Reserve before constructing the mask and its transport image.
             // Application data cannot forge which rows the fallback preserves.
             let (heap, steps) = value.provenance_allowance();

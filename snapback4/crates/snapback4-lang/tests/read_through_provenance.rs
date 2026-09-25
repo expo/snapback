@@ -150,7 +150,10 @@ fn denied_rows_have_no_identity_and_envelopes_pay_output_and_heap() {
     }
     let plain = e.query("point", context("alice", false)).unwrap();
     let with = e.query("point", context("alice", true)).unwrap();
-    assert!(with.metered.output_bytes > plain.metered.output_bytes);
+    let data_bytes = serde_json::to_vec(&with.data).unwrap().len() as u64;
+    let mask_bytes = serde_json::to_vec(&with.data.retained_rows_mask()).unwrap().len() as u64;
+    assert_eq!(plain.metered.output_bytes, data_bytes);
+    assert_eq!(with.metered.output_bytes, data_bytes + mask_bytes);
     assert!(with.metered.heap_bytes > plain.metered.heap_bytes);
     assert!(with.metered.steps > plain.metered.steps);
     e.set_ceilings(Ceilings {
@@ -170,4 +173,26 @@ fn denied_rows_have_no_identity_and_envelopes_pay_output_and_heap() {
         e.query("point", context("alice", true)).unwrap_err().code,
         "E_BOUND"
     );
+}
+
+#[test]
+fn device_page_without_retained_rows_pays_only_for_its_data() {
+    let mut e = engine();
+    let schema = e.schema().clone();
+    let program = e.program("page").unwrap().clone();
+    let plain = e.query("page", context("alice", false)).unwrap();
+    let data_bytes = serde_json::to_vec(&plain.data).unwrap().len() as u64;
+    assert_eq!(wire::to_json(&plain.data), json!([{"body": "same"}]));
+    let tx = e.store_mut().read_transaction().unwrap();
+    // Delivered history enables provenance stamping, but no retained row means
+    // the device transport omits its mask. The page fits exactly at this ceiling.
+    let result = snapback4_core::engine::local::query(
+        &tx, &schema, &program, context("alice", true),
+        Ceilings { output_bytes: data_bytes, ..Ceilings::default() },
+    ).unwrap();
+    assert!(result.complete && !result.unavailable, "{result:?}");
+    assert_eq!(result.data, plain.data);
+    assert!(!result.data.has_retained_rows());
+    assert_eq!(mask(&result.data)[0]["source"], json!(["docs", "x"]));
+    assert_eq!(result.metered.output_bytes, data_bytes);
 }
