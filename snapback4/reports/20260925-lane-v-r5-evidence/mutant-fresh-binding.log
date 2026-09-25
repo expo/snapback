@@ -1,0 +1,70 @@
+(node:2329888) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (993.114013ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (904.827245ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1783.102772ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2221.089813ms)
+  ✔ a hide during the startup probe waits for its accepted decision (851.92396ms)
+  ✔ a hide during the startup probe waits for its refused decision (848.281853ms)
+  ✔ a hide during the startup probe waits for its restore decision (882.773098ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1431.089038ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1445.966453ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (794.821002ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (883.264787ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (811.801368ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (826.87068ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (868.035095ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (873.381298ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (846.472284ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (874.027326ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (902.142747ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (859.564604ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (857.457286ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (832.80886ms)
+  ✔ a successful reconnect enables exit after startup 503s (793.77028ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4858.527445ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (5000.212873ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4931.052243ms)
+  ✖ an empty-outbox open gates new clicks on its replacement probe (5058.452623ms)
+  ✔ same-epoch logout tombstone refuses live admission (566.378343ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (660.642952ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (444.759565ms)
+✖ web admission review: recovery and transport respect the session boundary (45710.536141ms)
+ℹ {"mode":"held-sync","id":"01M3CBZE9WV027AAZCYKEAAXDT","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CBZF5KP9RXS2BZ6HBKQVA2","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CBZK1XT5G1AKTS2E95K92C","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"refused","originalId":"01M3CBZKZ14NVRPK6850HQ60YX","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"restore","originalId":"01M3CBZMRR8PYT9RYAG6P5H42K","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"replacement","originalId":"01M3CBZNM8519XSB14RXB7MFPF","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CBZQ4FVK46DWAS2DGWKNST","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+ℹ tests 30
+ℹ suites 0
+ℹ pass 28
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45804.726507
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:428:81
+✖ an empty-outbox open gates new clicks on its replacement probe (5058.452623ms)
+  AssertionError [ERR_ASSERTION]: replacement audit after close
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:479:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:428:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,24 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1068.64007ms)
+  ✔ a failed logout cannot commit after abort (892.074654ms)
+  ✔ a failed logout cannot commit after quota (823.875886ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (421.859717ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (933.880341ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.341785ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (88.694311ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (484.951942ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (520.440142ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (868.827669ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (529.297104ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (860.876855ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (732.671696ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (9091.17353ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":3}
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9191.214995

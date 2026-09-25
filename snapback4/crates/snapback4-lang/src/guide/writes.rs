@@ -1,4 +1,4 @@
-//! Writes and server-arrival ordering.
+//! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Writes
 
 Mutations insert, update and delete rows in one transaction.
@@ -15,62 +15,29 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
+`insert` creates a row; `if absent` returns null on a readable key collision.
+`update` patches one row; its `if` condition tests the old row.
+`upsert` inserts or patches, and `delete` removes the named row.
+Any refusal rolls back the entire mutation.
+Keep one minted write id with each intent when retrying.
+
+## Limits
+
+- Hidden targets do not disclose refusal details: NOT_FOUND.
+- A conditional update can conflict: E_CONFLICT.
+- A write target must name its unique key without extra tests: E_QUARRY_WRITE_TESTS.
+- Reusing a known id for changed intent is refused: E_WRITE_ID_REUSE.
+
+## Details
+
+Mutations insert, update and delete rows in one transaction.
+Rules and constraints apply before that transaction commits.
+
 If `messageId` in `writeForms` addresses retained history from a room the
 writer has left, the call still predicts. Reads hide the updated message
 because current membership is absent, while readable inserts remain visible.
 Unknown reaction authority also hides that provisional reaction.
 See `guide prediction` for authorization on each device read.
-
-For replay adapters and retry-safe intents, pass a `mintId()` you stored with
-the intent or fixture; arbitrary fixture strings still need an application ledger.
-Pass it as `{ id }`; a retry returns the original outcome and never applies twice:
-`client.mutate(api.send, args, { id })`. The id must have the `mintId()` form:
-26 uppercase Crockford base32 digits (0123456789ABCDEFGHJKMNPQRSTVWXYZ), with
-the first digit 0–7; malformed ids return local `failed` with `E_WRITE_ID`.
-Mint once and keep the id with the intent. It identifies the write, not a row;
-prediction still mints separate row ids through `new_ids`.
-A retry of a pending write on the same client returns the same Write object;
-a settled retry returns its retained receipt, without historical result values.
-Online, web and native clients share this rule; a recovered queued write is
-reused before prediction or admission. Already-open owners of one device store
-compare and admit under its transaction: equal input reuses the original entry
-and row ids, and conflicting input changes nothing, even during a send. `client.write(id)` and
-`usePendingWrite(op, id)` observe that same id.
-
-Reusing an id with different operation names or JSON arguments returns local
-`E_WRITE_ID_REUSE` while the client knows the input: unresolved submissions,
-its last 256 terminal input identities, or its recovered outbox. Object key
-order does not matter. This refusal does not replace the original write or emit
-a terminal event for it. A receipt recovered after reopen holds no arguments,
-so it returns the original outcome without comparing inputs. When neither
-outbox nor receipt knows an id, the request reaches the server: its record is
-keyed by principal and mutation id, and an existing record wins even if the
-operation or arguments differ. Use a new id for a new intent. A client remembers
-used ids for its lifetime (ids only after the bounded input/receipt window);
-if a known id has lost its receipt and left the outbox, it refuses
-`E_WRITE_RECEIPT_EXPIRED` instead of admitting it again. Reopen to recover that
-outcome through the server. The server guarantee belongs to that backend store.
-An online `createApp` journal separately preserves ids retired after a store
-change, including sent ids displaced to make room for retirement receipts,
-so reopening cannot replay those writes on the replacement store:
-evicted bodies return `E_WRITE_RECEIPT_EXPIRED` without dispatch. It keeps up to
-4,096 compact retirement ids; saturation durably blocks new admissions until
-the application reconciles prior outcomes and explicitly replaces that journal,
-rather than forgetting ids automatically. Already-admitted intents remain
-recoverable as pending while their outcomes are unresolved.
-Online intent records its dispatch store before transmission. A failed receipt
-save preserves the known terminal outcome for mutate, lookup and notification;
-reopening may resend that intent only to the acknowledging store, whose replay
-record prevents double execution. Persisted terminal receipts are not reposted.
-A replacement retires old-store intent with an unknown-outcome refusal; an old
-unbound intent may replay only to the first store its journal has seen.
-For a caller-supplied id with no local outcome, a prediction or validation refusal
-queues the write without a row so the server can answer from its replay record.
-The journal preserves this replay eligibility through navigation. If the server
-has no record, it executes or refuses the write against its current state.
-Separate live web tabs have separate outboxes; the server deduplicates their
-requests under the same principal and id. Different principals may use the same
-id independently.
 
 Writes that do not predict show pending with `usePendingWrite(op)` from
 `snapback4/react`: `run(args)` submits, `pending` covers submission through
@@ -105,6 +72,8 @@ receives pending with its id. Late responses are consumed and discarded.
 `createApp` and device mutation intent recover on reopen; raw online callers
 retain their retry id, and action callers collect the same server action id.
 
+`useAcquisition()` reports `{ acquired, rows, tables }` as snapshot pages commit.
+Keep the UI usable through server fallback while it prepares offline access.
 `client.acquired` and `useAcquired()` report completed snapshot and catch-up
 for the current store, stay true offline, and reset with invalidated acquisition.
 The online tier has no partition and reports false. In an opener, use
@@ -118,100 +87,6 @@ A Write queued without a row before acquisition carries
 says `queued without a row: local data does not justify prediction`.
 Predicted rows carry pending; a pending Write has no predicted result.
 
-`upsert` set-state writes (likes, reactions and votes) predict updates of
-rows the device holds. A missing row predicts an insert only when its synced
-group is held with no horizon, both the key and the materialized insert image
-prove readability, and the device holds every row that can collide on a
-secondary unique index or count toward an affected cap. Defaults are part of
-that image. Otherwise it queues without a predicted row, including in a left
-group. See `guide prediction` for the conditions and a set-membership recipe.
-An expiring cap counts unswept physical rows, which live snapshots omit.
-Occupancy-increasing writes queue without predicted rows and settle on the
-server even after full acquisition; updates within a cap group can still predict.
-Replacing an expired same-id row also queues: the server may have swept it and
-refilled the cap before sync reaches the device. A held live row can still
-support an update within its cap group.
-
-NOT_FOUND means a point write has no target, or a write to an unreadable target
-was refused without disclosing its existence. It is also the conventional
-application code for `row ! else NOT_FOUND`. Check a readable target and retry;
-do not infer absence from a refused blind write.
-
-An alternate-key delete of a missing row refuses `NOT_FOUND` locally when the
-synced group proves absence; otherwise it queues for server resolution.
-
-For `after insert <- exists t[key]`, a local hit satisfies the postcondition.
-A local miss predicts `E_CONSTRAINT` only when the key proves readability
-and its synced group is fully held without a horizon. Otherwise either an
-ordinary insert or an upsert queues without a predicted row; the server
-decides the postcondition when the write arrives.
-
-Defaults fill missing insert columns on the writing host, including the insert
-branch of `upsert`; updates and existing-row upserts never reapply defaults.
-`upsert` inserts or patches: on an existing row, unnamed columns keep their
-values. An incomplete insert patch answers `NOT_FOUND`. An explicit null
-clears an optional column. Omitted asset columns keep their placement; an explicit
-asset id on a row you cannot read must be your own upload, even if it equals the
-retained id. The update
-rule runs before asset diagnostics. Conditional `if` sees old only inside
-the engine; neither old nor the merged image is a program binding.
-
-For update/upsert, "readable" means the read rule admits the old row in the
-pre-write state, before the patch or any of its effects. The engine resolves
-id and unique-key targets privately; the update rule judges old and next.
-
-E_INPUT means an argument or row value does not fit its declared type.
-Correct the named field or its declaration. A typed reference checks the id's
-shape; use `require exists t[id] else CODE` to require a visible target.
-
-E_CONFLICT means a conditional update found that the row changed.
-The refusal carries the current row only when its read rule admits the viewer.
-Read it and retry with a fresh edit.
-
-E_QUARRY_WRITE_TESTS means a write target includes tests beyond its unique
-key. For a readable row, write `require exists members[org, viewer, role =
-'admin'] else NOT_ADMIN`, then `update members[org, viewer] { role: 'member' }`.
-Choose the refusal code for your application. This explicit check refuses a
-hidden or missing row and grants no write authority; the compiler does not
-insert it automatically.
-
-| Target before the write | Refusal details |
-| --- | --- |
-| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
-| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
-
-A hidden collision on ordinary insert or `insert ... if absent` stays
-`E_RULE`; a readable collision names its index (if-absent returns null).
-An update or upsert-patch colliding with a different hidden row returns generic
-`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.
-Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
-write another principal's row. Success discloses the admitted row's existence
-and the update rule predicates. It grants no extra stream or snapshot row.
-A condition belongs on `update`; an upsert inserts or patches. A condition
-needs a row you can read; a blind patch needs none. On a row you cannot read,
-immutable columns in a patch are ignored. A readable immutable mismatch still
-names the column. Before target lookup, the engine reserves room for the rule
-probes and the largest merged image allowed by the schema and supplied patch;
-if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
-Delete targets and insert/if-absent collision lookups also reserve authorization
-before resolving a row, including expired rows. The allowance covers the read
-rule's worst case, including probes that could short-circuit; execution still
-charges the rule work once.
-
-
-The table names are the language card's. A final write is the implicit
-return; bind one to use its row (`row = insert ..`). Writes check the rule,
-then unique indexes, caps, immutable columns, text formats and `after
-insert` postconditions; any refusal rolls the whole mutation back, and a
-maintained aggregate is written through its source rows. Every written row
-fans out to its partitions (guide sync). A mutation applies at most once
-per client-minted id and principal. Valued updates/upserts and conflict
-`current` are ordinary read-rule gets (null or withheld when hidden), evaluated
-at the read's state; a write that grants read authority may return its row.
-The recorded body is the replay body, with value-free diagnostic messages
-and no `result` or `current`. Retries return only
-execution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding
-historical `result` and `current`, including scalar results after a lost reply.
 On the web, admission waits for the IndexedDB commit; pagehide or becoming
 hidden sends only the oldest unconfirmed write with keepalive, including a retry
 of that same head if an ordinary send is in flight when the page exits.
@@ -241,11 +116,19 @@ intact until a later matching open can establish ownership; a broken orphan does
 not prevent healthy stores from opening.
 Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
+
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
-device store; a serialized record over 64 KiB is not journaled. Unavailable,
-throwing or full localStorage, an unidentified backend store,
-exceeded journal limits, or browser storage clearing leave unawaited navigation
-best-effort: that write can still be lost before IndexedDB commits. A destination must open
+device store, and 64 KiB per record. A browser call that cannot synchronously
+keep its intent refuses `E_ADMISSION` with a site and rewrite: no new intent
+is accepted. Its promise is already fulfilled with `failed`, and exposes
+`state`, `id` and `why` in the calling stack. Missing restored identity,
+unknown backend identity, unavailable/full storage, an exhausted journal, or
+an app without a durable web device therefore cannot silently lose a click.
+Use `webDevice()` and `localStorageSessionStore()`, wait for readiness or repair
+storage, then retry the original id. Browser storage clearing after admission
+can still erase the journal.
+
+A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
 best-effort and sends only admitted writes. Built-in IndexedDB requires Web
 Locks and refuses opening without them. Custom persistence must provide an
@@ -263,12 +146,6 @@ later recovery can admit it if the authored condition changes. The returned
 refusal alone does not guarantee preserved cancellation in that case.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
-A reference column checks the id's shape, not that
-its target exists: when a mutation needs a visible target, guard first —
-`require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point
-read that is false for an absent or hidden row; deleting a target neither
-deletes nor refuses the rows that reference it, so a lifecycle is the
-application's, in its mutations and rules.
 
 ## A constraint across rows you cannot read
 
@@ -381,47 +258,4 @@ shared-history example is online-only and only members can advance its counter;
 private conversations also need membership read rules. If you sync and predict it, a local ordinal is provisional until the
 server commits and reconciles concurrent sends.
 
-## Write authority
-
-`old` in a rule and the conditional update's `if` are evaluated inside the
-engine. An update/upsert result and conflict `current` are read-rule gets,
-never the merged patch image: null or withheld when hidden at that read.
-A patch can grant read authority and then return its row. Omitted asset columns
-keep their placement. An explicit asset id on a row you cannot read must be your
-own upload, even if it equals the retained id. Update authority is checked
-before asset diagnostics. A readable aggregate view is an explicit delta read channel;
-`N_MAINTAIN_DELTA` notes potentially wider source update authority.
-A missing `upsert` predicts its insert when the synced group is held with no
-horizon, both the key and the materialized insert image prove readability,
-and the viewer-readable partition covers every secondary unique lookup and
-affected cap group. The image includes key columns, patch and defaults; a
-whole-table cap needs the whole public table. Left groups and unproved
-conditions queue without a predicted row and still send `/m` (guide prediction).
-`check` calls an upsert with an unprovable insert arm `predicts: updates only`,
-and lists that arm in its summary with the first failing horizon, rule or cap
-coverage proof. `insert ... if absent` reports the same insert limitation.
-An id supplied to `insert ... if absent`, including a parameter or helper result,
-needs the `byId` absence proof too. Only an id minted by `new` during the call
-(including an omitted id) can use a covered secondary unique key instead.
-`check` preserves a local's `new` fact across unrelated requires, reads, emits
-and writes. A direct assignment tracks the local's new value; a branch or loop
-that may assign it discards its fact. Other locals keep their mint facts.
-Membership-scoped reactions with `last 500` cannot prove absence outside that
-window; removing it still leaves `(messageId, principal)` unable to decide
-`exists members[.conversationId, viewer]`. A viewer-keyed read rule with no
-horizon and caps grouped by that viewer predicts a first write but shows only
-the viewer's own reactions. Full public sync covers a per-message cap but
-makes every reaction public. Membership reads can predict without a horizon
-when every unique key and cap group includes `conversationId` and the device
-holds the deciding membership row; that acquires all reactions in the held
-conversation. None of these means complete children of just the held messages.
-If no shape fits the product, this write queues until the server answers;
-show its pending state using the returned write's `state` and `client.onWrite`
-(guide writes). Changing `upsert` to an existence branch does not supply absence
-or cap coverage.
-The at-most-once record stores the replay body, with value-free diagnostic
-messages and no `result` or `current`. Replay returns
-execution identity only, with `replayed: true`; historical `result` and
-`current` are withheld, including after revocation or a dropped response.
-The same operation id under another principal has no access to that receipt.
-`delete` keeps its own existing rule and behavior."##;
+"##;

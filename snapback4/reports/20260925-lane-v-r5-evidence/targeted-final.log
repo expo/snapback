@@ -1,0 +1,47 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1017.318206ms)
+  ✔ a failed logout cannot commit after abort (816.796296ms)
+  ✔ a failed logout cannot commit after quota (804.783591ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (431.797442ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (966.523467ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.788145ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (96.01396ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (447.580376ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (477.106458ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (850.520329ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (810.843063ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (760.87399ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (8316.077382ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":3}
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (892.590171ms)
+  ✔ restored identified device journals while its first sync is held (761.88647ms)
+  ✔ synchronous refusal: restoring (433.257681ms)
+  ✔ synchronous refusal: no-device (80.171626ms)
+  ✔ synchronous refusal: no-claim (402.113033ms)
+  ✔ synchronous refusal: ephemeral-device (339.119202ms)
+  ✔ synchronous refusal: storage-full (410.520163ms)
+  ✔ synchronous refusal: before-first-sync (356.144849ms)
+  ✔ repairing storage permits the refused id to be retried (399.029792ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (548.04719ms)
+  ✔ session-locked journal refuses stale authority: logout (572.82091ms)
+  ✔ session-locked journal refuses stale authority: principal (632.901715ms)
+  ✔ session-locked journal refuses stale authority: epoch (567.307928ms)
+  ✔ session-locked journal refuses stale authority: recovery (1012.366598ms)
+  ✔ a transient unlocked epoch observation refuses only that call (577.55316ms)
+  ✔ the bare online browser transport refuses without custody (2.350472ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (79.231338ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (108.057503ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (9109.675394ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9219.016956

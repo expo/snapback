@@ -21,10 +21,13 @@ pub fn typescript(bound: &Bound) -> String {
     out.push_str("export type Rows = {\n");
     for (name, table) in bound.schema.visible_tables() {
         out.push_str(&format!("  {}: {{\n", property(name)));
-        for (column, kind) in table.columns.iter().filter(|(name, _)| !table.recorded.contains_key(*name)) {
+        for (column, kind) in table.columns.iter().filter(|(name, _)| !table.engine_field(name) && !snapback4_core::schema::timeline::is_slot(name)) {
             out.push_str(&format!("    {}: {};\n", property(column), column_ts(kind, &bound.schema)));
         }
         out.push_str("    /** True on this device's own unconfirmed change (the card). */\n    pending?: boolean;\n");
+        if table.through.is_some() && table.sync.is_some() && table.leave == snapback4_core::schema::LeavePolicy::DeliveredHistory {
+            out.push_str("    /** Delivered history, outside the current parent page. */\n    retained?: boolean;\n");
+        }
         out.push_str("  };\n");
     }
     let views = &bound.view_types;
@@ -127,7 +130,7 @@ pub fn ty_ts(ty: &Ty) -> String {
         Ty::Page(table, _) => format!("Rows[{}][]", string_literal(table)),
         Ty::Collection(item, _) => format!("{}[]", wrap(item)),
         Ty::RowShape(fields) | Ty::RowObject(fields) => {
-            let fields = fields.iter().map(|(name, ty)| format!("{}: {}", property(name), ty_ts(ty))).chain(["pending?: boolean".into()]).collect::<Vec<_>>();
+            let fields = fields.iter().map(|(name, ty)| format!("{}: {}", property(name), ty_ts(ty))).chain(["pending?: boolean".into()]).chain((!fields.contains_key("retained")).then(|| "retained?: boolean".into())).collect::<Vec<_>>();
             format!("{{ {} }}", fields.join("; "))
         }
         Ty::Object(fields) => {

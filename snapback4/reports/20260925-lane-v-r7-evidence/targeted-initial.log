@@ -1,0 +1,77 @@
+(node:3518052) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (942.96616ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (792.191396ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1814.599001ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2070.060756ms)
+  ✔ a hide during the startup probe waits for its accepted decision (743.037555ms)
+  ✔ a hide during the startup probe waits for its refused decision (869.467363ms)
+  ✔ a hide during the startup probe waits for its restore decision (843.545252ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1207.962676ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (1262.71051ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (691.365611ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (847.102293ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (823.195182ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (800.078936ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (765.017497ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (740.600081ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (715.073883ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (722.258472ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (906.764121ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (786.999993ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (699.073212ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (690.293404ms)
+  ✔ a successful reconnect enables exit after startup 503s (773.689314ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (4760.863828ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4857.146822ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4787.969421ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (4892.692543ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (6825.283648ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (6285.998828ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (5958.573184ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6113.343966ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6016.503153ms)
+  ✔ same-epoch logout tombstone refuses live admission (504.815095ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (457.164759ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (389.255009ms)
+✔ web admission review: recovery and transport respect the session boundary (75163.825963ms)
+ℹ {"mode":"held-sync","id":"01M3CHD05M7CD7FCA98SQWZWWZ","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3CHD0Z54ST6NT5PN51NCZQ8","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3CHD4P4SFBB1M38Q23XWPJ8","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3CHD5E7MFWEFGX65D82M0BV","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3CHD6BVVV4HGK2WD0P03MD8","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3CHD754GP60KAZ6Q5GMV8JH","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3CHD8BRF762P347WG67Y97X","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3CHE6XJG9NF3NQFXY0PCTD9","originalStore":"a5d4a2abdd51c40ffa1ab837c75e3004","refusal":"E_STORE_REPLACED","auditA":10,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3CHED768DV117S92RJVGVC0","originalStore":"a5d4a2abdd51c40ffa1ab837c75e3004","refusal":"E_STORE_REPLACED","auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CHEKD5XQ9T2KDNP067BDGQ","hidden":false,"enqueuedInB":0,"auditA":10,"auditB":0}
+ℹ {"orphan":"01M3CHESBY3F4P5GTCGFG3HMXS","hidden":true,"enqueuedInB":0,"auditA":10,"auditB":0}
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1039 ms
+✔ stalled exit body recovers in order (not applied) (1712.925196ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1013 ms
+✔ stalled exit body recovers in order (already applied replay) (1170.981401ms)
+stalled exit close: 975 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1178.259349ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.507411ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1167.189249ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1228.672736ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1078.081306ms)
+✔ IndexedDB save resolves on transaction completion, not request success (1.128151ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1074.428661ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1080.648162ms)
+keepalive: 64141 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (3.169781ms)
+✔ exit ordering survives reversed server processing (1.065136ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (3.355489ms)
+✔ exit overlaps only the same ordinary in-flight head (1133.848156ms)
+✔ ordinary flush waits for the exit request before replaying its head (1074.648721ms)
+ℹ tests 50
+ℹ suites 0
+ℹ pass 50
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 75270.232441

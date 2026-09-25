@@ -1,0 +1,32 @@
+(node:2421898) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✖ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (7601.329724ms)
+✖ web admission review: recovery and transport respect the session boundary (8391.099275ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8492.016952
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (7601.329724ms)
+  AssertionError [ERR_ASSERTION]: timed out: acknowledgement repairs stored replacement refusal
+      at until (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:723:7)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:692:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

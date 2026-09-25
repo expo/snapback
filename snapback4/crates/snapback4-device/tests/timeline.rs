@@ -208,7 +208,7 @@ fn classification<H: Host>(mut h:H) where H::Store: Images {
 fn unheld<H:Host>(mut h:H) where H::Store: Images {
     for (table,op,args) in [
         ("feedRemovedEvents","publish",json!({"postId":"unheld-tombstone"})),
-        ("feedPosts","repost",json!({"postId":"original"})),
+        ("posts","repost",json!({"postId":"original"})),
     ] {
         let (mut e,mut b)=server();
         // Exercise each runtime dependency independently: a partially held input

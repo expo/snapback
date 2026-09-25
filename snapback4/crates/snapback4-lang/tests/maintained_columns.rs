@@ -607,7 +607,7 @@ fn a_raw_schema_cannot_assign_two_derivations_to_a_generated_parents_value() {
     schema.tables.insert("bases".into(),public_table(
         BTreeMap::from([("id".into(),ColumnType::Id),("group".into(),ColumnType::Int)]),
         BTreeMap::from([("byId".into(),Index::of(&["id"],true))])));
-    schema.maintains.push(Maintain {private:None,filter:None,computed:Default::default(),residency:Default::default(),kind:MaintainKind::Count,source:"bases".into(),by:vec!["group".into()],target:"parents".into(),readable:None});
+    schema.maintains.push(Maintain {parent_key:None,aliases:Default::default(),private:None,filter:None,computed:Default::default(),residency:Default::default(),kind:MaintainKind::Count,source:"bases".into(),by:vec!["group".into()],target:"parents".into(),readable:None});
     let error=Engine::memory(schema,[]).err().expect("raw dual derivation must be refused");
     assert!(error.to_string().contains("parents.value"),"{error}");
     assert!(error.to_string().contains("ordinary parent"),"{error}");
@@ -652,7 +652,7 @@ fn a_generated_source_is_refused_even_in_an_otherwise_well_typed_raw_schema() {
     let private=schema.maintains.iter_mut().find(|m|m.private.as_ref().is_some_and(|o|o.column=="likeCount")).unwrap();
     private.source="grouped".into();
     schema.tables.get_mut("posts").unwrap().maintained.insert("likeCount".into(),private.derivation_identity());
-    schema.maintains.push(Maintain {private:None,filter:None,computed:Default::default(),residency:Default::default(),kind:MaintainKind::Count,source:"likes".into(),by:vec!["postId".into()],target:"grouped".into(),readable:None});
+    schema.maintains.push(Maintain {parent_key:None,aliases:Default::default(),private:None,filter:None,computed:Default::default(),residency:Default::default(),kind:MaintainKind::Count,source:"likes".into(),by:vec!["postId".into()],target:"grouped".into(),readable:None});
     let error=Engine::memory(schema,[]).err().expect("generated sources cannot feed column aggregates");
     let message=error.to_string();
     assert!(message.contains("posts.likeCount")&&message.contains("generated source grouped")&&message.contains("ordinary source"),"{message}");

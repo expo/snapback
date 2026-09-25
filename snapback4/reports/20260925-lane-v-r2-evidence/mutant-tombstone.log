@@ -1,0 +1,41 @@
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (920.640734ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (789.810359ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1757.803131ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (873.19819ms)
+  ✔ legacy journal after logout preserves committed outbox custody (762.764102ms)
+  ✔ same-epoch logout tombstone refuses live admission (441.963892ms)
+  ✖ same-epoch logout tombstone refuses live admission even with retained session fields (506.829406ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (380.233709ms)
+✖ web admission review: recovery and transport respect the session boundary (7331.724627ms)
+ℹ {"mode":"held-sync","id":"01M3C23T016K4YDQ19T3GD2KWH","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C23TR8PD1STWJWBWW1E11S","outboxBeforeSync":true,"keepalive":true}
+ℹ tests 9
+ℹ suites 0
+ℹ pass 7
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7418.080869
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:213:53
+✖ same-epoch logout tombstone refuses live admission even with retained session fields (506.829406ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'sent' !== 'failed'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:231:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:213:45)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'sent',
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

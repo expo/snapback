@@ -1,0 +1,47 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1007.163846ms)
+  ✔ a failed logout cannot commit after abort (858.537077ms)
+  ✔ a failed logout cannot commit after quota (833.743454ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (424.278256ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (872.409806ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (4.326844ms)
+  ✖ a legacy mirror without IDB authority requires sign-in (85.835075ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (535.374835ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (443.439269ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (782.284112ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (492.781138ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (758.280032ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (696.010321ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (8718.288007ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":3}
+ℹ tests 14
+ℹ suites 0
+ℹ pass 12
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8813.680412
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:270:11
+✖ a legacy mirror without IDB authority requires sign-in (85.835075ms)
+  AssertionError [ERR_ASSERTION]: authoritative absence deletes the mirror
+  + actual - expected
+  
+  + '{"expiresAt":1790947637974,"kind":"user","principal":"user:01M3CBZDPPBKSJ3MZ3AZWTNQPP","token":"1PpoDlXWoBjo1wU0i0lPasbgcZQJkjotGYrhh4mq_FA"}'
+  - null
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:277:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:270:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '{"expiresAt":1790947637974,"kind":"user","principal":"user:01M3CBZDPPBKSJ3MZ3AZWTNQPP","token":"1PpoDlXWoBjo1wU0i0lPasbgcZQJkjotGYrhh4mq_FA"}',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,60 @@
+✔ native process devices bridge an inbox fetch and clear it offline and on account switch (6483.948481ms)
+✔ web IndexedDB device bridges the two-device inbox fetch in useQuery and usePage (8636.714703ms)
+(node:1110791) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1133.274087ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (809.830355ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1902.313599ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2154.951215ms)
+  ✔ a hide during the startup probe waits for its accepted decision (838.008035ms)
+  ✔ a hide during the startup probe waits for its refused decision (847.608944ms)
+  ✔ a hide during the startup probe waits for its restore decision (834.646427ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1359.427911ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (923.443236ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (870.439058ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (880.545766ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (847.844977ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (867.942388ms)
+  ✔ same-epoch logout tombstone refuses live admission (512.232959ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (540.095867ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (462.629518ms)
+✔ web admission review: recovery and transport respect the session boundary (16768.913122ms)
+ℹ {"mode":"held-sync","id":"01M3C7P4A0ZBG37AGVPNEQK7RJ","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C7P555PAXA6WGV88CNFP2W","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C7P91C5MCW1ZH8A2NAJ9VF","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C7P9YEK51QHYF4TKZR1TXK","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C7PAR7MJXQ9578NSRE05B9","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C7PBHB6VK987JVFPM135V9","sendsWhileProbeHeld":0,"originalAudit":3,"replacementAudit":0}
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (840.157806ms)
+  ✔ restored identified device journals while its first sync is held (800.583858ms)
+  ✔ synchronous refusal: restoring (396.468423ms)
+  ✔ synchronous refusal: no-device (72.524903ms)
+  ✔ synchronous refusal: no-claim (435.478297ms)
+  ✔ synchronous refusal: ephemeral-device (327.520502ms)
+  ✔ synchronous refusal: storage-full (405.393199ms)
+  ✔ synchronous refusal: before-first-sync (335.122445ms)
+  ✔ repairing storage permits the refused id to be retried (470.395638ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (560.343431ms)
+  ✔ session-locked journal refuses stale authority: logout (554.97126ms)
+  ✔ session-locked journal refuses stale authority: principal (571.418369ms)
+  ✔ session-locked journal refuses stale authority: epoch (498.213708ms)
+  ✔ session-locked journal refuses stale authority: recovery (942.205735ms)
+  ✔ a transient unlocked epoch observation refuses only that call (529.261519ms)
+  ✔ the bare online browser transport refuses without custody (1.38089ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (48.329301ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (92.671877ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (8979.127603ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16870.37401

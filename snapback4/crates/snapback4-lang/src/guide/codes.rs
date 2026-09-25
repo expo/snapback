@@ -1,4 +1,9 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_QUARRY_SELF_EQUALITY", "a predicate compares a filtered row column with itself. Use an operation argument, or bind the enclosing row in a named key: members[conversation = .conversation]. guide shapes."),
+    ("E_READ_THROUGH_SCAN", "an aggregate grouped by a read-through reference is served by its complete parent key. Replace the scan with viewName[parent]. Scanning other groups would disclose their population. guide maintains."),
+    ("E_READ_THROUGH_ADOPT", "activation or restore found children with missing or expired parents, disagreeing captures, or no unambiguous old audience correspondence. Reconcile the named table before retrying; nothing is published. guide rules."),
+    ("E_READ_THROUGH", "read through .ref is the entire read rule and needs a required immutable reference with no default to an ordinary application table. Parent rule fields and authored expiry must be immutable. Remove other read rules and put service grants on the parent. Break reference cycles with an ordinary read rule. Syncing delivered-history children reserve retained for row metadata; rename an application column to wasRetained. guide rules."),
+    ("E_PARENT_HAS_CHILDREN", "a readable parent cannot be deleted while physical children reference it. Delete its live children and sweep expired children before retrying delete parents[id]; the refusal does not identify an occupied child table. guide rules."),
     ("N_OPTIONAL_FILTER_LIMIT", "at most three optional filter inputs get planned presence variants; the named extra filters remain metered residual predicates. Keep them, or split the screen into queries that branch on those inputs. guide reads."),
     ("E_INIT_CONFLICT", "init found conflicting destination files or package.json entries and wrote nothing. Rename the listed files or reconcile the named package entries, then rerun snapback4 init. Unrelated files are preserved; when README.md exists, setup instructions go in README.snapback.md."),
 
@@ -9,6 +14,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_QUARRY_SPREAD", "object spread needs a non-null row or object with statically known fields. Establish the row first: p = profiles[handle = h] ! else NOT_FOUND, then return { ...p, extra: true }. An explicit field may replace a spread field; guide shapes."),
     ("E_QUARRY_RULE_SPELLING", "table rules are read <-, insert <-, update <- and delete <-. Replace select/view with read, create with insert, modify/edit with update, and remove with delete. A write <- line needs separate rules for the intended insert, update and delete operations; guide rules."),
     ("E_QUARRY_JOB_SCHEDULE", "a job declares work and a schedule declares when to run it. Replace job sweep every 1h: with job sweep():, keep its body, and add schedule sweepEvery every 1h: sweep; guide jobs."),
+    ("E_MAINTAIN_READ_EXPIRE", "authorization of an aggregate over an expiring source must use only group keys, never its value. Use a key rule, omit read to inherit the source rule, or use online only with an explicit key rule. Neither a source cap nor online only permits value authorization; guide maintains."),
     ("E_MAINTAIN_READ_RULE", "an aggregate view without read derives the source's rule only when the source is public/allow or every rule field survives as a bare group key. Calendar keys and reference paths do not preserve a source rule field. Add read <- deny, then replace deny with the intended aggregate audience over its group keys; guide maintains."),
     ("E_MAINTAINED_COLUMN_REFERENCE", "a maintained column without by needs exactly one source column referencing its parent table. With none, declare postId: posts on the source; with several, choose one explicitly: likeCount: count likes by postId (or total: sum likes of .weight by postId); guide maintains."),
     ("E_QUARRY_POSITIONAL_SCAN", "positional reads select id or a full unique key; write a predicate read such as posts where .authorId = owner last 20 by .at for a population. guide reads."),
@@ -44,7 +50,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("N_TIMELINE_COMPAT", "authors and size are accepted for compatibility and do nothing. Remove those lines: background delivery needs only events, reposts and edges. guide feeds."),
     ("E_TIMELINE_FILTER", "the originals filter must be row-local and use immutable columns, except the one-way removal flag. Declare parentId immutable and use posts where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false } as the originals branch of view activity. guide feeds."),
     ("N_TIMELINE_PROFILE_CAP", "the application's profile cap is lower than the timeline's author cap. Raise the profile cap to the declared author count, or keep the intentional application limit. guide feeds."),
-    ("E_TIMELINE_SHAPE", "the Following view needs three distinct public source tables: originals, reposts and follows. Use full sync public without horizons or expiry, owner write rules and immutable mapping fields, then declare the activity union and view following shown on the card; other models need their own bounded serving design. guide feeds."),
+    ("E_TIMELINE_SHAPE", "the Following view needs three distinct public source tables: originals, reposts and follows. Posts and reposts accept sync public, sync public last N by .at over the mapped (at, id) order, or online only; follows accept sync public, a public horizon, or online only. Keep owner write rules, immutable mapping fields and no expiry, then declare the activity union and view following shown on the card. guide feeds."),
     ("E_TIMELINE_FOLLOWS", "the follow table needs one declared immutable unique pair of follower and followed principals. Declare unique followerId, followedId and immutable followerId, followedId, then use exists follows[viewer, .actor] in view following. The engine chooses delivery indexes and work bounds. guide feeds."),
     ("E_TIMELINE_REMOVAL", "the removal signal must be a required bool default false and may only change false to true. Insert new cards with false, retain removed cards, and use a fresh card for new content. guide feeds."),
     ("E_TIMELINE_READ", "a timeline reads one viewer newest first by time, then event id, excluding tombstoned events. Use following last 20 by .at after c, then shape its event rows. guide feeds."),
@@ -69,6 +75,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_QUERY_HELD", "this query is declared held and runs only on the device. Call it with the local client; for server search, use the grouped or newest form in guide search, section Search every chat I'm in. A held read never falls back to the server."),
     ("E_SHAPE_EXCEEDS_METER", "following an inclusive cursor starved the same first returned shape again, leaving an empty page at the same position. The refusal names the read site and meter ceiling (8,192 examined rows). Bound the shape's read with `first N`/`last N`, or move it out of the returned shape; guide reads. If an earlier read spent the meter, the refusal names that read as the one to bound."),
     ("E_INDEX_KEY_BYTES", "family schema — an encoded index key, including its components, encoding overhead and appended id, must fit 2048 bytes on every store; table and index labels together have 512 UTF-8 bytes. Bound indexed text with <=N, reduce the composite key or shorten the labels; check names the column and suggests a bound. Writes enforce the same limits. guide indexes."),
+    ("E_ADMISSION", "family store — the browser could not synchronously keep a mutation. Nothing new was admitted. The site and rewrite name the missing restored session, exclusive web device, backend identity, or writable localStorage. Wait for app.ready and client.acquired, repair storage, and retry the same id. See `guide writes`."),
     ("E_WRITE_ID", "family input — write id must be 26 uppercase Crockford base32 digits, starting with 0–7 (the mintId() form). Mint once and keep the id with the intent; guide writes."),
     ("E_WRITE_ID_REUSE", "family input — write id already belongs to a different operation or arguments; retry the original input or use a new id. The original write remains unchanged; guide writes."),
     ("E_WRITE_RECEIPT_EXPIRED", "family input — this client already used the write id, but its receipt is no longer retained; reopen the client to ask the server for the original outcome. The client never admits a known id twice; guide writes."),
@@ -236,6 +243,16 @@ pub(crate) fn explanation_section(code: &str, keyword: &str) -> Option<String> {
 fn explain(code: &str, keyword: &str, dedicated: bool) -> Option<String> {
     let (_, explanation) = CODES.iter().find(|(name, _)| *name == code)?;
     let card = super::card(keyword)?;
+    if let Some(detail) = super::why::detail(code) {
+        // Authored why pages own their full facts. Tests reject overflow rather
+        // than relying on the generic excerpt truncation below. A project-specific
+        // guide pointer must not hide facts moved out of that card.
+        // The code owns this page; contextual cards still own the navigation pointer.
+        let home = crate::diag::guide_for(code);
+        let heading = super::card(home)?.lines().next().unwrap_or(home);
+        let body = detail.split_once('\n').map_or(detail, |(_, body)| body.trim_start());
+        return Some(format!("{code}: {explanation}\n\n{heading}\n\n{body}\nFull card: snapback4 guide {keyword}"));
+    }
     let paragraphs = prose(card);
     let section = paragraphs.iter().find(|(_, paragraph)| paragraph.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == code));
     if dedicated && section.is_none() { return None; }

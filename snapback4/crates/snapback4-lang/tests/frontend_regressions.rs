@@ -824,7 +824,7 @@ fn generated_array_elements_preserve_union_precedence() {
     let cases = [
         ("optional row", row.clone().optional(), "(Rows[\"posts\"] | null)[]"),
         ("optional object", object.optional(), "({ id: string } | null)[]"),
-        ("optional projection", Ty::RowShape(fields.clone()).optional(), "({ id: string | null; pending?: boolean } | null)[]"),
+        ("optional projection", Ty::RowShape(fields.clone()).optional(), "({ id: string | null; pending?: boolean; retained?: boolean } | null)[]"),
         ("enum", Ty::Enum(vec!["draft".into(), "published".into()]), "(\"draft\" | \"published\")[]"),
         ("nested list", Ty::List(Box::new(row.clone().optional()), 10), "(Rows[\"posts\"] | null)[][]"),
         ("nested collection", Ty::Collection(Box::new(row.clone().optional()), 10), "(Rows[\"posts\"] | null)[][]"),

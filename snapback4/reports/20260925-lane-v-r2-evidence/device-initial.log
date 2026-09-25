@@ -1,0 +1,83 @@
+✔ failed admission cannot appear in later reads or hitchhike on the next saved call (408.003309ms)
+✔ failed snapshot publication and backend adoption preserve acknowledged state (12.32693ms)
+✔ recovery read failures block calls until durable state can be reopened (4.122471ms)
+✔ failed initial persistence frees the constructed Wasm device (1.47364ms)
+✔ successful calls keep incremental persistence without loading the store again (4.818624ms)
+✔ close drains accepted calls once and refuses later calls (2.98793ms)
+✔ W11R2: evicted journal has no retry timer or missing-store read (2.235061ms)
+ℹ state=evicted retry_timers=0 orphan_loads=0
+✖ W11R2: unidentified journal has no retry timer or missing-store read (1.984114ms)
+✔ W11R2: receipt lookup never opens an absent shared database and sees later adoption (1.928962ms)
+ℹ empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false) (2.441981ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true) (1.929934ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11R2: a live sibling queues one cancellable lock wait without a timer (3.131064ms)
+ℹ live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+✖ W11R2: persistent recovery failure exhausts three backoffs then a sync can recover (1.529934ms)
+✔ W11R2: IndexedDB existence fallback aborts creation of missing stores (0.482183ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1034 ms
+✔ stalled exit body recovers in order (not applied) (1497.197649ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1013 ms
+✔ stalled exit body recovers in order (already applied replay) (1126.777462ms)
+stalled exit close: 973 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1080.722389ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.638247ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1100.412708ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1081.013806ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1087.352949ms)
+✔ IndexedDB save resolves on transaction completion, not request success (2.215041ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1080.521668ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1078.740748ms)
+keepalive: 64093 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (1.706058ms)
+✔ exit ordering survives reversed server processing (0.641542ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (1.262213ms)
+✔ exit overlaps only the same ordinary in-flight head (1081.39695ms)
+✔ ordinary flush waits for the exit request before replaying its head (1077.205816ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 27
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11406.484051
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-durability.test.mjs:136:50
+✖ W11R2: unidentified journal has no retry timer or missing-store read (1.984114ms)
+  AssertionError [ERR_ASSERTION]: a read must not create an evicted journal's database
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-durability.test.mjs:152:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/web-durability.test.mjs:237:1
+✖ W11R2: persistent recovery failure exhausts three backoffs then a sync can recover (1.529934ms)
+  AssertionError [ERR_ASSERTION]: one initial attempt and three retries
+
+  0 !== 4
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-durability.test.mjs:255:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

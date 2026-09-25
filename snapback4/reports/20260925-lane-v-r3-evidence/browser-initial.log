@@ -1,0 +1,138 @@
+(node:323138) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1012.574302ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (856.883549ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1832.471341ms)
+  ✖ a hide during the startup probe waits for its accepted decision (92.308148ms)
+  ✖ a hide during the startup probe waits for its refused decision (89.902013ms)
+  ✖ a hide during the startup probe waits for its restore decision (83.808512ms)
+  ✖ a hide during the startup probe waits for its replacement decision (82.560001ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (823.631705ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (782.461864ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (767.79707ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (797.691797ms)
+  ✔ same-epoch logout tombstone refuses live admission (518.565452ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (469.049075ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (370.640915ms)
+✖ web admission review: recovery and transport respect the session boundary (9523.426086ms)
+ℹ {"mode":"held-sync","id":"01M3C4RVVZ3BWTBAQA00WZAGRN","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C4RWQT1RM01T6CCQBZ76AY","outboxBeforeSync":true,"keepalive":true}
+ℹ tests 15
+ℹ suites 0
+ℹ pass 10
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9630.917035
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:81
+✖ a hide during the startup probe waits for its accepted decision (92.308148ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_AUTH","family":"auth","message":"E_AUTH: this identity method is not enabled in schema.q"}}
+  + actual - expected
+
+  + {
+  +   code: 'E_AUTH',
+  +   family: 'auth',
+  +   message: 'E_AUTH: this identity method is not enabled in schema.q'
+  + }
+  - undefined
+
+      at auth (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:145:49)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:217:22)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_AUTH', family: 'auth', message: 'E_AUTH: this identity method is not enabled in schema.q' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:81
+✖ a hide during the startup probe waits for its refused decision (89.902013ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_AUTH","family":"auth","message":"E_AUTH: this identity method is not enabled in schema.q"}}
+  + actual - expected
+
+  + {
+  +   code: 'E_AUTH',
+  +   family: 'auth',
+  +   message: 'E_AUTH: this identity method is not enabled in schema.q'
+  + }
+  - undefined
+
+      at auth (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:145:49)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:217:22)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_AUTH', family: 'auth', message: 'E_AUTH: this identity method is not enabled in schema.q' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:81
+✖ a hide during the startup probe waits for its restore decision (83.808512ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_AUTH","family":"auth","message":"E_AUTH: this identity method is not enabled in schema.q"}}
+  + actual - expected
+
+  + {
+  +   code: 'E_AUTH',
+  +   family: 'auth',
+  +   message: 'E_AUTH: this identity method is not enabled in schema.q'
+  + }
+  - undefined
+
+      at auth (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:145:49)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:217:22)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_AUTH', family: 'auth', message: 'E_AUTH: this identity method is not enabled in schema.q' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:81
+✖ a hide during the startup probe waits for its replacement decision (82.560001ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_AUTH","family":"auth","message":"E_AUTH: this identity method is not enabled in schema.q"}}
+  + actual - expected
+
+  + {
+  +   code: 'E_AUTH',
+  +   family: 'auth',
+  +   message: 'E_AUTH: this identity method is not enabled in schema.q'
+  + }
+  - undefined
+
+      at auth (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:145:49)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:217:22)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:215:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_AUTH', family: 'auth', message: 'E_AUTH: this identity method is not enabled in schema.q' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,32 @@
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (839.724134ms)
+  ✔ restored identified device journals while its first sync is held (745.963591ms)
+  ✔ synchronous refusal: restoring (352.396143ms)
+  ✔ synchronous refusal: no-device (47.314512ms)
+  ✔ synchronous refusal: no-claim (337.450263ms)
+  ✔ synchronous refusal: ephemeral-device (270.637617ms)
+  ✔ synchronous refusal: storage-full (357.550918ms)
+  ✔ synchronous refusal: before-first-sync (348.786373ms)
+  ✔ repairing storage permits the refused id to be retried (399.262333ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (481.539767ms)
+  ✔ session-locked journal refuses stale authority: logout (549.682355ms)
+  ✔ session-locked journal refuses stale authority: principal (480.459096ms)
+  ✔ session-locked journal refuses stale authority: epoch (527.768932ms)
+  ✔ session-locked journal refuses stale authority: recovery (902.617355ms)
+  ✔ a transient unlocked epoch observation refuses only that call (438.774321ms)
+  ✔ the bare online browser transport refuses without custody (1.331756ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (56.748712ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (105.032897ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (8122.546274ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8217.453055

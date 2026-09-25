@@ -1,0 +1,85 @@
+PREPARE 01M3CRWTNKPEAZPGJGJ5GPJSA1 null null
+RECOVERED 01M3CRWTNKPEAZPGJGJ5GPJSA1 undefined
+STARTED 01M3CRWTNKPEAZPGJGJ5GPJSA1 { ok: { send_revision: 2 } } [
+  {
+    args: { body: 'known', conversationId: 'c1' },
+    id: '01M3CRWTNKPEAZPGJGJ5GPJSA1',
+    new_ids: [ '01M3CRWTNKPEAZPGJGJ5GPJSA2' ],
+    now: 1790356384435,
+    observed_seq: 10,
+    op: 'send',
+    predictable: true,
+    predicted: [
+      'messages/01M3CRWTNKPEAZPGJGJ5GPJSA2',
+      'messageCounts/[{"Id":"c1"}]'
+    ],
+    receipt_store: { id: 'A' },
+    sent_seq: null,
+    seq: 1,
+    viewer: 'dev:alice',
+    store_id: 'A'
+  },
+  {
+    args: { body: 'unknown', conversationId: 'c1' },
+    id: '01M3CRWTNV4E7QEV8HFSVSPDFY',
+    new_ids: [ '01M3CRWTNV4E7QEV8HFSVSPDFZ' ],
+    now: 1790356384443,
+    observed_seq: null,
+    op: 'send',
+    predictable: true,
+    predicted: [
+      'messages/01M3CRWTNV4E7QEV8HFSVSPDFZ',
+      'messageCounts/[{"Id":"c1"}]'
+    ],
+    sent_seq: null,
+    seq: 2,
+    viewer: 'dev:alice',
+    store_id: 'A'
+  }
+]
+PREPARE 01M3CRWTNV4E7QEV8HFSVSPDFY null null
+RECOVERED 01M3CRWTNV4E7QEV8HFSVSPDFY undefined
+STARTED 01M3CRWTNV4E7QEV8HFSVSPDFY { ok: { send_revision: 4 } } [
+  {
+    args: { body: 'unknown', conversationId: 'c1' },
+    id: '01M3CRWTNV4E7QEV8HFSVSPDFY',
+    new_ids: [ '01M3CRWTNV4E7QEV8HFSVSPDFZ' ],
+    now: 1790356384443,
+    observed_seq: null,
+    op: 'send',
+    predictable: false,
+    predicted: [],
+    sent_seq: null,
+    seq: 2,
+    viewer: 'dev:alice',
+    store_id: 'B'
+  }
+]
+✖ replacement receipts use ordinary transport without replaying known writes (1403.869065ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1503.26454
+
+✖ failing tests:
+
+test at packages/snapback4/test/store-reset-review.test.mjs:504:35
+✖ replacement receipts use ordinary transport without replaying known writes (1403.869065ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/store-reset-review.test.mjs:526:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

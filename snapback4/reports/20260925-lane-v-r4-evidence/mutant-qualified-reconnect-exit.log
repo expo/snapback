@@ -1,0 +1,83 @@
+(node:1588313) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✖ hiding during strict admission releases the session lock before transport and peer logout (30941.626046ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (763.718753ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1817.872995ms)
+  ✖ backend-required custody cannot exit offline and enables exit after validated adoption (5050.935763ms)
+  ✔ a hide during the startup probe waits for its accepted decision (829.394714ms)
+  ✔ a hide during the startup probe waits for its refused decision (738.667197ms)
+  ✔ a hide during the startup probe waits for its restore decision (855.296525ms)
+  ✔ a hide during the startup probe waits for its replacement decision (3199.552424ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (4431.85737ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (1195.785461ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (1196.079752ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1042.164813ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (894.874241ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (1194.814877ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1039.682502ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1206.448102ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (1286.125298ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1085.182345ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (997.406401ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (953.979334ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (919.39402ms)
+  ✖ a successful reconnect enables exit after startup 503s (6729.347646ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (5043.215117ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (5018.555318ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4962.140968ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (4879.285818ms)
+  ✔ same-epoch logout tombstone refuses live admission (491.605733ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (443.469238ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (471.681111ms)
+✖ web admission review: recovery and transport respect the session boundary (90588.146779ms)
+ℹ {"mode":"held-sync","id":"01M3C9GQAZ157GW8YF8P0WD38G","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C9GR2EZTBK900VMH29PMNK","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C9GYS6B6C1APXZ6SXJKMKY","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"refused","originalId":"01M3C9GZHSS0RXXJC3SZA07J9D","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"restore","originalId":"01M3C9H0AFNDGG9EKH6YBJTAR6","sendsWhileProbeHeld":0,"originalAudit":2}
+ℹ {"mode":"replacement","originalId":"01M3C9H1E1AXRZWYPEW3AES3YB","sendsWhileProbeHeld":0,"originalAudit":2,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3C9H4VTBW9QT4MSXWATW4XA","sendsWhileProbeHeld":0,"originalAudit":2,"replacementAudit":0}
+ℹ tests 30
+ℹ suites 0
+ℹ pass 26
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 90678.821717
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:202:11
+✖ hiding during strict admission releases the session lock before transport and peer logout (30941.626046ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:217:18)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:202:3) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:251:11
+✖ backend-required custody cannot exit offline and enables exit after validated adoption (5050.935763ms)
+  page.waitForResponse: Timeout 3000ms exceeded while waiting for event "response"
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:273:28)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:251:3) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:401:50
+✖ a successful reconnect enables exit after startup 503s (6729.347646ms)
+  AssertionError [ERR_ASSERTION]: timed out: successful reconnect wakes ordinary delivery before page hide
+      at until (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:413:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:401:42)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

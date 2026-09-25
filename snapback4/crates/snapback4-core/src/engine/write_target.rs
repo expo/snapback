@@ -11,11 +11,13 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — absent and hidden-refused targets restore every logical meter field.
     pub(super) fn target_attempt<T>(&mut self, table: &str, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         let mark = self.meter.mark();
+        let capture_prepaid = std::mem::replace(&mut self.capture_prepaid, false);
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let previous_heap = std::mem::take(&mut self.maintain_heap);
         let column_prepaid = std::mem::replace(&mut self.column_prepaid, false);
         let column_heap = std::mem::take(&mut self.column_heap);
         let result = self.reserve_columns(table).and_then(|_|attempt(self));
+        self.capture_prepaid = capture_prepaid;
         self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(self.column_heap);
         self.column_prepaid = column_prepaid;
         self.column_heap = column_heap;
@@ -37,6 +39,8 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(super) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &Value, upsert: bool) -> Result<(), RuntimeError> {
+        if upsert && self.device && table.through.is_some() { return Err(RuntimeError::Prediction("upsert on a read-through child queues without a row".into())); }
+        if upsert { self.reserve_capture(table)?; }
         self.reserve_write_rules(table, if upsert { &[Effect::Read, Effect::Read, Effect::Update, Effect::Insert, Effect::Insert] } else { &[Effect::Read, Effect::Read, Effect::Update] })?;
         // Covers the largest cloned row allowed by the schema, the caller's patch
         // (including ill-typed fields), and the miss arm's image/default materialization.
@@ -310,7 +314,7 @@ fn pure_builtin(builtin: &Builtin) -> bool {
     }
 }
 
-pub(super) fn row_copy_ceiling(table: &Table) -> u64 {
+pub(crate) fn row_copy_ceiling(table: &Table) -> u64 {
     table.columns.iter().fold(40, |total, (name, ty)| total.saturating_add(80 + name.len() as u64).saturating_add(column_copy_ceiling(ty)))
 }
 fn column_copy_ceiling(ty: &ColumnType) -> u64 {
@@ -333,7 +337,7 @@ impl Runner<'_> {
     pub(super) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
         if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
         let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none()).collect();
-        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.expire.is_some()) { return Ok(()); }
+        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.is_expiring()) { return Ok(()); }
         let mut steps = 0_u64;
         let mut entries = 0_u64;
         // Two contribution images plus one occupancy image and its encoded key; no source page is exempted.

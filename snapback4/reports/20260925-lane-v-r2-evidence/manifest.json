@@ -1,0 +1,81 @@
+{
+  "date": "2026-09-25T10:42:12.696317+00:00",
+  "codeCommit": "a2c65b333b29d461c7c448fa5c8a08a612925786",
+  "branch": "sb4-intent/v-web-start",
+  "host": "expose-builder-pixel",
+  "platform": "Linux 6.8.0-138-generic x86_64",
+  "suiteCommand": "scripts/test.sh",
+  "suiteCwd": "/home/ccheever/sb4-intent/lane-v/snapback4",
+  "reviewSha256": {
+    "v-r0.grok.md": "2ee41ba3fb0005b1a29200b96079ea9aebedea9b950bc35572ce8c87cf9d0de6",
+    "v-r1.grok.brief.md": "91f2a464c24bca911ba4d624a3aa2efb38a63f388721d264afd05e718f50e642",
+    "v-r1.astra.md": "cbdeb445f0373b5a1312b748369e8ae93ef025f44a3e0e75fb798a5dc30905f9",
+    "v-r1.grok.md": "a950608ac654ba1ca1b260a98a5b75b9a5a813214ecd61ff022fea8c5dd87ba9",
+    "v-r0.grok.brief.md": "2f7a3f54dcbfef84812a59a54e9414700875ac150d049650d573b0d132b43979",
+    "v-r0.astra.md": "d2a0990d43ed7f280dddc26e3a3b0ae8672bdcc31241b9d3980b6bcb426e1f5a",
+    "v-r0.astra.brief.md": "871f44d2723d640182a0afaba18848cbf748ff65e3160e5d24d84902a54795ca",
+    "v-r1.astra.brief.md": "7838c64432d136b064c3e1db48ef82815255285a14cb464044bec64dff43af5c"
+  },
+  "focusedChecks": {
+    "passed": 64,
+    "failed": 0
+  },
+  "mutants": {
+    "transport": 1,
+    "legacy": 1,
+    "attach": 1,
+    "fence": 1,
+    "tombstone": 1,
+    "early-exit": 1,
+    "overflow-delete": 1,
+    "transient-fence": 1
+  },
+  "notes": [
+    "Mutant exit status 1 is the expected failure.",
+    "Initial test-only failures are classified in the report; the single complete-suite run passed.",
+    "Log output has trailing whitespace stripped; no result lines are omitted."
+  ],
+  "suiteSummary": "== 0 failure(s) in 405 s",
+  "suiteExitStatus": 0,
+  "clientChecks": {
+    "passed": 1541,
+    "failed": 0,
+    "skipped": 10
+  },
+  "models": {
+    "passed": 78,
+    "failed": 0,
+    "seededSequences": 13000
+  },
+  "toolchain": {
+    "node": "24.13.1",
+    "bun": "1.3.14",
+    "rust": "1.97.0",
+    "chromium": "151.0.7922.34"
+  },
+  "commits": [
+    "f2e944f68",
+    "a2c65b333"
+  ],
+  "evidenceSha256": {
+    "acquisition-packed.json": "f31df9d1870203a4356720425c72a00f23b6ef24ccf47d6f071eee00612716f9",
+    "acquisition-packed.log": "b70899c84bde72b12aaa0923a7bef198c457794bef45ca707738fd4d1b278e6f",
+    "acquisition-per-row.json": "e4fc5f6a1e2ae50252de3494a12afac372869c6c2a22cc7b82b622a4c572e10a",
+    "acquisition-per-row.log": "a990ce63f29a04b3a9519517ca6751dbdcc962070e153985afd800d44e9b0cc5",
+    "browser-existing.log": "f2d7675e3044caac3effe215cd9610d94016d71da35d49a579dc198d8aa40a22",
+    "browser-r2-initial.log": "de057dcc982b2b4b96c1e0b5d20f39bd1e5d41aaaa9b24e6c9b5f5171012c3b2",
+    "browser-r2.log": "24f3830fb7942c7e925aea26949ee0f3aa7505f453f92fe8b15b96dd0a4b38fa",
+    "device-initial.log": "cdb38c305d79f6da44b5c2e4c8e656b47e79d9b711356a522fedec0936637d7e",
+    "full-suite.log": "f06584d0c4d2936be581a47d79998f7a51f25e0302d5507620be03a55b36ffde",
+    "mutant-attach.log": "dc0d818dd1c6fba768a33482012cbe1b09c8c82c6536751cd05d19a4e1ff65d7",
+    "mutant-early-exit.log": "bfcb8ce9976afd2b6f952926e6f0d12d7f559ca377617ed2b071c8bd9e38e10d",
+    "mutant-fence.log": "9b6b5f5ec34c7b4ac7f83636211c75ee1c73eb7f38f57dcaae5d10851a2acce0",
+    "mutant-legacy.log": "5fccce616ea3d854aaf6eb53a3a108e722a6db30f5b68d5754d2c568951d9864",
+    "mutant-overflow-delete.log": "4cbf52f13a80763f3f2cac89602c55ef94e1bf68c169814c6878e22178c23c50",
+    "mutant-tombstone.log": "77ead12814fcfb8cf41b38abc5e686c9d381bc0dbbb89e9338d2f5044e2aec5b",
+    "mutant-transient-fence.log": "5ebd9fad1aaeac2f25a4a9d58c25c01ca43bf95e26b1d611e09484be0d2f495c",
+    "mutant-transport.log": "72c0c803232733a83e9d437c0e47a7910b6813bf7e1ad449a6687970a1e64ba1",
+    "ref-check.log": "2486b5f41da39fdb00d72ddf6d09ece0cc7f3b97f5ce548286594f6c1ed3e932",
+    "targeted-final.log": "784b9ae4d431e4b330490ca0b4e1189bc0bc1e232d180291c24d9af6a00ac5f2"
+  }
+}

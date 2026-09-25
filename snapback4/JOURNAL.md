@@ -56080,3 +56080,2753 @@ gzip against the unchanged 496,000 B budget. No new authoring form, refusal,
 runtime fix, package version, push or publication. File map, concrete
 counterexample, development-test corrections, before/after histograms and
 reproduction commands: [Lane W report](reports/20260925-lane-w.md).
+### 2026-09-25 — Lane U: bounded Following acquisition (LLP 3000.016 revision 2)
+
+Implemented time-bounded and online-only posts/reposts admission, the derived
+event acquisition setting, and the reader-private inbox's default 1,000-copy
+floor. Full follows/removal sync, owner rules, immutable attribution, delivery,
+meters, and the 1,000-event follow history window remain in force. A missing
+Following card withholds the whole device query and cursor; the client retries
+the original input online, stays loading offline, and fences fallback until
+predictable writes are observed. Repost prediction probes the held original
+and its removal record. Existing generation adoption clears acquisition and
+re-snapshots source/inbox sync changes in both directions. The feeds/language
+cards and `check --cost` describe the global, non-sliding floors.
+
+Added 3 admission tests, 8 memory/SQLite device tests, 8 actual wasm/native
+client tests, and a bounded target certificate test. The final complete
+`scripts/test.sh` exits 0: **`== 0 failure(s) in 476 s`**. The first full run
+had two failed sections containing six integration failures, all recorded and
+resolved before the final pass; no baseline/environmental waiver. The provided
+baseline's four Rust failures did not recur. Reference validation passed
+(509 LLP docs, 9,288 refs, zero errors/unchecked). Wasm measures
+**1,776,065 B raw / 495,264 B gzip**, below the unchanged 496,000 B ceiling.
+
+Measured the completed Clique scale replay's whole authorized partition for
+`u0500`, on Chromium with a fresh IndexedDB device in each mode. Full sync to
+1,000-row source/inbox floors changed **171,330 → 50,315 rows**, snapshot row
+bytes **35,901,571 → 7,462,731**, and cold authenticated acquisition
+**274.35 → 56.70 seconds** (3.405× / 4.811× / 4.839× respectively). This is a
+single paired acquisition measurement on the shared host, not the original
+multi-route UI timing. The before server is packaged 0.4.1; both modes use the
+same new client. The **5× whole-partition target is unmet**: even deleting every
+row from the four tables this RFC bounds leaves 46,315 rows, above the 34,266
+needed for 5×. `recipients` dominates afterward with 25,000 rows / 3,225,000
+row bytes. No other table's residency was changed to manufacture the target.
+
+Used the specified inbox default without inventing an M override syntax;
+kept the existing unique-pair absence requirement for repost prediction. No
+delivery/window redesign, in-place trimming, contract change, package version
+bump, iOS simulator qualification, push, or publication. File map, all failures,
+inventory, fingerprints, and reproduction:
+[Lane U report](reports/20260925-bounded-following/REPORT.md).
+
+### 2026-09-25 — Lane U round 1: accepted revision 5
+
+Applied LLP 3000.016 revision 5, read from main at `f5efae87f` with its review
+record. Owned events now stay fully synced for every posts/reposts residency,
+preserving known event absence and `FEED_POST_NOT_FOUND`. The inbox floor stays
+private and per reader. Crossing it withholds the whole query, while an
+examined-meter stop above it uses the actual cut position and remains partial
+data with a cursor. Unavailable device replies omit both data and next.
+
+The client now uses one withheld routing order before server-run or remembered
+answers: offline, predictable/unobserved outbox entry, held query, then server
+with original arguments. Transport failure stays loading. Online-only point
+cards use this path; ordinary server scans preserve their existing behavior.
+Local-commit invalidation still discards responses racing prediction admission.
+Source/event/removal inputs classify from their own sync; follow/unfollow stay
+server sites and `check` still prints `predicts: never` despite synced Work.
+The feeds card and cost certificate describe the corrected behavior.
+
+All 13 focused Rust cases and all 18 actual wasm/native client cases pass,
+including inbox-floor routing, full boundary pages, resumable meter prefixes,
+known event absence, transport failures, held queries, acknowledged but
+unobserved predictions, and the local-commit race. All 80 guide tests pass.
+The only complete suite invocation this round exits 0:
+**`== 0 failure(s) in 481 s`**. One initial focused TypeScript inference error
+was ours and corrected; the repeated typecheck/build and final client run pass.
+No baseline/environmental waiver. Ref-check passed with 509 LLP docs, 9,291
+refs, zero errors/unchecked. Wasm is **1,776,336 B raw / 495,355 B gzip**, below
+the unchanged 496,000 B ceiling.
+
+Re-measured the same whole authorized Clique scale partition for `u0500` in
+real Chromium/IndexedDB. Before/after: **171,330 → 98,543 rows**,
+**35,901,571 → 15,092,169 row bytes**, **48,521,623 → 22,236,578 wire bytes**,
+and **281.26 → 117.81 seconds** of cold authenticated acquisition. These are
+1.739×, 2.379×, 2.182×, and 2.387× reductions. Owned events dominate afterward:
+49,228 rows / 7,796,444 row bytes. The **5× target is unmet**: even removing
+every row of posts, reposts, and inbox leaves 95,543 rows / 14,304,711 bytes,
+above the required 34,266 rows / 7,180,314.2 bytes. No other residency was changed.
+
+Lane V's packed IndexedDB format was not on main at measurement start or the
+final check (`f5efae87f`), so no packed-format result is claimed. This remains
+a single paired acquisition measurement on the shared host, using packaged
+0.4.1 before and the corrected production server after, with the same current
+client in both. No delivery/window change, new syntax, ceiling increase,
+package version bump, push, or publication. The earlier report is marked
+historical. File map, complete inventory, fingerprints, failures, and reproduction:
+[Lane U round-1 report](reports/20260925-bounded-following-r1/REPORT.md).
+
+### 2026-09-25 — Lane U round 2: executed Following reads and meter interactions
+
+Addressed Astra's High and Medium findings and both Medium findings from
+Grok's completed review against accepted LLP 3000.016 revision 5. Following
+withholding now uses the device's actual unavailable result and returned
+tables, including native query modules with empty Quarry bodies. Untaken
+online-only card branches no longer block answerable held queries. Composed
+re-observation obeys the same prediction fence and cannot recover a discarded
+partial result after a failed server request, even when another in-flight
+request restores the link. Original arguments and local-commit invalidation
+remain intact.
+
+A horizon point miss is recorded before an examined-meter cut can return a
+null card. Both Quarry and native execution discard unavailable data before
+charging final output bytes. Execution and heap work remain charged; the
+identical oversized published result still hits the unchanged output limit.
+Added a real guest module, four Rust tests across memory/SQLite, seven real
+wasm/native client cases, and four composed-routing interleavings. Against
+the old client the new tests reproduce both Astra findings. Setting native
+query's unavailable flag to false fails both guest-module Rust tests. Both
+Grok failures were reproduced before their fixes, then passed on both stores.
+
+Final full suite: **`== 0 failure(s) in 632 s`**, with the existing
+`SNAPBACK4_RUST_TEST_PROCESSES=8` setting; all tests, timeouts and model counts
+unchanged. The first full run had our new transport-recovery test setup error
+(`== 1 failure(s) in 537 s`), corrected. The second hit an environmental timing
+failure in the unchanged HTTP poll-admission test (`== 1 failure(s) in 616 s`);
+that test passed in isolation and in the final full run without a code change.
+No baseline waiver. Ref-check: 509 LLP docs, 9,293 refs, zero errors/unchecked.
+Wasm: **1,776,325 B raw / 495,299 B gzip**, below the unchanged 496,000 B ceiling.
+
+No design deviation, new syntax/diagnostic, authorization relaxation, ceiling
+increase, push or publication. Storage and acquisition are unchanged, so no
+new browser inventory is claimed; the prior measured 2.387× cold acquisition
+improvement, full-event dominance, unattainable 5× row/byte target under these
+floors, and unavailable packed-format measurement remain recorded in round 1.
+File map, examples, all failure classifications, inventory reference, and logs:
+[Lane U round-2 report](reports/20260925-bounded-following-r2/REPORT.md).
+
+### 2026-09-25 — Lane U round 3: possible reads fence every external answer
+
+Addressed Astra's unknown-condition bypass and Grok's native reset/install
+bypass against accepted LLP 3000.016 revision 5. Extracted read evaluation
+into `local-query.ts`; all server, remembered and composed answers now pass
+one final prediction fence, with checks before server dispatch and after
+response delivery. Unknown Quarry outcomes retain static dependencies,
+including expanded helpers; only complete known execution can narrow them.
+Native and unexecuted queries conservatively have every table as a possible
+read. Original arguments, held/offline precedence and commit invalidation
+remain intact. Server fetches no longer publish an intermediate answer.
+
+Fixed footprint parsing for slash-containing row IDs. Explicitly empty
+footprints predict no rows; absent legacy footprints remain conservative.
+Ordinary locally produced horizon and retained-history partial answers still
+show their predictions; unknown Following retains whole-query withholding.
+The first implementation overblocked those local answers, which the full
+suite caught and the corrected focused and full runs now cover.
+
+Added real wasm/native unknown-condition and helper regressions, native
+reset/install client cases, every external/unknown/E_OFFLINE publication
+route, independent-read and no-op controls, both repost point-key forms at
+an exhausted examined meter, and native continuation keys that actually
+advance the scan. Three intentional mutants fail on both Rust stores:
+posts-only miss marking, byId-only miss marking, and native unavailable=false.
+Restored code passes. Existing browser/native inbox and generation/reset
+expectations now require withholding where they previously allowed a server
+replacement or E_OFFLINE during an unobserved prediction. Their other
+security, durability and observation assertions remain.
+
+Final complete suite: **`== 0 failure(s) in 533 s`**, using
+`SNAPBACK4_RUST_TEST_PROCESSES=8`; all Rust tests, 1,519 main client passes
+(10 existing skips), acquisition/server shards, and all 78 model tests pass.
+An earlier invocation was stopped before completion to correct the footprint
+separator. The first completed invocation was **`== 1 failure(s) in 539 s`**,
+with 16 client failures attributable to this change; every case and resolution
+is listed in the report. All 40 affected focused checks then passed before the
+final full run. No baseline/environmental waiver and no lowered test counts,
+timeouts or engine ceilings. Wasm remains 1,776,325 bytes raw / 495,299 gzip.
+Changed source files stay below 1,500 lines (`local.ts`: 1,400).
+
+No new syntax/diagnostic, authorization relaxation, storage change, acquisition
+measurement, push or publication. The previous 2.387× browser acquisition
+result, full-event dominance, unmet 5× target and outstanding packed-format
+measurement remain explicit inherited limits. The report includes the prior
+inventory, all file changes, publication paths and proving tests, exact
+commands, decisions, failure classifications and compressed evidence:
+[Lane U round-3 report](reports/20260925-bounded-following-r3/REPORT.md).
+
+
+## 2026-09-25 — Lane U round 4: one query publication procedure
+
+Addressed both round-3 NOT READY delta reviews under the supervisor's five-rule
+procedure. `local-query.ts` now runs every executable query locally first,
+prefers known complete results over static `runs`, takes withholding from the
+engine, and preserves available unknown partial data. One shared gate compares
+predictable, unobserved write tables with possible reads before dispatch,
+after delivery/composed re-observation, and at final external publication.
+Every awaited routing boundary rechecks the session and incarnation; caller
+continuations check again before returning or notifying. Local commits still
+retire the whole evaluation. Whole-server remembered recovery and E_OFFLINE
+shortcuts were removed; failed fallback keeps local data or loading.
+
+Added the real wasm/native known conditional-branch and unknown-profile beside
+predicted feed regressions, ten real-client sign-out/close interleavings, and
+direct routing matrices for all five rules. Four routing mutations fail their
+regressions, including disabled session checking and a restored server shortcut
+after known-branch narrowing. Existing auth/model transport fixtures now use
+actual unknown online-only reads. All model seeds, invariants and coverage
+assertions remain; no security assertion was relaxed to preserve a shortcut.
+The client reference states the procedure in three lines.
+
+Final qualification: `taskset -c 0-15 env SNAPBACK4_RUST_TEST_PROCESSES=8 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 591 s`: 1,552 main client
+passes, 34 shard passes, 10 existing skips and all 78 model passes, plus the
+complete Rust/build/docs/package checks. The reduced CPU affinity limits Node's
+parallel file count on the shared host; no case, timeout or ceiling changed.
+The initial full run was `== 2 failure(s) in 610 s`: six client compatibility
+fixtures and one model coverage fixture were ours and corrected; three shared-
+host timeouts passed unchanged in focused and final full reruns. Every failure
+is enumerated in the report. Fifty focused routing checks, 29 acquisition/
+publication checks and the corrected 5,000-sequence local model also passed.
+Reference audit: 509 LLP docs, 9293 refs in 26151 files, zero errors/unchecked.
+Wasm remains 1,776,325 bytes raw / 495,299 gzip; source stays below 1,500 lines.
+
+No new syntax, diagnostic, engine, storage format, package version, acquisition
+measurement, push or publication. The earlier full-event inventory, 2.387×
+browser acquisition result, unmet 5× target and unclaimed packed-format
+measurement remain explicit inherited limits. File changes, each rule's tests,
+all publication paths, decisions, failure classifications, reproduction and
+compressed evidence are in the [round-4 report](reports/20260925-bounded-following-r4/REPORT.md).
+
+
+## 2026-09-25 — Lane Z: Following event slots (LLP 3000.016 revision 12, increment 5)
+
+Implemented engine-owned per-declaration post bool and repost id slots, prepared
+before source writes and log accounting. Owned event residency now follows each
+source kind: full kinds retain ordinary owned rows, floored kinds use source
+slots, and online-only kinds are never held. Transitions use those witnesses;
+ordinary unproved event reads withhold, and synced event aggregates fence partial
+kind prediction. Follows admit public full sync, public horizons and online-only.
+Slot fill runs inside adoption before assessment and validation at one pinned
+time without logs; all new slots veto literal-default image retention. Read-only
+upgrade preview recognizes this fill. Query dependencies include partial event
+sources so a pending source prediction fences fallback. U's local.ts and
+local-query.ts were not edited.
+
+The same Clique fixture and SQLite backup as U round 1, on the pre-Lane-V
+IndexedDB serialized row/index format, measured these logical snapshot row JSON
+inventories (bytes are not physical disk usage): full follows has 9,484 view rows /
+1,855,714 bytes, 6.100 s view-only cold; 49,315 whole rows / 7,386,725 bytes,
+59.746 s whole cold. Online-only follows has 3,563 view rows / 1,003,090 bytes,
+2.294 s view-only cold; 41,383 whole rows / 6,312,824 bytes, 33.245 s whole cold.
+Against U's already-floored 58,712 view rows / 9,561,158 bytes, the reductions
+are 6.19x rows / 5.15x bytes and 16.48x / 9.53x respectively. The 49,228 owned
+event rows are absent in both treatments. A supplemental view-only legacy
+control, using U's exact before-server binary and current wasm/client, measured
+131,499 rows / 30,370,560 bytes in 201.325 s. These are single shared-host runs,
+not latency distributions. The report records scope, digests and all tables.
+
+Added six memory/SQLite slot tests, compiler/guide assertions, nineteen fault
+schedules replayed on actual wasm and native devices (38 passes), and two public
+client fallback tests. They cover slot/byActorPost agreement, log order, stream
+splits, source/event id reuse, snapshot deletion before catch-up, whole floors,
+two declarations, aggregate fences, deferred folding and interrupted activation
+beside pinned's literal default. Final qualification on the committed code:
+`SNAPBACK4_RUST_TEST_PROCESSES=8 CARGO_BUILD_JOBS=8 taskset -c 0-15 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 612 s`, exit 0. All stages
+passed, including 1,592 main client passes, 10 existing skips and 78 model passes.
+The first full run was `== 1 failure(s) in 1061 s`: nine test/compatibility
+failures were ours and corrected; each is enumerated with its cause in the
+report. None of the supplied baseline's four failures reproduced.
+
+Wasm is 1,787,614 bytes raw / 498,768 gzip; the gzip ratchet rises from 496,000
+to the smallest rounded 499,000 bytes, with its reason in the budget file.
+Runtime meters and write ceilings are unchanged. Static aggregate classification
+conservatively fences source updates; runtime fencing tests actual event changes.
+Recorded slotless backends retain legacy behavior until normal adoption. No
+packed storage, event horizon, serving-time pairing, tombstone bound, history
+change, arbitrary corrupt-import repair, publication or push. No known open
+correctness failure or blocked design part. The supervisor owns blind reviews
+and integration. See the [file-by-file report and evidence](reports/20260925-event-slots/REPORT.md).
+
+## 2026-09-25 — Lane U round 5: preserve incomplete read fences and offline answers
+
+Addressed both round-4 delta reviews and the supervisor's five-rule refinements
+on `sb4-intent/u-bounded-following`. A Quarry read narrows its possible tables
+only when known and complete; scalar/heap cuts retain static plus executed
+reads. Native and unexecuted queries remain opaque. Restored client-lifetime
+server-answer memory for unknown placeholders, behind session/incarnation,
+local-commit and prediction fences. Null, empty and scalar placeholders no
+longer become data. Held row values stay partial; local freshness is calculated
+at publication with the current link and sync timestamp. Composed authoritative
+refusals and loading survive the final fence; transport failure keeps the local
+fallback. Engine-withheld Following never recovers a remembered page.
+
+Added actual wasm/native `count(events)` over 8,193 fully synced rows before a
+shaped feed with a pending own post, failed-fallback profile/feed freshness,
+and oversized composed-output E_BOUND regressions. Added placeholder memory,
+late memory/session races, cache retirement and composed refusal/loading
+matrices. Four mutations are rejected, including narrowing loading outcomes
+and forcing final local freshness true. Restored audit/presence offline
+expectations; kept raw authorization oracles for held/retained empty reads
+through reopen and replay. The client reference states the refined procedure.
+
+Final qualification: `taskset -c 0-15 env SNAPBACK4_RUST_TEST_PROCESSES=8 bash
+scripts/test.sh` returned exactly `== 0 failure(s) in 631 s`, exit 0: 1,581 main
+client passes, ten existing skips, all 34 shard passes, all 78 model passes,
+and the complete Rust/build/docs/package/app checks. Both session models
+completed all 5,000 sequences and thirteen invariants. The first full run was
+`== 1 failure(s) in 615 s`: four placeholder-expectation failures, all ours,
+corrected with raw-device disclosure assertions preserved. Their focused
+rerun passed four of four. Earlier focused expectation/fixture failures and
+all intentional mutation failures are enumerated in the report. No baseline
+or environmental waiver, disabled test, timeout increase or raised ceiling.
+Wasm remains 1,776,325 bytes raw / 495,299 gzip. Source remains under 1,500 lines.
+
+No new syntax/diagnostic, engine or storage change, acquisition measurement,
+package publication or push. Prior full-event inventory and browser result
+remain 2.387×, below the original 5× target; packed-format measurement is still
+unclaimed. The [round-5 report](reports/20260925-bounded-following-r5/REPORT.md)
+records each rule and publishing path, file-by-file changes, engineering
+choices, every failure, mutation harness, prior inventory and compressed logs.
+
+
+## 2026-09-25 — Lane Z round 1: event-slot review corrections
+
+Addressed the Astra/Grok round-0 NOT READY findings for LLP 3000.016 revision
+12. Slot columns now derive a separate timeline-event-slots capability: the
+actual digest-pinned U round-1 pre-slot wasm refuses installation, adoption and
+persisted reopen, with no writes on failed adoption. A genuine old backend
+still installs/adopts; slotless timeline-v2 compatibility is preserved.
+
+Merged U round-six provenance and routing (e4a3ae5c9, 1049dd31e, 6a7e3b04f),
+keeping Z's internal slot access and public-image stripping in the read-path
+conflict. Unknown owned-event reads mark speculative provenance; the pending
+own-post plus unknown conditional event query now returns loading on both
+wasm and native. There are no direct Z edits to U's local.ts/local-query.ts.
+
+Aggregate classification inspects the actual write: replies and body edits
+predict, known event inserts and removal-flag updates have named Server sites,
+and unknown insert filters, conditional branches, upserts and unreposts reach
+the runtime guard. With a synced count, a generic post operation predicts a
+reply and queues a live original. A held floored unrepost refuses without
+predicted rows and rolls its source deletion back; an online-only count permits
+it. Both guard-removal mutations failed (exit 101): the guard body and the
+independent call from timeline_remove_id. Restored code passes 21 schedules,
+replayed on actual wasm and native devices (42 passes).
+
+The snapshot walk skips the owned table when neither kind is fully synced.
+Mixed-kind pages count excluded rows against page room and preserve the last
+examined key in the existing continuation. Three instrumented storage tests
+with 4,096 events prove a seven-unit page requests/decodes at most seven owned
+rows, including more than 500 empty progressing pages in each mixed direction;
+no selected row is lost or duplicated, skipped rows are not fetched twice, and
+fully partial tables incur zero scans. No new index or cursor format was added.
+
+Full qualification at b44e768ad, with every Z correction, returned exactly
+`== 0 failure(s) in 993 s`, exit 0, using
+`SNAPBACK4_RUST_TEST_PROCESSES=8 CARGO_BUILD_JOBS=8 taskset -c 0-15 bash
+scripts/test.sh`. Rust passed in 512 s, the main client run had 1,651 passes and
+10 existing skips, and all 78 model tests passed. There were no full-suite
+failures. U's final expiry follow-up 648abea48 arrived during that run; merge
+72f6d4fdf subsequently imported only local.ts and its residency regression.
+Package typecheck/build and all 199 affected watch, authority, lifecycle,
+routing and bounded-Following client checks passed afterward (zero skips).
+The full-suite timing is not claimed as a second run after that client-only
+merge. Initial focused compiler/helper mistakes and the artifact-budget failure
+were ours, resolved and enumerated in the report; no baseline failure was fixed.
+
+The combined U/Z wasm is 1,784,180 bytes raw / 499,383 gzip, -3,434 raw / +615
+gzip versus Z round 0. The smallest rounded ratchet rises from 499,000 to
+500,000 bytes, leaving 617 bytes; no runtime ceiling changed. No new acquisition
+inventory was run: round-0 inventory belongs to its recorded artifact. Slot
+stamping, activation and image-retention semantics retain the reviewed design.
+No known open correctness failure or stopped design part remains. No push or
+publication. The supervisor owns re-review and integration; file-by-file changes,
+reproductions, artifact provenance, failure accounting and compressed evidence
+are in the [round-1 report](reports/20260925-event-slots-r1/REPORT.md).
+
+### 2026-09-25 — Lane U round 6: read provenance and authorization deadlines
+
+Implemented the round-6 refinements to LLP 3000.016's numbered publication
+procedure. Quarry/native device replies and composed components now carry
+speculative/held provenance; removed the client's shape heuristic. Unknown
+non-speculative prefixes, empty retained components and scalar projections stay
+data. Speculative results recover unexpired server memory unless a prediction
+fence requires preserving held local values. Memory keeps nextExpiry and the
+original since; recovery and final publication reject expired data. Watches
+withdraw expired snapshots before asynchronous recovery, including a blocked
+device call. Session/incarnation, prediction, local-commit, authorization and
+meter fences remain; authoritative refusal/loading are preserved.
+
+Measured: final scripts/test.sh **== 0 failure(s) in 576 s**, exit 0.
+Rust passed; main client 1,605 passed / 0 failed / 10 existing skips, all 34
+acquisition/server shard tests and all 78 model tests passed. Both requested
+timestamp/freshness mutations fail their tests. Real wasm/process probes cover
+wrapped presence and projections without id; memory/SQLite cover retained empty
+and scalar values. The process-device expiry probe blocks recovery at the
+deadline; Chromium/IndexedDB and useQuery/usePage withdraw expired pages.
+Wasm is 1,772,196 B raw / 495,698 B gzip under the unchanged 496,000 B budget.
+All development failures and corrections are recorded in the
+[round-6 report](reports/20260925-bounded-following-r6/REPORT.md).
+
+Not done: no acquisition or packed-format remeasurement, no residency/history
+redesign, no increased ceilings/timeouts, no push or publication. The prior
+2.387× acquisition result and unmet 5× target remain explicit; fully synced
+events alone prevent a 5× reduction in the prior raw row-count/row-byte units.
+
+
+### 2026-09-25 — Lane U round 7: no held-bit exception for speculative answers
+
+Removed the fenced-and-held exception from the five-rule query publication
+procedure. Unknown speculative data and refusals load while fenced; unknown
+non-speculative pages still publish partial data, including predicted rows.
+Independent retained components keep their local composite beside a speculative
+null offline or after a failed fallback, with no whole-answer memory. Removed
+the now-unused held provenance bit from the engine/device reply and updated the
+three client-reference lines. This supersedes round 6's held-based exception;
+query declarations marked `held` and retained history are unchanged.
+
+Measured: the three review reproductions run on real wasm and process devices;
+retained-left/speculative-right runs on both too. Delayed server/composed data
+crosses deadlines during transport and final publication. The requested expiry
+mutation and mutations restoring the held exception or discarding retained
+composition all fail tests. Wasm is 1,769,867 B raw / 494,617 B gzip, 1,081 gzip
+bytes less than round 6 and below the unchanged 496,000 B budget.
+Final `scripts/test.sh`: **`== 0 failure(s) in 1528 s`**, exit 0, with the
+suite's existing serial-client mode and eight Rust test processes on 16 CPUs.
+Rust passed in 200 s; 1,653 client tests passed (zero failures, ten existing
+skips); all 78 models passed, including both 5,000-sequence I1–I13 sweeps.
+No counts or timeouts changed. Two earlier full-run failures and their complete
+disposition are preserved in the [round-7 report](reports/20260925-bounded-following-r7/REPORT.md):
+first, expiry/adoption witness synchronization errors (corrected); second,
+three resource-contention timeouts (unchanged isolated and serial-full passes).
+
+Not done: no value-level provenance, acquisition/packed-format remeasurement,
+ceiling increase, push or publication. Grok's proposed held-based recovery is
+superseded by the explicit round-7 rule. Its proposed distinction between row
+and authorization deadlines needs a new engine signal/design decision: a
+client cannot infer that an expired nextExpiry was merely a row deadline when
+it might be the permit authorizing a private row. Kept expiry rejection and
+recorded the concrete counterexample and conservative availability limitation.
+The earlier 2.387× cold acquisition result and unmet 5× target remain explicit.
+
+
+### 2026-09-25 — Lane U round 8: expire every data origin and withhold speculative compositions
+
+Applied nextExpiry at final publication to local as well as external data.
+Removed the retained-component exception: a speculative sibling cannot become
+data because another component is retained. Read<T> has no per-component
+loading variant, so used the round-8 brief's authorized whole-result loading
+fallback. Kept non-speculative partial and retained data. Updated the numbered
+procedure and three client-reference lines; implementation commit 2919dd93d.
+
+Measured: 227 affected client tests passed. Real wasm/process devices cross a
+retained row's deadline while delivering its reply and a synced secret's permit
+deadline while awaiting the outbox. Both withhold the expired value. Real
+speculative-component and nonempty-page tests pass on both hosts. Four mutations
+fail their regressions: skipping local expiry (4 failures), restoring retained
+recovery (12), broadening it to any non-speculative component (12), and accepting
+nonempty speculative arrays (2). All built-module mutations are restored.
+Final scripts/test.sh: **== 0 failure(s) in 1578 s**, exit 0. Rust passed in
+179 s; 1,669 client tests passed, zero failed, ten existing skips, in 1,152 s;
+all 78 model tests passed in 233 s, including both 5,000-sequence I1–I13 sweeps.
+The existing serial-client mode ran every test without changing any timeout or
+count. This round's single full run has no baseline or environmental waiver.
+Development fixture mistakes and the exact evidence are recorded in the
+[round-8 report](reports/20260925-bounded-following-r8/REPORT.md).
+
+Not done: no public composition-contract extension, engine deadline/provenance
+redesign, acquisition/packed-storage remeasurement, ceiling increase, push or
+publication. Stopped the repeated proposal to retain unaffected cached rows at
+ordinary expiry: nextExpiry does not distinguish an expired permit from an
+ordinary row, and a client exception would disclose the former. A projected
+value also need not identify which field to remove. The concrete counterexample
+and remaining whole-page availability limitation are in the report. The exact
+filtered home record has no component plan under the current conservative
+compiler; an independent homePage control proves the actual composition path.
+Historical acquisition remains 2.387x faster, below the 5x target, with fully
+synced owned events dominant.
+
+
+### 2026-09-25 — Lane U round 9: reobserve local replies that expire in flight
+
+Re-evaluate an expired local candidate once at the current time, with the
+original arguments and session/incarnation checks. Publish the valid retry;
+if it also expires in flight, withhold it and mark the watch dirty so the
+existing rerun path cannot leave it idle. A withheld retry retains its raw
+expiry fact and its next future deadline. The numbered procedure and client
+reference describe this behavior. Implementation commits: 9e3b1cc76 and
+59e57c47f. No engine or local.ts timer changes were needed.
+
+Measured: 186 affected client tests passed, zero failed. On both wasm and the
+native process device, a watch first evaluated at T-1 and delivered at T
+publishes the 24 remaining retained rows, or the post-permit composition with
+secret null. The expired snapshot never publishes. Query controls, bounded
+second-expiry retries, future timers, sign-out, close and incarnation changes
+pass. All five mutations are rejected: watch-only expiry bypass (4 failures),
+removed retry (8), missing dirty flag (3), unbounded retries (6), and dropped
+future deadline (1). Mutated modules were restored before the full suite.
+Final scripts/test.sh: **== 0 failure(s) in 1549 s**, exit 0. Rust passed in
+188 s; 1,686 client tests passed, zero failed, ten existing skips, in 1,115 s;
+all 78 model tests passed in 231 s, including both 5,000-sequence I1–I13 sweeps.
+The existing serial-client mode preserved all tests, counts and timeouts.
+The first full run was intentionally interrupted to preserve a withheld
+retry's future deadline; no test failure had been reported. Command errors,
+mutation evidence and complete results are in the
+[round-9 report](reports/20260925-bounded-following-r9/REPORT.md).
+
+Not done: no new language form, refusal code, public contract, schema,
+acquisition, storage, ceiling, package-version, push or publication change.
+Left the whole-page remembered row-expiry issue unchanged as requested;
+it is tracked on origin/main at
+issues/20260925-snapback4-remembered-answer-row-expiry.md. No acquisition
+remeasurement: the historical 2.387x speedup and unmet 5x target remain.
+## 2026-09-25 — Lane Z round 2: event-slot mutation coverage and speculative routing
+
+Addressed the Astra/Grok round-1 delta findings for LLP 3000.016 revision 12.
+Added the conditional removal of a live, held, floored original with a synced
+event count. The operation remains statically eligible; its true branch reaches
+the runtime aggregate fence, refuses without predicted rows, preserves the
+source and live slot, and leaves no tombstone. The untaken branch predicts.
+An online-only count permits removal and tombstoning. Both cases join the real
+wasm/native fault schedules: 23 schedules, 271 dispatcher calls and four reopen
+boundaries per host; all 46 host replays passed.
+
+Expanded snapshot instrumentation to page budgets 1, 2, 3, 5 and 7 and to a page
+crossing two public owned groups. The second group receives exactly the 1, 2,
+3 or 5 remaining units after the first group's excluded rows and intervening
+empty groups. Independently executed mutants all fail: bypassing original
+aggregate guards incorrectly predicts the conditional removal; charging only
+returned rows reads 16 rows against a budget of 14; a minimum scan of seven
+reads seven rows at budget one. Restored implementations pass all four snapshot
+tests and both device trace tests. No production guard or meter was loosened.
+
+Merged U round seven 633e566fc and follow-up f6dd23f3e (merge commits 77b9a358f
+and 032b4a70a). Query-wide held provenance and its fenced publication exception
+are removed. Z's unknown event reads still mark speculative provenance, and
+known full-kind point hits remain non-speculative. Internal transition images
+retain slots while application images hide them. Both blind-review client
+reproductions were demonstrated red before the merge on both hosts: an
+unrelated held post before an unknown conditional, and a fully synced owned
+scan filtered by an online-only exists. Both now publish loading under the
+prediction fence. The six combined focused routing cases pass on wasm/native.
+No direct Z edits to local-query.ts or local.ts; both lanes' journal entries
+and regressions were preserved during integration.
+
+Full qualification at 032b4a70a: `== 0 failure(s) in 696 s`, exit 0. Rust passed
+in 233 s; client tests in 198 s (main run 1,671 passes, ten existing skips);
+all 78 models passed in 252 s. No introduced, baseline or environmental failure
+remains in that completed run. An earlier pre-U run was stopped to merge U.
+A second interrupted run passed Rust but saw two existing online global-logout
+tests fail transiently under host load 105.48/96 CPUs. Both passed unchanged in
+isolation and in the final full run; classified environmental/transient, not
+baseline. No timeouts or assertions were weakened. Compressed logs preserve
+these attempts, the pre-merge routing failures, and every intentional mutant.
+
+The rebuilt wasm is 1,781,822 B raw / 498,394 B gzip, below the unchanged 500,000 B
+budget. No acquisition inventory rerun, author syntax, diagnostics, residency
+redesign, authorization/disclosure change, push or publication. No known open
+implementation issue or design deviation remains. The [round-2 report](reports/20260925-event-slots-r2/REPORT.md)
+records changes file by file, forms, reproductions, merge decisions, failure
+accounting and the executable mutation harness.
+
+
+## 2026-09-25 — Lane Z round 3: snapshot charge regressions, awaiting U8
+
+Completed review items 2 and 3 for LLP 3000.016 revision 12. The two-group
+snapshot fixture now has a kept highest-key original followed by excluded
+reposts before moving to the next public owned group. It checks that the
+second group gets exactly the 1, 2, 3 or 5 remaining units. Omitting the kept
+row from the page charge makes the test fail: two units requested/read instead
+of one. The all-excluded version remains covered.
+
+Added budgets 257 and 600 in both mixed-residency directions, crossing the
+256-row storage-batch boundary. The store counts cumulative decoded rows and
+requested limits independently of emitted events; continuations still deliver
+the selected events exactly once and examine all 4,096 source events exactly
+once. Resetting examined to the latest batch count makes the test fail with
+3,841 decoded rows against budget 257. Both requested mutants independently
+exit 101; after restoration all six snapshot tests pass. Production snapshot
+accounting was already correct and is unchanged. Tests and the executable
+mutation harness are committed in 525c623cd.
+
+Full qualification: `== 0 failure(s) in 658 s`, exit 0. Rust passed in 194 s;
+client tests in 193 s (main run: 1,671 passes, ten existing skips); all 78 models
+passed in 238 s. No introduced, baseline or environmental failure in this
+round's complete run; the two intentional mutant failures are preserved as
+evidence. No assertions, timeouts or engine bounds were relaxed.
+
+Item 1 is waiting, as explicitly requested when U8 has not committed after
+items 2 and 3: U's branch remained at cdb029a83, its round-seven documentation
+commit, both after the mutation checks and after the full suite. No U8 merge
+or new real-host client reproductions landed here. The known client Highs
+remain open: retained local data can cross its expiry before publication, and
+a retained sibling can let a speculative events component publish as data.
+A future U8 merge must be followed by both wasm/native regressions; the full
+suite result above does not claim those Highs fixed.
+
+No new author forms, diagnostics, production behavior, inventory measurement,
+authorization/disclosure/durability change, push or publication. The
+[round-3 report](reports/20260925-event-slots-r3/REPORT.md) lists files, exact
+mutation evidence, pending reproductions, scope decisions and compressed logs.
+## 2026-09-25 — Lane V: web admission before return and faster acquisition
+
+Implemented LLP 3000.013 Lane V on `sb4-intent/v-web-start`. The acquired-page
+navigation loss is reproducible with the old `createApp` guard: it awaits the
+session epoch lock before reaching the web journal. Calibration #20 already
+supplied a web device and persisted session, and its failing trace had a store
+identity. The generated API is an inert descriptor and added no wait. Chromium
+now captures the admin removal in the click's own stack and recovers its
+original ID after `location.assign`, including before an identified device's
+initial sync completes.
+
+Browser calls with an unrestored identity, an unidentified store, no provider
+claim, no durable device/session store, full journal/storage or the test-only
+memory provider refuse synchronously with E_ADMISSION. Session transport still
+uses its locked epoch checks. Added optional synchronous failure fields on
+MutationPromise to implement the brief; the awaited Write union is unchanged.
+This additive exception to the ordinary lane contract fence is explicit for
+supervisor review. Refused IDs can be retried after repair. Native/Node retain
+their existing admission behavior.
+
+Added useAcquisition() with committed snapshot row counts per source table and
+completion; useAcquired() stays. The compiled recipe keeps reads and UI active
+through server fallback. Progress describes this runtime's acquisition, so a
+warm acquired reopen can have zero newly received rows. Split device interfaces
+out of local.ts; it remains 1,465 lines.
+
+Measured the frozen Clique public corpus on Chromium/Linux: 50,228 posts,
+1,004 reposts, 5,921 follows, 1,008 profiles, plus likes and count tables, for
+65,180 acquired rows. Original IDB storage took 93.581 s (85.111 s saving IDB,
+3.240 s Wasm apply, 3.187 s snapshot HTTP). Packed rows took
+15.553 / 18.386 / 19.782 s: 5.09x faster at the median, meeting the 3x target.
+A repeat of the retained legacy format took 76.250 s; even the slowest packed
+run is 3.85x faster than that control. All runs used 4,000-row requested pages;
+all packed runs recovered every row after a fresh-document offline reopen.
+
+New IDB stores pack row images into 256 buckets per row store. Rows, metadata,
+outbox and transfer markers still share one atomic strict transaction. Legacy
+stores remain readable/writable without migration. No page/engine ceiling was
+raised. The benchmark projects the frozen action log into the public calibration
+schema, with media null and its Following timeline omitted for seeding; it is
+not the full application UX or an effect/media replay. Snapshot HTTP includes
+server work, serialization and loopback transport; pure server CPU was not
+measured. Larger pages and streaming apply were unnecessary. Old clients opening
+new packed databases were not qualified for rollback.
+
+Focused checks: 35 browser/React tests, 20 write-ID/two-device-page tests,
+80 guide tests, ten immediate-navigation cases, and the IDB witness pass.
+Ref-check passes with zero errors/unchecked refs. Wasm is 1,775,799 B raw /
+495,258 B gzip under the unchanged 496,000 B budget. The first suite's guide and
+client regressions were mine and fixed. A second run hit an intermittent
+existing session-logout probe; it passed unchanged alone and in the final serial
+run. The complete final suite, including all 13,000 model sequences, reports:
+**`== 0 failure(s) in 1373 s`**. The report classifies every failure from every attempt.
+
+No package version bump, publication, push or native simulator qualification.
+Implementation commits: 26ad8a083, 65231c446, a04b83063. File map, examples,
+reproduction commands, measurements and evidence:
+[Lane V report](reports/20260925-lane-v-web-start.md).
+
+## 2026-09-25 — Lane V round 1: bounded persistence and acquisition/session regressions
+
+Addressed Astra's two Medium findings and special-table Low, and Grok's High
+session-admission and Medium bucket findings. Progress now updates/resets before
+the unchanged-Boolean return; legacy Boolean notifications remain conditional.
+Table counts use null-prototype dictionaries, including copies and resets.
+
+IndexedDB buckets are capped at 512 entries and 256 KiB of UTF-8 JSON. Overflow
+rows use individual records with no growing index or scan. Metadata, outbox,
+transfer acknowledgements and all row changes still commit in one strict
+transaction. Old unbounded buckets split atomically at full load, before writes;
+legacy per-row stores remain per-row. A single-row update in either 1,000 or
+16,000 colliding 1 KiB rows submits 262,832 serialized bytes to IDB put, including
+metadata and outbox, versus 16,843,849 for the old 16,000-row case. This is
+serialized-record size, not physical disk I/O. Forced abort and Unicode overflow
+preserve the complete pre-transaction state, and retry commits it together.
+
+New createApp journal records capture the session epoch and principal while
+retaining synchronous localStorage custody. Device admission and recovery now
+check that stamp under the session lock through the admission commit. Peer
+logout, changed principal and changed epoch cancel unadmitted records; later
+sign-in cannot promote them. The existing locked transport check remains. A
+transient unlocked mismatch refuses the call without permanently fencing its
+scope. Low-level clients and legacy unstamped journals retain their prior path;
+no new public interface was added.
+
+Fresh Chromium acquisition of the frozen Clique projection (65,180 rows,
+including the required 50,228 posts / 1,004 reposts / 5,921 follows / 1,008
+profiles) took 13.789 / 24.345 / 17.745 s. The 17.745 s median is 4.13x faster
+than the fresh 73.352 s per-row control, or 5.27x versus the original 93.581 s
+control. Even the slowest new run clears 3x against the fresh control. Median
+run: 0.804 s snapshot HTTP, 3.019 s Wasm apply, 12.135 s IDB saving. Every run
+reopened all rows offline. Snapshot HTTP includes server work and transfer;
+these remain acquisition-only figures with the same projection limits as the
+previous entry. Page size stays 4,000. No meter or Wasm budget was raised.
+
+Focused Chromium checks: 26 passed, 0 failed. Restoring the old progress return,
+ordinary-object counts or unbounded packing fails the new regressions. Making
+reset() a no-op fails partial sign-out. Separately bypassing live admission,
+recovery authority, or restoring unlocked fencing also fails the corresponding
+real-browser test. Both reviews were reread before the final complete suite;
+ref-check reports zero errors and zero unchecked references.
+
+Final complete suite: **`== 0 failure(s) in 1508 s`**, with serialized client
+files: 1,532 passed / 0 failed / 10 platform skips; models 78 passed / 0 failed,
+including all 13,000 seeded sequences. The first attempt reported 1 failure in
+1,414 s: an environmental five-second server-start timeout, before client
+construction, in the native transport test. It passed unchanged in isolation
+and in the final complete run. Both logs and the classification are retained.
+
+Implementation commits: e11c2a282 (progress and bounded persistence), 78175cd6d
+(session-bound admission). local.ts is 1,467 lines. No package bump, push,
+publication, larger snapshot pages, streaming apply or native simulator run.
+File map, reproductions, test proofs, measurement limits and raw evidence:
+[round 1 report](reports/20260925-lane-v-r1.md).
+
+
+## 2026-09-25 — LLP 3000.013, lane V round 2: session-bound journal recovery
+
+Addressed both round-1 delta reviews. App authority now attaches before journal
+orphan recovery; attachment recovers immediately from the kept device, including
+offline or with the first sync held. Unstamped, unadmitted legacy app records are
+cancelled because their originating epoch is unknown. Committed outbox/transfer
+custody remains intact. Page-hide transport runs after serialized admission
+releases the session lock, and its listener is installed before initial network
+sync. A synchronous epoch mismatch refuses the call and schedules locked
+confirmation; a confirmed mismatch fences existing observations, while a
+transient observation does not retire the scope. No reentrant lock bypass was
+introduced.
+
+Added eight Chromium regression cases covering hidden admission with a second
+tab's logout, held-sync/offline navigation recovery, actual keepalive delivery,
+password logout/login with legacy unadmitted and committed records, same-epoch
+logout tombstones, and persistent observation fencing. Existing transient-fence
+coverage remains. Deleting a known overflow key must now disappear through both
+read and fresh load. All eight relevant mutants fail at their intended checks;
+64 focused checks pass. Raw-device recovery tests now make their first core call
+before asserting orphan recovery, so app ownership can bind after open.
+
+Measured the same 65,180-row scale projection again: bounded cold acquisition
+13.298 / 15.825 / 18.703 s; fresh per-row 70.716 s. Median speedup 4.47×. Median
+snapshot response/body time 0.779 s, wasm apply 2.877 s, IndexedDB saves 10.419 s
+(per-row IDB 65.126 s). All four offline reopens retained all rows. Page size
+4,000, strict durability and 512-entry/256-KiB bucket caps are unchanged. This is
+snapshot acquisition, with the previously documented null-media/persona fixture
+projection, not the full builder startup journey.
+
+`scripts/test.sh` ran once: **`== 0 failure(s) in 405 s`**, exit 0. Client checks:
+1,541 passed, 10 platform skips; models: 78 passed including 13,000 seeded
+sequences. No complete-suite failures (ours, baseline or environmental).
+Reference audit: 509 LLP docs / 9,282 refs, zero errors or unchecked references.
+The wasm budget remains 495,258 / 496,000 gzip bytes. The report classifies the
+corrected test-only development failures and explains the two reviewer details:
+the transport-under-lock mutant fails the stronger no-transport-in-lock
+assertion, and the explicit logout guard mutant is exposed by a same-epoch
+tombstone retaining session fields; the exact minimal tombstone is tested too.
+
+Did not change Quarry forms, disclosure rules, engine meters, page-size limits,
+bucket storage, or transport delivery guarantees; did not push or publish.
+Keepalive remains best-effort. Full file map, reproduction commands, review
+hashes, measurements and suite output: `reports/20260925-lane-v-r2.md` and
+`reports/20260925-lane-v-r2-evidence/`.
+
+
+## 2026-09-25 — LLP 3000.013, lane V round 3: validated exit replay; authority blocker
+
+Implemented both round-2 delta reviews. The web exit sender now waits for the
+ordinary replay checks before registration, including offline opening. Refused
+probes, a replacement identity, restore refusal, dead sessions and required
+backend adoption suppress early exit dispatch. Accepted probes register before
+initial sync; an already-hidden document flushes once at registration. Successful
+sync adoption can enable the sender afterward. Every createApp device is marked
+app-owned before recovery, including wrapped/asynchronous session stores that
+lack the private synchronous reader. Unverifiable unadmitted records are refused;
+committed outbox custody remains intact.
+
+Added real-Chromium held-probe tests for acceptance, refusal, restore and a second
+real backend retaining the same credentials. Replacement tests check the server
+audit, direct durable outbox reads and fresh-document reopening. Wrapped-store
+legacy/stamped recovery and backend-required offline/adoption tests are included.
+All eight startup mutants fail at the intended assertions, including removal of
+the store-ID comparison and journal.fence. Corrected eight async browser waits:
+the pinned Playwright waitForFunction checks a Promise for truthiness, so these
+checks now use the existing helper that awaits each polling result. Both browser
+files pass all 36 checks; the expanded admission file passes 17.
+
+A newly demonstrated High remains open in the pre-existing authority protocol.
+Chromium can grant a session Web Lock before the new holder's localStorage cache
+reflects the prior holder's write. A standalone two-tab probe wrote the exact
+same-epoch logout tombstone at epoch 239, released the lock, then read the old
+signed-in epoch 239 under that lock; the next read saw the tombstone. An existing
+real-app test also intermittently returned sent after a peer principal change,
+advancing the audit from 3 to 4. Repetitions sometimes pass, so suite success is
+not qualification of this guarantee. Per the brief, stopped this part for the
+supervisor's design decision; did not redesign authority storage, add timing
+workarounds, or weaken checks. The client reference names this limitation. The
+lane is NOT READY for the cross-tab logout authorization guarantee.
+
+Complete suites: first **`== 0 failure(s) in 466 s`**; after the test-wait
+correction, final **`== 0 failure(s) in 409 s`**, both exit 0. Final client checks:
+1,549 passed, 10 platform skips; models: 78 passed, including all 13,000 seeded
+sequences. No full-suite failures (ours, baseline or environmental). Two focused
+attempts hit the existing dev-server readiness timeout before client creation;
+unchanged rechecks reached the intended checks. Corrected development-only
+fixture/polling/cleanup mistakes and the temporary redundant-probe compatibility
+regression are classified in the report. Reference audit: zero errors and zero
+unchecked references. local.ts is 1,479 lines.
+
+No new cold-acquisition measurement: snapshot processing and bounded persistence
+are unchanged. Latest round-2 figures remain 13.298 / 15.825 / 18.703 s bounded,
+versus 70.716 s per-row (4.47x median); all 65,180 rows survived offline reopen.
+No Quarry forms, refusal codes, engine meters, disclosure checks, page sizes,
+bucket caps or durability modes changed. Did not push or publish.
+
+Implementation commits: 546bb169c, 137704376. File map, examples, all failure
+classifications, exact suite outputs and the standalone counterexample:
+`reports/20260925-lane-v-r3.md` and `reports/20260925-lane-v-r3-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 4: coherent browser session authority
+
+Implemented the supervisor's ruling after the round-3 STOP: IndexedDB holds
+authoritative browser sessions; localStorage remains the synchronous mirror and
+mutation capture journal. Browser login, logout and principal replacement await
+a strict IDB commit under the session Web Lock. Locked admission/recovery reads
+IDB, never a renderer's localStorage cache. A stale mirror can capture an intent,
+but a committed peer logout makes that intent fail with E_AUTH before it enters
+the outbox or sends. A visible logout still refuses in the calling stack.
+Mirror quota failure aborts the authority write; IDB abort restores the previous
+mirror where possible. Default memory and native session stores remain unchanged.
+
+Also addressed both completed round-3 reviews. Enumerable device capabilities
+and copied session-reader function identity preserve `{ ...core }` and
+`{ ...localStorageSessionStore() }`. Browser devices dropping ownership refuse
+with E_ADMISSION before recovery. Unknown async-only session adapters still
+establish app ownership and refuse unverifiable unadmitted records. Committed
+outbox custody remains. Every established browser store validates startup even
+with an empty outbox or an observed receipt; ordinary and exit delivery wait.
+Exit registration precedes ordinary replay's wait. A successful later sync both
+installs the exit sender and wakes ordinary delivery that startup held back.
+
+Measured with real Chromium: peer app logout, then a deterministic stale-renderer
+read at mutate, produced a synchronous journal followed by failed/E_AUTH, no
+outbox entry, no request and unchanged server audit. Login/replacement and abort/
+quota cases confirm commits or rollbacks finish inside the lock. The authority
+file passes 10 checks; expanded admission review passes 30. The original app
+audit suite passed 20 consecutive qualified runs, 19 checks each (380 total);
+all 80 authority audit observations remained 3, never 4. Fourteen deliberate
+source faults fail their intended regressions, including the former observed-
+receipt/empty-queue survivors, transport under the lock, same-epoch tombstones,
+store identity, journal fencing and ordinary reconnect wake-up.
+
+First complete suite: **`== 1 failure(s) in 482 s`**, failed component client
+tests. All five failing leaves were ours: three wasm acquisition cases did not
+wake queued ordinary delivery after validation, and native/wasm offline-generation
+cases saw an early begin_send during opening. Corrected both causes without
+weakening their assertions; the acquisition, repair-b-round9 and browser files
+then passed 102/102. Final complete suite: **`== 0 failure(s) in 417 s`**, exit 0;
+1,572 client checks passed, 10 platform skips; 78 model checks passed, including
+all 13,000 seeded sequences. No final failures, baseline or environmental.
+Reference audit: 509 LLP documents, 9,283 references, zero errors or unchecked
+references. The 26 reference TypeScript blocks compile. local.ts is 1,477 lines.
+
+Compatibility choices: legacy mirror-only sessions require sign-in, and pre-IDB
+unadmitted stamps cannot be promoted; committed outbox entries are preserved.
+Custom-prefixed mirrors require a stable authority namespace, demonstrated by a
+compiled client-reference recipe. No unresolved problem remains in the requested
+scope. Did not change Quarry forms, engine meters, disclosure, bucket limits,
+acquisition page sizes or the wasm budget; did not push or publish. No new cold
+acquisition measurement this round: prior round-2 results remain 13.298 / 15.825 /
+18.703 s bounded versus 70.716 s per-row, 4.47x median, 65,180 rows retained.
+
+Implementation commits: 7e7192da4, ecad97f65, fabab414c. File map, examples,
+reproductions, compatibility decisions, every failure and exact suite outputs:
+`reports/20260925-lane-v-r4.md` and `reports/20260925-lane-v-r4-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 5: store binding and session mirrors
+
+Addressed every finding in the round-4 Astra and Grok delta reviews. Every
+journaled write now retains its store-binding transfer marker while queued;
+adoption dequeues mismatched fresh writes as well as recovered writes. A click
+captured during a held replacement probe leaves the replacement audit at zero
+after sync and close. Rows, metadata and outbox retain their atomic transaction.
+
+Under the session lock, opening migrates the greatest legacy mirror/IndexedDB
+session epoch into the authoritative epoch record and mirror, then captures that
+epoch for the scope. A leftover marker 5 permits sign-in and a successful
+mutation; an existing IDB epoch 9 wins over mirror 5. Reads repair speculative
+mirrors and delete them for absent authority. An aborted migration preserves the
+old mirror fence. After locked admission refuses a stale click, the app's locked
+check fences auth, viewer, acquisition and existing private observations even
+with the change poll held. Ordinary admission authority remains IndexedDB only.
+
+Real Chromium regressions cover each case, including committed session A versus
+speculative mirror B on reopen. Six deliberate source faults each fail their
+intended tests; the two store-binding faults execute on the replacement backend
+and advance its audit to 1. Normal targeted runs passed 43/43, 32/32 and the
+final expanded authority file 14/14. Reference audit passed: 509 LLP documents,
+9,283 references, zero errors and zero unchecked references.
+
+Ran the complete suite once: **`== 0 failure(s) in 408 s`**, exit 0. Client checks:
+1,576 passed, 10 platform skips; models: 78 passed and all 13,000 seeded
+sequences. No failure was ours, baseline or environmental. The recorded
+baseline cargo failure did not recur. Bounded persistence still rewrote 262,832
+bytes for one row at both 1,000 and 16,000 rows. No new cold-acquisition benchmark:
+this round changes neither snapshot application nor bucket tuning. Historical
+round-2 times remain 13.298 / 15.825 / 18.703 seconds versus 70.716 seconds per-row.
+
+No design deviation or unresolved scoped problem. No Quarry form, authorization
+rule, engine meter, bucket ceiling or public client signature changed. Did not
+push or publish. Implementation commit: d43b3c82e. File-by-file changes,
+examples, test reproductions, decisions and raw evidence are in
+`reports/20260925-lane-v-r5.md` and `reports/20260925-lane-v-r5-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 6: one intent binding through every handoff
+
+Addressed both Astra findings and Grok's higher-mirror mutant from the round-5
+reviews. Journaled intents now share one store-binding decision across own-tab
+recovery, fresh admission, orphan adoption, exit transport and ordinary flush.
+Orphans with unknown destination identity remain in their source store. A
+mismatch retires before destination enqueue, including fresh transfers. Both
+send paths also check the original binding and intended mutation ID. Host
+identity inspection is non-capturing; it cannot manufacture sync requests.
+
+Epoch reconciliation persists only a legacy marker that advances authoritative
+IndexedDB state. Existing sessions reopen without allocating a separate epoch
+record, including at actual localStorage quota exhaustion. Repair remains
+best-effort and new mutations still refuse synchronously with E_ADMISSION when
+the journal cannot be written. Mirror 10 beats present IDB epoch 9 through
+sign-in, capture and a successful mutation.
+
+New real-Chromium tests cover two-tab replacement with ordinary and exit
+transport, asserting no destination enqueue or request and audit B = 0 through
+close. An unidentified destination preserves source custody, then matching sync
+delivers the original ID once. The quota witness filled 5,241,876 characters,
+proved a new epoch key could not fit, and restored the same acquired session.
+Deleting both orphan checks, restoring unconditional allocation, or ignoring a
+higher mirror each fails a regression. The final affected set passed 158/158.
+
+Three complete suites were run. First: **`== 1 failure(s) in 431 s`**; ours,
+`IndexedDB model: reset termination before-commit preserves one complete
+transaction`, because the new restore inspection captured a request. Second:
+**`== 1 failure(s) in 406 s`**; ours, `wasm rejects a skipped snapshot page
+before accepting its completion`, because a remaining journal recovery read
+captured metadata later persisted by the refused call. All host identity reads
+now use capture:false. Targeted checks also exposed two fixtures that had
+implicitly relied on the old capture side effects. The reset and durability
+fixtures now explicitly declare real in-flight requests; their complete durable
+state comparisons remain, and recovery must not manufacture a new request.
+
+Final suite: **`== 0 failure(s) in 408 s`**, exit 0; 1,581 client checks passed,
+10 platform skips; 78 model checks passed, including all 13,000 seeded sequences.
+No final failures — ours, baseline or environmental. The baseline cargo failure
+did not recur. Reference audit: 509 LLP documents, 9,284 references, zero errors
+and zero unchecked references. One-row persistence remains 262,832 bytes at
+both 1,000 and 16,000 rows. No new cold-acquisition measurement; snapshot pages
+and bucket tuning are unchanged.
+
+No design deviation or unresolved scoped problem. No Quarry form, public client
+signature, source authorization rule, engine meter, bucket ceiling or transaction
+durability was weakened. local.ts remains 1,477 lines. Did not push or publish.
+Implementation: d501a115a. File map, examples, decisions, reproductions and every
+failure are in `reports/20260925-lane-v-r6.md`; raw evidence is in
+`reports/20260925-lane-v-r6-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 7: server-enforced mutation store binding
+
+Ordinary and page-hide mutation requests now carry the journaled intent's
+original `store_id`. Queue views and the synchronous committed-outbox view
+retain the binding through fresh admission, own-tab recovery and orphan
+adoption. The existing server check runs under the engine lock before execution
+and idempotency lookup, closing replacement between local validation and send.
+Client guards remain as optimizations. A confirmed keepalive E_STORE_REPLACED
+persists a named failed receipt before outbox settlement; original-binding
+custody remains if teardown precedes the response. Unidentified local transport
+waits for a store identity. The client reference and governing RFC describe this.
+
+Two real browser tabs and two authenticated real backends reproduce replacement
+after validation through ordinary and keepalive delivery: B's audit stays 0,
+A's audit is unchanged, and the failed receipt survives reopening without a
+retry. Removing both client transport guards still passes all 37 final browser
+checks. Removing either request's store_id makes the matching regression fail
+with B's audit at 1. Removing keepalive retirement fails its receipt assertion.
+Grok's completed r6 review was READY but named a surviving recovered-orphan
+mutant; new cases navigate before admission, verify recovered:true and require
+retirement before enqueueing on B. That mutant now fails both no-enqueue checks;
+server enforcement still prevents execution. The initial recovered fixture
+looked in the pre-navigation database; it now locates the actual durable owner.
+
+The initial browser/navigation set passed 50/50. Final expanded browser checks
+passed 37/37, as did the control without client transport guards. Lifecycle
+fixtures passed 56/56, navigation models 62/62 and session security 7/7. The
+first full suite ended `== 1 failure(s) in 1736 s`, component client tests:
+four cases were ours (one obsolete unidentified best-effort-send expectation,
+one lifecycle fixture and two rotation fixtures missing their store identity).
+Those fixtures now assert the binding while retaining their lifecycle/security
+oracles. One environmental server-start timeout occurred before client creation;
+the unchanged native body-loss case passed once and then five consecutive
+repeats. No timeout was relaxed. The first full run used serial client testing
+at host load 119.23 across 96 CPUs, and all its model checks passed.
+
+Final suite: **`== 0 failure(s) in 449 s`**, exit 0. All 1,585 client checks and
+78 model checks passed, including 13,000 seeded interleavings; 10 platform skips.
+No final failure — ours, baseline or environmental. The baseline Cargo failure
+did not recur. Reference audit: 509 LLP documents, 9,285 references, zero errors
+and zero unchecked references. local.ts remains 1,492 lines.
+
+No design deviation or unresolved scoped implementation problem. No server
+change, Quarry form, authorization relaxation, engine-meter change, acquisition
+retuning or new cold-acquisition measurement. Did not push or publish. Source
+and tests are in 7d0140561 and 99f711a68. File map, examples, every failure and
+qualification logs are in `reports/20260925-lane-v-r7.md` and its evidence folder.
+
+
+## 2026-09-25 — LLP 3000.013 lane V, round 8: one settlement owner per write
+
+Ordinary delivery and keepalive refusal now share exclusive settlement ownership
+per mutation id. An overlapping ordinary request keeps its outcome through
+close; a replacement's refusal cannot mask its committed success. The exit
+helper also respects a known success whose receipt persistence failed. The web
+host's internal settlement operation rechecks terminal history and unsent,
+unobserved outbox custody on its serialized device chain under the exclusive
+claim, then commits receipt, retirement and journal cleanup in one strict
+IndexedDB transaction. A failed commit retains the outbox and publishes no
+terminal refusal. The helper is split out; local.ts remains 1,496 lines.
+
+Astra and Grok's completed round-7 reviews are addressed. Real Chromium and two
+real authenticated backends exercise both response orders: A commits once,
+B executes zero times, and caller, notification, receipt lookup and reopen all
+report sent. The same holds with failed ordinary receipt persistence and no
+sync observation. Aborting the keepalive receipt transaction leaves the original
+id pending and durable after reopen, until a later atomic save succeeds. Holding
+receipt persistence for 1.2 seconds prevents ordinary delivery even after the
+one-second exit wait expires. No timeout or storage ceiling was raised.
+
+Five mutation checks fail at their intended oracle: removing settlement
+ownership; bypassing the device custody check; swallowing receipt persistence
+failure; forgetting volatile known success; and preferring the newer current
+store identity to the queued write's original binding. The latter closes Grok's
+remaining mutation-test gap. Lifecycle/navigation checks passed 72/72; all 42
+browser admission checks pass in the full suite. Initial new notification tests
+subscribed before the signed-in client was published and failed; the harness
+now subscribes after app.ready. The volatile-success oracle now holds sync
+unavailable, and binding precedence is asserted outside transport error handling.
+These developmental failures were ours; full accounting is in the report.
+
+Full suite: **`== 0 failure(s) in 444 s`**, exit 0. All 1,591 client checks and
+78 model checks passed, including 13,000 seeded sequences; 10 platform skips.
+No final failures — ours, baseline or environmental. The baseline Cargo failure
+did not recur. Rust tests took 97 seconds, client tests 97 seconds, and client
+models 237 seconds. Reference audit: 509 LLP documents, 9,286 references, zero
+errors and zero unchecked references.
+
+No deviation from the requested guarantees and no known open scoped problem.
+The bounded network wait remains; settlement ownership and the atomic device
+chain prevent concurrent sending while persistence is held. No new Quarry or
+public client form, Rust/server change, authorization/disclosure relaxation,
+work-meter change, receipt-window expansion or acquisition retuning. No new
+cold-acquisition benchmark. Did not push or publish. Implementation: b9725ee26.
+File map, examples, test reproductions and evidence are in
+`reports/20260925-lane-v-r8.md` and `reports/20260925-lane-v-r8-evidence/`.
+
+
+## 2026-09-25 — LLP 3000.013 lane V, round 9: preserve every known terminal outcome
+
+Known sent and failed receipts now retain their first outcome through aborted
+persistence. A retry saves that receipt and settles it locally before any POST;
+sync, page application, store observation/adoption and exit refusal handling
+cross the same persistence barrier. Failed receipt saves cannot fall through
+to sync. Keepalive protects every known terminal state, including NOT_ADMIN.
+The serialized web send check also catches acknowledgements that arrive during
+preflight. Already reflected effects settle without a redundant sync that would
+withdraw completed acquisition freshness. Local E_STORE admission errors that
+explicitly describe an unknown outcome remain recoverable through their journal.
+The receipt helper is split out; local.ts remains 1,498 lines.
+
+Real Chromium, strict IndexedDB transactions and two real backends cover both
+NOT_ADMIN response orders after two aborted receipt saves, alongside the sent
+cases. The success regression waits for the actual retry timer while storage
+keeps failing and the endpoint remains B: no second POST or sync can discard the
+known result. Restoring storage persists the original outcome, which survives
+reopen; A commits once and B never executes it. Outbox-only sent_seq and
+observed_seq evidence independently refuse replacement settlement. Six mutants
+fail: deleting that custody check, falling through after a failed receipt save,
+reposting known custody, bypassing the sync barrier, replacing the first volatile
+terminal, and swallowing exit receipt-persistence failure.
+
+Affected lifecycle/navigation/overflow/replacement tests passed 164/164; all six
+HTTP pending-window controls passed. Across both device stores, 273 queued IDs
+settle exactly once: 272 through sync and one unknown tail through ordinary
+response. Tests that previously required pending or redundant replay after a
+correlated acknowledgement now require the known sent outcome, preserving
+ordering, original IDs, one-execution and row-completeness assertions. The
+keepalive persistence control distinguishes actual receipt attempts from
+callbacks declined by an ordinary owner, counts each completion, and controls
+page visibility. Its persistence mutant still fails.
+
+Full suite: **`== 0 failure(s) in 683 s`**, exit 0, using
+`SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`.
+All 1,598 client checks, all 47 browser admission checks and 78 model checks
+passed, including 13,000 seeded interleavings; 10 expected platform skips.
+Rust tests took 306 seconds, clients 135 seconds and models 231 seconds.
+Reference audit: 509 LLP documents, 9,287 references, zero errors and unchecked.
+No final failures — ours, baseline or environmental.
+
+Earlier runs exposed our recoverable-admission classification, acknowledgement
+preflight and redundant-sync freshness regressions, plus old acknowledgement
+expectations and an ambiguous keepalive test barrier; all are fixed and their
+failure accounting is preserved in the report. Environmental failures were a
+five-second server startup and an unchanged Rust reader timing-ratio check.
+Both isolated controls passed. The latter measured 1.043/1.025 against the
+unchanged 3.0 ratio limit; reducing Rust target concurrency yielded the green
+complete run. One fully serial attempt was intentionally stopped early before
+switching to CPU affinity. No timeouts, workloads, thresholds or meters changed.
+
+No functional design deviation or known open scoped implementation problem.
+No Rust/server, public client contract, wire format, authorization/disclosure,
+receipt-window or storage-bound change. No new Quarry forms, acquisition
+retuning or cold-acquisition measurement. No push or publication. Implementation
+and test commits: 6ea85f28b, 0efdc1638, 251336465, 2b47ba061, 44e21d0ef,
+0a8996caf. The file map, examples, failures and reproductions are in
+`reports/20260925-lane-v-r9.md` and its evidence folder.
+
+
+## 2026-09-25 — Lane Y: devices keep the server's time (0.4.3)
+
+Committed the server response stamps, a bounded minimum-RTT offset estimator,
+per-store clock persistence and monotonic device time. Queries, predictions,
+expiry timers and asset homes use the estimate; `client.now()` and React's
+`useNow(deadline)` expose it. Clock revisions carry development advances at the
+next response, including a held poll's final body. Confirmed rows still use only
+the server's execution clock. The expire/read cards now reserve render-deadline
+filtering for server answers; held observations already republish locally.
+
+In real Chromium with IndexedDB and `--clock-offset +25h`, pending messages stayed
+first in the latest 20 across an offline reload and a second offline send. The
+final full run measured a 90,000,001 ms offset both before and after reload;
+settlement after a two-minute server advance replaced the prediction timestamp
+with a server timestamp 120,495 ms later. Held typing removals published
+2, 1, 1, 1 and 2 ms after their deadlines. A response after `clock advance 2m`
+removed typing even with sync deletions held. Native JSON/SQLite cold starts at
++25h and -31d passed; React replacement, shrinking-offset and cleanup cases passed.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 497 s`**.
+Regular clients: 1,524 passed, 10 existing skips. All 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. First full attempt was
+`== 2 failure(s) in 1630 s`: one Rust and 23 client cases, all lane-owned and
+fixed. These were stale recipe/coalescing expectations, an incomplete doc snippet,
+and final clock-save errors escaping journal teardown; all 62 existing navigation
+cases pass unchanged. No baseline or environmental failure remained or was waived.
+Wasm is unchanged at 1,775,799 B raw / 495,258 B gzip (budget 496,000 B).
+
+No Quarry grammar, refusal code, interpreter, authorization, disclosure, meters,
+native bridge or web admission journal changed. No iOS simulator or service-worker
+shell qualification, package version bump, push or publication. Supervisor owns
+integration and blind review. Implementation revision: `1d0960c07`; full file map,
+engineering decisions, test meanings, every failed first-run case and reproduction
+commands: [Lane Y report](reports/20260925-lane-y.md).
+
+
+## 2026-09-25 — Lane Y round 1: separate estimated, issued and wall time
+
+Fixed all findings from the two round-0 blind reviews. Unfloored estimated
+server time schedules server-answer refetches, including local fallback and mixed
+reads. Monotonic issued device time drives execution, predictions, expiry and
+rendering. Freshness `since` / `syncedAt` is wall time. Clock forks preserve
+request-order restart barriers; streaming final stamps use provisional receipt
+time and yield to real RTT samples. Startup restores the floor from pending
+admissions before issuing time, preserving synchronous web journal capture.
+`useNow` catches deadlines and corrections between render and effect installation.
+The clock card and wire reference name these distinct responsibilities.
+
+Added deterministic request-count, freshness, frame-bound, effect-gap, restart/fork
+and streaming-error regressions. A deliberate +500 ms scheduling mutation failed
+the frame assertion and was removed. Real Chromium/IndexedDB crash-style reload
+with wall-clock rollback passed without `close()` or a post-admission query; the
+synchronous journal and pending timestamp survived. The real 25-second poll now
+checks upper bounds before and after a short response. The mutation wire test
+reads back the row and rejects the submitted `now: 1`. Held browser removals in
+the full run were 2, 1, 1, 1 and 2 ms late. Existing journal/navigation tests pass
+unchanged; native +25h and -31d cold starts still pass.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 407 s`**.
+Regular clients: 1,535 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No full-suite failure or waived baseline issue.
+Wasm remains 1,775,799 B raw / 495,258 B gzip against the 496,000 B budget.
+No server implementation, authorization, disclosure, meter, admission bridge,
+public API or Quarry form changed. No push, package publication or iOS simulator
+qualification. Implementation commits: `834f2f377`, `c5471def0`.
+Finding-by-finding fixes, complete file map, fixture corrections and reproductions:
+[Lane Y round-1 report](reports/20260925-lane-y-r1.md).
+
+
+## 2026-09-25 — Lane Y round 2: admission time survives settlement
+
+Implemented the round-1 delta review fixes in `7e871b545`. The device now commits
+an admission's maximum issued floor atomically with its outbox entry and retains
+that record after settlement. Startup restores it before issuing time, preserving
+synchronous web journal capture. Short RTTs (at most one second) outrank provisional
+streaming receipt stamps; long samples may refine estimated server time but never
+change the offset used to issue device time. Both offsets persist and fork.
+A short confirmation that changes only the issued offset still notifies watches.
+Freshness uses versioned wall-time metadata, omits ambiguous legacy values until
+resync, and clamps future stamps at publication. The clock card and wire reference
+state these policies.
+
+The real Chromium/IndexedDB regression admits, settles, catches up to an empty
+outbox, crashes without close or a query flush, rolls wall time back 4,000 ms,
+and reopens offline without losing the admission floor. Memory and SQLite tests
+prove retirement/reopen durability; an injected transaction failure proves the
+outbox and floor roll back together. Controlled composition tests give both
+answers distinct deadlines and publish at either earlier deadline. Deliberate
+mutations dropping the device deadline or preferring every real sample both fail
+the new regressions. Legacy offline upgrade and wall rollback tests pass.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 449 s`**.
+Regular clients: 1,546 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No full-suite failure or baseline/environmental
+waiver. An earlier run was deliberately interrupted before completion to include
+the issued-only notification correction; it is not counted as a pass. Full-run
+held browser expiry lateness was 1, 1, 1, 1 and 2 ms; deterministic coverage still
+enforces the 16.7 ms frame bound. Wasm is 1,776,076 B raw / 495,314 B gzip, 56 gzip
+bytes above round 1 and within the unchanged 496,000 B limit. Reference audit has
+zero errors and zero unchecked refs. `local.ts` remains below 1,500 lines (1,497).
+
+No public form, API, refusal code, server authorization, disclosure or meter policy
+changed. The four-line device transaction extension is required by the atomic
+admission-floor instruction. No push, publication or iOS simulator qualification.
+File map, forms, tests, development fixture corrections and final qualification:
+[Lane Y round-2 report](reports/20260925-lane-y-r2.md).
+
+
+## 2026-09-25 — Lane Y round 3: slow responses keep server time
+
+Implemented the round-2 delta review fixes in `438bfb032`. Responses with RTT
+above 1,000 ms now use `serverNow - received` as a provisional sample for both
+estimated server time and issued device time. Any measured sample within the
+threshold outranks them. This replaces round 2's policy of leaving issued time
+unchanged for slow responses; midpoint error cannot enter either clock from a
+long hold. The monotonic floor, bounded sample window, durable admission record,
+freshness metadata and server settlement semantics are unchanged.
+
+Audited every requested response path. Sync, queries, mutations, session
+endpoints, schema and buffered changes stamp their headers after execution/wait
+and JSON serialization. Streaming changes now omit early clock headers and use
+the existing final JSON end stamp; bounded overflow refusals retain it too.
+This is the brief's explicit end-stamp option. The clock card and wire reference
+state the rule and the distinction between buffered and streaming responses.
+
+The actual native client/SQLite bridge opens successfully under `-31d` with
+1,500 ms refresh and schema responses, retaining its valid thirty-day session
+without credential deletion. The real `changeFeed` in controlled no-stream mode
+learns +120 seconds from three buffered two-second polls, keeping device/server
+delays aligned. New 1,000/1,001/2,000 ms boundary cases check issuance and short
+refinement; threshold mutations to 5,000 and 10,000 each fail two assertions and
+were restored. The contradictory lone-slow test now proves receipt-time offset
+persistence and fork/reopen behavior. All earlier crash, composition, frame,
+wall-freshness and epoch-ordering regressions remain covered.
+
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 418 s`**.
+Regular clients: 1,550 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Full-run held browser expiry lateness was 1, 1, 2, 1 and 2 ms.
+Wasm is unchanged at 1,776,076 B raw / 495,314 B gzip, within the 496,000 B limit.
+Reference audit has zero errors and zero unchecked references.
+
+No new public form, API or refusal code, no authorization/disclosure/meter
+weakening, and no changes to the device admission transaction. No push, package
+publication, iOS simulator claim or ceiling increase. Endpoint-by-endpoint stamp
+audit, file map, tests, examples and final qualification:
+[Lane Y round-3 report](reports/20260925-lane-y-r3.md).
+
+
+## 2026-09-25 — Lane Y round 4: only admissions restore the floor
+
+Implemented all round-3 delta review findings in `8a64ffaf8`. Clock attachment
+unconditionally ignores the old offset metadata's non-admission `last`, and
+persistence stops writing that field. Only the atomic `server-clock-floor`
+record and queued `entry.now` restore an issued floor across reopening. Live
+issuance remains monotonic. The clock card and client operations reference now
+state this distinction. No migration of unpublished round-2 metadata is needed.
+
+Two unit regressions exercise a nonzero wall-time `last` with stored issued
+offsets of zero and -31 days, attached after a slow negative-offset sample.
+The actual native JSON/SQLite bridge retains its valid thirty-day session with
+that metadata after 1,500 ms refresh/schema responses, without deleting
+credentials or relying on an admission floor. Both provisional arrival orders
+now distinguish a slow sample 500 ms behind the streaming stamp. Separate
+measured and streaming RTT-tie tests require the newest estimate even when the
+monotonic floor masks its correction. Deliberate mutations restoring nonzero
+`last`, preferring older RTT ties, and always preferring the newest provisional
+sample each fail; all were restored. Existing crash tests still prove pending
+and settled admission durability, and now require no serialized `last`.
+
+Focused checks: 38 clock/regression tests and 9 browser/wire/native tests pass.
+Full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 408 s`**.
+Regular clients: 1,555 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Held browser expiry lateness was 2 ms in all five measurements.
+Wasm remains 1,776,076 B raw / 495,314 B gzip against the unchanged 496,000 B
+ceiling. Reference audit: zero errors, zero unchecked references.
+
+No new public form, API, refusal code, server implementation change,
+authorization/disclosure/meter weakening, admission transaction change, push,
+package publication or iOS simulator claim. File map, examples, intentional
+expectation changes and qualification:
+[Lane Y round-4 report](reports/20260925-lane-y-r4.md).
+
+
+## 2026-09-25 — Lane Y round 5: legacy admission floors survive retirement
+
+Implemented all round-4 delta review findings in `1d4a49b6b`. Clock attachment
+now requests a transactional queue read that raises `server-clock-floor` to the
+maximum of its saved value and every queued admission's `now`, before replay
+can retire those entries. This repairs stores written by older clients that
+never committed a floor record. The shared device dispatcher carries the
+internal `restore_clock_floor` option; memory/Wasm and SQLite use the same
+writer transaction. Ordinary queue reads remain read transactions, and an
+unchanged floor causes no metadata write. Synchronous web admission capture
+and the new-admission transaction are unchanged.
+
+Three Rust regressions cover legacy retirement on both stores with absent,
+lower and higher saved floors, failed-backfill preservation, and idempotence.
+Actual Wasm and native bridge tests upgrade a legacy queue, require the floor
+before retirement, retire it, roll wall time back 4,000 ms and reopen without
+a clock flush: issued time stays at the legacy admission. New clock tests pin
+the legacy offset fallback without a live sample or `issuedOffset`, and ignore
+a non-admission `last` above wall time. A native offline reopen with old -31-day
+metadata retains its valid thirty-day session with zero credential deletions.
+Deliberate mutations removing the legacy fallback, trusting future `last`, and
+skipping the backfill each fail; all were restored.
+
+Focused checks: 6 Rust clock tests, 40 clock/regression tests and 12
+browser/wire/native tests pass. Full `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 557 s`**. Regular clients: 1,560 passed, 10 existing skips;
+all 78 model tests passed with 5,000 / 5,000 / 3,000 sequences. No lane-owned,
+baseline or environmental failure was waived. Held browser expiry lateness was
+2, 2, 1, 1 and 2 ms. Wasm is 1,776,539 B raw / 495,418 B gzip, up 463 raw / 104
+gzip bytes and below the unchanged 496,000 B ceiling. Reference audit: zero
+errors, zero unchecked references.
+
+No new Quarry form, public client API or refusal code, server implementation
+change, authorization/disclosure/meter weakening, push, package publication or
+iOS simulator claim. No known open finding. File map, examples, implementation
+choice and qualification: [Lane Y round-5 report](reports/20260925-lane-y-r5.md).
+
+
+## 2026-09-25 — Lane Y round 6: every outbox writer preserves admission time
+
+Implemented all round-5 delta review findings in `2a4cb8e36`. A shared helper
+now raises `server-clock-floor` in every admission outbox write transaction:
+own admission, recovered enqueue/orphan transfer, and replay/receipt upsert.
+The audit found two production insert sites and one upsert site; all call the
+helper. Unchanged floors cause no metadata write, and a failed floor update
+rolls back the outbox write. Startup backfill remains for old persisted queues.
+The clock card and operations reference state the recovery-after-attachment
+rule. Synchronous web journal capture is unchanged.
+
+The real Wasm regression attaches while a sibling's legacy store is held,
+releases it, and triggers normal orphan recovery through `observe_store`.
+Entry and floor share one durable batch. Settlement retires the entry, wall
+time rolls back 4,000 ms, and reopening still issues the admission's time.
+An injected `DeviceCore` backfill refusal rejects startup without sending or
+retiring the legacy entry; retry succeeds and sends once. Rust cases prove
+atomic recovery batches and rollback, and memory/SQLite floor preservation
+through recovered enqueue, receipt upsert, retirement and restart. The legacy
+queue maximum is now in the middle. Bridge upgrade fixtures write old records
+directly because current enqueue now correctly preserves the floor; Rust
+fixtures restore their intended legacy floor after constructing the queue.
+
+Focused checks: 9 Rust clock tests, 40 clock/regression tests and 14
+browser/wire/native tests pass. Four deliberate mutations fail and were
+restored: first-entry-only backfill, enqueue without a floor update, upsert
+without a floor update, and ignoring the backfill refusal. Full
+`scripts/test.sh`, exit 0: **`== 0 failure(s) in 463 s`**.
+Regular clients: 1,562 passed, 10 existing skips; all 78 model tests passed with
+5,000 / 5,000 / 3,000 sequences. No lane-owned, baseline or environmental failure
+was waived. Held browser expiry lateness was 1, 2, 1, 1 and 1 ms. Wasm is
+1,776,761 B raw / 495,516 B gzip, up 222 raw / 98 gzip bytes and below the
+unchanged 496,000 B ceiling. Reference audit: zero errors, zero unchecked refs.
+
+No new Quarry form, public client API or refusal code, server implementation
+change, authorization/disclosure/meter weakening, push, package publication or
+iOS simulator claim. No known open finding. File map, examples, fixture changes,
+mutation results and qualification:
+[Lane Y round-6 report](reports/20260925-lane-y-r6.md).
+
+
+## 2026-09-25 — Lane Y round 7: recovery advances live device time
+
+Implemented both round-6 delta review findings in `e39a43dec`.
+`ServerClock.raiseIssued(time)` raises the live issued floor without changing
+estimated server time and notifies deadline subscribers, including a 1 ms
+crossing. Orphan adoption reports the maximum transferred admission time after
+the destination commit, on the serialized device chain. The local client
+registers its listener before attachment and the first store observation.
+Admissions already waiting behind recovery clamp their execution timestamp to
+the durable floor; their journal capture remains synchronous before the first
+await. Journal replay uses the same helper. The clock card and operations
+reference describe this behavior.
+
+New live local-client/Wasm tests attach at wall 1000000, recover admissions at
+1002000 and 1004000, and require the same client's clock and its next admission
+to reach 1004000 without reopening. One recovers during the first startup
+observation; another holds the persistence commit while a mutation captures its
+journal record, then requires the queued admission's actual time to respect the
+recovered floor. A controlled held read republishes at a 1 ms recovered deadline
+crossing without wall-time advancement. Unit coverage checks invalid/lower
+floors and isolation from estimated server time. Memory/SQLite recovery tests
+now start from a nonzero 1002000 floor and require 1004000 after retirement and
+rollback; the web transfer has two increasing times and keeps its atomic-batch
+and live/reopen assertions.
+
+Focused checks: 44 clock/live/regression tests, 14 browser/wire/native tests,
+and 9 Rust durability tests pass. Five deliberate mutations fail and were
+restored: zero-only floor writes, late listener registration, unclamped waiting
+admissions, silent floor increases, and first-transferred-time selection.
+Wasm remains 1776761 B raw / 495516 B gzip, below the unchanged 496000 B
+ceiling. Held browser expiry lateness in the final full run was 2, 2, 2, 2 and
+2 ms. No changed source exceeds 1500 lines. Reference audit: zero errors and
+zero unchecked references.
+
+The first full run reported `== 1 failure(s) in 627 s`: an environmental
+5000 ms timeout in the unchanged revoked-bearer streaming HTTP test. It passed
+alone in 1117 ms and in the full retry in 1040 ms. No test or timeout was relaxed.
+The full retry used the suite's existing serial-client-file option and passed:
+**`== 0 failure(s) in 1385 s`**, exit 0. All 1566 regular client tests passed,
+with 10 existing skips, and all 78 model tests passed with 5000 / 5000 / 3000
+seeded sequences. Final failures: lane-owned 0, baseline 0, environmental 0.
+The report also records the corrected development-only typing/fixture failures.
+
+No new Quarry form, public client API or refusal code; no server implementation
+change, authorization/disclosure/meter weakening, push, publication, ceiling
+increase or iOS simulator claim. No deviation from the round-7 brief and no
+known open finding. File map, examples, implementation choice and qualification:
+[Lane Y round-7 report](reports/20260925-lane-y-r7.md).
+
+
+## 2026-09-25 — Lane Y round 8: every admission commit reaches the live clock
+
+Implemented all round-7 delta review findings in `db1ae3c00`. The web host now
+notifies the live clock from its shared outbox commit boundary, using the maximum
+admission time in the existing bounded change batch. This covers ordinary
+admission, deferred journal recovery, orphan transfer and receipt/replay upserts.
+Notification follows successful persistence and committed-answer invalidation,
+before another serialized device call can execute. The separate orphan-only
+notification has been removed; no new queue scan or device round trip was added.
+Restore commits available orphan outboxes and their floor before its own journal
+replay. Failed saves reject restoration and leave the journal unadmitted.
+Backend adoption and store observation use the same recovery order. Synchronous
+journal capture and execution-time clamping remain intact.
+
+Four actual-Wasm regressions cover an idle client whose journal recovers only
+after backend adoption, adoption of a returned admission timestamp without host
+notifications, reload from a held-save crash checkpoint, and repeated rejected
+saves followed by successful lazy restoration. The crash checkpoint contains
+only durable stores and the synchronous journal. A waiting admission captured
+at 1000000 must replay after orphan times 1002000 and 1004000 and use 1004000.
+Failed restoration must preserve the captured record byte-for-byte and keep it
+out of the outbox. Both the live clock and stored timestamps are asserted.
+Four deliberate mutations fail and were restored: journal-first restore,
+suppressed notifications, ignored returned admission time, and notification
+before persistence. Initial held-save fixtures needed a published store identity
+before journal capture; those lane-owned development test errors were corrected
+without relaxing production identity checks.
+
+Focused checks: 48 clock/live/recovery/regression tests and 76 existing
+navigation/durability tests pass. Full `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 416 s`**. All 1570 regular client tests passed, with 10
+existing skips; all 78 model tests passed with 5000 / 5000 / 3000 seeded
+sequences. Full-run failures: lane-owned 0, baseline 0, environmental 0; none
+waived. Held browser expiry lateness was 1, 1, 2, 2 and 1 ms. Wasm remains
+1776761 B raw / 495516 B gzip, below the unchanged 496000 B ceiling. Reference
+audit: zero errors and zero unchecked references. No changed source exceeds
+1500 lines.
+
+No new Quarry form, public client API or refusal code; no server implementation
+change, authorization/disclosure/meter weakening, push, publication, ceiling
+increase or iOS simulator claim. No deviation from the round-8 brief and no
+known open finding. The clock card and operations reference describe the full
+commit and restore rule. File map, examples, implementation choice and evidence:
+[Lane Y round-8 report](reports/20260925-lane-y-r8.md).
+
+
+## 2026-09-25 — Lane X: SQL/Convex Rosetta, familiar guesses and shorter first reads
+
+Implemented LLP 3000.013’s Lane X: `guide from-sql` with `sql`, `convex`
+and `rosetta` aliases and first-screen entry points; repeated `where` combines
+with `and`; a helper in `m.q` accepts `m.helper(...)` with checked ownership.
+A filtered row compared with itself receives E_QUARRY_SELF_EQUALITY and a
+named-key nested-read repair. Nullable helper arguments, aggregate declarations,
+`.length`, `count(*)`, `limit` and duplicate sync have concrete repairs; `len`
+remains refused with its existing mechanical `check --fix` behavior.
+
+The six core cards now open with paved examples and short limits. Their word
+count falls from 18,300 to 10,417 (43.1%); opening reductions range from 78.5%
+to 96.8%. All 17 original compiled Quarry blocks are preserved byte-for-byte.
+All 133 original prose fragments have tested homes: 79 in dedicated why pages,
+54 in Details. Facts stay reachable under every diagnostic guide context.
+All 207 why pages fit 4,096 bytes; the largest default authored page is 4,039
+bytes. No source file added or enlarged by this lane exceeds 1,500 lines.
+
+Native engine, wasm/memory and native/SQLite witnesses check nested keys, predicate ordering,
+short-circuiting, helper placement and recursion, same-result metering, and
+an explicit foreign-owner read through a qualified helper that returns null
+before projection. Eleven guesses were replayed through the exact baseline
+`f5efae87f` CLI and this lane; every repaired fixture compiles. Evidence lanes
+were read-only; missing failed source text is labelled as reconstructed.
+The external target-clique.q checks with zero problems and the same six notes
+as baseline. The guide authorization census gained the new/reordered examples;
+no normalized prior authorization fact was removed.
+
+Final default-concurrency `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 443 s`**. Regular clients: 1,509 passed, 10 existing skips;
+all three models retain 5,000 / 5,000 / 3,000 sequences. The first serial run
+was `== 2 failure(s) in 1442 s`: nine introduced test failures in the Rust and
+client phases, all corrected and listed in the report. No failure was waived.
+Ref-check: zero errors/unchecked. Wasm: 1,775,799 B raw / 495,258 B gzip against
+the unchanged 496,000 B budget. A damaged Cargo registry extraction was repaired
+from its cached archive before testing; no dependency version changed.
+
+No authorization, disclosure, durability or meter redesign; no client-source,
+Following, package-version, publication or push work. No new calibration or
+suite-speed claim. The supervisor retains integration and release ownership.
+File-by-file changes, word counts, all fact destinations, guess provenance,
+reproduction commands and exact verification receipts:
+[Lane X report](reports/lane-x-report.md).
+
+
+## 2026-09-25 — Lane X round 1: scoped comparisons, pasteable repairs and offline prediction
+
+Closed Astra and Grok's round-zero findings. E_QUARRY_SELF_EQUALITY now refuses
+all six scalar self-comparisons and `in` lists containing the same focal column.
+Read/merge, aggregate-view, maintained-column and timeline-event predicates use
+one validator; nested read keys retain the enclosing scope and inner filters get
+their own. Contextual repairs name the actual count domain and an existing
+compatible argument, or add a typed argument while preserving the declaration.
+Project table declarations supply repair types even across files or declaration
+order. Argument-free derived declarations get an explicit constant repair with
+an intent warning. These repairs never run mechanically through `check --fix`.
+
+The qualified-helper witness now submits predictable mutations fully offline on
+wasm/memory and native/SQLite. Each has a real predicted outbox row. Local queries
+return the owner's doubled value with pending metadata, hide a foreign-owned row
+in the pending overlay, and confirm that neither offline write reached the server.
+Six language regressions and a CLI paste test cover the review reproductions,
+all operators, nested scopes, declarations and actual diagnostic repairs.
+All 133 moved guide facts and 17 original compiled blocks remain covered; the
+cards total 10,420 words, still 43.1% below the 18,300-word baseline.
+
+Final default-concurrency `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 409 s`**. Client tests: 1,509 passed, ten existing skips.
+Client models: 78 passed; 5,000 / 5,000 / 3,000 sequences retained. The first run
+was `== 1 failure(s) in 411 s`: three introduced instances of the shared
+empty-scan meter test used the newly forbidden `.roomId != .roomId`. The fixture
+now compares its distinct `r...` room ids with its `m...` row ids; every empty
+result, meter-cut and continuation assertion is unchanged and passes on all
+three runners. No failures were waived or attributed to the older baseline.
+Ref-check: zero errors/unchecked. Wasm remains 1,775,799 B raw / 495,258 B gzip
+within the unchanged 496,000 B budget. The external target checks with zero
+problems and its six existing notes.
+
+No engine, authorization, disclosure, durability, meter, client-source, Following,
+version, push or publication changes. No unresolved review finding. The existing
+suite wall-time budget overrun remains outside this lane. File map, engineering
+decisions, tests, reproductions and log digests:
+[Lane X round-one report](reports/lane-x-round1-report.md).
+
+
+## 2026-09-25 — Lane X round 2: safe repairs, nullable presence and mutation-resistant tests
+
+Closed Astra and Grok's round-one delta findings. Declaration repair boundaries
+now follow parsed layout tokens and balanced delimiters, including an unindented
+closing parenthesis in a multiline predicate. Every source replacement range is
+checked before splicing; uncertain types or spans yield a refusal without a
+replacement. Projected view columns use the ordinary binder's inferred types,
+including renamed and computed fields, rather than a guessed id argument.
+
+Optional focal columns retain inclusive ordered self-comparisons as presence
+tests in reads and nested keys, including late and cross-file declarations.
+Required inclusive comparisons and the other accidental self-comparisons remain
+refused. Optional ordered aggregates retain the baseline E_QUARRY_MAINTAIN
+restriction, verified against the saved f5efae87f binary; no constant-true repair
+is emitted for them. Nested-key repairs require a matching enclosing column and
+a known bound, preserve other conjuncts and page/order clauses, and fall back to
+an argument when needed. Ambiguous count-star no longer returns prose as code.
+
+Added six language regressions, a checked-splice unit test, exact count-star CLI
+paste assertions, and offline nullable-presence/guarded-update witnesses on both
+wasm/memory and native/SQLite. The qualified helper in Write.condition predicts
+value 21 for x = 7; a false guard leaves it unchanged. Existing pending-overlay
+owner visibility and foreign-row hiding assertions remain. Actually deleting
+seek traversal, deleting Write.condition traversal, and emitting the prose
+count repair each failed the corresponding test. All mutations were restored.
+
+Targeted language/guide tests: 101 passed; language units: 20 passed; CLI: three
+passed; both-store witness: passed. One full default-concurrency scripts/test.sh
+run, exit 0: **== 0 failure(s) in 423 s**. Client tests: 1,509 passed, ten existing
+skips; models: 78 passed with all 5,000 / 5,000 / 3,000 sequences retained.
+Final failures: ours zero, baseline zero, environmental zero. The report records
+six corrected introduced development-test failures and the deliberate mutants.
+No failure was waived. The external Clique target has zero problems/six existing
+notes. Ref-check has zero errors/unchecked. Wasm remains 1,775,799 B raw /
+495,258 B gzip under the unchanged 496,000 B budget.
+
+All 133 fact homes and 17 original compiled blocks remain tested. Six cards total
+10,422 words versus 18,300 originally (43.0% reduction); openings total 860 versus
+12,540, with every card exceeding the two-thirds target. No engine, store,
+authorization, disclosure, durability, meter, client-source, Following, version,
+push or publication changes. No unresolved round-two finding; the existing
+60-second suite wall-time budget remains exceeded on this shared host.
+File ledger, examples, compatibility reproductions, fact mapping, per-card
+measurements, exact tests and log digests: [Lane X round-two report](reports/lane-x-round2-report.md).
+
+Verification note: one final ref-check invocation used the fence as its working
+directory and reported missing LLPs. This was an invocation error, corrected by
+running from the repository root; no reference or source edit was needed.
+
+
+## 2026-09-25 — Lane X round 3: source-preserving repairs and scoped fresh names
+
+Closed Astra and Grok's round-two delta findings. Self-comparison repairs now
+splice exact comparison token spans in the author's source. They never reprint
+retained expressions. Named-key repairs insert the key and replace just the bad
+comparison with true; the remaining nested keys, comments, grouping, predicates,
+page size and order remain verbatim. Existing/new argument and constant repairs
+use the same checked source edits. Parser-only comparison spans never reach the
+schema, IR or device payload. Fresh parameter names scan bindings at every depth
+within the current declaration, excluding focal column names and later operations.
+
+Added four Rust regressions. Pasting Astra's repair and executing the two-row
+example now gives a's roster exactly a; the test also covers empty/existing key
+lists. Existing/new argument repairs retain a commented multiline nested key and
+return the correct row. Nested local bindings receive fresh names, later bindings
+do not rename this operation, and same-named bool/text columns require the typed
+argument fallback. The device witness now runs the pure due <= due presence
+query online and offline on wasm/memory and native/SQLite, with the undated row
+excluded independently of any other disjunct.
+
+Actually weakened the type-equality guard, omitted only the <= null guard, and
+reintroduced the retained-key scope change in three temporary source mutations.
+Each built and failed its designated test; the scope mutation compiled its bad
+repair and failed at runtime with zero roster rows instead of one. Restored every
+mutation and reran the correct-code checks. Targeted results: 125 language/unit/
+guide tests, three CLI tests and the both-store witness passed. The report records
+an obsolete exact-rewrite expectation and three incorrect Value::field test
+assertions corrected during development; no failure was waived.
+
+One full default-concurrency scripts/test.sh run, exit 0:
+**== 0 failure(s) in 418 s**. Client tests: 1,509 passed, ten existing skips.
+Models: 78 passed with all 5,000 / 5,000 / 3,000 sequences retained. Final failures:
+ours zero, baseline zero, environmental zero. Ref-check: zero errors/unchecked.
+The external Clique target has zero problems and six existing notes. Wasm remains
+1,775,799 B raw / 495,258 B gzip under the unchanged 496,000 B budget. The why page
+is 2,250 rendered bytes within 4,096; all 133 fact homes and 17 original compiled
+blocks remain tested. Core-card counts remain 10,422 words versus 18,300, with
+860 opening words versus 12,540 and each opening meeting the two-thirds target.
+
+No engine, store, authorization, disclosure, durability, meter, client-source,
+Following, version, push or publication changes. No unresolved round-three
+finding or deviation from the brief. The existing optional-aggregate/point-seek
+restrictions and shared-host suite wall-time budget overrun remain unchanged.
+File ledger, examples, exact tests, mutation evidence, word counts, fact/guess
+mapping and log digests: [Lane X round-three report](reports/lane-x-round3-report.md).
+
+## 2026-09-25 — LLP 3000.013 lane X, round four: verify offered source repairs
+
+Addressed both delta reviews of round three. Self-comparison and count(*) source
+repairs now carry checked replacement spans. The compiler patches and reparses
+only the affected declaration, binds it against the project declarations, and
+withholds the rewrite if parsing, binding or admission fails. Named-key repairs
+also bind the intended read AST in the same scope and compare actual point/page
+plans using existing source-to-IR mappings. No syntax tree is printed into a
+repair; no other operation is rebound and no recursive diagnostic compilation
+occurs. Uncertain proofs keep the refusal and explanation without a rewrite.
+
+Key edits remove a sole comparison with its where, or one conjunct with its
+adjacent and; insert named equalities before the first parsed seek; carry grouped
+reads' full opening token; and reuse trailing commas. Tests paste and execute
+id/unique point reads, explicit pages, grouped reads, all four seek operators,
+existing/nested operands, trailing-comma keys and conjunct/repeated-where cases.
+Three injected-bad-repair tests cover syntax/name/type failures, compiling
+point/page changes in both directions, and count(*) prose. Earlier executed
+nested-scope and both-store prediction/visibility witnesses remain intact.
+Standalone shapes without a focal type and helper signature edits have no local
+proof and get no rewrite; existing-argument helper repairs remain checked.
+The earlier independently invalid point-seek probe now has no broken repair.
+
+Actually removed the comma separator guard, the plan-class comparison and the
+verification gate in three temporary mutations. Each built and failed its
+specified test with exit 101; each was restored before the final checks.
+Restored targeted validation: 134 language/unit/guide tests and three CLI tests
+passed. One full scripts/test.sh run exited 0, with the exact summary:
+**== 0 failure(s) in 469 s**. Final failures: ours zero, baseline zero,
+environmental zero. Client tests: 1,509 passed, ten existing skips. Client models:
+78 passed, preserving all 5,000 / 5,000 / 3,000 sequences. Development failures
+and their corrections are recorded in the report; none was waived.
+
+Ref-check: 509 LLP docs, 9,282 refs, zero errors/unchecked. External Clique target:
+zero problems and six existing notes. Wasm: unchanged 1,775,799 B raw / 495,258 B
+gzip under the unchanged 496,000 B budget. Rendered why E_QUARRY_SELF_EQUALITY:
+2,583 bytes within 4,096. All 133 fact homes and 17 original compiled blocks remain
+tested; core cards remain 10,422 words versus 18,300, with 860 opening words versus
+12,540. Every changed source file stays below 1,500 lines.
+
+No unresolved round-four finding or design deviation. No engine, store,
+authorization, disclosure, durability, meter, client-source, Following, package
+version, push or publication change. Existing aggregate/seek restrictions and
+the shared-host wall-time budget overrun remain unchanged. Implementation:
+3c3a69461. File ledger, examples, guess/fact mapping, word counts, limitations and
+log digests: [Lane X round-four report](reports/lane-x-round4-report.md).
+
+## 2026-09-25 — LLP 3000.013 lane X, round five: aggregate repair context
+
+Addressed Grok's aggregate repair finding and both requested mutation tests.
+When a named point key fails to bind in its enclosing declaration, verification
+now retries the same source with first 1, provided id or a total unique key
+proves that this preserves the whole population. The page candidate must pass
+ordinary compilation/admission and the intended plan-class check. A compiling
+wrong-plan candidate cannot trigger this retry. Valid point reads and existing
+multi-row pages remain unchanged. Candidate-specific messages and replacements
+are now published together only after verification; a rejected named key leaves
+neither a rewrite nor misleading advice.
+
+Tests paste and execute count and sum repairs for id and a non-id unique key,
+both direct and grouped. They also retain full counts for capped non-unique
+pages and tied null keys, refuse an unprovable single-row fallback, and ensure
+an invalid helper body gets no repair even without an external caller. Actually
+skipping count-candidate verification produced the noncompiling point argument
+and failed its paste test with exit 101. Actually deleting the synthetic helper
+invocation leaked a repair for int + bool and failed the new helper test with
+exit 101. Both mutations were restored before final validation. Fixture
+assumptions corrected during development are recorded in the report.
+
+Restored-code checks: 140 language/unit/guide tests and three CLI tests passed.
+One full scripts/test.sh run exited 0, exact summary:
+**== 0 failure(s) in 574 s**. Final failures: ours zero, baseline zero,
+environmental zero; none waived or retried. Client tests: 1,509 passed, ten
+existing skips. Client models: 78 passed, with all 5,000 / 5,000 / 3,000 sequences
+retained. The wasm/native familiarity witness passed. Wasm remains 1,775,799 B
+raw / 495,258 B gzip, under the unchanged 496,000 B budget. Ref-check: zero
+errors/unchecked. External Clique target: zero problems, six existing notes.
+Rendered why E_QUARRY_SELF_EQUALITY is 2,892 bytes within 4,096. Core cards remain
+10,422 words versus 18,300, with 860 opening words versus 12,540; all 133 fact
+homes and 17 original compiled blocks remain tested. Changed source files stay
+below 1,500 lines. Frozen Bun installation changed no dependencies.
+
+No unresolved round-five finding or design deviation. The existing fully pinned
+extra-key page restriction still withholds an unverified repair; this round does
+not alter planner admission. No authorization, disclosure, durability, runtime
+meter, store, client-source, Following, version, push or publication changes.
+The existing shared-host wall-time target remains exceeded; no thresholds were
+reduced. Implementation: d56014670. File ledger, forms, tests, mutation evidence,
+limitations, counts/mappings and log digests:
+[Lane X round-five report](reports/lane-x-round5-report.md).
+## 2026-09-25 — LLP 3000.014 Lane T: server inheritance and keyed aggregates
+
+Implemented revision 8 increments 1 and 3 on `sb4-intent/t-read-through`:
+whole-rule `read through .ref`, immutable private captures, prepaid insert-arm
+reservations, authority-first parent deletion, recursive effective deadlines,
+physical-reference reuse guards and child-first sweeping. Parent-pinned pages
+and reference-keyed counts use the four-outcome parent resolver. Captured-path
+maintains such as Clique's `.message.chat, .principal` derive their rule from
+the captured inputs and keep live rule probes. Unsafe aggregate scans refuse.
+The shared expiry classification covers lookup, caps, maintains, grants and
+admission; engine fields are refused in authored payloads and hidden in reads.
+
+SQLite, PostgreSQL and native memory now stage inheritance activation at one
+pinned instant, retire affected rows under the predecessor schema, compare
+audience correspondence before projection, fill captures, validate and publish
+atomically. PostgreSQL gains generation fencing. Seeds/imports order ancestors
+first; restored captures are validated without recapture and their effective
+deadlines are recomputed. Non-inherited ingestion retains its streaming path.
+
+Qualification: 23 focused language/server tests, 80 guide tests, and seven
+additional tests against an isolated PostgreSQL 16 cluster passed. The issue
+tracker, both four-level chains, Clique receipts/reactions/unread, three-level
+expiry, restore/import rollback and reservation/meter worlds run across the
+adapters. Final full `scripts/test.sh`: **`== 0 failure(s) in 552 s`**, exit 0.
+Rust: 2,986 passed, zero failures, 16 ignores. Clients: 1,591 tests, 1,581 passed,
+zero failures/cancellations, ten skips. Fixture wrappers: 9/9. Both session
+models completed all 5,000 sequences under their unchanged limits. Command:
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=4 scripts/test.sh`.
+Reference audit: 508 LLP docs, 9,278 references, zero errors and zero unchecked.
+
+Fresh same-toolchain wasm builds of base `4a661aacb` and the lane measure
+1,767,624 / 492,339 bytes and 1,790,122 / 499,539 bytes (raw / gzip): +22,498
+raw and +7,200 gzip for the shared schema/capability, engine-field, expiry and
+interpreter paths. This is a whole-artifact delta, not per-component attribution.
+The documented size ratchet rises from 493,000 to 500,000 bytes, leaving 461
+bytes. Runtime meter ceilings are unchanged; native activation stays out of wasm.
+
+The first complete run had four failing categories, all accounted for in
+[the report](reports/20260925-intent-lane-t-server.md): the initial size ratchet,
+cold package declarations, two activation/fixture failures, and three assertions
+about a direct JSON decoder. The final run passes all four categories. Two
+optional pre-existing PostgreSQL conformance failures were reproduced on an
+untouched `4a661aacb` archive: the ambiguous positional wide-key fixture and
+word-search heap parity. Neither is waived into the full-suite result.
+
+Stopped the contradictory expired-but-unswept child deletion corner: section 6
+allows deletion without live children, while section 3.3 prohibits removal under
+any physical child. It fails closed until sweeping, with a regression and exact
+counterexample for the supervisor. Missing/ambiguous adoption correspondence
+also refuses; no unspecified explicit mapping API was invented. Inherited
+imports use normal immutable upserts, and the normative reference immutability
+must be authored explicitly. Full file map, individual tests, deviations and
+reproductions are in the report. Sync/devices remain increment 2 and inherited
+`sync` refuses `E_READ_THROUGH_SYNC`; the broader guide rewrite remains
+increment 4. Did not push, publish, bump package versions or redesign the RFC.
+
+## 2026-09-25 — LLP 3000.014 Lane T round 1: blind review fixes
+
+Closed all three High and two Medium findings from Astra and Grok. Aggregate
+point reads hoist authorization only when their key determines the rule inputs;
+otherwise the rule sees the live aggregate, including its logical zero. Denial
+stays null and aggregate existence is false for absent/unreadable parents.
+Capture identity now includes the parent expiry column's type and default,
+so changing a default recaptures descendants in ancestor order. Expired-id
+reuse checks read authority before child probes; every child table is probed
+under one fixed reservation, and an occupied result restores that charge and
+returns the ordinary live-collision constraint/meter. Parent deletion uses one
+message for every occupied table and for live or expired children.
+
+Six shared regression scenarios pass on SQLite, native memory and PostgreSQL.
+They cover value-dependent aggregate rules, stale stored totals and zero,
+time-100 adoption of defaults 300 then 150 through a grandchild, live/expired
+collision equivalence with two differently sized child tables, insufficient
+examined/heap reservations, aggregate existence, deletion disclosure, and real
+`exists`-probe meters in missing/unreadable worlds. All five High/Medium cases
+failed against the reviewed production code before the fixes. The cursor
+witness now follows all 25 tied-sort ids exactly once and checks exhaustion.
+Deliberately ignoring its continuation fails that test; deliberately charging
+the parent probe only after finding the row fails the meter test. Both temporary
+mutations were restored before qualification.
+
+The author confirmed that any physical child blocks parent removal until
+deleted or swept. This implementation decision, including the single refusal
+message and reuse disclosure boundary, is recorded in LLP 3000.014 §11 beside
+the design. The rules card and its definition/action pins match that decision.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 213 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 2,992 passed, zero failures, 16 ignores. Clients: 1,591 tests, 1,581 passed,
+zero failures/cancellations, ten skips. Fixture wrappers: 9/9. All 80 guide tests
+pass; both session models ran all 5,000 sequences under unchanged limits.
+The 13 additional PostgreSQL inheritance/review tests passed on an isolated
+PostgreSQL 16 cluster, which was stopped afterward. No failure waiver.
+
+The first full run was `== 1 failure(s) in 412 s`: ours, the guide definition
+test still pinned "deleting the named live children" after the required message
+change. Updated the two expectation tables to require deleting live children,
+sweeping expired children and naming no occupied table. The final run passes.
+
+Fresh same-toolchain wasm control `ea65b80a2`: 1,790,122 raw / 499,539 gzip
+bytes. Round 1: 1,793,057 / 500,855, a whole-artifact delta of +2,935 raw /
++1,316 gzip. Shared aggregate authorization/existence and collision/probe code
+exceeded the old 500,000-byte size ratchet by 855 bytes; raise it to 501,000,
+leaving 145 bytes. This is not independent component attribution. The compiler
+expiry-identity change stays outside wasm; runtime meter ceilings are unchanged.
+
+File map, negative controls and complete failure history:
+[round-1 report](reports/20260925-intent-lane-t-round1.md). Logs are
+`~/sb4-intent/lane-t-r1-*.log`. No new open review findings or design deviations.
+Sync/devices and the broader guide rewrite remain deferred. Did not push,
+publish or bump package versions.
+
+
+### 2026-09-25 — Lane T round 2: bounded aggregate authorization and due adoption
+
+Addressed both NOT READY delta reviews (`t-r1.astra.md`, `t-r1.grok.md`).
+Value-dependent reads of expiring read-through aggregates now reserve a uniform
+physical-cap-bounded recount allowance before discovering occupancy. Missing,
+occupied and expired physical groups pay the same heap, examined and steps;
+denial restores dependency tables and the next expiry. Unbounded declarations
+refuse with `E_MAINTAIN_READ_BOUND`, including raw-schema validation. Extracted
+live aggregate evaluation from `read.rs` to stay under the source-size limit.
+Extra-equality aggregate `exists` now checks presence before matching a nullable
+value. Activation recaptures a physically present parent's newly due deadline,
+then recomputes every descendant; actually missing parents still refuse.
+
+The shared regressions pass on memory, SQLite and PostgreSQL. They cover all
+reply metadata on SQL adapters, exact native refusals/meters, narrow and wide
+source rows, tight heap/examined/step ceilings, nullable existence operands,
+and the 300-to-150 default change adopted at time 200. A positive membership
+witness rejects an always-false exists probe. The round-1 implementation fails
+five new regression cases; the always-false probe mutation fails separately.
+Temporary mutations were restored. Targeted qualification: 33 read-through
+and 80 guide tests passed; PostgreSQL: 15 passed, isolated cluster stopped.
+Ref-check: 508 LLP docs, 9,284 refs, zero errors and zero unchecked references.
+
+`scripts/test.sh` ran once: **`== 0 failure(s) in 451 s`**, exit 0.
+There were no full-suite failures to classify as ours, baseline or environmental.
+Client tests: 1,557 total, 1,547 passed, 10 skipped, zero failed. Earlier test
+fixture/compiler-positive-control mistakes and new-code guide routing failures
+were ours and fixed; deliberate regression/mutation failures are recorded in
+`reports/20260925-intent-lane-t-round2.md`.
+
+Fresh Rust 1.97.0 / wasm-bindgen 0.2.127 control `7daaa51ae` measured
+1,793,057 raw / 500,855 gzip bytes; final measured 1,797,060 / 502,035:
++4,003 raw / +1,180 gzip. This is a whole-artifact comparison, not component
+attribution. The first build exceeded the old artifact ratchet by 1,035 bytes;
+raise 501,000 to 503,000 with 965 bytes headroom. Runtime ceilings are unchanged.
+LLP 3000.014 §11 records the conservative source-cap proof, uniform reservation
+and activation correction beside the existing physical-child deletion ruling.
+No syntax, cursor/store format, sync/device support, broad guide rewrite,
+unrelated baseline repair, push or publication was added. No requested review
+fix remains open. Full file map, choices and evidence are in the round-2 report.
+
+
+### 2026-09-25 — Lane T round 3: authorize expiring aggregates from group keys
+
+Addressed the Astra/Grok round-2 delta reviews by refusing the entire unsafe
+class. `E_MAINTAIN_READ_EXPIRE` rejects value-dependent authorization over any
+expiring source, including an inherited effective deadline, even with a source
+cap or `online only`. The rewrite names group-key authorization or inheritance.
+Compiler and raw-schema validation agree; LLP 3000.014 §5 records the requested
+implementation decision. Non-expiring value-dependent authorization remains.
+
+Removed the pre-authorization recount, cap proof and prepaid counters. A point
+read reserves uniform scratch and one examined lookup before discovering
+occupancy, authorizes before a live recount, then releases temporary scratch on
+hits, misses and denials while retaining returned images, work, heap peak and
+cuts. Denied dependency-table and expiry restoration remains. Explicit key rules
+also preserve the prohibition on scanning parent-group aggregates.
+
+The refusal matrix covers direct/inherited expiry, caps, `online only`, the
+reviewers' stored-total page and signed-overflow programs, raw schemas and
+compiling repairs. Sequential wide-row reads complete under the default heap
+ceiling on memory, SQLite and PostgreSQL. A 65-contribution witness proves
+multi-batch live recounts (65 before expiry, 32 afterward). Six updated tests
+fail against round 2; separate scratch-retention and first-batch-only mutations
+fail their witnesses and were restored. Targeted qualification: 38 read-through
+and 80 guide tests; after the compatibility correction, 125 affected tests.
+PostgreSQL: 17 passed on the isolated cluster, stopped afterward. Ref-check:
+508 LLP docs, 9,284 references, zero errors and zero unchecked references.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 258 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 3,001 passed, zero failed, 16 ignored. Clients: 1,557 total, 1,547 passed,
+zero failed, ten skipped. The first run was `== 1 failure(s) in 272 s`:
+five failures, all ours, in core `corpus`, two device `read_authority` cases and
+two language `derived_maintains` cases. Synthetic admission applied too broadly
+changed ordinary zero/raw-null outcomes. Restricting it to read-through groups
+restored those outcomes; all five pass. The report names every failure.
+No baseline or environmental failure was waived or repaired.
+
+Fresh Rust 1.97.0 / wasm-bindgen 0.2.127 control `5cba90e42` measured
+1,797,060 raw / 502,035 gzip bytes; final measured 1,795,777 / 501,638:
+−1,283 raw / −397 gzip, a whole-artifact comparison without component
+attribution. Keep the 503,000-byte artifact budget (1,362 bytes headroom) and
+all runtime ceilings unchanged. No source exceeds the lane's size limit.
+
+No requested fix remains open. No syntax, cursor/store format, sync/device
+feature, broad guide rewrite, push or publication was added. The requested
+restriction deliberately supersedes the round-2 cap exception and its old
+refusal code. File map, examples, negative controls and complete failure
+accounting: [round-3 report](reports/20260925-intent-lane-t-round3.md).
+
+
+### 2026-09-25 — Lane T round 4: constant aggregate dependencies and denied expiry
+
+Addressed the Astra/Grok round-3 delta reviews. Keyed reads and raw rule probes
+of aggregates over expiring sources now register the source table before
+occupancy or authorization is discovered. Empty, expired-only, live and denied
+groups share that dependency. The schema-derived helper also covers aggregate
+pages and the live-recount wrapper; removed the conditional insertion inside
+the recount. Existing denial expectations now include the source as required.
+
+The expiry snapshot precedes synthetic authorization. Every denial restores it,
+including the later stored-value path; failed or cut aggregate reads retain
+charges and cuts but discard deadlines learned within that read. A successful
+earlier read keeps its own deadline. No public inspection API was added:
+native MemoryRows unit tests inspect the server runner inside the core.
+
+The author accepted the cost channel from an authorized group's unswept expired
+backlog. Recounts still charge every visited row and step and can become
+unavailable at the examined ceiling. LLP 3000.014 §5 records that decision in
+one sentence, and the maintains card explains it alongside the metadata rule.
+A 40-row expired backlog costs 41 examined rows versus one for a miss and cuts
+at a ceiling of 16; denied readers have identical replies and meters.
+
+Five shared scenarios cover constant dependencies, the absent/300/500 private
+gate worlds, ordinary expiring pages, positive/negative I53 sum overflow, and
+backlog work. Two native MemoryRows tests cover metadata and direct raw probes.
+The shared cases pass on SQLite, native MemoryStore and PostgreSQL; SQL query
+adapters assert completeness and availability. Five current regressions fail
+against round 3. All six mutations fail: stale stored page, late expiry restore,
+conditional source insertion, missing raw-probe dependency, removed I53 check,
+and missing shortcut expiry restore. Every mutation was restored.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 428 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh`.
+Rust: 3,008 passed, zero failed, 16 ignored. Clients: 1,557 total, 1,547 passed,
+zero failed, ten skipped. All 80 guide tests pass. Additional PostgreSQL:
+22 passed on the isolated cluster, stopped afterward. Ref-check: 508 LLP docs,
+9,285 references, zero errors and zero unchecked references.
+
+The first full run was `== 1 failure(s) in 481 s`: two client codec-census
+failures, both ours. The new native unit-test module lacked the neighboring
+native tests' SQLite feature gate, so the census classified its test-only
+cross-crate serde round trips as web-reachable. Added the same test/SQLite gates;
+all 26 census checks then passed, with no census changes or added allowance.
+The report names both failures and the earlier fixture compile correction.
+No baseline or environmental failure was waived or repaired.
+
+The preceding round-3 wasm artifact remeasured at 1,795,777 raw / 501,638 gzip
+bytes; final round 4 measures 1,795,984 / 501,788 on Rust 1.97.0 and
+wasm-bindgen 0.2.127: +207 raw / +150 gzip for the whole artifact, without
+individual component attribution. Keep the 503,000-byte size budget, with
+1,212 bytes headroom, and all runtime ceilings unchanged.
+
+No requested fix remains open. No syntax, refusal code, cursor/store format,
+sync/device feature, broad guide rewrite, push or publication was added.
+File map, examples, mutation controls and complete failure accounting:
+[round-4 report](reports/20260925-intent-lane-t-round4.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round-5 aggregate cut metadata
+
+Addressed the remaining Astra page-cut disclosure and all three mutation gaps
+from the round-4 reviews. `scan_consumed` restores the pre-row expiry mark
+before exiting on an authorization cut. The private probe's deadline cannot
+enter the empty capped reply; prior successful expiry marks, work charges and
+the cut survive. Implementation commit: `ce769c9dc`.
+
+Four shared scenarios cover gate deadlines 300/500 on a capped page, a source
+whose deadline comes only through a parent and middle without local expiry,
+an authorized two-probe shortcut cut, and a live recount cut after the first
+of two finite contributions. Native MemoryRows tests also inspect raw-probe
+dependencies and the shortcut boundary without adding a production API.
+Both shortcut guards are tested independently, because later restoration can
+otherwise mask their removal.
+
+The new page test fails against round 4. All five individual mutations fail:
+remove the page restore; use only declared source expiry; remove either
+shortcut cut guard; remove the failed/cut point-read restore. All mutations
+were restored before qualification. Targeted shared tests: 24 passed on
+SQLite/native MemoryStore. Selected native aggregate unit tests: four passed.
+PostgreSQL: 26 passed on the lane's isolated cluster, stopped afterward.
+
+Final full `scripts/test.sh`: **`== 0 failure(s) in 1162 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust step: 3,014 passed, zero failed, 16 ignored. Clients: 1,591 total,
+1,581 passed, zero failed, ten skipped. All 80 guide tests passed. Ref-check:
+508 LLP documents, 9,286 references, zero errors and zero unchecked references.
+
+The first full run returned `== 1 failure(s) in 272 s`: two client HTTP
+`ECONNRESET` failures in the shared-logout and bounded-route-response tests.
+Classified as transient environmental connection resets: both affected files
+passed all 91 tests together without source changes, and both tests then
+passed in the final full run with client files serialized. The baseline tail
+was checked; its failure was the Rust step, not these client tests. The report
+names every failure. No product/test assertion was changed or waived.
+
+Round-4 wasm was 1,795,984 raw / 501,788 gzip bytes; round 5 is 1,796,003 /
+501,797 on Rust 1.97.0 and wasm-bindgen 0.2.127: +19 raw / +9 gzip for the
+whole artifact, with 1,203 bytes left under the unchanged 503,000-byte budget.
+Runtime ceilings and backlog charges are unchanged. The largest modified
+source is 1,435 lines. No syntax, refusal code, store/cursor format, sync/device
+feature, guide rewrite, push or publication was added. No requested fix
+remains open. File map, examples, mutation witnesses and full failure accounting:
+[round-5 report](reports/20260925-intent-lane-t-round5.md).
+
+
+## 2026-09-25 — LLP 3000.014 Lane T round-6 provisional read deadlines
+
+Addressed Grok's admitted aggregate-page recount cut and uniform-prefix cut,
+and Astra's two-group partial-page witness. Implementation commit: `5c2167257`.
+Deadlines now belong to nested provisional scopes. Point reads and page
+candidates commit on emission; all other exits discard their provisional
+metadata while preserving charges and cuts. Prefix decisions and candidate
+preparation return opaque pending deadlines and cannot publish them directly.
+Removed the redundant point, shortcut, page, prefix and parent-resolver expiry
+restores. Earlier emitted partial-page rows retain their own deadlines.
+
+Four shared scenarios cover admitted point/page recount cuts at private
+deadlines 300/500, uniform ordinary/matching pages with absent/300/500 gates,
+partial pages retaining the first group's 300 deadline, and filtered/lookahead
+candidates that emit nothing. Two native MemoryRows boundary tests prove that
+successful preparation alone cannot publish metadata. Existing shortcut tests
+now use the owning point-read boundary and still observe physical lookups.
+Both reported leaks fail against unchanged round-5 production. All four
+mutations fail independently: premature prefix publication, premature admitted
+candidate publication, missing page-row emission, and missing central emission
+join. Every mutation was restored before qualification.
+
+Targeted shared tests: 28 passed on SQLite/native MemoryStore. Core unit tests:
+91 passed. PostgreSQL: 30 passed (seven original read-through and 23 review
+scenarios), with ignored tests enabled on the lane's isolated cluster; stopped
+that cluster afterward. Ref-check: 508 LLP documents, 9,286 references across
+25,909 files, zero errors and zero unchecked references. The reviewer's
+throwaway `delta_probe.rs` was absent. Frozen Bun install changed nothing.
+
+Full `scripts/test.sh`: **`== 0 failure(s) in 1320 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust: 3,020 passed, zero failed, 16 ignored. Clients: 1,591 total, 1,581 passed,
+zero failed, ten existing skips. All 80 guide tests passed. No baseline or
+environmental failure was waived or repaired, and no assertion was weakened.
+
+Failed preflights, all ours: the first wasm build exceeded the old gzip ratchet
+by 13 bytes; the final scope fast path and a discarded no-inline experiment
+both exceeded it by 28 bytes. A command launched from the worktree root instead
+of `snapback4/` exited 127 before running any tests. The corrected full run
+above passed every step. The report records those attempts and all intentional
+negative controls separately from the successful qualification.
+
+Round 5 remeasured at 1,796,003 raw / 501,797 gzip bytes. Round 6 measures
+1,799,122 / 503,028 on Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt:
++3,119 raw / +1,231 gzip for the whole artifact, without independent component
+attribution. Following the explicit artifact ratchet policy, the implementation
+commit raises the gzip budget from 503,000 to 504,000 bytes, leaving 972 bytes;
+its message and budget `why` record the reason. Runtime ceilings and recount
+charges are unchanged. One fixed control allocation per runner owns stack-sized
+marks; nesting adds no row-dependent ledger. Deferred matching metadata uses
+the existing size-based heap charge. `engine/read.rs` remains 1,436 lines.
+
+LLP 3000.014 §5 and the maintains card record provisional ownership and emission.
+No requested fix remains open. No new form, refusal code, store/cursor/wire
+format, sync/device feature, broad guide rewrite, push or publication was added.
+File map, examples, mutation witnesses, decisions and complete failure accounting:
+[round-6 report](reports/20260925-intent-lane-t-round6.md).
+
+
+## 2026-09-25 — LLP 3000.014 Lane T round-7 predicate expiry dependencies
+
+Addressed the shared Astra/Grok finding that a rejected candidate discarded
+its filter's completed, authorized reads. Implementation commit: `a27d2b1f6`.
+Filters now use a separate provisional scope that commits to the page on both
+match and mismatch. Interrupted predicates still discard their scope. The
+candidate's pending private authorization deadline is inherited only after
+retention or scalar consumption; rejected and lookahead candidates keep it
+private. Charges and cuts are unchanged. This reuses the existing scope
+mechanism, with no new ad hoc restoration.
+
+Five shared scenarios cover intrinsic-ID and secondary-key existence predicates,
+matched-only/rejected-only/mixed rows reading one expiring point predicate,
+a rejected row with private authorization at 300/500 and a public predicate at
+700, and streaming `count(gates)` changing from one to zero at expiry. Every
+predicate case also covers `count(docs where ...)`. Denied witnesses publish
+no deadline. The earlier `unreturned_candidates_discard_expiry` remains green.
+
+All four predicate scenarios fail against round-6 production with a missing
+deadline. Three individual mutations fail: omit the filter emission, publish
+private candidate metadata with the filter, and omit the streaming scalar's
+emission. The last is Astra's surviving mutation. All mutations were restored
+before qualification. Shared review suite: 33 passed on SQLite/native MemoryStore.
+PostgreSQL: 35 passed (seven original and 28 review tests), with ignored tests
+enabled on the lane's isolated cluster; that cluster was stopped afterward.
+
+Full `scripts/test.sh`: **`== 0 failure(s) in 1149 s`**, exit 0.
+Command: `TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Rust: 3,025 passed, zero failed, 16 ignored. Clients: 1,591 total, 1,581 passed,
+zero failed, ten existing skips. All 80 guide tests passed. Ref-check: 508 LLP
+documents, 9,287 references across 25,911 files, zero errors and zero unchecked
+references. Frozen Bun install changed nothing. No baseline or environmental
+failure was waived or repaired; no assertion was weakened.
+
+The initial fixture run had four compile-time failures, all ours: an overly
+wide text argument, distinct intrinsic-ID reference types, an ambiguous
+positional key and an untyped literal rule key. Corrected only the fixtures.
+The intrinsic-ID reproduction uses `rawId(.id)` through the supported generic
+`id` type because the exact cross-table `.id` spelling is already refused by
+this checkout's binder with `E_QUARRY_TYPE`. The named `docId` reproduction is
+unchanged. No compiler or authorization restriction was relaxed. The report
+records this fixture deviation, the negative controls and every failed test
+attempt separately from the successful full qualification.
+
+Round 6 was 1,799,122 raw / 503,028 gzip bytes; round 7 is 1,799,206 / 503,057
+on Rust 1.97.0 and wasm-bindgen 0.2.127 without wasm-opt: +84 raw / +29 gzip for
+the whole artifact, without independent component attribution. The unchanged
+504,000-byte artifact ratchet has 943 bytes of headroom. All runtime ceilings
+and charges are unchanged. `engine/read.rs` is 1,440 lines and the new fixture
+module is 224 lines. LLP 3000.014 §5 records the predicate/candidate distinction.
+
+No requested engine fix remains open. Sync/devices and the guide remain for
+increments 2 and 4 as directed. No syntax, refusal code, store/cursor/wire
+format, publication or push was added. File map, examples, test purposes,
+mutation witnesses and full failure accounting:
+[round-7 report](reports/20260925-intent-lane-t-round7.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round 8: sync, devices and the guide
+
+Landed increments 2 and 4 on `sb4-intent/t-read-through`. Removed the temporary
+`E_READ_THROUGH_SYNC` refusal. Read-through children now infer exactly the
+service-stripped inherited audience, retaining the existing grant guard, and
+carry captures on their sync images. The shared four-outcome parent resolver
+checks live current captures on devices, separately from child coverage.
+Unknown parent or child coverage never becomes a complete zero count. Covered
+inserts and same-chain parents predict; unheld/expired/retained-only parents,
+child upserts and if-absent inserts queue. Parent deletion prediction requires
+whole child coverage. Parent-key counts derive from current held children,
+including a fixed source-scratch reservation for non-expiring sources.
+
+Authoritative sync time is pinned on the server, staged with private images,
+and published atomically before pending-write replay. The durable device clock
+uses the later supplied or authoritative instant; no `local.ts` clock site was
+changed, preserving Lane Y's integration boundary. Fallback replaces current
+pages while preserving retained history. Retention has transient engine
+provenance through shapes/spreads and a separately metered device transport
+mask, so an application field cannot forge it. Only syncing delivered-history
+read-through tables reserve the `retained` output name; existing server-only
+columns keep their meaning. LLP 3000.014 §5 records that implementation choice.
+The rules card leads with a compiled issue tracker and Clique receipts/reactions
+plus the implicit-read unread view; other card edits are limited to the short
+language example and the affected why entries.
+
+Both round-7 delta reviews returned READY. Added their two nonblocking expiry
+witnesses and killed the named mutations. Focused proof includes five compiler
+sync tests, nine memory/SQLite device tests, seven wasm/native client tests,
+four metadata/heap tests, 80 guide tests, 35 shared server review tests, nine
+original read-through tests and 37 PostgreSQL adapter checks. The new device
+cases cover four-level sync, pending chains, capture mismatch after ID reuse,
+retained fallback, inherited expiry before physical sweeping, and atomic clock
+publication. Clique's partitions and answers match the flattened program on
+wasm and native. The historical lowering census still passes with unchanged
+IR for existing forms.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 1130 s`**, exit 0. Rust: 3,042
+passed, zero failed, 16 existing ignored. Clients: 1,598 total, 1,588 passed,
+zero failed, ten existing skips. The final command used `taskset -c 32-47`,
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`, `CARGO_BUILD_JOBS=8`,
+`RUST_TEST_THREADS=4`, `SNAPBACK4_RUST_TEST_PROCESSES=8` and
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`. No test or assertion was waived.
+Earlier fixture compilation, public-clock comparison and generated-type
+expectation failures were ours and fixed. Two parallel-only client observations
+(page-ready loading and session restoration) each passed five isolated repeats
+and the final serial full suite without changing either assertion. They are
+recorded as provisionally environmental/timing-sensitive, not proven baseline,
+with exact reproductions in the report. The host baseline was read; its older
+cargo failure was not used to excuse any failure here.
+
+Final wasm: **1,824,505 bytes raw / 509,390 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Relative to the recorded round-7 artifact
+(1,799,206 / 503,057), the whole artifact adds 25,299 raw / 6,333 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+Per the artifact-budget procedure in AGENTS.md, raise that ratchet from 504,000
+to 510,000 bytes, leaving 610 bytes. Runtime meter ceilings are unchanged;
+retained-mask scratch/output and source recount work remain charged. Touched
+source files stay below 1,500 lines (`local.ts`: 1,499; `schema.rs`: 1,443;
+`engine/read.rs`: 1,297). No package, push, client clock rewrite or additional
+guide-card rewrite was performed. No requested increment is deferred.
+
+File-by-file changes, runnable forms, test purposes, all qualification attempts,
+decisions and unresolved environmental observations:
+[round-8 report](reports/20260925-intent-lane-t-round8.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round 9: device delta review fixes
+
+Fixed all round-8 Astra/Grok device findings on `sb4-intent/t-read-through`.
+Parent-delete prediction now scans only for a live, current, capture-matching
+child before issuing terminal `E_PARENT_HAS_CHILDREN`. Retained history is
+ignored; mismatched, expired or uncovered current witnesses queue with
+`E_PREDICT`. Device-only probing stays under the bounded authority allowance,
+with reusable scratch and queueing on exhaustion. Server physical-child
+protection and its fixed refusal remain unchanged. Reads and deletes share the
+capture comparator, including `$parentDeadline`.
+
+Fallback now follows nested array/object provenance masks and prefers a
+current server row when retained history has the same ID. Deleted history
+stays retained. Authoritative publication includes both restored and
+successfully replay-written tables in `touched`, so a clock-only page wakes
+watches for changed non-expiring predictions, new writes and withdrawals.
+This conservatively invalidates restored tables even when replay reproduces
+the same value. LLP 3000.014 §5 records these implementation clarifications.
+
+Added memory/SQLite regressions for deadline-only parent reuse and replay
+invalidations at times 100, 200 and 300. The actual wasm/native client tests
+cover reused-parent deletion, partial-rejoin ID deduplication and nested
+retained pages with the device's real mask. All ten focused client cases,
+nine existing device read-through cases, two prediction write-set cases and
+58 server read-through/review/transaction checks passed. Five mutation checks
+failed as required: removing the parent-deadline comparison, restoring plain
+concatenation, dropping array recursion, dropping restore invalidation and
+dropping replay-write invalidation. Every mutation was restored before final
+qualification.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 1220 s`**, exit 0. Rust: 3,044
+passed, zero failed, 16 existing ignored. Clients: 1,601 total, 1,591 passed,
+zero failed, ten existing skips. Used the passing round-8 configuration:
+`taskset -c 32-47`, `TMPDIR=/dev/shm/sb4-intent-lane-t-tests`,
+`CARGO_BUILD_JOBS=8`, `RUST_TEST_THREADS=4`,
+`SNAPBACK4_RUST_TEST_PROCESSES=8`, and
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`. No test or assertion was waived.
+The earlier optional device-wide run with default disk-backed temporary
+storage was interrupted during unrelated calibration/search cases; it was
+not counted as a pass, and the required full suite subsequently covered every
+case. Initial regression reds and two fixture/assertion mistakes were ours
+and fixed. A wrong-workspace cargo invocation was rerun inside `snapback4/`.
+The recorded host baseline was read and did not excuse any failure.
+
+Wasm measures **1,828,449 bytes raw / 511,215 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Against round 8's recorded
+1,824,505 / 509,390, the whole artifact adds 3,944 raw / 1,825 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+The inherited 510,000-byte artifact ratchet failed by 1,215 bytes. Following
+AGENTS.md's artifact-budget procedure, record 512,000, leaving 785 bytes.
+Every runtime meter ceiling remains unchanged. All touched source files stay
+below 1,500 lines; `local.ts` and its clock sites were not edited. No requested
+fix is deferred, and no known product problem remains in this round's scope.
+No push, publication, new syntax, new refusal code, wire-format change or
+additional guide-card rewrite was performed.
+
+Implementation commits: `93eb75576` (device) and `888e081b9` (fallback and
+wasm/native regressions). File-by-file changes, examples, test purposes,
+mutation reproductions and complete failure accounting:
+[round-9 report](reports/20260925-intent-lane-t-round9.md).
+
+
+## 2026-09-25 — LLP 3000.014, Lane T round 10: retained fallback uses source identity
+
+Addressed Astra and Grok's round-9 delta reviews. Authorized source rows now
+carry transient `(table, id)` provenance through shapes and agreeing spreads.
+The richer device mask and an explicitly requested server `rowProvenance`
+envelope let fallback pair each outer and inner row by source identity, keep
+table-scoped equal IDs distinct, and replace stale retained copies even when
+`id` is omitted or changed by projection. Identityless or ambiguous subtrees
+stay local and incomplete. Source metadata is metered before allocation and
+transport, ignored by application equality and absent from durable row
+serialization. Ordinary retained point reads keep their existing certified
+component composition; read-through points get the row-level history mark.
+LLP 3000.014 §5 records the identity rule and replaces round 9's projected-ID
+clarification.
+
+Added real-mask wasm/native regressions for reordered `[A,B]` / `[B,A]` pages,
+shifted `[A,B,C]` / `[A,C]` pages, equal IDs across children/reactions and
+projections without `id`. A retained child preceding a live child still
+terminally refuses deletion; an expired unswept matching child queues without
+prediction, on wasm/native and the memory/SQLite adapters. Compiled Rust tests
+cover source propagation, conflicting spreads, hidden rows, equality,
+serialization and heap/output ceilings. All three requested mutations failed:
+index zip (four cases), first-retained early return (native delete), and omitted
+expiry check (device admission). The final focused checks passed 62 Rust tests
+and 20 read-through client tests, plus both existing mixed-query point cases.
+
+Required full rerun, exit 0: **`== 0 failure(s) in 1153 s`**. Rust target runner:
+3,047 passed, 16 ignored; the docs budget separately rechecked one guide case.
+Client: 1,601 passed, 10 skipped, 0 failed (1,611 total). The first full run
+reported **`== 1 failure(s) in 1356 s`**, exclusively the client-tests phase:
+`MQ points wasm: retained history and independent held coverage` and its
+`process` counterpart. Both were ours: applying the read-through row mark to
+ordinary retained points diverted existing component composition and left an
+independent held page at 25 local rows instead of 26 server rows. Restricting
+the mark fixed both unchanged tests. No failure was attributed to or waived as
+baseline/environmental. The baseline tail was read; serial client files,
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`, CPU affinity 32–47, eight build jobs, eight Rust target
+processes and four Rust test threads bounded this lane's parallel work.
+
+`ref-check --verbose`: 508 LLP docs, 9,296 references in 25,927 files,
+zero errors and zero unchecked. `git diff --check` passed.
+
+Final wasm: **1,834,169 bytes raw / 515,083 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127 without wasm-opt. Against round 9's recorded
+1,828,449 / 511,215, the whole artifact adds 5,720 raw / 3,868 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+The initial artifact exceeded the 512,000-byte ratchet. Following AGENTS.md's
+artifact-budget procedure, record 516,000, leaving 917 bytes of final headroom.
+Runtime examined, steps, heap and write ceilings remain unchanged.
+
+All touched source files remain below 1,500 lines (`local.ts`: 1,499). No clock
+site, public Read contract, persisted row format, authorization rule or server
+physical-child protection changed. No new syntax, refusal code, guide-card
+rewrite, push or publication. No requested fix is deferred. Implementation
+commits: `04db26c43`, `7ba43b80b`, `88b13aae7`. File-by-file changes, examples,
+test purposes, intentional conservative fallback and failure accounting:
+[round-10 report](reports/20260925-intent-lane-t-round10.md).
+
+## 2026-09-25 — Lane T, LLP 3000.014 round 11: partial provenance and emitted masks
+
+Addressed Grok's round-10 Medium and Low, both requested mutation gaps, and
+Astra's nonblocking duplicate-source test gap. Fallback now pairs only source
+identities present and unique on both sides, without discarding identified
+siblings when another element has no unique source. Source-free object
+wrappers recurse through field masks. Unpaired local elements survive only
+when their own masks contain retained history; an unpaired current row cannot
+reappear after the server omits it. A missing server envelope still keeps the
+local subtree incomplete. Anonymous array elements remain unpaired: server
+elements stay, and retained local wrappers append without positional guesses.
+LLP 3000.014 §5 records this round's refinement of round 10.
+
+The output meter now charges mask construction and bytes only when the reply
+carries a mask: retained rows on devices, explicit provenance requests on the
+server. Source stamping still pays its existing charges. A device page with
+no retained rows now succeeds at its exact 46-byte data ceiling. The server
+provenance fixture asserts exactly 218 bytes: 73 data + 145 mask.
+
+Added four real-mask regressions across wasm and native: an identityless
+wrapper containing comments and retained reactions sharing `x`, and a parent
+page with an unidentified sibling plus an unpaired current parent omitted by
+the server. Added local-only, server-only and two-sided duplicate-source
+witnesses, each preserving unique siblings. Existing reordered/shifted pages,
+projected fields, missing envelopes, parent-delete and ordinary retained-point
+regressions remain green. Updated the anonymous array-wrapper expectation to
+round 11's per-element behavior; no history is attached by guessed identity.
+
+Before the fixes, the four new client cases returned stale local data and the
+device page refused with `E_BOUND`. Both requested source mutations failed:
+omitting the append's retained check failed on wasm and native; charging one
+byte failed the exact envelope assertion (74 versus 218). Removing duplicate
+rejection failed all three ambiguity cases. Every mutation was restored.
+Focused final checks: 27 client cases, three Rust provenance tests, package
+build and typecheck, all passing. Two initial fixture drafts hit
+`E_QUARRY_SHAPE_JOIN`; these were ours and were corrected to consistent spread
+row objects before the regression runs and full qualification.
+
+Required full run, exit 0, exact summary: **`== 0 failure(s) in 1161 s`**.
+Rust target runner: **3,048 passed, 16 ignored, zero failed**; docs budget
+separately rechecked one guide case. Client: **1,608 passed, 10 skipped, zero
+failed (1,618 total)**. Every blocking phase passed on this round's first full
+run. No failure was waived as baseline or environmental. Read the baseline
+log tail; bounded this lane with CPU affinity 32–47, eight build jobs, eight
+Rust target processes, four Rust test threads and serial client files, using
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`. Full log:
+`~/sb4-intent/lane-t-r11-test.log`.
+
+Final wasm: **1,834,177 bytes raw / 515,152 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127 without wasm-opt. The **516,000-byte budget is unchanged**
+(848 bytes headroom). Compared with round 10's recorded artifact: +8 raw /
++69 gzip bytes, a whole-artifact comparison, not independent component
+attribution. Runtime ceilings are unchanged. `ref-check --verbose` and
+`git diff --check` passed; all changed source files are below 1,500 lines
+(largest: `runner.rs`, 1,082). No clock site, public Read contract, persisted
+row format, authorization rule or server physical-child protection changed.
+No new syntax, refusal code, guide rewrite, push or publication; no requested
+fix is deferred. Implementation commits: `97b181fec`, `ea2b2df7c`. File map,
+examples, decisions and full evidence:
+[round-11 report](reports/20260925-intent-lane-t-round11.md).
+
+## 2026-09-25 — Lane T, LLP 3000.014 round 12: anonymous retained projections
+
+Fixed Grok's remaining anonymous-array overlap and added Astra's object-source
+mismatch witness. An unpaired element without a source now appends only its
+retained projection, excluding nested table-qualified sources already present
+anywhere in the server array. Current rows and unrelated current wrapper fields
+are removed; containers without surviving history disappear. Retained rows
+preserve their own scalar/JSON contents, while nested source rows decide
+retention independently. Identified unpaired elements remain whole, missing
+server provenance still keeps the local subtree, and object-source mismatches
+still preserve the unmatched local object. LLP 3000.014 §5 records these
+projection details; no pairing uses position or projected fields.
+
+Added four regressions with real wasm/native device masks under
+`return [{rows}]`: a partial rejoin holding current `c` beside retained `old`,
+and an in-place edit whose retained copy has the same source as the server's
+current row. The answer contains current `c` plus only retained `old`, or just
+the current edited row, respectively. Three helper witnesses cover Astra's
+parent-A versus parent-B mismatch, nested table-qualified identities and
+identified leftovers, and retained JSON preservation without nested current
+rows. Before the fix, the four device cases and projection helper failed on
+stale/duplicate data. Astra's guard passed its new witness before mutation.
+
+Both requested mutations fail: a wholesale append fails all four wasm/native
+overlap cases, and removing `source !== identity(currentMask) ||` fails the
+object mismatch case by attaching A's history to B. Both mutations were
+restored before qualification. Final focused checks: **34 client tests passed**,
+plus package build and typecheck. No Rust implementation changed this round.
+
+Required full run, exit 0, exact summary: **`== 0 failure(s) in 1207 s`**.
+Rust target runner: **3,048 passed, 16 ignored, zero failed**; docs budget
+separately rechecked one guide case. Clients: **1,615 passed, 10 skipped, zero
+failed (1,625 total)**. Every blocking phase passed on the first full run.
+No failure was waived as baseline or environmental; the baseline tail was
+read and its historical Cargo failure did not recur. Only intentional pre-fix
+and mutation probes failed. The run used CPU affinity 32–47, eight build jobs,
+eight Rust target processes, four Rust test threads and serial client files,
+with `TMPDIR=/dev/shm/sb4-intent-lane-t-tests`. Full log:
+`~/sb4-intent/lane-t-r12-test.log`.
+
+Final wasm unchanged: **1,834,177 bytes raw / 515,152 bytes gzip**, Rust 1.97.0
+and wasm-bindgen 0.2.127 without wasm-opt. The **516,000-byte budget is unchanged**
+(848 bytes headroom); runtime ceilings are unchanged. `ref-check --verbose`
+and `git diff --check` passed. All changed source/test files are below 1,500
+lines (115, 229 and 247 lines). No clock site, public Read contract, stored row
+format, authorization rule, server physical-child protection, guide syntax or
+refusal code changed. No deviation, open problem, deferred request, push or
+publication. Implementation commit: `67117a9b9`. File map, examples, mutation
+proofs and qualification: [round-12 report](reports/20260925-intent-lane-t-round12.md).
+
+
+## 2026-09-25 — Intent integration round 9: U/Z/V/Y/X/T for 0.4.2
+
+Created `sb4-intent/integration-042b` from fetched main `88d5bfca4` and
+merged the six requested heads, each without fast-forward, in U/Z/V/Y/X/T
+order. U's numbered publication router remains singular; V's synchronous
+admission, durable session authority and store binding remain on every
+delivery path. Y's issued clock supplies device evaluation and T's local
+expiry, separately from the estimated server-answer deadline. T's retained
+composition stays inside the common publication fences. Q's indexed expired
+backlog path serves inherited-expiry aggregates on the server; devices retain
+the authorized recount. X's compact guide cards retain T/Z examples with
+refusal details on dedicated why pages below 4 KB. All source files remain
+at or below 1,500 lines.
+
+Added five combined routing/clock/provenance tests and an inherited-expiry
+aggregate regression covering 100 versus 10,000 live children, an expired
+backlog of zero versus 50, exact meters and hidden-account behavior. Repaired
+cross-lane guide pins, obsolete recount cost expectations, partial-kind
+speculative projection fixtures, remembered-answer fixtures and colliding
+browser bootstrap imports. The retained-history deadline witnesses now
+control and calibrate the actual client clock fork; a deliberate +5 ms
+sample covers the formerly intermittent failure, and removing its calibration
+fails the witness. No production clock, authorization or expiry policy was
+relaxed.
+
+Final full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 647 s`**.
+Rust target summaries: 3,194 passed, 19 ignored, zero failed. Clients:
+1,934 passed, ten declared skips, zero failures/cancellations. All 78 model
+tests passed with the three sequence counts at **5,000 / 5,000 / 3,000**.
+The two earlier full runs ended `== 2 failure(s) in 2382 s` and
+`== 1 failure(s) in 727 s`; all failures were ours and are fixed, including
+the isolated intermittent clock-fixture reproduction. None was waived as
+baseline or environmental. The 83 guide tests, `ref-check`, optional
+PostgreSQL feature compilation and supplied target Clique check passed.
+The root diagnostics registry/generated guide artifacts did not change, so
+the conditional root inventory gate does not apply inside this fence.
+
+Combined wasm measured **1,849,726 B raw / 521,532 B gzip**; the ratchet is
+**522,000 B**, rounded from the measurement, with the reason committed in
+the metrics file. Runtime ceilings did not change. Ran Z's scale inventory
+once per treatment with the same 2.632 GB fixture, posts/reposts floored at
+1,000, and V's persisted format-2 row buckets verified outside the timed
+interval. Fully synced follows: **49,315 rows / 7,386,725 logical row bytes /
+7.355 s cold acquisition**. Online-only follows: **41,383 / 6,312,824 /
+8.352 s**. View-only controls: **9,484 / 1,855,714 / 1.759 s** and
+**3,563 / 1,003,090 / 0.834 s**, respectively. Rows and bytes exactly match
+Z's round 0; the report records its times and U's round-1 controls alongside
+these results. Timings are single samples on the shared host, not a causal
+estimate of packing's speedup; logical row bytes are not physical disk usage.
+
+No push, publication, version bump, live PostgreSQL qualification, Kani run
+or macOS/Expo witness was performed. No requested design change was stopped
+and no open integration defect remains. Code qualification tree is unchanged at final head
+`891841323`; the report maps message-only footer corrections. File-by-file integration decisions, exhaustive changed-path
+manifest, forms, failure reproductions, compressed logs and raw inventory:
+[round-9 report](reports/20260925-intent-integration-r9/REPORT.md).
+
+
+### 2026-09-25 — Lane U round 10: run expiry retries through the complete routing procedure
+
+An expiry reobservation now uses the same post-local decision procedure as
+its first evaluation: blocked checks, fallback, composition and memory
+recovery. Every external replacement passes the final delivery fence, and
+only accepted server data enters memory. Expiry removes only expired memory,
+so a local deadline cannot delete an independent remembered answer whose own
+deadline is still valid. Withheld locals keep their engine deadline; a second
+due candidate dirties the watch. One expiry retry remains the bound; ordinary
+composition retains its existing post-server observation. Updated the numbered
+procedure and client reference. Implementation commit: aa8aaf6fc.
+
+Measured: 210 affected client tests passed. Both wasm and native devices prove
+expiryBranch changes from a complete false before T to speculative at T,
+reaches the real server, and publishes true. The idle watch recovers with sync
+delivery blocked. Both tiers retain a real non-null cursor after retry and
+read the next five rows, closing Astra's Low pagination gap. New router tests
+cover online partial fallback, offline memory recovery and expired controls,
+composition, blocked/failed fallback, late predictions and a due replacement.
+All six mutations fail their intended assertions: skipped retry routing (11),
+Grok's initial-result replay (4), premature memory deletion (4), dropped cursor
+(2), skipped final fence (2), and dropped withheld deadline (2). Built modules
+were restored before the full suite.
+Final scripts/test.sh: **== 0 failure(s) in 1555 s**, exit 0. Rust passed in
+195 s; 1,710 client tests passed, zero failed, ten existing skips, in 1,112 s;
+all 78 model tests passed in 233 s, including both 5,000-sequence I1–I13 sweeps.
+One full run, no product failures, no waiver, and no changed counts or timeouts.
+Evidence and rule-by-rule coverage are in the
+[round-10 report](reports/20260925-bounded-following-r10/REPORT.md).
+
+Not done: no new language form, refusal code, engine, schema, storage,
+acquisition, public-contract, ceiling, package-version, push or publication
+change. Left issues/20260925-snapback4-remembered-answer-row-expiry.md on
+origin/main unchanged: a remembered page's own earliest deadline still
+withdraws the whole page. No acquisition remeasurement; earlier lane-U
+measurements and their unmet 5x target remain historical.
+
+## 2026-09-25 — Lane V round 10: acknowledgements resolve replacement refusals
+
+Implemented the round-9 review ruling: a correlated outbox acknowledgement
+resolves an unknown-outcome `E_STORE_REPLACED` as `sent`, including when its
+aborted receipt was saved before sync applied the acknowledgement. Receipt
+selection discards an unpersisted replacement refusal before retrying storage.
+Ordinary flush, preflight and write lookup use the acknowledged sequence. The
+shared device receipt writer overwrites an existing replacement refusal only
+when the same transaction finds that matching sequence in the outbox; it keeps
+the row's position in the bounded receipt window. Authored refusals such as
+`NOT_ADMIN` retain their existing custody.
+
+Added memory/SQLite cases for both acknowledgement fields, missing and
+mismatched proof, authored-refusal preservation and reopen; a client-history
+test proves that the speculative refusal is dropped before another save.
+Real-browser tests cover A committing a lost reply, B refusing the retry while
+receipt persistence aborts, A's sync acknowledgement repairing the stored
+refusal, and reopening with the original sent sequence (A audit +1, B audit 0).
+The pending `/changes` rewind case now holds a capture taken after `begin_send`;
+an aborted successful receipt prevents the observation from installing a
+restore fence, then becomes durable when storage recovers. Both requested
+fault variants fail their intended assertions.
+
+Measured: 49 browser admission checks pass; 192 affected client checks pass;
+eight device write-authority checks pass; 55 client seam checks pass. Wasm is
+1,776,633 bytes raw and 495,460 bytes gzip, within the existing 496,000-byte
+ceiling. Reference audit: 509 LLP documents, 9,288 references, zero errors and
+zero unchecked references. Final complete qualification:
+
+```text
+== 0 failure(s) in 772 s
+```
+
+Exit 0 with `SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`:
+Rust 384 s; clients 137 s (1,601 passes, zero failures, 10 existing platform
+skips); models 231 s (78 passes, 13,000 seeded sequences).
+
+The first complete run ended `== 1 failure(s) in 716 s`: the process-device
+immediate lost-acknowledgement seam expected a second HTTP response even when
+sync settled first. Classified as ours. Its fixture now keeps sync temporarily
+unavailable until the HTTP replay reply, retaining every original wire,
+idempotency and value-redaction assertion. Initial browser-harness failures
+were also ours: an obsolete poll capture missed the barrier mutation, and an
+unawaited app authorization check allowed retry ahead of the intended sync.
+The final tests explicitly establish those orders. There were no final-run
+baseline or environmental failures; the supplied baseline cargo failure was
+inspected and was not reproduced. Intentional mutant failures are recorded as
+such in the evidence.
+
+No design deviation or open scoped problem. No new public form, refusal code,
+authorization/disclosure rule, storage ceiling or meter change. No acquisition
+retuning or cold-acquisition remeasurement in this receipt-only round. No push
+or publication. Implementation/test commits: 45a5825bd, 852aa4aea, cb967633b.
+The file map, examples and evidence are in `reports/20260925-lane-v-r10.md` and
+`reports/20260925-lane-v-r10-evidence/`.
+
+
+## 2026-09-25 — Intent integration round 10: final U/V review follow-ups
+
+On `sb4-intent/integration-042b`, merged U `e58b83c4e` and then V
+`54eca743a`, each without fast-forward, over round-9 candidate `22dd0c466`.
+Merge commits are `d0717cc30` and `b87ed10bb`. U's bounded expiry retry
+now uses the same fallback, retained composition and memory recovery as the
+initial observation, with the final delivery fence on each candidate and
+memory populated only after acceptance. Preserved round 9's issued-device
+and estimated-server deadline split and T's source-provenance composition.
+V's positive outbox acknowledgement now resolves an unknown-outcome
+replacement refusal, with the matching sequence verified in the device
+transaction; authored refusals and receipt-window position stay intact.
+
+Added three integration routing tests for expiry-retry read-through
+composition and independent local/server expiry. Adapted U's remembered
+server-deadline assertion and applied round 9's calibrated actual client-clock
+fork to the six new real-device branch/watch/cursor tests. All U/V tests and
+round-9 fixes remain. Focused checks: 140 routing tests, eight previous
+expiry/permit cases and six new device retry cases passed. V's receipt repair,
+rewind ordering and deterministic HTTP replay coverage pass in the full suite.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 647 s`**.
+Rust target summaries: 3,195 passed, 19 ignored, zero failed. Clients:
+1,964 passed, ten existing skips, zero failures/cancellations. All 78 model
+tests passed at the full **5,000 / 5,000 / 3,000** sequence counts. All 83
+guide tests and eight device write-authority tests passed. Reference check:
+**509 LLP documents, 9,337 references, zero errors and zero unchecked**.
+No integration test failed, no intermittent rerun was needed, and none was
+waived as baseline or environmental.
+
+The rebuilt wasm measures **1,850,576 B raw / 521,814 B gzip**, within the
+unchanged **522,000 B** ratchet (186 B headroom). Compared with round 9,
++850 raw / +282 gzip bytes for the whole artifact; runtime meter ceilings
+are unchanged. Changed source files remain below 1,500 lines (largest:
+`local.ts`, 1,423). No inventory remeasurement, new language/API, design
+change, push, publication or version bump. U's already deferred whole-page
+remembered-expiry limitation is unchanged. No new open integration defect.
+File-by-file resolutions, forms, constraints and compressed verification:
+[round-10 report](reports/20260925-intent-integration-r10/REPORT.md).
+
+## 2026-09-25 — Lane V round 11: refused idempotency is not acknowledgement
+
+Implemented both round-10 review findings. Server acknowledgement lookup now
+selects only `_ops` records whose stored outcome is `sent`, for both covered
+receipts and `committed_above`. A known authored refusal such as `NOT_ADMIN`
+also wins over acknowledgement evidence retained from an older server. Final
+send preflight propagates that recovered receipt instead of discarding it and
+publishing its original success. A real acknowledgement still repairs an
+unknown-outcome `E_STORE_REPLACED`, and no other failed receipt.
+
+Added a core test using actual successful and refused mutations, replay and
+both acknowledgement ranges; a client-history test requires no success save
+for a known refusal. Three real-browser regressions cover a lost `NOT_ADMIN`
+response followed by sync, legacy outbox acknowledgement with a known refusal,
+and lookup-only repair of stored `E_STORE_REPLACED` from `sent_seq: 7` without
+`observed_seq`. They verify mutation/lookup outcomes and reopening. The last
+case checks durable history before flushing, removes the outbox through
+catch-up and reopens offline. The pre-fix server and both requested client
+mutations fail their intended assertions.
+
+Measured: 52 browser admission checks pass; 141 targeted acquisition, seam and
+lifecycle checks pass; two core stream-receipt checks pass. Wasm remains
+1,776,633 bytes raw and 495,460 gzip within the existing 496,000-byte ceiling.
+Reference audit: 509 LLP documents, 9,289 references, zero errors and zero
+unchecked references. Complete qualification:
+
+```text
+== 0 failure(s) in 815 s
+```
+
+Exit 0 with `SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`:
+Rust 407 s; clients 146 s (1,605 passes, zero failures, 10 existing platform
+skips); models 230 s (78 passes, 13,000 seeded sequences). No final failures —
+ours, baseline or environmental. The supplied baseline cargo failure was
+inspected and was not reproduced.
+
+One initial full browser run failed our new fixture: its synthetic catch-up
+watermark 7 was below the shared store's current watermark, correctly causing
+`E_STORE_RESTORE`. The page now covers `max(7, current watermark)` while keeping
+exactly `sent_seq: 7` and no `observed_seq`. The corrected complete file passes;
+the persistence mutation still fails before this page is applied. Deliberate
+old-server and client-mutation failures are retained separately as controls.
+
+No design deviation or open scoped problem. No new Quarry form, public API,
+refusal code, authorization/disclosure rule, storage ceiling or meter change.
+No acquisition retuning or cold-acquisition remeasurement in this receipt-only
+round. No push or publication. Implementation/test commit: `7df63b7d1`. The
+file map, examples, failure accounting and reproductions are in
+`reports/20260925-lane-v-r11.md` and
+`reports/20260925-lane-v-r11-evidence/`.
+
+
+## 2026-09-25 — Intent integration round 11: refused writes are not acknowledgements
+
+Merged V's exact head `9a96e042e` into `sb4-intent/integration-042b` over
+round-10 candidate `4126e145a`, with `--no-ff`, in `78ec322cf`. The only
+conflict was the journal; all prior entries were preserved and V's new entry
+was appended. Source, tests and contracts merged cleanly, preserving every
+earlier clock, routing, retained-history, binding and admission integration fix.
+
+The server's bounded, principal-scoped lookup now puts only stored `sent`
+outcomes in `acknowledged` and `committed_above`. A refused `_ops` idempotency
+row is not success evidence. Client selection preserves known authored refusals
+over legacy acknowledgement data, and final send preflight returns that
+guarded receipt. Positive success continues to repair an unknown-outcome
+`E_STORE_REPLACED` under the existing transactional outbox proof.
+
+Imported V's core success/refusal receipt-range regression, the history test
+requiring zero success saves for an authored refusal, and three real-browser
+cases: lost `NOT_ADMIN` response across sync/reopen; a known refusal against
+legacy outbox acknowledgement; and durable lookup-only replacement-refusal
+repair from `sent_seq`, followed by catch-up and offline reopen. All pass in
+the integrated full suite. No integration-specific code/test change was needed.
+
+One full `scripts/test.sh`, exit 0: **`== 0 failure(s) in 726 s`**.
+Rust target summaries: 3,196 passed, 19 existing ignored, zero failed. Clients:
+1,968 passed, ten existing skips, zero failures/cancellations. All 78 model
+tests passed at **5,000 / 5,000 / 3,000** sequences. Both stream-receipts tests
+and all 83 guide tests passed. `ref-check`: **509 LLP documents, 9,338 refs,
+zero errors, zero unchecked**. No integration test failed, no intermittent
+rerun was needed, and no baseline or environmental exemption was used.
+
+Wasm remains **1,850,576 B raw / 521,814 B gzip**, unchanged from round 10 and
+within the unchanged **522,000 B** ratchet. All six changed source/test files
+are below 1,500 lines (largest: `local.ts`, 1,423). No model-count reduction,
+timeout increase, authorization or runtime-meter relaxation, storage-bound
+change, acquisition remeasurement, new syntax/API, design deviation, version
+bump, push or publication. No new open scoped problem. V's raw diagnostic
+logs are retained verbatim, including their whitespace. File-by-file changes,
+constraints and compressed full-suite/reference evidence:
+[round-11 report](reports/20260925-intent-integration-r11/REPORT.md).

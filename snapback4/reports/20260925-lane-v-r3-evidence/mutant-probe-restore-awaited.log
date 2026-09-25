@@ -1,0 +1,52 @@
+(node:858536) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1039.460472ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (949.005175ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1887.956896ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2349.40589ms)
+  ✔ a hide during the startup probe waits for its accepted decision (1031.21536ms)
+  ✔ a hide during the startup probe waits for its refused decision (1129.783855ms)
+  ✖ a hide during the startup probe waits for its restore decision (6766.223009ms)
+  ✔ a hide during the startup probe waits for its replacement decision (2317.965778ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (1043.054826ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (1167.630494ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (938.029235ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (950.541705ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (988.832054ms)
+  ✔ same-epoch logout tombstone refuses live admission (565.453167ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (652.60857ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (495.399491ms)
+✖ web admission review: recovery and transport respect the session boundary (26305.765556ms)
+ℹ {"mode":"held-sync","id":"01M3C6CKN96NX50JPCW6P5XHV8","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C6CMK0B8206T357390KG21","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C6CRPHPRVXSST4Y8CX3C86","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C6CSTSFD0BE9FJ0M93SXSQ","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"replacement","originalId":"01M3C6D1HZS89GGV3QW0B39MNB","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 15
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26400.765574
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:251:81
+✖ a hide during the startup probe waits for its restore decision (6766.223009ms)
+  AssertionError [ERR_ASSERTION]: timed out: probe restore refusal committed
+      at until (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:312:11)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:251:73)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

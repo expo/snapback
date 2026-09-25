@@ -5,6 +5,7 @@ pub mod catalog;
 mod columns;
 mod defaults;
 mod maintains;
+mod through;
 pub mod program;
 pub mod schema;
 pub mod residency;
@@ -14,6 +15,7 @@ mod server;
 mod key_bound;
 mod index_diagnostics;
 mod mixed_keys;
+mod helper_names;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
@@ -21,7 +23,7 @@ mod feed_view;
 mod intent;
 mod intent_aggregates;
 mod intent_variants;
-mod intent_walk;
+pub(crate) mod intent_walk;
 mod intent_views;
 mod view_predicate;
 mod intent_lanes;
@@ -50,6 +52,7 @@ pub struct Bound {
 
 pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    helper_names::normalize(&mut documents, &mut diagnostics);
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
     let feeds = feed_view::expand(&mut documents, &mut diagnostics);

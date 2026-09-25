@@ -1,0 +1,88 @@
+▶ web review: acquisition lifetimes and bounded persistence
+  ✔ same-store reacquisition reconciles progress with an already-true acquired flag (338.446908ms)
+  ✔ a compiled special table name produces numeric own-property counts (20.075156ms)
+  ✔ sign-out during a partial acquisition clears the raw client counts (35.993732ms)
+  ✖ one update stays bounded for 1,000 and 16,000 colliding rows (918.667002ms)
+  ✖ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (21.073352ms)
+  ✖ an old unbounded bucket is split at load before later bounded updates (30.683064ms)
+✖ web review: acquisition lifetimes and bounded persistence (2136.087154ms)
+ℹ {"count":1000,"bytes":1051623,"maxBucketBytes":1047522,"maxEntries":1000,"calls":3,"rows":1000,"changed":1024,"last":1024}
+ℹ {"count":16000,"bytes":16843849,"maxBucketBytes":16779748,"maxEntries":16000,"calls":3,"rows":16000,"changed":1024,"last":1024}
+ℹ tests 7
+ℹ suites 0
+ℹ pass 3
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2229.468131
+
+✖ failing tests:
+
+test at test/web-review.test.mjs:103:11
+✖ one update stays bounded for 1,000 and 16,000 colliding rows (918.667002ms)
+  AssertionError [ERR_ASSERTION]: entry cap
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:140:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:103:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/web-review.test.mjs:144:11
+✖ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (21.073352ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   aborted: false,
+  +   entries: 1000,
+  +   failed: false,
+  -   aborted: true,
+  -   entries: 511,
+  -   failed: true,
+      huge: true,
+      outbox: null,
+      overflow: 'overflow changed',
+  +   unchanged: false,
+  -   unchanged: true,
+      watermark: '2'
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:175:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:144:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { aborted: false, failed: false, unchanged: false, entries: 1000, huge: true, overflow: 'overflow changed', watermark: '2', outbox: null },
+    expected: { aborted: true, failed: true, unchanged: true, entries: 511, huge: true, overflow: 'overflow changed', watermark: '2', outbox: null },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/web-review.test.mjs:178:11
+✖ an old unbounded bucket is split at load before later bounded updates (30.683064ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  '1' !== '2'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:210:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-review.test.mjs:178:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '1',
+    expected: '2',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

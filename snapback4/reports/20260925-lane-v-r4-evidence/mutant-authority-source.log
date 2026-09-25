@@ -1,0 +1,48 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1020.076944ms)
+  ✔ a failed logout cannot commit after abort (803.711374ms)
+  ✔ a failed logout cannot commit after quota (738.941437ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (375.777396ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (910.185267ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.387335ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (80.321847ms)
+  ✖ a pre-IDB stamp cannot be promoted by a matching new login epoch (761.296944ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (785.176614ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (6304.82637ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6403.511699
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:259:55
+✖ a pre-IDB stamp cannot be promoted by a matching new login epoch (761.296944ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   id: '01M3C8PBXMHD2B50ZZ4G17XWEK',
+  +   replayed: true,
+  +   seq: 2,
+  +   state: 'sent'
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:273:45)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:259:47)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { state: 'sent', id: '01M3C8PBXMHD2B50ZZ4G17XWEK', seq: 2, replayed: true },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

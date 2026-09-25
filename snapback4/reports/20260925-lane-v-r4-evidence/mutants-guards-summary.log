@@ -1,0 +1,3 @@
+probe-store: exit 1
+transport: exit 1
+tombstone: exit 1

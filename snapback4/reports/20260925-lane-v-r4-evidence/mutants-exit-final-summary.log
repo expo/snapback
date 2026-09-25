@@ -1,0 +1,3 @@
+replay-delivery: exit 1
+reconnect-exit: exit 1
+journal-fence: exit 1

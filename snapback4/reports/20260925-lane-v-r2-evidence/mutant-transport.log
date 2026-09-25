@@ -1,0 +1,40 @@
+▶ web admission review: recovery and transport respect the session boundary
+  ✖ hiding during strict admission releases the session lock before transport and peer logout (933.222516ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (838.117409ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1840.338545ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (850.208936ms)
+  ✔ legacy journal after logout preserves committed outbox custody (794.110145ms)
+  ✔ same-epoch logout tombstone refuses live admission (439.005928ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (444.797001ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (407.15558ms)
+✖ web admission review: recovery and transport respect the session boundary (7881.339561ms)
+ℹ {"mode":"held-sync","id":"01M3C23JSPEA54JQ9Q3JWKYGXG","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C23KN24B6EHCW8S88KMGS0","outboxBeforeSync":true,"keepalive":true}
+ℹ tests 9
+ℹ suites 0
+ℹ pass 7
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7979.836874
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/web-admission-review.test.mjs:148:11
+✖ hiding during strict admission releases the session lock before transport and peer logout (933.222516ms)
+  AssertionError [ERR_ASSERTION]: transport entered under the session lock
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:164:14)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:148:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

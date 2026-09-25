@@ -27,6 +27,7 @@ export interface TableJson {
 export interface SchemaJson {
   tables: Record<string, TableJson>;
   maintains?: unknown[];
+  timelines?: { name: string; posts: [string, ...string[]]; reposts: [string, ...string[]] }[];
   operations?: Record<string, { held?: boolean; runs?: "device" | "server"; predicts?: "eligible" | "never" }>;
 }
 
@@ -59,6 +60,18 @@ export function operationTables(program: ProgramJson, schema: SchemaJson): Set<s
     }
   };
   walk(program.body);
-  for (const table of tables) walk((schema.tables[table] as { rules?: unknown } | undefined)?.rules);
+  for (const table of tables) {
+    walk((schema.tables[table] as { rules?: unknown } | undefined)?.rules);
+    // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a partial event prediction writes its source slot, not an owned row.
+    // Include those dependencies in invalidation and the fallback fence, even
+    // when an unknown branch has not yet executed the event read.
+    for (const timeline of schema.timelines ?? []) {
+      if (table !== `${timeline.name}Posts`) continue;
+      for (const source of [timeline.posts[0], timeline.reposts[0]]) {
+        const sync = schema.tables[source]?.sync;
+        if (!sync || sync.horizon) tables.add(source);
+      }
+    }
+  }
   return tables;
 }

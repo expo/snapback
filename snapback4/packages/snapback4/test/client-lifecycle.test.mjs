@@ -54,7 +54,7 @@ function emptyDevice(overrides = {}) {
         const answer = await overrides.call(request);
         if (answer !== undefined) return answer;
       }
-      if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
+      if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: overrides.storeId ?? null, watermark: 0, generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
       if (request.op === "next_submission") return { ok: 1 };
       if (request.op === "meta") return { ok: null };
       if (request.op === "state") return { ok: { watermark: 0, generation: 1 } };
@@ -149,11 +149,11 @@ test("online auth refusal settles writes that were queued behind the refused req
   await client.close();
 });
 
-test("local pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async (t) => {
-  const queued = [], reply = deferred(), probe = deferred();
-  const device = emptyDevice({ call: async (request) => {
+for (const originalStore of [undefined, "original-store"]) test(`local pending writes emit once with ${originalStore ? "their original binding ahead of a newer device identity" : "the kept device identity"}`, { timeout: 5000 }, async (t) => {
+  const queued = [], requests = [], reply = deferred(), probe = deferred();
+  const device = emptyDevice({ storeId: "kept-store", call: async (request) => {
     if (request.op === "backend") return { ok: emptyBackend };
-    if (request.op === "admit") { queued.push(request.entry); return { ok: request.entry }; }
+    if (request.op === "admit") { queued.push({ ...request.entry, store_id: originalStore }); return { ok: request.entry }; }
     if (request.op === "queued") return { ok: queued };
     if (request.op === "begin_send") return { ok: { send_revision: 1 } };
     if (request.op === "settle") { queued.splice(0, 1); return { ok: null }; }
@@ -161,8 +161,11 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   const client = await createLocalClient({ url: "http://write.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/schema") throw new TypeError("offline at open");
-    if (path === "/m/send") return await held(reply, init?.signal);
-    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [] });
+    if (path === "/m/send") {
+      requests.push(JSON.parse(init.body));
+      return await held(reply, init?.signal);
+    }
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [], store_id: "kept-store" });
     if (path === "/probe") { await held(probe, init?.signal); return Response.json({ ok: true }); }
     if (path === "/changes") { await held(probe, init?.signal); return Response.json({ seq: 7, tables: [], generation: 1 }); }
     throw new Error(`unexpected request ${path}`);
@@ -174,6 +177,7 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   assert.equal(admitted.state, "pending");
   reply.resolve(Response.json({ state: "sent", seq: 7, result: { saved: true } }));
   await until(() => terminal.length === 1, "local terminal write event was dropped");
+  assert.equal(requests[0].store_id, originalStore ?? "kept-store", "original write binding precedes the device's current identity");
   assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7, result: { saved: true } });
   await sleep(50);
   assert.equal(terminal.length, 1);
@@ -299,14 +303,14 @@ test("local generation adoption reruns observations whose dependencies changed",
   });
   const oldBackend = backend(1, "a"), newBackend = backend(2, "b");
   let serverGeneration = 1, deviceGeneration = 1, schemas = 0, queryRuns = 0;
-  const change = deferred();
+  const change = deferred(), queryGenerations = [];
   const device = emptyDevice({ call: async (request) => {
     if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: deviceGeneration, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
     if (request.op === "state") return { ok: { watermark: 0, generation: deviceGeneration } };
     if (request.op === "adopt") { deviceGeneration = request.backend.generation; return { ok: null }; }
     if (request.op === "apply") return { ok: { touched: [] } };
     if (request.op === "query") {
-      queryRuns++;
+      queryRuns++; queryGenerations.push(deviceGeneration);
       const current = deviceGeneration === 1 ? { value: "old", table: "a" } : { value: "new", table: "b" };
       return { ok: { data: [current.value], complete: true, tables: [current.table], unknown: false, nextExpiry: null } };
     }
@@ -325,7 +329,14 @@ test("local generation adoption reruns observations whose dependencies changed",
   serverGeneration = 2;
   await client.sync();
   await until(() => observed.getSnapshot().data?.[0] === "new", "generation adoption left the old observation fresh");
-  assert.equal(queryRuns, 2);
+  // Persisting the issued clock floor adds a durable boundary. Adoption's
+  // invalidation and sync completion may each request a new-generation read.
+  assert.equal(queryGenerations[0], 1);
+  assert.ok(queryRuns >= 2 && queryRuns <= 3, JSON.stringify(queryGenerations));
+  assert.ok(queryGenerations.slice(1).every(generation => generation === 2), "no old backend may answer after adoption");
+  const settledRuns = queryRuns;
+  await sleep(20);
+  assert.equal(queryRuns, settledRuns, "adoption must settle without idle reruns");
   unsubscribe(); observed.close(); await client.close();
 });
 
@@ -412,7 +423,7 @@ test("local auth invalidation notifies viewer listeners before session deletion 
     schema: { tables: { remote: { columns: {}, indexes: {} } } },
     programs: [{ name: "read", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] }],
   };
-  const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice().opener, fetch: async (input, init) => {
+  const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice({ call: async request => request.op === "query" ? { ok: { loading: true, unknown: true, tables: ["remote"] } } : undefined }).opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/schema") return Response.json(backend);
     if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
@@ -963,8 +974,8 @@ for (const tier of ["wasm", "native"]) {
     const read = await client.query(counter, counterArgs);
     assert.equal(read.data.value, 1);
     assert.equal(read.data.pending, undefined);
+    assert.equal((await write).state, "sent", "stream acknowledgement establishes the terminal outcome despite the lost reply");
     await client.close();
-    assert.equal((await write).state, "pending");
   });
 
   for (const loseReply of [false, true]) {
@@ -1008,14 +1019,16 @@ for (const tier of ["wasm", "native"]) {
       if (loseReply) {
         offline = true;
         await client.close();
-        assert.equal((await first).state, "pending");
+        const acknowledged = await first;
+        assert.equal(acknowledged.state, "sent", "a correlated terminal outcome is never reported as pending");
         const cold = await f.open(tier, { fetch: transport });
         assert.equal((await cold.query(counter, counterArgs)).data.value, 1, "an offline reopen preserves the correlated confirmed state");
         await cold.close();
         offline = false;
         reply.resolve(); laterPost.resolve();
         const resumed = await f.open(tier, { fetch: transport });
-        await until(() => sends >= 2, "the original admitted write is retried to obtain its reply");
+        assert.equal((await resumed.write(acknowledged.id)).state, "sent", "the correlated receipt settles locally after the lost response");
+        assert.equal(sends, 1, "a known terminal receipt is never reposted to recover its historical result");
         await resumed.sync();
         assert.equal((await f.server.query(counter, counterArgs)).data.value, 1, "deduplication preserves one authoritative increment");
       } else {
@@ -1048,7 +1061,7 @@ for (const tier of ["wasm", "native"]) {
     const stale = await client.query(thread, args);
     assert.equal(stale.fresh, false);
     assert.ok(stale.since >= changedAt, "since names the latest followed sync, not initial open");
-    assert.equal((await client.query(query("message"), { messageId: "msg-a" })).denied?.code, "E_OFFLINE");
+    assert.equal((await client.query(query("message"), { messageId: "msg-a" })).denied?.code, "E_OFFLINE", "an unknown horizon miss is not an authoritative NOT_FOUND");
     await client.close();
     const cold = await f.open(tier, { fetch: transport });
     const restored = await cold.query(thread, args);
@@ -1346,11 +1359,11 @@ for (const scenario of [
   { name: "retained", cut: null, unknown: true, retained: true, requests: 0 },
   { name: "pending predictable write", cut: null, unknown: true, pending: true, requests: 0 },
 ]) test(`W13b fallback boundary: ${scenario.name}`, async t => {
-  const backend = { ...emptyBackend, schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
+  const backend = { ...emptyBackend, programs: [{ ...emptyBackend.programs[0], body: [{ table: "rows" }] }], schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
   const device = emptyDevice({ call: async request => {
     if (request.op === "backend") return { ok: backend };
-    if (request.op === "query") return { ok: { data: ["device"], complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: [] } };
-    if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: [] }] };
+    if (request.op === "query") return { ok: { data: [{ id: "device" }], speculative: false, held: true, complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
+    if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: ["rows/pending"] }] };
   } });
   const requests = []; let offline = false;
   const client = await createLocalClient({ url: "http://fallback.invalid", persona: "alice", device: device.opener, fetch: async input => {
@@ -1368,6 +1381,6 @@ for (const scenario of [
   if (scenario.offline) { offline = true; await client.sync(); }
   const read = await client.query(query("read"), {});
   assert.equal(requests.length, scenario.requests, `the ${scenario.name} /q/ request log is ${JSON.stringify(requests)}`);
-  assert.deepEqual(read.data, [scenario.requests ? "server" : "device"]);
+  assert.deepEqual(read.data, scenario.requests ? ["server"] : [{ id: "device" }]);
   assert.equal(read.complete, !!scenario.requests);
 });

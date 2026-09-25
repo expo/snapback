@@ -40,7 +40,7 @@ const recorded=`use personas alice
 const ordinary=recorded.replace(/maintain totals:[\s\S]*?mutation like/, 'mutation like');
 const maintained=ordinary.replace('table posts:\n','table posts:\n likeCount: count likes by postId\n');
 const fixtures=[
-  {name:'timeline-v2',source:timeline,plain:timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts'),
+  {name:'timeline-v2',capabilities:['timeline-event-slots','timeline-v2'],source:timeline,plain:timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts'),
     seed:[{table:'profiles',row:{id:'profile',principal:'dev:alice'}}], query:'profiles',op:'publish',args:{postId:'offline'},predictions:3},
   {name:'recorded-attribution',source:recorded,plain:ordinary,
     seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:2},
@@ -149,7 +149,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   t.diagnostic(`${f.name} initial native refusal: ${refused.stderr.trim()}`);
   assert.equal(refused.replies.length,0,'must not predict');assert.equal(existsSync(fresh),false,'decode before creating store');
   assert.throws(()=>new legacy.wasm(JSON.stringify(next.backend),'[]'),unknown);
-  markers(next.backend.schema,[f.name]);
+  markers(next.backend.schema,f.capabilities??[f.name]);
   const unmarked=structuredClone(next.backend);
   for(const table of Object.values(unmarked.schema.tables))table.constraints=table.constraints.filter(c=>!c?.Capabilities);
   const unfenced=native(legacy.binary,join(dir,'unmarked.sqlite'),unmarked);
@@ -254,7 +254,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   // New engine also refuses unknown capabilities when reopening persisted state.
   const db=new DatabaseSync(store);
   const storedSchema=JSON.parse(db.prepare('SELECT schema FROM _generations ORDER BY generation DESC LIMIT 1').get().schema);
-  markers(storedSchema,[f.name]);
+  markers(storedSchema,f.capabilities??[f.name]);
   Object.values(storedSchema.tables).flatMap(t=>t.constraints).find(c=>c?.Capabilities).Capabilities.push('future-derivation');
   db.prepare('UPDATE _generations SET schema=? WHERE generation=(SELECT MAX(generation) FROM _generations)').run(JSON.stringify(storedSchema));
   db.exec('DROP TABLE IF EXISTS _effect_keys');db.close();

@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
+import { webDevice, memoryPersistence } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -40,8 +41,28 @@ query auditById(id: audit):
   return audit[id]
 query localNotes(c: cursor ?):
   return notes after c last 1 by byTime
-query presence():
-  return exists connected[viewer]
+query presence(p: principal):
+  return exists connected[p]
+query wrappedPresence(p: principal):
+  return [{ online: exists connected[p] }]
+query identifiedPresence(p: principal):
+  return { id: p, online: exists connected[p] }
+query shapedNotes():
+  return notes last 5 by byTime { text, at }
+table permits:
+  principal: principal
+  expiresAt: time
+  expire at .expiresAt
+  by byExpiresAt: expiresAt
+  unique byPrincipal: principal
+  read <- .principal = viewer
+  sync to .principal
+table secrets:
+  body: text <=100
+  read <- exists permits[principal = viewer]
+  online only
+query secret(id: secrets):
+  return secrets[id]
 query connections(p: principal):
   return connected[p]
 mutation add(text: text <=100):
@@ -59,7 +80,7 @@ function project(t) {
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
-async function fixture(t, watchSources = false) {
+async function fixture(t, watchSources = false, tier = "native") {
   const directory = project(t);
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", ...(watchSources ? [] : ["--no-watch"])], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exit = once(child, "exit");
@@ -83,20 +104,22 @@ async function fixture(t, watchSources = false) {
     { table: "notes", row: { id: "n2", text: "local two", at: 2, owner: "dev:alice" } },
   ]);
   let offline = false, requests = 0;
-  const deviceReads = [];
+  const deviceReads = [], deviceAnswers = [];
+  let queryGate = null;
+  const persistence = memoryPersistence();
   const open = async () => {
     const data = join(directory, "device"); mkdirSync(data, { recursive: true });
-    const opener = processDevice({ binary, dir: data, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
+    const opener = tier === "wasm" ? webDevice({ persist: persistence, wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) }) : processDevice({ binary, dir: data, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
     const client = await createLocalClient({ url, persona: "alice", waitSeconds: 1,
       fetch: async (input, init) => { requests++; if (offline) throw new TypeError("test link down"); return fetch(input, init); },
-      device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: (request) => { if (request.op === "query") deviceReads.push(request.name); return core.call(request); } }; } },
+      device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "query") { deviceReads.push(request.name); if (queryGate) await queryGate; } const answer = await core.call(request); if (request.op === "query") deviceAnswers.push({ name: request.name, ...answer.ok }); return answer; } }; } },
     });
     clients.push(client); return client;
   };
-  return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads };
+  return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads, deviceAnswers, gateQueries: gate => { queryGate = gate; } };
 }
 
-test("server-run watches rerun on online-only commits and drop answers when offline", { timeout: 20000 }, async (t) => {
+test("server-class watches run locally first and recover remembered server data offline", { timeout: 20000 }, async (t) => {
   const f = await fixture(t);
   const client = await f.open(); await client.sync();
   const backend = await fetch(`${f.url}/schema`, { headers: { "x-snapback-persona": "alice" } }).then((r) => r.json());
@@ -108,23 +131,27 @@ test("server-run watches rerun on online-only commits and drop answers when offl
   await f.seed([{ table: "audit", row: { id: "a2", text: "commit touched only the server table", at: 2 } }]);
   await until(() => watch.getSnapshot().data?.[0]?.id === "a2", "online-only commit did not rerun watch");
   f.offline(true); await client.sync();
-  await until(() => watch.getSnapshot().loading, "offline watch must stop retaining its answer");
-  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  await until(() => watch.getSnapshot().fresh === false, "offline watch downgrades the remembered answer");
+  assert.equal(watch.getSnapshot().data[0].id, "a2");
+  assert.ok(watch.getSnapshot().since > 0);
   watch.close();
   watch = client.observe(query("audits"), { c: null });
   await sleep(20);
-  assert.deepEqual(watch.getSnapshot(), { loading: true }, "recreated watch cannot restore remembered server data");
-  assert.ok(!f.deviceReads.includes("audits"), "server-run query entered the device interpreter");
+  assert.equal(watch.getSnapshot().data[0].id, "a2", "recreated watch recovers the last server answer");
+  assert.equal(watch.getSnapshot().fresh, false);
+  assert.ok(f.deviceReads.includes("audits"), "static server classes must run locally first");
   f.offline(false); await client.sync();
   await until(() => watch.getSnapshot().fresh === true, "watch did not recover online");
   watch.close();
 });
 
-test("offline cold watches stay loading, persisted local reads still work, server answers never persist", { timeout: 20000 }, async (t) => {
+test("offline cold watches withhold placeholders, persisted local reads still work", { timeout: 20000 }, async (t) => {
   const f = await fixture(t);
   let client = await f.open(); await client.sync();
   assert.equal((await client.query(query("auditById"), { id: "a1" })).data.text, "server answer");
   f.offline(true); await client.sync();
+  const remembered = await client.query(query("auditById"), { id: "a1" });
+  assert.equal(remembered.data.text, "server answer"); assert.equal(remembered.fresh, false); assert.ok(remembered.since > 0);
   const watch = client.observe(query("auditById"), { id: "never-observed" });
   await sleep(20);
   assert.deepEqual(watch.getSnapshot(), { loading: true });
@@ -133,19 +160,21 @@ test("offline cold watches stay loading, persisted local reads still work, serve
   assert.equal(local.fresh, false);
   watch.close(); await client.close();
   client = await f.open();
-  assert.equal((await client.query(query("auditById"), { id: "a1" })).denied.code, "E_OFFLINE");
+  const cold = await client.query(query("auditById"), { id: "a1" });
+  assert.equal(cold.denied.code, "E_OFFLINE", "server memory lasts only for this client lifetime");
   assert.equal((await client.query(query("localNotes"), { c: null })).data[0].id, "n2");
-  assert.ok(!f.deviceReads.includes("auditById"));
+  assert.ok(f.deviceReads.includes("auditById"));
 });
 
-test("connected is server-run even with no ordinary tables and preserves its answer offline", { timeout: 15000 }, async (t) => {
+test("connected recovers a server false offline instead of the device presence assumption", { timeout: 15000 }, async (t) => {
   const f = await fixture(t), client = await f.open(); await client.sync();
-  const online = await client.query(query("presence"), {});
-  assert.equal(typeof online.data, "boolean");
+  const online = await client.query(query("presence"), { p: "dev:bob" });
+  assert.equal(online.data, false);
   f.offline(true); await client.sync();
-  const offline = await client.query(query("presence"), {});
-  assert.equal(offline.data, online.data); assert.equal(offline.fresh, false); assert.ok(offline.since > 0);
-  assert.ok(!f.deviceReads.includes("presence"));
+  const offline = await client.query(query("presence"), { p: "dev:bob" });
+  assert.equal(offline.data, false); assert.equal(offline.complete, true); assert.equal(offline.fresh, false); assert.ok(offline.since > 0);
+  assert.equal((await client.query(query("presence"), { p: "dev:unseen" })).denied.code, "E_OFFLINE");
+  assert.ok(f.deviceReads.includes("presence"));
 });
 
 test("clock advance expires presence on the server and a device", { timeout: 15000 }, async (t) => {
@@ -161,7 +190,7 @@ test("clock advance expires presence on the server and a device", { timeout: 150
   assert.equal((await read()).data, 0);
   assert.equal((await client.query(query("connections"), { p: "dev:bob" })).data, 0);
   assert.equal((await client.query(query("connections"), { p: "dev:bob" })).fresh, true);
-  assert.ok(!f.deviceReads.includes("connections"), "presence remains server-run");
+  assert.ok(f.deviceReads.includes("connections"), "presence runs locally before unknown facts fall back");
   t.diagnostic(`presence device: advanced_ms=36000 before=1 after=0 wall_ms=${(performance.now() - start).toFixed(2)}`);
   await fetch(`${f.url}/changes?wait=0`, { headers }).then(r => r.json());
   assert.equal((await client.query(query("connections"), { p: "dev:bob" })).data, 1);
@@ -225,4 +254,65 @@ test("dev compares residency with the served generation even when check advanced
   assert.match(f.log(), /N_NOW_SERVER[\s\S]*localNotes/);
   const backend = await fetch(`${f.url}/schema`, { headers: { "x-snapback-persona": "alice" } }).then((r) => r.json());
   assert.equal(backend.schema.operations.localNotes.runs, "server");
+});
+
+for (const tier of ["wasm", "native"]) {
+  test(`provenance ${tier}: wrapped presence recovers false, shaped rows without ids stay partial`, { timeout: 20000 }, async t => {
+    const f = await fixture(t, false, tier);
+    // Seed before acquisition: live delivery correctly retains older held rows.
+    await f.seed([{ table: "notes", row: { id: "n3", text: "local three", at: 3, owner: "dev:alice" } }]);
+    const client = await f.open(); await client.sync();
+    for (const name of ["wrappedPresence", "identifiedPresence"]) {
+      const online = await client.query(query(name), { p: "dev:bob" });
+      assert.deepEqual(online.data, name === "wrappedPresence" ? [{ online: false }] : { id: "dev:bob", online: false });
+      const raw = f.deviceAnswers.findLast(answer => answer.name === name);
+      assert.equal(raw.speculative, true);
+    }
+    f.offline(true); await client.sync();
+    for (const name of ["wrappedPresence", "identifiedPresence"]) {
+      const offline = await client.query(query(name), { p: "dev:bob" });
+      assert.deepEqual(offline.data, name === "wrappedPresence" ? [{ online: false }] : { id: "dev:bob", online: false });
+      assert.equal(offline.fresh, false);
+    }
+    const shaped = await client.query(query("shapedNotes"), {});
+    assert.deepEqual(shaped.data, [{ text: "local three", at: 3 }, { text: "local two", at: 2 }]);
+    assert.equal(shaped.complete, false); assert.equal(shaped.fresh, false);
+    const raw = f.deviceAnswers.findLast(answer => answer.name === "shapedNotes");
+    assert.equal(raw.speculative, false); assert.equal(raw.unknown, true);
+  });
+}
+test("rule 5: a real process device never recovers private memory after its permit expiry", { timeout: 20000 }, async t => {
+  const f = await fixture(t), client = await f.open(); await client.sync();
+  const expiresAt = Date.now() + 2500;
+  await f.seed([
+    { table: "permits", row: { id: "permit", principal: "dev:alice", expiresAt } },
+    { table: "secrets", row: { id: "secret", body: "private" } },
+  ]);
+  await client.sync();
+  const op = query("secret"), args = { id: "secret" };
+  const server = () => fetch(`${f.url}/q/secret`, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args }) }).then(r => r.json());
+  const first = await server();
+  assert.equal(first.data.body, "private"); assert.equal(first.nextExpiry, expiresAt);
+  assert.equal((await client.query(op, args)).data.body, "private");
+  const watch = client.observe(op, args); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.body === "private", "watch did not acquire the authorized answer");
+  f.offline(true); await client.sync();
+  await until(() => watch.getSnapshot().fresh === false, "watch did not recover stale memory before expiry");
+  assert.equal(watch.getSnapshot().data.body, "private");
+  const deliveries = [];
+  const stop = watch.subscribe(() => deliveries.push({ at: Date.now(), read: watch.getSnapshot() })); t.after(stop);
+  // A slow device must not extend the deadline of the currently visible memory.
+  let release;
+  f.gateQueries(new Promise(resolve => { release = resolve; }));
+  try {
+    await until(() => Date.now() >= expiresAt + 40, "permit did not expire");
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, "expiry ends retention before awaiting the device");
+  } finally { f.gateQueries(null); release(); }
+  assert.equal((await server()).data, null, "authoritative rule denies the expired permit");
+  const after = await client.query(op, args);
+  assert.equal(after.denied.code, "E_OFFLINE"); assert.equal("data" in after, false);
+  await until(() => !("data" in watch.getSnapshot()), "watch kept private memory beyond its scheduled authorization expiry");
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  assert.ok(deliveries.some(item => item.at >= expiresAt && item.read.loading), "the deadline itself must rerun the offline watch");
+  assert.ok(deliveries.filter(item => item.at >= expiresAt).every(item => !("data" in item.read)), JSON.stringify(deliveries));
 });

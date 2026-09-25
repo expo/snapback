@@ -1,0 +1,34 @@
+(node:366114) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (880.63206ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (809.619392ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1790.207854ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2159.212336ms)
+  ✔ a hide during the startup probe waits for its accepted decision (803.685041ms)
+  ✔ a hide during the startup probe waits for its refused decision (817.685661ms)
+  ✔ a hide during the startup probe waits for its restore decision (823.680055ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1383.298274ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false) (756.823356ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false) (801.596061ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true) (712.599424ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true) (733.572513ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true) (858.661979ms)
+  ✔ same-epoch logout tombstone refuses live admission (412.601124ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (508.467478ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (362.186293ms)
+✔ web admission review: recovery and transport respect the session boundary (15764.939925ms)
+ℹ {"mode":"held-sync","id":"01M3C50G0XC4B4VQQYK5R7KE7D","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C50GWG8FJP5M2WW2P6ZST6","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3C50MNZ8MCY98W0F6NCYAEX","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"refused","originalId":"01M3C50NGP13Y32BQ8BFD2W2PW","sendsWhileProbeHeld":0,"originalAudit":3}
+ℹ {"mode":"restore","originalId":"01M3C50P9SB82ADJFRVJVH22YR","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"replacement","originalId":"01M3C50Q50M82S2AGPE1STYH1T","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15851.144047

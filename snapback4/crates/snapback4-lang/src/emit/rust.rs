@@ -41,11 +41,11 @@ pub fn rust(bound: &Bound) -> String {
         out.push_str("#[allow(dead_code)]\n#[derive(Clone, Debug, Default, PartialEq, snapback4_native::serde::Serialize, snapback4_native::serde::Deserialize)]\n#[serde(crate = \"snapback4_native::serde\")]\n");
         out.push_str(&format!("pub struct {} {{\n", structs[name]));
         let reserved: &[&str] = if table.columns.contains_key("id") { &[] } else { &["id"] };
-        let fields = unique_names_reserved(table.columns.keys().filter(|name| !table.recorded.contains_key(*name)), field_name, reserved);
+        let fields = unique_names_reserved(table.columns.keys().filter(|name| !table.recorded.contains_key(*name) && !snapback4_core::schema::timeline::is_slot(name)), field_name, reserved);
         if !table.columns.contains_key("id") {
             out.push_str("    pub id: String,\n");
         }
-        for (column, kind) in table.columns.iter().filter(|(name, _)| !table.recorded.contains_key(*name)) {
+        for (column, kind) in table.columns.iter().filter(|(name, _)| !table.recorded.contains_key(*name) && !snapback4_core::schema::timeline::is_slot(name)) {
             let field = &fields[column];
             if field != column {
                 out.push_str(&format!("    #[serde(rename = {})]\n", string_literal(column)));
@@ -60,7 +60,7 @@ pub fn rust(bound: &Bound) -> String {
     let write_names = unique_names_reserved(schema.visible_tables().filter(|(_,t)| !t.maintained.is_empty()).map(|(name,_)|name), |name|format!("{}Write",type_name(name)), &structs.values().map(String::as_str).collect::<Vec<_>>());
     for (name, table) in schema.visible_tables().filter(|(_,t)| !t.maintained.is_empty()) {
         out.push_str(&format!("\n/// The id-bearing result of a write to `{name}`; read the row for maintained fields.\n#[derive(Clone, Debug, Default, PartialEq, snapback4_native::serde::Serialize, snapback4_native::serde::Deserialize)]\n#[serde(crate = \"snapback4_native::serde\")]\npub struct {} {{\n",write_names[name]));
-        let fields = unique_names(table.columns.keys().filter(|n| !table.recorded.contains_key(*n) && !table.maintained.contains_key(*n)),field_name);
+        let fields = unique_names(table.columns.keys().filter(|n| !table.recorded.contains_key(*n) && !snapback4_core::schema::timeline::is_slot(n) && !table.maintained.contains_key(*n)),field_name);
         for (column,field) in fields { out.push_str(&format!("    #[serde(rename = {})]\n    pub {field}: {},\n",string_literal(&column),rust_type(&table.columns[&column]))); }
         out.push_str("}\n");
     }

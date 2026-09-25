@@ -1,0 +1,60 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1035.77278ms)
+  ✖ a failed logout cannot commit after abort (455.127477ms)
+  ✖ a failed logout cannot commit after quota (431.344471ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (441.626922ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (1028.027191ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (6.169266ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (82.768914ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (791.334414ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (757.930589ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (5864.455806ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ tests 10
+ℹ suites 0
+ℹ pass 7
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5958.217496
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:163:51
+✖ a failed logout cannot commit after abort (455.127477ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:186:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:163:43)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-session-authority.test.mjs:163:51
+✖ a failed logout cannot commit after quota (431.344471ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:186:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-session-authority.test.mjs:163:43)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

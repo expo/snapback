@@ -9,6 +9,9 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use thiserror::Error;
 
+mod provenance;
+pub use provenance::SourceIdentity;
+
 pub const I53_MAX: i64 = (1_i64 << 53) - 1;
 pub const I53_MIN: i64 = -I53_MAX;
 
@@ -27,11 +30,14 @@ pub enum Value {
 
 // Row images are shared immutably (`Arc`) so a result, a page head and a
 // partition event can hold one copy; serialization is the plain map.
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>);
+#[derive(Clone, Debug, Eq, Default)]
+pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>, bool, Option<std::sync::Arc<SourceIdentity>>);
+impl PartialEq for ObjectFields {
+    fn eq(&self, other: &Self) -> bool { self.0 == other.0 && self.1 == other.1 }
+}
 impl From<BTreeMap<String, Value>> for ObjectFields {
     fn from(value: BTreeMap<String, Value>) -> Self {
-        Self(std::sync::Arc::new(value))
+        Self(std::sync::Arc::new(value), false, None)
     }
 }
 impl FromIterator<(String, Value)> for ObjectFields {
@@ -82,9 +88,26 @@ impl<'de> Deserialize<'de> for ObjectFields {
     }
 }
 impl ObjectFields {
+    /// Output-only provenance, never recovered from a stored/application field.
+    pub fn is_retained(&self) -> bool { self.1 }
+    pub fn mark_retained(&mut self) {
+        self.1 = true;
+        self.insert("retained".into(), Value::Bool(true));
+    }
     pub fn shares_image(&self, other: &Self) -> bool {
         std::sync::Arc::ptr_eq(&self.0, &other.0)
     }
+}
+
+impl Value {
+    pub fn has_retained_rows(&self) -> bool {
+        match self {
+            Self::Row(fields) | Self::Map(fields) => fields.is_retained() || fields.values().any(Self::has_retained_rows),
+            Self::Array(items) => items.iter().any(Self::has_retained_rows),
+            _ => false,
+        }
+    }
+
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]

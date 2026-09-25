@@ -1,0 +1,29 @@
+✖ IndexedDB model: reset termination before-commit preserves one complete transaction (419.155661ms)
+✔ IndexedDB model: reset termination after-commit preserves one complete transaction (15.765256ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 518.627979
+
+✖ failing tests:
+
+test at packages/snapback4/test/store-reset-idb.test.mjs:59:56
+✖ IndexedDB model: reset termination before-commit preserves one complete transaction (419.155661ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(expected.delete("m device:declaration:capture"))
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/store-reset-idb.test.mjs:79:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

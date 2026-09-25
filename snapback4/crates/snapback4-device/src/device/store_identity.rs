@@ -200,7 +200,18 @@ pub(super) fn keep_write<T: DeviceTx>(tx: &T, value: &str) -> Result<(), Runtime
     let mut ids: std::collections::BTreeSet<String> = entries.iter().filter_map(|entry| entry["id"].as_str().map(str::to_owned)).collect();
     let mut added = Vec::new();
     for entry in incoming {
-        if ids.insert(entry["id"].as_str().unwrap().to_owned()) { added.push(entry); }
+        let id = entry["id"].as_str().unwrap();
+        if ids.insert(id.to_owned()) { added.push(entry); }
+        else if !adopting && entry["state"] == "sent" {
+            // @ref LLP 3000.013#6 — positive outbox custody resolves an
+            // unknown-outcome replacement refusal, without refreshing the window.
+            if let Some(old) = entries.iter_mut().find(|old| old["id"] == id && old["state"] == "failed" && old["why"]["code"] == "E_STORE_REPLACED") {
+                if let Some(data) = tx.outbox_get(id)? {
+                    let queued: Queued = decoded(&data)?;
+                    if queued.sent_seq.or(queued.observed_seq).is_some_and(|seq| entry["seq"].as_u64() == Some(seq)) { *old = entry; }
+                }
+            }
+        }
     }
     if adopting { entries.splice(..0, added); } else { entries.extend(added); }
     if entries.len() > 256 { entries.drain(..entries.len() - 256); }

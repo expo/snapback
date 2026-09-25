@@ -1,0 +1,3 @@
+observed: exit 1
+empty-queue: exit 1
+ordinary-gate: exit 1

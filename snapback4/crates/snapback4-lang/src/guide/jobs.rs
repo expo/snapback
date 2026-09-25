@@ -218,8 +218,21 @@ pending work, so do not blindly repeat the advance. The offset belongs to
 this process and resets on restart; supply it again when continuing a test.
 Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
 An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
-Clients receive ordinary row times, nextExpiry and sync deletions; their
-own clocks and the application wire do not change.
+Devices keep the server's time for predictions, reads and expiry, including offline starts.
+`clock advance` and `--clock-offset` reach connected devices at their next response.
+Estimated server time is unfloored: it refines the offset and schedules server-answer refetches.
+Issued device time (`client.now()`) is monotonic: it drives device execution, predictions, expiry and rendering.
+Responses above 1,000 ms use a provisional receipt stamp for both clocks; measured samples of at most 1,000 ms outrank them.
+Streaming change polls stamp their final body after the hold, not their early heartbeat headers.
+Admission commits the issued floor with its outbox entry, and settlement does not erase it.
+Orphan transfers and recovery preserve the floor in their outbox transaction, even after attachment.
+Every committed admission advances the live clock and its deadlines before later admissions, including deferred journal recovery.
+Restore commits available orphan floors before replaying its own journal; a failed floor save leaves the journal unadmitted.
+An admission already waiting behind recovery uses at least that recovered time; journal capture stays synchronous.
+On reopening, only durable admissions restore the floor; ordinary `now()` calls do not pin it.
+Attachment transactionally preserves queued legacy admission times before replay can retire them.
+Freshness labels (`since` / `syncedAt`) use wall time, so "as of three minutes ago" stays meaningful.
+Legacy freshness metadata is omitted until resync; labels never publish a stamp ahead of wall time.
 
 `snapback4 run <op> --now 1789352669447` pins just that local invocation
 (query, mutation or job) to Unix milliseconds; `--now +25h` pins it relative

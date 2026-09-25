@@ -11,9 +11,11 @@ use std::collections::BTreeMap;
 mod round2;
 mod round3;
 mod merge_continuation;
+mod aggregate_cuts;
+mod expiry_candidates;
 
 fn table() -> Table {
-    Table { maintained: BTreeMap::new(), recorded: BTreeMap::new(), residency: Default::default(), defaults: BTreeMap::new(),
+    Table { through: None, maintained: BTreeMap::new(), recorded: BTreeMap::new(), residency: Default::default(), defaults: BTreeMap::new(),
         columns: BTreeMap::from([("id".into(), ColumnType::Id), ("roomId".into(), ColumnType::Id), ("principal".into(), ColumnType::Principal), ("body".into(), ColumnType::Text { max: 100 })]),
         indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["roomId", "id"], false)), ("byRoomPrincipal".into(), Index::of(&["roomId", "principal"], true))]),
         rules: Rules { read: RuleExpr::Deny, insert: RuleExpr::Allow, update: RuleExpr::Allow, delete: RuleExpr::Allow },
@@ -56,7 +58,7 @@ fn observation(or: bool, admitted: bool, hidden: bool, words: bool, cut: Cut, re
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
     json!({"data": data, "error": error, "complete": runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.beyond_horizon,
-        "next": runner.next_cursor().unwrap(), "capped_at": runner.meter.capped_at, "metered": runner.meter.used, "tables": runner.read_tables, "nextExpiry": runner.next_expiry})
+        "next": runner.next_cursor().unwrap(), "capped_at": runner.meter.capped_at, "metered": runner.meter.used, "tables": runner.read_tables, "nextExpiry": runner.next_expiry.get()})
 }
 #[test]
 fn r1a_short_circuit_dependencies_match_complete_observations() { paired(false); }
@@ -104,7 +106,7 @@ fn observe_read(schema: Schema, seed: Vec<(String, Value)>, expr: Expr, cut: Cut
     let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false, returned_shapes: Default::default() };
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
-    json!({"data":data,"error":error,"complete":runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow,"next":runner.next_cursor().unwrap(),"capped_at":runner.meter.capped_at,"metered":runner.meter.used,"tables":runner.read_tables,"nextExpiry":runner.next_expiry})
+    json!({"data":data,"error":error,"complete":runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow,"next":runner.next_cursor().unwrap(),"capped_at":runner.meter.capped_at,"metered":runner.meter.used,"tables":runner.read_tables,"nextExpiry":runner.next_expiry.get()})
 }
 
 #[test]

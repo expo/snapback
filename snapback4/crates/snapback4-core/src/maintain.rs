@@ -83,7 +83,7 @@ impl Maintain {
     pub fn source_key(&self, image: &Value) -> Vec<Value> {
         self.by.iter().map(|field| match self.computed.get(field) {
             Some(key) => key.value(image),
-            None => image.field(field).cloned().unwrap_or(Value::Null),
+            None => image.field(self.aliases.get(field).unwrap_or(field)).cloned().unwrap_or(Value::Null),
         }).collect()
     }
     pub fn bare_key(&self, field: &str) -> bool { self.by.iter().any(|f| f == field) && !self.computed.contains_key(field) }
@@ -91,7 +91,7 @@ impl Maintain {
     pub fn dependencies(&self) -> BTreeSet<String> {
         let mut fields = BTreeSet::new();
         if let Some(p) = &self.filter { p.fields(&mut fields); }
-        for field in &self.by { fields.insert(self.computed.get(field).map_or(field, |key| &key.column).clone()); }
+        for field in &self.by { fields.insert(self.computed.get(field).map_or(self.aliases.get(field).unwrap_or(field), |key| &key.column).clone()); }
         if let crate::schema::MaintainKind::Sum { of } = &self.kind { fields.insert(of.clone()); }
         fields
     }
@@ -102,7 +102,32 @@ impl Maintain {
         source.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&self.by))
             .map(|(name, _)| (name.as_str(), group.to_vec())).unwrap_or(("byId", Vec::new()))
     }
+    /// The group also determines the engine's synthetic id, never its value.
+    pub fn read_uses_non_key_fields(&self, schema: &crate::schema::Schema) -> bool {
+        let Some(target) = schema.table(&self.target) else { return false; };
+        let mut fields = BTreeSet::new();
+        target.rules.read.fields(&mut fields);
+        fields.iter().any(|field| field != "id" && !self.group_fields().contains(field))
+    }
+
+    pub fn expiring_read_refusal(&self, schema: &crate::schema::Schema) -> Option<String> {
+        (schema.table(&self.source).is_some_and(Table::is_expiring) && self.read_uses_non_key_fields(schema)).then(||
+            format!("{}: expiring aggregate authorization must use only group keys; use a rule over {}, omit read to inherit the source rule, or use online only with an explicit key rule; a cap cannot authorize the live value before recounting", self.target, self.group_fields().join(", ")))
+    }
+
+    pub fn groups_by_parent(&self, schema: &crate::schema::Schema) -> bool {
+        schema.table(&self.source).and_then(|source| source.through.as_ref()).is_some_and(|parent| self.by.contains(&parent.reference))
+    }
+
     pub fn validate_keys(&self, source: &Table) -> Result<(), String> {
+        for (output,capture) in &self.aliases {
+            if !self.by.contains(output) || !source.through.as_ref().is_some_and(|t| t.fields.contains_key(capture)) {
+                return Err("maintain aliases must reuse an inherited capture".into());
+            }
+        }
+        if let Some(parent)=&self.parent_key && (source.through.as_ref()!=Some(parent) || !self.by.contains(&parent.reference)) {
+            return Err("maintain parent key must group by its source's read-through reference".into());
+        }
         for key in self.computed.values() {
             key.validate(source)?;
         }
@@ -117,10 +142,10 @@ impl crate::schema::Schema {
             table.indexes.retain(|_, index| !matches!(index.components.first(), Some(crate::schema::IndexComponent::Contribution(_))));
         }
         for maintain in &self.maintains {
-            if let Some(source) = self.tables.get_mut(&maintain.source).filter(|source| source.expire.is_some()) {
+            if let Some(source) = self.tables.get_mut(&maintain.source).filter(|source| source.is_expiring()) {
                 source.indexes.insert(maintain.contribution_index(), crate::schema::Index {
                     components: vec![crate::schema::IndexComponent::Contribution(Box::new(maintain.clone())),
-                        crate::schema::IndexComponent::Column(source.expire.clone().expect("expiring source"))], unique: false,
+                        crate::schema::IndexComponent::Column(source.expiry_column().expect("expiring source").to_owned())], unique: false,
                 });
             }
         }

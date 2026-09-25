@@ -195,8 +195,14 @@ async function reviewServer(t, source = reviewSource) {
     server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
+    const started = Date.now();
     const response = await fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona, "content-type": "application/json" }, body: JSON.stringify(body) });
-    const result = await response.json(); assert.equal(response.status, 200, JSON.stringify(result)); assert.ok(!result.denied, JSON.stringify(result)); return result;
+    const result = await response.json(); assert.equal(response.status, 200, JSON.stringify(result)); assert.ok(!result.denied, JSON.stringify(result));
+    if (path === "/sync") {
+      assert.ok(Number.isSafeInteger(result.now), "sync carries its pinned clock");
+      assert.ok(result.now >= started - 1000 && result.now <= Date.now() + 1000, "sync clock belongs to this request, never to a private row");
+    }
+    return result;
   };
   const backend = await (await fetch(`${url}/schema`, { headers: { "x-snapback-persona": "bob" } })).json();
   const persist = memoryPersistence();
@@ -213,12 +219,12 @@ for (const moved of [false, true]) for (const hidden of [false, true]) test(`was
     assert.equal((await post(`/m/${hidden ? "hide" : "remove"}`, { id: "withhold", args: { p: "p2" } })).state, "sent");
     if (moved) assert.equal((await post("/m/move", { id: "move", args: { p: "p3", at: 1000 } })).state, "sent");
     const stream = await post("/sync", { from: before.watermark, stream: true });
-    const { store_id, ...payload } = stream; payloads.push(JSON.stringify(payload));
+    const { store_id, now, ...payload } = stream; payloads.push(JSON.stringify(payload));
     ok(await core.call({ op: "apply", page: stream }));
     const read = ok(await core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c: null }, now: 20_000 }));
     assert.deepEqual(ids(read), ["p3", "p1"]); assert.equal(read.unknown, false); assert.equal(read.complete, true);
   }
-  assert.equal(payloads[0], payloads[1], "all viewer payload bytes agree apart from the independent store identity");
+  assert.equal(payloads[0], payloads[1], "all viewer payload bytes agree apart from independent store identity and validated request time");
   if (moved) {
     assert.equal(JSON.parse(payloads[0]).acquisitions.filter(a => a.floor).length, 1);
     console.log(`wasm moved survivor hidden=${hidden}: payload-bytes=${Buffer.byteLength(payloads[0])} identical-worlds=2 completions=1 key-at=100`);
@@ -284,7 +290,7 @@ for (const roundTrip of [true, false]) test(`wasm written unselected ${roundTrip
     const puts = stream.events.filter(e => e.id === "p1" && e.kind === "put");
     assert.equal(puts.length, roundTrip ? 3 : 2, "acquisition plus each later put");
     assert.ok(puts.every(e => e.data.at === 1500), "every put substitutes the current image");
-    const { store_id, ...payload } = stream; payloads.push(JSON.stringify(payload));
+    const { store_id, now, ...payload } = stream; payloads.push(JSON.stringify(payload));
     floors.push(stream.acquisitions.filter(a => a.floor).map(a => a.floor));
     // A fresh snapshot independently establishes the expected current p3 floor.
     const snapshot = await post("/sync", { from: 0 });
@@ -327,7 +333,7 @@ for (const kind of ["scope", "join"]) for (const rowEvent of [null, "put", "del"
     assert.equal(colliding.length, rowEvent === "put" ? 2 : 1);
     assert.equal(colliding.at(-1).kind, rowEvent ?? "put");
     assert.deepEqual(stream.events.filter(e => e.kind === "put" && e.id !== collision).map(e => e.id), rowEvent === "del" ? ["p2", "p3", "p3"] : ["p2", "p3"]);
-    const { store_id, ...payload } = stream; payloads.push(JSON.stringify(payload));
+    const { store_id, now, ...payload } = stream; payloads.push(JSON.stringify(payload));
     floors.push(stream.acquisitions.filter(a => a.floor).map(a => a.floor));
     const truth = await post("/q/timeline", { args: { g: "g", c: null } });
     assert.deepEqual(truth.data, [{ id: "p2", at: 2000 }, rowEvent === "del" ? { id: "p3", at: 1000 } : { id: collision, at: 1500 }]);

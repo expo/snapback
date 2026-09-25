@@ -1,0 +1,475 @@
+{
+  "fixture": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+  "counts": {
+    "profiles": 1008,
+    "posts": 50228,
+    "follows": 5921,
+    "reposts": 1004,
+    "likes": 5008
+  },
+  "browser": "151.0.7922.34",
+  "results": [
+    {
+      "pages": [
+        {
+          "requested": 4000,
+          "rows": 3999,
+          "snapshot": true,
+          "responseMs": 186,
+          "bytes": 607214
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 125,
+          "bytes": 621288
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 97.7999997138977,
+          "bytes": 664472
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 175.59999990463257,
+          "bytes": 1143543
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 207.40000009536743,
+          "bytes": 1290919
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 231.80000019073486,
+          "bytes": 1291305
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 200.40000009536743,
+          "bytes": 1291423
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 241.19999980926514,
+          "bytes": 1291164
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 217.90000009536743,
+          "bytes": 1291297
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 304.19999980926514,
+          "bytes": 1291300
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 213.5,
+          "bytes": 1291404
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 231.69999980926514,
+          "bytes": 1291241
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 240,
+          "bytes": 1291163
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 193.19999980926514,
+          "bytes": 1291290
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 197.90000009536743,
+          "bytes": 1291379
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 181,
+          "bytes": 1242392
+        },
+        {
+          "requested": 4000,
+          "rows": 1181,
+          "snapshot": true,
+          "responseMs": 31.5,
+          "bytes": 213694
+        },
+        {
+          "requested": 4000,
+          "rows": 0,
+          "snapshot": false,
+          "responseMs": 4.400000095367432,
+          "bytes": 164
+        }
+      ],
+      "applyMs": 3319.0999999046326,
+      "wasmMs": 3850.2000017166138,
+      "idbMs": 6950.299999713898,
+      "idbChanges": 195725,
+      "idbSaves": 40,
+      "tables": {
+        "followerCounts": 1006,
+        "followingCounts": 1005,
+        "follows": 5921,
+        "likes": 5008,
+        "posts": 50228,
+        "profiles": 1008,
+        "reposts": 1004
+      },
+      "wallMs": 15552.900000095367,
+      "acquired": true,
+      "offline": {
+        "ms": 2539.5,
+        "acquired": true,
+        "link": "offline",
+        "profile": "Scale User 0001",
+        "fresh": false,
+        "persistedRows": 65180
+      }
+    },
+    {
+      "pages": [
+        {
+          "requested": 4000,
+          "rows": 3999,
+          "snapshot": true,
+          "responseMs": 80.90000009536743,
+          "bytes": 607214
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 84.19999980926514,
+          "bytes": 621288
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 108,
+          "bytes": 664472
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 172.09999990463257,
+          "bytes": 1143543
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 198.5,
+          "bytes": 1290919
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 190.59999990463257,
+          "bytes": 1291305
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 194.40000009536743,
+          "bytes": 1291423
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 198.59999990463257,
+          "bytes": 1291164
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 195.7000002861023,
+          "bytes": 1291297
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 195.2000002861023,
+          "bytes": 1291300
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 189.7999997138977,
+          "bytes": 1291404
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 185.80000019073486,
+          "bytes": 1291241
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 192.09999990463257,
+          "bytes": 1291163
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 191.5,
+          "bytes": 1291290
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 192.90000009536743,
+          "bytes": 1291379
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 181.7000002861023,
+          "bytes": 1242392
+        },
+        {
+          "requested": 4000,
+          "rows": 1181,
+          "snapshot": true,
+          "responseMs": 34.59999990463257,
+          "bytes": 213694
+        },
+        {
+          "requested": 4000,
+          "rows": 0,
+          "snapshot": false,
+          "responseMs": 4.599999904632568,
+          "bytes": 164
+        }
+      ],
+      "applyMs": 3100.1000003814697,
+      "wasmMs": 3567.800003051758,
+      "idbMs": 10572.299998760223,
+      "idbChanges": 195723,
+      "idbSaves": 39,
+      "tables": {
+        "followerCounts": 1006,
+        "followingCounts": 1005,
+        "follows": 5921,
+        "likes": 5008,
+        "posts": 50228,
+        "profiles": 1008,
+        "reposts": 1004
+      },
+      "wallMs": 18385.700000286102,
+      "acquired": true,
+      "offline": {
+        "ms": 2266,
+        "acquired": true,
+        "link": "offline",
+        "profile": "Scale User 0001",
+        "fresh": false,
+        "persistedRows": 65180
+      }
+    },
+    {
+      "pages": [
+        {
+          "requested": 4000,
+          "rows": 3999,
+          "snapshot": true,
+          "responseMs": 84,
+          "bytes": 607214
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 81.09999990463257,
+          "bytes": 621288
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 96,
+          "bytes": 664472
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 173.59999990463257,
+          "bytes": 1143543
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 190.09999990463257,
+          "bytes": 1290919
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 192.5,
+          "bytes": 1291305
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 192.09999990463257,
+          "bytes": 1291423
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 193.09999990463257,
+          "bytes": 1291164
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 188.59999990463257,
+          "bytes": 1291297
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 193.40000009536743,
+          "bytes": 1291300
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 189.60000038146973,
+          "bytes": 1291404
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 192.30000019073486,
+          "bytes": 1291241
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 197.5,
+          "bytes": 1291163
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 189,
+          "bytes": 1291290
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 189.40000009536743,
+          "bytes": 1291379
+        },
+        {
+          "requested": 4000,
+          "rows": 4000,
+          "snapshot": true,
+          "responseMs": 178.69999980926514,
+          "bytes": 1242392
+        },
+        {
+          "requested": 4000,
+          "rows": 1181,
+          "snapshot": true,
+          "responseMs": 33,
+          "bytes": 213694
+        },
+        {
+          "requested": 4000,
+          "rows": 0,
+          "snapshot": false,
+          "responseMs": 6.5,
+          "bytes": 164
+        }
+      ],
+      "applyMs": 2937.2000002861023,
+      "wasmMs": 3399.1000027656555,
+      "idbMs": 12174,
+      "idbChanges": 195723,
+      "idbSaves": 39,
+      "tables": {
+        "followerCounts": 1006,
+        "followingCounts": 1005,
+        "follows": 5921,
+        "likes": 5008,
+        "posts": 50228,
+        "profiles": 1008,
+        "reposts": 1004
+      },
+      "wallMs": 19781.799999713898,
+      "acquired": true,
+      "offline": {
+        "ms": 2193.4000000953674,
+        "acquired": true,
+        "link": "offline",
+        "profile": "Scale User 0001",
+        "fresh": false,
+        "persistedRows": 65180
+      }
+    }
+  ]
+}

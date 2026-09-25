@@ -1,0 +1,20 @@
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (903.896025ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (762.436845ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1839.892183ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (811.903633ms)
+  ✔ legacy journal after logout preserves committed outbox custody (820.972749ms)
+  ✔ same-epoch logout tombstone refuses live admission (533.780153ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (533.166552ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (463.068604ms)
+✔ web admission review: recovery and transport respect the session boundary (7436.673565ms)
+ℹ {"mode":"held-sync","id":"01M3C224HT7M6FENDEXQK3B4ZN","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3C225A4735XJYRMQQMMBCWS","outboxBeforeSync":true,"keepalive":true}
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7525.624447

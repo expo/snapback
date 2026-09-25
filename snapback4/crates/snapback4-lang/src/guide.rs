@@ -8,6 +8,8 @@
 //! on its own; one that does not compiles beside the language card's schema.
 
 // @ref LLP 3000.007#20.19 — one orientation points to tested reference cards.
+#[path = "guide/why.rs"]
+mod why;
 #[path = "guide/app.rs"]
 mod app;
 #[path = "guide/shapes.rs"]
@@ -54,7 +56,7 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -67,7 +69,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("optimistic", "prediction"), ("pending", "prediction"),
     ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
-    ("sql", "personas"), ("inspect", "personas"),
+    ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
@@ -100,7 +102,7 @@ pub fn quarry(text: &str) -> Vec<String> {
 
 /// The language card's core program; its server opt-in block is separate.
 pub fn language() -> String {
-    quarry(LANGUAGE).into_iter().next().expect("the language card has a core block")
+    quarry(LANGUAGE).into_iter().find(|block| block.contains("query heldRoom(")).expect("the language card has a core block")
 }
 
 #[path = "guide/templates.rs"]
@@ -117,6 +119,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
     let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
     Some(match keyword {
         "language" => LANGUAGE,
+        "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
@@ -231,35 +234,36 @@ query expiringStories(c: cursor ?):
   return stories where .authorId = viewer after c last 20 by .id { id, body, expiresAt }
 ```
 
-A typing indicator or presence row with a short deadline needs this local
-filter: hide it at its deadline, even while the next answer is still pending.
 `guide reads` carries a compilable typing table and its 4,500 ms deadline.
 This is an application table, separate from the server's `connected[p]`.
 That server-decided connection signal has no `expiresAt`.
-A row already returned stays in that answer until the next answer; a live
-reader that must hide it at its deadline drops it locally by `expiresAt`.
-The server will not return the row again after expiry, but does not push a
-removal at the instant of expiry. Select the deadline in the query, as above.
-The local client reschedules its watch at `Read.nextExpiry`; keep the render
-filter so the row hides at its deadline rather than at the refetch.
-Given `rows` from a ready answer and your `render` function, render now and
-schedule another render at each non-null deadline (epoch milliseconds):
+Held device observations republish at `nextExpiry`, including offline; render
+those rows directly. The browser witness measures their published expiry
+within a frame. JavaScript timers still wait while a page is suspended.
+Only server-answered reads need a render-deadline filter to hide a returned
+row while its next network answer is pending. Return `expiresAt`, as above.
+In React, `useNow(deadline)` owns the timer and responds to clock estimates:
 
 ```ts
-const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));
-paint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);
+import { useClient, useNow } from "snapback4/react";
+function useExpiringRows<T extends { expiresAt: number | null }>(rows: T[]) {
+  const client = useClient();
+  const deadline = Math.min(...rows.flatMap(row => row.expiresAt !== null && row.expiresAt > client.now() ? [row.expiresAt] : []));
+  const now = useNow(Number.isFinite(deadline) ? deadline : null);
+  return rows.filter(row => row.expiresAt === null || row.expiresAt > now);
+}
 ```
 
-Clear these timers with `timers.forEach(clearTimeout)` before replacing the
-answer or unmounting. This short-lived-row example uses the client's clock
-and timer scheduling; `null` never expires.
+Render the rows returned by `useExpiringRows(rows)`. `client.now()` estimates the server's time and never
+moves backward; `null` never expires. The hook cleans up on unmount.
 
 A row past the time in the column is absent — to every reader, on every
 host, before any rule — from that moment; the server's sweep schedules physical deletion
 on its one-second tick (backlog and work slices can delay it), and the deletion streams to each device holding it, so it
 leaves local stores on the next sync. In development, `snapback4 clock advance 185s`
 runs that sweep immediately on the running `dev`; the deletion reaches both
-device stores through normal sync, without changing the device clock (guide clock).
+device stores through normal sync; devices also learn the advanced server time
+on their next response (guide clock).
 Disappearing messages are one field on
 insert; there is no purge job to write. A maintained `view` over an expiring table
 reads its physical total minus unswept expired contributions under the read

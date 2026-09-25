@@ -43,11 +43,13 @@ pub(super) fn derived_read(catalog: &Catalog, maintain: &MaintainDecl) -> Fallib
         value: Expr::Name { name: name.into(), site: maintain.site.clone() }, site: maintain.site.clone() };
     if source.decl.public.is_some() { return Ok(constant("allow")); }
     let Some(read) = source.decl.rules.iter().find(|rule| rule.effect == Effect::Read) else { return Ok(constant("deny")); };
+    if source.through.as_ref().is_some_and(|t| maintain.by.contains(&t.reference)) { return Ok(constant("deny")); }
     let bound = super::schema::bind_rule(catalog, source, read)?;
     if bound.is_uniformly_readable() { return Ok(constant("allow")); }
     let mut fields = BTreeSet::new();
     bound.fields(&mut fields);
-    let bare: BTreeSet<_> = maintain.keys.iter().filter_map(bare_key).collect();
+    let aliases = inherited_aliases(source,maintain);
+    let bare: BTreeSet<_> = maintain.keys.iter().filter_map(bare_key).chain(aliases.values().map(String::as_str)).collect();
     let missing: Vec<_> = fields.iter().filter(|field| !bare.contains(field.as_str())).map(|field| format!(".{field}")).collect();
     if !missing.is_empty() {
         return Err(Diagnostic::new(&maintain.site, "E_MAINTAIN_READ_RULE",
@@ -55,7 +57,28 @@ pub(super) fn derived_read(catalog: &Catalog, maintain: &MaintainDecl) -> Fallib
                 maintain.name, maintain.source, crate::print::expression(&read.value), missing.join(", ")),
             "read <- deny  -- replace deny with an explicit aggregate read rule over its group keys").guide("maintains"));
     }
-    Ok(RuleDecl { site: maintain.site.clone(), ..read.clone() })
+    let mut read = read.clone();
+    super::intent_walk::expression(&mut read.value,&mut |expr| {
+        if let Expr::Member {base,name,..} = expr && matches!(base.as_ref(),Expr::Focal {..}) {
+            if let Some((output,_)) = aliases.iter().find(|(_,capture)| *capture == name) { *name=output.clone(); }
+        }
+    });
+    Ok(RuleDecl { site: maintain.site.clone(), ..read })
+}
+
+pub(super) fn inherited_aliases(source: &TableInfo, maintain: &MaintainDecl) -> BTreeMap<String,String> {
+    maintain.by.iter().zip(&maintain.keys).filter_map(|(output,key)| {
+        let capture=format!("${}",path(key)?);
+        source.through.as_ref()?.fields.contains_key(&capture).then(|| (output.clone(),capture))
+    }).collect()
+}
+
+pub(super) fn inherited_keys(source: &TableInfo, maintain: &mut MaintainDecl) {
+    for (output,key) in maintain.by.iter_mut().zip(&maintain.keys) {
+        if let Some(path)=path(key) && source.captures.contains_key(&format!("${path}")) {
+            *output=path.rsplit('.').next().unwrap().into();
+        }
+    }
 }
 
 /// Only maintain binding sees these synthetic columns; ordinary programs never do.
@@ -68,6 +91,7 @@ pub(super) fn recorded_paths(tables: &BTreeMap<String, TableInfo>, maintain: &Ma
                 let Some(ScalarType { kind: TypeKind::Ref { table }, .. }) = source.columns.get(reference) else { return Err(fail(format!("{reference} must be a reference column of {}", source.decl.name))); };
                 if !source.decl.immutable.iter().any(|(fields, _)| fields.iter().any(|field| field == reference)) { return Err(fail(format!("{}.{} must be immutable", source.decl.name, reference))); }
                 let target = tables.get(table).ok_or_else(|| fail(format!("unknown target table {table}")))?;
+                if source.through.as_ref().is_some_and(|t| t.reference == reference && t.fields.contains_key(&format!("${reference}.{name}"))) { return Ok(()); }
                 let reads: Vec<_> = target.decl.rules.iter().filter(|rule| rule.effect == Effect::Read).collect();
                 let public = match (target.decl.public.is_some(), reads.as_slice()) {
                     (true, []) => true,
@@ -116,7 +140,7 @@ pub(super) fn keys(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<BTre
         if !names.insert(field.clone()) { return Err(refusal(key.site(), format!("maintain output name {field} is duplicated or reserved"), "use distinct bare keys and at most one day, hour and bucket key; id and value are reserved")); }
         match key {
             Expr::Name { name, .. } if source.columns.contains_key(name) => {}
-            Expr::Member { .. } if path(key).is_some_and(|p| source.recorded.contains_key(&p)) => {}
+            Expr::Member { .. } if path(key).is_some_and(|p| source.recorded.contains_key(&p) || source.captures.contains_key(&format!("${p}"))) => {}
             Expr::Call { name, args, .. } if matches!(name.as_str(), "day" | "hour" | "bucket") => {
                 let (millis, offset) = calendar(name, args, key.site())?;
                 let column = path(&args[0]).ok_or_else(|| refusal(args[0].site(), "calendar group key needs a source time column or recorded path", "day(.at), hour(postId.at), or bucket(.at, 2m)"))?;

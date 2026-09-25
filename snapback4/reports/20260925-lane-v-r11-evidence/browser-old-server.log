@@ -1,0 +1,36 @@
+(node:3057082) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✖ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (557.926092ms)
+  ✔ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (1395.282455ms)
+  ✔ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (7182.90229ms)
+✖ web admission review: recovery and transport respect the session boundary (9986.668749ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10074.446519
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (557.926092ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  3 !== undefined
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:755:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:737:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

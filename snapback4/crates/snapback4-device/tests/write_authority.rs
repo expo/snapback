@@ -29,6 +29,45 @@ mutation put(key: text <=30):
 mutation putId(target: counters):
   upsert counters[id = target] {key: 'lookup', owner: 'alice', amount: 0}
 "#;
+
+#[test]
+fn only_a_matching_outbox_acknowledgement_overwrites_a_replacement_refusal() {
+    fn run<H: Host>(host: &mut H) {
+        for code in ["E_STORE_REPLACED", "NOT_ADMIN"] {
+            for observed in [false, true] {
+                let (_, backend) = compile(SOURCE);
+                let name = format!("ack-{code}-{observed}");
+                let mut device = host.open(&name, Some(backend)).unwrap();
+                let failed = json!({"state":"failed", "id":"write", "why":{"code":code}});
+                let sent = json!({"state":"sent", "id":"write", "seq":7, "replayed":true});
+                device.keep_write(&failed.to_string()).unwrap();
+                device.keep_write(&sent.to_string()).unwrap();
+                let history = |device: &snapback4_device::device::Device<H::Store>| serde_json::from_str::<Json>(&device.meta("write-history").unwrap().unwrap()).unwrap();
+                assert_eq!(history(&device), json!([failed]), "no acknowledgement cannot replace history");
+                let entry = Queued { id: "write".into(), seq: 1, op: "edit".into(), args: json!({"key":"lookup"}), viewer: "bob".into(), now: 1000,
+                    new_ids: vec![], predicted: vec![], predictable: false, sent_seq: None, receipt_store: None, observed_seq: None };
+                device.admit(entry).unwrap();
+                if observed {
+                    let page = serde_json::from_value(json!({"snapshot":false,"generation":device.backend().generation,"events":[],"watermark":7,"more":false,"acknowledged":{"write":7}})).unwrap();
+                    device.apply(&page, false).unwrap();
+                } else { device.settle("write", Some(7)).unwrap(); }
+                // The candidate sequence must match custody, not just its id.
+                device.keep_write(&json!({"state":"sent","id":"write","seq":8}).to_string()).unwrap();
+                assert_eq!(history(&device), json!([failed]));
+                device.keep_write(&sent.to_string()).unwrap();
+                let expected = if code == "E_STORE_REPLACED" { sent } else { failed };
+                assert_eq!(history(&device), json!([expected]));
+                host.close(&name, device);
+                let device = host.open(&name, None).unwrap();
+                assert_eq!(history(&device), json!([expected]));
+                host.close(&name, device);
+            }
+        }
+    }
+    run(&mut Memory::new());
+    run(&mut Sqlite::new("acknowledgement-receipts"));
+}
+
 #[test]
 fn w1_a_device_queues_without_a_row_and_does_not_predict_not_found_or_insert() {
     // The same full observation boundary runs both stores, including settlement

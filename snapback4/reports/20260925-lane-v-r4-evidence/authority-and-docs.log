@@ -1,0 +1,28 @@
+✔ README TypeScript examples compile and call every public function (1697.661211ms)
+ℹ 26 README blocks; 45 public functions; 1695.91 ms
+✔ Queries teach predicate reads and engine-chosen scope lanes (0.650325ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (10.507318ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (2.876141ms)
+✔ W10b typing guidance hides a short-lived row before the next answer (2.163973ms)
+✔ W10R1 typing renderer replaces deadlines on a live watch and cleans up on unmount (33.077787ms)
+ℹ live typing: answers=3 initial_deadline_ms=4500 extended_deadline_ms=7500 old_deadline_repaints=0 timers_after_unmount=0
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1031.40905ms)
+  ✔ a failed logout cannot commit after abort (859.675876ms)
+  ✔ a failed logout cannot commit after quota (854.205266ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (364.472513ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (958.780134ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.740775ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (86.746005ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (789.437923ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (737.435982ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (6584.760883ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6684.175036

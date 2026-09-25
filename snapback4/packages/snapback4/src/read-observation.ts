@@ -16,7 +16,7 @@ export class ReadObservation<T> {
   async fetch<R extends { read: Read<T>; transportOffline?: boolean }>(run: () => Promise<R>, notify: () => void,
     { retain = false, publishResult = true, accept = (_: R) => true }: { retain?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R & { retryExhausted?: boolean }> {
     if (retain && "data" in this.snapshot) {
-      this.snapshot = { ...this.snapshot, fresh: false, ...(this.since === undefined ? {} : { since: this.since }) };
+      this.snapshot = { ...this.snapshot, fresh: false, ...(this.since === undefined ? {} : { since: Math.min(this.since, Date.now()) }) };
       this.kept = true;
     } else {
       this.publish({ loading: true });
@@ -56,8 +56,10 @@ export class ReadObservation<T> {
 
   publish(read: Read<T>): void {
     this.revision++;
+    if ("data" in read && read.since !== undefined) read = { ...read, since: Math.min(read.since, Date.now()) };
     this.snapshot = read;
     this.kept = false;
+    // Freshness age uses wall time even when row deadlines use issued device time.
     this.since = "data" in read ? read.since ?? (read.fresh ? Date.now() : undefined) : undefined;
   }
 

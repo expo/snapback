@@ -1,3 +1,6 @@
+import { indexedDbStore } from "./web-idb.ts";
+import { admissionHost, admissionRefusal, browserAdmission } from "./admission.ts";
+import { admissionAuthorityHost, admissionAuthorityRefusal, type AdmissionAuthorityContext } from "./admission-authority.ts";
 // The device on the web: the same device, as wasm, over memory (the
 // interpreter's store boundary is synchronous and IndexedDB is not), with
 // the host persisting each call's changes behind it. A cold start with no
@@ -9,7 +12,7 @@ import type { Write } from "./contract.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { DeviceCore, DeviceOpener, DeviceOpening } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
-import { AdmissionJournal, journalStores, writeRefusal } from "./web-journal.ts";
+import { AdmissionError, AdmissionJournal, bindingRefusal, journalStoreBinding, journalStores, writeRefusal } from "./web-journal.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
@@ -57,6 +60,7 @@ export interface WebDeviceOptions {
 
 let ready: Promise<unknown> | null = null;
 let runtime: { identity: string | WebAssembly.Module; initialized: unknown } | undefined;
+const ephemeral = new WeakSet<Persistence>();
 
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
@@ -71,7 +75,17 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       if (!store) throw new Error("webDevice: persistence could not claim an exclusive device store");
       const journal = new AdmissionJournal(store.name, true);
       const admissions = new Set<string>();
+      const prepared = new WeakMap<Record<string, unknown>, ReturnType<AdmissionJournal["capture"]>>();
+      const capture = (request: Record<string, unknown>) => {
+        if (browserAdmission() && ephemeral.has(persist)) return admissionRefusal(
+          "memoryPersistence() cannot keep admitted writes across page restarts", "client.mutate",
+          "use webDevice() with its default IndexedDB persistence on the web");
+        try { prepared.set(request, journal.capture(request)); }
+        catch (error) { if (error instanceof AdmissionError) return error.why; throw error; }
+        return undefined;
+      };
       let device: WebDevice | undefined;
+      let needsRecovery = true;
       // A lock can release during opening; recovery must wait for restore/adoption.
       let opened!: () => void;
       let chain: Promise<unknown> = new Promise<void>(resolve => { opened = resolve; });
@@ -79,13 +93,13 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       let orphanRetry: ReturnType<typeof setTimeout> | undefined;
       let retryCount = 0;
       const waiting = new Map<string, AbortController>();
-      const outboxListeners = new Set<() => void>();
+      const outboxListeners = new Set<(issuedFloor?: number) => void>();
       const recoverInBackground = () => {
-        chain = chain.then(async () => {
+        chain = chain.then(() => run(async () => {
           if (closing) return;
-          try { if (!device) await restore(); await recoverOrphans(); }
+          try { if (!device) await restore(); await recoverOpening(); await recoverOrphans(); }
           catch { discard(); retryOrphans(); }
-        });
+        }));
       };
       // Persistence failures get three backed-off attempts. Structurally
       // unresolved journals wait for the next open/identity/sync signal.
@@ -119,15 +133,27 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         waiting.clear();
       };
       const recoverOrphans = async () => {
-        const retry = await adoptOrphans(device!, name, store.name, persist, settle, () => {
-          for (const notify of outboxListeners) notify();
-        }, waitForLock);
+        const retry = await adoptOrphans(device!, name, store.name, persist, settle, waitForLock, journal.authority);
         if (retry) retryOrphans();
       };
       // Committed outbox entries, mirrored from persisted changes, so a page
       // being hidden can send what IndexedDB already holds.
-      const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null }>();
+      const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null; observed_seq?: number | null }>();
       const committedListeners = new Set<() => void>();
+      let working = false;
+      let publishPending = false;
+      const publishCommitted = () => {
+        // Transport may acquire the session lock. Run it only after admission
+        // (including its strict IDB commit) has released that lock.
+        if (working) { publishPending = true; return; }
+        publishPending = false;
+        for (const notify of committedListeners) notify();
+      };
+      const run = async <T>(work: () => Promise<T>): Promise<T> => {
+        working = true;
+        try { return await work(); }
+        finally { working = false; if (publishPending) publishCommitted(); }
+      };
       const remember = (changes: Change[]) => {
         journal.remember(changes);
         for (const change of changes) if (change.s === "o") {
@@ -142,15 +168,23 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       const settle = async (extra: Change[] = [], committedReply?: () => void): Promise<void> => {
         const changes = [...JSON.parse(device!.drain()) as Change[], ...journal.cleanup(committed), ...extra];
+        let issuedFloor: number | undefined;
+        for (const change of changes) if (change.s === "o" && change.v !== null) {
+          const now = (JSON.parse(change.v) as { now?: number }).now;
+          if (Number.isSafeInteger(now) && now! >= 0) issuedFloor = Math.max(issuedFloor ?? 0, now!);
+        }
         if (changes.length) await persist.save(store.name, changes);
         // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the durable result reaches invalidation before any fallible host bookkeeping or recovery.
         committedReply?.();
+        // Every outbox commit, including deferred journal replay, reaches the
+        // live clock before the serialized chain can stamp another admission.
+        if (issuedFloor !== undefined) for (const notify of outboxListeners) notify(issuedFloor);
         if (changes.length) {
           remember(changes);
           journal.cleanup(committed);
           // An unawaited mutate may finish admission after pagehide. Recheck
           // the suspended page only once its outbox transaction has committed.
-          if (changes.some(change => change.s === "o")) for (const notify of committedListeners) notify();
+          if (changes.some(change => change.s === "o")) publishCommitted();
         }
       };
       const restore = async (backend?: DeviceOpening | null): Promise<void> => {
@@ -159,12 +193,19 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         journal.load(saved);
         committed.clear();
         remember(saved);
+        journal.fence(device);
         await settle();
-        await journal.recover(device, settle, admissions);
+        needsRecovery = true;
+      };
+      const recoverOpening = async (): Promise<void> => {
+        if (!needsRecovery) return;
+        // Commit orphan admission floors before recovering this tab's journal.
+        await recoverOrphans();
+        await journal.recover(device!, settle, admissions);
+        needsRecovery = false;
       };
       try {
         await restore(backend);
-        await recoverOrphans();
       } catch (error) {
         closing = Promise.resolve();
         stopRecovery();
@@ -177,9 +218,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         onSuspend(flush) {
           if (typeof window === "undefined" || typeof document === "undefined") return () => {};
           const page = window, doc = document;
-          let suspended = false;
-          const beginSend = () => {
-            if (closing || !device) return false;
+          let suspended = doc.visibilityState === "hidden";
+          const beginSend = (id: string) => {
+            if (closing || !device || !committed.has(id) || journal.binding(device, id) !== "allow") return false;
             // Invalidate any sync already in flight, including a bfcache page's
             // snapshot. The synchronous VM call precedes the oldest write's send;
             // its metadata is persisted in order behind any current IDB save.
@@ -191,11 +232,11 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           };
           const dispatch = () => {
             if (!suspended || closing || !device) return;
-            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
-              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
-            if (entries.length) flush(entries, beginSend);
+            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null && e.observed_seq == null).sort((a, b) => a.seq - b.seq)
+              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: journal.boundStore(e.id) }));
+            if (entries.length) flush(entries, () => beginSend(entries[0]!.id));
           };
-          const suspend = () => { suspended = true; dispatch(); };
+          const suspend = () => { suspended = true; publishCommitted(); };
           const resume = () => { suspended = false; };
           const hidden = () => { if (doc.visibilityState === "hidden") suspend(); else resume(); };
           const stop = () => {
@@ -210,6 +251,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           doc.addEventListener("visibilitychange", hidden);
           committedListeners.add(dispatch);
           suspendListeners.add(stop);
+          if (suspended) publishCommitted();
           return stop;
         },
         media: {
@@ -219,29 +261,81 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         },
         call(request, committedReply) {
           if (closing) return Promise.reject(new Error("the device is closed"));
-          const admission = request.op === "admit" ? journal.capture(request) : undefined;
+          if (request.op === "admit" && !prepared.has(request)) {
+            const denied = capture(request);
+            if (denied) return Promise.resolve({ denied });
+          }
+          const admission = prepared.get(request);
+          prepared.delete(request);
           if (admission) { request = { ...request, entry: admission.entry }; admissions.add(admission.entry.id); }
-          const answer = chain.then(async () => {
+          const answer = chain.then(() => run(async () => {
             try {
               // @ref LLP 3000.008.004#3 — publish only after persistence;
               // a failed call discards its uncommitted memory. Reopen lazily
               // on the kept backend, with no store copy on successful calls.
               if (!device) await restore();
+              await recoverOpening();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
-              const reply = request.op === "admit" ? journal.admit(device!, request.entry) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
-              const observesStore = request.op === "observe_store" || request.op === "apply";
-              if (!reply.denied && observesStore) journal.fence(device!);
-              try {
-                await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply));
-              } catch (error) {
-                if (!admission || !writeRefusal(reply)) throw error;
-                // The refusal is known even when both cancellation stores fail.
-                // Discard any uncommitted memory; the docs call recovery indeterminate.
-                discard();
+              const execute = async (): Promise<Record<string, unknown>> => {
+                if (request.op === "settle_exit") {
+                  const write = request.write as Extract<Write, { state: "failed" }>;
+                  const invoke = (input: Record<string, unknown>) => JSON.parse(device!.call(JSON.stringify(input)));
+                  // The exclusive claim and device chain cover this entire
+                  // read/check/write transaction. Drain once: the strict IDB
+                  // commit holds the receipt, outbox removal and journal cleanup.
+                  const history = terminalReceipts(invoke({ op: "meta", key: "write-history" }).ok);
+                  const entry = invoke({ op: "queued" }).ok.find((entry: { id: string }) => entry.id === write.id);
+                  if (history.some(known => known.id === write.id) || !entry || entry.sent_seq != null || entry.observed_seq != null) return { ok: false };
+                  const kept = invoke({ op: "keep_write", value: JSON.stringify({ state: "failed", id: write.id, why: {
+                    code: write.why.code, family: write.why.family,
+                    message: `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically`,
+                  } }) });
+                  if (kept.denied) return kept;
+                  const retired = invoke({ op: "settle", id: write.id });
+                  if (retired.denied) throw new Error(retired.denied.message);
+                  const reply = { ok: true };
+                  await settle([], () => committedReply?.(reply));
+                  return reply;
+                }
+                if (request.op === "begin_send" && typeof request.id === "string") {
+                  const entry = committed.get(request.id), seq = entry?.sent_seq ?? entry?.observed_seq;
+                  // An acknowledgement may commit while receipt preflight waits.
+                  // Return that custody from the serialized final send check.
+                  if (seq != null) return { ok: { receipt: { state: "sent", id: request.id, seq, replayed: true } } };
+                  const binding = journal.binding(device!, request.id);
+                  if (!committed.has(request.id) || binding !== "allow") {
+                    journal.fence(device!);
+                    await settle();
+                    return { denied: bindingRefusal(binding === "defer" ? "defer" : "retire") };
+                  }
+                }
+                const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
+                if (request.op === "queued" && Array.isArray(reply.ok)) {
+                  reply.ok = reply.ok.map(entry => ({ ...entry, store_id: journal.boundStore(entry.id) }));
+                }
+                const observesStore = request.op === "observe_store" || request.op === "apply";
+                if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
+                try {
+                  await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply));
+                } catch (error) {
+                  if (!admission || !writeRefusal(reply)) throw error;
+                  // The refusal is known even when both cancellation stores fail.
+                  // Discard any uncommitted memory; the docs call recovery indeterminate.
+                  discard();
+                  return reply;
+                }
                 return reply;
+              };
+              const reply = admission ? await journal.authorize(admission, execute, async () => {
+                const denied = { denied: admissionAuthorityRefusal() };
+                await settle(journal.refused(admission), () => committedReply?.(denied));
+                return denied;
+              }) : await execute();
+              const observesStore = request.op === "observe_store" || request.op === "apply";
+              if (!reply.denied && (request.op === "adopt" || observesStore)) {
+                await recoverOrphans();
+                await journal.recover(device!, settle, admissions);
               }
-              if (!reply.denied && (request.op === "adopt" || observesStore)) await journal.recover(device!, settle, admissions);
-              if (!reply.denied && observesStore) await recoverOrphans();
               if (request.op === "meta" && request.key === "write-history" && !reply.denied) {
                 // Read through on every lookup: a sibling may have recovered a
                 // receipt after this client opened. Never copy it into this VM.
@@ -253,7 +347,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               discard();
               throw error;
             } finally { if (admission) admissions.delete(admission.entry.id); }
-          });
+          }));
           chain = answer.catch(() => undefined);
           return answer;
         },
@@ -266,6 +360,13 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           });
         },
       };
+      admissionHost(core, capture);
+      admissionAuthorityHost(core, context => {
+        // Local-client construction attaches app ownership before its first
+        // device call. Recover here, without waiting for any network sync.
+        journal.authority = context;
+        chain = chain.then(() => run(recoverOpening)).catch(error => { discard(); throw error; });
+      });
       return core;
     },
   };
@@ -396,7 +497,7 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
-async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void): Promise<boolean> {
+async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, waitForLock: (name: string) => void, authority?: AdmissionAuthorityContext): Promise<boolean> {
   if (!persist.others || !persist.remove) return false;
   let retry = false;
   const orphanPrefix = `${name}:tab-`;
@@ -409,24 +510,24 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
     const held = await claimStore(persist, orphan, false);
     if (!held) { waitForLock(orphan); continue; }
     let destinationDirty = false;
-    let enqueued = false;
     try {
       // @ref LLP 3000.007#18.2 — orphan receipts retain their source store until ownership can be resolved.
       // A journal can outlive its database. Loading a missing IDB store would
       // create it, without recovering the identity needed to admit its journal.
       if (!stores.has(orphan) && !await persist.has?.(orphan)) continue;
       let saved = await persist.load(orphan);
-      const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state" }))).ok;
+      const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state", capture: false }))).ok;
       const destination = state?.store_id;
       if (journalStores(`${name}:tab-`).includes(orphan)) {
         // An evicted/unidentified store cannot establish the journal's owner.
         // Leave it intact for a later matching open; never guess from the key.
         if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) continue;
         const sourceJournal = new AdmissionJournal(orphan, true);
+        sourceJournal.authority = authority;
         sourceJournal.load(saved);
         const sourceDevice = new WebDevice(null, JSON.stringify(saved.filter(c => c.s !== "j")));
         try {
-          const sourceState = JSON.parse(sourceDevice.call(JSON.stringify({ op: "sync_state" }))).ok;
+          const sourceState = JSON.parse(sourceDevice.call(JSON.stringify({ op: "sync_state", capture: false }))).ok;
           if (sourceState?.backend_required && !sourceState.restore_refusal && sourceState.store_id === destination && !state.backend_required && !state.restore_refusal) {
             // The destination has already authenticated and installed this store's backend.
             const backend = JSON.parse(device.call(JSON.stringify({ op: "backend" }))).ok;
@@ -460,8 +561,9 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       let unresolved = false;
       for (const entry of entries) {
         const transfer = transfers.get(entry.id);
-        if (transfer?.recovered && !destination) { unresolved = true; continue; }
-        if (transfer?.recovered && transfer.storeId !== destination) { removed.push({ s: "o", k: entry.id, v: null }); continue; }
+        const binding = journalStoreBinding(transfer?.storeId, destination);
+        if (binding === "defer") { unresolved = true; continue; }
+        if (binding === "retire") { removed.push({ s: "o", k: entry.id, v: null }); continue; }
         const known = entry.sent_seq != null || entry.observed_seq != null;
         if (known && (!source || !destination)) { unresolved = true; continue; }
         if ((!known || source === destination) && !existing.has(entry.id)) {
@@ -470,13 +572,11 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
           const reply = JSON.parse(device.call(JSON.stringify({ op: "enqueue", entry: { ...entry, seq: next.ok ?? entry.seq, predictable: false, predicted: [] } })));
           if (reply.denied) throw new Error(refusalText(JSON.stringify(reply)));
           existing.add(entry.id);
-          enqueued = true;
         }
         removed.push({ s: "o", k: entry.id, v: null });
       }
       await settle(saved.filter(c => c.s === "j" && !entries.some(e => e.id === c.k && !removed.some(r => r.k === e.id))));
       destinationDirty = false;
-      if (enqueued) adopted();
       if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) { if (removed.length) await persist.save(orphan, removed); }
       else await persist.remove(orphan);
     } catch (error) {
@@ -527,89 +627,15 @@ async function shareReceipts(persist: Persistence, name: string, text: string): 
 
 // ----- persistence -----
 
-/** IndexedDB: one database per store, one object store of changes keyed by
- * store and key, written in one transaction per call. */
-export function indexedDbPersistence(): Persistence {
-  const open = (name: string, create = true): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
-    let absent = false;
-    const request = indexedDB.open(name, 1);
-    request.onupgradeneeded = () => {
-      if (create) request.result.createObjectStore("changes", { keyPath: ["s", "k"] });
-      else { absent = true; request.transaction!.abort(); }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => absent ? resolve(null) : reject(request.error);
-  });
-  const done = (tx: IDBTransaction): Promise<void> => new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
-  });
-  return {
-    async has(name) {
-      if (indexedDB.databases) return (await indexedDB.databases()).some(db => db.name === name);
-      const db = await open(name, false);
-      db?.close();
-      return db !== null;
-    },
-    claim: claimWithWebLocks,
-    async read(name, store, key) {
-      const db = await open(name, false);
-      if (!db) return null;
-      try {
-        const tx = db.transaction("changes", "readonly");
-        const request = tx.objectStore("changes").get([store, key]);
-        await done(tx);
-        return (request.result as Change | undefined)?.v ?? null;
-      } finally { db.close(); }
-    },
-    async load(name) {
-      const db = (await open(name))!;
-      try {
-        const tx = db.transaction("changes", "readonly");
-        const request = tx.objectStore("changes").getAll();
-        await done(tx);
-        return (request.result as Change[]).map((c) => ({ s: c.s, k: c.k, v: c.v }));
-      } finally {
-        db.close();
-      }
-    },
-    async save(name, changes) {
-      const db = (await open(name))!;
-      try {
-        const tx = db.transaction("changes", "readwrite", { durability: "strict" });
-        const store = tx.objectStore("changes");
-        for (const change of changes) {
-          if (change.v === null) store.delete([change.s, change.k]);
-          else store.put(change);
-        }
-        await done(tx);
-      } finally {
-        db.close();
-      }
-    },
-    async others(prefix) {
-      const list = (indexedDB as { databases?: () => Promise<{ name?: string }[]> }).databases;
-      if (!list) return [];
-      return (await list.call(indexedDB)).map((d) => d.name ?? "").filter((n) => n.startsWith(prefix));
-    },
-    async remove(name) {
-      await new Promise<void>((resolve, reject) => {
-        const request = indexedDB.deleteDatabase(name);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-        request.onblocked = () => resolve();
-      });
-    },
-  };
-}
+/** IndexedDB keeps each device call atomic and strictly durable. */
+export function indexedDbPersistence(): Persistence { return indexedDbStore(claimWithWebLocks); }
 
 /** Memory: what a test keeps between opens. */
 export function memoryPersistence(): Persistence & { readonly stores: Map<string, Map<string, Change>> } {
   const stores = new Map<string, Map<string, Change>>();
   const held = new Set<string>();
   let alternate = 0;
-  return {
+  const provider: Persistence & { readonly stores: Map<string, Map<string, Change>> } = {
     stores,
     async has(name) { return stores.has(name); },
     async claim(name, allowAlternate) {
@@ -640,4 +666,6 @@ export function memoryPersistence(): Persistence & { readonly stores: Map<string
       stores.delete(name);
     },
   };
+  ephemeral.add(provider);
+  return provider;
 }

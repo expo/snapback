@@ -23,3 +23,34 @@ fn full_target_check_cost_reports_one_inbox_and_meter_bounded_residuals() {
     println!("MEASURE target home scale={home}");
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn bounded_target_certificate_names_whole_partition_floors_and_card_fallback() {
+    let dir = std::env::temp_dir().join(format!("sb4-bounded-following-cost-{}-{}", std::process::id(), snapback4_core::now_ms()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let mut source = SOURCE.to_owned();
+    for table in ["posts", "reposts"] {
+        let start = source.find(&format!("table {table}:")).unwrap();
+        let sync = start + source[start..].find("sync public").unwrap();
+        source.replace_range(sync..sync + "sync public".len(), "sync public last 1000 by .at");
+    }
+    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--cost"]).current_dir(&dir).output().unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let text = String::from_utf8(output.stdout).unwrap();
+    for fact in [
+        "following following acquisition: global, non-sliding source floors",
+        "posts: newest 1000 by (at, id) globally", "reposts: newest 1000 by (at, id) globally",
+        "followingPosts originals: event state follows the source's engine slot; no owned event rows on devices",
+        "followingPosts reposts: event state follows the source's engine slot; no owned event rows on devices",
+        "followingFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader",
+        "follows: full sync", "followingRemovedEvents: full sync",
+        "history: newest 1000 events per followed author, unchanged",
+        "retry original input online; loading offline, while a prediction is unobserved, or for held queries",
+    ] { assert!(text.contains(fact), "missing {fact}: {text}"); }
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--residency", "--verbose"]).current_dir(&dir).output().unwrap();
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("setFollow: predicts: never"), "{text}");
+    fs::remove_dir_all(dir).unwrap();
+}
