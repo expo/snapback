@@ -40,8 +40,8 @@ query auditById(id: audit):
   return audit[id]
 query localNotes(c: cursor ?):
   return notes after c last 1 by byTime
-query presence():
-  return exists connected[viewer]
+query presence(p: principal):
+  return exists connected[p]
 query connections(p: principal):
   return connected[p]
 mutation add(text: text <=100):
@@ -96,7 +96,7 @@ async function fixture(t, watchSources = false) {
   return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads };
 }
 
-test("server-class watches run locally first and publish partial data offline", { timeout: 20000 }, async (t) => {
+test("server-class watches run locally first and recover remembered server data offline", { timeout: 20000 }, async (t) => {
   const f = await fixture(t);
   const client = await f.open(); await client.sync();
   const backend = await fetch(`${f.url}/schema`, { headers: { "x-snapback-persona": "alice" } }).then((r) => r.json());
@@ -108,45 +108,49 @@ test("server-class watches run locally first and publish partial data offline", 
   await f.seed([{ table: "audit", row: { id: "a2", text: "commit touched only the server table", at: 2 } }]);
   await until(() => watch.getSnapshot().data?.[0]?.id === "a2", "online-only commit did not rerun watch");
   f.offline(true); await client.sync();
-  await until(() => watch.getSnapshot().complete === false, "offline watch publishes available local uncertainty");
-  assert.deepEqual(watch.getSnapshot().data, []);
+  await until(() => watch.getSnapshot().fresh === false, "offline watch downgrades the remembered answer");
+  assert.equal(watch.getSnapshot().data[0].id, "a2");
+  assert.ok(watch.getSnapshot().since > 0);
   watch.close();
   watch = client.observe(query("audits"), { c: null });
   await sleep(20);
-  assert.deepEqual(watch.getSnapshot().data, [], "recreated watch uses the available local prefix");
-  assert.equal(watch.getSnapshot().complete, false);
+  assert.equal(watch.getSnapshot().data[0].id, "a2", "recreated watch recovers the last server answer");
+  assert.equal(watch.getSnapshot().fresh, false);
   assert.ok(f.deviceReads.includes("audits"), "static server classes must run locally first");
   f.offline(false); await client.sync();
   await until(() => watch.getSnapshot().fresh === true, "watch did not recover online");
   watch.close();
 });
 
-test("offline cold watches publish local uncertainty, persisted local reads still work", { timeout: 20000 }, async (t) => {
+test("offline cold watches withhold placeholders, persisted local reads still work", { timeout: 20000 }, async (t) => {
   const f = await fixture(t);
   let client = await f.open(); await client.sync();
   assert.equal((await client.query(query("auditById"), { id: "a1" })).data.text, "server answer");
   f.offline(true); await client.sync();
+  const remembered = await client.query(query("auditById"), { id: "a1" });
+  assert.equal(remembered.data.text, "server answer"); assert.equal(remembered.fresh, false); assert.ok(remembered.since > 0);
   const watch = client.observe(query("auditById"), { id: "never-observed" });
   await sleep(20);
-  assert.equal(watch.getSnapshot().data, null); assert.equal(watch.getSnapshot().complete, false);
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
   const local = await client.query(query("localNotes"), { c: null });
   assert.equal(local.data[0].id, "n2");
   assert.equal(local.fresh, false);
   watch.close(); await client.close();
   client = await f.open();
   const cold = await client.query(query("auditById"), { id: "a1" });
-  assert.equal(cold.data, null); assert.equal(cold.complete, false);
+  assert.equal(cold.denied.code, "E_OFFLINE", "server memory lasts only for this client lifetime");
   assert.equal((await client.query(query("localNotes"), { c: null })).data[0].id, "n2");
   assert.ok(f.deviceReads.includes("auditById"));
 });
 
-test("connected is server-run but publishes available local uncertainty offline", { timeout: 15000 }, async (t) => {
+test("connected recovers a server false offline instead of the device presence assumption", { timeout: 15000 }, async (t) => {
   const f = await fixture(t), client = await f.open(); await client.sync();
-  const online = await client.query(query("presence"), {});
-  assert.equal(typeof online.data, "boolean");
+  const online = await client.query(query("presence"), { p: "dev:bob" });
+  assert.equal(online.data, false);
   f.offline(true); await client.sync();
-  const offline = await client.query(query("presence"), {});
-  assert.equal(typeof offline.data, "boolean"); assert.equal(offline.complete, false); assert.equal(offline.fresh, false); assert.ok(offline.since > 0);
+  const offline = await client.query(query("presence"), { p: "dev:bob" });
+  assert.equal(offline.data, false); assert.equal(offline.complete, true); assert.equal(offline.fresh, false); assert.ok(offline.since > 0);
+  assert.equal((await client.query(query("presence"), { p: "dev:unseen" })).denied.code, "E_OFFLINE");
   assert.ok(f.deviceReads.includes("presence"));
 });
 

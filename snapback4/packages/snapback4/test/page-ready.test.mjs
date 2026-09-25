@@ -93,7 +93,7 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   let history = app.client.observe(query("history"), { chat });
   history.subscribe(() => snapshots.push(history.getSnapshot()));
   listRead(await app.client.query(query("history"), { chat }));
-  assert.deepEqual((await app.client.query(query("history"), { chat })).data, []);
+  assert.equal((await app.client.query(query("history"), { chat })).denied?.code, "E_OFFLINE", "an unknown empty chat is not data while acquisition is offline");
   holdSync = false;
   await until(async () => (await app.client.query(query("inbox"), {})).data?.some(row => row.chat === chat), "chat acquired");
   for (let n = 0; n < 3; n++) assert.equal((await bob.mutate(mutation("send"), { chat, body: `message ${n}` })).state, "sent");
@@ -172,10 +172,11 @@ test("unavailable server list responses end retention in both clients", { timeou
   const watches = clients.map(client => client.observe(query("costly"), {}));
   for (const watch of watches) await until(() => "data" in watch.getSnapshot(), "initial cached server list");
   assert.ok((await local.query(query("costly"), {})).data.length === 1);
-  // A transient fallback failure preserves the available local partial answer.
+  // An unknown scalar list is a placeholder; failed fallback recovers memory.
   queryOffline = true;
   const remembered = listRead(await local.query(query("costly"), {}));
-  assert.equal(remembered.complete, false);
+  assert.equal(remembered.complete, true);
+  assert.equal(remembered.fresh, false); assert.ok(remembered.since > 0);
   queryOffline = false;
   // A partial local query does not reconnect by itself.
   // Complete a sync before asserting the next HTTP availability response.
@@ -194,9 +195,8 @@ test("unavailable server list responses end retention in both clients", { timeou
   await setCost(false);
   await until(() => clients.every(client => client.link() === "offline"), "transport loss");
   assert.deepEqual(watches[0].getSnapshot(), { loading: true });
-  assert.equal(watches[1].getSnapshot().complete, false);
-  const partial = await local.query(query("costly"), {});
-  assert.ok(Array.isArray(partial.data)); assert.equal(partial.complete, false);
+  assert.deepEqual(watches[1].getSnapshot(), { loading: true });
+  assert.equal((await local.query(query("costly"), {})).denied.code, "E_OFFLINE");
   for (const watch of watches) watch.close();
 });
 

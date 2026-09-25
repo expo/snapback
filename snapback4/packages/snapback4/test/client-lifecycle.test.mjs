@@ -1048,7 +1048,7 @@ for (const tier of ["wasm", "native"]) {
     const stale = await client.query(thread, args);
     assert.equal(stale.fresh, false);
     assert.ok(stale.since >= changedAt, "since names the latest followed sync, not initial open");
-    assert.equal((await client.query(query("message"), { messageId: "msg-a" })).denied?.code, "NOT_FOUND", "an available local refusal is preserved offline");
+    assert.equal((await client.query(query("message"), { messageId: "msg-a" })).denied?.code, "E_OFFLINE", "an unknown horizon miss is not an authoritative NOT_FOUND");
     await client.close();
     const cold = await f.open(tier, { fetch: transport });
     const restored = await cold.query(thread, args);
@@ -1349,7 +1349,7 @@ for (const scenario of [
   const backend = { ...emptyBackend, programs: [{ ...emptyBackend.programs[0], body: [{ table: "rows" }] }], schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
   const device = emptyDevice({ call: async request => {
     if (request.op === "backend") return { ok: backend };
-    if (request.op === "query") return { ok: { data: ["device"], complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
+    if (request.op === "query") return { ok: { data: [{ id: "device" }], complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: ["rows"] } };
     if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: ["rows/pending"] }] };
   } });
   const requests = []; let offline = false;
@@ -1368,6 +1368,6 @@ for (const scenario of [
   if (scenario.offline) { offline = true; await client.sync(); }
   const read = await client.query(query("read"), {});
   assert.equal(requests.length, scenario.requests, `the ${scenario.name} /q/ request log is ${JSON.stringify(requests)}`);
-  assert.deepEqual(read.data, [scenario.requests ? "server" : "device"]);
+  assert.deepEqual(read.data, scenario.requests ? ["server"] : [{ id: "device" }]);
   assert.equal(read.complete, !!scenario.requests);
 });
