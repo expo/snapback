@@ -1,0 +1,30 @@
+(node:3311707) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sequence-only acknowledgement with no history stays unknown (1.200358ms)
+✔ authored refusal NOT_ADMIN wins over a success-qualified acknowledgement (0.178617ms)
+✔ authored refusal NOT_FOUND wins over a success-qualified acknowledgement (0.089555ms)
+✔ authored refusal CONFLICT wins over a success-qualified acknowledgement (0.122693ms)
+✔ memory: legacy observed_seq with empty history replays NOT_ADMIN without executing (3407.288097ms)
+ℹ {"tier":"memory","field":"observed_seq","prior":"empty","id":"01M3D5QD41GTXHYBXZ7BAFQ1S7","replayed":true,"audit":0}
+✔ memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing (3106.705054ms)
+ℹ {"tier":"memory","field":"observed_seq","prior":"replacement","id":"01M3D5QG52SKT31DMBFBZEDJJW","replayed":true,"audit":0}
+✔ memory: legacy sent_seq with empty history replays NOT_ADMIN without executing (3096.992224ms)
+ℹ {"tier":"memory","field":"sent_seq","prior":"empty","id":"01M3D5QK65BP8M2XV69KF1F8GR","replayed":true,"audit":0}
+✔ memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing (3101.517859ms)
+ℹ {"tier":"memory","field":"sent_seq","prior":"replacement","id":"01M3D5QP6V6FBNBFHGXHQA9EA4","replayed":true,"audit":0}
+✔ sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing (4178.491414ms)
+ℹ {"tier":"sqlite","field":"observed_seq","prior":"empty","id":"01M3D5QS91ZARBF8XXMCFRZ3YV","replayed":true,"audit":0}
+✔ sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing (4176.570072ms)
+ℹ {"tier":"sqlite","field":"observed_seq","prior":"replacement","id":"01M3D5QXBKNVK2DVH2T3PVTFHW","replayed":true,"audit":0}
+✔ sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing (4175.253606ms)
+ℹ {"tier":"sqlite","field":"sent_seq","prior":"empty","id":"01M3D5R1DZF7EQD2J1QNZ5JBW3","replayed":true,"audit":0}
+✔ sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing (4178.306948ms)
+ℹ {"tier":"sqlite","field":"sent_seq","prior":"replacement","id":"01M3D5R5GGHC4ZZSA69ZABSMZM","replayed":true,"audit":0}
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29530.170888

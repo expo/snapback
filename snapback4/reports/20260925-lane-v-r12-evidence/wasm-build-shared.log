@@ -1,0 +1,140 @@
+warning: unused import: `Stmt`
+ --> crates/snapback4-core/src/engine/presence.rs:3:45
+  |
+3 | use crate::{error::RuntimeError, ir::{Expr, Stmt}, value::Value};
+  |                                             ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Authority` is never constructed
+  --> crates/snapback4-core/src/authority.rs:12:12
+   |
+12 | pub struct Authority {
+   |            ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `SessionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:19:19
+   |
+19 | pub(crate) struct SessionRecord {
+   |                   ^^^^^^^^^^^^^
+
+warning: struct `WorkRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:28:19
+   |
+28 | pub(crate) struct WorkRecord {
+   |                   ^^^^^^^^^^
+
+warning: struct `AdmissionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:40:19
+   |
+40 | pub(crate) struct AdmissionRecord {
+   |                   ^^^^^^^^^^^^^^^
+
+warning: trait `AuthorityTransaction` is never used
+  --> crates/snapback4-core/src/authority.rs:48:18
+   |
+48 | pub(crate) trait AuthorityTransaction {
+   |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `AdmissionStanding` is never used
+  --> crates/snapback4-core/src/authority.rs:67:17
+   |
+67 | pub(crate) enum AdmissionStanding {
+   |                 ^^^^^^^^^^^^^^^^^
+
+warning: function `admission_authority` is never used
+  --> crates/snapback4-core/src/authority.rs:76:15
+   |
+76 | pub(crate) fn admission_authority(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `family_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:103:15
+    |
+103 | pub(crate) fn family_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `work_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:146:15
+    |
+146 | pub(crate) fn work_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_window_is_live` is never used
+   --> crates/snapback4-core/src/authority.rs:166:4
+    |
+166 | fn claim_window_is_live(work: &WorkRecord, now: i64) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_is_owned` is never used
+   --> crates/snapback4-core/src/authority.rs:172:15
+    |
+172 | pub(crate) fn claim_is_owned(work: &WorkRecord, worker: &str, digest: &str) -> bool {
+    |               ^^^^^^^^^^^^^^
+
+warning: function `live_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:176:15
+    |
+176 | pub(crate) fn live_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `held_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:187:15
+    |
+187 | pub(crate) fn held_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `live_session` is never used
+   --> crates/snapback4-core/src/authority.rs:203:15
+    |
+203 | pub(crate) fn live_session(
+    |               ^^^^^^^^^^^^
+
+warning: function `live_service_session` is never used
+   --> crates/snapback4-core/src/authority.rs:220:15
+    |
+220 | pub(crate) fn live_service_session(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: field `session_digest` is never read
+   --> crates/snapback4-core/src/engine/mod.rs:111:16
+    |
+104 | pub struct Context {
+    |            ------- field in this struct
+...
+111 |     pub(crate) session_digest: Option<String>,
+    |                ^^^^^^^^^^^^^^
+    |
+    = note: `Context` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `timeline_scan` and `timeline_page` are never used
+   --> crates/snapback4-core/src/engine/timeline.rs:246:8
+    |
+ 55 | impl Runner<'_> {
+    | --------------- methods in this implementation
+...
+246 |     fn timeline_scan(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool) -> Result<Vec<Value>, Runti...
+    |        ^^^^^^^^^^^^^
+...
+250 |     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> R...
+    |        ^^^^^^^^^^^^^
+
+warning: variant `Purge` is never constructed
+  --> crates/snapback4-core/src/engine/timeline_authority.rs:12:5
+   |
+ 8 | pub(super) enum Authority {
+   |                 --------- variant in this enum
+...
+12 |     Purge(BTreeMap<String, u64>),
+   |     ^^^^^
+
+warning: function `expression_scans` is never used
+   --> crates/snapback4-core/src/ir.rs:613:15
+    |
+613 | pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
+    |               ^^^^^^^^^^^^^^^^
+
+wasm 1778898 B raw, 496149 B gzip (budget 496000: OVER by 149 B — issues/20260913-snapback4-wasm-device-diet.md)
+wasm budget: the web device exceeds metrics/wasm-budget.json. A landing that needs the bytes raises the budget in the same commit, with the reason in its why, the commit message and the journal (LLP 3000.002; issues/20260913-snapback4-wasm-device-diet.md).
