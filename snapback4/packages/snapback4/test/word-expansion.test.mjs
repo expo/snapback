@@ -129,7 +129,8 @@ test('wasm expired sub-pair (ii), meter boundary retains the existing time-hidde
   const [a, b] = worlds;
   assert.equal(a.complete, true); assert.equal(a.cut, null); assert.ok(a.next);
   assert.equal(a.data.length, 20);
-  assert.deepEqual(b, { ...a, data: [], complete: false, cut: 'meter', next: null });
+  assert.equal(a.held, true); assert.equal(b.held, false, 'this cut stops before a held row');
+  assert.deepEqual(b, { ...a, data: [], held: false, complete: false, cut: 'meter', next: null });
 });
 
 test('wasm hand-inserted online-only admitted non-uniform pair keeps host-specific cut', () => {

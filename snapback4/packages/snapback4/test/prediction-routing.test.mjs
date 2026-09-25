@@ -364,3 +364,11 @@ for (const when of ["recovery", "publication"]) {
     assert.equal(f.env.serverAnswers.size, 0);
   });
 }
+
+for (const reply of [{ denied: { code: "E_BOUND", family: "bound", message: "ceiling" } }, { loading: true }]) {
+  test(`rule 5: expiry does not replace authoritative ${JSON.stringify(reply)}`, async () => {
+    const f = routing(); f.entries = [];
+    f.env.post = async () => ({ ok: true, json: { ...reply, nextExpiry: 1 }, obsoleteAuth: false });
+    assert.deepEqual(await f.read(), reply);
+  });
+}
