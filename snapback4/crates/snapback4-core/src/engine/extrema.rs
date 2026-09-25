@@ -30,15 +30,18 @@ impl<'a> Aggregate<'a> {
                 if *next == Value::Null { return Ok(false); }
                 let replace = *value == Value::Null || if *max { next.total_cmp(value).is_gt() } else { next.total_cmp(value).is_lt() };
                 if replace {
-                    // The source row's allowance is released by the scan.
-                    // Retain its shared subtrees as well as bytes we clone.
+                    // The scan has released the decoded row's allowance.
+                    // Reuse the old winner's reservation, including shared
+                    // subtrees, admitting growth before changing the winner.
                     let bytes = next.heap_bytes();
                     let mark = runner.meter.mark();
-                    runner.meter.heap(bytes)?;
+                    runner.meter.heap(bytes.saturating_sub(*retained))?;
+                    // Drop owned old bytes before cloning into their allowance.
+                    *value = Value::Null;
                     *value = next.clone();
-                    // Only the old selected value was dropped. Row scratch and
-                    // all other work/retention charges stay in the meter.
-                    runner.meter.release_row_heap(mark, *retained);
+                    // Shrinking releases only the excess old reservation;
+                    // failed growth leaves the previous winner charged.
+                    runner.meter.release_row_heap(mark, retained.saturating_sub(bytes));
                     *retained = bytes;
                 }
                 Ok(*seek)

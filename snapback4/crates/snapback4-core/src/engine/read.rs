@@ -1037,6 +1037,15 @@ impl Runner<'_> {
                         if !matched { continue; }
                     }
                     if let Some(aggregate) = &mut aggregate {
+                        if matches!(aggregate, super::extrema::Aggregate::Extremum { .. }) {
+                            // Decoding, authorization and filtering are finished.
+                            // Transfer row scratch to the selected payload's
+                            // reservation before the fold admits its winner.
+                            // Sum projections still need their source row live.
+                            drop(key);
+                            if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
+                            row_bytes = 0;
+                        }
                         let done = aggregate.push(self, &row)?;
                         consumed += 1;
                         if done || (scan.existence && consumed == take) { break 'outer; }

@@ -141,6 +141,39 @@ fn binary_maintained_point_extrema_keep_their_scalar_overload() {
 }
 
 #[test]
+fn one_large_json_winner_fits_the_default_heap() {
+    let source = "table witness:\n  payload: json <=3000000\n  public\n  online only\nquery low():\n  return min(witness, .payload) != null\nquery high():\n  return max(witness, .payload) != null\n";
+    let mut e = engine(source);
+    let payload = object([("big", Value::String(format!("a{}", "x".repeat(2_500_000))))]);
+    e.seed([("witness".into(), object([("id", Value::Id("a".into())), ("payload", payload.clone())]))]).unwrap();
+    for op in ["low", "high"] {
+        let result = e.query(op, Context::new("alice", BTreeMap::new())).unwrap();
+        assert!(result.complete, "{op}: {result:?}");
+        assert_eq!(result.data, Value::Bool(true));
+        assert_eq!(result.metered.examined, 1);
+        assert!(result.metered.heap_bytes >= payload.heap_bytes());
+        assert!(result.metered.heap_bytes < Ceilings::default().heap_bytes);
+        eprintln!("one 2.5 MB JSON {op}: examined={}, heap={}", result.metered.examined, result.metered.heap_bytes);
+    }
+}
+
+#[test]
+fn replacing_a_large_json_winner_fits_eighteen_mib() {
+    let source = "table witness:\n  payload: json <=3000000\n  public\n  online only\nquery high():\n  return max(witness, .payload) != null\n";
+    let mut e = engine(source);
+    let payload = |prefix| object([("big", Value::String(format!("{prefix}{}", "x".repeat(2_500_000))))]);
+    e.seed(["a", "b"].map(|id| ("witness".into(), object([("id", Value::Id(id.into())), ("payload", payload(id))])))).unwrap();
+    e.set_ceilings(Ceilings { heap_bytes: 18 << 20, ..Ceilings::default() });
+    let result = e.query("high", Context::new("alice", BTreeMap::new())).unwrap();
+    assert!(result.complete, "{result:?}");
+    assert_eq!(result.data, Value::Bool(true));
+    assert_eq!(result.metered.examined, 2);
+    assert!(result.metered.heap_bytes >= payload("b").heap_bytes());
+    assert!(result.metered.heap_bytes < 18 << 20);
+    eprintln!("two 2.5 MB JSON max with replacement: examined={}, heap={}", result.metered.examined, result.metered.heap_bytes);
+}
+
+#[test]
 fn streamed_json_winners_exhaust_the_retained_heap() {
     let source = "table witness:\n  payload: json <=3000000\n  public\n  online only\nquery q():\n  return min(witness, .payload) = max(witness, .payload)\nquery low():\n  return min(witness, .payload) != null\nquery high():\n  return max(witness, .payload) != null\n";
     let mut e = engine(source);
@@ -167,18 +200,27 @@ fn streamed_json_winners_exhaust_the_retained_heap() {
 
 #[test]
 fn replacing_a_json_winner_releases_its_full_retained_charge() {
-    let source = "table t:\n  payload: json <=2048\n  public\n  online only\nquery low():\n  return min(t, .payload)\nquery high():\n  return max(t, .payload)\n";
-    let mut e = engine(source);
-    let payload = |i| Value::Array(vec![object([("big", Value::String(format!("{i:04}{}", "x".repeat(1000))))])]);
-    e.seed((0..128).map(|i| ("t".into(), object([("id", Value::Id(format!("r{i:04}"))), ("payload", payload(i))])))).unwrap();
-    e.set_ceilings(Ceilings { heap_bytes: 64 * 1024, ..Ceilings::default() });
-    for (op, winner) in [("low", 0), ("high", 127)] {
-        let result = e.query(op, Context::new("alice", BTreeMap::new())).unwrap();
-        assert!(result.complete, "{op}: {result:?}");
-        assert_eq!(result.data, payload(winner));
-        assert_eq!(result.metered.examined, 128);
-        assert!(result.metered.heap_bytes >= result.data.heap_bytes());
-        assert!(result.metered.heap_bytes < 64 * 1024);
+    let source = "table t:\n  payload: json <=10000\n  public\n  online only\nquery low():\n  return min(t, .payload)\nquery high():\n  return max(t, .payload)\n";
+    for op in ["low", "high"] {
+        for growing in [true, false] {
+            let mut e = engine(source);
+            let payload = |i: usize| {
+                let order = if op == "high" { i } else { 127 - i };
+                let size = 200 + 64 * if growing { i } else { 127 - i };
+                Value::Array(vec![object([("big", Value::String(format!("{order:04}{}", "x".repeat(size))))])])
+            };
+            e.seed((0..128).map(|i| ("t".into(), object([("id", Value::Id(format!("r{i:04}"))), ("payload", payload(i))])))).unwrap();
+            e.set_ceilings(Ceilings { heap_bytes: 128 * 1024, ..Ceilings::default() });
+            let result = e.query(op, Context::new("alice", BTreeMap::new())).unwrap();
+            assert!(result.complete, "{op}, growing={growing}: {result:?}");
+            assert_eq!(result.data, payload(127));
+            assert_eq!(result.metered.examined, 128);
+            let retained = result.data.heap_bytes();
+            assert!(result.metered.heap_bytes >= retained, "{op}, growing={growing}: winner undercharged");
+            assert!(result.metered.heap_bytes < retained + 4096, "{op}, growing={growing}: old reservation leaked");
+            assert!(result.metered.heap_bytes < 128 * 1024);
+            eprintln!("varying JSON {op}, growing={growing}: payload={retained}, heap={}", result.metered.heap_bytes);
+        }
     }
 }
 

@@ -55083,3 +55083,40 @@ No new language form/refusal, guide rewrite, design change, version change,
 push or publication. All touched source files remain below 1,500 lines.
 Full file map, reproductions, review status and durable log paths:
 `reports/20260925-intent-lane-r-round1.md`.
+
+## 2026-09-25 — LLP 3000.013 Lane R: review round 2
+
+Addressed Grok's Medium heap-admission finding and Astra's Low test gap.
+An authorized, filtered extremum row now releases its decode/key scratch
+before the fold reserves its selected payload. The fold reuses the old
+winner's exact reservation, admits only growth, drops old owned bytes
+before cloning the replacement, and releases only the excess when
+shrinking. Failed admission leaves the old winner charged. Count and sum
+keep their existing projection/source-row accounting.
+
+Added the two measured completion regressions: one 2.5 MB JSON row now
+completes under the default 16 MiB heap for both operators, and max over
+distinct a/b payloads replaces its winner under 18 MiB. Both finish at
+2,500,676 retained heap bytes, versus the pre-fix cuts at 17,511,524 and
+20,011,880 bytes. Strengthened the nested JSON replacement test to grow
+and shrink on every one of 128 rows for both operators. Growing winners
+finish at 8,487 payload / 9,175 total heap bytes; shrinking winners at
+359 / 1,047. Reversing the old/new reservation subtraction makes this test
+fail with an undercharged winner; that deliberate mutation was reverted.
+
+Focused validation passed 21 extrema and 80 guide tests. Final
+`scripts/test.sh`: **`== 0 failure(s) in 1249 s`**, exit 0. All Rust
+targets/doctests passed; clients reported 1,512 tests, 1,502 passed,
+10 existing skips and 0 failed. Used the existing serial-client option
+and lane-local tmpfs build/temp directories. During test development,
+fixed an inferred integer type and raised only the varying-size fixture's
+heap from 64 to 128 KiB to admit its larger decode buffer; its final-charge
+checks remain tight. No final suite, baseline or environmental failure.
+
+Production wasm: 1,771,743 bytes raw / 493,779 gzip (+187 / +15 against
+round 1's recorded whole artifact on the same toolchain). Keep the
+494,000-byte gzip budget with 221 bytes headroom and all runtime ceilings.
+No syntax, refusal, planner or guide change, no design deviation, no
+version change, push or publication. Touched source files remain below
+1,500 lines; the largest is read.rs at 1,392. Full file map, failure record,
+measurements and logs: `reports/20260925-intent-lane-r-round2.md`.
