@@ -223,8 +223,8 @@ const cases = {
     equal(host.textContent, "alice", "a replacement answer cancels its old deadline");
     await act(async () => { await new Promise(resolve => setTimeout(resolve, Math.max(0, extended - client.now()) + 50)); });
     equal(host.textContent, "", "the published hook owns the replacement deadline render");
-    const timers = new Set(), schedule = window.setTimeout, cancel = window.clearTimeout;
-    window.setTimeout = (fn, delay, ...args) => { const id = schedule(fn, delay, ...args); if (delay > 100000) timers.add(id); return id; };
+    const timers = new Map(), schedule = window.setTimeout, cancel = window.clearTimeout;
+    window.setTimeout = (fn, delay, ...args) => { const id = schedule(fn, delay, ...args); if (delay > 100000) timers.set(id, delay); return id; };
     window.clearTimeout = id => { timers.delete(id); cancel(id); };
     await render(h(Typing, { rows: [{ principal: "bob", expiresAt: client.now() + 120000 }] }), client);
     equal(host.textContent, "bob", "new server answer begins live");
@@ -235,6 +235,11 @@ const cases = {
     equal(timers.size, 0, "clock advance cancels the old deadline");
     await render(h(Typing, { rows: [{ principal: "carol", expiresAt: client.now() + 120000 }] }), client);
     equal(timers.size, 1, "the replacement answer installs its timer");
+    const issued = client.now();
+    offset -= 120000; revision++;
+    await act(async () => { await client.query(query, {}); });
+    check(client.now() >= issued, "a shrinking offset never moves device time backward");
+    check([...timers.values()][0] > 239000, "a frozen clock schedules at the estimated deadline without repeated early wakes");
     await unmount();
     equal(timers.size, 0, "unmount cancels the replacement timer");
     window.setTimeout = schedule; window.clearTimeout = cancel;

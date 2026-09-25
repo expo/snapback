@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot } from "./app.ts";
-import { onClock } from "./clock.ts";
+import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
 
 const ClientContext = createContext<Client | null>(null);
@@ -50,7 +50,7 @@ export function useNow(deadline: number | null = null): number {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
       clearTimeout(timer);
-      const remaining = deadline === null ? 0 : deadline - client.now();
+      const remaining = deadline === null ? 0 : clockDelay(client.now, deadline);
       if (remaining > 0) timer = setTimeout(() => { tick(n => n + 1); schedule(); }, Math.min(remaining, 2_147_483_647));
     };
     const stop = onClock(client.now, () => { tick(n => n + 1); schedule(); });

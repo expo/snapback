@@ -109,3 +109,7 @@ export function sampleChanges(response: Response, body: { serverNow?: number; cl
 export function onClock(now: () => number, listener: () => void): () => void {
   return readers.get(now)?.subscribe(listener) ?? (() => {});
 }
+
+export function clockDelay(now: () => number, deadline: number): number {
+  return readers.get(now)?.delay(deadline) ?? Math.max(0, deadline - now());
+}

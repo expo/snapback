@@ -2,6 +2,7 @@
 import type { AssetRead } from "./contract.ts";
 import type { DeviceCore } from "./local.ts";
 import { blobArrayBuffer } from "./assets.ts";
+import { clockDelay } from "./clock.ts";
 
 /** A host's private byte storage. Hex crosses the native JSON bridge; native
  * hosts may also serve a file URI. The client has no dependency on Expo. */
@@ -78,7 +79,7 @@ export class MediaCache {
     if (this.stopped) return;
     const times = [...this.entries.values()].flatMap((e) => e.home.expiresAt == null ? [] : [e.home.expiresAt]);
     if (times.length) {
-      this.timer = setTimeout(() => { void this.reconcile().catch(() => {}); }, Math.min(2_147_483_647, Math.max(1, Math.min(...times) - this.now())));
+      this.timer = setTimeout(() => { void this.reconcile().catch(() => {}); }, Math.min(2_147_483_647, Math.max(1, clockDelay(this.now, Math.min(...times)))));
       (this.timer as { unref?: () => void }).unref?.();
     }
   }
