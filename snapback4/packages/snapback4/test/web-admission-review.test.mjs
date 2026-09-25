@@ -70,6 +70,8 @@ query total():
   if (mutant === 'fresh-fence') replace('web-journal.ts', 'journalStoreBinding(transfer.storeId, state?.store_id)', 'journalStoreBinding(transfer.recovered ? transfer.storeId : undefined, state?.store_id)');
   if (mutant === 'fresh-binding') replace('web-journal.ts', 'absent(transfer.key) && !queued.has(id)', 'absent(transfer.key) && (!transfer.recovered || !queued.has(id))');
   if (mutant === 'orphan-binding') replace('web.ts', '        if (binding === "defer") { unresolved = true; continue; }\n        if (binding === "retire") { removed.push({ s: "o", k: entry.id, v: null }); continue; }', '/* mutant: delete both orphan binding checks */');
+  if (mutant === 'recovered-orphan-binding') replace('web.ts', 'journalStoreBinding(transfer?.storeId, destination)',
+    'journalStoreBinding(transfer?.recovered === false ? transfer.storeId : undefined, destination)');
   if (mutant === 'transport-guards') {
     const source = readFileSync(path('web.ts'), 'utf8');
     const ordinary = 'if (request.op === "begin_send" && typeof request.id === "string") {';
@@ -547,19 +549,36 @@ window.captureClick = () => {
     }
   });
 
-  for (const hidden of [false, true]) await t.test(`a fresh orphan bound to A is retired before enqueue on B (${hidden ? 'exit' : 'ordinary'} transport)`, async () => {
+  for (const recovered of [false, true]) for (const hidden of [false, true]) await t.test(`a ${recovered ? 'recovered' : 'fresh'} orphan bound to A is retired before enqueue on B (${hidden ? 'exit' : 'ordinary'} transport)`, async () => {
     const { session } = await fresh(), before = await total(session);
     await page.evaluate(options => boot(options), { url, session, holdPoll: true });
     const peer = await page.context().newPage();
     let replacement;
     try {
       await peer.goto(page.url()); await peer.waitForFunction(() => !!window.boot);
-      await peer.evaluate(options => boot(options), { url, holdPoll: true, blockMutations: true });
+      await peer.evaluate(options => boot(options), { url, holdPoll: true, blockMutations: true, holdAdmission: recovered });
       const captured = await peer.evaluate(() => captureClick());
       assert.match(captured.store, /:tab-/);
-      assert.equal((await peer.evaluate(() => write)).state, 'pending');
+      if (recovered) {
+        // Navigate before admission commits, then recover the journal in tab 2.
+        // Its transfer must exercise the recovered:true orphan branch.
+        await peer.evaluate(() => location.assign('/?recovered-orphan=1'));
+        await peer.waitForURL('**/?recovered-orphan=1'); await peer.waitForFunction(() => !!window.boot);
+        await peer.evaluate(options => boot(options), { url, holdPoll: true, blockMutations: true });
+        assert.equal((await peer.evaluate(id => app.client.write(id), captured.id)).state, 'pending');
+        // Reload may claim another alternate and adopt the old one. Locate the
+        // actual durable owner instead of assuming the old database still owns it.
+        const owners = await peer.evaluate(async ({ store, id }) => {
+          const persist = indexedDbPersistence(), owners = [];
+          for (const name of await persist.others(store.slice(0, store.indexOf(':tab-')) + ':tab-')) {
+            if (await persist.read(name, 'o', id)) owners.push(name);
+          }
+          return owners;
+        }, captured);
+        assert.equal(owners.length, 1); captured.store = owners[0];
+      } else assert.equal((await peer.evaluate(() => write)).state, 'pending');
       const transfer = await peer.evaluate(async ({ store, id }) => JSON.parse(await indexedDbPersistence().read(store, 'j', id)), captured);
-      assert.equal(transfer.recovered, false); assert.equal(transfer.storeId, captured.record.storeId);
+      assert.equal(transfer.recovered, recovered); assert.equal(transfer.storeId, captured.record.storeId);
       replacement = await replacementFor(session);
       const head = await fetch(replacement.api + '/probe', { headers: { authorization: 'Bearer ' + session.token } }).then(r => r.json());
       await page.evaluate(async destination => { window.backendUrl = destination; await app.client.sync(); }, replacement.api);
@@ -577,7 +596,7 @@ window.captureClick = () => {
       assert.deepEqual(after.enqueued, [], 'retire the mismatch before enqueueing it in B');
       assert.deepEqual(after.queued, []); assert.deepEqual(after.sent, []);
       assert.equal(await total(session), before); assert.equal(await total(session, replacement.api), 0);
-      t.diagnostic(JSON.stringify({ orphan: captured.id, hidden, enqueuedInB: 0, auditA: before, auditB: 0 }));
+      t.diagnostic(JSON.stringify({ orphan: captured.id, hidden, recovered, enqueuedInB: 0, auditA: before, auditB: 0 }));
     } finally {
       if (!peer.isClosed()) { await peer.evaluate(() => app.close()); await peer.close(); }
       await page.evaluate(() => app.close());

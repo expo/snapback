@@ -164,13 +164,14 @@ test("a stale-token mutation refusal remains durable and retries after rotation"
   const doFetch = async (input, init = {}) => {
     const path = new URL(input).pathname;
     if (path === "/schema") return Response.json(backend);
-    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [], store_id: "kept-store" });
     if (path === "/changes") return new Promise((_, reject) => init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true }));
     if (path === "/auth/refresh") {
       assert.equal(auth(init), "Bearer token-zero");
       return Response.json({ session: session("token-one") });
     }
     if (path === "/m/send") {
+      assert.equal(JSON.parse(init.body).store_id, "kept-store");
       mutationBearers.push(auth(init));
       if (mutationBearers.length === 1) {
         await oldReply.promise;
@@ -184,7 +185,7 @@ test("a stale-token mutation refusal remains durable and retries after rotation"
   const core = {
     async call(request) {
       switch (request.op) {
-        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: queued.map((entry) => entry.id) } };
+        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: "kept-store", watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: queued.map((entry) => entry.id) } };
         case "state": return { ok: { watermark: 0, generation: 1, native: null } };
         case "backend": return { ok: backend };
         case "next_submission": return { ok: 1 };
@@ -317,13 +318,14 @@ test("a current-token sign-out cannot reclassify a stale write refusal", async (
   const doFetch = async (input, init = {}) => {
     const path = new URL(input).pathname;
     if (path === "/schema") return Response.json(backend);
-    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [], store_id: "kept-store" });
     if (path === "/changes") return new Promise((_, reject) => init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true }));
     if (path === "/auth/refresh") {
       assert.equal(auth(init), "Bearer token-zero");
       return Response.json({ session: session("token-one") });
     }
     if (path === "/m/send") {
+      assert.equal(JSON.parse(init.body).store_id, "kept-store");
       assert.equal(auth(init), "Bearer token-zero");
       oldMutationEntered = true;
       await oldReply.promise;
@@ -338,7 +340,7 @@ test("a current-token sign-out cannot reclassify a stale write refusal", async (
   const core = {
     async call(request) {
       switch (request.op) {
-        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: queued.map((entry) => entry.id) } };
+        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: "kept-store", watermark: 0, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: queued.map((entry) => entry.id) } };
         case "state": return { ok: { watermark: 0, generation: 1, native: null } };
         case "backend": return { ok: backend };
         case "next_submission": return { ok: 1 };

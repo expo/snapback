@@ -54,7 +54,7 @@ function emptyDevice(overrides = {}) {
         const answer = await overrides.call(request);
         if (answer !== undefined) return answer;
       }
-      if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
+      if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: overrides.storeId ?? null, watermark: 0, generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
       if (request.op === "next_submission") return { ok: 1 };
       if (request.op === "meta") return { ok: null };
       if (request.op === "state") return { ok: { watermark: 0, generation: 1 } };
@@ -151,7 +151,7 @@ test("online auth refusal settles writes that were queued behind the refused req
 
 test("local pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async (t) => {
   const queued = [], reply = deferred(), probe = deferred();
-  const device = emptyDevice({ call: async (request) => {
+  const device = emptyDevice({ storeId: "kept-store", call: async (request) => {
     if (request.op === "backend") return { ok: emptyBackend };
     if (request.op === "admit") { queued.push(request.entry); return { ok: request.entry }; }
     if (request.op === "queued") return { ok: queued };
@@ -161,8 +161,11 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   const client = await createLocalClient({ url: "http://write.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/schema") throw new TypeError("offline at open");
-    if (path === "/m/send") return await held(reply, init?.signal);
-    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [] });
+    if (path === "/m/send") {
+      assert.equal(JSON.parse(init.body).store_id, "kept-store", "a device without web journal metadata uses its kept identity");
+      return await held(reply, init?.signal);
+    }
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [], store_id: "kept-store" });
     if (path === "/probe") { await held(probe, init?.signal); return Response.json({ ok: true }); }
     if (path === "/changes") { await held(probe, init?.signal); return Response.json({ seq: 7, tables: [], generation: 1 }); }
     throw new Error(`unexpected request ${path}`);
