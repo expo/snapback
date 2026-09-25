@@ -469,17 +469,15 @@ impl Runner<'_> {
                             return runner.tx.count_prefix(allowance, table_name, &index_name, &group, *max as u64 + 1);
                         }
                         let mut count = 0;
-                        let mut remaining = super::read::AUTHORIZATION_WALK_LIMIT;
                         let mut bounds = Bounds::default();
                         loop {
                             // Expired occupants consume physical work, never
                             // hidden-dependent logical charges. Exhaustion
                             // cannot establish occupancy and reveals no detail.
-                            if remaining == 0 { return Err(RuntimeError::Rule { table: table_name.into(), effect }); }
-                            let batch = remaining.min(32);
+                            let batch = runner.tx.remaining().min(32);
+                            if batch == 0 { return Err(RuntimeError::AuthorizationBudget); }
                             let rows = runner.tx.scan(allowance, table_name, &index_name, &group, &bounds, Dir::Asc, batch)?;
                             let fetched = rows.len();
-                            remaining -= fetched;
                             for (row, key) in rows {
                                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
                                 if !runner.expired(&table, &row) {

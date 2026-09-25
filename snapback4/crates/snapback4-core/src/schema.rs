@@ -291,6 +291,10 @@ impl Table {
         self.expire.as_ref().is_some_and(|column| matches!(row_image(row, self).field(column), Ok(Value::Int(at)) if *at <= now))
     }
 
+    pub(crate) fn expires_at(&self, row: &Value) -> Option<i64> {
+        match row.field(self.expire.as_deref()?).ok()? { Value::Int(at) => Some(*at), _ => None }
+    }
+
     /// The index the expiry sweep walks: the first leading with the
     /// `expire` column, as the declaration requires.
     pub fn expiry_index(&self) -> Option<(&str, &Index)> {

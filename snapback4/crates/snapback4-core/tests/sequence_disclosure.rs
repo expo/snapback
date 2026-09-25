@@ -371,6 +371,10 @@ mod round7;
 fn generated_expiring_witness_predicates_compare_next_expiry() {
     for (label, pair) in round7::expiry_cases() {
         assert!(std::panic::catch_unwind(|| pair.assert_equal()).is_ok(), "{label}");
+        if label.starts_with("row-lifetime/") {
+            let mut engine = pair.engine(0);
+            assert_eq!(engine.query("one", snapback4_core::Context::new("alice", Default::default()).at(1000)).unwrap().next_expiry, Some(7000));
+        }
     }
 }
 
@@ -400,7 +404,7 @@ fn succeeded_authorization_keeps_only_a_decisive_expiry() {
 
 #[test]
 fn generated_expiring_cap_populations_compare_refusals_and_meters() {
-    for pair in round7::cap_cases() { pair.assert_equal(); }
+    for pair in round7::cap_cases().into_iter().chain(round7::nested_cap_cases()) { pair.assert_equal(); }
 }
 
 #[test]
@@ -422,5 +426,48 @@ fn walk_limit_is_exactly_8192_candidates_in_both_directions() {
             assert_eq!(page.data.as_array().unwrap().len(), usize::from(count == 8191), "descending={descending} hidden={count}");
             if count >= 8192 { assert!(page.next.is_none()); }
         }
+    }
+}
+
+#[test]
+fn existential_alternatives_and_correlations_use_the_complete_timeline() {
+    use snapback4_core::{Context, Value};
+    let a = round7::ADMIN;
+    for rule in [a.to_string(), format!("{a} or not {a}"), format!("not ({a} and not {a})"), format!("not not {a}")] {
+        for permanent in [false, true] {
+            let mut pair = round7::expiry_pair(&rule, false, "admin", [Some(2000), Some(3000)], "bob");
+            pair.source = pair.source.replacen("unique parent, who", "by byParentWho: parent, who", 1);
+            for seed in &mut pair.seeds {
+                seed.push(("grants".into(), serde_json::json!({"id":"later","parent":"p","who":"alice","kind":"admin","until":if permanent { None } else { Some(8000) }})));
+            }
+            pair.assert_equal();
+            let tautology = rule.contains(" or ") || rule.contains(" and ");
+            for world in 0..2 {
+                let mut engine = pair.engine(world);
+                for now in [1000, 2000, 3000, 7999, 8000] {
+                    for query in ["one", "page", "reverse"] {
+                        let out = engine.query(query, Context::new("alice", Default::default()).at(now)).unwrap();
+                        let readable = permanent || tautology || now < 8000;
+                        assert_eq!(out.data != Value::Null && out.data != Value::Array(vec![]), readable, "{rule}/{permanent}/{now}/{query}");
+                        assert_eq!(out.next_expiry, if !permanent && !tautology && now < 8000 { Some(8000) } else { None }, "{rule}/{permanent}/{now}/{query}");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn repeated_authorization_scopes_share_one_request_allowance() {
+    use snapback4_core::{Context, WriteState};
+    let case = generated::compound_write_case("or-public-allowed", "insert", true, true, 8192, None);
+    case.pair.assert_equal();
+    for world in 0..2 {
+        let mut e = case.pair.engine(world);
+        let args = paired_worlds::inputs(&e, "probe", &serde_json::json!({"parent":"p"}));
+        let out = e.mutate("probe", None, Context::new("alice", args).at(paired_worlds::NOW)).unwrap();
+        let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}") };
+        assert_eq!(why.code, "E_RULE");
+        assert!(out.metered.rule_probes <= 8192, "the physical allowance must refuse before the logical probe ceiling");
     }
 }

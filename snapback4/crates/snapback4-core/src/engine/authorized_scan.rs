@@ -1,5 +1,9 @@
 //! One logical allowance for work whose shape can depend on unreadable rows.
 use super::runner::Runner;
+use std::cell::Cell;
+
+// @ref LLP 3000.015#2 — one physical allowance per request, nested work included.
+pub(super) const AUTHORIZATION_WALK_LIMIT: usize = 8192;
 use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, rows::{Rows, Bounds, Dir, AcquiredBoundary, PrefetchRequest}, schema::{Table, Index}, value::Value, assets::Asset};
 
 // Only this module mints the capability; it cannot be constructed or cloned
@@ -8,19 +12,56 @@ pub(crate) struct Authorization { _private: () }
 
 // No Rows implementation, Deref or raw accessor: row reads require the
 // unforgeable token even when a caller has access to Runner's store facade.
-pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows }
+pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64> }
 impl<'a> GuardedRows<'a> {
-    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw } }
-    pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.raw.get(table, id) }
-    pub(crate) fn lookup(&self, _authorization: &Authorization, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.raw.lookup(table, name, index, key) }
-    pub(crate) fn scan(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.raw.scan(table, name, prefix, bounds, dir, limit) }
-    pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.raw.scan_metered(table, name, prefix, bounds, dir, limit, meter) }
-    pub(crate) fn count_prefix(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.raw.count_prefix(table, name, prefix, limit) }
+    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0) } }
+    pub(super) fn revision(&self) -> u64 { self.revision.get() }
+    pub(super) fn remaining(&self) -> usize { self.remaining.get() }
+    fn limit(&self, requested: usize) -> Result<usize, RuntimeError> {
+        if !self.authorizing.get() { return Ok(requested); }
+        if self.remaining.get() == 0 { return Err(RuntimeError::AuthorizationBudget); }
+        Ok(requested.min(self.remaining.get()))
+    }
+    fn charge(&self, fetched: usize) {
+        if self.authorizing.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
+    }
+    pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        self.limit(1)?;
+        let row = self.raw.get(table, id)?;
+        self.charge(usize::from(row.is_some()));
+        Ok(row)
+    }
+    pub(crate) fn lookup(&self, _authorization: &Authorization, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        self.limit(1)?;
+        let row = self.raw.lookup(table, name, index, key)?;
+        self.charge(usize::from(row.is_some()));
+        Ok(row)
+    }
+    pub(crate) fn scan(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let permitted = self.limit(limit)?;
+        let rows = self.raw.scan(table, name, prefix, bounds, dir, permitted)?;
+        self.charge(rows.len());
+        if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget); }
+        Ok(rows)
+    }
+    pub(crate) fn scan_metered(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let permitted = self.limit(limit)?;
+        let rows = self.raw.scan_metered(table, name, prefix, bounds, dir, permitted, meter)?;
+        self.charge(rows.len());
+        if permitted < limit && rows.len() == permitted { return Err(RuntimeError::AuthorizationBudget); }
+        Ok(rows)
+    }
+    pub(crate) fn count_prefix(&self, _authorization: &Authorization, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
+        // This scalar adapter is used only by non-expiring, non-private
+        // caps. It fetches no candidate rows and keeps its declared cap bound.
+        self.raw.count_prefix(table, name, prefix, limit)
+    }
+
     pub(crate) fn sequence_value(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.sequence_value(parent, id) }
     pub(crate) fn provisional_sequence_floor(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.provisional_sequence_floor(parent, id) }
     pub(crate) fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> { self.raw.set_sequence(parent, id, value) }
-    pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.raw.put(name, table, row, old) }
-    pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.raw.delete(name, table, old) }
+    pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.raw.put(name, table, row, old) }
+    pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.raw.delete(name, table, old) }
     pub(crate) fn holds_assets(&self) -> bool { self.raw.holds_assets() }
     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
@@ -47,9 +88,21 @@ impl Runner<'_> {
     // @ref LLP 3000.015#2 — admission depends on declared bounds, never on
     // occupants. Private scratch cannot cut the caller's prepaid scan.
     pub(crate) fn authorized_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        self.prepaid_scan(allowance, true, scan)
+    }
+
+    /// Public or already-authorized data reads still reserve their logical
+    /// meter; they do no authorization traversal. A nested scope cannot opt
+    /// out of its enclosing authorization's physical allowance.
+    pub(super) fn prepaid_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], physical: bool, scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         // This meter is the device's separate physical-work budget. Its
         // caller maps exhaustion to uncertainty, never a logical E_BOUND.
-        if self.device_work_active { return scan(self, &Authorization { _private: () }); }
+        if self.device_work_active {
+            let active = self.tx.authorizing.replace(self.tx.authorizing.get() || (physical && !self.context.is_system()));
+            let result = scan(self, &Authorization { _private: () });
+            self.tx.authorizing.set(active);
+            return result;
+        }
         for &(kind, amount) in allowance {
             if !self.read_charge(kind, amount)? { return Ok(T::default()); }
         }
@@ -57,7 +110,9 @@ impl Runner<'_> {
         let mark = self.meter.mark();
         let ceilings = std::mem::replace(&mut self.meter.ceilings, Ceilings::unbounded());
         let cut = std::mem::replace(&mut self.meter.cut, Cut::Abort);
+        let active = self.tx.authorizing.replace(self.tx.authorizing.get() || (physical && !self.context.is_system()));
         let result = scan(self, &Authorization { _private: () });
+        self.tx.authorizing.set(active);
         self.meter.restore(mark);
         self.meter.ceilings = ceilings;
         self.meter.cut = cut;

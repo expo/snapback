@@ -264,7 +264,9 @@ fn control_c3_direct_filtered_cut_keeps_last_rule_visible_position() {
         with_fixture(&source, rows, |q| {
             let first = q("feed", ctx(None)).unwrap();
             assert!(!first.complete);
-            assert_eq!(first.cut, if uniform || DEVICE { Some(ReadCut::Meter) } else { None });
+            // Private traversal reaches its shared physical allowance first;
+            // the device also keeps that hidden-dependent cut private.
+            assert_eq!(first.cut, if uniform { Some(ReadCut::Meter) } else { None });
             let next = first.next.clone().expect("direct cut still continues past rejected visible rows");
             let position = decode_cursor(&Schema::default(), &next).unwrap();
             assert_eq!(position.values, [Value::Int(0), Value::Int(8191), Value::Id("r8191".into())]);
@@ -402,7 +404,12 @@ fn ticket_merge_next_after_non_uniform() {
         rows.extend((0..hidden).map(|n| ("notes".into(), object([("id", Value::Id(format!("n-bob-{n:05}"))), ("ownerId", Value::Id("dev:bob".into())), ("body", Value::String(format!("aa bob note {n:05}")))]))));
         with_fixture(&source, rows, |q| {
             for op in ["mergeAlone", "mergeThenNonUniform", "nonUniformThenMerge"] {
-                let page = q(op, ctx(None)).unwrap();
+                let result = q(op, ctx(None));
+                if !DEVICE && hidden >= 8192 && op == "nonUniformThenMerge" {
+                    assert_eq!(result.unwrap_err().code, "E_RULE", "later authorization cannot replenish the request allowance");
+                    continue;
+                }
+                let page = result.unwrap();
                 observe(&format!("ticket {op} hidden={hidden}"), &page);
                 assert_eq!(page.complete, op == "mergeAlone");
                 assert_eq!(page.cut, None);

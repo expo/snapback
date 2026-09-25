@@ -216,54 +216,99 @@ pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
 pub trait Probe {
     /// Exchange the private expiry accumulator; ordinary probes have none.
     fn replace_expiry(&mut self, _expiry: Option<i64>) -> Option<i64> { None }
+    /// Coverage of the most recent leaf, consumed once by the shared evaluator.
+    fn take_unknown(&mut self) -> bool { false }
     /// Called only when evaluation loads a field, after short-circuit decisions.
     fn field(&mut self, _field: &str, _old: bool) {}
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, crate::error::RuntimeError>;
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool;
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Verdict { Readable, Denied, Unknown }
+
+impl Verdict {
+    fn not(self) -> Self {
+        match self { Self::Readable => Self::Denied, Self::Denied => Self::Readable, Self::Unknown => Self::Unknown }
+    }
+    fn combine(self, other: Self, conjunction: bool) -> Self {
+        let decisive = if conjunction { Self::Denied } else { Self::Readable };
+        if self == decisive || other == decisive { decisive }
+        else if self == Self::Unknown || other == Self::Unknown { Self::Unknown }
+        else { decisive.not() }
+    }
+}
+
 /// Evaluate a rule over a row image (and its old image, for update rules).
 pub fn evaluate(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<bool, crate::error::RuntimeError> {
+    evaluate_verdict(rule, viewer, old, next, created_allowed, probe).map(|verdict| verdict == Verdict::Readable)
+}
+
+pub(super) fn evaluate_verdict(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<Verdict, crate::error::RuntimeError> {
     let prior = probe.replace_expiry(None);
-    let result = evaluate_until(rule, viewer, old, next, created_allowed, probe);
-    let expiry = match &result { Ok((true, expiry)) => earliest(prior, *expiry), _ => prior };
-    probe.replace_expiry(expiry);
-    result.map(|(allowed, _)| allowed)
+    let result = timeline(rule, viewer, old, next, created_allowed, probe);
+    probe.replace_expiry(match &result {
+        Ok(answer) if answer.value == Verdict::Readable => earliest(prior, answer.changes.first().map(|(time, _)| *time)),
+        _ => prior,
+    });
+    result.map(|answer| answer.value)
 }
 
 pub(super) fn earliest(a: Option<i64>, b: Option<i64>) -> Option<i64> {
     match (a, b) { (Some(a), Some(b)) => Some(a.min(b)), (a, b) => a.or(b) }
 }
 
-// None is an unbounded lifetime. A disjunction stays authorized as long as
-// any successful alternative; a conjunction needs every successful term.
-// @ref LLP 3000.015#2 — failed predicates and redundant witnesses publish no deadline.
-fn evaluate_until(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<(bool, Option<i64>), crate::error::RuntimeError> {
+struct Timeline { value: Verdict, changes: Vec<(i64, Verdict)> }
+impl Timeline {
+    fn constant(value: Verdict) -> Self { Self { value, changes: Vec::new() } }
+    fn combine(self, other: Self, conjunction: bool) -> Self {
+        let (mut left, mut right) = (self.value, other.value);
+        let mut result = Self::constant(left.combine(right, conjunction));
+        let (mut a, mut b) = (self.changes.into_iter().peekable(), other.changes.into_iter().peekable());
+        let mut previous = result.value;
+        while let Some(time) = earliest(a.peek().map(|(t, _)| *t), b.peek().map(|(t, _)| *t)) {
+            // All rows expiring at the same instant disappear together. This
+            // preserves correlations, including A or not A and A and not A.
+            if a.peek().is_some_and(|(t, _)| *t == time) { left = a.next().unwrap().1; }
+            if b.peek().is_some_and(|(t, _)| *t == time) { right = b.next().unwrap().1; }
+            let value = left.combine(right, conjunction);
+            if value != previous { result.changes.push((time, value)); previous = value; }
+        }
+        result
+    }
+}
+
+// @ref LLP 3000.015#2 — next_expiry is the first expiry boundary that changes
+// the complete bound rule's verdict, not a branch or first witness lifetime.
+// Probe leaves are evaluated once at the current clock, within their original
+// allowance. Combining their timelines performs no further storage reads.
+fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<Timeline, crate::error::RuntimeError> {
     match rule {
         RuleExpr::And(terms) | RuleExpr::Or(terms) => {
             let conjunction = matches!(rule, RuleExpr::And(_));
-            let mut answer = conjunction;
-            let mut expiry = None;
+            let decisive = if conjunction { Verdict::Denied } else { Verdict::Readable };
+            let mut answer = Timeline::constant(decisive.not());
             for term in terms {
-                let (value, until) = evaluate_until(term, viewer, old, next, created_allowed, probe)?;
-                if value != conjunction {
-                    expiry = if answer == conjunction { until } else {
-                        expiry.zip(until).map(|(a, b)| a.max(b))
-                    };
-                    answer = value;
-                    if expiry.is_none() { break; }
-                } else if answer == conjunction {
-                    expiry = earliest(expiry, until);
-                }
+                answer = answer.combine(timeline(term, viewer, old, next, created_allowed, probe)?, conjunction);
+                // Only a verdict stable over the whole future may short circuit.
+                if answer.value == decisive && answer.changes.is_empty() { break; }
             }
-            return Ok((answer, expiry));
+            Ok(answer)
         }
-        RuleExpr::Not(inner) => return evaluate_until(inner, viewer, old, next, created_allowed, probe).map(|(value, expiry)| (!value, expiry)),
-        _ => {}
+        RuleExpr::Not(inner) => {
+            let mut answer = timeline(inner, viewer, old, next, created_allowed, probe)?;
+            answer.value = answer.value.not();
+            for (_, value) in &mut answer.changes { *value = value.not(); }
+            Ok(answer)
+        }
+        _ => {
+            let value = evaluate_leaf(rule, viewer, old, next, created_allowed, probe)?;
+            let expiry = probe.replace_expiry(None);
+            let mut answer = Timeline::constant(if probe.take_unknown() { Verdict::Unknown } else if value { Verdict::Readable } else { Verdict::Denied });
+            if answer.value == Verdict::Readable && let Some(time) = expiry { answer.changes.push((time, Verdict::Denied)); }
+            Ok(answer)
+        }
     }
-    let result = evaluate_leaf(rule, viewer, old, next, created_allowed, probe);
-    let expiry = probe.replace_expiry(None);
-    result.map(|value| (value, expiry))
 }
 
 fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<bool, crate::error::RuntimeError> {

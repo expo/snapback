@@ -282,7 +282,7 @@ table posts:
   online only
 query probes():
   for i in range(0, 8193):
-    p = posts['p0']
+    p = posts['absent']
   return 1
 mutation page():
   return grants first 8192 by byId

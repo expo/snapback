@@ -50004,3 +50004,96 @@ Measurement: `target/b2-r7-wasm-measurement.json`.
 Report: `/home/ccheever/sb5/lane-b2.r7.final.md`. Both completed round-7 reviews
 are folded in as named items; no new blind-review verdict, publication or
 push is claimed. Local commit on `sb5/b2-sequence-by` only.
+
+## 2026-09-25 — Lane B2 round 8: whole-rule expiry and one authorization budget
+
+Author request: finish the two definitions in LLP 3000.015 §2 on
+`sb5/b2-sequence-by`, based on `30add33e7`; commit here without pushing.
+Read both round-8 reviews; Grok's completion marker is `EXIT=0`. Its READY
+verdict was for round 7 and does not override Astra's reproduced defects.
+
+`rules.rs` now combines complete predicate timelines, applying all changes
+at the same expiry instant together and retaining only boundaries that
+change the complete verdict. Existentials include their surviving matching
+alternatives, including maintained-source alternatives. `read_auth.rs` uses
+this same evaluator with its three-valued coverage result; point reads,
+ordinal pages and release `nextExpiry` share it. Two witnesses at 2000/3000
+and 8000 publish 8000 in either world; `A or not A` publishes no deadline.
+
+`GuardedRows` owns one 8,192-row allowance for a request's authorization
+fetches. Nested and subsequent authorization scopes share it, including
+expired witnesses and maintained-source walks. Both cap insertion and cap
+updates use that remaining allowance. Exhaustion has the same generic
+`E_RULE` envelope as ordinary denial, with the physical-budget possibility
+in both explanations and no cause or count selected. Ordinary public data
+reads retain their meter, system execution performs no viewer authorization,
+and non-expiring non-private caps retain their declared scalar-count bound.
+Private pages fetch one candidate per return, avoiding repeated prefetch of
+an unused tail. One unchanged witness answer can be reused while still paying
+every logical probe; each row write invalidates it. Device prediction keeps
+its separately metered physical authority work and queues on exhaustion.
+
+Regressions cover multiple witnesses, correlated trees, provisional reads,
+release HTTP, raw and maintained nested cap witnesses, the update-only
+mutation, and Grok's non-expiring private-cap mutation. The generator also
+covers negated witnesses, returned-row expiry and expired witness prefixes.
+Earlier tests that required unbounded walks now assert success within the
+allowance and generic refusal beyond it. Logical-meter-only preludes use
+missing targets where necessary to isolate the reservation boundary. The
+existing exact 8,192 paging boundary, cross-parent floors and token fence
+remain in place. The full report names each review item and its regression.
+
+Measured web artifact: **1,788,244 B raw / 500,342 B gzip**, Rust 1.97.0 /
+wasm-bindgen 0.2.127, without wasm-opt. Against the reviewed round-7 artifact
+1,782,244 / 497,967, this is **+6,000 B raw / +2,375 B gzip** for the combined
+shared timeline evaluator, physical guard and write-invalidated witness
+cache, not independent component attribution. The old 498,000 B ratchet is
+exceeded by 2,342 B; raise it **3,000 B to 501,000 B**, leaving **658 B**.
+Caller logical meter ceilings are unchanged. Artifact SHA-256:
+`e94b59dbd53b225bb7ab90bb57c75920419cd7539c19a18224e8e6a4cf958621`.
+Receipt: `target/b2-r8-wasm-measurement.json`.
+
+The first complete run printed `== 1 failure(s) in 844 s` (Rust); its clients
+passed. Compatibility work separated ordinary/public work from authorization,
+removed repeated page prefetches, and updated older boundary expectations.
+A second complete run exposed four remaining test expectations: the reused
+membership witness now takes one physical lookup, and three meter-only
+fixtures reached the new physical bound before their intended logical
+boundary. Those test fixtures were corrected without relaxing the physical
+bound. Final complete qualification follows below.
+
+Round-8 final qualification (2026-09-25): the complete command from the
+worktree root was:
+
+```sh
+env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_RUST_TEST_PROCESSES=8 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash snapback4/scripts/test.sh
+```
+
+Exact final line: **`== 0 failure(s) in 795 s`**. Exit status 0;
+`FORCE_COLOR` was verified absent from the running suite's environment.
+Rust: `-- ok: cargo test (214 s)`. Clients: **1,111 passed, 10 skipped,
+0 failed**; fixture wrapper: 9 passed. Log: `target/b2-r8-suite-zero.log`.
+This run includes the final bounds-card alignment with the shared request
+allowance and reproduces **1,788,244 B raw / 500,342 B gzip**, within the
+**501,000 B** ratchet, with **658 B** headroom.
+
+The second complete serialized run printed `== 1 failure(s) in 857 s`:
+its clients all passed, while Rust caught the four fixture expectations
+subsequently corrected. A parallel-client rerun then passed all Rust targets
+but printed `== 1 failure(s) in 267 s`: a local fetch connection closed and
+a retained-history watch freshness assertion failed. The final complete
+serialized run above passed both, as well as the worker crash tests; no
+passing subset is used as the final qualification.
+
+All six scratch mutations were rejected by failing assertions (exit 101):
+first witness only, split simultaneous expirations, disabled request bound,
+reset nested bound, stale witness cache across writes, and omitted physical
+budget explanation. The disabled-bound mutation fails both the new update
+and non-expiring private-cap controls, as well as expired-cap and nested
+witness controls. Evidence: `target/b2-r8-mutations.json`.
+`./ref-check --verbose` passed: 507 LLP docs, 9,243 refs, 0 errors and
+0 unchecked; staged whitespace validation passed. No optional live
+PostgreSQL run is claimed. Grok completion was rechecked: `EXIT=0`; all
+Astra and Grok items have named dispositions in
+`/home/ccheever/sb5/lane-b2.r8.final.md`. Delivery is a local commit on
+`sb5/b2-sequence-by`, with no push; the report records its hash.

@@ -89,6 +89,9 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
         runner.check_final_exists()?;
         Ok(value)
     });
+    if matches!(result, Err(RuntimeError::AuthorizationBudget)) {
+        return Err(RuntimeError::Prediction("authorization work allowance exhausted; queued without a prediction".into()));
+    }
     // @ref LLP 3000.015#2 — a provisional ordinal is not server evidence.
     // Any refusal after consuming one may change with the server's assignment,
     // including constraints, postconditions and a selected branch's refusal.

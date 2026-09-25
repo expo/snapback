@@ -283,18 +283,22 @@ an owned target keeps its ordinary update diagnostic. A directly supplied
 ordinal in an insert or patch is E_SEQUENCE_SUPPLIED before lookup.
 A successful readable insert exposes its assigned ordinal, which reflects the
 shared counter. A hidden grant may establish read authority and permit success;
-an independently denied insert cannot use it as a witness oracle. Expiry
-metadata depends on complete, successful witness predicates. Failed branches
-and witnesses made redundant by stable ownership contribute no nextExpiry;
-a lifetime that can actually end the returned row's authority still does.
+an independently denied insert cannot use it as a witness oracle.
+`nextExpiry` is the earliest instant at which removing every row expiring then
+changes the complete bound rule's current verdict, considering all matching
+witness alternatives within the rule's allowance.
+A later matching grant, permanent ownership or a correlated `A or not A`
+branch prevents an irrelevant earlier deadline; denied rows publish none.
+
 
 Two limits are accepted: (a) a cap group containing an unreadable occupant returns
 generic E_RULE before cap constraint text. Compared with an empty group, this
 can disclose “someone unreadable is here”, but no occupant identity, ordinal,
 count or values. Ignoring those occupants would let a caller bypass the cap.
-Expiring cap checks inspect at most 8,192 physical candidates, including expired
-rows, and return generic E_RULE if live occupancy cannot be established. That
-bound never adds hidden-dependent logical charges.
+One request's authorization work shares a single 8,192-row physical allowance,
+including nested witnesses, expired rows and maintained-source walks, and
+exhaustion fails closed with generic E_RULE without hidden-dependent logical
+charges.
 (b) A caller's row behind at least the separate 8,192-candidate walk bound
 of unreadable siblings is unreachable by paging in that direction. The page
 is empty with no cursor, identically in every world beyond that bound.
@@ -312,7 +316,7 @@ hidden candidates cannot change logical meters, budget refusals, returned rows o
 payload or position. For `first 1 by .ordinal` and `last 1 by .ordinal`, a denied
 sibling before or after the readable row adds no examined charge or visible cut.
 The same page protection applies to ordinary integer columns. Private scans
-prepay their allowance once per page and stop at the separate walk ceiling, also during word discovery; the logical meter does not expose
+prepay their allowance once per page and share the request's physical walk ceiling, also during word discovery; the logical meter does not expose
 how many denied candidates were traversed. A device still queues if its separate
 prediction work allowance is exhausted. `check --json` includes the same sequence-counter
 descriptions as text `check` under `sequences`.

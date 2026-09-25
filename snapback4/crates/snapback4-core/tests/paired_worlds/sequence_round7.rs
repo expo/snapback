@@ -56,8 +56,12 @@ pub fn expiry_cases() -> Vec<(String, Pair)> {
             for deadlines in [[Some(2000), Some(3000)], [None, Some(5000)]] {
                 let mut rules = vec![
                     format!("{ADMIN} or .owner = viewer"),
+                    format!("{ADMIN} or not {ADMIN}"),
+                    format!("not ({ADMIN} and not {ADMIN})"),
+                    format!("({ADMIN} and not {ADMIN}) or .owner = viewer"),
                     format!("({ADMIN} and .owner != viewer) or .owner = viewer"),
                     format!("not ({ADMIN} and .owner != viewer)"),
+                    format!("not {ADMIN} or .owner = viewer"),
                     format!("{ADMIN} or exists otherGrants[parent = .parent, who = viewer]"),
                 ];
                 if kind == "guest" { rules.push(format!("not {ADMIN}")); }
@@ -68,6 +72,37 @@ pub fn expiry_cases() -> Vec<(String, Pair)> {
                     ));
                 }
             }
+        }
+    }
+    // Nonunique existentials: vary an earlier matching witness while the
+    // last (or a permanent witness) keeps the complete verdict unchanged.
+    for ordinary in [false, true] {
+        for permanent in [false, true] {
+            for copies in [1, 2, 33] {
+                for rule in [ADMIN.to_string(), format!("{ADMIN} or not {ADMIN}"), format!("not ({ADMIN} and not {ADMIN})"), format!("{ADMIN} or .owner = viewer")] {
+                    let mut pair = expiry_pair(&rule, ordinary, "admin", [Some(2000), Some(3000)], "alice");
+                    pair.source = pair.source.replacen("unique parent, who", "by byParentWho: parent, who", 1);
+                    for seed in &mut pair.seeds {
+                        for n in 0..copies {
+                            seed.push(("grants".into(), json!({"id":format!("later{n}"),"parent":"p","who":"alice","kind":"admin","until":if permanent { None } else { Some(8000) }})));
+                        }
+                    }
+                    cases.push((format!("multiple/{ordinary}/{permanent}/{copies}/{rule}"), pair));
+                }
+            }
+        }
+    }
+    // Grok: returned-row lifetime remains independent of redundant grants;
+    // matching witnesses can sit behind an expired nonunique prefix.
+    for expired in [0, 100, 8000] {
+        for rule in [format!("{ADMIN} or .owner = viewer"), format!("not {ADMIN} or .owner = viewer")] {
+            let mut pair = expiry_pair(&rule, false, "admin", [Some(2000), Some(3000)], "alice");
+            pair.source = pair.source.replacen("unique parent, who", "by byParentWho: parent, who", 1);
+            for seed in &mut pair.seeds {
+                seed[0].1["until"] = json!(7000);
+                seed.extend((0..expired).map(|n| ("grants".into(), json!({"id":format!("expired{n:05}"),"parent":"p","who":"alice","kind":"admin","until":500}))));
+            }
+            cases.push((format!("row-lifetime/expired-prefix={expired}/{rule}"), pair));
         }
     }
     cases
@@ -100,4 +135,13 @@ pub fn cap_cases() -> Vec<Pair> {
         }
     }
     cases
+}
+
+pub fn nested_cap_cases() -> Vec<Pair> {
+    let source = "table parents:\n  public\n  online only\ntable grants:\n  parent: parents\n  who: principal\n  until: time ?\n  expire at .until\n  by byParentWho: parent, who\n  read <- deny\n  online only\ntable messages:\n  parent: parents\n  owner: principal default viewer\n  ordinal: sequence by parent\n  fresh: bool\n  until: time ?\n  expire at .until\n  cap 2 by parent\n  read <- .fresh = true or exists grants[parent = .parent, who = viewer] or .owner = viewer\n  insert <- allow\n  online only\nmutation send(parent: parents):\n  return insert messages { parent, fresh: true }\n";
+    let seeds = [8193, 20000].map(|count| (0..count).map(|n| ("grants".into(), json!({"id":format!("expired{n}"),"parent":"p","who":"alice","until":500})))
+        .chain([("messages".into(), json!({"id":"old","parent":"p","owner":"alice","ordinal":1,"fresh":false,"until":null}))]).collect());
+    let mut pair = Pair::new(source, seeds, "alice", Operation::new("send", json!({"parent":"p"}), "alice"));
+    pair.trusted = true;
+    vec![pair]
 }

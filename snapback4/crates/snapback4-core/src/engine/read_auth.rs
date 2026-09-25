@@ -1,10 +1,9 @@
 //! Read authorization of provisional images, over raw combined-state witnesses.
 use super::authorized_scan::Authorization;
 use super::{rules::{self, Probe}, runner::Runner};
-use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, RuleExpr, materialize_optional_fields}, value::Value};
+use crate::{error::{MeterKind, RuntimeError}, schema::{Audience, materialize_optional_fields}, value::Value};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Verdict { Readable, Denied, Unknown }
+use super::rules::Verdict;
 
 impl Runner<'_> {
     pub(super) fn is_provisional(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
@@ -42,7 +41,7 @@ impl Runner<'_> {
         materialize_optional_fields(&mut row, definition);
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
-        let verdict = evaluate(&rule, &viewer, &row, &mut ReadProbe { runner: self, allowance, table, provisional, prepaid, unknown: false })?;
+        let verdict = rules::evaluate_verdict(&rule, &viewer, None, &row, false, &mut ReadProbe { runner: self, allowance, table, provisional, prepaid, unknown: false })?;
         if self.read_capped() { return Ok(false); }
         if verdict == Verdict::Unknown {
             self.unknown_fact(table, "byId", &[row.field("id")?.clone()], "provisional read authority");
@@ -81,6 +80,7 @@ impl Runner<'_> {
 
 struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, allowance: &'a Authorization, table: &'a str, provisional: bool, prepaid: bool, unknown: bool }
 impl Probe for ReadProbe<'_, '_> {
+    fn take_unknown(&mut self) -> bool { std::mem::take(&mut self.unknown) }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn field(&mut self, field: &str, _old: bool) {
         self.runner.provisional_sequence_read |= self.provisional && self.runner.schema.tables[self.table].sequences.contains_key(field);
@@ -92,49 +92,6 @@ impl Probe for ReadProbe<'_, '_> {
         Ok(present)
     }
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool { self.runner.created(table, index, key) }
-}
-
-/// Three-valued logic keeps an unused unknown branch out of read coverage.
-/// Only the final Unknown verdict publishes a missing fact; cuts stay meters.
-fn evaluate(rule: &RuleExpr, viewer: &str, row: &Value, probe: &mut ReadProbe<'_, '_>) -> Result<Verdict, RuntimeError> {
-    let prior = probe.replace_expiry(None);
-    let result = evaluate_until(rule, viewer, row, probe);
-    probe.replace_expiry(match &result {
-        Ok((Verdict::Readable, expiry)) => rules::earliest(prior, *expiry),
-        _ => prior,
-    });
-    result.map(|(verdict, _)| verdict)
-}
-
-fn evaluate_until(rule: &RuleExpr, viewer: &str, row: &Value, probe: &mut ReadProbe<'_, '_>) -> Result<(Verdict, Option<i64>), RuntimeError> {
-    use Verdict::*;
-    match rule {
-        RuleExpr::And(terms) | RuleExpr::Or(terms) => {
-            let conjunction = matches!(rule, RuleExpr::And(_));
-            let decisive = if conjunction { Denied } else { Readable };
-            let mut answer = if conjunction { Readable } else { Denied };
-            let mut expiry = None;
-            let mut unknown = false;
-            for term in terms {
-                let (verdict, until) = evaluate_until(term, viewer, row, probe)?;
-                if probe.runner.read_capped() { return Ok((Denied, None)); }
-                if verdict == decisive {
-                    expiry = if answer != decisive { until } else { expiry.zip(until).map(|(a, b)| a.max(b)) };
-                    answer = decisive;
-                    if expiry.is_none() { break; }
-                } else if answer != decisive { expiry = rules::earliest(expiry, until); }
-                unknown |= verdict == Unknown;
-            }
-            Ok((if answer != decisive && unknown { Unknown } else { answer }, expiry))
-        }
-        RuleExpr::Not(inner) => evaluate_until(inner, viewer, row, probe).map(|(verdict, expiry)| (match verdict { Readable => Denied, Denied => Readable, Unknown => Unknown }, expiry)),
-        _ => {
-            probe.unknown = false;
-            let allowed = rules::evaluate(rule, viewer, None, row, false, probe)?;
-            let expiry = probe.replace_expiry(None);
-            Ok((if probe.unknown { Unknown } else if allowed { Readable } else { Denied }, expiry))
-        }
-    }
 }
 
 #[cfg(all(test, feature = "sqlite"))]
@@ -166,4 +123,49 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn provisional_authority_uses_complete_existential_and_correlated_timelines() {
+        let a = "exists grants[parent = .parent, who = viewer]";
+        for rule in [a.to_string(), format!("{a} or not {a}"), format!("not ({a} and not {a})"), format!("({a} and not {a}) or .owner = viewer")] {
+            for permanent in [false, true] {
+                let source = format!("table grants:\n  parent: text <=10\n  who: principal\n  until: time ?\n  expire at .until\n  by byParentWho: parent, who\n  public\n  sync public\ntable notes:\n  parent: text <=10\n  owner: principal\n  read <- {rule}\n  online only\n");
+                let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+                assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+                let schema: crate::schema::Schema = crate::json_codec::from_text(&crate::json_codec::to_text(&bound.schema).unwrap()).unwrap();
+                for early in [2000, 3000] {
+                    let rows = MemoryRows::default();
+                    for (id, until) in [("early", Value::Int(early)), ("later", if permanent { Value::Null } else { Value::Int(8000) })] {
+                        rows.put("grants", &schema.tables["grants"], &object([("id", Value::Id(id.into())), ("parent", Value::String("p".into())), ("who", Value::Id("alice".into())), ("until", until)]), None).unwrap();
+                    }
+                    let candidate = object([("id", Value::Id("own".into())), ("parent", Value::String("p".into())), ("owner", Value::Id("alice".into()))]);
+                    for now in [1000, 2000, 3000, 8000] {
+                        let mut runner = Runner::new(&rows, &schema, Context::new("alice", Default::default()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
+                        runner.device = true;
+                        runner.provisional_rows.insert(("notes".into(), "own".into()));
+                        runner.next_expiry = Some(9000);
+                        assert_eq!(runner.authorize_read("notes", &candidate, false).unwrap(), rule != a || permanent || now < 8000);
+                        assert_eq!(runner.next_expiry, Some(if rule == a && !permanent && now < 8000 { 8000 } else { 9000 }), "{rule}/{now}/{permanent}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn witness_answer_cache_is_invalidated_by_every_row_write() {
+        let source = "table grants:\n  parent: text <=10\n  who: principal\n  unique parent, who\n  public\n  sync public\ntable notes:\n  parent: text <=10\n  read <- exists grants[.parent, viewer]\n  online only\n";
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let schema: crate::schema::Schema = crate::json_codec::from_text(&crate::json_codec::to_text(&bound.schema).unwrap()).unwrap();
+        let rows = MemoryRows::default();
+        let note = object([("id", Value::Id("note".into())), ("parent", Value::String("p".into()))]);
+        let grant = object([("id", Value::Id("g".into())), ("parent", Value::String("p".into())), ("who", Value::Id("alice".into()))]);
+        let mut runner = Runner::new(&rows, &schema, Context::new("alice", Default::default()).at(1000), Meter::new(Ceilings::default(), Cut::Abort), 0);
+        assert!(!runner.authorize_read("notes", &note, false).unwrap());
+        runner.tx.put("grants", &schema.tables["grants"], &grant, None).unwrap();
+        assert!(runner.authorize_read("notes", &note, false).unwrap());
+        runner.tx.delete("grants", &schema.tables["grants"], &grant).unwrap();
+        assert!(!runner.authorize_read("notes", &note, false).unwrap());
+    }
+
 }
