@@ -55245,3 +55245,59 @@ references, zero errors and zero unchecked. Logs are
 No deviations or new open issues. The prior conservative local-slot and
 arithmetic proof boundaries are unchanged. Did not push, publish or bump package
 versions; the supervisor owns release integration.
+
+## 2026-09-25 — LLP 3000.014 Lane T: server inheritance and keyed aggregates
+
+Implemented revision 8 increments 1 and 3 on `sb4-intent/t-read-through`:
+whole-rule `read through .ref`, immutable private captures, prepaid insert-arm
+reservations, authority-first parent deletion, recursive effective deadlines,
+physical-reference reuse guards and child-first sweeping. Parent-pinned pages
+and reference-keyed counts use the four-outcome parent resolver. Captured-path
+maintains such as Clique's `.message.chat, .principal` derive their rule from
+the captured inputs and keep live rule probes. Unsafe aggregate scans refuse.
+The shared expiry classification covers lookup, caps, maintains, grants and
+admission; engine fields are refused in authored payloads and hidden in reads.
+
+SQLite, PostgreSQL and native memory now stage inheritance activation at one
+pinned instant, retire affected rows under the predecessor schema, compare
+audience correspondence before projection, fill captures, validate and publish
+atomically. PostgreSQL gains generation fencing. Seeds/imports order ancestors
+first; restored captures are validated without recapture and their effective
+deadlines are recomputed. Non-inherited ingestion retains its streaming path.
+
+Qualification: 23 focused language/server tests, 80 guide tests, and seven
+additional tests against an isolated PostgreSQL 16 cluster passed. The issue
+tracker, both four-level chains, Clique receipts/reactions/unread, three-level
+expiry, restore/import rollback and reservation/meter worlds run across the
+adapters. Final full `scripts/test.sh`: **`== 0 failure(s) in 552 s`**, exit 0.
+Rust: 2,986 passed, zero failures, 16 ignores. Clients: 1,591 tests, 1,581 passed,
+zero failures/cancellations, ten skips. Fixture wrappers: 9/9. Both session
+models completed all 5,000 sequences under their unchanged limits. Command:
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=4 SNAPBACK4_RUST_TEST_PROCESSES=4 scripts/test.sh`.
+Reference audit: 508 LLP docs, 9,278 references, zero errors and zero unchecked.
+
+Fresh same-toolchain wasm builds of base `4a661aacb` and the lane measure
+1,767,624 / 492,339 bytes and 1,790,122 / 499,539 bytes (raw / gzip): +22,498
+raw and +7,200 gzip for the shared schema/capability, engine-field, expiry and
+interpreter paths. This is a whole-artifact delta, not per-component attribution.
+The documented size ratchet rises from 493,000 to 500,000 bytes, leaving 461
+bytes. Runtime meter ceilings are unchanged; native activation stays out of wasm.
+
+The first complete run had four failing categories, all accounted for in
+[the report](reports/20260925-intent-lane-t-server.md): the initial size ratchet,
+cold package declarations, two activation/fixture failures, and three assertions
+about a direct JSON decoder. The final run passes all four categories. Two
+optional pre-existing PostgreSQL conformance failures were reproduced on an
+untouched `4a661aacb` archive: the ambiguous positional wide-key fixture and
+word-search heap parity. Neither is waived into the full-suite result.
+
+Stopped the contradictory expired-but-unswept child deletion corner: section 6
+allows deletion without live children, while section 3.3 prohibits removal under
+any physical child. It fails closed until sweeping, with a regression and exact
+counterexample for the supervisor. Missing/ambiguous adoption correspondence
+also refuses; no unspecified explicit mapping API was invented. Inherited
+imports use normal immutable upserts, and the normative reference immutability
+must be authored explicitly. Full file map, individual tests, deviations and
+reproductions are in the report. Sync/devices remain increment 2 and inherited
+`sync` refuses `E_READ_THROUGH_SYNC`; the broader guide rewrite remains
+increment 4. Did not push, publish, bump package versions or redesign the RFC.
