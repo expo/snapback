@@ -433,6 +433,26 @@ for (const complete of [false, true]) for (const observing of [false, true]) {
   });
 }
 
+for (const kind of ["speculative", "unavailable"]) test(`rules 4/5: a withheld local retry keeps its future deadline (${kind})`, async t => {
+  let now = 100; t.mock.method(Date, "now", () => now);
+  const f = routing(); f.env.link = "offline"; let calls = 0;
+  f.env.call = async request => {
+    assert.deepEqual(request.args, input);
+    if (++calls === 1) {
+      assert.equal(request.now, 100); now = 200;
+      return { ok: { data: true, unknown: false, complete: true, tables: ["posts"], nextExpiry: 200 } };
+    }
+    assert.equal(request.now, 200);
+    return { ok: { ...(kind === "unavailable" ? { loading: true } : { data: null }),
+      unknown: true, complete: false, speculative: kind === "speculative", tables: ["posts"], nextExpiry: 300 } };
+  };
+  const watch = { dirty: false };
+  const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
+  assert.deepEqual(result.read, { loading: true });
+  assert.equal(result.nextExpiry, 300, "withholding the value must not remove the watch's next wakeup");
+  assert.equal(watch.dirty, false); assert.equal(calls, 2); assert.equal(f.requests.length, 0);
+});
+
 for (const kind of ["data", "speculative", "unavailable"]) for (const observing of [false, true]) test(`rule 5: a second expired local reply stops and dirties its watch (${kind}, ${observing})`, async t => {
   let now = 100; t.mock.method(Date, "now", () => now);
   const f = routing(); let calls = 0;

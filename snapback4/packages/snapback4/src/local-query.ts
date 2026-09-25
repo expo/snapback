@@ -214,6 +214,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
             // Rule 4 may withhold the retry's value, but not its expiry fact.
             snapshot = refreshed.result;
             candidate = localCandidate();
+            candidate.result = { ...candidate.result, nextExpiry: snapshot.nextExpiry };
             continue;
           }
           // A second deadline crossed in flight: keep the watch runnable when
