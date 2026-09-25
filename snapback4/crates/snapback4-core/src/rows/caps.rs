@@ -2,6 +2,11 @@
 //! removed; no write scans a live population to decide a cap.
 use crate::{schema::{Constraint, Table}, value::Value};
 
+pub fn required(schema: &crate::schema::Schema) -> bool {
+    schema.tables.values().any(|table| table.expire.is_some()
+        && table.constraints.iter().any(|constraint| matches!(constraint, Constraint::Cap { .. })))
+}
+
 pub fn key(by: &[String], group: &[Value]) -> Vec<u8> {
     // Encode names as components too: a raw schema may contain punctuation.
     // Null terminates the names (which are all strings) before group values.

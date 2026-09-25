@@ -81,7 +81,10 @@ impl DeviceTx for Tx<'_> {
         Ok(())
     }
     fn clear_rows(&self) -> Result<(), RuntimeError> {
-        self.conn().execute_batch("DELETE FROM r; DELETE FROM i; DELETE FROM _cap_counts;")?;
+        self.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
+        if self.meta("cap_counts_schema")?.is_some() {
+            self.conn().execute_batch("DELETE FROM _cap_counts;")?;
+        }
         Ok(())
     }
     fn outbox_insert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError> {

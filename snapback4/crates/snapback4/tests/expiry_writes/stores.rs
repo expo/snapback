@@ -170,3 +170,39 @@ fn retired_birth_releases_caps_after_sqlite_commit_and_reopen() {
     drop(engine);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn refused_legacy_counter_upgrade_preserves_bytes_and_accepted_upgrade_runs_once() {
+    let dir = std::env::temp_dir().join(format!("sb4-refused-cap-upgrade-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("device.sqlite");
+    let s = schema();
+    let mut store = Store::open(&path).unwrap();
+    store.install(&s).unwrap();
+    let tx = store.transaction().unwrap();
+    tx.put("messages", &s.tables["messages"], &row(&s, "old", "a", 1), None).unwrap();
+    tx.conn().execute_batch("DROP TABLE _cap_counts; DELETE FROM _meta WHERE key = 'cap_counts_schema';").unwrap();
+    tx.commit().unwrap();
+    drop(store);
+    let before = std::fs::read(&path).unwrap();
+    let mut store = Store::open(&path).unwrap();
+    assert!(store.meta("cap_counts_schema").unwrap().is_none());
+    assert!(store.install_device_checked(&s, &BTreeMap::new(), false,
+        &BTreeMap::from([("device:backend".into(), Some("obsolete capture".into()))])).is_err());
+    drop(store);
+    assert_eq!(std::fs::read(&path).unwrap(), before, "refused upgrade rolls back table, marker and counters");
+    let mut store = Store::open(&path).unwrap();
+    store.install(&s).unwrap();
+    let tx = store.transaction().unwrap();
+    check(&tx, 1, 1, 0);
+    tx.conn().execute_batch("CREATE TRIGGER no_counter_rebuild BEFORE DELETE ON _cap_counts BEGIN SELECT RAISE(ABORT, 'counter rebuild repeated'); END;").unwrap();
+    tx.commit().unwrap();
+    drop(store);
+    let mut store = Store::open(&path).unwrap();
+    store.install(&s).unwrap();
+    let tx = store.transaction().unwrap();
+    check(&tx, 1, 1, 0);
+    tx.rollback().unwrap();
+    drop(store);
+    std::fs::remove_dir_all(dir).unwrap();
+}
