@@ -55736,3 +55736,64 @@ guide-card rewrite was performed. No requested increment is deferred.
 File-by-file changes, runnable forms, test purposes, all qualification attempts,
 decisions and unresolved environmental observations:
 [round-8 report](reports/20260925-intent-lane-t-round8.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round 9: device delta review fixes
+
+Fixed all round-8 Astra/Grok device findings on `sb4-intent/t-read-through`.
+Parent-delete prediction now scans only for a live, current, capture-matching
+child before issuing terminal `E_PARENT_HAS_CHILDREN`. Retained history is
+ignored; mismatched, expired or uncovered current witnesses queue with
+`E_PREDICT`. Device-only probing stays under the bounded authority allowance,
+with reusable scratch and queueing on exhaustion. Server physical-child
+protection and its fixed refusal remain unchanged. Reads and deletes share the
+capture comparator, including `$parentDeadline`.
+
+Fallback now follows nested array/object provenance masks and prefers a
+current server row when retained history has the same ID. Deleted history
+stays retained. Authoritative publication includes both restored and
+successfully replay-written tables in `touched`, so a clock-only page wakes
+watches for changed non-expiring predictions, new writes and withdrawals.
+This conservatively invalidates restored tables even when replay reproduces
+the same value. LLP 3000.014 §5 records these implementation clarifications.
+
+Added memory/SQLite regressions for deadline-only parent reuse and replay
+invalidations at times 100, 200 and 300. The actual wasm/native client tests
+cover reused-parent deletion, partial-rejoin ID deduplication and nested
+retained pages with the device's real mask. All ten focused client cases,
+nine existing device read-through cases, two prediction write-set cases and
+58 server read-through/review/transaction checks passed. Five mutation checks
+failed as required: removing the parent-deadline comparison, restoring plain
+concatenation, dropping array recursion, dropping restore invalidation and
+dropping replay-write invalidation. Every mutation was restored before final
+qualification.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 1220 s`**, exit 0. Rust: 3,044
+passed, zero failed, 16 existing ignored. Clients: 1,601 total, 1,591 passed,
+zero failed, ten existing skips. Used the passing round-8 configuration:
+`taskset -c 32-47`, `TMPDIR=/dev/shm/sb4-intent-lane-t-tests`,
+`CARGO_BUILD_JOBS=8`, `RUST_TEST_THREADS=4`,
+`SNAPBACK4_RUST_TEST_PROCESSES=8`, and
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`. No test or assertion was waived.
+The earlier optional device-wide run with default disk-backed temporary
+storage was interrupted during unrelated calibration/search cases; it was
+not counted as a pass, and the required full suite subsequently covered every
+case. Initial regression reds and two fixture/assertion mistakes were ours
+and fixed. A wrong-workspace cargo invocation was rerun inside `snapback4/`.
+The recorded host baseline was read and did not excuse any failure.
+
+Wasm measures **1,828,449 bytes raw / 511,215 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Against round 8's recorded
+1,824,505 / 509,390, the whole artifact adds 3,944 raw / 1,825 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+The inherited 510,000-byte artifact ratchet failed by 1,215 bytes. Following
+AGENTS.md's artifact-budget procedure, record 512,000, leaving 785 bytes.
+Every runtime meter ceiling remains unchanged. All touched source files stay
+below 1,500 lines; `local.ts` and its clock sites were not edited. No requested
+fix is deferred, and no known product problem remains in this round's scope.
+No push, publication, new syntax, new refusal code, wire-format change or
+additional guide-card rewrite was performed.
+
+Implementation commits: `93eb75576` (device) and `888e081b9` (fallback and
+wasm/native regressions). File-by-file changes, examples, test purposes,
+mutation reproductions and complete failure accounting:
+[round-9 report](reports/20260925-intent-lane-t-round9.md).
