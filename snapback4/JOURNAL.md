@@ -56406,3 +56406,51 @@ durability was weakened. local.ts remains 1,477 lines. Did not push or publish.
 Implementation: d501a115a. File map, examples, decisions, reproductions and every
 failure are in `reports/20260925-lane-v-r6.md`; raw evidence is in
 `reports/20260925-lane-v-r6-evidence/`.
+
+## 2026-09-25 — LLP 3000.013 lane V, round 7: server-enforced mutation store binding
+
+Ordinary and page-hide mutation requests now carry the journaled intent's
+original `store_id`. Queue views and the synchronous committed-outbox view
+retain the binding through fresh admission, own-tab recovery and orphan
+adoption. The existing server check runs under the engine lock before execution
+and idempotency lookup, closing replacement between local validation and send.
+Client guards remain as optimizations. A confirmed keepalive E_STORE_REPLACED
+persists a named failed receipt before outbox settlement; original-binding
+custody remains if teardown precedes the response. Unidentified local transport
+waits for a store identity. The client reference and governing RFC describe this.
+
+Two real browser tabs and two authenticated real backends reproduce replacement
+after validation through ordinary and keepalive delivery: B's audit stays 0,
+A's audit is unchanged, and the failed receipt survives reopening without a
+retry. Removing both client transport guards still passes all 37 final browser
+checks. Removing either request's store_id makes the matching regression fail
+with B's audit at 1. Removing keepalive retirement fails its receipt assertion.
+Grok's completed r6 review was READY but named a surviving recovered-orphan
+mutant; new cases navigate before admission, verify recovered:true and require
+retirement before enqueueing on B. That mutant now fails both no-enqueue checks;
+server enforcement still prevents execution. The initial recovered fixture
+looked in the pre-navigation database; it now locates the actual durable owner.
+
+The initial browser/navigation set passed 50/50. Final expanded browser checks
+passed 37/37, as did the control without client transport guards. Lifecycle
+fixtures passed 56/56, navigation models 62/62 and session security 7/7. The
+first full suite ended `== 1 failure(s) in 1736 s`, component client tests:
+four cases were ours (one obsolete unidentified best-effort-send expectation,
+one lifecycle fixture and two rotation fixtures missing their store identity).
+Those fixtures now assert the binding while retaining their lifecycle/security
+oracles. One environmental server-start timeout occurred before client creation;
+the unchanged native body-loss case passed once and then five consecutive
+repeats. No timeout was relaxed. The first full run used serial client testing
+at host load 119.23 across 96 CPUs, and all its model checks passed.
+
+Final suite: **`== 0 failure(s) in 449 s`**, exit 0. All 1,585 client checks and
+78 model checks passed, including 13,000 seeded interleavings; 10 platform skips.
+No final failure — ours, baseline or environmental. The baseline Cargo failure
+did not recur. Reference audit: 509 LLP documents, 9,285 references, zero errors
+and zero unchecked references. local.ts remains 1,492 lines.
+
+No design deviation or unresolved scoped implementation problem. No server
+change, Quarry form, authorization relaxation, engine-meter change, acquisition
+retuning or new cold-acquisition measurement. Did not push or publish. Source
+and tests are in 7d0140561 and 99f711a68. File map, examples, every failure and
+qualification logs are in `reports/20260925-lane-v-r7.md` and its evidence folder.
