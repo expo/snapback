@@ -56736,3 +56736,51 @@ No open scoped problem, authorization/disclosure change, new refusal code,
 acquisition retuning or scale remeasurement. No release version bump, push or
 publication; integration owns the 0.4.3 release. File map, examples and all
 reproductions are in `reports/20260925-lane-v-r12.md` and its evidence directory.
+
+### 2026-09-26 — Lane V round 13: original receipt binding and shared correction (0.4.3)
+
+Implemented in `86164d1c8`. Ordinary and keepalive web replay prefer the retained
+receipt's original store binding, then the admission journal/current identity.
+A legacy A receipt surviving adoption of B therefore posts A; B refuses
+`E_STORE_REPLACED` without executing. Shared receipt recovery replaces a verified
+correction of `E_STORE_REPLACED` in place before deleting its source database.
+Authored refusals and retention order remain immutable; the 256-receipt window,
+provider claims, atomic persistence and all meters are unchanged.
+
+Added a separate real-Chromium/Wasm/IndexedDB upgrade fixture for both transports
+against two real stores, plus orphan → adopter → next recovery → offline reopen.
+B's audit remains 0 on both transports; the corrected `NOT_ADMIN` survives source
+removal and reopening in its original retention position. Both-store Rust and
+client tests actually apply an old page acknowledging a refused `_ops` record
+without `sent`: it remains unqualified and same-id replay retains `NOT_ADMIN`.
+Negative controls fail at the intended assertions: omitted receipt bindings
+execute once on B; omitted shared correction restores `E_STORE_REPLACED`; ignoring
+`page.sent` qualifies a refused decision as success. The orphan fixture also
+passed three focused repeats. Targeted totals: 17 legacy-receipt checks, 10 Rust
+write-authority checks, and 3 new browser scenarios plus their parent.
+
+The only full suite this round passed: **`== 0 failure(s) in 734 s`**, exit 0,
+using `SNAPBACK4_RUST_TEST_PROCESSES=4 taskset -c 64-79 scripts/test.sh`. Rust:
+891 targets / 329 s. Client: 1,628 passes / 10 platform or optional-fixture skips /
+153 s, including the unchanged 54-case admission review. Models: 78 passes /
+13,000 seeded sequences / 232 s. No full-suite failures classified as ours,
+baseline or environmental; the supplied baseline Cargo failure was not reproduced.
+Earlier development failures were ours: an unsupported SQLite `u64` test read,
+a missing mutable test handle, and a focused orphan fixture waiting only on its
+background wakeup. They were corrected before the suite. Wasm remains
+1,779,595 B raw / 496,604 B gzip, within the unchanged 497,000 B budget.
+
+Stopped the additional Grok Low about invalidating already stored legacy `sent`
+receipts, pending a supervisor design decision: a genuine success whose receipt
+committed before an aborted outbox settlement has the same unqualified legacy
+shape as an older manufactured success. Discarding it and requiring replay would
+weaken round 9's known-terminal durability rule. A runnable two-real-server
+counterexample reproduces offline `sent` with audit 0 for the old bug and audit 1
+for genuine saved success. The three numbered round-13 requests are complete;
+this extra stored-false-success upgrade case remains open, without changing
+known-terminal policy.
+
+No language/API form, new refusal code, native protocol or storage-format change.
+No acquisition retuning or scale remeasurement; no version bump, push or publish.
+The file map, exact results, examples, all deviations and the stopped case's
+reproduction are in `reports/20260926-lane-v-r13.md` and its evidence directory.
