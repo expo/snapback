@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "opus-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "sha256:e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "trace.md §4.8 m8-a01",
+      "suiteResult": "pass",
+      "note": "The six Insights tiles for Alice (posts 81, likes-received 6, reposts-received 13, replies-received 13, followers 4, following 2) exactly matched a grader-side derivation computed independently over the custom-client API (postsBy paging + socialOf)."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md §5 (choreography artifacts — grader-executed full sweep, receipts/grader-choreo-all-1.jsonl)",
+      "note": "Harness check m8-a02-insights-like-refresh passed: 5 → 6 likes-received after a refresh (393 ms)."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "trace.md §4.8 m8-a03",
+      "suiteResult": "pass",
+      "note": "Seven server-side day buckets, the last equal to the server's UTC today, holding today's 2 posts and 1 like; the UI's Today row reads \"Posts 2 / Likes received 1\"."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "trace.md §4.8 m8-a04",
+      "suiteResult": "pass",
+      "note": "Seven day rows render; the six inactive days all show zero rather than being omitted."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §4.8 m8-a05",
+      "suiteResult": "pass",
+      "note": "Trending returns at most 10 posts and ranks the most-liked trailing-24h post first (8 likes vs the previous top of 7); the Trending tab shows it at rank #1."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §4.8 m8-a06",
+      "suiteResult": "pass",
+      "note": "A post backdated 26 h with 10 likes is absent from Trending in both the API result and the Trending tab."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §4.8 m8-a07",
+      "suiteResult": "pass",
+      "note": "Two posts tied at 4 likes, both inside the top 10: the newer ranks above the older (positions 4 and 5) and the whole list is likes-descending with ties newest-first."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §4.8 m8-a08",
+      "note": "Shortened digest config (one period every 2 minutes), every client closed, real wall clock. Exactly one digest for the active target in its period, counts newFollowers=1, newPostsInFollowing=1, unreadMessages=2, unreadChats=1, with a correct 2-minute periodStart/periodEnd; no (user, period) pair appears twice among the 7 payloads emitted that period. Emission needed no client and no client interaction."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §4.8 m8-a09",
+      "note": "The persona with all-zero activity in the period received no digest."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §4.8 m8-a10",
+      "note": "The following quiet period emitted 0 digests for any of the six personas involved."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §4.8 m8-a11 and §4.8.1",
+      "note": "Shortened digest config, real wall clock. The backend was stopped and restarted mid-period, and stopped and restarted again immediately after emission: the active target received exactly one digest for its period (periodEnd 04:16:00Z, unreadMessages 2, newFollowers 1), there was no re-emission after the second restart, and no (user, period) pair was duplicated. The schema emits with `once [p.principal, periodEnd]`, so the dedupe key is per user per period. Passed on the fourth attempt; the first three were defeated by a grader-side hazard (the platform's in-memory dev clock-advance seam versus the durable schedule bookmark) that is diagnosed in trace.md §4.8.1 and is not charged to the lane."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §4.8 m8-a12",
+      "note": "A message in a DM the target is not a member of never entered the target's counts (unreadChats stayed 1, unreadMessages 2) while the actual member of that chat received their own digest. The schema's digest job walks only `members where .principal = p.principal`, so chats the user cannot read are structurally excluded."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md §5 (choreography artifacts — grader-executed full sweep, receipts/grader-choreo-all-1.jsonl)",
+      "note": "Harness check m8-a13-same-account-message-live passed (186.3 ms to appear on the account's second client)."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md §5 (choreography artifacts — grader-executed full sweep, receipts/grader-choreo-all-1.jsonl)",
+      "note": "Harness check m8-a14-cross-device-read-state passed (unread cleared on the other device in 274 ms)."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md §5 (choreography artifacts — grader-executed full sweep, receipts/grader-choreo-all-1.jsonl)",
+      "note": "Harness check m8-a15-dual-offline-convergence passed: both warm-offline clients' messages settled in server-arrival order with no loss and no duplicates."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md §5 (choreography artifacts — grader-executed full sweep, receipts/grader-choreo-all-1.jsonl)",
+      "note": "Harness check m8-a16-dual-offline-receipts passed: receipts advanced normally after the dual-offline reconnect."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md §4.8 (no iOS simulator artifact; every M8 choreography segment summary records ios-simulator-m8 status \"not-recorded\")",
+      "note": "The durable-offline-queue-across-restart proof was never recorded on any platform. No --simulator-status file exists; the web choreography's M8 segment covers dual-offline convergence but never kills and relaunches a client while offline."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md §4.8 (no iOS simulator artifact; every M8 choreography segment summary records ios-simulator-m8 status \"not-recorded\")",
+      "note": "As m8-a17: no artifact for the post-restart flush and receipt advance."
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8 — all six lifetime totals equal values independently recomputed from exportPosts/Likes/Reposts/Follows (posts 227, likesReceived 5, repostsReceived 25, repliesReceived 29, followers 4, following 2); the mapped suite test also reads each sm-insights-total-* on the Insights screen",
+      "suiteResult": "pass"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreo — m8-a02-insights-like-refresh pass=true, beforeLikes 4 -> afterLikes 5, refreshMs 347.2; API corroboration: 5 -> 6 after a fresh Bob like"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8 — days[] has 7 contiguous UTC day indices ending at today (20721 = 2026-09-25 UTC); a post created now moved today posts 33 -> 34",
+      "suiteResult": "fail",
+      "note": "Grader-verified pass. The mapped suite test additionally requires the previous 6 days to be empty, which only holds when the suite runs on the same UTC day as the content; it failed on the grader re-run one UTC day later. See defect d-03."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8 — 5 of the 7 days render as {posts:0,likesReceived:0} rather than being omitted; all 7 entries carry numeric counts",
+      "suiteResult": "fail",
+      "note": "Same cause as m8-a03; the zero-fill behaviour itself is correct."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8 — on the temporal host, after one post gained a second like it ranked first (2 likes) ahead of the 1-like post",
+      "suiteResult": "not-covered",
+      "note": "The grader re-run of the mapped suite test aborted earlier, at utc-seven-day-zero-fill, so the suite did not report this assertion; the delivered manifest maps it to trailing-window-rank-and-tie and the lane recorded it green."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8 — a post with 3 likes, aged past the window by advancing the temporal host clock 25 h, was absent from Trending while 1-like recent posts ranked",
+      "suiteResult": "not-covered",
+      "note": "Same re-run ordering as m8-a05."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8 — two posts with 1 like each, created 25 ms apart: Trending ranked the newer first, then the older",
+      "suiteResult": "not-covered",
+      "note": "Same re-run ordering as m8-a05."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest — 120 s period, every client closed and logged out; exactly 4 digest payloads for 4 active users, counts exact: follower {nf:0,np:1,um:1,uc:1}, actor {nf:1,np:1,um:0,uc:0}, third party {um:3,uc:1}, outsider {um:4,uc:1}"
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest — the dormant persona (no activity in the period) received no digest payload"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest — the following period elapsed with no new activity and emitted no digest: the only periodEnd present in the sink is the active one"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest — the backend was stopped and restarted 87 s into the period; the grader used a no-dedup push sink, and still recorded exactly one digest per user per period across 4 distinct effect ids"
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#m8-digest — the follower persona was a member of one chat carrying 1 unread. In the same period the actor sent 3 messages to a DM and 4 to a group that the follower is not in, plus 1 deleted message to the follower. The follower digest reported unreadMessages 1 / unreadChats 1",
+      "note": "snapback/digest.q scopes the unread walk to \"members where .principal = p.principal\"."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreo — m8-a13-same-account-message-live pass=true, visibleMs 535.6"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreo — m8-a14-cross-device-read-state pass=true, clearVisibleMs 864.2"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreo — m8-a15-dual-offline-convergence pass=true, firstFlushMs 227.4, secondFlushMs 321.5"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#choreo — m8-a16-dual-offline-receipts pass=true, firstReadMs 2.5, secondReadMs 280"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#o4 — evidence/choreo-m8-*.jsonl records choreography.supplementalExternal[0] = {id:\"ios-simulator-m8\", pass:null, status:\"not-recorded\"}; no m8 native recording, receipts or run manifest exists in the lane.",
+      "note": "Durable offline queue across app restart on the simulator was never recorded; scored absent, not passed."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#o4 — evidence/choreo-m8-*.jsonl records choreography.supplementalExternal[0] = {id:\"ios-simulator-m8\", pass:null, status:\"not-recorded\"}; no m8 native recording, receipts or run manifest exists in the lane.",
+      "note": "Post-restart flush and receipts on the simulator were never recorded."
+    }
+  }
+}

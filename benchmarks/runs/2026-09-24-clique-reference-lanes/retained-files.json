@@ -1,0 +1,588 @@
+[
+  {
+    "source": "lanes/astra-convex/final-report.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-convex/final-report.md",
+    "source_sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf",
+    "retained_sha256": "4671912dfd315cee44bf04fff574b5ca0255971562e27056d888d182d9fa6cdf"
+  },
+  {
+    "source": "lanes/astra-convex/run-log.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-convex/run-log.md",
+    "source_sha256": "72c86155f7259986d6aa2a271fabb2260082f0c1724e38f5ffb6380de8a1f2af",
+    "retained_sha256": "72c86155f7259986d6aa2a271fabb2260082f0c1724e38f5ffb6380de8a1f2af"
+  },
+  {
+    "source": "lanes/astra-convex/diary.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-convex/diary.md",
+    "source_sha256": "0115b9dc635d27f49b3689337b1e7112494a776a966ca34c10b388dba9771628",
+    "retained_sha256": "0115b9dc635d27f49b3689337b1e7112494a776a966ca34c10b388dba9771628"
+  },
+  {
+    "source": "lanes/astra-convex/essay.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-convex/essay.md",
+    "source_sha256": "a79ec1326b5dce0a29ce9ad065111c7a11a56a6b67a9ad8686667bec321dc53b",
+    "retained_sha256": "a79ec1326b5dce0a29ce9ad065111c7a11a56a6b67a9ad8686667bec321dc53b"
+  },
+  {
+    "source": "lanes/astra-convex/grading/grader-report.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-convex/grading/grader-report.json",
+    "source_sha256": "24e8ed4bd3823852385079370ab54db896e8cebe386083c4feee344c63226734",
+    "retained_sha256": "24e8ed4bd3823852385079370ab54db896e8cebe386083c4feee344c63226734"
+  },
+  {
+    "source": "lanes/astra-convex/grading/m8-assertion-results.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-convex/grading/m8-assertion-results.json",
+    "source_sha256": "1ce3e1ebc6d5ae083dae63b9bbdfad800d3df6f0d950b0fab022c1ccc7c1cb13",
+    "retained_sha256": "1ce3e1ebc6d5ae083dae63b9bbdfad800d3df6f0d950b0fab022c1ccc7c1cb13"
+  },
+  {
+    "source": "lanes/astra-snapback4/final-report.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-snapback4/final-report.md",
+    "source_sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb",
+    "retained_sha256": "1b2308eb7ca4041344688b53b05ffe41f283734a062c530f9722959b5af4aecb"
+  },
+  {
+    "source": "lanes/astra-snapback4/run-log.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-snapback4/run-log.md",
+    "source_sha256": "ecaa6fcf424aeea09c83b28187328dc710ce95dbe2a1d02f2fa798fe4d517f68",
+    "retained_sha256": "ecaa6fcf424aeea09c83b28187328dc710ce95dbe2a1d02f2fa798fe4d517f68"
+  },
+  {
+    "source": "lanes/astra-snapback4/diary.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-snapback4/diary.md",
+    "source_sha256": "8c4d0eb740afa8f7c6cb867a1b03b2a117fc7c4f2fc392484c05fbcda57a89c7",
+    "retained_sha256": "8c4d0eb740afa8f7c6cb867a1b03b2a117fc7c4f2fc392484c05fbcda57a89c7"
+  },
+  {
+    "source": "lanes/astra-snapback4/essay.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-snapback4/essay.md",
+    "source_sha256": "589d1569b1eeeedb6b0aafb328e29ebbc225466bd9b7d6ff1b15c384b60455b5",
+    "retained_sha256": "589d1569b1eeeedb6b0aafb328e29ebbc225466bd9b7d6ff1b15c384b60455b5"
+  },
+  {
+    "source": "lanes/astra-snapback4/grading/grader-report.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-snapback4/grading/grader-report.json",
+    "source_sha256": "44a0aa2ac79f7278dac0bdda82f398e015969150eac1656182218344df4ac103",
+    "retained_sha256": "44a0aa2ac79f7278dac0bdda82f398e015969150eac1656182218344df4ac103"
+  },
+  {
+    "source": "lanes/astra-snapback4/grading/m8-assertion-results.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-snapback4/grading/m8-assertion-results.json",
+    "source_sha256": "262ee6323e37ddd3a1ba500a03328ed49a76b20bdab57905820f6fd9278bd4cf",
+    "retained_sha256": "262ee6323e37ddd3a1ba500a03328ed49a76b20bdab57905820f6fd9278bd4cf"
+  },
+  {
+    "source": "lanes/astra-supabase/final-report.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-supabase/final-report.md",
+    "source_sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990",
+    "retained_sha256": "80f6ec0ffc5f0bcb45d4164ebefc9fdaf094dca8cd26c6ccda99a59a72245990"
+  },
+  {
+    "source": "lanes/astra-supabase/run-log.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-supabase/run-log.md",
+    "source_sha256": "cc99a5377e955a433039de1489dc10fe9af0f2018dfd3d54178d12283e3faa9d",
+    "retained_sha256": "cc99a5377e955a433039de1489dc10fe9af0f2018dfd3d54178d12283e3faa9d"
+  },
+  {
+    "source": "lanes/astra-supabase/diary.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-supabase/diary.md",
+    "source_sha256": "dd9af44d40b6439ebe6673416406772563088cdceb6afb093cc6f1e681929909",
+    "retained_sha256": "dd9af44d40b6439ebe6673416406772563088cdceb6afb093cc6f1e681929909"
+  },
+  {
+    "source": "lanes/astra-supabase/essay.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-supabase/essay.md",
+    "source_sha256": "6b1efbf2c69592cc7f7d46c79612398443879fc9473052be14cfdc52d2bc9f8a",
+    "retained_sha256": "6b1efbf2c69592cc7f7d46c79612398443879fc9473052be14cfdc52d2bc9f8a"
+  },
+  {
+    "source": "lanes/astra-supabase/grading/grader-report.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-supabase/grading/grader-report.json",
+    "source_sha256": "dafe076dfe869a1861fb288d6c7312acc3819591540b0dd144004fae15856f41",
+    "retained_sha256": "dafe076dfe869a1861fb288d6c7312acc3819591540b0dd144004fae15856f41"
+  },
+  {
+    "source": "lanes/astra-supabase/grading/m8-assertion-results.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/astra-supabase/grading/m8-assertion-results.json",
+    "source_sha256": "727f8f01b44d7e6344cafe56dc0af2963d1c95c79444f73cc2417cceabf1f3e0",
+    "retained_sha256": "727f8f01b44d7e6344cafe56dc0af2963d1c95c79444f73cc2417cceabf1f3e0"
+  },
+  {
+    "source": "lanes/opus-convex/final-report.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-convex/final-report.md",
+    "source_sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262",
+    "retained_sha256": "2a3b0888bd031c77577e92709d6e882f878d6fc1d3a0a6f6d314a77c986b5262"
+  },
+  {
+    "source": "lanes/opus-convex/run-log.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-convex/run-log.md",
+    "source_sha256": "bd3018eb0898fc747131867e78d984d95e4e7ad41ca1c66515d7241c430603fc",
+    "retained_sha256": "bd3018eb0898fc747131867e78d984d95e4e7ad41ca1c66515d7241c430603fc"
+  },
+  {
+    "source": "lanes/opus-convex/diary.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-convex/diary.md",
+    "source_sha256": "92371a6abd9f2572ca2eb3520836bd12d18f81df8dc58023cec8706ee4e447eb",
+    "retained_sha256": "92371a6abd9f2572ca2eb3520836bd12d18f81df8dc58023cec8706ee4e447eb"
+  },
+  {
+    "source": "lanes/opus-convex/essay.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-convex/essay.md",
+    "source_sha256": "2c7320d317ea67fcb2ff8fad570ab48b814a24c29a44af72bb5744b87010625b",
+    "retained_sha256": "2c7320d317ea67fcb2ff8fad570ab48b814a24c29a44af72bb5744b87010625b"
+  },
+  {
+    "source": "lanes/opus-convex/grading/grader-report.json",
+    "redactions": [
+      "defects[id=d-04].summary: removed embedded fixture action containing a plaintext password"
+    ],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-convex/grading/grader-report.json",
+    "source_sha256": "c00849c3e862119b650d0e5fc094c8d40ecaf4bb4a26d5092c511a425f645fbf",
+    "retained_sha256": "cea1bbbb788f2cc47a0448de01193448c6c8169075bd87e3cac25126d9f25393"
+  },
+  {
+    "source": "lanes/opus-convex/grading/m8-assertion-results.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-convex/grading/m8-assertion-results.json",
+    "source_sha256": "e55a23d58ac90ff25b68ce3ad2636a21e0739c650b2287e34e0a564b1257bec7",
+    "retained_sha256": "e55a23d58ac90ff25b68ce3ad2636a21e0739c650b2287e34e0a564b1257bec7"
+  },
+  {
+    "source": "lanes/opus-snapback4/final-report.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-snapback4/final-report.md",
+    "source_sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901",
+    "retained_sha256": "544b8ecdcf13a82d00b45993b5e8ff9d4967a444e6122ce5875e1e655da3e901"
+  },
+  {
+    "source": "lanes/opus-snapback4/run-log.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-snapback4/run-log.md",
+    "source_sha256": "375fc595b9a216132fe38be67ca9e1843fa3f00cd0e8cc2f59c69155c95b2300",
+    "retained_sha256": "375fc595b9a216132fe38be67ca9e1843fa3f00cd0e8cc2f59c69155c95b2300"
+  },
+  {
+    "source": "lanes/opus-snapback4/diary.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-snapback4/diary.md",
+    "source_sha256": "48685d380ea9e569f5825df0b1484b3e5fecee8f26fde1277c2b012e0e954153",
+    "retained_sha256": "48685d380ea9e569f5825df0b1484b3e5fecee8f26fde1277c2b012e0e954153"
+  },
+  {
+    "source": "lanes/opus-snapback4/essay.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-snapback4/essay.md",
+    "source_sha256": "a93d27f16203b5baaa998045505eb56f58171c4ea7a6bf4a310ae9673e761c36",
+    "retained_sha256": "a93d27f16203b5baaa998045505eb56f58171c4ea7a6bf4a310ae9673e761c36"
+  },
+  {
+    "source": "lanes/opus-snapback4/grading/grader-report.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-snapback4/grading/grader-report.json",
+    "source_sha256": "4bfc7dc4ab2c53dc085d02512555d8a0577008935a759af491a7a230e6e3a1b3",
+    "retained_sha256": "4bfc7dc4ab2c53dc085d02512555d8a0577008935a759af491a7a230e6e3a1b3"
+  },
+  {
+    "source": "lanes/opus-snapback4/grading/m8-assertion-results.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "lanes/opus-snapback4/grading/m8-assertion-results.json",
+    "source_sha256": "70cbc60b1418425fe21eb283b8eeb66705b67d48922cdea8b96beb9031883d9e",
+    "retained_sha256": "70cbc60b1418425fe21eb283b8eeb66705b67d48922cdea8b96beb9031883d9e"
+  },
+  {
+    "source": "scores/astra-convex/FINAL.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "scores/astra-convex/FINAL.md",
+    "source_sha256": "6b8d5c8bd22863fc6c89f88efb5a7f122b8faa5ac81ee2225ec988ddb2402c83",
+    "retained_sha256": "6b8d5c8bd22863fc6c89f88efb5a7f122b8faa5ac81ee2225ec988ddb2402c83"
+  },
+  {
+    "source": "scores/astra-snapback4/FINAL.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "scores/astra-snapback4/FINAL.md",
+    "source_sha256": "2f224cccb44fa7001e334f77072fefad2d4e8f6ea893a659e8fb16565306a1a7",
+    "retained_sha256": "2f224cccb44fa7001e334f77072fefad2d4e8f6ea893a659e8fb16565306a1a7"
+  },
+  {
+    "source": "scores/astra-supabase/FINAL.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "scores/astra-supabase/FINAL.md",
+    "source_sha256": "ed2430a7cd36ef722225b12b061d9b285a9d55776ee148a49b53fc6c39e60fc8",
+    "retained_sha256": "ed2430a7cd36ef722225b12b061d9b285a9d55776ee148a49b53fc6c39e60fc8"
+  },
+  {
+    "source": "scores/opus-convex/FINAL.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "scores/opus-convex/FINAL.md",
+    "source_sha256": "63b23b5c2e282e8eace07b7563aaa0c2f3dcf489ff06f5f66fa2c8b755dbde94",
+    "retained_sha256": "63b23b5c2e282e8eace07b7563aaa0c2f3dcf489ff06f5f66fa2c8b755dbde94"
+  },
+  {
+    "source": "scores/opus-snapback4/FINAL.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "scores/opus-snapback4/FINAL.md",
+    "source_sha256": "f9e16532c662aed9d866d74201d85eaf4901906ea2dafd40def4db01d6f246bb",
+    "retained_sha256": "f9e16532c662aed9d866d74201d85eaf4901906ea2dafd40def4db01d6f246bb"
+  },
+  {
+    "source": "logs/astra-convex.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-convex.end.json",
+    "source_sha256": "efce369833b6180d47ac55cb5ace338013343016252f6b3b6c37a29c0cd8da99",
+    "retained_sha256": "efce369833b6180d47ac55cb5ace338013343016252f6b3b6c37a29c0cd8da99"
+  },
+  {
+    "source": "logs/astra-convex.grade.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-convex.grade.end.json",
+    "source_sha256": "78c33978388e066ac9f6edef9615a09e36a56918448fe1a654b80d5114c08ca5",
+    "retained_sha256": "78c33978388e066ac9f6edef9615a09e36a56918448fe1a654b80d5114c08ca5"
+  },
+  {
+    "source": "logs/astra-convex.grade.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-convex.grade.start.json",
+    "source_sha256": "9649db81393cb14ac423dfb1e7bc89f2d17700c85aeeeb7d4856c211cfa68ed2",
+    "retained_sha256": "9649db81393cb14ac423dfb1e7bc89f2d17700c85aeeeb7d4856c211cfa68ed2"
+  },
+  {
+    "source": "logs/astra-convex.score.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-convex.score.end.json",
+    "source_sha256": "f007e3a2762f997235c8be45def5a1e8b197de45d53b8a78fff50517233e051d",
+    "retained_sha256": "f007e3a2762f997235c8be45def5a1e8b197de45d53b8a78fff50517233e051d"
+  },
+  {
+    "source": "logs/astra-convex.score.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-convex.score.start.json",
+    "source_sha256": "30ed3eed33fc874a452f3e3d971ddb5f82a2767e9f905798fe69af481143ac21",
+    "retained_sha256": "30ed3eed33fc874a452f3e3d971ddb5f82a2767e9f905798fe69af481143ac21"
+  },
+  {
+    "source": "logs/astra-convex.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-convex.start.json",
+    "source_sha256": "b5d27b9a359538eb4c01a3224ebf14b033ec806ab45106899c969fa20dc4f513",
+    "retained_sha256": "b5d27b9a359538eb4c01a3224ebf14b033ec806ab45106899c969fa20dc4f513"
+  },
+  {
+    "source": "logs/astra-snapback4.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-snapback4.end.json",
+    "source_sha256": "bb2262f374b371195e1e632acd001ad21be9d34d55620683e832cf0a6ac783be",
+    "retained_sha256": "bb2262f374b371195e1e632acd001ad21be9d34d55620683e832cf0a6ac783be"
+  },
+  {
+    "source": "logs/astra-snapback4.grade.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-snapback4.grade.end.json",
+    "source_sha256": "5c3eb7f25ba6a63e4a11ec9dc4b472b6804c3b279b580e3df2788ee96ef0a877",
+    "retained_sha256": "5c3eb7f25ba6a63e4a11ec9dc4b472b6804c3b279b580e3df2788ee96ef0a877"
+  },
+  {
+    "source": "logs/astra-snapback4.grade.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-snapback4.grade.start.json",
+    "source_sha256": "6fb8c80ef72c31e33da02f34ef10192af3b11130bca68f8314c374b0dbc841dd",
+    "retained_sha256": "6fb8c80ef72c31e33da02f34ef10192af3b11130bca68f8314c374b0dbc841dd"
+  },
+  {
+    "source": "logs/astra-snapback4.score.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-snapback4.score.end.json",
+    "source_sha256": "e32c129cd680f164c9858089942927b9bc1071bc71750e7486c12d1aac7ebfe1",
+    "retained_sha256": "e32c129cd680f164c9858089942927b9bc1071bc71750e7486c12d1aac7ebfe1"
+  },
+  {
+    "source": "logs/astra-snapback4.score.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-snapback4.score.start.json",
+    "source_sha256": "1c22adab513f51d80436dcbe5a3ee91550659a07bebeae99d70e08e18a5ed837",
+    "retained_sha256": "1c22adab513f51d80436dcbe5a3ee91550659a07bebeae99d70e08e18a5ed837"
+  },
+  {
+    "source": "logs/astra-snapback4.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-snapback4.start.json",
+    "source_sha256": "bebc96a5c7845a9ca0efbc4ace8e079d973b71a6a9747081d6a38feaf41f1d1d",
+    "retained_sha256": "bebc96a5c7845a9ca0efbc4ace8e079d973b71a6a9747081d6a38feaf41f1d1d"
+  },
+  {
+    "source": "logs/astra-supabase.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-supabase.end.json",
+    "source_sha256": "ea25a22494e576322cf9aed5b8bc836581ce12ba242c969e63f00829d60792d8",
+    "retained_sha256": "ea25a22494e576322cf9aed5b8bc836581ce12ba242c969e63f00829d60792d8"
+  },
+  {
+    "source": "logs/astra-supabase.grade.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-supabase.grade.end.json",
+    "source_sha256": "de6f89a6ff789ee0c95326597b74b7d37c78c1e3989055263605091cfcfc5eed",
+    "retained_sha256": "de6f89a6ff789ee0c95326597b74b7d37c78c1e3989055263605091cfcfc5eed"
+  },
+  {
+    "source": "logs/astra-supabase.grade.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-supabase.grade.start.json",
+    "source_sha256": "39ff2fb339b8d922354702287a8b5bf166dc76a30eac8265de3ff5cc49e1b662",
+    "retained_sha256": "39ff2fb339b8d922354702287a8b5bf166dc76a30eac8265de3ff5cc49e1b662"
+  },
+  {
+    "source": "logs/astra-supabase.score.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-supabase.score.end.json",
+    "source_sha256": "0ecbdf723fbd9181c03a1f8ec48f8bfe339137c6a7396484b9d9cf06d57ef76e",
+    "retained_sha256": "0ecbdf723fbd9181c03a1f8ec48f8bfe339137c6a7396484b9d9cf06d57ef76e"
+  },
+  {
+    "source": "logs/astra-supabase.score.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-supabase.score.start.json",
+    "source_sha256": "1a794ef3d1ca13d097ca7acb9e26a2f04cbf546ba0b29b1d6db79ab9ea1ab310",
+    "retained_sha256": "1a794ef3d1ca13d097ca7acb9e26a2f04cbf546ba0b29b1d6db79ab9ea1ab310"
+  },
+  {
+    "source": "logs/astra-supabase.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/astra-supabase.start.json",
+    "source_sha256": "93807cb164dbd1b5cff2637cd083f7f83b22e009d3cc539b3a7ea750872a62cf",
+    "retained_sha256": "93807cb164dbd1b5cff2637cd083f7f83b22e009d3cc539b3a7ea750872a62cf"
+  },
+  {
+    "source": "logs/opus-convex.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-convex.end.json",
+    "source_sha256": "b50fa1c72aa930e2c50b85a95b5d24888c330a8ddb83fa776ce93d2cf1c3fffd",
+    "retained_sha256": "b50fa1c72aa930e2c50b85a95b5d24888c330a8ddb83fa776ce93d2cf1c3fffd"
+  },
+  {
+    "source": "logs/opus-convex.grade.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-convex.grade.end.json",
+    "source_sha256": "ef39d3ba9bcbb582a8a5196b59cf317f91583f82da97e970acfcb96be531def2",
+    "retained_sha256": "ef39d3ba9bcbb582a8a5196b59cf317f91583f82da97e970acfcb96be531def2"
+  },
+  {
+    "source": "logs/opus-convex.grade.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-convex.grade.start.json",
+    "source_sha256": "1673462b71c41a8d449473689c273be614003c6e21f577405d5d7a0f58805e4d",
+    "retained_sha256": "1673462b71c41a8d449473689c273be614003c6e21f577405d5d7a0f58805e4d"
+  },
+  {
+    "source": "logs/opus-convex.score.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-convex.score.end.json",
+    "source_sha256": "7566284e7a13b6a1865e21fd4effd88ccf81f4fd6cd8d796b08ce1584d80d4c3",
+    "retained_sha256": "7566284e7a13b6a1865e21fd4effd88ccf81f4fd6cd8d796b08ce1584d80d4c3"
+  },
+  {
+    "source": "logs/opus-convex.score.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-convex.score.start.json",
+    "source_sha256": "58945ab4b4957787c6d92cbce1682ae0ea7567205c84d2e0669c17e19ce0b62b",
+    "retained_sha256": "58945ab4b4957787c6d92cbce1682ae0ea7567205c84d2e0669c17e19ce0b62b"
+  },
+  {
+    "source": "logs/opus-convex.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-convex.start.json",
+    "source_sha256": "db805394f6382333878a1d1ac22f3b70909edca91a5230ec6eb8f0d86b919968",
+    "retained_sha256": "db805394f6382333878a1d1ac22f3b70909edca91a5230ec6eb8f0d86b919968"
+  },
+  {
+    "source": "logs/opus-snapback4.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-snapback4.end.json",
+    "source_sha256": "4da6c10b70cf9ff85ae5bb999669182e03eead4f845b6d0929ee60eedf8792ab",
+    "retained_sha256": "4da6c10b70cf9ff85ae5bb999669182e03eead4f845b6d0929ee60eedf8792ab"
+  },
+  {
+    "source": "logs/opus-snapback4.grade.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-snapback4.grade.end.json",
+    "source_sha256": "4418d68e5e7f25fc20281256f362aee5698b4b2e46d4f02e1a404d7f55193d8d",
+    "retained_sha256": "4418d68e5e7f25fc20281256f362aee5698b4b2e46d4f02e1a404d7f55193d8d"
+  },
+  {
+    "source": "logs/opus-snapback4.grade.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-snapback4.grade.start.json",
+    "source_sha256": "06717c9ea79a81c9c7657d7324271bd848ada1b86455758a587ed55cb808a702",
+    "retained_sha256": "06717c9ea79a81c9c7657d7324271bd848ada1b86455758a587ed55cb808a702"
+  },
+  {
+    "source": "logs/opus-snapback4.score.end.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-snapback4.score.end.json",
+    "source_sha256": "40aa11a464f6552f97d8a8119474f56aecf96a771ceb9a093dd0c12973e68393",
+    "retained_sha256": "40aa11a464f6552f97d8a8119474f56aecf96a771ceb9a093dd0c12973e68393"
+  },
+  {
+    "source": "logs/opus-snapback4.score.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-snapback4.score.start.json",
+    "source_sha256": "6a75a85b06e508fc222bf9fdedd26cbff4e95533d046aefeffcecaf84ce4100d",
+    "retained_sha256": "6a75a85b06e508fc222bf9fdedd26cbff4e95533d046aefeffcecaf84ce4100d"
+  },
+  {
+    "source": "logs/opus-snapback4.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-snapback4.start.json",
+    "source_sha256": "b853ad0f30a15f479bada09c1b0a31eb41d72dd29a64f9f697fdcb09d429026a",
+    "retained_sha256": "b853ad0f30a15f479bada09c1b0a31eb41d72dd29a64f9f697fdcb09d429026a"
+  },
+  {
+    "source": "logs/opus-supabase.start.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-supabase.start.json",
+    "source_sha256": "0ce5e9d0e6cacee5025fdb96ea9d5b777e9999f6d0a628040e79354f13b7d8a3",
+    "retained_sha256": "0ce5e9d0e6cacee5025fdb96ea9d5b777e9999f6d0a628040e79354f13b7d8a3"
+  },
+  {
+    "source": "logs/opus-supabase.terminated.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "logs/opus-supabase.terminated.json",
+    "source_sha256": "63fb30b7164242b9999ee77673d8e97122aaa6b94424f605a990e5324489e639",
+    "retained_sha256": "63fb30b7164242b9999ee77673d8e97122aaa6b94424f605a990e5324489e639"
+  },
+  {
+    "source": "PACKAGE_PINS.json",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "PACKAGE_PINS.json",
+    "source_sha256": "7d07b0ea75b08ce2991c988838f84596ba5fa2791f42cebfc6e350f5dd9c7993",
+    "retained_sha256": "7d07b0ea75b08ce2991c988838f84596ba5fa2791f42cebfc6e350f5dd9c7993"
+  },
+  {
+    "source": "INSTRUMENT_COMMIT",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "INSTRUMENT_COMMIT",
+    "source_sha256": "b0e105d77cf623b915d518cd772561829b5170428e2f54d4540f08aad051e20c",
+    "retained_sha256": "b0e105d77cf623b915d518cd772561829b5170428e2f54d4540f08aad051e20c"
+  },
+  {
+    "source": "INSTRUMENT.sha256",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "INSTRUMENT.sha256",
+    "source_sha256": "1070612b243a19ce688270d11558a03ba4a050ceaff582e2f803069da0e4a13e",
+    "retained_sha256": "1070612b243a19ce688270d11558a03ba4a050ceaff582e2f803069da0e4a13e"
+  },
+  {
+    "source": "host-load.jsonl",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "retained": "host-load.jsonl",
+    "source_sha256": "d6d7080e9bbb8f00bca86deef94ab317350f6871d9e43ddf32f233782e23e127",
+    "retained_sha256": "d6d7080e9bbb8f00bca86deef94ab317350f6871d9e43ddf32f233782e23e127"
+  },
+  {
+    "source": "README.md",
+    "retained": "packet-README.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "source_sha256": "7cd42f96770dc5c331614b75c82722ef92b02a0de854442f905f659f0ce93524",
+    "retained_sha256": "7cd42f96770dc5c331614b75c82722ef92b02a0de854442f905f659f0ce93524"
+  },
+  {
+    "source": "instrument/ENVIRONMENT.md",
+    "retained": "instrument/ENVIRONMENT.md",
+    "redactions": [],
+    "gitleaks_passed": true,
+    "source_sha256": "e120b694d52a7f11b6f81e0a485c2b658b64976446e8ecd880d02b6ee8c20175",
+    "retained_sha256": "e120b694d52a7f11b6f81e0a485c2b658b64976446e8ecd880d02b6ee8c20175"
+  }
+]

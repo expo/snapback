@@ -1,0 +1,11 @@
+{
+  "lane": "astra-supabase",
+  "phase": "builder",
+  "pid": 20792,
+  "endedAt": "2026-09-25T00:07:42Z",
+  "endedEpoch": 1790294862,
+  "wallSeconds": 21555.225,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/astra-supabase.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/astra-supabase.stderr.log"
+}

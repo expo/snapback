@@ -1,0 +1,11 @@
+{
+  "lane": "astra-convex",
+  "phase": "score",
+  "pid": 43380,
+  "endedAt": "2026-09-25T03:05:52Z",
+  "endedEpoch": 1790305552,
+  "wallSeconds": 136.798,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/scores/astra-convex/raw.out",
+  "stderr": "/Users/ccheever/clique-ref-20260924/scores/astra-convex/raw.err"
+}

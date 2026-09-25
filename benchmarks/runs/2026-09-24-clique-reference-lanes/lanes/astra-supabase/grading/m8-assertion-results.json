@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-supabase",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite",
+      "note": "Suite six-server-totals-match-entities passed: all six totals match counts computed from the entity tables and the six UI tiles."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography-receipts",
+      "note": "m8 receipt m8-a02-insights-like-refresh passed: likes-received 86 -> 87 after Bob's like, refresh 825 ms."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite",
+      "note": "Suite seven-utc-days-include-zero-buckets passed: today's UTC bucket incremented."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite",
+      "note": "Same test: seven day rows including zero days, 7 rows rendered."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending",
+      "note": "The suite exercises this clause only through a like-count tie, so the grader re-verified with unequal counts: a 3-like post ranked above a 1-like post and both below the 8-like leaders."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite",
+      "note": "A post aged past 24 h (test-only SQL, recorded in the receipt) is absent from Trending."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#phase-1-builder-suite",
+      "note": "Tie broken newest-first."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "Shortened digest config (periodSeconds 120), no browser client open. For the measured period every one of the 5 profiles with in-period activity received exactly one digest and all four counts matched the grader's independently computed expectations (0 mismatches, 0 missing, 0 unexpected, 0 duplicate (target, periodEnd) rows anywhere in the push table)."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "Nine of the fourteen profiles had no in-period activity and received no digest; erin, who sent every message but received nothing, is the crisp case."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "The following period had 0 messages and emitted 0 digests."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "The API server was killed and restarted 55 s into a 120 s period with pending activity; that period emitted exactly one digest for its one qualifying user and no duplicate (target, periodEnd) row exists."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "A message in a DM the target is not a member of contributed nothing: frank's digest counted 2 unread messages in 1 chat, exactly his own DM, while a third message sat in an erin-dave DM he is not a member of."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography-receipts",
+      "note": "m8 receipt m8-a13-same-account-message-live passed (visibleMs 1330.5)."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography-receipts",
+      "note": "m8 receipt m8-a14-cross-device-read-state passed (clearVisibleMs 3076.8)."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography-receipts",
+      "note": "m8 receipt m8-a15-dual-offline-convergence passed; the harness asserts expectExactlyOnceInOrder on all three clients after the staggered reconnect."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography-receipts",
+      "note": "m8 receipt m8-a16-dual-offline-receipts passed."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#d-01",
+      "note": "No iOS-simulator choreography recording or structured receipt exists: evidence/report-metrics.json records external id ios-simulator-m8 as status 'not-recorded', pass null. M8's durable-queue restart proof is the same separately recorded native class as M6's, and its absence leaves the proof absent rather than passing."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#d-01",
+      "note": "No iOS-simulator choreography recording or structured receipt exists: evidence/report-metrics.json records external id ios-simulator-m8 as status 'not-recorded', pass null. M8's durable-queue restart proof is the same separately recorded native class as M6's, and its absence leaves the proof absent rather than passing."
+    }
+  }
+}

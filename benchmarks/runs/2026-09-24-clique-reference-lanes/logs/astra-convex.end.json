@@ -1,0 +1,11 @@
+{
+  "lane": "astra-convex",
+  "phase": "builder",
+  "pid": 20791,
+  "endedAt": "2026-09-24T20:31:11Z",
+  "endedEpoch": 1790281871,
+  "wallSeconds": 8564.868,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/astra-convex.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/astra-convex.stderr.log"
+}

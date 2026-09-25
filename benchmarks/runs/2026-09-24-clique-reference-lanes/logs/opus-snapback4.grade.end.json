@@ -1,0 +1,11 @@
+{
+  "lane": "opus-snapback4",
+  "phase": "grade",
+  "pid": 48221,
+  "endedAt": "2026-09-25T04:24:49Z",
+  "endedEpoch": 1790310289,
+  "wallSeconds": 4848.13,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-ref-20260924/logs/opus-snapback4.grade.ndjson",
+  "stderr": "/Users/ccheever/clique-ref-20260924/logs/opus-snapback4.grade.stderr.log"
+}
