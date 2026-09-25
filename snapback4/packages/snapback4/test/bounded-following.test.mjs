@@ -116,6 +116,47 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
 }
 
 for (const tier of ["wasm", "native"]) {
+  test(`event slots ${tier}: owned-event fallback waits for the source prediction`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier, undefined, source => source.replace("sync public\n\ntable follows", "sync public last 3 by .at\n\ntable follows") + `
+query ownedEvent(eventId: id):
+  return feedPosts[eventId]
+query ownedEvents():
+  return feedPosts last 10 by .at
+table eventSwitch:
+  enabled: bool
+  public 'conditional event witness'
+  insert <- true
+  online only
+mutation enableEvents():
+  insert eventSwitch { id: 'gate', enabled: true }
+query conditionalEvents():
+  if exists eventSwitch['gate']:
+    return feedPosts last 10 by .at
+  return []
+`), bob = await f.open("bob");
+    await f.mutate("enableEvents", "bob", {});
+    const input = { eventId: "p3" };
+    assert.equal((await bob.client.query(query("ownedEvent"), input)).data.id, "p3");
+    bob.offline = true; await bob.client.sync();
+    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+    assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
+    bob.offline = false; await bob.client.sync(); bob.holdWrites = true;
+    await bob.client.mutate(mutation("post"), { postId: "own-event", parentId: null, at: 30 });
+    const queued = (await bob.core.call({ op: "queued" })).ok;
+    assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("posts/"))));
+    assert.ok(queued.every(q => q.predicted.every(row => !row.startsWith("feedPosts/"))), "partial events have no predicted owned row");
+    const before = bob.queries.length;
+    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+    assert.deepEqual(await bob.client.query(query("ownedEvents"), {}), { loading: true });
+    assert.deepEqual((await bob.client.query(query("conditionalEvents"), {})).data, []);
+    assert.equal(bob.queries.length, before, "executed and possible event reads depend on the predicted source slot");
+    bob.holdWrites = false;
+    await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "source prediction was not observed");
+    assert.ok((await bob.client.query(query("ownedEvents"), {})).data.some(row => row.postId === "own-event"));
+    bob.failQueries = true;
+    assert.deepEqual(await bob.client.query(query("ownedEvent"), input), { loading: true });
+  });
+
   test(`bounded Following ${tier}: unknown conditions preserve static and helper dependencies`, { timeout: 30000 }, async t => {
     const f = await fixture(t, tier, "sync public", source => source.replace("sync public\n\ntable follows", "online only\n\ntable follows") + `
 table switches:
