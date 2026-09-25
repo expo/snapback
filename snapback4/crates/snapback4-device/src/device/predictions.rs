@@ -38,7 +38,8 @@ pub(super) fn restore<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<(), Runtim
 }
 
 pub(super) fn enqueue<T: DeviceTx>(tx: &T, entry: &Queued) -> Result<(), RuntimeError> {
-    tx.outbox_upsert(entry.seq, &entry.id, &encoded(entry)?)
+    tx.outbox_upsert(entry.seq, &entry.id, &encoded(entry)?)?;
+    keep_issued_floor(tx, entry.now)
 }
 
 pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry: &Queued) -> Result<(Vec<String>, Vec<String>), RuntimeError> {

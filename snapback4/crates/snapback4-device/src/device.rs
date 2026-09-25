@@ -283,6 +283,15 @@ fn meta_u64<T: DeviceTx>(tx: &T, key: &str) -> Result<u64, RuntimeError> {
     tx.meta(key)?.map(|s| s.parse::<u64>().map_err(|_| RuntimeError::Store(format!("invalid device metadata {key}")))).transpose().map(|n| n.unwrap_or(0))
 }
 
+// Every outbox writer preserves admission time, including transfers and replay
+// after clock attachment. The floor and the entry commit or roll back together.
+fn keep_issued_floor<T: DeviceTx>(tx: &T, now: i64) -> Result<(), RuntimeError> {
+    let before = meta_u64(tx, ISSUED_FLOOR)?;
+    let floor = before.max(now.max(0) as u64);
+    if floor > before { tx.set_meta(ISSUED_FLOOR, &floor.to_string())?; }
+    Ok(())
+}
+
 // @ref LLP 3000.008.001#4-read-and-write-outcomes — unacquired facts cannot justify a value or a predicted refusal.
 fn require_acquired<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
     store_identity::require_healthy(tx)?;
@@ -952,7 +961,7 @@ impl<S: DeviceStore> Device<S> {
         tx.set_meta(SUBMISSION, &entry.seq.to_string())?;
         // Admission's time survives settlement in the same durable commit as
         // its outbox entry, including synchronous web journal recovery.
-        tx.set_meta(ISSUED_FLOOR, &meta_u64(&tx, ISSUED_FLOOR)?.max(entry.now.max(0) as u64).to_string())?;
+        keep_issued_floor(&tx, entry.now)?;
         tx.commit()?;
         Ok(entry)
     }
@@ -983,6 +992,7 @@ impl<S: DeviceStore> Device<S> {
         if self.programs.get(&entry.op).is_some_and(|p| p.kind == snapback4_core::ProgramKind::Action) { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
         tx.outbox_insert(entry.seq, &entry.id, &encoded(entry)?)?;
+        keep_issued_floor(&tx, entry.now)?;
         tx.commit()
     }
 

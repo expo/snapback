@@ -30,16 +30,17 @@ fn legacy_retirement<H: Host>(host: &mut H) {
         let name = format!("legacy-{n}");
         let (_, backend) = compile(SOURCE);
         let mut device = host.open(&name, Some(backend)).unwrap();
-        if let Some(floor) = saved { device.set_meta("server-clock-floor", &floor.to_string()).unwrap(); }
-        // 0.4.1 wrote these durable entries without writing a clock floor.
-        for (n, now) in [1_004_000, 1_001_000, 1_003_000].into_iter().enumerate() {
+        for (n, now) in [1_001_000, 1_004_000, 1_003_000].into_iter().enumerate() {
             let mut queued = entry(&format!("a{n}"), now);
             queued.seq = n as u64 + 1;
             device.enqueue(&queued).unwrap();
         }
+        // Current enqueue preserves the floor. Restore the legacy lower value
+        // after constructing the queue; zero has the same meaning as absence.
+        device.set_meta("server-clock-floor", &saved.unwrap_or(0).to_string()).unwrap();
         host.close(&name, device);
         let mut device = host.open(&name, None).unwrap();
-        assert_eq!(device.meta("server-clock-floor").unwrap(), saved.map(|floor| floor.to_string()));
+        assert_eq!(device.meta("server-clock-floor").unwrap(), Some(saved.unwrap_or(0).to_string()));
         let entries = device.queued_with_clock_floor(true).unwrap();
         let expected = saved.unwrap_or(0).max(1_004_000).to_string();
         assert_eq!(device.meta("server-clock-floor").unwrap().as_deref(), Some(expected.as_str()));
@@ -75,19 +76,47 @@ fn legacy_floor_backfill_is_idempotent_and_failure_keeps_the_queue() {
     assert!(device.store().drain().is_empty(), "attachment does not rewrite an unchanged floor");
 }
 
-#[test]
-fn admission_change_batch_contains_outbox_and_clock_floor_together() {
+fn admission_batch(recovered: bool) {
     let (_, backend) = compile(SOURCE);
     let mut device = Memory::new().open("clock", Some(backend)).unwrap();
     device.store().drain();
-    device.admit(entry("a", 1_004_000)).unwrap();
+    let mut a = entry("a", 1_004_000); a.seq = 1;
+    if recovered { device.enqueue(&a).unwrap(); } else { device.admit(a).unwrap(); }
     let committed = device.store().drain();
     assert!(committed.iter().any(|c| c.s == 'o' && c.k == "a" && c.v.is_some()));
     assert!(committed.iter().any(|c| c.s == 'm' && c.k == "client:server-clock-floor" && c.v.as_deref() == Some("1004000")));
     // Force an error after outbox insertion: rollback must publish neither half.
     device.set_meta("server-clock-floor", "malformed").unwrap();
     device.store().drain();
-    assert!(device.admit(entry("b", 1_005_000)).is_err());
+    let mut b = entry("b", 1_005_000); b.seq = 2;
+    let refused = if recovered { device.enqueue(&b) } else { device.admit(b).map(|_| ()) }.unwrap_err();
+    assert!(refused.to_string().contains("invalid device metadata"), "{refused}");
     assert!(device.store().drain().is_empty());
     assert_eq!(device.queued().unwrap().len(), 1);
 }
+#[test] fn admission_change_batch_contains_outbox_and_clock_floor_together() { admission_batch(false); }
+#[test] fn recovery_change_batch_contains_outbox_and_clock_floor_together() { admission_batch(true); }
+
+fn recovery_retirement<H: Host>(host: &mut H) {
+    for receipt_recovery in [false, true] {
+        let name = format!("recovery-{receipt_recovery}");
+        let (_, backend) = compile(SOURCE);
+        let mut device = host.open(&name, Some(backend)).unwrap();
+        device.queued_with_clock_floor(true).unwrap(); // attachment precedes recovery
+        device.enqueue(&entry("recovered", 1_004_000)).unwrap();
+        assert_eq!(device.meta("server-clock-floor").unwrap().as_deref(), Some("1004000"));
+        if receipt_recovery {
+            device.set_meta("server-clock-floor", "0").unwrap(); // legacy entry
+            device.settle("recovered", Some(100)).unwrap(); // recovery's outbox upsert
+            assert_eq!(device.meta("server-clock-floor").unwrap().as_deref(), Some("1004000"));
+        }
+        device.settle("recovered", None).unwrap();
+        assert!(device.queued().unwrap().is_empty());
+        host.close(&name, device);
+        let device = host.open(&name, None).unwrap();
+        assert_eq!(device.meta("server-clock-floor").unwrap().as_deref(), Some("1004000"));
+        host.close(&name, device);
+    }
+}
+#[test] fn recovery_transactions_preserve_memory_floor_after_retirement() { recovery_retirement(&mut Memory::new()); }
+#[test] fn recovery_transactions_preserve_sqlite_floor_after_retirement() { recovery_retirement(&mut Sqlite::new("recovery-clock")); }

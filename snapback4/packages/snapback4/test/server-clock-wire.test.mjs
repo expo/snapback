@@ -9,8 +9,10 @@ import { createLocalClient } from '../dist/local.js';
 import { processDevice } from '../dist/native.js';
 import { ServerClock } from '../dist/clock.js';
 import { changeFeed } from '../dist/changes.js';
-import { modelBackend, modelDevice } from './helpers/app-model-device.mjs';
+import { modelBackend } from './helpers/app-model-device.mjs';
+import { memoryPersistence, webDevice } from '../dist/web.js';
 const extraSource = readFileSync(new URL('./fixtures/server-clock.q', import.meta.url), 'utf8');
+const wasm = readFileSync(new URL('../dist/wasm/snapback4_device_bg.wasm', import.meta.url));
 
 async function post(url, path, body = {}, token) {
   const response = await fetch(url + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
@@ -61,15 +63,23 @@ test('wire stamps successes and refusals on sync, changes, query, mutation and s
 
 for (const tier of ['web', 'native']) test(`${tier}: a legacy admission keeps its floor through upgrade, retirement and rollback`, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-clock-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const device = tier === 'web' ? modelDevice() : processDevice({ dir, binary: binary() });
+  const persist = memoryPersistence();
+  const device = tier === 'web' ? webDevice({ wasm, persist }) : processDevice({ dir, binary: binary() });
   let wall = 1_004_000, core = await device.open('legacy-clock', { initial_backend: modelBackend });
   t.after(() => core.close());
-  const queued = await core.call({ op: 'enqueue', entry: { id: 'legacy', seq: 1, op: 'write', args: { hiddenHandle: false, refuse: false },
-    viewer: 'alice', now: wall, new_ids: [], predicted: [], predictable: false } });
-  assert.equal(queued.denied, undefined);
-  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, null, 'legacy admission has no floor record');
   await core.close();
+  // Build the old persisted shape directly: current enqueue must write a floor.
+  const entry = { id: 'legacy', seq: 1, op: 'write', args: { hiddenHandle: false, refuse: false },
+    viewer: 'alice', now: wall, new_ids: [], predicted: [], predictable: false };
+  if (tier === 'web') await persist.save('legacy-clock', [{ s: 'o', k: entry.id, v: JSON.stringify(entry) }]);
+  else {
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(join(dir, 'legacy-clock.sqlite'));
+    try { db.prepare('INSERT INTO _device_outbox (seq, id, entry) VALUES (?, ?, ?)').run(entry.seq, entry.id, JSON.stringify(entry)); }
+    finally { db.close(); }
+  }
   core = await device.open('legacy-clock', null);
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, null, 'legacy admission has no floor record');
   const upgraded = new ServerClock(() => wall); await upgraded.attach(core);
   assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, '1004000', 'attach commits the backfill before retirement');
   assert.equal((await core.call({ op: 'settle', id: 'legacy' })).denied, undefined);
@@ -79,6 +89,87 @@ for (const tier of ['web', 'native']) test(`${tier}: a legacy admission keeps it
   core = await device.open('legacy-clock', null);
   const reopened = new ServerClock(() => wall); await reopened.attach(core);
   assert.equal(reopened.issuedDeviceNow(), 1_004_000, 'retirement cannot erase the legacy admission floor');
+});
+
+test('web orphan recovery after attachment preserves its admission floor through settlement and rollback', async t => {
+  const name = 'late-clock', orphan = `${name}:tab-old`, persist = memoryPersistence(), batches = [];
+  const entry = { id: 'orphan', seq: 1, op: 'write', args: { hiddenHandle: false, refuse: false },
+    viewer: 'alice', now: 1_004_000, new_ids: [], predicted: [], predictable: false };
+  await persist.save(orphan, [{ s: 'm', k: 'device:store_id', v: 'clock-store' }, { s: 'o', k: entry.id, v: JSON.stringify(entry) }]);
+  const held = await persist.claim(orphan, false); t.after(() => held.release());
+  const device = webDevice({ wasm, persist: { ...persist, async save(store, changes) {
+    batches.push({ store, changes }); await persist.save(store, changes);
+  } } });
+  let wall = 1_004_000, core = await device.open(name, { initial_backend: modelBackend }); t.after(() => core.close());
+  const observe = { op: 'observe_store', page: { snapshot: false, generation: 1, events: [], watermark: 0, more: false, store_id: 'clock-store', requested_watermark: 0 } };
+  assert.equal((await core.call(observe)).denied, undefined);
+  const clock = new ServerClock(() => wall); await clock.attach(core);
+  assert.equal(clock.issuedDeviceNow(), wall);
+  assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, null);
+  await held.release();
+  assert.equal((await core.call(observe)).denied, undefined); // Normal orphan recovery, after attach.
+  assert.equal(await persist.has(orphan), false);
+  assert.equal((await core.call({ op: 'queued' })).ok[0].now, entry.now);
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, String(entry.now));
+  assert.ok(batches.some(({ store, changes }) => store === name
+    && changes.some(c => c.s === 'o' && c.k === entry.id && c.v)
+    && changes.some(c => c.s === 'm' && c.k === 'client:server-clock-floor' && c.v === String(entry.now))), 'transfer and floor share the durable batch');
+  assert.equal((await core.call({ op: 'settle', id: entry.id })).denied, undefined);
+  assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
+  await core.close(); // No clock flush can preserve the retired timestamp.
+  wall -= 4000;
+  core = await device.open(name, null);
+  const reopened = new ServerClock(() => wall); await reopened.attach(core);
+  assert.equal(reopened.issuedDeviceNow(), entry.now);
+});
+
+test('a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries', async t => {
+  const f = await devServer({ seed: [], extraSource }); t.after(() => f.close());
+  await member(f.api, 'dev:alice');
+  const persist = memoryPersistence(), device = webDevice({ wasm, persist }), requests = [], retirements = [];
+  const name = `snapback4-${encodeURIComponent(`${f.api}:dev:alice`)}`;
+  let failBackfill = false, core, client, refusals = 0;
+  const options = { url: f.api, persona: 'alice', device: { async open(...args) {
+    core = await device.open(...args);
+    return { ...core, call(request, ...rest) {
+      if (request.op === 'queued' && request.restore_clock_floor && failBackfill) {
+        refusals++;
+        return Promise.resolve({ denied: { code: 'E_STORE', family: 'storage', message: 'injected backfill refusal', retryable: true } });
+      }
+      if (['apply', 'settle', 'dequeue'].includes(request.op)) retirements.push(request.op);
+      return core.call(request, ...rest);
+    } };
+  } }, fetch: (input, init) => {
+    const path = new URL(input).pathname;
+    if (path.startsWith('/m/')) requests.push(path);
+    if (path === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
+    return fetch(input, init);
+  } };
+  t.after(async () => { await client?.close(); });
+  client = await createLocalClient(options); await client.close(); client = undefined;
+  const entry = { id: 'legacy-refusal', seq: 1, op: 'media.sendClock', args: { conversationId: 'room', body: 'recovered after refusal' },
+    viewer: 'dev:alice', now: Date.now() + 4000, new_ids: [], predicted: [], predictable: false };
+  await persist.save(name, [{ s: 'o', k: entry.id, v: JSON.stringify(entry) }]);
+  failBackfill = true; requests.length = 0; retirements.length = 0;
+  await assert.rejects(createLocalClient(options).then(opened => { client = opened; return opened; }), /injected backfill refusal/);
+  assert.equal(refusals, 1);
+  assert.deepEqual(requests, [], 'failed attachment cannot send an admission');
+  assert.deepEqual(retirements, [], 'failed attachment cannot retire an admission');
+  const saved = await persist.load(name);
+  assert.equal(saved.find(c => c.s === 'o' && c.k === entry.id)?.v, JSON.stringify(entry));
+  assert.equal(saved.find(c => c.s === 'm' && c.k === 'client:server-clock-floor')?.v, undefined);
+  failBackfill = false;
+  client = await createLocalClient(options);
+  for (let n = 0; n < 100; n++) {
+    await client.sync();
+    if (!(await core.call({ op: 'queued' })).ok.length) break;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.equal(requests.length, 1, 'retry sends the preserved admission once');
+  assert.deepEqual((await core.call({ op: 'queued' })).ok, []);
+  assert.equal((await core.call({ op: 'meta', key: 'server-clock-floor' })).ok, String(entry.now));
+  assert.ok(client.now() >= entry.now);
 });
 
 test('native offline reopen restores legacy offset without issuedOffset or admissions and retains the session', async t => {

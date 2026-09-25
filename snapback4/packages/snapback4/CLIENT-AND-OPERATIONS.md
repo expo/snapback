@@ -1498,6 +1498,8 @@ transport latency, but never adds half a hold to the issued floor. The offset
 starts at zero and persists beside store identity. Issued time remains monotonic
 within a live clock. Each admission atomically commits its issued floor with its
 outbox entry; that separate `server-clock-floor` record outlives settlement.
+Orphan transfers and recovery writes raise the same floor in their outbox
+transaction, including recovery after clock attachment.
 Startup restores a floor only from this record and queued `entry.now` values.
 Before replay, attachment transactionally backfills that record with the maximum
 of itself and every queued legacy admission, so their retirement cannot erase it.
