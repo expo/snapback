@@ -120,7 +120,15 @@ impl Catalog {
                     }
                 }
                 if ok {
-                    tables.insert(table.name.clone(), TableInfo { recorded: BTreeMap::new(), decl: table.clone(), columns, indexes, maintained: None });
+                    let mut decl = table.clone();
+                    // @ref LLP 3000.015#2 — catalog consumers see the same
+                    // implicit immutability as runtime schema consumers.
+                    for column in &table.columns {
+                        if let Some(parent) = &column.sequence {
+                            decl.immutable.push((vec![column.name.clone(), parent.clone()], column.site.clone()));
+                        }
+                    }
+                    tables.insert(table.name.clone(), TableInfo { recorded: BTreeMap::new(), decl, columns, indexes, maintained: None });
                 }
             }
             for maintain in &doc.maintains {

@@ -38,6 +38,7 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
+    ("sequence-by", |s| s.tables.values().any(|t| !t.sequences.is_empty())),
     ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
     ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
 ];
@@ -100,7 +101,12 @@ impl<'de> Deserialize<'de> for Schema {
         // even when the same schema also declared timelines. Only that legacy
         // representation infers its full requirements; modern carriers remain
         // exact, including when mixed with a legacy marker.
-        if legacy && carriers == 0 { declared = required.clone(); }
+        if legacy && carriers == 0 {
+            // A legacy marker only covers the capabilities that predate the fence.
+            // New semantics must never inherit permission from this escape hatch.
+            declared = required.iter().filter(|name| matches!(name.as_str(),
+                "maintained-column" | "recorded-attribution" | "timeline" | "timeline-v2")).cloned().collect();
+        }
         if declared != required || carriers + usize::from(legacy) != usize::from(!required.is_empty()) {
             return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: schema requires {required:?}, but declares {declared:?} in {carriers} carriers")));
         }

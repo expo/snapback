@@ -39,6 +39,7 @@ impl Step {
                     format!("keep {column}'s previous type and default, or repair existing values before adopting {column}: {kind}")
                 }
             }
+            ["tables", table, "sequences", _] => format!("keep the previous sequence declaration, or empty {table} before adding or rebinding sequence by; no implicit backfill"),
             ["tables", _, "indexes", index] => format!("make {index} non-unique, or repair duplicate keys before adopting it"),
             ["tables", table, ..] => format!("keep {table}'s current constraints, or repair existing rows before adopting the new constraints"),
             _ => "keep the current schema, or repair existing rows before adopting this change".into(),
@@ -72,6 +73,13 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
                 steps.push(Step { path: format!("{path}.rules"), change: Change::RuleChange, message: format!("{name}'s aggregate audience changes; every device re-derives its partition") });
             }
             continue;
+        }
+        for (column, reference) in &new.sequences {
+            if old.sequences.get(column) != Some(reference)
+                || old.columns.get(reference) != new.columns.get(reference) {
+                steps.push(Step { path: format!("{path}.sequences.{column}"), change: Change::Narrowing,
+                    message: format!("sequence by for {name}.{column} is added or rebound; adopting it requires an empty table because no historical commit order is available") });
+            }
         }
         for (column, old_kind) in &old.columns {
             let cpath = format!("{path}.columns.{column}");

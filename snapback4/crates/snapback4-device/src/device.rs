@@ -223,6 +223,10 @@ struct Predicting<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn provisional_sequence_floor(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        Ok(self.tx.meta(&predictions::sequence_floor_key(parent, id))?.and_then(|v| v.parse().ok()).unwrap_or(0))
+    }
+
     fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
         Ok(self.tx.get(table, row.field("id")?.as_str()?)?.is_some_and(|image| image.field("pending") == Ok(&Value::Bool(true))))
     }
@@ -272,6 +276,13 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
         self.tx.put(table_name, table, &pending, old)
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        for (column, reference) in &table.sequences {
+            let snapback4_core::schema::ColumnType::Ref { table: parent } = &table.columns[reference] else { continue };
+            let id = old.field(reference)?.as_str()?;
+            let key = predictions::sequence_floor_key(parent, id);
+            let floor = self.provisional_sequence_floor(parent, id)?.max(old.field(column)?.as_int()?);
+            self.tx.set_meta(&key, &floor.to_string())?;
+        }
         predictions::remember(self.tx, table_name, old.field("id")?.as_str()?)?;
         self.written.borrow_mut().push(format!("{table_name}/{}", old.field("id")?.as_str()?));
         self.tx.delete(table_name, table, old)

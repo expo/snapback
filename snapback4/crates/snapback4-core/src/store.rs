@@ -164,6 +164,7 @@ impl Store {
         }
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY(parent, id)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _catalog (name TEXT PRIMARY KEY, num INTEGER NOT NULL UNIQUE);
              CREATE TABLE IF NOT EXISTS r (t INTEGER NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY (t, id)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS i (ti INTEGER NOT NULL, k BLOB NOT NULL, id TEXT NOT NULL, PRIMARY KEY (ti, k)) WITHOUT ROWID;
@@ -812,6 +813,14 @@ mod tests {
 }
 
 impl crate::rows::Rows for Tx<'_> {
+    fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        Ok(self.conn().query_row("SELECT value FROM _sequences WHERE parent = ?1 AND id = ?2", params![parent, id], |r| r.get(0)).optional()?.unwrap_or(0))
+    }
+    fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
+        self.conn().execute("INSERT INTO _sequences VALUES (?1, ?2, ?3) ON CONFLICT(parent, id) DO UPDATE SET value = excluded.value", params![parent, id, value])?;
+        Ok(())
+    }
+
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
         // Opening an old store must not change it before a backend can refuse.
         // @ref LLP 3000.013#5.3 — table and key commit with the emission; existing keys survive reopen.

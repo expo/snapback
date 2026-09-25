@@ -213,7 +213,20 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     };
     let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
-    Table { maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    let mut sequences = BTreeMap::new();
+    for column in &decl.columns {
+        let Some(parent) = &column.sequence else { continue };
+        if !matches!(info.columns.get(parent), Some(ScalarType { kind: TypeKind::Ref { table }, optional: false }) if catalog.tables.contains_key(table)) {
+            diagnostics.push(Diagnostic::new(&column.site, "E_SEQUENCE_PARENT",
+                format!("{}.{} needs a required reference to a parent table in {parent}", decl.name, column.name),
+                format!("{parent}: <parent table>\n{}: sequence by {parent}", column.name)).guide("types"));
+            continue;
+        }
+        sequences.insert(column.name.clone(), parent.clone());
+        // The reference cannot move after allocation: that would import a duplicate ordinal into another parent's order.
+        indexes.insert(core::sequence_index(&column.name), core::Index::of(&[parent, &column.name], false));
+    }
+    Table { sequences, maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -587,12 +600,12 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
         },
     };
-    columns.push(ColumnDecl { maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
+    columns.push(ColumnDecl { sequence: None, maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
     let computed = super::maintains::keys(&source, maintain)?;
     if let Some(expr) = &maintain.filter { super::maintains::predicate(&source, expr)?; }
     for field in &maintain.by {
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[field].clone() };
-        columns.push(ColumnDecl { maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
+        columns.push(ColumnDecl { sequence: None, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);

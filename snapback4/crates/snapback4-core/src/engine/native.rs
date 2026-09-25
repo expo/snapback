@@ -669,14 +669,15 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
                 json.as_object_mut().ok_or_else(|| RuntimeError::Input("a row is an object".into()))?.insert("id".into(), Json::String(id));
             }
             let row = typed_row(table, table_name, &json)?;
-            if op == "insert" {
-                runner.insert(table_name, row)?;
-                Ok(json)
-            } else if runner.insert_if_absent(table_name, row)? {
-                Ok(json)
-            } else {
-                Ok(Json::Null)
-            }
+            let sequence_row = if table.sequences.is_empty() { None } else {
+                runner.meter.heap(row.heap_bytes())?;
+                Some(row.clone())
+            };
+            let inserted = if op == "insert" { runner.insert(table_name, row)?; true }
+                else { runner.insert_if_absent(table_name, row)? };
+            if !inserted { Ok(Json::Null) }
+            else if let Some(row) = sequence_row { Ok(wire::to_json(&runner.sequence_result(table_name, row)?)) }
+            else { Ok(json) }
         }
         "update" => {
             let table_name = text_field(request, "table", op)?;

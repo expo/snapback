@@ -46,7 +46,7 @@ impl Runner<'_> {
                     let imported = self.import_targets.and_then(|rows| rows.get(&(field.table.clone(), id.clone()))).cloned();
                     #[cfg(not(feature = "sqlite"))]
                     let imported: Option<Value> = None;
-                    match imported { Some(row) => Some(row), None => self.tx.get(&field.table, id)? }
+                    match imported { Some(row) => Some(row), None => self.metered_scan(|runner, allowance| runner.tx.get(allowance, &field.table, id))? }
                 },
                 _ => None,
             };
@@ -111,7 +111,7 @@ impl Runner<'_> {
             if paths.is_empty() { continue; }
             let mut bounds = Bounds::default();
             loop {
-                let page = self.tx.scan(name, "byId", &[], &bounds, Dir::Asc, 256)?;
+                let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, name, "byId", &[], &bounds, Dir::Asc, 256))?;
                 if page.is_empty() { break; }
                 for (old, key) in page {
                     bounds.after = crate::key::decode(&key);

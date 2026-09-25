@@ -32,6 +32,7 @@ pub mod read;
 mod extrema;
 mod read_auth;
 mod aggregate_expiry;
+pub(crate) mod authorized_scan;
 pub mod rules;
 pub mod runner;
 pub mod validate;
@@ -40,6 +41,7 @@ mod maintains;
 pub(crate) mod timeline;
 mod timeline_authority;
 mod recorded;
+mod sequences;
 pub(crate) mod columns;
 #[cfg(feature = "sqlite")]
 mod column_activation;
@@ -1026,16 +1028,31 @@ impl Engine {
         let rows: Box<dyn Iterator<Item = (String, Value)> + '_> = if targets.is_empty() { Box::new(rows.into_iter()) } else {
             let rows: Vec<_> = rows.into_iter().collect();
             // A capture sees the imported target's eventual image, including
-            // fields retained by patches and defaults on fresh inserts.
-            for (name, row) in rows.iter().filter(|(name, _)| targets.contains(name.as_str())) {
-                let table = &self.schema.tables[name];
+            // fields retained by patches, defaults and assigned ordinals.
+            // Preview every allocation in input order (counters cross tables),
+            // then undo the preview; ordinary writes allocate in that same
+            // transaction and still own all validation, events and rollback.
+            tx.savepoint("seed_sequences")?;
+            let mut staging = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
+            for (name, row) in &rows {
+                let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
+                sequences::refuse_fields(table, name, row)?;
                 let id = row.field("id")?.as_str()?.to_owned();
                 let old = match imports.get(&(name.clone(), id.clone())) { Some(row) => Some(row.clone()), None => tx.get(name, &id)? }.filter(|row| !table.expired(row, now));
                 let mut fields = old.as_ref().map(|row| row.as_object().cloned()).transpose()?.unwrap_or_default();
                 fields.extend(row.as_object()?.clone());
                 if old.is_none() { for (field, default) in &table.defaults { fields.entry(field.clone()).or_insert_with(|| default.value(now, crate::SYSTEM_PRINCIPAL)); } }
-                imports.insert((name.clone(), id), Value::Row(fields.into()));
+                let mut image = Value::Row(fields.into());
+                if old.is_none() {
+                    let (assigned, full) = staging.sequence_fields(name, image)?;
+                    if full { return Err(sequences::exhausted()); }
+                    staging.commit_sequences(name, &assigned)?;
+                    image = assigned;
+                }
+                imports.insert((name.clone(), id), image);
             }
+            drop(staging);
+            tx.rollback_to("seed_sequences")?;
             Box::new(rows.into_iter())
         };
         let seq = tx.next_seq()?;
@@ -1110,8 +1127,9 @@ impl Engine {
             self.schema.refuse_private(&name)?;
             let row = columns::write_result(table, row);
             if mode == LoadMode::Import { recorded::refuse_fields(table, &name, &row)?; }
-            validate::validate_row(&self.schema, &name, &row)?;
             let old = tx.get(&name, row.field("id")?.as_str()?)?;
+            let row = runner.import_sequences(&name, row, old.as_ref(), false)?;
+            validate::validate_row(&self.schema, &name, &row)?;
             // Importing an existing source cannot erase its contribution history.
             let mut row = row;
             if mode == LoadMode::Import && let (Some(old), Value::Row(fields) | Value::Map(fields)) = (&old, &mut row) {
@@ -1158,6 +1176,8 @@ impl Engine {
         let mut count = 0;
         for (table_name, row) in rows {
             if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
+            let old = tx.get(&table_name, row.field("id")?.as_str()?)?;
+            let row = runner.import_sequences(&table_name, row, old.as_ref(), mode == LoadMode::Restore)?;
             validate::validate_row(&self.schema, &table_name, &row)?;
             if mode == LoadMode::Restore { seq = seq.max(timeline::restored_sequence(&self.schema, &table_name, &row)?); }
             let table = self.schema.table(&table_name).expect("validated").clone();

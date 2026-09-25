@@ -100,7 +100,7 @@ impl Store {
             tx.tx.execute_batch("CREATE TABLE IF NOT EXISTS _cap_counts (t INTEGER NOT NULL, k BLOB NOT NULL, n INTEGER NOT NULL CHECK(n >= 0), PRIMARY KEY(t, k)) WITHOUT ROWID;")?;
             if reset { tx.tx.execute_batch("DELETE FROM _cap_counts;")?; }
         }
-        if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i;")?; }
+        if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i; DELETE FROM _sequences;")?; }
         if schema_changed {
             // Removed names retain only their catalog number, never live row
             // images. Reintroducing a name starts empty, without resurrection.

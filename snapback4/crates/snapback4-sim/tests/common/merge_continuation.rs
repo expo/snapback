@@ -218,7 +218,7 @@ fn d02_non_uniform_outcome_withholds_next_in_both_orders_and_paths() {
                 observe(&format!("D0.2 {op} eager={eager} synced={synced} hidden={hidden}"), &read);
                 if read.next.is_some() != (DEVICE && synced) { failures.borrow_mut().push(format!("{op} eager={eager} synced={synced} hidden={hidden}: next={:?}", read.next)); }
                 assert_eq!(read.complete, DEVICE && synced);
-                assert_eq!(read.cut, if DEVICE && !synced && hidden > 0 { Some(ReadCut::Meter) } else { None });
+                assert_eq!(read.cut, None);
             }
         });
     } } }
@@ -264,7 +264,9 @@ fn control_c3_direct_filtered_cut_keeps_last_rule_visible_position() {
         with_fixture(&source, rows, |q| {
             let first = q("feed", ctx(None)).unwrap();
             assert!(!first.complete);
-            assert_eq!(first.cut, if uniform || DEVICE { Some(ReadCut::Meter) } else { None });
+            // Private traversal reaches its shared physical allowance first;
+            // the device also keeps that hidden-dependent cut private.
+            assert_eq!(first.cut, if uniform { Some(ReadCut::Meter) } else { None });
             let next = first.next.clone().expect("direct cut still continues past rejected visible rows");
             let position = decode_cursor(&Schema::default(), &next).unwrap();
             assert_eq!(position.values, [Value::Int(0), Value::Int(8191), Value::Id("r8191".into())]);
@@ -402,10 +404,15 @@ fn ticket_merge_next_after_non_uniform() {
         rows.extend((0..hidden).map(|n| ("notes".into(), object([("id", Value::Id(format!("n-bob-{n:05}"))), ("ownerId", Value::Id("dev:bob".into())), ("body", Value::String(format!("aa bob note {n:05}")))]))));
         with_fixture(&source, rows, |q| {
             for op in ["mergeAlone", "mergeThenNonUniform", "nonUniformThenMerge"] {
-                let page = q(op, ctx(None)).unwrap();
+                let result = q(op, ctx(None));
+                if !DEVICE && hidden >= 8192 && op == "nonUniformThenMerge" {
+                    assert_eq!(result.unwrap_err().code, "E_RULE", "later authorization cannot replenish the request allowance");
+                    continue;
+                }
+                let page = result.unwrap();
                 observe(&format!("ticket {op} hidden={hidden}"), &page);
                 assert_eq!(page.complete, op == "mergeAlone");
-                assert_eq!(page.cut, if DEVICE && op != "mergeAlone" && hidden > 0 { Some(ReadCut::Meter) } else { None });
+                assert_eq!(page.cut, None);
                 if page.next.is_some() != (op == "mergeAlone") { failures.borrow_mut().push(format!("{op} hidden={hidden}: next={:?}", page.next)); }
             }
         });

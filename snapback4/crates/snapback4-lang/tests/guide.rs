@@ -877,23 +877,23 @@ fn arrival_recipe_orders_ties_and_retries_then_pages() {
         let context = || Context::new("dev:alice", args(&[("conversationId", id("room")), ("body", text("hello"))])).at(1000).with_ids([format!("message-{:03}", 52 - i)]);
         let write = format!("write-{i}");
         let first = engine.mutate("send", Some(&write), context()).unwrap();
-        assert_eq!(sent(&first).field("ordinal").unwrap(), &Value::Int(i));
+        assert_eq!(sent(&first).field("ordinal").unwrap(), &Value::Int(i + 1));
         let retry = engine.mutate("send", Some(&write), context()).unwrap();
         assert!(matches!(retry.state, WriteState::Sent { .. }));
     }
     let first = engine.query("history", Context::new("dev:alice", args(&[("conversationId", id("room"))]))).unwrap();
     let Value::Array(rows) = first.data else { panic!("history is a page") };
     assert_eq!(rows.len(), 50);
-    for (i, row) in rows.iter().enumerate() { assert_eq!(row.field("ordinal").unwrap(), &Value::Int(51 - i as i64)); }
+    for (i, row) in rows.iter().enumerate() { assert_eq!(row.field("ordinal").unwrap(), &Value::Int(52 - i as i64)); }
     let next = first.next.expect("51 rows have a second page");
     let second = engine.query("history", Context::new("dev:alice", args(&[("conversationId", id("room")), ("c", text(&next))]))).unwrap();
     let Value::Array(rows) = second.data else { panic!("history is a page") };
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].field("ordinal").unwrap(), &Value::Int(1));
+    assert_eq!(rows[0].field("ordinal").unwrap(), &Value::Int(2));
     let outsider = || Context::new("dev:bob", args(&[("conversationId", id("room")), ("body", text("hello"))])).at(1001).with_ids(["bob-message".into()]);
     assert_eq!(failed(&engine.mutate("send", None, outsider()).unwrap()), "E_RULE");
     sent(&engine.mutate("addMember", None, Context::new("dev:alice", args(&[("conversationId", id("room")), ("principal", id("dev:bob"))])).with_ids(["bob-member".into()])).unwrap());
-    assert_eq!(sent(&engine.mutate("send", None, outsider()).unwrap()).field("ordinal").unwrap(), &Value::Int(52));
+    assert_eq!(sent(&engine.mutate("send", None, outsider()).unwrap()).field("ordinal").unwrap(), &Value::Int(54));
 }
 
 #[test]

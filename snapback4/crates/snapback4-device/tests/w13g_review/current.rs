@@ -65,13 +65,14 @@ fn group_acquisition_stops_at_n_readable_rows_without_lookahead() {
     let from = engine.seq().unwrap(); engine.seed_at([member("dev:bob")], 2).unwrap();
     let tx = engine.store_mut().transaction().unwrap();
     let counted = counting::Partition::new(&tx);
+    // One unchanged membership witness serves both readable candidates.
     let stream = snapback4_core::partition::stream(&counted, &backend.schema, "dev:bob", from, 1, 3).unwrap();
-    assert_eq!((stream.events.len(), counted.selected_rows.get(), counted.probes.get(), counted.content_scans.get()), (2, 2, 2, 1));
+    assert_eq!((stream.events.len(), counted.selected_rows.get(), counted.probes.get(), counted.content_scans.get()), (2, 2, 1, 1));
     println!("GROUP stream: stored=100 horizon=2 delivered=2 physical-rows={} read-rule-probes={} content-scans={}", counted.selected_rows.get(), counted.probes.get(), counted.content_scans.get());
     let counted = counting::Partition::new(&tx);
     let snapshot = snapback4_core::partition::snapshot_page(&counted, &backend.schema, "dev:bob", None, 100, 3).unwrap();
     assert_eq!(snapshot.acquisitions, stream.acquisitions);
-    assert_eq!((counted.selected_rows.get(), counted.probes.get(), counted.content_scans.get()), (2, 2, 1));
+    assert_eq!((counted.selected_rows.get(), counted.probes.get(), counted.content_scans.get()), (2, 1, 1));
     println!("GROUP snapshot: delivered={} physical-rows={} read-rule-probes={} content-scans={}", snapshot.events.len(), counted.selected_rows.get(), counted.probes.get(), counted.content_scans.get());
 }
 

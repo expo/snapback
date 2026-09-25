@@ -309,3 +309,46 @@ fn query_availability_propagates_heap_abort_without_confusing_null_or_lists() {
     assert!(!nullable.unavailable);
     assert_eq!(nullable.data, Value::Null);
 }
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES"]
+fn sequence_by_is_transactional_shared_and_durable() {
+    let b=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../../snapback4-lang/tests/fixtures/sequence-by.q").into())]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    for mode in [WriteMode::Serialized,WriteMode::Serializable] {
+        let url=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+        let name=format!("sb4_eval_sequences_{:x}",crate::ids::seed());
+        let mut e=PostgresEngine::create(Client::connect(&url,postgres::NoTls).unwrap(),&name,serde_json::from_str(&serde_json::to_string(&b.schema).unwrap()).unwrap(),b.programs.iter().map(|p|serde_json::from_str(&serde_json::to_string(&p.program).unwrap()).unwrap())).unwrap();
+        e.mode=mode;
+        let context=|body:&str| Context::new("alice",BTreeMap::from([("conversationId".into(),Value::Id("c".into())),("body".into(),Value::String(body.into()))])).at(1000);
+        let sent=|out:MutationOutcome| match out.state {WriteState::Sent{result,..}=>result,other=>panic!("{other:?}")};
+        assert_eq!(sent(e.mutate("send",Some("first"),context("first")).unwrap()).field("ordinal"),Ok(&Value::Int(1)));
+        let join=Context::new("alice",BTreeMap::from([("conversationId".into(),Value::Id("c".into())),("who".into(),Value::Id("bob".into()))])).at(1000);
+        assert_eq!(sent(e.mutate("join",None,join.clone()).unwrap()).field("joinedAt"),Ok(&Value::Int(2)));
+        assert_eq!(sent(e.mutate("join",None,join).unwrap()),Value::Null);
+        assert!(matches!(e.mutate("fail",None,Context::new("alice",BTreeMap::from([("conversationId".into(),Value::Id("c".into()))])).at(1000)).unwrap().state,WriteState::Failed{..}));
+        assert_eq!(sent(e.mutate("send",None,context("third")).unwrap()).field("ordinal"),Ok(&Value::Int(3)));
+        // Ordinary import cannot forge an ordinal; its failed transaction leaves the counter alone.
+        let bad=object([("id",Value::Id("bad".into())),("conversationId",Value::Id("c".into())),("body",Value::String("bad".into())),("ordinal",Value::Int(999))]);
+        assert_eq!(e.load([("messages".into(),bad)]).unwrap_err().code(),"E_SEQUENCE_SUPPLIED");
+        {let tx=e.store.transaction(Some(mode)).unwrap();tx.set_sequence("conversations","c",800).unwrap();tx.rollback().unwrap();}
+        drop(e);
+        let mut e=PostgresEngine::open(Client::connect(&url,postgres::NoTls).unwrap(),&name).unwrap();e.mode=mode;
+        assert_eq!(sent(e.mutate("send",None,context("fourth")).unwrap()).field("ordinal"),Ok(&Value::Int(4)));
+        {let tx=e.store.transaction(Some(mode)).unwrap();tx.execute("DELETE FROM r",&[]).unwrap();tx.execute("DELETE FROM i",&[]).unwrap();tx.execute("DELETE FROM _sequences",&[]).unwrap();tx.commit().unwrap();}
+        assert_eq!(sent(e.mutate("send",None,context("reset")).unwrap()).field("ordinal"),Ok(&Value::Int(1)));
+        let barrier=std::sync::Arc::new(std::sync::Barrier::new(4));
+        let handles:Vec<_>=(0..4).map(|n| {
+            let (url,name,barrier)=(url.clone(),name.clone(),barrier.clone());
+            std::thread::spawn(move || {
+                let mut worker=PostgresEngine::open(Client::connect(&url,postgres::NoTls).unwrap(),&name).unwrap();
+                worker.set_write_mode(mode);barrier.wait();
+                let context=Context::new("alice",BTreeMap::from([("conversationId".into(),Value::Id("c".into())),("body".into(),Value::String(format!("concurrent-{n}")))])).at(1000);
+                let WriteState::Sent{result,..}=worker.mutate("send",None,context).unwrap().state else{panic!("concurrent sequence refused")};
+                result.field("ordinal").unwrap().as_int().unwrap()
+            })
+        }).collect();
+        let mut ordinals:Vec<_>=handles.into_iter().map(|t|t.join().unwrap()).collect();ordinals.sort();assert_eq!(ordinals,[2,3,4,5]);
+        assert_eq!(e.load([("missing".into(),object([("id",Value::Id("x".into()))]))]).unwrap_err().code(),"E_SCHEMA");
+    }
+}

@@ -100,6 +100,8 @@ pub enum RuntimeError {
     Value(#[from] ValueError),
     #[error("E_RULE: {effect} on {table} is not permitted for this viewer")]
     Rule { table: String, effect: Effect },
+    #[error("E_RULE: authorization could not be established")]
+    AuthorizationBudget,
     #[error("{code}: the program refused")]
     Require { code: String, site: Option<String> },
     #[error("E_CONFLICT: the row no longer matches the update condition")]
@@ -160,7 +162,7 @@ impl RuntimeError {
             Self::Value(ValueError::Type { .. }) => "E_TYPE".into(),
             Self::Value(ValueError::MissingField(_)) => "E_FIELD".into(),
             Self::Value(ValueError::Identity) => "E_INPUT".into(),
-            Self::Rule { .. } => "E_RULE".into(),
+            Self::Rule { .. } | Self::AuthorizationBudget => "E_RULE".into(),
             Self::Require { code, .. } | Self::NamedConstraint { code, .. } => code.clone(),
             Self::Conflict { .. } => "E_CONFLICT".into(),
             Self::Constraint(_) | Self::ExpiringCap { .. } => "E_CONSTRAINT".into(),
@@ -191,7 +193,7 @@ impl RuntimeError {
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
             Self::Structural { code: "E_STORE_RESTORE", .. } => "store",
             Self::Schema(_) | Self::Structural { .. } => "schema",
-            Self::Rule { .. } | Self::Auth(_) => "auth",
+            Self::Rule { .. } | Self::AuthorizationBudget | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
             Self::Conflict { .. } | Self::Constraint(_) | Self::ExpiringCap { .. } | Self::NamedConstraint { .. } => "constraint",
             Self::Fanout | Self::Bound { .. } => "bound",
@@ -257,6 +259,22 @@ impl RuntimeError {
                 refusal.guide = Some("maintains".into());
                 refusal.rewrite = Some("omit the column; write the source rows or read the parent row".into());
             }
+            Self::Structural { code: "E_SEQUENCE_SUPPLIED", .. } => {
+                refusal.rewrite = Some("omit sequence columns from inserts, updates and upserts; the engine assigns them".into());
+                refusal.guide = Some("writes".into());
+            }
+            Self::Structural { code: "E_SEQUENCE_PARENT", message } => {
+                refusal.rewrite = Some(if message.contains("cannot change after sequence allocation") {
+                    "import a new row id; do not retarget a sequence parent"
+                } else {
+                    "declare a required reference column: conversationId: conversations; ordinal: sequence by conversationId"
+                }.into());
+                refusal.guide = Some("types".into());
+            }
+            Self::Structural { code: "E_SEQUENCE_EXHAUSTED", .. } => {
+                refusal.rewrite = Some("create a new parent row for subsequent sequence values".into());
+                refusal.guide = Some("types".into());
+            }
             Self::Structural { code: "E_RECORDED_FIELD", .. } => {
                 refusal.guide = Some("maintains".into());
                 refusal.rewrite = Some("omit engine-recorded fields from the payload; write only application columns".into());
@@ -279,9 +297,9 @@ impl RuntimeError {
                 });
                 refusal.guide = Some("bounds".into());
             }
-            Self::Rule { table, effect } => {
+            Self::Rule { .. } | Self::AuthorizationBudget => {
                 // @ref LLP 3000.007#8 — explain the hidden-collision idiom without disclosing a row
-                refusal.message = format!("{table}'s {effect} rule does not admit this viewer, or a unique key collided with a row you cannot read; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
+                refusal.message = String::from("The rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
                 refusal.guide = Some("rules".into());
             }
             Self::Constraint(message) => {

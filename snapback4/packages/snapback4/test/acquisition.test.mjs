@@ -56,11 +56,11 @@ async function until(check, message) {
 }
 const query = (name) => ({ kind: "query", name });
 
-async function fixture(t, tier, empty = false) {
+async function fixture(t, tier, empty = false, schemaSource = source) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-acquisition-"));
   mkdirSync(join(directory, "snapback"));
   const schemaPath = join(directory, "snapback/schema.q");
-  writeFileSync(schemaPath, source);
+  writeFileSync(schemaPath, schemaSource);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   let child, exit, url;
   async function start() {
@@ -133,7 +133,7 @@ async function fixture(t, tier, empty = false) {
     });
     clients.push(client); return client;
   };
-  return { open, backend, schemaPath, start, metadata, persist, restore: () => { restore = true; }, core: () => core, mode: (next) => { mode = next; }, counts: () => ({ snapshots, catchups, posts }) };
+  return { open, backend, post, schemaPath, start, metadata, persist, restore: () => { restore = true; }, core: () => core, mode: (next) => { mode = next; }, counts: () => ({ snapshots, catchups, posts }) };
 }
 
 test("W5R1x: terminal history is bounded independently of unresolved writes", async t => {
@@ -513,3 +513,109 @@ for (const size of [256, 128]) test(`W5R2a web: adopting 256 orphan receipts pre
   const reopened = await f.open();
   for (const receipt of own) assert.deepEqual(await reopened.write(receipt.id), receipt);
 });
+
+
+for (const tier of ["wasm", "process"]) {
+  test(`sequence by ${tier}: two offline Write results remain pending until settled`, { timeout: 30000 }, async t => {
+    const sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
+    const f = await fixture(t, tier, true, `use personas alice\n${sequence}`);
+    f.mode("online"); const client = await f.open();
+    await until(() => client.acquired, "sequence partition was not acquired");
+    f.mode("offline");
+    const writes = [];
+    for (const body of ["first offline", "second offline"]) {
+      const write = await client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c", body });
+      assert.equal(write.state, "pending");
+      assert.equal((await client.write(write.id)).state, "pending");
+      writes.push(write);
+    }
+    const before = await client.query(query("history"), { conversationId: "c" });
+    assert.deepEqual(before.data.map(row => row.ordinal), [2, 1]);
+    assert.ok(before.data.every(row => row.pending === true));
+    f.mode("online");
+    await client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c", body: "online flush" });
+    await until(async () => (await Promise.all(writes.map(write => client.write(write.id)))).every(write => write?.state === "sent"), "sequence writes did not settle");
+    await until(async () => {
+      const page = await client.query(query("history"), { conversationId: "c" });
+      return page.data?.length === 2 && page.data.every(row => row.pending !== true);
+    }, "settled images retained provisional flags");
+    const settled = await client.query(query("oldest"), { conversationId: "c" });
+    assert.deepEqual(settled.data.map(row => [row.body, row.ordinal]), [["first offline", 1], ["second offline", 2]]);
+  });
+}
+
+for (const form of ["rule", "require", "constraint", "named constraint", "postcondition", "sequence key", "old", "empty index", "cap group", "upsert index", "postcondition index"]) {
+  test(`sequence by wasm: provisional ${form} refusal queues for the server`, { timeout: 30000 }, async t => {
+    let sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
+    if (form === "rule") sequence = sequence.replace("public 'sequence test messages'\n  insert <- allow", "public 'sequence test messages'\n  insert <- .ordinal != 1");
+    else if (form === "require") sequence = sequence.replace("  return row\nmutation join", "  ordinal = row.ordinal\n  require ordinal != 1 else FIRST\n  return row\nmutation join");
+    if (form === "constraint" || form === "named constraint" || form === "postcondition") {
+      sequence += `\ntable tickets:\n  number: int\n  unique number${form === "named constraint" ? " else TAKEN 'number is taken'" : ""}\n  public 'tickets'\n  insert <- allow\n  sync public\n`;
+      if (form === "postcondition") sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  after insert <- exists tickets[number = .ordinal]");
+      else sequence = sequence.replace("  return row\nmutation join", "  insert tickets { number: row.ordinal }\n  return row\nmutation join");
+    }
+    if (form === "postcondition") sequence += "\nmutation removeTicket(ticketId: tickets):\n  delete tickets[id = ticketId]\n";
+    if (form === "postcondition") sequence = sequence.replace("public 'tickets'", "public 'tickets'\n  delete <- allow");
+    if (form === "sequence key") sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  unique ordinal").replaceAll("messages[messageId]", "messages[id = messageId]");
+    if (form === "old") sequence = sequence.replace("update <- allow", "update (old, next) <- old.ordinal != 1").replace("  return row\nmutation join", "  update messages[row.id] { body: 'updated' }\n  return row\nmutation join");
+    if (form === "empty index") sequence = sequence.replace("  return row\nmutation join", "  require exists messages[conversationId = conversationId, ordinal = 6] else NO_SIX\n  return row\nmutation join");
+    if (form === "upsert index") sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  unique conversationId, ordinal").replace("  return row\nmutation join", "  upsert messages[conversationId = conversationId, ordinal = 6] { body: 'updated' }\n  return row\nmutation join");
+    if (form === "postcondition index") {
+      sequence += "\ntable gates:\n  parent: conversations\n  public\n  insert <- allow\n  sync public\n  after insert <- exists messages[conversationId = .parent, ordinal = 6]\n";
+      sequence = sequence.replace("  return row\nmutation join", "  insert gates { parent: conversationId }\n  return row\nmutation join");
+    }
+    if (form === "cap group") sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  cap 1 by ordinal\n  by byOrdinal: ordinal, id");
+    const f = await fixture(t, "wasm", true, `use personas alice\n${sequence}`);
+    if (form === "postcondition") assert.equal((await f.post("/seed", Array.from({ length: 6 }, (_, n) => ({ table: "tickets", row: { id: `ticket${n+1}`, number: n+1 } })))).seeded, 6);
+    assert.equal((await f.post("/seed", Array.from({ length: 5 }, (_, n) => ({ table: "messages", row: { id: `old${n}`, conversationId: "c", body: `old${n}` } })))).seeded, 5);
+    for (let n = 0; n < 5; n++) assert.equal((await f.post("/m/remove", { args: { messageId: `old${n}` } })).state, "sent");
+    if (form === "constraint" || form === "named constraint") assert.equal((await f.post("/seed", [{ table: "tickets", row: { id: "occupied", number: 1 } }])).seeded, 1);
+    if (form === "postcondition") for (let n = 1; n <= 5; n++) assert.equal((await f.post("/m/removeTicket", { args: { ticketId: `ticket${n}` } })).state, "sent");
+    if (form === "sequence key" || form === "cap group") assert.equal((await f.post("/seed", [{ table: "messages", row: { id: "elsewhere", conversationId: "elsewhere", body: "occupied" } }])).seeded, 1);
+    f.mode("online"); const client = await f.open();
+    await until(() => client.acquired, "sequence partition was not acquired");
+    assert.deepEqual((await client.query(query("history"), { conversationId: "c" })).data, []);
+    const prediction = await f.core().call({ op: "predict", name: "send", viewer: "dev:alice", args: { conversationId: "c", body: "preview" }, now: Date.now(), newIds: ["preview"] });
+    assert.equal(prediction.ok.denied.code, "E_PREDICT", JSON.stringify(prediction));
+    f.mode("offline");
+    const write = await client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c", body: "queued" });
+    assert.equal(write.state, "pending", JSON.stringify(write));
+    const held = (await f.core().call({ op: "queued" })).ok;
+    assert.equal(held.length, 1);
+    assert.equal(held[0].predictable, false);
+    assert.deepEqual(held[0].predicted, []);
+    assert.deepEqual((await client.query(query("history"), { conversationId: "c" })).data, []);
+    f.mode("online"); await client.sync();
+    await until(async () => (await client.write(write.id))?.state === "sent", "server did not accept ordinal 6");
+    await until(async () => (await client.query(query("history"), { conversationId: "c" })).data?.[0]?.ordinal === 6, "settled ordinal was not delivered");
+    const row = (await client.query(query("history"), { conversationId: "c" })).data[0];
+    assert.notEqual(row.pending, true);
+  });
+}
+
+for (const form of ["point", "page", "short circuit", "unique independent", "cap independent"]) {
+  test(`sequence by wasm: ${form} preserves prediction metadata and authority`, { timeout: 30000 }, async t => {
+    let sequence = readFileSync(join(root, "crates/snapback4-lang/tests/fixtures/sequence-by.q"), "utf8");
+    if (form === "short circuit") sequence = sequence.replace("  body: text <=40", "  authorId: principal default 'bob'\n  body: text <=40")
+      .replace("public 'sequence test messages'\n  insert <- allow", "public 'sequence test messages'\n  insert <- .authorId = viewer and .ordinal != 0");
+    else if (form === "unique independent" || form === "cap independent") sequence = sequence.replace("  immutable ordinal", form === "unique independent" ? "  immutable ordinal\n  unique conversationId, ordinal" : "  immutable ordinal\n  cap 1 by ordinal\n  by byOrdinal: ordinal, id").replace("  return row\nmutation join", "  require false else ABORTED\n  return row\nmutation join");
+    else sequence = sequence.replace("  return row\nmutation join", `  return ${form === "point" ? "messages[row.id]" : "messages where .conversationId = conversationId first 10 by .ordinal"}\nmutation join`);
+    const f = await fixture(t, "wasm", true, `use personas alice\n${sequence}`);
+    f.mode("online"); const client = await f.open();
+    await until(() => client.acquired, "sequence partition was not acquired");
+    const prediction = ok(await f.core().call({ op: "predict", name: "send", viewer: "dev:alice", args: { conversationId: "c", body: "preview" }, now: Date.now(), newIds: ["preview"] }));
+    if (["short circuit", "unique independent", "cap independent"].includes(form)) {
+      const code = form === "short circuit" ? "E_RULE" : "ABORTED";
+      assert.equal(prediction.denied.code, code, JSON.stringify(prediction));
+      f.mode("offline");
+      const write = await client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c", body: "denied" });
+      assert.equal(write.state, "failed");
+      assert.equal(write.why.code, code);
+      assert.deepEqual(ok(await f.core().call({ op: "queued" })), []);
+    } else {
+      const row = form === "page" ? prediction.result[0] : prediction.result;
+      assert.equal(row.ordinal, 1);
+      assert.equal(row.pending, true);
+    }
+  });
+}

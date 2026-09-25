@@ -11,7 +11,7 @@ fn cut<S: DeviceStore>(mut store: S, cross: bool) {
     // Online-only rows deliberately exercise per-row authority on each real
     // store; synced devices receive only readable rows and cannot hold this run.
     for (table, row) in fixture::seed(cross, fixture::CEILING + 1, Some(15)) { tx.put(&table, &backend.schema.tables[&table], &row, None).unwrap(); }
-    fixture::check_cut(|cursor| local::query(&tx, &backend.schema, &backend.programs[0], fixture::context(cursor), snapback4_core::Ceilings::default()).unwrap());
+    fixture::check_hidden(|cursor| local::query(&tx, &backend.schema, &backend.programs[0], fixture::context(cursor), snapback4_core::Ceilings::default()).unwrap());
 }
 
 #[test] fn cross_table_hidden_cut_memory() { cut(snapback4_device::memory::MemoryStore::new(), true); }

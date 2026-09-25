@@ -58,6 +58,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
             step.message = format!("{}; the table is empty", step.message.split(';').next().unwrap_or(&step.message));
             continue;
         }
+        if matches!(path.as_slice(), ["tables", _, "sequences", _]) { continue; }
         if let ["tables", _, "columns", column] = path.as_slice() {
             if !previous.tables[name].columns.contains_key(*column) && matches!(table.defaults.get(*column), Some(ColumnDefault::Now | ColumnDefault::Viewer)) {
                 continue;

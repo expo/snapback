@@ -47,7 +47,7 @@ impl Runner<'_> {
         for m in declarations {
             self.meter.charge(MeterKind::Examined,1)?;
             self.meter.heap(row_copy_ceiling(&self.schema.tables[&m.target]))?;
-            let total = self.tx.get(&m.target,&maintained_id(&[id.clone()]))?
+            let total = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &m.target,&maintained_id(&[id.clone()])))?
                 .and_then(|r|r.field("value").ok().cloned()).unwrap_or(Value::Int(0));
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(m.private.as_ref().unwrap().column.clone(),total); }
         }
@@ -68,7 +68,7 @@ impl Runner<'_> {
         self.written_tables.insert(owner.table.clone());
         self.charge_maintain(MeterKind::Examined,1)?;
         let table = self.schema.tables[&owner.table].clone();
-        let Some(old) = self.tx.get(&owner.table,id)? else { return Ok(()) };
+        let Some(old) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &owner.table,id))? else { return Ok(()) };
         if table.expired(&old,self.context.now.unwrap_or(0)) { return Ok(()) }
         if old.field(&owner.column).cloned().unwrap_or(Value::Int(0)) == Value::Int(total) { return Ok(()) }
         let mut row = old.clone();

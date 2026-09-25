@@ -90,3 +90,12 @@ pub fn check_equal(mut query: impl FnMut(Option<String>) -> QueryOutcome) {
         assert_eq!(cursor.is_some(), expected != "x");
     }
 }
+
+pub fn check_hidden(mut query: impl FnMut(Option<String>) -> QueryOutcome) {
+    let first = query(None);
+    assert_eq!(ids(&first), ["shown-10"], "the other lane's readable row is behind the private walk bound");
+    assert!(!first.complete);
+    assert!(first.capped_at.is_none());
+    assert_eq!(first.metered.examined, 2, "one fixed miss/candidate allowance per lane");
+    assert!(first.next.is_none(), "non-uniform merge class still withholds continuation");
+}

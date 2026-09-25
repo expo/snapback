@@ -67,7 +67,7 @@ fn w13c2_empty_billion_lane_range_stops_at_descriptor_heap_ceiling() {
 }
 
 #[test]
-fn w13c2_nonuniform_hidden_absent_pages_match_and_operator_meter_counts_physical_work() {
+fn w13c2_nonuniform_hidden_absent_pages_match_including_the_logical_meter() {
     let source = SOURCE.replace("  public 'posts'\n  sync public", "  read <- .author = viewer\n  online only");
     let mut observations = Vec::new();
     for hidden in [false, true] {
@@ -76,7 +76,7 @@ fn w13c2_nonuniform_hidden_absent_pages_match_and_operator_meter_counts_physical
         engine.seed(rows).unwrap();
         let result = engine.query("ranged", cx(&[("start", Value::Int(0)), ("end", Value::Int(25))])).unwrap();
         assert!(!result.complete && result.next.is_none());
-        assert_eq!(result.metered.examined, if hidden { 100 } else { 50 });
+        assert_eq!(result.metered.examined, 50);
         observations.push(serde_json::to_vec(&(result.data, result.complete, result.cut, result.next)).unwrap());
     }
     assert_eq!(observations[0], observations[1]);

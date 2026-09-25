@@ -113,11 +113,15 @@ test('wasm expired sub-pair (ii), meter boundary retains the existing time-hidde
     const fixture = structuredClone(fixtures[key]);
     const program = fixture.backend.programs.find(p => p.name === 'search');
     const scan = wordsScan(program);
-    // A non-uniform empty search spends index entries without uniform descriptors;
-    // the unchanged wasm boundary has no ceiling override. Leave 46 seeks.
-    program.body.unshift({ For: { binding: 'i', domain: { LiteralRange: { start: 0, end_exclusive: 16_384 - 46 } }, body: [
+    // Private discovery prepays 33 word seeks. Fill the remainder with
+    // three uniform misses to leave exactly 46 seeks for the expired pair.
+    program.body.unshift({ For: { binding: 'i', domain: { LiteralRange: { start: 0, end_exclusive: Math.floor((16_384 - 46) / 33) } }, body: [
       { Const: { name: 'budget', value: { Scan: { ...structuredClone(scan), site: 'budget.empty', index: 'byWords', opaque_cursor: false,
         after: null, prefix: [{ WordPrefix: { Literal: { String: 'absent' } } }] } } } }
+    ] } });
+    program.body.splice(1, 0, { For: { binding: 'j', domain: { LiteralRange: { start: 0, end_exclusive: (16_384 - 46) % 33 } }, body: [
+      { Const: { name: 'remainder', value: { Scan: { ...structuredClone(scan), site: 'budget.remainder', opaque_cursor: false, after: null,
+        prefix: [structuredClone(scan.prefix[0]), { WordPrefix: { Literal: { String: 'absent' } } }] } } } }
     ] } });
     const device = new WebDevice(JSON.stringify(fixture.backend), '[]');
     try {
@@ -132,7 +136,7 @@ test('wasm expired sub-pair (ii), meter boundary retains the existing time-hidde
   assert.deepEqual(b, { ...a, data: [], complete: false, cut: 'meter', next: null });
 });
 
-test('wasm hand-inserted online-only admitted non-uniform pair keeps host-specific cut', () => {
+test('wasm hidden-only words cannot change an admitted non-uniform page or cut', () => {
   const worlds = [];
   for (const population of [0, 33]) {
     const { backend, rows } = fixtures[`round3-${population}`];
@@ -145,8 +149,8 @@ test('wasm hand-inserted online-only admitted non-uniform pair keeps host-specif
   assert.deepEqual(a.data.map(r => r.id), ['shown']);
   assert.deepEqual([b.data, b.complete, b.next], [a.data, a.complete, a.next]);
   assert.equal(a.complete, false); assert.ok(!a.next);
-  // Devices expose words; only the server suppresses non-uniform reasons.
-  assert.equal(a.cut, null); assert.equal(b.cut, 'words');
+  assert.equal(a.cut, null);
+  assert.deepEqual(b, a);
 });
 
 test('wasm admitted non-uniform pair through legitimate acquisition has identical full envelopes', () => {

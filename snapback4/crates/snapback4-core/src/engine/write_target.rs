@@ -42,8 +42,9 @@ impl Runner<'_> {
         // (including ill-typed fields), and the miss arm's image/default materialization.
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
         let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(patch.heap_bytes().saturating_mul(2));
-        if !self.meter.room(MeterKind::HeapBytes, heap) {
-            return Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, actual: self.meter.used.heap_bytes.saturating_add(heap), ceiling: self.meter.ceilings.heap_bytes, site: self.meter.site().into() });
+        for (kind, amount, used, ceiling) in [(MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes),
+            (MeterKind::IndexEntries, if upsert { table.sequences.len() as u64 } else { 0 }, self.meter.used.index_entries, self.meter.ceilings.index_entries)] {
+            if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
         }
         self.reserve_maintains(table_name, table)?;
         Ok(())
@@ -89,7 +90,9 @@ impl Runner<'_> {
         let row = Value::Row(definition.index(index).expect("checked index").columns().into_iter().zip(key.iter().cloned()).collect());
         let viewer = self.context.viewer.clone();
         self.meter.heap(row.heap_bytes())?;
-        let readable = super::rules::evaluate(&rule, &viewer, None, &row, false, self)?;
+        let readable = self.authorized_scan(&[(MeterKind::RuleProbes, rule_probes(&rule))], |runner, allowance| {
+            super::rules::evaluate(&rule, &viewer, None, &row, false, &mut super::read::RuleProbe { runner, allowance })
+        })?;
         Ok(readable && !self.beyond_horizon)
     }
 
@@ -136,8 +139,8 @@ impl Runner<'_> {
             runner.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
             runner.reserve_maintains(&target.table, &table)?;
             runner.read_tables.insert(target.table.clone());
-            let mut expired_work = 0;
-            let old = runner.lookup_live_charged(&target.table, &target.index, index, &key, false, Some(&mut expired_work))?;
+            let expired_work = 0_u64;
+            let old = runner.authorized_scan(&[], |runner, allowance| runner.live_lookup(allowance, &target.table, &target.index, index, &key))?;
             if runner.device && (table.sync.is_none() || (old.is_none() && !runner.upsert_absence_proven(&target.table, &target.index, &key)?)) {
                 return Err(runner.write_miss(&target.table, &target.index, &key));
             }
@@ -161,14 +164,16 @@ impl Runner<'_> {
         let key = target.key.iter().map(|e| self.expr(e)).collect::<Result<Vec<_>, _>>()?;
         let patch = self.expr(patch)?;
         self.refuse_recorded(&target.table, &patch)?;
+        super::sequences::refuse_fields(&self.schema.tables[&target.table], &target.table, &patch)?;
         let definition = self.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?.clone();
         let index = definition.index(&target.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", target.table, target.index)))?;
         if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }
         if patch.as_object()?.contains_key("id") { return Err(RuntimeError::Input(format!("{} update patch cannot change id", target.table))); }
         self.read_tables.insert(target.table.clone());
         self.reserve_target_resolution(&target.table, &definition, &patch, upsert)?;
-        let mut expired_work = 0;
-        let old = self.lookup_live_charged(&target.table, &target.index, index, &key, false, Some(&mut expired_work))?;
+        let expired_work = 0;
+        self.observe_sequence_selection(&target.table, &target.index, &key)?;
+        let old = self.authorized_scan(&[], |runner, allowance| runner.live_lookup(allowance, &target.table, &target.index, index, &key))?;
         if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
             return Err(self.write_miss(&target.table, &target.index, &key));
         }

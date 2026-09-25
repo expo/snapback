@@ -76,10 +76,10 @@ fn no_cursor_discloses_a_hidden_key_and_a_hidden_run_ends_empty() {
                 count += 1;
                 cursor = Some(next);
             }
-            None => { assert!(page.data.as_array().unwrap().is_empty()); assert!(page.capped_at.is_some()); break; }
+            None => { assert!(page.data.as_array().unwrap().is_empty()); assert!(page.capped_at.is_none(), "hidden tail does not spend the caller's allowance"); break; }
         }
     }
-    assert!(count >= 4);
+    assert_eq!(count, 3, "only readable filter candidates consume the examined budget");
     assert_eq!(last, 16);
 }
 

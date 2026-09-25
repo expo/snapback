@@ -272,7 +272,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                     None => {
                         let mut bounds = Bounds::default();
                         loop {
-                            let rows = runner.tx.scan(table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32)?;
+                            let rows = runner.metered_scan(|runner, allowance| runner.tx.scan(allowance, table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32))?;
                             let count = rows.len();
                             for (candidate, stored) in rows {
                                 let candidate = row_image(&candidate, table);
@@ -305,7 +305,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                         let bound = binding(schema, &content_name, &sync).expect("validated audience");
                         let mut probe = group.clone();
                         probe.push(row.field(&bound.principal)?.clone());
-                        if !key_has_row(runner, table_name, &bound.group_index, &probe, |other| other != own)? {
+                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, |other| other != own))? {
                             runner.born_grants.remove(&key);
                         }
                         undone_born = Some(key);
@@ -331,8 +331,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 let mut probe = group.clone();
                 probe.push(row.field(&bound.principal)?.clone());
                 let own = row.field("id")?.as_str()?;
-                let runner_now: &Runner<'_> = runner;
-                let predecessor = key_has_row(runner_now, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned())))?;
+                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
                 if !predecessor {
                     let earlier = runner.events.grant_count(&key);
                     runner.born_grants.insert(key, earlier);
@@ -349,10 +348,10 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
 /// satisfies `wanted`, scanning the unique group index in batches until one
 /// does. Log bookkeeping on the log-bearing host: not metered.
 #[cfg(feature = "sqlite")]
-fn key_has_row(runner: &Runner<'_>, table_name: &str, index: &str, probe: &[Value], wanted: impl Fn(&str) -> bool) -> Result<bool, RuntimeError> {
+fn key_has_row(runner: &Runner<'_>, allowance: &crate::engine::authorized_scan::Authorization, table_name: &str, index: &str, probe: &[Value], wanted: impl Fn(&str) -> bool) -> Result<bool, RuntimeError> {
     let mut bounds = Bounds::default();
     loop {
-        let rows = runner.tx.scan(table_name, index, probe, &bounds, Dir::Asc, 32)?;
+        let rows = runner.tx.scan(allowance, table_name, index, probe, &bounds, Dir::Asc, 32)?;
         for (other, stored) in &rows {
             if wanted(other.field("id")?.as_str()?) {
                 return Ok(true);
@@ -867,7 +866,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
     for mut event in page {
         if event.kind != "join" {
             if event.kind == "put" {
-                event.data = if schema.table(&event.table).is_some() { reader.fetch(&event.table, &event.id)? } else { None };
+                event.data = if schema.table(&event.table).is_some() { reader.metered_scan(|reader, allowance| reader.fetch(allowance, &event.table, &event.id))? } else { None };
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
                 } else { event.kind = "del".into(); }

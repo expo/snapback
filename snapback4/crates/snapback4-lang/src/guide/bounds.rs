@@ -85,6 +85,15 @@ query past a ceiling returns what it found with `complete: false`; a
 mutation aborts with E_BOUND naming the meter, the ceiling and the site
 (never the count: it would measure rows the viewer may not read).
 Read a smaller page, narrow its predicate, or move the sweep into a job.
+Authorization-dependent scans prepay a fixed logical allowance before row
+discovery. Hidden candidates do not consume the caller's remaining allowance;
+readable rows, filters and output still do. These logical meters exclude private
+scan work: authorization candidates share one physical limit of 8,192
+per request, including nested witnesses and maintained-source walks. A row behind at least 8,192 such candidates is unreachable by paging
+in that direction; an empty page has no cursor into the hidden range. Expiring
+cap checks draw from that same allowance; any authorization that cannot be
+established within it returns generic E_RULE without identifying a cause.
+The device's separate prediction-work budget can instead queue an operation.
 `snapback4 check --cost` prints each site's structural class;
 `snapback4 test` prints the numbers on your data and names query/persona reads
 past half any ceiling without a cut: at most ten lines and a count of the rest.

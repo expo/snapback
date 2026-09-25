@@ -202,6 +202,17 @@ pub enum PrefetchRequest {
 pub enum AcquiredBoundary { Whole, Key(Vec<u8>) }
 
 pub trait Rows {
+    /// A device keeps the floor of settled rows hidden by pending deletions.
+    fn provisional_sequence_floor(&self, _parent: &str, _id: &str) -> Result<i64, RuntimeError> { Ok(0) }
+
+    /// Read/advance a parent counter inside the writer's transaction; never a SQL sequence.
+    fn sequence_value(&self, _parent: &str, _id: &str) -> Result<i64, RuntimeError> {
+        Err(RuntimeError::Store("sequence counter requires a server write transaction".into()))
+    }
+    fn set_sequence(&self, _parent: &str, _id: &str, _value: i64) -> Result<(), RuntimeError> {
+        Err(RuntimeError::Store("sequence counter requires a server write transaction".into()))
+    }
+
     /// Claim an effect's canonical lifetime key inside the current transaction.
     /// Devices discard emits before reaching this operation.
     fn effect_once(&self, _effect: &str, _key: &str) -> Result<bool, RuntimeError> {
@@ -271,6 +282,7 @@ pub trait Rows {
 /// and for a host that keeps a partition on the heap.
 #[derive(Debug, Default)]
 pub struct MemoryRows {
+    sequences: std::cell::RefCell<std::collections::BTreeMap<(String, String), i64>>,
     rows: std::cell::RefCell<std::collections::BTreeMap<(String, String), Value>>,
     entries: std::cell::RefCell<std::collections::BTreeMap<(String, Vec<u8>), String>>,
 }
@@ -299,6 +311,13 @@ impl MemoryRows {
 }
 
 impl Rows for MemoryRows {
+    fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
+        Ok(*self.sequences.borrow().get(&(parent.into(), id.into())).unwrap_or(&0))
+    }
+    fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
+        self.sequences.borrow_mut().insert((parent.into(), id.into()), value);
+        Ok(())
+    }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         Ok(self.rows.borrow().get(&(table.to_owned(), id.to_owned())).cloned())
     }

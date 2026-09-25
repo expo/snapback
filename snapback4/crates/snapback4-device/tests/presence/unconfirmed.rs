@@ -25,9 +25,8 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool) {
     let meter = w15a_prediction_meter(&mut store, &backend.schema, program, ctx.clone());
     println!("w15a fifty prediction {label}: {meter:?}");
     // The membership point read reserves its server-equivalent probe even
-    // when the device trusts its delivered image. Insertion also needs room
-    // for its own rule and a potential collision's read rule: minimum 3.
-    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 3, 1367, 69843, 27, 1]);
+    // when the device trusts its delivered image, in addition to insertion.
+    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 4, 1367, 69843, 27, 1]);
     let mut meters = Vec::new();
     for (state, live, deadline) in [("held", 1, 16_000), ("graced", 0, 36_000)] {
         let (mut engine, _) = compile(source);

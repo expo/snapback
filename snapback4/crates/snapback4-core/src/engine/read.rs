@@ -4,6 +4,7 @@
 //! what it found and is `capped` (LLP 2000.000 §6).
 
 use super::rules::{self, Probe};
+use super::authorized_scan::Authorization;
 use super::runner::{PagePosition, Runner};
 use crate::cursor::{CursorColumn, CursorPosition, CursorScope, decode_cursor, decode_cursor_for, encode_cursor};
 use crate::error::{MeterKind, RuntimeError};
@@ -15,6 +16,8 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 
 use crate::rows::word_heap;
+
+use super::authorized_scan::AUTHORIZATION_WALK_LIMIT;
 #[path = "word_merge.rs"]
 mod word_merge;
 #[path = "view_merge.rs"]
@@ -54,21 +57,34 @@ impl PartialOrd for MergeHead { fn partial_cmp(&self, other: &Self) -> Option<Or
 impl PartialEq for MergeHead { fn eq(&self, other: &Self) -> bool { self.cmp(other) == Ordering::Equal } }
 impl Eq for MergeHead {}
 
-impl Probe for Runner<'_> {
-    fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
-        if !self.read_charge(MeterKind::RuleProbes, 1)? {
-            // Cut: no lookup and no verdict; the site stops on `capped_at`.
-            return Ok(false);
-        }
-        self.rule_probe_exists(table, index, key, equalities)
-    }
+// One cached probe answer avoids refetching an unchanged fact in a loop.
+// Writes invalidate it; cache hits still pay the declared logical probe charge.
+#[derive(PartialEq)]
+pub(super) struct WitnessKey {
+    revision: u64, table: String, index: String, key: Vec<Value>,
+    equalities: Vec<(String, Value)>, current: bool,
+}
 
+pub(super) struct RuleProbe<'a, 'b> {
+    pub(super) runner: &'a mut Runner<'b>,
+    pub(super) allowance: &'a Authorization,
+}
+impl Probe for RuleProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
+    fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
+        if !self.runner.read_charge(MeterKind::RuleProbes, 1)? { return Ok(false); }
+        self.runner.rule_probe_exists(self.allowance, table, index, key, equalities)
+    }
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool {
-        self.created.contains_key(&(table.to_owned(), index.to_owned(), canonical_json(&key)))
+        self.runner.created(table, index, key)
     }
 }
 
 impl Runner<'_> {
+    pub(super) fn created(&self, table: &str, index: &str, key: &[Value]) -> bool {
+        self.created.contains_key(&(table.to_owned(), index.to_owned(), canonical_json(&key)))
+    }
+
     // @ref LLP 3000.007#17 — the dependency envelope is schema-derived too; short-circuit probes cannot disclose a hidden answer through tables.
     pub(super) fn rule_dependencies(&mut self, rule: &crate::schema::RuleExpr) {
         let mut sites = Vec::new();
@@ -86,12 +102,11 @@ impl Runner<'_> {
         let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
         let viewer = self.context.viewer.clone();
         let expiry = self.next_expiry;
-        let verdict = rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner: self });
-        // Partial admission says nothing about any returned row's lifetime.
+        let verdict = self.authorized_scan(&[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |runner, allowance| {
+            rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner, allowance })
+        });
         if !uniform || !matches!(verdict, Ok(true)) { self.next_expiry = expiry; }
-        let verdict = verdict?;
-        // A partial conjunction denial costs the same static allowance as a uniform denial.
-        Ok(self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
+        verdict
     }
 
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
@@ -111,107 +126,125 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
-    fn rule_probe_exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
-        let (present, known) = self.probe_witness(table, index, key, equalities, false)?;
+    fn rule_probe_exists(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
+        let (present, known) = self.probe_witness(allowance, table, index, key, equalities, false)?;
         if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); }
         Ok(present)
     }
 
     /// Existence witnesses are raw data, never recursively authorized rows.
-    pub(super) fn probe_witness(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+    pub(super) fn probe_witness(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        if self.device_work_active { return self.probe_witness_uncached(allowance, table, index, key, equalities, current); }
+        let cached_key = WitnessKey { revision: self.tx.revision(), table: table.into(), index: index.into(), key: key.to_vec(), equalities: equalities.to_vec(), current };
+        if let Some((previous, (live, known, expiry))) = &self.witness_cache && previous == &cached_key {
+            self.next_expiry = rules::earliest(self.next_expiry, *expiry);
+            return Ok((*live, *known));
+        }
+        let prior = self.next_expiry.take();
+        let result = self.probe_witness_uncached(allowance, table, index, key, equalities, current);
+        let expiry = self.next_expiry;
+        self.next_expiry = rules::earliest(prior, expiry);
+        if let Ok((live, known)) = result { self.witness_cache = Some((cached_key, (live, known, expiry))); }
+        result
+    }
+
+    fn probe_witness_uncached(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        self.observe_sequence_selection(table, index, key)?;
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
-        let found = self.lookup_live(table, index, index_def, key, false)?;
-        let mut live = found.is_some();
-        let mut known = !self.device || if current {
-            match &found {
-                Some(row) => self.witness_covered(table, index, key, row)?,
-                None => self.authorization_absence_covered(table, index, key)?,
+        let mut bounds = Bounds::default();
+        let mut live = false;
+        let mut until: Option<i64> = None;
+        let mut uncertain = false;
+        loop {
+            let (rows, limit) = if definition.expire.is_none() {
+                // Non-expiring indexed predicates need only one candidate;
+                // extra equalities bind a complete unique key.
+                (self.live_lookup(allowance, table, index, index_def, key)?.map(|row| (row, Vec::new())).into_iter().collect::<Vec<_>>(), usize::MAX)
+            } else { self.witness_scan(allowance, table, index, key, &bounds, 32)? };
+            let count = rows.len();
+            for (mut row, stored) in rows {
+                self.witness_materialize(&mut row, definition)?;
+                bounds.after = self.witness_position(&stored, index_def.components.len() + 1, key.len())?;
+                if self.expired(definition, &row) || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
+                if current && !self.witness_covered(table, index, key, &row)? { uncertain = true; continue; }
+                let (present, known, expiry) = self.witness_lifetime(allowance, table, &row, current)?;
+                uncertain |= !known;
+                if !present { continue; }
+                until = if live { until.zip(expiry).map(|(a, b)| a.max(b)) } else { expiry };
+                live = true;
+                // A non-expiring witness makes the existential stable.
+                if until.is_none() { break; }
             }
-        } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
-        if let Some(row) = &found {
-            self.note_expiry(definition, row);
-            if let Some(maintain) = self.schema.maintain_for(table)
-                && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
-                self.read_tables.insert(maintain.source.clone());
-                if self.device_work_active {
-                    let group_bytes = word_heap::slots::<Value>(maintain.by.len())
-                        + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
-                    self.meter.heap(2 * group_bytes + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
-                }
-                let group = crate::schema::maintained_key(row, &maintain.by);
-                let (name, prefix) = maintain.source_scan(source, &group);
-                if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { known = false; }
-                // @ref LLP 3000.007#20.9.3 — an expiry-ordered existence witness skips the entire expired backlog.
-                let expiry_ordered = source.index(name).is_some_and(|index| matches!(index.components.as_slice(),
-                    [crate::schema::IndexComponent::Contribution(_), crate::schema::IndexComponent::Column(column)] if Some(column) == source.expire.as_ref()));
-                let mut bounds = Bounds { gt: self.context.now.filter(|_| expiry_ordered).map(Value::Int), ..Bounds::default() };
-                live = false;
-                'sources: loop {
-                    let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, if expiry_ordered { 1 } else { 32 })?;
-                    let count = rows.len();
-                    for (mut candidate, stored) in rows {
-                        self.witness_materialize(&mut candidate, source)?;
-                        // A contribution component expands to the whole group,
-                        // followed by expiry and source id in the new format.
-                        bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 2), prefix.len())?;
-                        if self.device_work_active {
-                            self.meter.step(maintain.evaluation_steps())?;
-                            self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
-                                + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::value)).sum::<u64>())?;
-                        }
-                        if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
-                            if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
-                            // Existence is existential: one covered witness
-                            // settles it even after an uncertain candidate.
-                            if current { known = true; }
-                            self.note_expiry(source, &candidate);
-                            live = true;
-                            break 'sources;
-                        }
-                    }
-                    if count < limit { break; }
-                }
-            }
+            if (live && until.is_none()) || count < limit { break; }
         }
-        if self.device && self.schema.maintain_subset_unknown(table) { known = false; }
-        // @ref LLP 3000.007#10 — the total unique probe reads once, then tests the remaining named equalities.
-        Ok((live && found.as_ref().is_some_and(|row| equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)), known))
+        let known = !self.device || (!self.schema.maintain_subset_unknown(table) && if current {
+            if live { true } else { !uncertain && self.authorization_absence_covered(allowance, table, index, key)? }
+        } else { !uncertain && definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) });
+        if live { self.next_expiry = rules::earliest(self.next_expiry, until); }
+        Ok((live, known))
+    }
+
+    /// A maintained existence witness lives while any selected source lives;
+    /// an aggregate's own expiration can only shorten that lifetime.
+    fn witness_lifetime(&mut self, allowance: &Authorization, table: &str, row: &Value, current: bool) -> Result<(bool, bool, Option<i64>), RuntimeError> {
+        let expiry = self.schema.tables[table].expires_at(row);
+        let Some(maintain) = self.schema.maintain_for(table) else { return Ok((true, true, expiry)); };
+        let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) else { return Ok((true, true, expiry)); };
+        self.read_tables.insert(maintain.source.clone());
+        if self.device_work_active {
+            let group_bytes = word_heap::slots::<Value>(maintain.by.len())
+                + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
+            self.meter.heap(2 * group_bytes + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
+        }
+        let group = crate::schema::maintained_key(row, &maintain.by);
+        let (name, prefix) = maintain.source_scan(source, &group);
+        let mut known = !self.device || source.sync.as_ref().is_some_and(|sync| sync.horizon.is_none());
+        // @ref LLP 3000.007#20.9.3 — skip expired contributions; all live alternatives still determine the complete rule lifetime.
+        let expiry_ordered = source.index(name).is_some_and(|index| matches!(index.components.as_slice(),
+            [crate::schema::IndexComponent::Contribution(_), crate::schema::IndexComponent::Column(column)] if Some(column) == source.expire.as_ref()));
+        let mut bounds = Bounds { gt: self.context.now.filter(|_| expiry_ordered).map(Value::Int), ..Bounds::default() };
+        let mut live = false;
+        let mut until: Option<i64> = None;
+        loop {
+            let (rows, limit) = self.witness_scan(allowance, &maintain.source, name, &prefix, &bounds, 32)?;
+            let count = rows.len();
+            for (mut candidate, stored) in rows {
+                self.witness_materialize(&mut candidate, source)?;
+                bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 1), prefix.len())?;
+                if self.device_work_active {
+                    self.meter.step(maintain.evaluation_steps())?;
+                    self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
+                        + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::value)).sum::<u64>())?;
+                }
+                if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
+                if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
+                if current { known = true; }
+                let candidate_expiry = source.expires_at(&candidate);
+                until = if live { until.zip(candidate_expiry).map(|(a, b)| a.max(b)) } else { candidate_expiry };
+                live = true;
+                if until.is_none() { break; }
+            }
+            if (live && until.is_none()) || count < limit { break; }
+        }
+        Ok((live, known || (current && live), rules::earliest(expiry, until)))
     }
 
     /// Point lookups must pass expired siblings, even on an index whose
     /// logical uniqueness no longer counts those rows.
-    pub(super) fn live_lookup(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
-        self.lookup_live(table_name, name, index, key, true)
-    }
-
-    pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
-        self.lookup_live_charged(table_name, name, index, key, charge, None)
-    }
-
-    // @ref LLP 3000.013#11.1 — target expiry work is charged only after authority; denied targets reveal no backlog.
-    pub(super) fn lookup_live_charged(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool, mut expired_work: Option<&mut u64>) -> Result<Option<Value>, RuntimeError> {
+    pub(super) fn live_lookup(&mut self, allowance: &Authorization, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if table.expire.is_none() && !self.device_work_active {
-            return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
+            return self.tx.lookup(allowance, table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
         }
         let mut bounds = Bounds::default();
         loop {
-            let (rows, limit) = self.witness_scan(table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
+            let (rows, limit) = self.witness_scan(allowance, table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
             let count = rows.len();
             for (mut row, stored) in rows {
                 self.witness_materialize(&mut row, table)?;
-                if charge && !self.device_work_active && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
                 if !self.expired(table, &row) { return Ok(Some(row)); }
-                if let Some(work) = expired_work.as_deref_mut() {
-                    *work = work.saturating_add(1);
-                    // Stop private resolution at the existing ceiling too. A
-                    // cut is a refused target, not proof of absence: an upsert
-                    // must pay this debt after insert authority and before it
-                    // can insert, so that arm necessarily fails its meter.
-                    if *work > self.meter.ceilings.examined.saturating_sub(self.meter.used.examined) { return Ok(None); }
-                }
                 bounds.after = self.witness_position(&stored, index.components.len() + 1, key.len())?;
             }
             if count < limit { return Ok(None); }
@@ -220,11 +253,11 @@ impl Runner<'_> {
 
     // Physical witness work is additional device authorization work. Queries
     // and server rules keep their existing one-probe accounting.
-    fn witness_scan(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
-        if !self.device_work_active { return Ok((self.tx.scan(table, index, prefix, bounds, Dir::Asc, batch)?, batch)); }
+    fn witness_scan(&mut self, allowance: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
+        if !self.device_work_active { return Ok((self.tx.scan(allowance, table, index, prefix, bounds, Dir::Asc, batch)?, batch)); }
         let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;
         if limit == 0 { self.meter.charge(MeterKind::Examined, 1)?; }
-        let rows = self.tx.scan_metered(table, index, prefix, bounds, Dir::Asc, limit, &mut self.meter)?;
+        let rows = self.tx.scan_metered(allowance, table, index, prefix, bounds, Dir::Asc, limit, &mut self.meter)?;
         self.meter.charge(MeterKind::Examined, rows.len().max(1) as u64)?;
         Ok((rows, limit))
     }
@@ -294,15 +327,16 @@ impl Runner<'_> {
             materialize_optional_fields(&mut old, table);
             old
         });
-        let viewer = self.context.viewer.clone();
-        rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self)
+        // @ref LLP 3000.015#2 — every effect prepays the entire rule before its first witness.
+        // Short-circuiting is private work, including the choice to probe again.
+        self.authorized_scan(&[(MeterKind::RuleProbes, rules::rule_probes(&rule))], |runner, allowance| runner.evaluate_sequence_rule(allowance, table_name, &rule, effect, old.as_ref(), &next))
     }
 
     /// A row by id, materialized, without a rule check.
-    pub(crate) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+    pub(crate) fn fetch(&mut self, allowance: &Authorization, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.schema.refuse_private(table_name)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        let found = self.tx.get(table_name, id)?;
+        let found = self.tx.get(allowance, table_name, id)?;
         if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table_name, "byId", &[Value::Id(id.to_owned())], "write target"); }
         Ok(found.filter(|row| !self.expired(table, row)).map(|mut row| {
             materialize_optional_fields(&mut row, table);
@@ -324,6 +358,7 @@ impl Runner<'_> {
 
     fn get_inner(&mut self, read: &Read) -> Result<Value, RuntimeError> {
         let key = read.key.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
+        self.observe_sequence_selection(&read.table, &read.index, &key)?;
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
         self.read_tables.insert(read.table.clone());
@@ -342,47 +377,31 @@ impl Runner<'_> {
         let trusted = self.context.is_system() || self.trust_synced_read(table);
         // Prediction keeps the server's reservation even for delivered rows.
         // Only the additional physical authority work uses the device allowance.
-        let prepaid = !trusted || (self.device_allowance.is_some() && !self.context.is_system());
-        if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
-        // Hidden and absent cost one examined row and the same static probe
-        // allowance, including probes that a rule would short-circuit.
-        let mark = self.meter.mark();
+        let prepaid = !self.context.is_system();
         let expiry_mark = self.next_expiry;
-        let found = self.live_lookup(&read.table, &read.index, index, &key)?;
-        // An expiring lookup already charged its live candidate while
-        // passing expired siblings. A miss still costs one point read.
-        if (table.expire.is_none() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
-            return Ok(Value::Null);
-        }
-        let Some(mut row) = found else {
+        let found = self.prepaid_scan(&[
+            (MeterKind::RuleProbes, if prepaid { rules::rule_probes(&table.rules.read) } else { 0 }),
+            (MeterKind::Examined, 1),
+        ], !table.rules.read.is_uniformly_readable() || table.expire.is_some(), |runner, allowance| {
+            let Some(mut row) = runner.live_lookup(allowance, &read.table, &read.index, index, &key)? else { return Ok(None) };
+            if runner.expired(table, &row) { return Ok(None); }
+            materialize_optional_fields(&mut row, table);
+            let provisional = runner.is_provisional(&read.table, &row)?;
+            let viewer = runner.context.viewer.clone();
+            let allowed = if provisional && !runner.context.is_system() {
+                runner.authorize_read(&read.table, &row, true)?
+            } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner, allowance })? };
+            Ok(allowed.then_some(row))
+        })?;
+        let Some(row) = found else {
+            self.next_expiry = expiry_mark;
             if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
             return Ok(Value::Null);
         };
-        if self.expired(table, &row) {
-            return Ok(Value::Null);
-        }
-        materialize_optional_fields(&mut row, table);
-        let provisional = self.is_provisional(&read.table, &row)?;
-        let viewer = self.context.viewer.clone();
-        let allowed = if provisional && !self.context.is_system() {
-            self.authorize_read(&read.table, &row, prepaid)?
-        } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })? };
-        // A failed authorization owns its charges and its cut. Hidden-candidate
-        // rollback must never erase exhaustion or convert it into coverage.
-        if self.read_capped() { return Ok(Value::Null); }
-        if allowed {
-            // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
-            if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
-            self.note_expiry(table, &row);
-            Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
-        } else {
-            self.next_expiry = expiry_mark;
-            if !provisional {
-                self.meter.restore(mark);
-                self.read_charge(MeterKind::Examined, 1)?;
-            }
-            Ok(Value::Null)
-        }
+        if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
+        self.note_expiry(table, &row);
+        let row = self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null);
+        Ok(super::recorded::public_image(table, self.sequence_read_result(&read.table, row)?))
     }
 
     /// The scan's prefix values, evaluated. A word term is not a value a
@@ -505,15 +524,41 @@ impl Runner<'_> {
         // its last. Each costs one index entry on the meter.
         // @ref LLP 3000.007#20.24 — L14.2: a uniform scope's word expansion is bounded by the meter, not by 32.
         let metered_words = admitted && visibility.uniform;
-        let mut words: Vec<String> = Vec::new();
+        let mut words: Vec<String> = if metered_words { Vec::new() } else {
+            self.authorized_scan(&[
+                (MeterKind::IndexEntries, (MAX_WORD_LANES + 1) as u64),
+                (MeterKind::RuleProbes, if admitted { 0 } else { rules::rule_probes(&table.rules.read).saturating_mul((MAX_WORD_LANES + 1) as u64) }),
+            ], |runner, allowance| {
+                let mut words = Vec::new();
+                let mut walk_remaining = AUTHORIZATION_WALK_LIMIT;
+                let mut bounds = Bounds { word: Some(terms[0].clone()), ..Bounds::default() };
+                while walk_remaining > 0 {
+                    let found = runner.tx.scan(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?;
+                    let Some((_, key)) = found.first() else { break };
+                    let Some(Value::String(token)) = crate::key::decode(key).and_then(|values| values.into_iter().nth(position)) else {
+                        return Err(RuntimeError::Store("word index holds a non-text word".into()));
+                    };
+                    bounds.after = Some(vec![Value::String(token.clone())]);
+                    let prefix: Vec<_> = scope.iter().cloned().chain([Value::String(token.clone())]).collect();
+                    if runner.authorized_candidate(scan, &prefix, &Bounds::default(), Dir::Asc, &mut walk_remaining)?.is_empty() { continue; }
+                    if words.len() == MAX_WORD_LANES {
+                        runner.components.note(|frame| frame.words = true);
+                        if runner.word_cut_at.is_none() { runner.word_cut_at = Some(format!("{} lane {:?}", scan.site, scope)); }
+                        break;
+                    }
+                    words.push(token);
+                }
+                Ok(words)
+            })?
+        };
         if metered_words { self.meter.heap(word_heap::text(&terms[0]))?; }
         let mut bounds = Bounds { word: Some(terms[0].clone()), ..Bounds::default() };
-        loop {
+        while metered_words {
             if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
             }
-            let found = if metered_words { self.tx.scan_metered(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1, &mut self.meter)? }
-                else { self.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)? };
+            let found = if metered_words { self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1, &mut runner.meter))? }
+                else { self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1))? };
             let Some((_, key)) = found.into_iter().next() else { break };
             if metered_words {
                 // Decoder vector and string scratch before decoding; the store's fetched
@@ -523,12 +568,6 @@ impl Runner<'_> {
             let Some(Value::String(word)) = crate::key::decode(&key).and_then(|values| values.into_iter().nth(position)) else {
                 return Err(RuntimeError::Store(format!("{}.{} holds a key whose word is not text", scan.table, scan.index)));
             };
-            if words.len() == MAX_WORD_LANES && !metered_words {
-                // @ref LLP 3000.007#18.1 — the word bound limits this scope, not later lanes; actual meter ceilings still cut the whole query.
-                self.components.note(|frame| frame.words = true);
-                if self.word_cut_at.is_none() { self.word_cut_at = Some(format!("{} lane {:?}", scan.site, scope)); }
-                break;
-            }
             if metered_words {
                 // Retain the decoded token and its seek copy before either vector grows.
                 // The store owns the fetched row/key; only the decoded word survives here.
@@ -697,7 +736,7 @@ impl Runner<'_> {
         let table = &self.schema.tables[&scan.table];
         let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
         self.read_charge(MeterKind::Examined, 1)?;
-        Ok(self.tx.scan_metered(&scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1, &mut self.meter)?.pop().map(|(_, key)| key))
+        Ok(self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1, &mut runner.meter))?.pop().map(|(_, key)| key))
     }
 
     /// A bounded page. Returns the visible rows, at most `take`, and records
@@ -808,7 +847,34 @@ impl Runner<'_> {
         aggregate.finish()
     }
 
+    /// The caller prepays the page before entering. Hidden candidates never
+    /// reach the page's payload ledger, filter, lookahead or continuation.
+    fn authorized_candidate(&mut self, scan: &Scan, prefix: &[Value], bounds: &Bounds, dir: Dir, remaining: &mut usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.authorized_scan(&[], |runner, allowance| {
+            let table = &runner.schema.tables[&scan.table];
+            let mut cursor = bounds.clone();
+            loop {
+                // Return one candidate without repeatedly fetching its unused tail.
+                let batch = (*remaining).min(runner.tx.remaining()).min(1);
+                if batch == 0 { return Ok(Vec::new()); }
+                let rows = runner.tx.scan(allowance, &scan.table, &scan.index, prefix, &cursor, dir, batch)?;
+                let count = rows.len();
+                for (mut row, key) in rows {
+                    cursor.after = crate::key::decode(&key).map(|key| key.into_iter().skip(prefix.len()).collect());
+                    materialize_optional_fields(&mut row, table);
+                    if runner.expired(table, &row) { *remaining -= 1; continue; }
+                    let expiry = runner.next_expiry;
+                    if runner.check_rule(&scan.table, Effect::Read, None, &row)? { return Ok(vec![(row, key)]); }
+                    runner.next_expiry = expiry;
+                    *remaining -= 1;
+                }
+                if count < batch { return Ok(Vec::new()); }
+            }
+        })
+    }
+
     fn scan_consumed(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>, mut aggregate: Option<&mut super::extrema::Aggregate<'_>>, job_page: bool, metered_domain: bool) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        self.observe_sequence_selection(&scan.table, &scan.index, &prefix)?;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
@@ -846,8 +912,18 @@ impl Runner<'_> {
             if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
             if visibility.uniform { uniform_verdict = Some(true); }
         }
-        // Non-uniform hidden runs cost examined rows, never a materialized
-        // table. A uniform page already has its verdict before fetching.
+        // @ref LLP 3000.015#2 — reserve the complete page authorization tree
+        // before discovering even one candidate, including ordinary int pages.
+        let private_page = !visibility.uniform && !always_visible;
+        let mut page_examined = private_page;
+        let mut walk_remaining = AUTHORIZATION_WALK_LIMIT;
+        if private_page {
+            self.authorized_scan(&[
+                (MeterKind::Examined, u64::from(!aborting)),
+                (MeterKind::RuleProbes, rules::rule_probes(&table.rules.read).saturating_mul(take.saturating_add(1) as u64)),
+            ], |_, _| Ok(()))?;
+            if self.read_capped() { return Ok((Vec::new(), Vec::new())); }
+        }
         let horizon = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref());
         let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
@@ -880,8 +956,10 @@ impl Runner<'_> {
             let fetch_heap = self.meter.used.heap_bytes;
             // No adaptive lookahead, even for non-uniform rules. A later chunk
             // establishes exhaustion; every new candidate must first fit.
-            let fetched = if metered_payload || transient || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
-                else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
+            let fetched = if private_page {
+                self.authorized_candidate(scan, &prefix, &cursor, dir, &mut walk_remaining)?
+            } else if metered_payload || transient || job_page { self.metered_scan(|runner, allowance| runner.tx.scan_metered(allowance, &scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut runner.meter))? }
+                else { self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &scan.table, &scan.index, &prefix, &cursor, dir, batch))? };
             if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
             // The store ledger prices allocation (shared memory row handles
             // are cheap). A view also retains the full source payload while
@@ -896,7 +974,7 @@ impl Runner<'_> {
                 if let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
                     if &key < floor { crossed = true; break 'outer; }
                 }
-                if !self.read_charge(MeterKind::Examined, 1)? {
+                if !private_page && !self.read_charge(MeterKind::Examined, 1)? {
                     capped = true;
                     break 'outer;
                 }
@@ -920,6 +998,10 @@ impl Runner<'_> {
                     // Gone, whatever the rule says; it cost one examined row.
                     continue;
                 }
+                if private_page {
+                    if !page_examined && !self.read_charge(MeterKind::Examined, 1)? { capped = true; break 'outer; }
+                    page_examined = false;
+                }
                 // A search's further terms: a row a lane found under its
                 // first word still has to carry the rest.
                 let unmatched = if let Some(word) = word.filter(|word| !word.terms.is_empty()) {
@@ -931,13 +1013,11 @@ impl Runner<'_> {
                     continue;
                 }
                 let row_expiry_mark = self.next_expiry;
-                let allowed = match uniform_verdict {
-                    Some(verdict) => verdict && self.provisional_readable(&scan.table, &row)?,
-                    None => {
-                        let verdict = self.check_rule(&scan.table, Effect::Read, None, &row)?;
-                        verdict
-                    }
-                };
+                let allowed = private_page || self.authorized_scan(&[(MeterKind::RuleProbes,
+                    if !self.context.is_system() && self.is_provisional(&scan.table, &row)? { rules::rule_probes(&table.rules.read) } else { 0 })], |runner, _| match uniform_verdict {
+                    Some(verdict) => Ok(verdict && runner.provisional_readable(&scan.table, &row)?),
+                    None => runner.check_rule(&scan.table, Effect::Read, None, &row),
+                })?;
                 if self.read_capped() {
                     capped = true;
                     break 'outer;
@@ -954,7 +1034,7 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     let Some(row) = live_row else { continue; };
-                    let row = super::recorded::public_image(table, row);
+                    let row = super::recorded::public_image(table, self.sequence_read_result(&scan.table, row)?);
                     if metered_payload || transient || job_page {
                         let scratch = word_heap::allocation(key.len());
                         self.meter.heap(scratch)?;
@@ -1030,7 +1110,7 @@ impl Runner<'_> {
                     self.next_expiry = row_expiry_mark;
                 }
             }
-            if fetched_len < batch {
+            if !private_page && fetched_len < batch {
                 break;
             }
         }
@@ -1311,10 +1391,11 @@ impl Runner<'_> {
 
 }
 
-struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b> }
+struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b>, allowance: &'a Authorization }
 impl Probe for PrefixProbe<'_, '_> {
+    fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { std::mem::replace(&mut self.runner.next_expiry, expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
-        self.runner.rule_probe_exists(table, index, key, equalities)
+        self.runner.rule_probe_exists(self.allowance, table, index, key, equalities)
     }
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool { self.runner.created(table, index, key) }
 }

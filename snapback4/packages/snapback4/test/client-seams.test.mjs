@@ -710,8 +710,7 @@ for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform
   if (release) assert.deepEqual(withoutMeter(observations[0].opted), withoutMeter(observations[1].opted));
   else {
     const [absent, hidden] = observations.map(x => x.opted.meter);
-    assert.ok(hidden.examined > absent.examined);
-    assert.notDeepEqual(hidden, absent);
+    assert.deepEqual(hidden, absent, "prepaid authorization hides the population in dev meters too");
     assert.deepEqual(observations.map(x => withoutMeter(x.opted)), observations.map(x => withoutMeter(x.plain)));
     t.diagnostic(`absent=${JSON.stringify(absent)} hidden=${JSON.stringify(hidden)}`);
   }
@@ -783,24 +782,24 @@ query search():
       assert.equal(response.store_id, identity);
     };
     const observed = [];
-    const read = async (name, reason) => {
+    const read = async name => {
       const page = await (await fetch(`${f.url}/q/${name}`, { method: "POST", headers, body: '{"args":{}}' })).json();
       assert.deepEqual(page.data, []); assert.equal(page.complete, false); assert.equal(page.next, null);
       assert.equal(page.cut, null, JSON.stringify(page));
       if (release) assert.equal(Object.hasOwn(page, "meter"), false);
-      else assert.equal(page.meter.cut, hidden ? reason : null);
+      else assert.equal(page.meter.cut, null);
       const { meter, store_id, ...production } = page;
       assert.equal(store_id, identity); // Only the independently minted fixture identity differs.
       observed.push(production);
     };
     for (let n = 0; n < 32; n++) await seed(1, `cof${n}`);
-    await read("search", null);
-    await seed(1, "cof32"); await read("search", "words");
+    await read("search");
+    await seed(1, "cof32"); await read("search");
     for (let left = 8193 - 33; left > 0; left -= 1000) await seed(Math.min(left, 1000), "coffee");
-    await read("scan", "meter");
+    await read("scan");
     worlds.push(observed);
   }
-  assert.deepEqual(worlds[0], worlds[1], "all production fields, including cut, viewer and equal commit counts");
+  assert.deepEqual(worlds[0], worlds[1], "all response fields, including dev meters, cut, viewer and equal commit counts");
   t.diagnostic("hidden words=32,33 hidden rows=8193 identical full-response pairs=3");
 });
 

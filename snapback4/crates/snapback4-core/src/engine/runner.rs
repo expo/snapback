@@ -60,7 +60,7 @@ pub(crate) struct PagePosition {
 }
 
 pub struct Runner<'a> {
-    pub(crate) tx: &'a dyn Rows,
+    pub(crate) tx: super::authorized_scan::GuardedRows<'a>,
     pub(crate) schema: &'a Schema,
     pub(crate) context: Context,
     pub(crate) meter: Meter,
@@ -78,11 +78,15 @@ pub struct Runner<'a> {
     pub(crate) inserted: Vec<(String, Value)>,
     /// Images written during this execution, including reads inside prediction.
     pub(super) provisional_rows: BTreeSet<(String, String)>,
+    /// Sticky after consuming an unsettled ordinal: aliases and control flow
+    /// can carry that dependency into a later refusal.
+    pub(super) provisional_sequence_read: bool,
     /// Tables read and tables written, for live subscriptions and commits.
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
     pub(crate) rows_written: u64,
     pub(crate) next_expiry: Option<i64>,
+    pub(super) witness_cache: Option<(super::read::WitnessKey, (bool, bool, Option<i64>))>,
     /// Partition events, accumulated for the commit; a logless host builds none.
     #[cfg(feature = "sqlite")]
     pub(crate) events: PendingEvents,
@@ -191,7 +195,7 @@ impl<'a> Runner<'a> {
             env.insert(name.clone(), value.clone());
         }
         Self {
-            tx,
+            tx: super::authorized_scan::GuardedRows::new(tx),
             schema,
             context,
             meter,
@@ -203,10 +207,12 @@ impl<'a> Runner<'a> {
             created_rows: BTreeMap::new(),
             inserted: Vec::new(),
             provisional_rows: BTreeSet::new(),
+            provisional_sequence_read: false,
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,
             next_expiry: None,
+            witness_cache: None,
             #[cfg(feature = "sqlite")]
             events: PendingEvents::default(),
             #[cfg(feature = "sqlite")]
@@ -419,13 +425,23 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::InsertIfAbsent { table, row, result } => {
                     let row = self.expr(row)?;
-                    let value = if self.insert_if_absent(table, row.clone())? { row } else { Value::Null };
+                    let value = if self.insert_if_absent(table, row.clone())? { self.sequence_result(table, row)? } else { Value::Null };
                     self.bind(result, value);
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {
-                    let row = self.expr(row)?;
-                    self.insert(table, row)?;
+                    let image = self.expr(row)?;
+                    if self.schema.tables[table].sequences.is_empty() {
+                        self.insert(table, image)?;
+                    } else {
+                        self.meter.heap(image.heap_bytes())?;
+                        self.insert(table, image.clone())?;
+                        // A bound insert keeps its engine-filled image in the result local.
+                        if let Expr::Variable(name) = row {
+                            let result = self.sequence_result(table, image)?;
+                            self.bind(name, result);
+                        }
+                    }
                     Flow::Next
                 }
                 Stmt::Update { table, key, patch } => {
@@ -521,7 +537,7 @@ impl<'a> Runner<'a> {
                     && !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_)));
                 let values = if prepaid { self.metered_domain(scan)? } else { self.scan(scan)? };
                 #[cfg(feature = "postgres")]
-                self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, self.tx);
+                self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, &self.tx);
                 if !prepaid { self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?; }
                 Ok(values)
             }
@@ -551,7 +567,7 @@ impl<'a> Runner<'a> {
                     return Err(RuntimeError::Fanout);
                 }
                 #[cfg(feature = "postgres")]
-                self.page_plan.prefetch.fill(&site, &values, &self.context, self.schema, self.tx);
+                self.page_plan.prefetch.fill(&site, &values, &self.context, self.schema, &self.tx);
                 Ok(values)
             }
             LoopDomain::Recurse(recurse) => self.recurse(recurse),
@@ -624,6 +640,7 @@ impl<'a> Runner<'a> {
                 if let Some((base, steps)) = borrowed(&self.env, base, &self.statement_site)? {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
+                    self.provisional_sequence_read |= self.sequence_field_is_provisional(base, name)?;
                     let value = base.field(name)?;
                     self.meter.heap(value.clone_heap_bytes())?;
                     return Ok(value.clone());
@@ -632,6 +649,7 @@ impl<'a> Runner<'a> {
                 match base {
                     Value::Null => Ok(Value::Null),
                     other => {
+                        self.provisional_sequence_read |= self.sequence_field_is_provisional(&other, name)?;
                         let value = other.field(name)?;
                         self.meter.heap(value.clone_heap_bytes())?;
                         Ok(value.clone())

@@ -8,6 +8,7 @@ use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
+use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
 use crate::value::{Value, canonical_json};
 
@@ -28,23 +29,83 @@ impl Runner<'_> {
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.target_attempt(table_name, |runner| {
-            runner.refuse_engine_owned(table_name, Effect::Insert)?;
-            let table = runner.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-            // @ref LLP 3000.013#11.1 — reserve once, before the target can select its write arm.
-            // Reserve before collision lookups. Upserts enter insert_attempt
-            // under their existing target-resolution reservation instead.
-            runner.reserve_write_rules(table, &[Effect::Read, Effect::Insert])?;
-            runner.insert_attempt(table_name, row, if_absent)
+            let mark = runner.meter.mark();
+            let result = runner.insert_attempt(table_name, row, if_absent, None);
+            // @ref LLP 3000.015#2 — denied direct allocations hide deferred
+            // read witnesses and counter work just as NOT_FOUND hides targets.
+            if matches!(&result, Err(RuntimeError::Rule { effect: Effect::Insert, .. }))
+                && runner.schema.tables.get(table_name).is_some_and(|table| !table.sequences.is_empty()) {
+                runner.meter.restore(mark);
+            }
+            result
         })
     }
 
-    fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+    fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool, upsert_index: Option<&str>) -> Result<bool, RuntimeError> {
+        self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
+        let supplied_sequence = super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row);
+        // A directly supplied field is a payload error before any lookup;
+        // only an upsert's copied address waits for insert authority.
+        if upsert_index.is_none() && supplied_sequence.is_err() { return supplied_sequence.map(|_| false); }
         let row = self.with_defaults(table_name, row)?;
-        let table = self.schema.table(table_name).expect("defaults validated the table").clone();
-        if !self.check_rule(table_name, Effect::Insert, None, &row)? {
+        let table = &self.schema.tables[table_name];
+        let independent = !table.sequences.is_empty() && !super::rules::deciding_fields(table_name, table, &table.rules.insert)
+            .iter().any(|field| table.sequences.contains_key(field));
+        // An independent denial must never consult a hidden read witness.
+        let authorized = independent && self.check_rule(table_name, Effect::Insert, None, &row)?;
+        if independent && !authorized {
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+        }
+        if !table.sequences.is_empty() {
+            // Admission reserves the worst case before either read verdict;
+            // restoring a refusal alone cannot hide a boundary abort.
+            // An independent insert rule was already prepaid and evaluated.
+            // Only still-pending checks belong in this preflight allowance.
+            let insert_checks = if authorized { 0 } else { 1 + u64::from(upsert_index.is_some() && supplied_sequence.is_ok()) };
+            self.reserve_sequence_authorization(table, &row, insert_checks)?;
+        }
+        // @ref LLP 3000.015#2 — an unreadable allocation cannot expose counter,
+        // uniqueness or cap state, even to a principal allowed to insert.
+        if !self.sequence_insert_readable(table_name, &row)? {
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+        }
+        if let Err(error) = supplied_sequence {
+            // @ref LLP 3000.007#17 — absent upserts decide insert authority before field diagnostics.
+            // A target key may supply an ordinal even when the patch does not.
+            if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
+                return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+            }
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { error });
+        }
+        let (row, sequence_full) = self.sequence_fields(table_name, row)?;
+        if let Some(index) = upsert_index {
+            if self.device { self.prove_upsert_insert(table_name, index, &row)?; }
+            // Preserve upsert's target preflight before the ordinary insert checks;
+            // only this first authority refusal is an undisclosed target miss.
+            if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
+            if sequence_full { return Err(super::sequences::exhausted()); }
+            if let Err(error) = validate_row(self.schema, table_name, &row) {
+                return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
+            }
+        }
+        if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
+        // Retry keys independent of engine allocation still identify a no-op
+        // at the ceiling. Never use the clamped authority candidate as a key.
+        if sequence_full && if_absent {
+            let table = self.schema.tables[table_name].clone();
+            for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().all(|column| !table.sequences.contains_key(column))) {
+                let key = index_values(index, &row);
+                if key.contains(&Value::Null) { continue; }
+                if self.collision_lookup(table_name, name, index, &key, None, Effect::Insert)?.is_some() {
+                    self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
+                    return Ok(false);
+                }
+            }
+        }
+        if sequence_full { return Err(super::sequences::exhausted()); }
         let row = self.record_insert(table_name, row)?;
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
@@ -55,8 +116,8 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
-                    self.visible_collision(table_name, &existing, Effect::Insert)?;
+                if self.collision_lookup(table_name, name, index, &key, None, Effect::Insert)?.is_some() {
+                    self.observe_sequence_columns(table_name, &row, &index.columns(), true)?;
                     return Ok(false);
                 }
             }
@@ -72,10 +133,13 @@ impl Runner<'_> {
             } else { "byId" };
             self.prove_upsert_insert(table_name, index, &row)?;
         }
-        let predecessor = self.tx.get(table_name, &id)?;
+        let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, allowance| {
+            let existing = runner.tx.get(allowance, table_name, &id)?;
+            if let Some(row) = &existing && !runner.expired(&table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
+            Ok(existing)
+        })?;
         if let Some(existing) = &predecessor {
-            if !self.expired(&table, existing) {
-                self.visible_collision(table_name, existing, Effect::Insert)?;
+            if !self.expired(&table, &existing) {
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
             }
             self.meter.charge(MeterKind::Examined, 1)?;
@@ -84,6 +148,7 @@ impl Runner<'_> {
         // The server's same-id expired replacement preserves occupancy in
         // unchanged cap groups. A device cannot rely on an expired predecessor.
         self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
+        self.commit_sequences(table_name, &row)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
         self.charge_source_indexes(&table, None, Some(&row), entries)?;
         self.row_changed(table_name, None, Some(&row), Origin::Source)?;
@@ -97,12 +162,13 @@ impl Runner<'_> {
     fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, &patch)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &patch)?;
         if patch.as_object()?.contains_key("id") {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
         }
         let id = key.as_str()?;
         self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &patch, false)?;
-        let Some(old) = self.fetch(table_name, id)? else {
+        let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
@@ -119,12 +185,13 @@ impl Runner<'_> {
     fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         self.refuse_recorded(table_name, &row)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, &row)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
         }
         self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &row, true)?;
-        match self.fetch(table_name, id)? {
+        match self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? {
             Some(old) => {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
@@ -137,19 +204,9 @@ impl Runner<'_> {
         }
     }
 
-    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value, expired_work: u64) -> Result<(), RuntimeError> {
+    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value, _expired_work: u64) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
-        // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
-        let row = self.with_defaults(table_name, row)?;
-        if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
-        // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
-        if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
-        self.meter.charge(MeterKind::Examined, expired_work)?;
-        // An incomplete insert patch has the same word as a refused hidden target.
-        if let Err(error) = validate_row(self.schema, table_name, &row) {
-            return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
-        }
-        match self.insert_attempt(table_name, row, false).map(|_| ()) {
+        match self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()) {
             Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
             result => result,
         }
@@ -171,6 +228,7 @@ impl Runner<'_> {
     pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, patch)?;
+        super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, patch)?;
         for path in self.schema.tables[table_name].recorded.keys() {
             if old.field(path).ok() != new.field(path).ok() {
                 return Err(if readable { RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("engine replacement changed stored attribution at {table_name}.{path} (guide maintains)") } } else { self.no_write_target() });
@@ -195,7 +253,7 @@ impl Runner<'_> {
         self.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, &table)?;
-        let Some(old) = self.fetch(table_name, id)? else {
+        let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
@@ -245,7 +303,7 @@ impl Runner<'_> {
         let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
         self.retiring = Some(Default::default());
         let retired = born.iter().try_for_each(|(table_name, id)| {
-            let Some(row) = self.tx.get(table_name, id)? else { return Ok(()) };
+            let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(()) };
             let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
             if table.expired(&row, now) { self.remove(table_name, &row) } else { Ok(()) }
         });
@@ -391,11 +449,12 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
+                if let Some(existing) = self.collision_lookup(table_name, name, index, &key, Some(&id), effect)
+                    .map_err(|error| if !readable && matches!(error, RuntimeError::Rule { .. }) { self.no_write_target() } else { error })?
                     && existing.field("id")?.as_str()? != id
                 {
+                    self.observe_sequence_columns(table_name, new, &index.columns(), effect == Effect::Insert)?;
                     if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
-                    self.visible_collision(table_name, &existing, effect)?;
                     let detail = format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "));
                     if let Some(refusal) = self.schema.unique_refusals.get(table_name).and_then(|indexes| indexes.get(name)) {
                         return Err(RuntimeError::NamedConstraint { code: refusal.code.clone(), message: refusal.message.clone(), detail });
@@ -449,14 +508,40 @@ impl Runner<'_> {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
-                    self.meter.charge(MeterKind::IndexEntries, 1)?;
-                    // @ref LLP 3000.013#11.1 — physical occupancy is conservative until sweep; never scan a cap group.
-                    let count = if table.expire.is_none() {
-                        self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
-                    } else {
-                        self.tx.cap_count(table_name, by, &group)?
-                    };
+                    let private_cap = !table.sequences.is_empty() && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
+                    let count = self.authorized_scan(&[
+                        (MeterKind::IndexEntries, 1),
+                        (MeterKind::Examined, if private_cap { *max as u64 } else { 0 }),
+                        (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 }),
+                    ], |runner, allowance| {
+                        if !private_cap && (table.expire.is_none() || table.sequences.is_empty()) {
+                            return if table.expire.is_none() { runner.tx.count_prefix(allowance, table_name, &index_name, &group, *max as u64 + 1) }
+                            else { runner.tx.cap_count(allowance, table_name, by, &group) };
+                        }
+                        let mut count = 0;
+                        let mut bounds = Bounds::default();
+                        loop {
+                            // Expired occupants consume physical work, never
+                            // hidden-dependent logical charges. Exhaustion
+                            // cannot establish occupancy and reveals no detail.
+                            let batch = runner.tx.remaining().min(32);
+                            if batch == 0 { return Err(RuntimeError::AuthorizationBudget); }
+                            let rows = runner.tx.scan(allowance, table_name, &index_name, &group, &bounds, Dir::Asc, batch)?;
+                            let fetched = rows.len();
+                            for (row, key) in rows {
+                                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
+                                if !runner.expired(&table, &row) {
+                                    if private_cap { runner.visible_collision(table_name, &row, effect)?; }
+                                    count += 1;
+                                }
+                                if count >= *max as u64 { break; }
+                            }
+                            if count >= *max as u64 || fetched < batch { break; }
+                        }
+                        Ok(count)
+                    })?;
                     if count >= *max as u64 {
+                        self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
                         let message = format!("{table_name} holds at most {max} rows per group by {}", by.join(", "));
                         return Err(if table.expire.is_some() {
@@ -467,6 +552,18 @@ impl Runner<'_> {
             }
         }
         Ok(())
+    }
+
+    fn collision_lookup(&mut self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value], except: Option<&str>, effect: Effect) -> Result<Option<Value>, RuntimeError> {
+        let probes = super::rules::rule_probes(&self.schema.tables[table].rules.read);
+        self.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner, allowance| {
+            let found = runner.live_lookup(allowance, table, name, index, key)?;
+            if let Some(row) = &found && Some(row.field("id")?.as_str()?) != except {
+                runner.observe_sequence_columns(table, row, &index.columns(), effect == Effect::Insert)?;
+                runner.visible_collision(table, row, effect)?;
+            }
+            Ok(found)
+        })
     }
 
     // @ref LLP 3000#7-decisions-during-execution — hidden collisions use the ordinary write-rule refusal
@@ -500,16 +597,21 @@ impl Runner<'_> {
                 let key: Vec<Value> = key
                     .iter()
                     .map(|term| match term {
-                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => row.field(field).cloned().unwrap_or(Value::Null),
+                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
+                            // This inserted image owns a provisional ordinal even if no expression read it.
+                            self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
+                            row.field(field).cloned().unwrap_or(Value::Null)
+                        },
                         crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
                         crate::schema::RuleTerm::Literal(value) => value.clone(),
                         crate::schema::RuleTerm::OldField(_) => Value::Null,
                     })
                     .collect();
                 self.read_tables.insert(target.clone());
+                self.observe_sequence_selection(target, index, &key)?;
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
                 let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = match self.live_lookup(target, index, target_index, &key)? {
+                let found = match self.authorized_scan(&[], |runner, allowance| runner.live_lookup(allowance, target, index, target_index, &key))? {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };
