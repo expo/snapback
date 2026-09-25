@@ -1,3 +1,4 @@
+import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import type { Queued, StoreCapture } from "./local-types.ts";
@@ -992,6 +993,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     // @ref LLP 3000.007#18.2 — a left group answers from delivered rows, online and offline, including watch reruns.
     if (outcome.denied) return wantsServer(outcome) ? link === "online" ? server(remembered, true, true) : { read: { denied: offline() }, tables, nextExpiry: null, transportOffline: true } : first.result;
     const pending = async () => (await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0));
+    // A read-through page may contain retained history beside an unknown current page.
+    if (!held && outcome.unknown && hasRetainedRows(outcome.data) && link === "online" && !await pending()) {
+      serverAnswers.delete(key);
+      let failed = false;
+      const remote = await server(() => { failed = true; return first.result; }, false, true);
+      if (!("data" in remote.read)) return remote;
+      const second = await local();
+      if (revision !== incarnation) return { read: { loading: true }, tables, nextExpiry: null };
+      if (second.terminal || !("data" in second.result.read) || failed || link !== "online" || await pending()) return second.result;
+      if (!second.outcome.unknown) return second.result;
+      const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
+      return { read: { ...remote.read, data: keepRetainedRows(remote.read.data, second.outcome.data) as R, fresh: false, complete: false }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
+    }
     const components = Object.values(outcome.components ?? {});
     // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — one original server query, then a second local observation and one publication of independent fields.
     if (!held && link === "online" && components.some(wantsServer) && components.some((c) => c.retained) && !await pending()) {
