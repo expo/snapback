@@ -55670,3 +55670,69 @@ increments 2 and 4 as directed. No syntax, refusal code, store/cursor/wire
 format, publication or push was added. File map, examples, test purposes,
 mutation witnesses and full failure accounting:
 [round-7 report](reports/20260925-intent-lane-t-round7.md).
+
+## 2026-09-25 — LLP 3000.014 Lane T round 8: sync, devices and the guide
+
+Landed increments 2 and 4 on `sb4-intent/t-read-through`. Removed the temporary
+`E_READ_THROUGH_SYNC` refusal. Read-through children now infer exactly the
+service-stripped inherited audience, retaining the existing grant guard, and
+carry captures on their sync images. The shared four-outcome parent resolver
+checks live current captures on devices, separately from child coverage.
+Unknown parent or child coverage never becomes a complete zero count. Covered
+inserts and same-chain parents predict; unheld/expired/retained-only parents,
+child upserts and if-absent inserts queue. Parent deletion prediction requires
+whole child coverage. Parent-key counts derive from current held children,
+including a fixed source-scratch reservation for non-expiring sources.
+
+Authoritative sync time is pinned on the server, staged with private images,
+and published atomically before pending-write replay. The durable device clock
+uses the later supplied or authoritative instant; no `local.ts` clock site was
+changed, preserving Lane Y's integration boundary. Fallback replaces current
+pages while preserving retained history. Retention has transient engine
+provenance through shapes/spreads and a separately metered device transport
+mask, so an application field cannot forge it. Only syncing delivered-history
+read-through tables reserve the `retained` output name; existing server-only
+columns keep their meaning. LLP 3000.014 §5 records that implementation choice.
+The rules card leads with a compiled issue tracker and Clique receipts/reactions
+plus the implicit-read unread view; other card edits are limited to the short
+language example and the affected why entries.
+
+Both round-7 delta reviews returned READY. Added their two nonblocking expiry
+witnesses and killed the named mutations. Focused proof includes five compiler
+sync tests, nine memory/SQLite device tests, seven wasm/native client tests,
+four metadata/heap tests, 80 guide tests, 35 shared server review tests, nine
+original read-through tests and 37 PostgreSQL adapter checks. The new device
+cases cover four-level sync, pending chains, capture mismatch after ID reuse,
+retained fallback, inherited expiry before physical sweeping, and atomic clock
+publication. Clique's partitions and answers match the flattened program on
+wasm and native. The historical lowering census still passes with unchanged
+IR for existing forms.
+
+Final `scripts/test.sh`: **`== 0 failure(s) in 1130 s`**, exit 0. Rust: 3,042
+passed, zero failed, 16 existing ignored. Clients: 1,598 total, 1,588 passed,
+zero failed, ten existing skips. The final command used `taskset -c 32-47`,
+`TMPDIR=/dev/shm/sb4-intent-lane-t-tests`, `CARGO_BUILD_JOBS=8`,
+`RUST_TEST_THREADS=4`, `SNAPBACK4_RUST_TEST_PROCESSES=8` and
+`SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`. No test or assertion was waived.
+Earlier fixture compilation, public-clock comparison and generated-type
+expectation failures were ours and fixed. Two parallel-only client observations
+(page-ready loading and session restoration) each passed five isolated repeats
+and the final serial full suite without changing either assertion. They are
+recorded as provisionally environmental/timing-sensitive, not proven baseline,
+with exact reproductions in the report. The host baseline was read; its older
+cargo failure was not used to excuse any failure here.
+
+Final wasm: **1,824,505 bytes raw / 509,390 bytes gzip**, Rust 1.97.0 and
+wasm-bindgen 0.2.127, without wasm-opt. Relative to the recorded round-7 artifact
+(1,799,206 / 503,057), the whole artifact adds 25,299 raw / 6,333 gzip bytes;
+this is not independent component attribution or a freshly rebuilt control.
+Per the artifact-budget procedure in AGENTS.md, raise that ratchet from 504,000
+to 510,000 bytes, leaving 610 bytes. Runtime meter ceilings are unchanged;
+retained-mask scratch/output and source recount work remain charged. Touched
+source files stay below 1,500 lines (`local.ts`: 1,499; `schema.rs`: 1,443;
+`engine/read.rs`: 1,297). No package, push, client clock rewrite or additional
+guide-card rewrite was performed. No requested increment is deferred.
+
+File-by-file changes, runnable forms, test purposes, all qualification attempts,
+decisions and unresolved environmental observations:
+[round-8 report](reports/20260925-intent-lane-t-round8.md).
