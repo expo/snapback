@@ -1,0 +1,87 @@
+$ /opt/homebrew/opt/postgresql@17/bin/initdb -D /Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8/data -A trust --no-locale -E UTF8
+The files belonging to this database system will be owned by user "ccheever".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "C".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+creating directory /Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8/data ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default "max_connections" ... 100
+selecting default "shared_buffers" ... 128MB
+selecting default time zone ... America/Los_Angeles
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+Success. You can now start the database server using:
+
+    '/opt/homebrew/opt/postgresql@17/bin/pg_ctl' -D /Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8/data -l logfile start
+
+
+[exit 0]
+$ /opt/homebrew/opt/postgresql@17/bin/pg_ctl -D /Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8/data -l /Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8/server.log -o '-h 127.0.0.1 -k /Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8 -p 60322 -c wal_level=logical' -w start
+waiting for server to start.... done
+server started
+
+[exit 0]
+Started postmaster PID 17336; data=/Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8/data; port=60322
+$ /opt/homebrew/opt/postgresql@17/bin/psql -X -h /Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8 -p 60322 -d postgres -v ON_ERROR_STOP=1 --echo-all -f /Users/ccheever/projects/snapback-sb5/snapback5/stubs/snapback.sql -f /Users/ccheever/projects/snapback-sb5/snapback5/stubs/form-table.sql
+-- LLP 4001 §3.7 A: executable syntax/type dummies, never a runtime.
+-- Every function is IMMUTABLE and returns a typed constant without side effects.
+create schema snapback;
+CREATE SCHEMA
+create schema auth;
+CREATE SCHEMA
+create schema cron;
+CREATE SCHEMA
+create domain snapback.id as text;
+CREATE DOMAIN
+create domain snapback.principal as text;
+CREATE DOMAIN
+create domain snapback.cursor as text;
+CREATE DOMAIN
+create domain snapback.image as text;
+CREATE DOMAIN
+create domain snapback.video as text;
+CREATE DOMAIN
+create function snapback.mint() returns snapback.id language sql immutable as $$ select 'dummy-minted-id'::snapback.id $$;
+CREATE FUNCTION
+create function snapback.count(source text, by text default null, "where" text default null) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.sum(source text, "of" text, by text default null, "where" text default null) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.sequence(parent anyelement) returns bigint language sql immutable as $$ select 1::bigint $$;
+CREATE FUNCTION
+create function snapback.recorded(ref snapback.id, field text) returns snapback.principal language sql immutable as $$ select 'alice'::snapback.principal $$;
+CREATE FUNCTION
+create function snapback.day(at timestamptz) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.hour(at timestamptz) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.bytes(asset text) returns bigint language sql immutable as $$ select 0::bigint $$;
+CREATE FUNCTION
+create function snapback.duration(asset snapback.video) returns interval language sql immutable as $$ select interval '0 seconds' $$;
+CREATE FUNCTION
+create function snapback.format(name text) returns text language sql immutable as $$ select '.*'::text $$;
+CREATE FUNCTION
+create function snapback.cap(maximum bigint, variadic keys text[]) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.matches(row_value anyelement, query text) returns boolean language sql immutable as $$ select true $$;
+CREATE FUNCTION
+create function snapback.connected(who snapback.principal) returns boolean language sql immutable as $$ select false $$;
+CREATE FUNCTION
+create function snapback.emit(effect text, payload json, once record) returns boolean language sql immutable as $$ select true $$;
+psql:/Users/ccheever/projects/snapback-sb5/snapback5/stubs/snapback.sql:24: ERROR:  SQL functions cannot have arguments of type record
+
+[exit 3]
+$ /opt/homebrew/opt/postgresql@17/bin/pg_ctl -D /Users/ccheever/projects/snapback-sb5-pg/rev4-2n93zbg8/data -m fast -w stop
+waiting for server to shut down.... done
+server stopped
+
+[exit 0]
+Stopped only recorded postmaster PID 17336; pid file absent=True

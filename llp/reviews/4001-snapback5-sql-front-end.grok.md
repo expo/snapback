@@ -585,3 +585,11 @@ Smallest fix on the printer test: round-trip the committed target, #19's four fi
 Nothing here needs a different experiment. One engine, Quarry as the control, the parser in the CLI, the premise as a question, and a pre-test before a compiler are still the right shape. This revision does not yet have a surface on which the pinned target lowers to itself: maintain residency, the trigger-only update, the probe grammar, and the time type are wrong in the table, and #19 still has forms with no row and no GAP. Pre-test 1 cannot return the answer §11.8 wants to decide on.
 
 The smallest revision that would be READY WITH CHANGES is those rows corrected, the missing #19 forms either given a spelling or marked ✗, the pre-test stops restated so they are not entailed by §3, and `snapback5/AGENTS.md` pointed at §2. I would not need to see pre-test results to call that revision READY WITH CHANGES.
+
+
+## Revision 4 disposition pointer — 2026-09-25
+
+The implementing lead recorded this round's dispositions in
+[LLP 4001 §12](../4001-snapback5-sql-front-end.rfc.md#round-3-dispositions).
+This is an append-only implementation note, not a new review or a changed
+verdict. Step 3 verification follows separately; no fourth review was run.

@@ -1,0 +1,43 @@
+$ cd /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/social
+$ CARGO_TARGET_DIR=/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build cargo run --locked --manifest-path /Users/ccheever/projects/snapback-sb5/snapback4/Cargo.toml -p snapback4 -- check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/social/snapback/schema.q
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running `/Users/ccheever/projects/snapback-sb5/snapback5/stubs/.build/debug/snapback4 check /Users/ccheever/projects/snapback-sb5/snapback5/stubs/lowered/social/snapback/schema.q`
+schema.q:185:10 — E_QUARRY_BOUND: members has no cap over this prefix; this position needs a bounded page
+  rewrite: declare `cap N` on members, or page with `first N` and a cursor: `members first 50 by .id after c` (declare `c: cursor ?`)
+  guide: bounds
+
+E_QUARRY_BOUND: a collected population needs a fitting schema cap or an explicit page. Return t where .owner = viewer first 20 by .at after c; declare c: cursor ?. For a total, use count(t where .owner = viewer); for a job, use for row in t:. A mutation loop still needs its whole-group admission proof. guide bounds.
+
+## Refusals
+
+E_QUARRY_BOUND means a boundless prefix is not valid in this position: no
+schema cap covers the group, its cap exceeds the examined ceiling, or a
+meter-bounded query prefix has a non-uniform read rule. Declare `cap N by cols`
+on the table if that is the intended group limit, then read `t where .group = group`, or
+page with `first N` and a cursor. For a non-uniform prefix, the rewrite also
+names the index columns to pin, as N_NEVER_COMPLETE does. A returned seek page still writes
+its page size. Descending reads keep `last N`.
+
+Full card: snapback4 guide bounds
+
+schema.q:189:16 — E_QUARRY_BOUND: messages by byId: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns
+  rewrite: use `first N`: `messages[] first 50 by byId`; for a complete read, scan by an index leading with conversationId, id and pin the deciding columns (N_NEVER_COMPLETE)
+  guide: bounds
+
+schema.q:224:3 — E_JOB_CURSOR_INDEX: sweep over read or declaration on members (principal, id) at schema.q:167:14 sweeps by principal, which a write could change under the cursor; a sweep's index columns are id or immutable
+  rewrite: immutable principal  -- on table members, or use `for row in members:` for stable id order
+  guide: jobs
+
+check: 3 problems
+1 mutations never predict: setFollow (reads online-only table followingWork) — snapback4 why <op>
+
+[exit 1]

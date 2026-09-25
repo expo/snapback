@@ -1,0 +1,1139 @@
+[
+  {
+    "id": "3.1-01",
+    "form": "`use identity password`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      105
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-02",
+    "form": "`effect push`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      107
+    ],
+    "quarry_projects": [
+      "social",
+      "effects"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-03",
+    "form": "`viewer`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      110
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-04",
+    "form": "`principal` column",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-05",
+    "form": "`t` reference column, `t ?`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-06",
+    "form": "intrinsic table `id`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types",
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-07",
+    "form": "bare `id` column, `id` argument",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      112
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-08",
+    "form": "`text`, `text <=N`, `text M..N`, `int`, `bool`, `time`, duration literals (`int`)",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types",
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-09",
+    "form": "`format handle`, `format url`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-10",
+    "form": "`enum('a','b')`",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types",
+      "rules"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-11",
+    "form": "`default now`, literals",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.1-12",
+    "form": "`image <=N`, `video <=N`, `once`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11,
+      115
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-01",
+    "form": "`unique a, b`",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-02",
+    "form": "`unique handle else HANDLE_TAKEN 'That handle is taken.'`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-03",
+    "form": "`immutable a, b`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      118
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-04",
+    "form": "`search a, b`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      121
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-05",
+    "form": "`cap 50 by conversationId`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-06",
+    "form": "`cap 1 by principal`, `cap 50 by chat, message`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-07",
+    "form": "`retain delivered-history`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      123
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-08",
+    "form": "`expire at .expiresAt`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      125
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-09",
+    "form": "online-only table",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-10",
+    "form": "`sync public`, `sync to members[.conversationId]`, `sync to .principal`, `sync … last N by .k`, `by .principal`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      127
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-11",
+    "form": "`likeCount: count likes`, `count posts by .parentId`, `sum likes of .weight`, `count … where …`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-12",
+    "form": "`public 'reason'`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      146
+    ],
+    "quarry_projects": [
+      "social",
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.2-13",
+    "form": "LLP 3000.015 `written by .principal` (+ `readable by audience`)",
+    "before": "≈",
+    "after": "✗",
+    "sql_lines": [
+      142
+    ],
+    "quarry_projects": [
+      "field-authority",
+      "field-authority-visible"
+    ],
+    "sql": "PASS",
+    "quarry": "FAIL — missing shared-baseline addition"
+  },
+  {
+    "id": "3.2-14",
+    "form": "LLP 3000.015 `sequence by conversationId`",
+    "before": "≈",
+    "after": "✗",
+    "sql_lines": [
+      11
+    ],
+    "quarry_projects": [
+      "sequence"
+    ],
+    "sql": "PASS",
+    "quarry": "FAIL — missing shared-baseline addition"
+  },
+  {
+    "id": "3.2-15",
+    "form": "`enable row level security`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      146
+    ],
+    "quarry_projects": [
+      "rules",
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-01",
+    "form": "`read <- expr`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      146,
+      173
+    ],
+    "quarry_projects": [
+      "rules",
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-02",
+    "form": "`insert <- expr`",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      146
+    ],
+    "quarry_projects": [
+      "rules",
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-03",
+    "form": "`delete <- expr`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      146
+    ],
+    "quarry_projects": [
+      "rules"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-04",
+    "form": "`update <- expr` (single image, tests the next row)",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      146
+    ],
+    "quarry_projects": [
+      "rules",
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-05",
+    "form": "`update (old, next) <- expr`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      184
+    ],
+    "quarry_projects": [
+      "rules"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-06",
+    "form": "several rules for one effect",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      184
+    ],
+    "quarry_projects": [
+      "rules"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-07",
+    "form": "`or viewer = 'service:x'`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      146
+    ],
+    "quarry_projects": [
+      "rules"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-08",
+    "form": "`created chats[.chat]` / `created messages[.message]`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      181
+    ],
+    "quarry_projects": [
+      "rules"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.3-09",
+    "form": "`through .ref` (LLP 3000.014)",
+    "before": "✗",
+    "after": "✗",
+    "sql_lines": [],
+    "quarry_projects": [],
+    "sql": "GAP — no spelling",
+    "quarry": "GAP — no lowered column"
+  },
+  {
+    "id": "3.4-01",
+    "form": "`view activity: posts where … { post: .id, actor: .authorId, at, repost: false }` + `reposts { … }`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      223
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-02",
+    "form": "`view following: activity where .actor = viewer or exists follows[viewer, .actor]`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      227
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-03",
+    "form": "`view followerCount: count follows by .followedId`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      230
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-04",
+    "form": "`view originalPosts: count posts where .parentId = null by .authorId`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      234
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-05",
+    "form": "`view receivedLikes: count likes by .postId.authorId`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      237
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-06",
+    "form": "`view dailyLikes: count likes by .postId.authorId, day(.at)`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      240
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-07",
+    "form": "LLP 3000.015 `view unread: count messages by members m where …`",
+    "before": "≈",
+    "after": "✗",
+    "sql_lines": [
+      244
+    ],
+    "quarry_projects": [
+      "row-keyed"
+    ],
+    "sql": "PASS",
+    "quarry": "FAIL — missing shared-baseline addition"
+  },
+  {
+    "id": "3.4-08",
+    "form": "`view postTotals: … online only`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      247
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-09",
+    "form": "`shape postCard = { *, author: profiles[principal = .authorId], replyCount: replyCount[.id], liked: exists likes[.id, viewer] }`, applied to two sources",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      252
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-10",
+    "form": "maintain residency without an override",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      230
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-11",
+    "form": "maintain `read <-` override",
+    "before": "✗",
+    "after": "✗",
+    "sql_lines": [],
+    "quarry_projects": [],
+    "sql": "GAP — no spelling",
+    "quarry": "GAP — no lowered column"
+  },
+  {
+    "id": "3.4-12",
+    "form": "nested point shapes and field replacement (`activityCard`, `messageCard`)",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      264
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.4-13",
+    "form": "spread `{ ...p, followers, following }`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      272
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-01",
+    "form": "`query home(c: cursor ?): return following last 20 by .at after c activityCard`",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      275
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-02",
+    "form": "`query global(c)`",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      280
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-03",
+    "form": "`query thread(postId: posts, c)`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      285
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-04",
+    "form": "`query people(q: text <=100, c)`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      290
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-05",
+    "form": "`matching q`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      290
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-06",
+    "form": "`socialProfile(handle: text 3..20 format handle)`: `profiles[handle = handle]! else NOT_FOUND`, spread, aggregate point reads, `exists`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      298
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-07",
+    "form": "`insights`: `for d in range(a, b)`, list building, object return",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      311
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-08",
+    "form": "`trending`: `where .parentId = null and not .removed and .at > now - 24h and .at <= now last 10 by .likeCount, .at`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      322
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-09",
+    "form": "aggregate reads without a view (streaming)",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      327
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-10",
+    "form": "`fn` helpers (`editWindow`, `receiptState`, …)",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      330
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-11",
+    "form": "`mutation edit(…): server`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      345
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-12",
+    "form": "optional reference / bounded media argument",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      347
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-13",
+    "form": "`[id] <=50`, list growth and cardinality, text length",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      350
+    ],
+    "quarry_projects": [
+      "types"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-14",
+    "form": "`now - m.at <= editWindow()`, `now + shortTTL()`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      330
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-15",
+    "form": "unpaged shaped scans (`roster`, `typingNow`), `first(read)` (`otherProfile`, `findGroup`)",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      355
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.5-16",
+    "form": "local `group(rows, 'emoji') { key, count(.items) }`",
+    "before": "✗",
+    "after": "✗",
+    "sql_lines": [],
+    "quarry_projects": [],
+    "sql": "GAP — no spelling",
+    "quarry": "GAP — no lowered column"
+  },
+  {
+    "id": "3.5-17",
+    "form": "named index `by byActorTime: actor, at` and dynamic `merge feedEvents … by byActorTime`",
+    "before": "✗",
+    "after": "✗",
+    "sql_lines": [],
+    "quarry_projects": [],
+    "sql": "GAP — no spelling",
+    "quarry": "GAP — no lowered column"
+  },
+  {
+    "id": "3.5-18",
+    "form": "reference list `[messages] <=50`",
+    "before": "✗",
+    "after": "✗",
+    "sql_lines": [],
+    "quarry_projects": [],
+    "sql": "GAP — no spelling",
+    "quarry": "GAP — no lowered column"
+  },
+  {
+    "id": "3.5-19",
+    "form": "independent sibling pages in one object",
+    "before": "✗",
+    "after": "✗",
+    "sql_lines": [],
+    "quarry_projects": [],
+    "sql": "GAP — no spelling",
+    "quarry": "GAP — no lowered column"
+  },
+  {
+    "id": "3.5-20",
+    "form": "LLP 3000.009 §6.2 `sql reading … returning …`",
+    "before": "✗",
+    "after": "✗",
+    "sql_lines": [],
+    "quarry_projects": [],
+    "sql": "GAP — no spelling",
+    "quarry": "GAP — no lowered column"
+  },
+  {
+    "id": "3.6-01",
+    "form": "`insert t { … } if absent`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      373
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-02",
+    "form": "`upsert t[k] { … }`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      379
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-03",
+    "form": "`update t[k] { … }`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      386
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-04",
+    "form": "`update t[k] { … } if cond`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      389
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-05",
+    "form": "`delete t[k]`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      392
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-06",
+    "form": "`require cond else CODE`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      395
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-07",
+    "form": "`emit push { … } once [a, b]`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      399
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-08",
+    "form": "`if … else if exists likes[postId, viewer]`",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      402
+    ],
+    "quarry_projects": [
+      "writes"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-09",
+    "form": "`job daily(periodStart, periodEnd): for p in profiles: …`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      415
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-10",
+    "form": "`schedule dailyDigest every 1d at 08:00: daily`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      428
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-11",
+    "form": "`schedule … : insights.daily`",
+    "before": "≈",
+    "after": "≈",
+    "sql_lines": [
+      432
+    ],
+    "quarry_projects": [
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-12",
+    "form": "presence deciding only an emit",
+    "before": "✓",
+    "after": "✓",
+    "sql_lines": [
+      415
+    ],
+    "quarry_projects": [
+      "writes",
+      "social"
+    ],
+    "sql": "PASS",
+    "quarry": "PASS"
+  },
+  {
+    "id": "3.6-13",
+    "form": "`after insert <-`",
+    "before": "✗",
+    "after": "✗",
+    "sql_lines": [],
+    "quarry_projects": [],
+    "sql": "GAP — no spelling",
+    "quarry": "GAP — no lowered column"
+  }
+]

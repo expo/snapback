@@ -905,3 +905,10 @@ The smallest additional pipeline contract is a finite routine/statement recogniz
 The revision’s strongest repairs are real: explicit residency calls, global immutability, nominal references, separate policy-image composition, recorded attribution, the three distinct maintained-view behaviors, withdrawal of the SQL escape hatch, and an independent original-Quarry comparison target. Those establish a plausible front-end architecture. They do not yet establish a complete lowering contract or a discriminating experiment.
 
 **Overall verdict: NOT READY.**
+
+## Revision 4 disposition pointer — 2026-09-25
+
+The implementing lead recorded this round's dispositions in
+[LLP 4001 §12](../4001-snapback5-sql-front-end.rfc.md#round-3-dispositions).
+This is an append-only implementation note, not a new review or a changed
+verdict. Step 3 verification follows separately; no fourth review was run.
