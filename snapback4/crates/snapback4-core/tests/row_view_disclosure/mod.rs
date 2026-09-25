@@ -35,6 +35,7 @@ pub struct Pair {
     pub page_size: usize,
     pub file_store: bool,
     pub examined: Option<u64>,
+    pub write_refusal: Option<&'static str>,
 }
 impl Pair {
     pub fn new(
@@ -53,6 +54,7 @@ impl Pair {
             page_size: 2,
             file_store: false,
             examined: None,
+            write_refusal: None,
         }
     }
     pub fn query(mut self, name: &str, args: Json) -> Self {
@@ -188,10 +190,13 @@ impl Pair {
                             .with_ids([format!("new-{n}")]),
                     )
                     .unwrap();
+                if let Some(code) = self.write_refusal {
+                    assert!(matches!(&result.state, snapback4_core::WriteState::Failed { why, .. } if why.code == code), "expected {code}: {result:?}");
+                }
                 transcript.insert(format!("{n}/settlement"), device(world, &mut e, &format!("settle/{n}"), &[json!(result)], now));
                 if op.principal == self.principal {
                     transcript.insert(format!("{n}/write"), serde_json::to_value(result).unwrap());
-                } else {
+                } else if self.write_refusal.is_none() {
                     assert!(
                         matches!(result.state, snapback4_core::WriteState::Sent { .. }),
                         "background writer refused: {result:?}"

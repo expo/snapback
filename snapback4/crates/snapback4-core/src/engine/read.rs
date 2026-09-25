@@ -151,7 +151,10 @@ impl Runner<'_> {
         if let Some(maintain) = self.schema.maintain_for(table).filter(|m|m.row_key.is_some()) {
             self.read_tables.insert(maintain.row_key.as_ref().unwrap().table.clone());
             if let Some(row) = &found {
-                if self.row_view_member_image(maintain, row)?.is_none() { found = None; }
+                let mark = self.meter.mark();
+                let present = self.row_view_member_image(maintain, row).map(|member| member.is_some());
+                self.meter.release_heap(mark);
+                if !present? { found = None; }
             }
             if equalities.iter().any(|(field,_)|field=="value") && let Some(row)=found.take() {
                 let prior = self.timeline_pending;
@@ -159,7 +162,7 @@ impl Runner<'_> {
                 found = self.live_row_view(maintain,row)?;
                 let pending = self.timeline_pending;
                 self.timeline_pending |= prior;
-                if pending { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or wait for complete (guide maintains)".into() }); }
+                if pending { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "a pending row-keyed count cannot decide an existence/rule probe; probe the member's existence or retry after recount settlement and expiry sweeping (guide maintains)".into() }); }
             }
         }
         let mut live = found.is_some();

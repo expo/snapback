@@ -49709,3 +49709,142 @@ Postgres runtime claim. All eleven mutation experiments reached their targeted
 test assertions; compilation failures were not counted as kills. The report is
 `/home/ccheever/sb5/lane-b3.r4.final.md`. Commit only on `sb5/b3-row-keyed-view`;
 no push, publication, or deployment.
+
+### 2026-09-25 — B3 round 5: only readable member images select recount work
+
+Astra D5's private-parent channel is closed at the member-write decision point
+in `row_view_member`: before selecting a changed range, a delta, a fallback or
+background work, a non-system writer must read the new member image and its
+destination source group. The member check comes first and public sources have
+no exemption. Blind non-owner marks return E_VIEW_KEY with the rewrite to make
+the member readable to its writers or mark through a server mutation. A newly
+readable image still cannot inherit a private old image's schedule. Deletes
+need no recount. LLP 3000.015 §3 and the maintains card state the same rule.
+
+Count reads now fetch the member using `scan_metered` and precharge
+`word_heap::materialize`; both the ordinary count and existence-probe callers
+own transient heap scopes. Releasing scratch retains the internal peak and any
+cut. Writer maintenance retains its existing schema reservation. This uses the
+same decode/materialization/release contract as B1 d49e1a966's read path and
+its non-private-table disclosed scan; B3 does not add a parallel heap model or
+copy B1's independently developed field-authority feature into this branch.
+The 17 MiB member now cuts under the 16 MiB allowance on memory/file SQLite;
+twenty reads of a 1 MiB member complete without accumulating transient heaps.
+A direct runner test separately proves default materialization is precharged
+and that both successful release and error release retain the internal peak.
+
+The paired generator grows from 450 (180 executable / 270 schema-refused) to
+540 (270 executable / 270 schema-refused). Its 90 new pairs cross public
+sources, blind non-owner writers, private parents and unequal public group
+populations, rotating three writer/owner/third-principal arrangements, two
+observers and three sender relationships across five population edges. Only
+the private parent differs between paired worlds. Refusal expectations are
+asserted separately from transcript equality, including when the observer is
+not the writer. The dedicated 1/1,200 regression also asserts no sequence
+advance, no background work, and an unchanged mark on memory/file SQLite.
+The same generated pairs replay through admission, prediction, outbox,
+settlement, changes, watermarks and snapshots on both device stores.
+
+An independent rank oracle adds 24 scalar configurations (int, text, time,
+bool × six comparisons), with forward/reverse marks, source insertions and
+predicted/settled values on both devices. It never calls RowKey::matches to
+compute its expected count. Five deliberate mutations are assertion-killed:
+public-source exemption, unmetered member fetch, uncharged materialization,
+unreleased transient member, and text `>` always false. Production files were
+restored after every experiment. Logs are under target/b3-r5-mutation-*.log;
+target/b3-r5-mutations.log records each exit and assertion kill.
+
+The spec keeps exactly two residuals: other principals' activity remains
+observable through the shared sequence/log protocol, and expired inputs still
+stored before sweep (including legacy born-expired rows) can select pending,
+count-dependent refusal or recount chunks. Closing the latter needs live-input
+indexing/materialization; it is deferred implementation, not necessary semantics.
+New born-expired writes still retire in their transaction as in round 4.
+
+The initial final-source wasm build measures 1,793,113 B raw / 500,797 B gzip
+(Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt), +384 raw / +144 gzip from
+round 4's 1,792,729 / 500,653. The shared metered member fetch and transient
+scope wrapper account for the source change; this is a whole-artifact delta,
+not independent symbol attribution. The 501,000 B ratchet is unchanged with
+203 B remaining. No runtime ceiling changed. Final complete-suite and Grok D5
+review dispositions follow in the qualification entry below.
+
+### 2026-09-25 — B3 round 5: Grok D5 disposition and qualification
+
+Read `/home/ccheever/sb5/reviews/b3-d5.grok.md` only after its completion marker
+reported `EXIT=0`. The review's NOT READY verdict is against f9aa41ebc, not this
+round's fixes. Every new item has a named disposition:
+
+- **Grok Medium — formerly-live expired inputs select recount commits and a
+  complete read can precede a writer refusal:** retained as the author's
+  explicitly deferred expiry residual in LLP 3000.015 §3. Recount settlement
+  does not sweep inputs; the writer has a smaller certification allowance than
+  a query. The guide and runtime hint now recommend the member row for a mark,
+  or retry after recount settlement and expiry sweeping for count-dependent
+  writes. No claim of closing this residual is made. Live-input indexing is
+  needed to remove both redundant recount work and expiry correction scans.
+- **Grok Low — pending corrections omit one public examined unit:** fixed by
+  performing the same future-expiry head lookup on complete and pending paths.
+  Both now expose the same public meter and next-expiry deadline. The added
+  matrix covers 0/30 at examined 48, 0/1,200 and 0/10,000 at the default ceiling,
+  each for ordinary expired messages, tombstones and own sends, on memory/file
+  SQLite. These nine residual scenarios are separate from the 540 normative
+  disclosure pairs. They prove equal correction meters and no nonzero expired
+  count through mark/recount/useCount; they do not falsely assert equal
+  background histories. The 1,200-row case still takes five chunks, and the
+  10,000-row case forty, as the documented deferred implementation states.
+- **Grok mutation gap — removing public correction charges survives:** fixed
+  by an exact runner assertion for one member fetch, one normalized correction,
+  one future head, and one public correction step. Removing the examined charge
+  or the step separately fails it. Restoring the skipped pending head fails the
+  new matrix. Together with the five earlier mutations, eight are killed at
+  assertions; target/b3-r5-grok-mutations.log records these final three.
+- **Grok generator gaps:** rotated principals/observers and independent scalar
+  comparisons are covered by this round's generated suites; formerly-live,
+  tombstone and own-send populations are covered by the separate nine-scenario
+  correction/recount oracle. Its pending and chunk differences remain the named
+  expiry residual, not passing noninterference pairs.
+- **Grok guide meter claim:** the common future head now makes the constant
+  public-meter claim true across correction completion. The card also states
+  that a complete query or settled stream need not certify a count-dependent
+  writer with a smaller allowance.
+
+The first complete run ended `== 1 failure(s) in 740 s` (only the Rust target):
+four older language tests established private Bob members through Alice and one
+also expected her blind mark to succeed. Their setup now joins as the member's
+owner. The blind-mark regression explicitly expects E_VIEW_KEY (or its prior
+meter refusal after 1,023 earlier writes) and asserts sequence, mark and public
+row rollback plus no recount. The focused language target passes all 29 tests.
+The first full run's other tests passed, including all five device disclosure
+suites and 540 generated pairs per store. It is recorded as a failed initial
+run in target/b3-r5-test-first.log, not as qualification. The final full run uses
+the same exact FORCE_COLOR-unset command and includes all Grok fixes above.
+
+The second complete run ended `== 1 failure(s) in 720 s`: Rust passed, while
+the wasm-envelope client test still asserted the former "wait for complete"
+rewrite. Its assertion now requires "retry after recount settlement and expiry
+sweeping" and passes against the rebuilt artifact (one test, no skips). The
+existence-probe hint and E_VIEW_KEY code card also use the corrected guidance.
+All 29 focused language tests pass after that alignment. The second run is
+retained at target/b3-r5-test-second.log; the final complete run is repeated
+with the aligned diagnostic assertions. No failed run is counted as qualification.
+
+Final qualification: **`== 0 failure(s) in 775 s`**, from the exact command
+`env -u FORCE_COLOR SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash snapback4/scripts/test.sh`.
+Rust passed in 570 s, including all 540 generated pairs and the supplemental
+pairs on both device stores, the scalar oracles, all four accounting tests,
+the direct materialization/public-charge assertions, and all 29 language tests.
+Client results: **1,089 passed, zero failed, 10 existing skips** in 739 s;
+fixture, type, docs-budget and release checks also passed. No source or tests
+changed during this final run. Evidence: target/b3-r5-test-final.log.
+
+The final complete build measures **1,793,145 B raw / 500,847 B gzip**, replacing
+the intermediate numbers above. Relative to round 4, this is **+416 B raw /
++194 B gzip**, including the metered member path and corrected writer/probe
+runtime hints. This remains a whole-artifact difference without component
+attribution. The **501,000 B ratchet is unchanged**, leaving **153 B**. The
+measured toolchain is Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt; Node is
+24.13.1. The Grok D5 exit marker was checked again after qualification and
+remains EXIT=0; all named findings are dispositioned above. Report:
+`/home/ccheever/sb5/lane-b3.r5.final.md`. Commit only on sb5/b3-row-keyed-view;
+no push, publication, deployment, or runtime ceiling change.

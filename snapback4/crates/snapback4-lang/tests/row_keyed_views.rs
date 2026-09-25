@@ -44,6 +44,15 @@ fn join(e: &mut Engine, member: &str, principal: &str, mark: i64, joined: i64) {
         ],
     );
 }
+// Private fixture members must be established by a reader of the new image.
+fn join_as_owner(e: &mut Engine, member: &str, principal: &str, mark: i64, joined: i64) {
+    let args = [("id", id(member)), ("conversationId", id("c")),
+        ("principal", id(principal)), ("readUpTo", Value::Int(mark)),
+        ("joinedAt", Value::Int(joined))];
+    let result = e.mutate("join", None, Context::new(principal,
+        args.into_iter().map(|(k,v)|(k.into(),v)).collect()).at(1)).unwrap();
+    assert!(matches!(result.state, WriteState::Sent { .. }), "{result:?}");
+}
 fn send(e: &mut Engine, name: &str, n: i64, who: &str, until: Value) {
     write(
         e,
@@ -319,7 +328,7 @@ fn unread_inherits_member_authority_and_expiry_timer() {
     let source=SOURCE.replacen("  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public", "  read <- .principal = viewer\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync to .principal",1);
     let b = bound(&source);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-    join(&mut e, "b", "bob", 0, 0);
+    join_as_owner(&mut e, "b", "bob", 0, 0);
     send(&mut e, "m1", 1, "alice", Value::Int(10));
     let r = e
         .query(
@@ -644,7 +653,7 @@ fn hidden_marks_have_identical_meters_bounds_and_changes() {
             let b = bound(&private_members(SOURCE));
             let mut e =
                 Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-            join(&mut e, "b", "bob", mark, 0);
+            join_as_owner(&mut e, "b", "bob", mark, 0);
             let from = e.seq().unwrap();
             if bounded {
                 e.set_ceilings(snapback4_core::Ceilings {
@@ -694,17 +703,20 @@ fn blind_member_marks_have_identical_meters_bounds_and_changes() {
                 "  update publicRows['p'] { n: 1 }\n".repeat(writes));
             let b = bound(&source);
             let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-            join(&mut e, "b", "bob", mark, 0);
+            join_as_owner(&mut e, "b", "bob", mark, 0);
             e.seed([("publicRows".into(), object([("id", id("p")), ("n", Value::Int(0))]))]).unwrap();
             for n in 1..=5 { send(&mut e, &format!("m{n}"), n, "alice", Value::Null); }
             let from = e.seq().unwrap();
             let out = e.mutate("blind", None, ctx(&[("member", id("b"))], 1)).unwrap();
             if writes == 0 {
-                assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
-                assert!(out.tables.contains(&"unread".into()));
+                assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_VIEW_KEY"), "{out:?}");
             } else {
                 assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"), "{out:?}");
             }
+            assert_eq!(e.seq().unwrap(), from);
+            assert_eq!(e.store().rows("members").unwrap()[0].field("readUpTo"), Ok(&Value::Int(mark)));
+            assert_eq!(e.store().rows("publicRows").unwrap()[0].field("n"), Ok(&Value::Int(0)));
+            assert!(e.run_view_chunk(1).unwrap().is_none());
             worlds.push(serde_json::to_vec(&(out, e.changes(from, 100).unwrap())).unwrap());
         }
         assert_eq!(worlds[0], worlds[1], "prior writes={writes}");
@@ -790,7 +802,7 @@ fn expired_private_member_catchup_deletes_view_before_sweep() {
     );
     let b = bound(&source);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-    join(&mut e, "b", "bob", 0, 0);
+    join_as_owner(&mut e, "b", "bob", 0, 0);
     let from = e.seq().unwrap();
     send(&mut e, "m1", 1, "alice", Value::Null);
     assert!(

@@ -179,7 +179,7 @@ fn generated_pairs_admission_outbox_and_settlement_on_both_devices() {
         let sqlite = pair_devices(&mut Sqlite::new("row-view-generated"), &pair);
         assert_eq!(memory, sqlite, "device stores differ: {name}");
     });
-    assert_eq!((count, admitted), (450, 180));
+    assert_eq!((count, admitted), (540, 270));
     for pair in [generated::astra_move(), generated::astra_schedule(), generated::aligned_access_hidden_mark(), generated::blind_private_parent()] {
         pair_devices(&mut Memory::new(), &pair);
         pair_devices(&mut Sqlite::new("row-view-astra"), &pair);
@@ -194,4 +194,45 @@ fn grok_born_expired_replays_every_device_lifecycle_channel() {
         let sqlite = pair_devices(&mut Sqlite::new("row-view-grok"), &pair);
         assert_eq!(memory, sqlite);
     }
+}
+
+#[path = "../../snapback4-core/tests/row_view_disclosure/scalars.rs"]
+mod scalars;
+fn scalar_device<H: Host>(host: &mut H, name: &str, pair: &Pair, marks: &[Json], expected: &[i64]) {
+    let mut e = pair.engine(0);
+    let mut d = host.open("scalars", Some(Backend { generation: e.generation(), schema: e.schema().public_projection(), programs: e.programs().cloned().collect() })).unwrap();
+    for (i, page) in snapshot(&mut e, "alice", NOW, 100).into_iter().enumerate() {
+        d.apply(&serde_json::from_value(page).unwrap(), i == 0).unwrap();
+    }
+    for (mark, &count) in marks.iter().zip(expected) {
+        let args = json!({"member":"scalar-member", "readUpTo":mark});
+        let prediction = d.predict("mark", "alice", &args, NOW, vec![], 1).unwrap();
+        let result = d.query("unreadFor", "alice", &json!({"member":"scalar-member"}), NOW).unwrap();
+        assert!(result.complete, "{name}: {result:?}");
+        assert_eq!(result.data, snapback4_core::Value::Int(count), "{name}: mark={mark}");
+        d.withdraw(&prediction.predicted).unwrap();
+        let result = e.mutate("mark", None, snapback4_core::Context::new("alice", inputs(&e, "mark", &args)).at(NOW)).unwrap();
+        assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }), "{name}: {result:?}");
+        for (i, page) in snapshot(&mut e, "alice", NOW, 100).into_iter().enumerate() {
+            d.apply(&serde_json::from_value(page).unwrap(), i == 0).unwrap();
+        }
+        let settled = d.query("unreadFor", "alice", &json!({"member":"scalar-member"}), NOW).unwrap();
+        assert!(settled.complete, "{name}: {settled:?}");
+        assert_eq!(settled.data, snapback4_core::Value::Int(count), "{name}: mark={mark}");
+    }
+}
+#[test]
+fn generated_scalar_comparisons_predict_and_settle_on_both_devices() {
+    assert_eq!(scalars::visit(|name, pair, marks, expected| {
+        scalar_device(&mut Memory::new(), &name, &pair, &marks, &expected);
+        scalar_device(&mut Sqlite::new("row-view-scalars"), &name, &pair, &marks, &expected);
+    }), 24);
+}
+
+#[test]
+fn public_source_blind_private_parent_replays_every_device_lifecycle_channel() {
+    let pair = generated::public_private_parent([1, 1200], "alice", "bob", "alice", "alice");
+    let memory = pair_devices(&mut Memory::new(), &pair);
+    let sqlite = pair_devices(&mut Sqlite::new("row-view-private-parent"), &pair);
+    assert_eq!(memory, sqlite);
 }

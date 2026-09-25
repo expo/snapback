@@ -54,7 +54,7 @@ fn generated_populations_transitions_and_expiry() {
         pair.assert_equal();
         if !pair.refused { pair.file_store = true; pair.assert_equal(); }
     });
-    assert_eq!(count, 450);
+    assert_eq!(count, 540);
 }
 #[test]
 fn astra_scratch_regressions_refuse_unsupported_audiences() {
@@ -86,4 +86,24 @@ fn shared_grant_blind_member_write_cannot_select_hidden_recount_traffic() {
 #[test]
 fn blind_nonowner_cannot_infer_a_private_parent_from_source_admission() {
     generated::blind_private_parent().assert_equal();
+}
+
+#[test]
+fn public_source_blind_private_parent_refuses_without_recount_work() {
+    let mut pair = generated::public_private_parent([1, 1200], "alice", "bob", "alice", "alice");
+    for file in [false, true] {
+        pair.file_store = file;
+        for world in 0..2 {
+            let mut e = pair.engine(world);
+            let base = e.seq().unwrap();
+            let op = &pair.operations[0];
+            let result = e.mutate(&op.name, None, snapback4_core::Context::new(&op.principal, inputs(&e, &op.name, &op.args)).at(NOW)).unwrap();
+            assert!(matches!(&result.state, snapback4_core::WriteState::Failed { why, .. }
+                if why.code == "E_VIEW_KEY" && why.message.contains("readable to its writers")), "{result:?}");
+            assert!(e.run_view_chunk(NOW).unwrap().is_none());
+            assert_eq!(e.seq().unwrap(), base);
+            assert!(e.store().rows("members").unwrap().iter().all(|r| r.field("readUpTo") == Ok(&snapback4_core::Value::Int(0))));
+        }
+        pair.assert_equal();
+    }
 }

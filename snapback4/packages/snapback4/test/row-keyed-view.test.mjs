@@ -53,7 +53,7 @@ test('row-key check JSON and rebuilt wasm carry the actual E_VIEW_KEY envelope',
   const prediction = call({ op: 'predict', name: 'depend', viewer: 'dev:bob', args: { member: 'b' }, now: 1 });
   assert.equal(prediction.ok?.denied?.code, 'E_VIEW_KEY', JSON.stringify(prediction));
   assert.equal(prediction.ok.denied.guide, 'maintains');
-  assert.match(prediction.ok.denied.rewrite, /wait for complete/);
+  assert.match(prediction.ok.denied.rewrite, /retry after recount settlement and expiry sweeping/);
 
   const member = { id: 'b', conversationId: 'c', principal: 'dev:bob', readUpTo: 0, joinedAt: 0 };
   const message = (id, until) => ({ id, conversationId: 'c', senderId: 'dev:alice', ordinal: 1, tombstone: false, until });

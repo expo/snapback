@@ -115,7 +115,52 @@ pub fn visit(mut run: impl FnMut(String, Pair)) -> usize {
             }
         }
     }
+    count + visit_blind_parents(run)
+}
+
+/// Public source × blind non-owner writer × private parent × unequal groups.
+/// Both worlds have exactly the same public populations; only the private
+/// member's parent differs. Rotate writers, owners, observers and senders.
+pub fn visit_blind_parents(mut run: impl FnMut(String, Pair)) -> usize {
+    let mut count = 0;
+    for populations in POPULATIONS.windows(2).map(|w| [w[0], w[1]])
+        .chain(std::iter::once([1, 1200])) {
+        for (writer, owner, third) in [("alice", "bob", "carol"), ("bob", "carol", "alice"), ("carol", "alice", "bob")] {
+            for observer in [writer, third] {
+                for sender in [writer, owner, third] {
+                    let pair = public_private_parent(populations, writer, owner, observer, sender);
+                    run(format!("public-private-parent/{populations:?}/writer-{writer}/owner-{owner}/observer-{observer}/sender-{sender}"), pair);
+                    count += 1;
+                }
+            }
+        }
+    }
     count
+}
+
+pub fn public_private_parent(populations: [usize; 2], writer: &str, owner: &str, observer: &str, sender: &str) -> Pair {
+    let seeds = ["c", "d"].map(|parent| {
+        let mut member = cases::member("private-member", owner, 0);
+        member.1["conversationId"] = json!(parent);
+        let mut visible = cases::member("observer-member", observer, 0);
+        visible.1["conversationId"] = json!("remote");
+        let mut seed = vec![member, visible];
+        for (parent, population) in ["c", "d"].into_iter().zip(populations) {
+            for n in 0..population {
+                let mut message = cases::message(&format!("{parent}{n:05}"), 5, false);
+                message.1["conversationId"] = json!(parent);
+                message.1["senderId"] = json!(sender);
+                seed.push(message);
+            }
+        }
+        seed
+    });
+    let mut pair = Pair::new(cases::private_members().replace("  expire at .until\n", ""), seeds, observer,
+        Operation::new("mark", json!({"member":"private-member","readUpTo":10}), writer))
+        .query("unreadFor", json!({"member":"observer-member"}));
+    pair.write_refusal = Some("E_VIEW_KEY");
+    pair.page_size = 256;
+    pair
 }
 /// Exact Astra scratch inputs are retained, now as admission counterexamples.
 pub fn astra_schedule() -> Pair {

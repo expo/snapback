@@ -363,7 +363,17 @@ impl Runner<'_> {
             return Ok(());
         }
         let u = row_image(u, &self.schema.tables[&k.table]).into_owned();
-        // A blind writer may select work only from the new image, never a private old mark.
+        // @ref LLP 3000.015#3 — this is the member-write recount decision point:
+        // only a readable new image may select work, even over public sources.
+        // Check the member first so its hidden parent cannot even select a refusal.
+        #[cfg(feature = "sqlite")]
+        if !self.device && !self.context.is_system()
+            && (!self.check_rule(&k.table, crate::schema::Effect::Read, None, &u)?
+                || !self.row_view_source_readable(m, &u)?)
+        {
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "member recounts require a readable member and destination source group; make the member row readable to its writers or mark through a server mutation (guide maintains)".into() });
+        }
+        // A newly readable image never inherits an unreadable old mark's schedule.
         let old = match old {
             Some(old) if self.check_rule(&k.table, crate::schema::Effect::Read, None, old)? => {
                 Some(row_image(old, &self.schema.tables[&k.table]).into_owned())
@@ -375,14 +385,6 @@ impl Runner<'_> {
             old.as_ref()
                 .is_none_or(|old| old.field(name).ok() != u.field(name).ok())
         });
-        #[cfg(feature = "sqlite")]
-        if !self.device && !self.context.is_system()
-            && !self.schema.tables[&m.source].rules.read.device_audience_rule().is_uniformly_readable()
-            && (!self.check_rule(&k.table, crate::schema::Effect::Read, None, &u)?
-                || !self.row_view_source_readable(m, &u)?)
-        {
-            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "private-source member writes require a readable member and destination source group; grant access first or use a public source for blind writes (guide maintains)".into() });
-        }
         if !changed
             && !live
             && let Some(existing) = &existing
@@ -560,7 +562,7 @@ impl Runner<'_> {
     }
     fn pending_view_read(&mut self) -> Result<(), RuntimeError> {
         if self.meter.cut == crate::meter::Cut::Abort {
-            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "an incomplete row-keyed count cannot decide a writer; use the member row or wait for complete before submitting this count-dependent write (guide maintains)".into() });
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "an incomplete row-keyed count cannot decide a writer; use the member row or retry after recount settlement and expiry sweeping (guide maintains)".into() });
         }
         self.timeline_pending = true;
         self.components.note(|f| f.pending = true);
@@ -572,9 +574,18 @@ impl Runner<'_> {
         row: &Value,
     ) -> Result<Option<Value>, RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
-        let Some(member) = self.view_get(&k.table, row.field("member")?.as_str()?)? else {
+        self.charge_maintain(MeterKind::Examined, 1)?;
+        // Use the read path's store-decode / materialization boundary. The caller
+        // owns a transient scope; writer maintenance keeps its prepaid fetches.
+        let Some((member, _)) = self.tx.scan_metered(
+            &k.table, "byId", std::slice::from_ref(row.field("member")?),
+            &Bounds::default(), Dir::Asc, 1, &mut self.meter,
+        )?.pop() else {
             return Ok(None);
         };
+        self.meter.heap(crate::rows::word_heap::materialize(
+            &member, &self.schema.tables[&k.table],
+        ))?;
         let member = row_image(&member, &self.schema.tables[&k.table]).into_owned();
         if self.expired(&self.schema.tables[&k.table], &member) {
             return Ok(None);
@@ -637,6 +648,17 @@ impl Runner<'_> {
     pub(super) fn live_row_view(
         &mut self,
         m: &Maintain,
+        row: Value,
+    ) -> Result<Option<Value>, RuntimeError> {
+        let mark = self.meter.mark();
+        let result = self.live_row_view_inner(m, row);
+        // Drop the member and decode scratch, retaining the peak and any cut.
+        self.meter.release_heap(mark);
+        result
+    }
+    fn live_row_view_inner(
+        &mut self,
+        m: &Maintain,
         #[allow(unused_mut)] mut row: Value,
     ) -> Result<Option<Value>, RuntimeError> {
         self.read_tables
@@ -682,14 +704,9 @@ impl Runner<'_> {
                 self.meter.charge(MeterKind::Examined, 1)?;
                 self.meter.step(1)?;
                 let (n, complete, _) = correction?;
-                if !complete {
-                    self.pending_view_read()?;
-                    return Ok(Some(self.view_image(m, &member, 0, true)?));
-                } else if let Value::Row(fields) = &mut row {
-                    let total = fields.get("value").unwrap().as_int()? - n;
-                    fields.insert("value".into(), Value::Int(total));
-                }
-                // One future-expiry head supplies a conservative reactive deadline;
+                // Both completed and pending corrections pay this live head lookup.
+                // Otherwise the examined count discloses correction overflow. It also
+                // supplies the same conservative reactive deadline on both paths;
                 // null/future rows never participate in the subtraction scan.
                 let bounds = Bounds {
                     gt: Some(Value::Int(now)),
@@ -698,6 +715,13 @@ impl Runner<'_> {
                 let (_, end, head) = self.view_scan(m, &member, None, &index, bounds, 1, true)?;
                 if !end && head.is_none() {
                     self.pending_view_read()?;
+                }
+                if !complete {
+                    self.pending_view_read()?;
+                    return Ok(Some(self.view_image(m, &member, 0, true)?));
+                } else if let Value::Row(fields) = &mut row {
+                    let total = fields.get("value").unwrap().as_int()? - n;
+                    fields.insert("value".into(), Value::Int(total));
                 }
                 return Ok(Some(row));
             }

@@ -630,7 +630,9 @@ rows using the parent/expiry index. An unfinished correction is
 `value: 0, recountPending: true`; it never exposes the stored total. An already
 pending expiring view also exposes zero, since its fallback lacks a live basis. Its
 bounded internal scan uses examined/step charges, while its public meter charges
-one examined unit and one step. Physical sweeping removes the expired
+one examined unit and one step. Completed and pending corrections both perform
+one future-expiry head lookup, with the same meter and reactive deadline.
+Physical sweeping removes the expired
 contributions. Devices compute from covered live rows and never subtract expiry
 from a received count. Without that coverage they report pending/incomplete.
 
@@ -641,28 +643,38 @@ witnesses the source's unique `exists members[parent, viewer]` membership probe.
 Other combinations refuse with E_VIEW_KEY, including an independently owned
 member with source `read <- .senderId = viewer`, `deny`, or an unrelated
 `exists access` grant. The limit also applies to raw server schemas and device
-open/adoption. For a restricted source, a member insert/update needs both its
-new member image and destination source group readable to its writer; grant
-access before writing or moving the member. Otherwise E_VIEW_KEY refuses before
-scanning that hidden group. Public sources still allow blind member writes. Deletion needs
-no source recount. Recount commits use global watermarks and `/changes`; filtering
-the view image alone would still expose hidden cardinality through that traffic.
+open/adoption. Recount work is selected only from an image the writer can read.
+Every member insert/update, including over public sources, needs a readable new
+member image and destination source group. Otherwise E_VIEW_KEY refuses before
+selecting recount work: make the member row readable to its writers, or mark
+through a server mutation. A blind non-reader cannot use an unchanged private
+parent to select a public group's recount. Deletion needs no source recount.
+Recount commits use global watermarks and `/changes`; filtering the view image
+alone would still expose hidden cardinality through that traffic.
 A defensive unreadable-group image remains zero/pending, not a certified count.
 Private-view scans must pin their audience or use a member key.
 
 For an admitted member reader, hidden rows outside the counted parent and
 born-expired source rows do not select its mark writer's meter or background
-recount sequence. Global activity from other principals and wall-clock work are
-not hidden. The pending bit can still reveal that correction of a formerly live
-expired subset exceeds its allowance; count-dependent writes then refuse until
-sweeping settles it. Formerly live expired rows can also select mark-recount
-chunk counts until swept. The pending value stays zero. Old stored expired rows use this
-correction path until swept.
+recount sequence. Two residuals remain: global activity by other principals is
+observable through the shared sequence/log protocol; expired rows still stored
+before the sweep (including old born-expired rows) may leave a count pending,
+select count-dependent refusal or change recount chunk counts. Pending expiring
+values stay zero. A complete query or settled stream does not guarantee a
+count-dependent writer can certify that count under its smaller allowance;
+recount settlement does not sweep expired inputs. Use the member row for a mark,
+or retry count-dependent writes after recount settlement and expiry sweeping.
+Closing the expiry residual needs live-input indexing and is
+deferred, not impossible. New born-expired writes retire at commit.
+
+Reading a count meters the member's decoding and materialization before
+allocation, even for unrelated large fields. The member's heap is transient;
+its peak and any meter cut remain charged.
 
 A small mark change scans the changed interval in the generated parent/ordinal
-index and updates the count in that transaction. A writer who cannot read the
-old member or the source group uses a recount from the new member image, so an
-old private mark or hidden predicate range cannot select its background work.
+index and updates the count in that transaction. A newly readable member whose
+old image was unreadable uses a recount from the readable new image, so the old
+private mark cannot select its background work.
 View refreshes do not depend on whether the hidden delta is zero.
 A larger change commits the
 mark and leaves a non-expiring last settled count **pending** within the same parent:
