@@ -930,13 +930,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (last) for (const table of last.tables) tables.add(table);
       return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: !last };
     };
-    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean } = remembered, remember = true, retain = false) => {
+    const server = async (failure: () => { read: Read<R>; tables: Set<string>; nextExpiry: number | null; transportOffline?: boolean } = remembered, remember = true, retain = false, provenance = false) => {
       const fetch = async () => {
         // A held query must not turn missing local coverage into a server scan, even during reset.
         if (held) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null, transportOffline: true };
         while (true) {
           const credentials = credentialRevision;
-          const result = await post(`/q/${op.name}`, { args });
+          const result = await post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) });
           if (revision !== incarnation || authority !== answers.revision) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
           if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
           if (!result.ok) return failure();
@@ -955,7 +955,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const next = (json.next as Cursor | null | undefined) ?? null;
           const read = { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next };
           if (remember) serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
-          return { read, tables, nextExpiry };
+          return { read, tables, nextExpiry, rowProvenance: json.rowProvenance };
         }
       };
       return watch ? watch.fetch(fetch, () => notify(watch), { publishResult: remember, retain }) : fetch();

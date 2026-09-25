@@ -153,3 +153,25 @@ fn authoritative_replay_invalidates_written_and_withdrawn_tables() {
     replay_touched(&mut Memory::new());
     replay_touched(&mut Sqlite::new("replay-touched"));
 }
+
+#[test]
+fn expired_unswept_matching_child_queues_parent_delete() {
+    fn check<H: Host>(host: &mut H) {
+        let source = SOURCE
+            .replace("table children:\n", "table children:\n  until: time ?\n  expire at .until\n")
+            .replace("insert children {id: 'c', parent: 'p'}", "insert children {id: 'c', parent: 'p', until: 150}");
+        let (mut e, b) = compile(&source);
+        e.mutate("setup", None, context("alice", &[]).at(100)).unwrap();
+        let mut d = host.open("expired-child", Some(b)).unwrap();
+        let page = e.snapshot_acquisition_page_at("alice", None, 100, 100).unwrap();
+        let snapshot: StreamPage = serde_json::from_value(json!({"snapshot":true,"held":page.held,"acquisitions":page.acquisitions,"events":page.events.iter().map(|e|json!({"table":e.table,"kind":"put","id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),"watermark":page.watermark,"generation":e.generation(),"more":false,"now":100})).unwrap();
+        d.apply(&snapshot, true).unwrap();
+        assert_eq!(d.store().raw_rows("children").len(), 1, "physical child is unswept");
+        let queued = d.admit(serde_json::from_value(json!({"id":"drop-expired","seq":0,"op":"drop","args":{},"viewer":"alice","now":200,"predictable":true})).unwrap()).unwrap();
+        assert!(!queued.predictable && queued.predicted.is_empty(), "{queued:?}");
+        assert_eq!(d.queued().unwrap().len(), 1);
+        assert_eq!(d.store().raw_rows("parents").len(), 1, "uncertain deletion does not predict");
+    }
+    check(&mut Memory::new());
+    check(&mut Sqlite::new("expired-child"));
+}

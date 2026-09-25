@@ -1,40 +1,10 @@
-// LLP 3000.014: the same capture images and parent fallback on wasm and native.
+// LLP 3000.014: capture images and parent fallback on wasm and native.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { once } from "node:events";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createLocalClient } from "../dist/local.js";
-import { processDevice } from "../dist/native.js";
-import { memoryPersistence, webDevice } from "../dist/web.js";
-const root=join(dirname(fileURLToPath(import.meta.url)),"../../..");
-const binary=process.env.SNAPBACK4_BIN??join(root,"target/debug/snapback4");
-const wasm=readFileSync(join(root,"packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { server, root } from "./helpers/read-through-server.mjs";
 const clique=readFileSync(join(root,"crates/snapback4-lang/tests/fixtures/read-through-clique.q"),"utf8");
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function server(t,tier,source) {
-  const dir=mkdtempSync(join(tmpdir(),"sb4-through-"));mkdirSync(join(dir,"snapback"));mkdirSync(join(dir,"device"));
-  writeFileSync(join(dir,"snapback/schema.q"),"use personas alice, bob\n"+source);
-  const child=spawn(binary,["dev","--port","0","--fresh","--no-watch"],{cwd:dir,stdio:["ignore","pipe","pipe"]});
-  const exit=once(child,"exit");let log="",url,client,core,paused=false;const deliveries=new Set();
-  child.stdout.on("data",d=>{log+=d;url??=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];});child.stderr.on("data",d=>log+=d);
-  t.after(async()=>{paused=false;for(const resume of deliveries)resume();deliveries.clear();await client?.close();if(child.exitCode==null&&child.signalCode==null)child.kill("SIGTERM");await exit;rmSync(dir,{recursive:true,force:true});});
-  for(let i=0;!url&&i<750;i++){assert.equal(child.exitCode,null,log);await sleep(20);}assert.ok(url,log);
-  const post=(path,body)=>fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"bob"},body:JSON.stringify(body)}).then(r=>r.json());
-  const opener=tier==="wasm"?webDevice({wasm,persist:memoryPersistence()}):processDevice({binary,dir:join(dir,"device"),spawn:(cmd,args)=>spawn(cmd,args,{stdio:["pipe","pipe","inherit"]}),writeFile:async(path,text)=>writeFileSync(path,text)});
-  const requests=[],answers=[];
-  return {post,requests,answers,get core(){return core;},pauseSync(){paused=true;},async open(){
-    client=await createLocalClient({url,persona:"bob",waitSeconds:1,fetch:async(input,init)=>{
-      const path=new URL(input).pathname;requests.push(path);const response=await fetch(input,init);
-      if(paused&&path==="/sync")await new Promise(resolve=>deliveries.add(resolve));
-      return response;
-    },device:{open:async(...args)=>{core=await opener.open(...args);return {close:()=>core.close(),call:async(request,committed)=>{const reply=await core.call(request,committed);if(request.op==="query")answers.push({name:request.name,...reply.ok});return reply;}};}}});
-    await client.sync();return client;
-  }};
-}
 for(const tier of ["wasm","process"]) test(`${tier}: Clique capture partitions and answers equal the flattened program`,{timeout:60000},async t=>{
   const results=[];
   const until=Date.now()+3_600_000;
@@ -122,9 +92,11 @@ for(const tier of ["wasm","process"]) test(`${tier}: an unheld parent falls back
   assert.deepEqual(result.data,[{id:"new",body:"current"},{id:"old",body:"delivered",retained:true}],JSON.stringify(result));
   assert.equal(result.fresh,false);assert.equal(result.complete,false);
   const nested=await client.query({kind:"query",name:"nested"},{parent:"a"});
-  assert.deepEqual(nested.data,[{rows:result.data}]);
+  assert.deepEqual(nested.data,[{rows:[{id:"old",body:"delivered",retained:true}]}],"identityless array wrappers stay local, incomplete");
+  assert.equal(nested.complete,false);
   const nestedLocal=host.answers.findLast(a=>a.name==="nested");
-  assert.deepEqual(nestedLocal.retainedRows,[{rows:[true]}]);
+  assert.equal(nestedLocal.retainedRows[0].source,null);
+  assert.deepEqual(nestedLocal.retainedRows[0].fields.rows[0].source,["children","old"]);
 });
 
 const chain=readFileSync(join(root,"crates/snapback4-lang/tests/fixtures/read-through-device.q"),"utf8");
@@ -155,27 +127,22 @@ for(const tier of ["wasm","process"]) test(`${tier}: four-level capture, covered
 });
 import { hasRetainedRows, keepRetainedRows } from "../dist/local-through.js";
 
-test("retained fallback uses device provenance, not an application field", () => {
-  const ordinary = { id: "ordinary", retained: true };
-  const history = { id: "history", retained: true };
-  const mask = { rows: [{ id: false, retained: false }, true] };
-  assert.equal(hasRetainedRows(mask), true);
-  assert.equal(hasRetainedRows({ rows: [{ id: false, retained: false }] }), false);
-  assert.deepEqual(keepRetainedRows({ rows: [{ id: "server" }] }, { rows: [ordinary, history] }, mask),
-    { rows: [{ id: "server" }, history] });
+const mask=(table,id,retained=false,fields={})=>({source:[table,id],retained,fields});
+test("retained fallback uses provenance identities, not projected fields", () => {
+  const ordinary={id:"ordinary",retained:true}, history={id:"history",retained:true}, server={id:"server"};
+  const localMask=[mask("rows","ordinary"),mask("rows","history",true)];
+  assert.equal(hasRetainedRows(localMask),true);
+  assert.equal(hasRetainedRows([mask("rows","ordinary",false,{retained:null})]),false);
+  assert.deepEqual(keepRetainedRows([server],[ordinary,history],localMask,[mask("rows","server")]),[server,history]);
   assert.deepEqual(keepRetainedRows([], [ordinary], undefined), []);
 });
-
-
-test("retained fallback recursively merges masks and prefers server IDs", () => {
-  const old={id:"old",body:"history",retained:true};
-  const duplicate={id:"live",body:"stale",retained:true};
-  const current={id:"live",body:"current"};
-  assert.deepEqual(keepRetainedRows([current],[duplicate,old],[true,true]),[current,old]);
-  assert.deepEqual(keepRetainedRows([{rows:[current]}],[{rows:[duplicate,old]}],[{rows:[true,true]}]),[{rows:[current,old]}]);
-  assert.deepEqual(keepRetainedRows({pages:[[{rows:[]}]]},{pages:[[{rows:[old]}]]},{pages:[[{rows:[true]}]]}),{pages:[[{rows:[old]}]]});
+test("retained fallback keeps identityless subtrees and prefers matching source IDs", () => {
+  const old={body:"history",retained:true}, duplicate={body:"stale",retained:true}, current={body:"current"};
+  assert.deepEqual(keepRetainedRows([current],[duplicate,old],[mask("rows","live",true),mask("rows","old",true)],[mask("rows","live")]),[current,old]);
+  const local=[{rows:[old]}], provenance=[{source:null,retained:false,fields:{rows:[mask("rows","old",true)]}}];
+  assert.deepEqual(keepRetainedRows([{rows:[current]}],local,provenance,[{source:null,retained:false,fields:{rows:[mask("rows","live")]}}]),local);
+  assert.deepEqual(keepRetainedRows([current],[old],[mask("rows","old",true)]),[old],"a missing server envelope cannot authorize identity guesses");
 });
-
 
 for(const tier of ["wasm","process"]) test(`${tier}: retained children do not terminally refuse a reused parent delete`,{timeout:60000},async t=>{
   const source=chain.replace("table comments:","table comments:\n  retain delivered-history")+`
@@ -183,6 +150,8 @@ mutation reuse():
   delete comments['old']
   delete tasks['t']
   insert tasks {id: 't', project: 'p2'}
+mutation dropComment(id: comments):
+  delete comments[id]
 `;
   const host=await server(t,tier,source);
   for(const [org,project,task] of [["o","p","t"],["o2","p2","other"]])
@@ -198,8 +167,34 @@ mutation reuse():
   assert.equal((await apply([parent])).denied,undefined);
   const retained=(await host.core.call({op:"query",name:"page",viewer:"dev:bob",args:{task:"t"},now:Date.now()})).ok;
   assert.equal(retained.data[0].id,"old");assert.equal(retained.data[0].retained,true);
+  // The old retained child sorts first. It must not hide a later live child.
+  assert.equal((await host.post("/m/post",{id:"live",args:{id:"z-live",task:"t",body:"live"}})).state,"sent");
+  const populated=await host.post("/sync",{from:0,limit:100});
+  const live=populated.events.find(e=>e.table==="comments"&&e.id==="z-live");assert.ok(live);
+  assert.equal((await apply([live])).denied,undefined);
+  const blocked=await host.core.call({op:"admit",entry:{id:"blocked-delete",seq:0,op:"dropTask",args:{id:"t"},viewer:"dev:bob",now:Date.now(),predictable:true}});
+  assert.equal(blocked.denied?.code,"E_PARENT_HAS_CHILDREN",JSON.stringify(blocked));
+  assert.equal((await host.post("/m/dropComment",{id:"remove-live",args:{id:"z-live"}})).state,"sent");
+  assert.equal((await apply([{table:"comments",kind:"del",id:"z-live"}])).denied,undefined);
   const deletion=await host.core.call({op:"admit",entry:{id:"delete-reused",seq:0,op:"dropTask",args:{id:"t"},viewer:"dev:bob",now:Date.now(),predictable:true}});
   assert.equal(deletion.denied,undefined,JSON.stringify(deletion));
   assert.equal(deletion.ok.predictable,true);assert.deepEqual(deletion.ok.predicted,["tasks/t"]);
   assert.equal((await host.post("/m/dropTask",{id:"delete-server",args:{id:"t"}})).state,"sent");
+});
+
+for(const tier of ["wasm","process"]) test(`${tier}: an expired unswept matching child queues its parent delete`,{timeout:60000},async t=>{
+  const source=chain.replace("table comments:","table comments:\n  until: time ?\n  expire at .until")+`
+mutation postUntil(id: comments, task: tasks, until: time):
+  insert comments {id, task, until, body: 'soon', at: 1}
+`;
+  const host=await server(t,tier,source), now=Date.now();
+  assert.equal((await host.post("/m/setup",{id:"setup",args:{org:"o",project:"p",task:"t",until:now+300000}})).state,"sent");
+  assert.equal((await host.post("/m/postUntil",{id:"post",args:{id:"c",task:"t",until:now+150000}})).state,"sent");
+  await host.open();host.pauseSync();
+  const before=(await host.core.call({op:"query",name:"page",viewer:"dev:bob",args:{task:"t"},now})).ok;
+  assert.equal(before.data[0].id,"c");
+  const queued=await host.core.call({op:"admit",entry:{id:"delete-after-expiry",seq:0,op:"dropTask",args:{id:"t"},viewer:"dev:bob",now:now+200000,predictable:true}});
+  assert.equal(queued.denied,undefined,JSON.stringify(queued));
+  assert.equal(queued.ok.predictable,false);assert.deepEqual(queued.ok.predicted,[]);
+  assert.equal((await host.core.call({op:"queued"})).ok.length,1);
 });
