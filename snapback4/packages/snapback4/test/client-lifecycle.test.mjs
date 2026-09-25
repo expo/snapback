@@ -1057,14 +1057,18 @@ for (const tier of ["wasm", "native"]) {
   });
 
   test(`${tier}: population growth cannot mint new IDs during prediction replay`, { timeout: 12_000 }, async (t) => {
-    const f = await fixture(t);
-    await f.seed([{ table: "sources", row: { id: "source-0", owner: "dev:alice" } }]);
     const entered = deferred(), release = deferred(), syncEntered = deferred(), syncRelease = deferred();
+    const sendRelease = deferred();
+    const f = await fixture(t, "", [release, syncRelease, sendRelease]);
+    await f.seed([{ table: "sources", row: { id: "source-0", owner: "dev:alice" } }]);
     let holdSync = false;
     let postedIds;
     const deviceRefusals = [];
     const client = await f.open(tier, { wrapNative: (core) => ({
       async call(request) {
+        // Inspect the rebased prediction before advancing send_revision;
+        // a racing head probe is otherwise correctly refused as obsolete.
+        if (request.op === "begin_send") await sendRelease.promise;
         const result = await core.call(request);
         if (result.denied) deviceRefusals.push({ op: request.op, denied: result.denied });
         return result;
@@ -1092,10 +1096,11 @@ for (const tier of ["wasm", "native"]) {
     assert.equal((await f.server.mutate(mutation("addSource"), {})).state, "sent");
     syncRelease.resolve();
     await syncing;
-    await entered.promise;
     const rebased = await client.query(query("copied"), {});
     assert.deepEqual(deviceRefusals, [], "withdrawing an expanded replay still commits the authoritative stream transaction");
     assert.deepEqual(rebased.data, [], "an attempt needing another ID withdraws the prediction and uses authority");
+    sendRelease.resolve();
+    await entered.promise;
     assert.deepEqual(postedIds, [originalId], "the in-flight request retains exactly the admitted IDs");
     release.resolve();
     assert.equal((await write).state, "sent");
