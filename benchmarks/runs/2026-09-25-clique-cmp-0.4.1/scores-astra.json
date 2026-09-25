@@ -1,0 +1,184 @@
+{
+  "scorer": {
+    "family": "astra",
+    "model": "gpt-6-astra",
+    "basis": "own three lanes' narrative files"
+  },
+  "backends": {
+    "snapback4": {
+      "overall": {
+        "score": 82,
+        "note": "M1–M6/M8 were web-green with integrated sync, assets, and effects; the final-report's documented Following residency restriction materially limits suitability at the required envelope. Agent, environment, and ambiguous correction loops receive no defect penalty."
+      },
+      "setup_and_docs": {
+        "score": 90,
+        "note": "M1/M5 diaries: published identity, asset, expiry, and search guides mapped closely to requirements; the first profile schema compiled immediately. M8's coverage and queue-admission concepts required repeated reading, without established misleading documentation."
+      },
+      "data_modeling": {
+        "score": 86,
+        "note": "M1/M2/M8 diaries: compact declarations supplied identities, maintained feeds, counters, and aggregates. Quarry's indexed-prefix bindings and prediction eligibility introduced a learning cost; the M3 helper binding illustrates its constrained expressiveness."
+      },
+      "authorization": {
+        "score": 91,
+        "note": "M3–M5 diaries: membership rules, asset permissions, removal cutoff, expiry, and per-recipient once access shared the schema boundary. Retaining removed-member history required a separate held query when membership-dependent receipt data became unreadable."
+      },
+      "queries_and_live": {
+        "score": 84,
+        "note": "M2/M5/M8 diaries: maintained feeds/counts, indexed offline prefix search, and ranked Trending reduced query plumbing. Coverage and held-read semantics require care; ambiguous usePage and render incidents are excluded from defect penalties."
+      },
+      "writes_and_transactions": {
+        "score": 94,
+        "note": "M3/M6 diaries: unique DMs, recipient snapshots, and idempotent writes worked through declared operations. E_ID_REUSED correctly rejected changed media arguments on retry; preserving original references resolved the agent's mistake."
+      },
+      "offline_sync": {
+        "score": 90,
+        "note": "M6/M8 diaries and final-report: the SDK owned persistence, prediction, ordered replay, and recovery; browser reload retained pending sends and ordinary media while excluding once media. Presentation references remained app-owned; native runtime was unverified."
+      },
+      "media_assets": {
+        "score": 95,
+        "note": "M4/M5 diaries: server media facts, permission-bound serving, expiry, and per-recipient one-view consumption directly supported the brief. M8's browser proof distinguished durable ordinary media from transient once media without a custom authorization proxy."
+      },
+      "background_work": {
+        "score": 94,
+        "note": "M6/M8 diaries: effects, replay suppression, schedules, and durable once keys supplied push and digest machinery. The isolated proof crossed a scheduled boundary after restart, retried the job, and suppressed the next idle period."
+      },
+      "client_integration": {
+        "score": 82,
+        "note": "M1–M8 diaries: the Expo client supplied auth, local queries, subscriptions, and persistent device storage. Held reads, prediction eligibility, and admission states demanded integration knowledge; React lifecycle, Metro, and incorrect write-ID mistakes are excluded."
+      },
+      "diagnostics_dev_loop": {
+        "score": 95,
+        "note": "Run-log and essay: E_QUARRY_BOUND, N_NOT_PREDICTABLE, N_MAINTAINED_COLUMN_STREAM, E_ID_REUSED, and E_WRITE_ID explained concrete constraints. Residency tooling and E_TIMELINE_SHAPE exposed the feed limitation; no confirmed runtime defect was established."
+      },
+      "scale_and_limits": {
+        "score": 55,
+        "note": "Final-report: replay invariants passed; E_TIMELINE_SHAPE forbids bounding materialized Following sources, requiring broad residency. That constraint earns the penalty; 30s/180s acquisition misses retain ambiguous attribution, and alternative feed architectures remain untested."
+      },
+      "operations": {
+        "score": 84,
+        "note": "M6/M8 and final-report: idempotent seeds, fresh-instance replay, worker restart/retry proofs, and residency diagnostics worked. Internal identity SQL was intentionally inaccessible; verification used signup accounting. Production operations and M7 migration were not demonstrated."
+      },
+      "verdict": "Snapback supplied the most integrated offline and media stack, but its built-in Following feed introduced a consequential scale constraint.",
+      "would_use_again_for": "I would use it again for offline messaging with bounded, explicitly validated replica residency."
+    },
+    "convex": {
+      "overall": {
+        "score": 83,
+        "note": "All continuous web milestones, full replay, and a 16-second browser bootstrap passed (final-report); reactive transactions were strong, but durable offline storage, exact prefix search, and revocable media required substantial application subsystems."
+      },
+      "setup_and_docs": {
+        "score": 78,
+        "note": "M1 diary: first-party Password authentication worked, but auth/key setup and hidden CLI port options required additional discovery and package-source lookup. Agent signup assumptions, routing errors, and harness failures receive no defect penalty."
+      },
+      "data_modeling": {
+        "score": 88,
+        "note": "M2/M3/M8 diaries and essay: indexed tables and transactional functions naturally expressed messaging and maintained aggregates. Uniqueness lived in write-path lookups rather than declarative constraints; search postings and backfill needed explicit design."
+      },
+      "authorization": {
+        "score": 80,
+        "note": "M3/M4 and essay: membership, receipt, and media boundaries were expressible alongside transactions. Every public function needed explicit authorization, and immediate logout required session-record checks rather than JWT validation alone."
+      },
+      "queries_and_live": {
+        "score": 86,
+        "note": "M2/M3/M8 diaries: subscriptions directly updated messages, counts, membership, and account read state. M5's newest-first prefix contract required custom postings because relevance-ranked search did not fit; the scale query-plan mistake is excluded."
+      },
+      "writes_and_transactions": {
+        "score": 94,
+        "note": "M2–M4/M8 diaries: atomic mutations kept edges, counts, reaction replacement, recipient snapshots, and aggregates consistent. Stable intent keys supported retries; the full replay preserved invariants across all 167157 actions."
+      },
+      "offline_sync": {
+        "score": 55,
+        "note": "M6 diary and essay: durable messages, cursors, outbox, ordered replay, media storage, and revocation cleanup were entirely application work. Final browser-process restart proofs passed; the reactive client itself supplied no durable offline database."
+      },
+      "media_assets": {
+        "score": 72,
+        "note": "M2/M4/M5 diaries: uploads were easy, but video validation, session-bound HTTP grants, immediate revocation, and per-recipient once consumption required application logic. Ordinary public storage URLs could not supply the required refusal semantics."
+      },
+      "background_work": {
+        "score": 90,
+        "note": "M3/M5/M8 diaries: scheduled cleanup, expiry, rolling Trending, and cron digests worked. Closed-client proofs verified authorization and restart idempotency; presence leases, aggregate backfill, and period records remained explicit application design."
+      },
+      "client_integration": {
+        "score": 86,
+        "note": "M2/M3/M8 diaries: query subscriptions and account read watermarks made connected screens direct; the native protocol also worked headlessly. Durable storage required separate integration; Expo, navigation, and bootstrap implementation errors are excluded."
+      },
+      "diagnostics_dev_loop": {
+        "score": 83,
+        "note": "Run-log and essay: typing and server diagnostics supported correction, but provider and cache behavior sometimes required package-source inspection. The scale error identified excessive system operations without identifying the authorization-late query plan."
+      },
+      "scale_and_limits": {
+        "score": 91,
+        "note": "Final-report: all replay checkpoints and published diagnostic gates passed; browser bootstrap durably stored 10000 messages and rendered 100 conversations in 16018ms. Agent query-plan/batching failures are excluded; unusually broad search prefixes remain a caveat."
+      },
+      "operations": {
+        "score": 84,
+        "note": "Final-report: fresh local instances, verified checkpoint clones, resumable acknowledged replay, and M8 aggregate backfill preserved data. Explicit backend execution supported isolation; production deployment and M7 migration were not tested."
+      },
+      "verdict": "Convex provided the strongest demonstrated envelope coverage and direct connected behavior, while leaving substantial offline and media-policy code to the application.",
+      "would_use_again_for": "I would use it again for reactive collaboration where the team can own durable offline storage and strict media-delivery rules."
+    },
+    "supabase": {
+      "overall": {
+        "score": 73,
+        "note": "All continuous web milestones passed (final-report); SQL modeled invariants well, while offline sync, live-result reconciliation, protected media, and workers required substantial glue. The agent-caused replay failure leaves scale uncertain, not a backend failure."
+      },
+      "setup_and_docs": {
+        "score": 82,
+        "note": "M1 diary/essay: managed Auth and familiar database/storage APIs supported setup; identity/profile and revocation wiring remained explicit. Existing fixture identities and email-confirmation assumptions were agent integration errors, not established documentation defects."
+      },
+      "data_modeling": {
+        "score": 92,
+        "note": "M2/M3/M5/M8 diaries: relational feed unions, uniqueness constraints, membership joins, full-text indexes, triggers, and zero-filled UTC buckets expressed the domain naturally. SQL familiarity translated directly into productive modeling."
+      },
+      "authorization": {
+        "score": 80,
+        "note": "M3/M5 and essay: SQL locks, joins, and recipient uniqueness expressed membership boundaries. The chosen trusted API checked authorization per endpoint, with RLS denying direct clients and separate session-revocation records."
+      },
+      "queries_and_live": {
+        "score": 73,
+        "note": "M2/M3/M5 diaries: cursor feeds, relational joins, and indexed prefix search worked. Polling met browser live checks but required explicit invalidation and reconciliation; the essay confirms Supabase Realtime was not exercised."
+      },
+      "writes_and_transactions": {
+        "score": 91,
+        "note": "M2/M3/M6 diaries and essay: unique intent IDs, set-state writes, conversation locks, and transactional recipient snapshots made retries and membership/send consistency concrete. Connection, transaction, lock, and retry management remained explicit service code."
+      },
+      "offline_sync": {
+        "score": 52,
+        "note": "M6/M8 diaries: queue ownership, FIFO replay, retry classification, hydration, local search, media durability, and invalidation were application-built. Browser restart retained two texts and a queued photo; no integrated durable sync layer was demonstrated."
+      },
+      "media_assets": {
+        "score": 72,
+        "note": "M2/M4/M5 diaries: Storage uploads were straightforward; validation, immediate revocation, private delivery, and atomic once access required an authorized endpoint and restrictive bucket policies. The fresh-bucket MIME mistake is excluded."
+      },
+      "background_work": {
+        "score": 68,
+        "note": "M6/M8 diaries and essay: database uniqueness and triggers supported push records and restart-safe digests. Presence leases, scheduling, period cursors, and worker operation were application-owned Node code rather than an exercised managed scheduling surface."
+      },
+      "client_integration": {
+        "score": 68,
+        "note": "M1/M6/M8 diaries: persisted sessions and refresh worked, but SQL/API/client boundaries required explicit polling, account-isolated caches, lifecycle hydration, and queue coordination. Router, React Native Web, and Metro errors receive no backend penalty."
+      },
+      "diagnostics_dev_loop": {
+        "score": 81,
+        "note": "M3/M8 diary and run-log: SQL invariants and transactional rollback were inspectable; replay clearly reported unsupported video/mp4. Diagnosis spanned database, API, storage, and client state; no Supabase defect was established."
+      },
+      "scale_and_limits": {
+        "score": 75,
+        "note": "Provisional: M5/M6 demonstrated indexed queries and sample replay, but final-report contains no valid envelope probes. Fresh-bucket setup failed through agent error, so neither a backend failure penalty nor a successful-scale claim is justified."
+      },
+      "operations": {
+        "score": 78,
+        "note": "M8 diary/final-report: transactional migrations, persisted digest state, namespaced provisioning, and verified hosted cleanup worked. API/worker deployment remained app-owned; the bucket bootstrap mistake and ambiguously attributed cleanup retry receive no defect penalty."
+      },
+      "verdict": "Supabase provided a strong relational foundation, but this build required extensive application coordination across database, API, client cache, and workers.",
+      "would_use_again_for": "I would use it again for relational applications whose team wants SQL control and can own synchronization and service operation."
+    }
+  },
+  "cross_backend_notes": [
+    "All three final reports record M1–M6 and M8 web-green, no confirmed backend defects, M7 not-run, and unavailable iOS simulator evidence; agent mistakes and shared environment failures receive no backend penalty.",
+    "Snapback's M5/M6/M8 diaries show the largest reduction in offline, revocable-media, and effect plumbing, qualified by the final-report's documented requirement to fully synchronize materialized Following sources.",
+    "Convex's final-report establishes complete replay and browser bootstrap at the envelope after agent query-plan and batching corrections; local timings do not establish comparative speed against hosted Supabase.",
+    "Supabase's essay distinguishes its chosen polling/API architecture from untested Realtime capabilities, and its agent-caused fresh-bucket failure establishes no backend scale ceiling.",
+    "The holistic scores weigh supplied guarantees, required application work, and demonstrated constraints; they are neither category averages nor rankings by wall time, source lines, or prior reputation."
+  ]
+}

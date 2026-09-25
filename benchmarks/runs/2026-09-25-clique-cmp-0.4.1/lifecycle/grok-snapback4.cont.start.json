@@ -1,0 +1,25 @@
+{
+  "lane": "grok-snapback4",
+  "continuation": true,
+  "pid": 3481077,
+  "startedAt": "2026-09-25T07:10:39Z",
+  "command": [
+    "/home/ccheever/.local/bin/grok",
+    "--resume",
+    "01a0d6c2-fa27-76a2-8899-f5ee00289f85",
+    "--prompt-file",
+    "/home/ccheever/clique-cmp-20260925/prompts/grok-snapback4.continue.md",
+    "--cwd",
+    "/home/ccheever/clique-cmp-20260925/lanes/grok-snapback4",
+    "-m",
+    "grok-4.6",
+    "--reasoning-effort",
+    "xhigh",
+    "--output-format",
+    "streaming-json",
+    "--permission-mode",
+    "bypassPermissions",
+    "--max-turns",
+    "5000"
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "grok",
+    "model": "grok-4.6",
+    "effort": "xhigh",
+    "environment": {
+      "os": "linux-x86_64",
+      "node": "v24.13.1",
+      "snapback4": "0.4.1",
+      "snapback4-expo": "0.4.1",
+      "expo": "57.0.22"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-25T04:12:04+00:00",
+    "finishedAt": "2026-09-25T10:17:40+00:00"
+  },
+  "firstGreenProofAt": "2026-09-25T04:36:55+00:00",
+  "wallClock": {
+    "totalSeconds": 21936,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "replay": 1258,
+      "m7Session": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "replay": null,
+      "m7Session": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "summary": "CHOREO_PASSWORD missing; per-persona env required",
+      "evidence": "run-log.md:1790316400"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "markRead interval starved send/typing",
+      "evidence": "run-log.md:1790316900"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "ConversationScreen broken ternary; bubbles missing",
+      "evidence": "expo-web.log TransformError:425"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Dave overlay faked dave:member before addMember landed",
+      "evidence": "artifacts/receipts-m3.jsonl"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "scale seed passed fixture mutation ids (E_WRITE_ID)",
+      "evidence": "scale-replay.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "FeedItem liked undeclared; insights likes 3 to 3",
+      "evidence": "artifacts/receipts-m8.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "membersOf may not invalidate on peer watermark",
+      "evidence": "run-log.md:1790321400"
+    },
+    {
+      "attribution": "environment",
+      "summary": "Linux host; Apple simulators unavailable",
+      "evidence": "artifacts/simulator-status.json"
+    },
+    {
+      "attribution": "environment",
+      "summary": "servers SIGTERM across compaction",
+      "evidence": "run-log.md:1790320276"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 4074,
+    "files": 44,
+    "sharedUiLines": null
+  },
+  "diary": "diary.md",
+  "notes": "Full run M1-M6+M8. M3 suite pass, choreography not green (capability-failure). M7 not-run. Scale replay pass on isolated :56402. Tokens unmetered.",
+  "authParity": {
+    "posture": "production-auth",
+    "notes": "use identity password; personas alice/bob/carol/dave"
+  }
+}

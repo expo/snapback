@@ -1,0 +1,11 @@
+{
+  "qualification": "source-assisted Linux CLI because the public package has no linux-x64 binary package",
+  "package": "snapback4@0.4.1",
+  "sourceCommit": "0573fcc98a (the 0.4.1 publication commit)",
+  "buildProfile": "production",
+  "buildEnvironment": { "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT" },
+  "host": "expo-build-1000",
+  "path": "/home/ccheever/.cache/clique/snapback4-0.4.1/snapback4",
+  "sha256": "9549fd7314bfc9dca3f24405d527bdc7c7c95f9af7eb3d04aca74d1784b6e9fe",
+  "reportedVersion": "snapback4 0.4.1"
+}

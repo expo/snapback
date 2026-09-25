@@ -1,0 +1,28 @@
+{
+  "lane": "astra-snapback4",
+  "pid": 4181997,
+  "startedAt": "2026-09-25T04:11:35Z",
+  "startedEpoch": 1790309495,
+  "command": [
+    "/home/ccheever/.local/bin/codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "--color",
+    "never",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-C",
+    "/home/ccheever/clique-cmp-20260925/lanes/astra-snapback4",
+    "-o",
+    "/home/ccheever/clique-cmp-20260925/lanes/astra-snapback4/FINAL.md",
+    "-"
+  ],
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "prompt": "/home/ccheever/clique-cmp-20260925/prompts/astra-snapback4.md",
+  "cwd": "/home/ccheever/clique-cmp-20260925/lanes/astra-snapback4"
+}
