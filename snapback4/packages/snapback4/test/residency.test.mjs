@@ -105,17 +105,18 @@ async function fixture(t, watchSources = false, tier = "native") {
   ]);
   let offline = false, requests = 0;
   const deviceReads = [], deviceAnswers = [];
+  let queryGate = null;
   const persistence = memoryPersistence();
   const open = async () => {
     const data = join(directory, "device"); mkdirSync(data, { recursive: true });
     const opener = tier === "wasm" ? webDevice({ persist: persistence, wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) }) : processDevice({ binary, dir: data, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
     const client = await createLocalClient({ url, persona: "alice", waitSeconds: 1,
       fetch: async (input, init) => { requests++; if (offline) throw new TypeError("test link down"); return fetch(input, init); },
-      device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "query") deviceReads.push(request.name); const answer = await core.call(request); if (request.op === "query") deviceAnswers.push({ name: request.name, ...answer.ok }); return answer; } }; } },
+      device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "query") { deviceReads.push(request.name); if (queryGate) await queryGate; } const answer = await core.call(request); if (request.op === "query") deviceAnswers.push({ name: request.name, ...answer.ok }); return answer; } }; } },
     });
     clients.push(client); return client;
   };
-  return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads, deviceAnswers };
+  return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads, deviceAnswers, gateQueries: gate => { queryGate = gate; } };
 }
 
 test("server-class watches run locally first and recover remembered server data offline", { timeout: 20000 }, async (t) => {
@@ -300,7 +301,13 @@ test("rule 5: a real process device never recovers private memory after its perm
   assert.equal(watch.getSnapshot().data.body, "private");
   const deliveries = [];
   const stop = watch.subscribe(() => deliveries.push({ at: Date.now(), read: watch.getSnapshot() })); t.after(stop);
-  await until(() => Date.now() >= expiresAt + 40, "permit did not expire");
+  // A slow device must not extend the deadline of the currently visible memory.
+  let release;
+  f.gateQueries(new Promise(resolve => { release = resolve; }));
+  try {
+    await until(() => Date.now() >= expiresAt + 40, "permit did not expire");
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, "expiry ends retention before awaiting the device");
+  } finally { f.gateQueries(null); release(); }
   assert.equal((await server()).data, null, "authoritative rule denies the expired permit");
   const after = await client.query(op, args);
   assert.equal(after.denied.code, "E_OFFLINE"); assert.equal("data" in after, false);
