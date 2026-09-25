@@ -1,0 +1,32 @@
+(node:1133020) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ local pending writes emit once with their original binding ahead of a newer device identity (27.767266ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 114.648856
+
+✖ failing tests:
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:152:60
+✖ local pending writes emit once with their original binding ahead of a newer device identity (27.767266ms)
+  AssertionError [ERR_ASSERTION]: original write binding precedes the device's current identity
+  + actual - expected
+  
+  + 'kept-store'
+  - 'original-store'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:180:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'kept-store',
+    expected: 'original-store',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -56454,3 +56454,52 @@ change, Quarry form, authorization relaxation, engine-meter change, acquisition
 retuning or new cold-acquisition measurement. Did not push or publish. Source
 and tests are in 7d0140561 and 99f711a68. File map, examples, every failure and
 qualification logs are in `reports/20260925-lane-v-r7.md` and its evidence folder.
+
+
+## 2026-09-25 — LLP 3000.013 lane V, round 8: one settlement owner per write
+
+Ordinary delivery and keepalive refusal now share exclusive settlement ownership
+per mutation id. An overlapping ordinary request keeps its outcome through
+close; a replacement's refusal cannot mask its committed success. The exit
+helper also respects a known success whose receipt persistence failed. The web
+host's internal settlement operation rechecks terminal history and unsent,
+unobserved outbox custody on its serialized device chain under the exclusive
+claim, then commits receipt, retirement and journal cleanup in one strict
+IndexedDB transaction. A failed commit retains the outbox and publishes no
+terminal refusal. The helper is split out; local.ts remains 1,496 lines.
+
+Astra and Grok's completed round-7 reviews are addressed. Real Chromium and two
+real authenticated backends exercise both response orders: A commits once,
+B executes zero times, and caller, notification, receipt lookup and reopen all
+report sent. The same holds with failed ordinary receipt persistence and no
+sync observation. Aborting the keepalive receipt transaction leaves the original
+id pending and durable after reopen, until a later atomic save succeeds. Holding
+receipt persistence for 1.2 seconds prevents ordinary delivery even after the
+one-second exit wait expires. No timeout or storage ceiling was raised.
+
+Five mutation checks fail at their intended oracle: removing settlement
+ownership; bypassing the device custody check; swallowing receipt persistence
+failure; forgetting volatile known success; and preferring the newer current
+store identity to the queued write's original binding. The latter closes Grok's
+remaining mutation-test gap. Lifecycle/navigation checks passed 72/72; all 42
+browser admission checks pass in the full suite. Initial new notification tests
+subscribed before the signed-in client was published and failed; the harness
+now subscribes after app.ready. The volatile-success oracle now holds sync
+unavailable, and binding precedence is asserted outside transport error handling.
+These developmental failures were ours; full accounting is in the report.
+
+Full suite: **`== 0 failure(s) in 444 s`**, exit 0. All 1,591 client checks and
+78 model checks passed, including 13,000 seeded sequences; 10 platform skips.
+No final failures — ours, baseline or environmental. The baseline Cargo failure
+did not recur. Rust tests took 97 seconds, client tests 97 seconds, and client
+models 237 seconds. Reference audit: 509 LLP documents, 9,286 references, zero
+errors and zero unchecked references.
+
+No deviation from the requested guarantees and no known open scoped problem.
+The bounded network wait remains; settlement ownership and the atomic device
+chain prevent concurrent sending while persistence is held. No new Quarry or
+public client form, Rust/server change, authorization/disclosure relaxation,
+work-meter change, receipt-window expansion or acquisition retuning. No new
+cold-acquisition benchmark. Did not push or publish. Implementation: b9725ee26.
+File map, examples, test reproductions and evidence are in
+`reports/20260925-lane-v-r8.md` and `reports/20260925-lane-v-r8-evidence/`.

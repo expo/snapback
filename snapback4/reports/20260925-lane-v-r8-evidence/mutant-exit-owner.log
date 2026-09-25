@@ -1,0 +1,90 @@
+TAP version 13
+# (node:1123466) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web admission review: recovery and transport respect the session boundary
+    # Subtest: A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false)
+    not ok 1 - A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false)
+      ---
+      duration_ms: 581.996071
+      type: 'test'
+      location: '/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79'
+      failureType: 'testCodeFailure'
+      error: |-
+        a refusal cannot publish while ordinary delivery owns this id
+        + actual - expected
+        
+        + [
+        +   {
+        +     id: '01M3CNPZDRT3M0KK286ESC2B1A',
+        +     state: 'failed',
+        +     why: {
+        +       code: 'E_STORE_REPLACED',
+        +       family: 'store',
+        +       guide: 'sync',
+        +       message: 'the intent belongs to another store; its original outcome is unknown',
+        +       rewrite: 'reconcile this write with its original store before submitting new intent',
+        +       site: 'request.store_id'
+        +     }
+        +   }
+        + ]
+        - []
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+        0:
+          state: 'failed'
+          id: '01M3CNPZDRT3M0KK286ESC2B1A'
+          why:
+            code: 'E_STORE_REPLACED'
+            family: 'store'
+            guide: 'sync'
+            message: 'the intent belongs to another store; its original outcome is unknown'
+            rewrite: 'reconcile this write with its original store before submitting new intent'
+            site: 'request.store_id'
+      operator: 'deepStrictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:551:16)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:531:104)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false)
+    ok 2 - A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false)
+      ---
+      duration_ms: 971.49338
+      type: 'test'
+      ...
+    # Subtest: A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true)
+    ok 3 - A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true)
+      ---
+      duration_ms: 1193.324301
+      type: 'test'
+      ...
+    # Subtest: an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+    ok 4 - an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+      ---
+      duration_ms: 6328.940635
+      type: 'test'
+      ...
+    1..4
+not ok 1 - web admission review: recovery and transport respect the session boundary
+  ---
+  duration_ms: 9909.633304
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-v/snapback4/packages/snapback4/test/web-admission-review.test.mjs:11:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 5
+# suites 0
+# pass 3
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10014.797441
