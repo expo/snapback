@@ -57,8 +57,10 @@ impl Parser {
             (self.declaration_rewrite(comparison.site(), constant, None).unwrap_or_default(),
                 "use the explicit constant only if intended, or replace it with a column-to-value predicate; declarations have no operation arguments".into())
         };
-        self.diagnostics.push(Diagnostic::new(comparison.site(), "E_QUARRY_SELF_EQUALITY",
-            format!("{} compares the filtered {table} row's .{column} with itself; {advice}", self.comparison_source(comparison.site()).unwrap_or_else(|| format!(".{column} {op} .{column}"))), rewrite).guide("shapes"));
+        let message = format!("{} compares the filtered {table} row's .{column} with itself",
+            self.comparison_source(comparison.site()).unwrap_or_else(|| format!(".{column} {op} .{column}")));
+        self.repair_message(comparison.site(), &rewrite, format!("{message}; {advice}"));
+        self.diagnostics.push(Diagnostic::new(comparison.site(), "E_QUARRY_SELF_EQUALITY", message, rewrite).guide("shapes"));
         // Keep parsing the declaration: the diagnostic blocks binding, while
         // later declarations remain available to complete typed repairs.
         Ok(predicate)
@@ -90,9 +92,10 @@ impl Parser {
         if !bounded { return; }
         let Some(rewrite) = self.keyed_read_rewrite(read, start, predicates, comparison.site(), column) else { return; };
         let description = self.comparison_source(comparison.site()).unwrap_or_else(|| format!(".{column}"));
+        self.repair_message(comparison.site(), &rewrite,
+            format!("{} compares the filtered {} row's .{column} with itself; bind the enclosing row with a named read key", description, read.table));
         if let Some(d) = self.diagnostics[diagnostic_start..].iter_mut().find(|d| d.code == "E_QUARRY_SELF_EQUALITY" && &d.site == comparison.site()) {
             d.rewrite = rewrite;
-            d.message = format!("{} compares the filtered {} row's .{column} with itself; bind the enclosing row with a named read key", description, read.table);
         }
     }
 }

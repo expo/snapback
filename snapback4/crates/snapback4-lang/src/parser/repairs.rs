@@ -186,6 +186,13 @@ impl Parser {
         if let Some(span) = self.token_span(tokens) { self.register_bytes(site, span, rewrite, intended); }
     }
 
+    pub(super) fn repair_message(&mut self, site: &Site, rewrite: &str, message: String) {
+        if let Some(candidate) = self.document.source.repairs.iter_mut().rev()
+            .find(|candidate| &candidate.site == site && candidate.rewrite == rewrite) {
+            candidate.message = Some(message);
+        }
+    }
+
     fn register_bytes(&mut self, site: &Site, span: Range<usize>, rewrite: &str, intended: Option<ReadExpr>) -> Option<()> {
         if rewrite.is_empty() { return None; }
         let tokens = self.declaration_tokens()?;
@@ -198,7 +205,7 @@ impl Parser {
         self.document.source.repairs.push(crate::repair::Candidate {
             site: site.clone(), declaration_site, source: source.get(start..end)?.into(),
             replacement: span.start.checked_sub(start)?..span.end.checked_sub(start)?,
-            rewrite: rewrite.into(), intended,
+            rewrite: rewrite.into(), intended, message: None,
         });
         Some(())
     }

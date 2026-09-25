@@ -31,4 +31,8 @@ Before offering a repair, the compiler reparses and binds the patched
 declaration against the project declarations. A key repair must also retain
 the intended point or page plan. Invalid source, remaining errors or a changed
 plan suppress the rewrite while keeping the refusal and explanation.
+If a point key cannot bind in context, as under `count` or `sum`, the compiler
+retries it with `first 1` only when a total unique key bounds it to one row.
+That page must verify too. Repair advice accompanies only a verified candidate;
+if none verifies, the message does not recommend the rejected named key.
 Scope repairs require intent and are never applied by `check --fix`.

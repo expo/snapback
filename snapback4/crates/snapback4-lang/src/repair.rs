@@ -11,6 +11,7 @@ pub(crate) struct Candidate {
     pub replacement: Range<usize>,
     pub rewrite: String,
     pub intended: Option<ReadExpr>,
+    pub message: Option<String>,
 }
 
 pub(crate) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
@@ -22,25 +23,59 @@ pub(crate) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
         if diagnostic.rewrite.is_empty() { continue; }
         let candidate = documents.iter().flat_map(|doc| &doc.source.repairs).rev()
             .find(|candidate| candidate.site == diagnostic.site && candidate.rewrite == diagnostic.rewrite);
-        if candidate.is_none_or(|candidate| !accepted(documents, candidate)) { diagnostic.rewrite.clear(); }
+        let verified = candidate.and_then(|candidate| match check(documents, candidate) {
+            Check::Accepted => Some(candidate.clone()),
+            Check::Unbound => {
+                let page = one_row_page(documents, candidate)?;
+                (check(documents, &page) == Check::Accepted).then_some(page)
+            }
+            Check::Rejected => None,
+        });
+        if let Some(candidate) = verified {
+            diagnostic.rewrite = candidate.rewrite;
+            if let Some(message) = candidate.message { diagnostic.message = message; }
+        } else { diagnostic.rewrite.clear(); }
     }
 }
 
-fn accepted(documents: &[Document], candidate: &Candidate) -> bool {
+#[derive(PartialEq, Eq)]
+enum Check { Accepted, Unbound, Rejected }
+
+// A page fallback is a different intended plan, so retry only after a binding
+// failure, never to bypass rejection of an otherwise compiling wrong plan.
+fn one_row_page(documents: &[Document], candidate: &Candidate) -> Option<Candidate> {
+    let mut page = candidate.clone();
+    let read = page.intended.as_mut()?;
+    if read.range.is_some() || read.filter.is_some() || read.matching.is_some()
+        || !read.seeks.is_empty() || !read.order_keys.is_empty() { return None; }
+    let table = documents.iter().flat_map(|doc| &doc.tables).find(|table| table.name == read.table)?;
+    let pinned = |column: &str| read.keys.iter().any(|key| key.column.as_deref() == Some(column));
+    // first 1 must preserve the entire population. Nullable unique indexes
+    // can contain tied nulls and do not establish a one-row bound.
+    if !pinned("id") && !table.indexes.iter().any(|index| index.unique && index.is_plain()
+        && index.columns.iter().all(|column| pinned(column) && (column == "id"
+            || table.columns.iter().any(|c| &c.name == column && !c.type_.optional)))) { return None; }
+    read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: read.site.clone() });
+    page.rewrite.push_str(" first 1");
+    if let Some(message) = &mut page.message { message.push_str(" with `first 1` to keep a page"); }
+    Some(page)
+}
+
+fn check(documents: &[Document], candidate: &Candidate) -> Check {
     let Some(patched) = parser::repairs::splice(&candidate.source,
-        vec![(candidate.replacement.clone(), candidate.rewrite.clone())]) else { return false; };
+        vec![(candidate.replacement.clone(), candidate.rewrite.clone())]) else { return Check::Rejected; };
     // Retain original source sites without reparsing any other declaration.
     let source = format!("{}{patched}", "\n".repeat(candidate.declaration_site.line.saturating_sub(1) as usize));
     let tables = documents.iter().flat_map(|doc| doc.tables.iter().cloned()).collect();
     let (replacement, diagnostics) = parser::parse_with_types(&candidate.site.file, &source, tables, Default::default());
-    if !diagnostics.is_empty() { return false; }
+    if !diagnostics.is_empty() { return Check::Rejected; }
     // A standalone shape has no focal type until instantiated. A helper
     // signature edit would require checking callers outside this declaration.
     // Neither has a complete local proof: keep the refusal without a repair.
-    if !replacement.shapes.is_empty() { return false; }
+    if !replacement.shapes.is_empty() { return Check::Rejected; }
     for function in &replacement.functions {
         if documents.iter().flat_map(|doc| &doc.functions).any(|old|
-            affected(candidate, &old.site) && old.args.len() != function.args.len()) { return false; }
+            affected(candidate, &old.site) && old.args.len() != function.args.len()) { return Check::Rejected; }
     }
     let mut context = context(documents, candidate, replacement);
     // Helpers are normally checked at their call sites. Check this helper with
@@ -51,13 +86,13 @@ fn accepted(documents: &[Document], candidate: &Candidate) -> bool {
             let values = function.args.iter().map(|arg| arg.name.as_str()).collect::<Vec<_>>().join(", ");
             let probe = format!("query repairProbe({args}):\n  return {}({values})\n", function.name);
             let (mut parsed, errors) = parser::parse_document(&doc.file, &probe);
-            if !errors.is_empty() { return false; }
+            if !errors.is_empty() { return Check::Rejected; }
             doc.programs.append(&mut parsed.programs);
         }
     }
     let actual = bind(context.clone());
-    if !actual.diagnostics.is_empty() { return false; }
-    let Some(intended) = &candidate.intended else { return true; };
+    if !actual.diagnostics.is_empty() { return Check::Unbound; }
+    let Some(intended) = &candidate.intended else { return Check::Accepted; };
     // Compile the intended read as syntax in the *same* scope. This AST is
     // never printed. Both runs use the real planner and admission checks.
     let mut replaced = 0;
@@ -70,7 +105,7 @@ fn accepted(documents: &[Document], candidate: &Candidate) -> bool {
             }
         });
     }
-    if replaced != 1 { return false; }
+    if replaced != 1 { return Check::Rejected; }
     let expected = bind(context);
     let class = |bound: &Bound| bound.programs.iter().flat_map(|program| {
         let scans = snapback4_core::ir::scans(&program.program);
@@ -78,7 +113,7 @@ fn accepted(documents: &[Document], candidate: &Candidate) -> bool {
             .map(|(key, _)| scans.iter().any(|scan| &scan.site == key)).collect::<Vec<_>>()
     }).collect::<std::collections::BTreeSet<_>>();
     let actual_class = class(&actual);
-    expected.diagnostics.is_empty() && !actual_class.is_empty() && actual_class == class(&expected)
+    if expected.diagnostics.is_empty() && !actual_class.is_empty() && actual_class == class(&expected) { Check::Accepted } else { Check::Rejected }
 }
 
 fn affected(candidate: &Candidate, site: &Site) -> bool {
@@ -108,6 +143,8 @@ fn context(documents: &[Document], candidate: &Candidate, replacement: Document)
 mod tests {
     use super::*;
     const MODEL: &str = "table members:\n  active: bool\n  cap 50\n  public\n";
+
+    fn accepted(documents: &[Document], candidate: &Candidate) -> bool { check(documents, candidate) == Check::Accepted }
 
     fn candidate(nested: &str) -> (Document, Diagnostic, Candidate) {
         let source = format!("{MODEL}query q(c: cursor ?):\n  return members first 20 after c {{ twin: {nested} }}\n");
@@ -166,4 +203,15 @@ mod tests {
         verify(&[document], &mut diagnostics);
         assert!(diagnostics[0].rewrite.is_empty());
     }
+
+    #[test]
+    fn single_row_fallback_requires_a_total_unique_key() {
+        for (optional, unique, allowed) in [("", "", false), (" ?", "  unique active\n", false), ("", "  unique active\n", true)] {
+            let source = format!("table members:\n  active: bool{optional}\n{unique}  cap 50\n  public\nquery q(c: cursor ?):\n  return members first 20 after c {{ n: count(members where .active = .active) }}\n");
+            let (document, diagnostics) = parser::parse_document("schema.q", &source);
+            let candidate = document.source.repairs.iter().find(|r| r.rewrite == diagnostics[0].rewrite).unwrap();
+            assert_eq!(one_row_page(&[document.clone()], candidate).is_some(), allowed);
+        }
+    }
+
 }

@@ -117,3 +117,105 @@ fn a_remaining_error_in_the_affected_declaration_suppresses_the_repair() {
         assert!(!d.message.is_empty());
     }
 }
+
+#[test]
+fn aggregates_retry_point_keys_as_verified_single_row_pages_and_execute() {
+    let model = MODEL.replace("  by byConversation: conversation, score\n", "").replace("  public", "  unique conversation\n  public");
+    for aggregate in ["count", "sum"] {
+        for column in ["id", "conversation"] {
+            for (prefix, keyed) in [("members", format!("members[{column} = .{column}]")),
+                ("(members[])", format!("(members[{column} = .{column}])"))] {
+                let nested = format!("{prefix} where .{column} = .{column}");
+                let selector = if aggregate == "sum" { ", .score" } else { "" };
+                let source = format!("{model}query q(c: cursor ?):\n  return members first 20 after c {{ id, n: {aggregate}({nested}{selector}) }}\n");
+                let refused = checked(&source);
+                let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
+                assert!(!d.rewrite.is_empty(), "{source}\n{d:?}");
+                let repaired = source.replace(&nested, &d.rewrite);
+                let bound = checked(&repaired);
+                assert!(bound.diagnostics.is_empty(), "the offered repair must compile: {repaired}\n{:?}", bound.diagnostics);
+                assert_eq!(d.rewrite, format!("{keyed} first 1"));
+                assert!(d.message.contains("named read key") && d.message.contains("first 1"), "{d:?}");
+                let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+                engine.seed([("a", "one", 10), ("b", "two", 20)].map(|(id, conversation, score)| ("members".into(), object([
+                    ("id", Value::Id(id.into())), ("conversation", Value::Id(conversation.into())),
+                    ("active", Value::Bool(true)), ("score", Value::Int(score)),
+                ])))).unwrap();
+                let page = engine.query("q", Context::new("alice", [("c".into(), Value::Null)].into())).unwrap();
+                assert!(page.complete);
+                let rows = page.data.as_array().unwrap();
+                assert_eq!(rows.len(), 2);
+                for (row, score) in rows.iter().zip([10, 20]) {
+                    assert_eq!(row.field("n").unwrap(), &Value::Int(if aggregate == "sum" { score } else { 1 }));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn failed_key_candidates_have_neither_rewrite_nor_named_key_advice() {
+    for value in ["count(members where .id = .id) + true", "sum(members where .id = .id, .active)",
+        "members where .id = .id first 20 + true", "count(members[active = .active,] where .id = .id)"] {
+        let source = format!("{MODEL}query q(c: cursor ?):\n  return members first 20 after c {{ n: {value} }}\n");
+        let refused = checked(&source);
+        let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
+        assert!(d.rewrite.is_empty(), "{d:?}");
+        assert!(d.message.ends_with("with itself"), "advice must come from a verified candidate: {d:?}");
+        assert!(!d.message.contains("named read key"));
+    }
+}
+
+#[test]
+fn a_capped_nonunique_aggregate_keeps_its_whole_page() {
+    let model = MODEL.replace("  public", "  cap 50 by conversation\n  public");
+    let nested = "members where .conversation = .conversation";
+    let source = format!("{model}query q(c: cursor ?):\n  return members first 20 after c {{ n: count({nested}) }}\n");
+    let refused = checked(&source);
+    let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
+    assert_eq!(d.rewrite, "members[conversation = .conversation]");
+    assert!(!d.message.contains("first 1"));
+    let bound = checked(&source.replace(nested, &d.rewrite));
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed(["a", "b"].map(|id| ("members".into(), object([
+        ("id", Value::Id(id.into())), ("conversation", Value::Id("one".into())),
+        ("active", Value::Bool(true)), ("score", Value::Int(10)),
+    ])))).unwrap();
+    let page = engine.query("q", Context::new("alice", [("c".into(), Value::Null)].into())).unwrap();
+    assert_eq!(page.data.as_array().unwrap().len(), 2);
+    for row in page.data.as_array().unwrap() { assert_eq!(row.field("n").unwrap(), &Value::Int(2)); }
+}
+
+#[test]
+fn invalid_helper_body_cannot_offer_a_local_predicate_repair() {
+    // Even an otherwise unused helper needs a synthetic invocation to bind its
+    // body. The comparison edit cannot repair the independent int + bool error.
+    for caller in ["", "query q():\n  return choose(true)\n"] {
+        let source = format!("{MODEL}fn choose(active: bool): count(members where .active = .active) + true\n{caller}");
+        let refused = checked(&source);
+        let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
+        assert!(d.rewrite.is_empty(), "an unchecked helper body leaked a repair: {d:?}");
+        assert!(d.message.ends_with("with itself"), "{d:?}");
+    }
+}
+
+#[test]
+fn nullable_unique_aggregate_keeps_tied_null_rows() {
+    let model = MODEL.replace("conversation: id", "conversation: id ?").replace("  public", "  unique conversation\n  public");
+    let source = format!("{model}query q(c: cursor ?):\n  return members first 20 after c {{ n: count(members where .conversation = .conversation) }}\n");
+    let refused = checked(&source);
+    let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
+    assert_eq!(d.rewrite, "members[conversation = .conversation]");
+    assert!(!d.message.contains("first 1"));
+    let bound = checked(&source.replace("members where .conversation = .conversation", &d.rewrite));
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed(["a", "b"].map(|id| ("members".into(), object([
+        ("id", Value::Id(id.into())), ("conversation", Value::Null),
+        ("active", Value::Bool(true)), ("score", Value::Int(10)),
+    ])))).unwrap();
+    let page = engine.query("q", Context::new("alice", [("c".into(), Value::Null)].into())).unwrap();
+    assert_eq!(page.data.as_array().unwrap().len(), 2);
+    for row in page.data.as_array().unwrap() { assert_eq!(row.field("n").unwrap(), &Value::Int(2)); }
+}
