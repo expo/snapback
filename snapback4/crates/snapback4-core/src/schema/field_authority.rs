@@ -31,6 +31,14 @@ impl Table {
         }
     }
 
+    /// The retained image's heap without allocating or visiting hidden payloads.
+    pub fn disclosed_heap(&self, row: &Value, viewer: &str) -> u64 {
+        let Ok(fields) = row.as_object() else { return row.heap_bytes(); };
+        40 + fields.iter().filter(|(field, _)| !self.written_by.get(*field).is_some_and(|a|
+            !a.audience && row.field(&a.owner).ok() != Some(&Value::Id(viewer.into()))))
+            .map(|(field, value)| 80 + field.capacity() as u64 + value.heap_bytes()).sum::<u64>()
+    }
+
     pub fn projection_heap(&self, row: &Value, viewer: &str) -> u64 {
         let hidden = |field: &str| self.written_by.get(field).is_some_and(|a| !a.audience
             && row.field(&a.owner).ok() != Some(&Value::Id(viewer.into())));
@@ -118,15 +126,36 @@ fn private_rule(schema: &Schema, name: &str, rule: &RuleExpr, update: bool, issu
 impl RuleExpr {
     /// Comparing an untouched field with itself needs no knowledge of its
     /// value. Every other use (including a probe key) requires field visibility.
-    pub fn needs_field_value(&self, field: &str) -> bool {
+    pub fn needs_field_value(&self, field: &str, kind: &ColumnType) -> bool {
         let term = |term: &RuleTerm| matches!(term, RuleTerm::Field(name) | RuleTerm::OldField(name) | RuleTerm::NextField(name) if name == field);
         match self {
-            Self::Eq(a,b) | Self::Ne(a,b) | Self::Compare(_,a,b) => term(a) != term(b),
-            Self::And(items) | Self::Or(items) => items.iter().any(|rule|rule.needs_field_value(field)),
-            Self::Not(inner) => inner.needs_field_value(field),
+            Self::Eq(a,b) | Self::Ne(a,b) => term(a) != term(b),
+            // null is not ordered, even against itself. Its presence is private.
+            Self::Compare(_,a,b) => (term(a) || term(b)) && (kind.is_optional() || term(a) != term(b)),
+            Self::And(items) | Self::Or(items) => items.iter().any(|rule|rule.needs_field_value(field, kind)),
+            Self::Not(inner) => inner.needs_field_value(field, kind),
             Self::Exists { key, equalities, .. } | Self::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_,value)|value)).any(term),
             _ => false,
         }
+    }
+
+    /// Fold only proven comparisons of an untouched, invisible field. This
+    /// avoids interpreting an omitted device value as null or as its default.
+    pub fn fold_untouched_field(&mut self, field: &str, kind: &ColumnType) {
+        let term = |term: &RuleTerm| matches!(term, RuleTerm::Field(name) | RuleTerm::OldField(name) | RuleTerm::NextField(name) if name == field);
+        let constant = match self {
+            Self::Eq(a,b) if term(a) && term(b) => Some(true),
+            Self::Ne(a,b) if term(a) && term(b) => Some(false),
+            Self::Compare(op,a,b) if !kind.is_optional() && term(a) && term(b) =>
+                Some(matches!(op, crate::ir::BinaryOp::Gte | crate::ir::BinaryOp::Lte)),
+            Self::And(items) | Self::Or(items) => {
+                for item in items { item.fold_untouched_field(field,kind); }
+                None
+            }
+            Self::Not(inner) => { inner.fold_untouched_field(field,kind); None }
+            _ => None,
+        };
+        if let Some(value) = constant { *self = if value { Self::Allow } else { Self::Deny }; }
     }
 
     pub fn references_field(&self, field: &str) -> bool {
@@ -137,6 +166,25 @@ impl RuleExpr {
             Self::Not(inner) => inner.references_field(field),
             Self::Exists { key, equalities, .. } | Self::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_,value)|value)).any(term),
             _ => false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn created_and_exists_terms_require_private_values() {
+        for field in ["secret", "otherSecret"] {
+            for term in [RuleTerm::Field(field.into()), RuleTerm::OldField(field.into()), RuleTerm::NextField(field.into())] {
+                for equalities in [false,true] {
+                    let key = if equalities { vec![] } else { vec![term.clone()] };
+                    let predicates = if equalities { vec![("value".into(),term.clone())] } else { vec![] };
+                    let exists = RuleExpr::Exists { table:"guesses".into(),index:"byValue".into(),provenance:crate::ir::KeyProvenance::Const,key:key.clone(),equalities:predicates.clone() };
+                    let created = RuleExpr::Created { table:"guesses".into(),index:"byValue".into(),provenance:crate::ir::KeyProvenance::Const,key,equalities:predicates };
+                    for rule in [exists,created] { assert!(rule.needs_field_value(field,&ColumnType::Optional(Box::new(ColumnType::Int)))); }
+                }
+            }
         }
     }
 }

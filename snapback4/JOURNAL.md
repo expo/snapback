@@ -49569,3 +49569,72 @@ target/b1-r3-patch-before.log. Mutation evidence: target/b1-r3-mutations.log.
 Report: /home/ccheever/sb5/lane-b1.r3.final.md. No PostgreSQL runtime test,
 adapter change, stored-format change, new diagnostic code, push, publication
 or deployment.
+
+## 2026-09-25 — LLP 3000.015 Lane B1, round 4: generated disclosure cases
+
+Replaced the payload/hidden-world case lists with a deterministic covering
+matrix. The builder and byte comparator are unchanged. The generator walks
+compiled private fields, derives boundaries from ColumnType recursively, and
+crosses them with declared mutations; every declared query is observed. It
+generates transition self-comparisons and witness dependencies, ordinary-rule
+admission refusals, absence and owner-role cases, public recorded captures,
+both Following spellings and real cursor pagination. Positive controls require
+server commits and device predictions on memory and SQLite. Before: 65 core
+pairs, eight admission variants, 59 pairs per device store. After: 2,433
+generated runtime pairs per host/store plus retained regressions: 2,445 total
+core pairs, 2,434 per device store, and 476 admission variants (468 generated).
+An additional float-refusal control records that this binder has no float
+column. Nullable list/bytes/asset forms reflect its literal-default grammar;
+asset values use existing system-fixture placeholders. Positive retained-text
+patch controls use a 1 MB declaration; 10 MB declarations exceed the unchanged
+write copy reservation and are still checked for identical refusals.
+
+Fixed nullable ordered self-comparisons requiring private visibility; folded
+proven untouched self-comparisons so independent owned-field patches predict.
+Metered reads now bypass SQLite and Postgres blob prices on private-field
+tables, charge disclosed images plus fixed fetch slots, and cover word
+discovery, scan fences, views, aggregates and timeline transitions together.
+Recorded public attribution charges the disclosed target image. Owner delivery
+prepays its declared slots/probe bound, while exact recipient authorization
+runs outside caller-visible accounting. The generated matrix also exposed
+integer/list/null encoding-length prices and raw mutation event counts that
+revealed hidden memberships. Private-table mutation event counts now count
+logical changed rows independently of recipient fanout on both server adapters.
+The rules card and LLP qualify these guarantees to the tested surface and
+explicitly distinguish disclosed-image accounting from raw storage decoding.
+
+All nine deliberate regressions fail: nullable guard, metered-fetch bypass,
+recorded charge, recipient-dependent steps, syntactic prediction dependencies,
+Exists/Created dependency arm, raw event count, negated-unknown witness guard,
+and ownership-acquisition guard. All were restored. The generated step-boundary
+case pads its loop to commit at exactly 1,000,000 steps and checks E_BOUND on
+the next iteration, comparing complete transcripts in both membership worlds.
+The former negated-witness step-threshold test is now a direct authorization
+assertion: fixed slot prepayment deliberately removes that counting side channel.
+A PostgreSQL-feature unit check exercises the adapter's actual 256x preflight
+formula, with a priced Rows double and an audience-readable control. No
+PostgreSQL server runtime was exercised.
+
+Wasm is 1,774,832 B raw / 492,462 B gzip on Rust 1.97.0 and wasm-bindgen
+0.2.127, without wasm-opt. Round 3 was 1,772,188 / 491,024: +2,644 raw /
++1,438 gzip for the whole artifact, without per-component attribution. The
+prior 492,000 B ratchet is exceeded by 462 B; raise it to 493,000 B, leaving
+538 B for the shared transition, delivery and disclosed-image accounting
+changes. Runtime meter ceilings are unchanged. The full suite rebuild confirms
+the same artifact; SHA-256 da3e85ec789e64324c9bcde108e834419018e627839f81c2688c8ad3826b0c1d.
+
+Final blocking result with FORCE_COLOR unset: `== 0 failure(s) in 517 s`.
+All Rust targets and doctests passed. Client groups: 1,089 passed, zero failed,
+10 existing skips; fixture wrapper: nine passed. Node 24.18.0, eight build
+jobs and Rust test processes, and normal parallel client mode were used.
+CARGO_INCREMENTAL=0, CARGO_PROFILE_TEST_DEBUG=0 and CARGO_PROFILE_DEV_DEBUG=0
+kept the rebuilt target small. The first full run ended with one failing suite
+in 843 s: the codec census treated an inline native-only unit fixture as web
+code. Moving it into an explicitly SQLite-gated test module fixed the census;
+all 26 focused checks then passed. No client code, timing assertion, or census
+checker was changed. The final suite rebuilt the same measured Wasm.
+Logs: target/r4-suite-final.log and target/r4-suite-final-processes.jsonl;
+mutation logs: target/r4-mutations.log and target/r4-mutant-*.log;
+Postgres feature checks: target/r4-postgres-unit.log. git diff --check passes.
+Exact command and per-item evidence: /home/ccheever/sb5/lane-b1.r4.final.md.
+Committed on sb5/b1-written-by; no push, publication or deployment.

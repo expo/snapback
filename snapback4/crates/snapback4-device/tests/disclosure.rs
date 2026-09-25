@@ -1,3 +1,5 @@
+#[path = "../../snapback4-core/tests/disclosure/generated.rs"]
+mod generated;
 #[path = "../../snapback4-core/tests/disclosure/cases.rs"]
 mod cases;
 mod common;
@@ -9,6 +11,9 @@ use serde_json::{Value as Json, json};
 use snapback4_core::ir::ProgramKind;
 use snapback4_device::device::{Backend, Device, StreamPage};
 fn pair_devices<H: Host>(host: &mut H, pair: &Pair) {
+    pair_devices_expect(host, pair, false);
+}
+fn pair_devices_expect<H: Host>(host: &mut H, pair: &Pair, predicts: bool) {
     let mut devices: [Option<Device<H::Store>>; 2] = [None, None];
     pair.assert_with(|world, e, phase, pages| {
         if devices[world].is_none() {
@@ -41,6 +46,7 @@ fn pair_devices<H: Host>(host: &mut H, pair: &Pair) {
                 vec!["new-0".into()],
                 1,
             );
+            if predicts { assert!(prediction.is_ok(), "independent owned patch must predict: {prediction:?}"); }
             observation.insert(
                 "prediction".into(),
                 match prediction {
@@ -76,15 +82,20 @@ fn pair_devices<H: Host>(host: &mut H, pair: &Pair) {
 }
 #[test]
 fn paired_worlds_replay_every_channel_on_memory_and_sqlite() {
-    for pair in cases::payload_pairs()
-        .into_iter()
-        .chain(cases::hidden_pairs())
-        .chain(cases::delivery_pairs())
-        .chain([cases::ordinary_patch()])
-    {
-        pair_devices(&mut Memory::new(), &pair);
-        pair_devices(&mut Sqlite::new("paired-worlds"), &pair);
-    }
+    let filter = std::env::var("DISCLOSURE_FILTER").unwrap_or_default();
+    let mut failed = Vec::new();
+    let count = generated::visit(|case| {
+        if !case.label.contains(&filter) { return; }
+        for sqlite in [false,true] {
+            let result = std::panic::catch_unwind(|| {
+                if sqlite { pair_devices_expect(&mut Sqlite::new("generated"),&case.pair,case.predicts); }
+                else { pair_devices_expect(&mut Memory::new(),&case.pair,case.predicts); }
+            });
+            if result.is_err() { failed.push(format!("{}/{sqlite}",case.label)); }
+        }
+    });
+    eprintln!("generated device pairs: {count} per store; differences: {}",failed.len());
+    assert!(failed.is_empty(), "{} generated device pairs differ: {failed:?}",failed.len());
 }
 
 #[test]
@@ -185,69 +196,10 @@ mutation mark(id: notes):
     }
     run(&mut Memory::new());
     run(&mut Sqlite::new("negated"));
-    // The device API does not expose a prediction meter, but the step ceiling
-    // does: an unauthorized extra owner partition must not consume it.
-    fn accounting<S: snapback4_device::store::DeviceStore>(mut store: S) {
-        use snapback4_core::{Ceilings, Context, engine::local, rows::Rows};
-        use snapback4_device::store::DeviceTx;
-        let source = "table blocked:\n  principal: principal\n  unique principal\n  online only\ntable notes:\n  owner: principal\n  other: principal\n  secret: int default 0 written by .owner\n  otherSecret: int default 0 written by .other\n  read <- not exists blocked[principal = viewer]\n  online only\nmutation mark(id: notes):\n  update notes[id] { secret: 9 }\n  return true\n";
-        let (_, mut b) = compile(source);
-        b.schema.operations.clear();
-        b.schema.tables.get_mut("notes").unwrap().sync = Some(snapback4_core::schema::Sync {
-            audience: snapback4_core::schema::Audience::Public,
-            horizon: None,
-        });
-        store
-            .install(&b.schema, &Default::default(), false)
-            .unwrap();
-        let row = snapback4_core::wire::row_from_json(
-            &b.schema.tables["notes"],
-            &json!({"id":"note","owner":"alice","other":"bob","secret":1}),
-        )
-        .unwrap();
-        let mut thresholds = Vec::new();
-        for other_owner in [false, true] {
-            let mut schema = b.schema.clone();
-            if !other_owner {
-                schema
-                    .tables
-                    .get_mut("notes")
-                    .unwrap()
-                    .written_by
-                    .remove("otherSecret");
-            }
-            let threshold = (1..100)
-                .find(|steps| {
-                    let tx = store.transaction().unwrap();
-                    tx.put("notes", &schema.tables["notes"], &row, None)
-                        .unwrap();
-                    let out = local::predict(
-                        &tx,
-                        &schema,
-                        &b.programs[0],
-                        Context::new(
-                            "alice",
-                            std::collections::BTreeMap::from([("id".into(), id("note"))]),
-                        )
-                        .at(NOW),
-                        Ceilings {
-                            steps: *steps,
-                            ..Default::default()
-                        },
-                    );
-                    tx.rollback().unwrap();
-                    out.is_ok()
-                })
-                .expect("prediction never succeeds");
-            thresholds.push(threshold);
-        }
-        assert_eq!(
-            thresholds[0], thresholds[1],
-            "unknown negation added an owner partition"
-        );
-    }
-    accounting(snapback4_device::memory::MemoryStore::new());
-    accounting(snapback4_core::store::Store::memory().unwrap());
+    // Recipient authorization itself is checked by the core's
+    // unknown_negation_does_not_authorize_delivery regression. The prepaid
+    // meter now intentionally counts every declared owner slot, known or not.
+
 }
 
 #[test]

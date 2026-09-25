@@ -1,3 +1,5 @@
+#[path = "disclosure/generated.rs"]
+mod generated;
 #[path = "disclosure/cases.rs"]
 mod cases;
 #[path = "disclosure/mod.rs"]
@@ -13,13 +15,64 @@ fn check_pairs(pairs: impl IntoIterator<Item = disclosure::Pair>) {
     assert_eq!(failed, 0, "pairs with differences");
 }
 #[test]
-fn written_by_payload_channels() {
-    check_pairs(cases::payload_pairs());
+fn generated_schema_matrix() {
+    let mut failed = Vec::new();
+    let filter = std::env::var("DISCLOSURE_FILTER").unwrap_or_default();
+    let mut selected = 0;
+    let count = generated::visit(|case| {
+        if !case.label.contains(&filter) { return; }
+        selected += 1;
+        if std::panic::catch_unwind(|| {
+            case.pair.assert_equal();
+            if case.predicts {
+                let mut e = case.pair.engine(0);
+                let op = &case.pair.operations[0];
+                let args = disclosure::inputs(&e,&op.name,&op.args);
+                let out = e.mutate(&op.name,None,snapback4_core::Context::new(&op.principal,args).at(disclosure::NOW)).unwrap();
+                assert!(matches!(out.state,snapback4_core::WriteState::Sent { .. }), "positive prediction control must commit on server: {out:?}");
+            }
+        }).is_err() {
+            eprintln!("generated difference: {}",case.label);
+            failed.push(case.label);
+        }
+    });
+    assert!(selected > 0, "empty generation filter: {filter}");
+    eprintln!("generated core pairs: {count}; differences: {}", failed.len());
+    assert!(failed.is_empty(), "{} generated pairs differ: {failed:?}", failed.len());
 }
+
 #[test]
-fn written_by_hidden_existence_and_owner_channels() {
-    check_pairs(cases::hidden_pairs());
+fn default_ceiling_membership_boundary() {
+    use snapback4_core::{Context, Ceilings, WriteState};
+    let mut pair = generated::membership_pair();
+    fn run(pair: &disclosure::Pair, n: u64) -> snapback4_core::MutationOutcome {
+        let mut e = pair.engine(0);
+        let args = disclosure::inputs(&e,"mark",&serde_json::json!({"id":"note","n":n}));
+        e.mutate("mark",None,Context::new("alice",args).at(disclosure::NOW)).unwrap()
+    }
+    let stride = run(&pair,1).metered.steps - run(&pair,0).metered.steps;
+    // Generate padding too: two-step require statements align the loop's
+    // three-step stride with the exact default ceiling, without raising it.
+    for _ in 0..stride {
+        let base = run(&pair,0).metered.steps;
+        if (Ceilings::default().steps-base) % stride == 0 { break; }
+        pair.source = pair.source.replace("  return true", "  require true else PAD\n  return true");
+    }
+    let base = run(&pair,0).metered.steps;
+    let n = (Ceilings::default().steps-base)/stride;
+    let at = run(&pair,n);
+    assert!(matches!(at.state, WriteState::Sent { .. }));
+    assert_eq!(at.metered.steps, Ceilings::default().steps);
+    let over = run(&pair,n+1);
+    assert!(!matches!(over.state, WriteState::Sent { .. }), "{over:?}");
+    assert!(over.reply(None).to_string().contains("E_BOUND"));
+    eprintln!("default boundary: n={n}, base={base}, stride={stride}; sent={}, refused={}",at.metered.steps,over.metered.steps);
+    for n in [n,n+1] {
+        pair.operations[0].args["n"] = serde_json::json!(n);
+        pair.assert_equal();
+    }
 }
+
 #[test]
 fn following_private_inputs() {
     for compat in [false, true] {
@@ -251,4 +304,39 @@ fn unchanged_private_self_comparisons_keep_ordinary_writes_available() {
         matches!(out.state, WriteState::Sent { .. }),
         "the owner may test their field: {out:?}"
     );
+}
+
+#[test]
+fn generated_private_rule_admission() {
+    let mut count = 0;
+    for declaration in generated::type_declarations() {
+        let source = generated::program(&declaration);
+        let b = snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        for (field, authority) in &b.schema.tables["records"].written_by {
+            if authority.audience { continue; }
+            for effect in ["read", "insert", "update", "delete"] {
+                let old = match effect { "read" => "  public\n  insert", "insert" => "insert <- allow", "update" => "update <- allow", _ => "delete <- deny" };
+                let replacement = if effect == "read" { format!("  read <- .{field} = .{field}\n  insert") }
+                    else { format!("{effect} <- .{field} = .{field}") };
+                let program = source.replacen(old,&replacement,1);
+                let b = snapback4_lang::compile(&[("schema.q".into(),program)]);
+                assert!(b.diagnostics.iter().any(|d|d.code == "E_FIELD_AUTHORITY"),"{declaration}/{effect}/{field}: {:?}",b.diagnostics);
+                count += 1;
+            }
+            for arm in ["exists", "created"] {
+                let ty = &b.schema.tables["records"].columns[field];
+                let program = source.replace("insert <- allow",&format!("insert <- {arm} guesses[tag = 0, value = .{field}]"))
+                    + &format!("\ntable guesses:\n  tag: int\n  value: {ty}\n  unique tag\n  public\n  sync public\n");
+                let b = snapback4_lang::compile(&[("schema.q".into(),program)]);
+                assert!(b.diagnostics.iter().any(|d|d.code == "E_FIELD_AUTHORITY"),"{declaration}/{arm}/{field}: {:?}",b.diagnostics);
+                count += 1;
+            }
+        }
+    }
+    // Float is not a Quarry column in this checkout. Do not silently claim it
+    // was exercised as an integer, or expand the language as a harness fix.
+    let b = snapback4_lang::compile(&[("schema.q".into(),generated::program("float default 0"))]);
+    assert!(!b.diagnostics.is_empty());
+    eprintln!("generated admission cases: {count}; float field unsupported");
 }

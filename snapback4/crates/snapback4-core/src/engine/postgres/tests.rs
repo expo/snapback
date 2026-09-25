@@ -286,3 +286,44 @@ fn legacy_keys_can_shrink_and_open_reports_the_index_and_count() {
     let client = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap();
     PostgresEngine::open(client, &name).unwrap();
 }
+
+#[test]
+fn private_scans_bypass_postgres_payload_factor() {
+    use crate::{rows::{Bounds, Dir, MemoryRows}, schema::Table};
+    struct Priced(MemoryRows);
+    impl Rows for Priced {
+        fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.0.get(t,id)}
+        fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.0.lookup(t,n,i,k)}
+        fn scan(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.0.scan(t,n,p,b,d,l)}
+        fn scan_metered(&self,t:&str,n:&str,p:&[Value],b:&Bounds,d:Dir,l:usize,m:&mut Meter)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{
+            let rows=self.0.scan(t,n,p,b,d,l)?;
+            let bytes=rows.iter().map(|(r,k)|serde_json::to_vec(r).unwrap().len() as u64+k.len() as u64).sum();
+            m.heap(store::payload_heap(bytes,l))?;
+            Ok(rows)
+        }
+        fn count_prefix(&self,t:&str,n:&str,p:&[Value],l:u64)->Result<u64,RuntimeError>{self.0.count_prefix(t,n,p,l)}
+        fn put(&self,t:&str,d:&Table,r:&Value,o:Option<&Value>)->Result<u64,RuntimeError>{self.0.put(t,d,r,o)}
+        fn delete(&self,t:&str,d:&Table,r:&Value)->Result<u64,RuntimeError>{self.0.delete(t,d,r)}
+    }
+    let bound=snapback4_lang::compile(&[("schema.q".into(),"table records:\n  owner: principal\n  secret: text <=10000000 default '' written by .owner\n  public\n  online only\n".into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let mut schema:Schema=serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
+    let mut receipts=Vec::new();
+    for bytes in [0,10_000_000] {
+        let rows=Priced(MemoryRows::new());
+        let row=crate::wire::row_from_json(&schema.tables["records"],&serde_json::json!({"id":"r","owner":"bob","secret":"x".repeat(bytes)})).unwrap();
+        rows.put("records",&schema.tables["records"],&row,None).unwrap();
+        let mut runner=Runner::new(&rows,&schema,Context::new("alice",BTreeMap::new()),Meter::new(Ceilings::default(),Cut::Abort),1);
+        let fetched=runner.scan_disclosed("records","byId",&[],&Bounds::default(),Dir::Asc,1).unwrap();
+        assert_eq!(fetched.len(),1);
+        receipts.push(runner.meter.used);
+    }
+    assert_eq!(receipts[0],receipts[1]);
+    // A non-private table still uses the real Postgres 256x preflight.
+    schema.tables.get_mut("records").unwrap().written_by.get_mut("secret").unwrap().audience=true;
+    let rows=Priced(MemoryRows::new());
+    let row=crate::wire::row_from_json(&schema.tables["records"],&serde_json::json!({"id":"r","owner":"bob","secret":"x".repeat(10_000_000)})).unwrap();
+    rows.put("records",&schema.tables["records"],&row,None).unwrap();
+    let mut runner=Runner::new(&rows,&schema,Context::new("alice",BTreeMap::new()),Meter::new(Ceilings::default(),Cut::Abort),1);
+    assert!(matches!(runner.scan_disclosed("records","byId",&[],&Bounds::default(),Dir::Asc,1),Err(RuntimeError::Bound{..})));
+}

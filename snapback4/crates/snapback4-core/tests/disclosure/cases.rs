@@ -41,15 +41,6 @@ query sorted():
   rows = records first 20
   return sort(rows, 'secret', 'id')
 "#;
-pub const WRITES: [&str; 7] = [
-    "insertRow",
-    "insertAbsent",
-    "upsertRow",
-    "updateRow",
-    "deleteRow",
-    "refresh",
-    "noop",
-];
 pub fn seed(secret: Json) -> Seed {
     vec![(
         "records".into(),
@@ -67,61 +58,6 @@ pub fn records(source: String, seeds: [Seed; 2], op: &str, key: &str) -> Pair {
     .query("scalar", json!({"id":"target"}))
     .query("shaped", json!({"id":"target"}))
     .query("page", json!({"c":null}))
-}
-pub fn payload_pairs() -> Vec<Pair> {
-    let mut pairs = Vec::new();
-    for insert in ["deny", "allow"] {
-        for op in WRITES {
-            for key in ["target", "absent"] {
-                pairs.push(records(
-                    RECORDS.replace("insert <- deny", &format!("insert <- {insert}")),
-                    [seed(json!(0)), seed(json!(10))],
-                    op,
-                    key,
-                ));
-            }
-        }
-    }
-    let text = RECORDS
-        .replace(
-            "secret: int default 0",
-            "secret: text <=10000000 default ''",
-        )
-        .replace("secret: 7", "secret: 'guess'");
-    for op in WRITES {
-        pairs.push(records(
-            text.clone(),
-            [seed(json!("")), seed(json!("x".repeat(10_000_000)))],
-            op,
-            "target",
-        ));
-    }
-    pairs
-}
-pub fn hidden_pairs() -> Vec<Pair> {
-    let mut pairs = Vec::new();
-    for insert in ["deny", "allow"] {
-        for op in WRITES {
-            let source = RECORDS
-                .replace("read <- allow", "read <- .reader = viewer")
-                .replace("sync public", "sync to .reader")
-                .replace("insert <- deny", &format!("insert <- {insert}"));
-            // Both seed transactions advance once; no visible table is added to hide setup differences.
-            pairs.push(records(
-                source.clone(),
-                [vec![], seed(json!(10))],
-                op,
-                "target",
-            ));
-            let mut same = seed(json!(10));
-            same[0].1["owner"] = json!("alice");
-            // Only ordinary-field writes: changing the writer's own authority is not a hidden input.
-            if ["deleteRow", "refresh", "noop"].contains(&op) {
-                pairs.push(records(source, [same, seed(json!(10))], op, "target"));
-            }
-        }
-    }
-    pairs
 }
 pub fn following(private: &str, compat: bool) -> Pair {
     let mut source =
@@ -245,8 +181,10 @@ pub fn derivations() -> Vec<Pair> {
     pairs
 }
 
-pub fn safe_following() -> Pair {
-    let mut pair = following("at: time", false);
+pub fn safe_following() -> Pair { safe_following_for(false) }
+
+pub fn safe_following_for(compat: bool) -> Pair {
+    let mut pair = following("at: time", compat);
     pair.source = pair.source.replace(
         "at: time default 0 written by .authorId",
         "at: time\n  secret: int default 0 written by .authorId",
@@ -254,6 +192,9 @@ pub fn safe_following() -> Pair {
     for (world, seed) in pair.seeds.iter_mut().enumerate() {
         seed[0].1["at"] = json!(5);
         seed[0].1["secret"] = json!(world * 10);
+    }
+    if compat {
+        for seed in &mut pair.seeds { seed.push(("profiles".into(),json!({"id":"profile","principal":"bob"}))); }
     }
     pair.then(Operation::new("remove", json!({"postId":"p"}), "bob"))
 }

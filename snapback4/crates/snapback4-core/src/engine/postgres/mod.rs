@@ -249,7 +249,7 @@ impl PostgresEngine {
                 tx.record_commit(seq, now, &program.name, &viewer, program.kind.word(), &tables, writes)?;
                 partition::append(&tx, seq, &events)?;
                 tx.record_effects(&outbox, seq, now)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
+                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_program()?;

@@ -58,8 +58,11 @@ impl Runner<'_> {
                 return Err(RuntimeError::Prediction(format!("recorded path {path} needs a live, covered {} row; reconnect to resolve attribution", field.table)));
             }
             // Unknown coverage queues before a target-size resource refusal.
-            // Covered/server reads still account for the full allocated image.
-            if let Some(value) = &found { self.meter.heap(value.heap_bytes())?; }
+            // @ref LLP 3000.015#1 — a public capture cannot price a private sibling.
+            if let Some(value) = &found {
+                self.meter.heap(if self.context.is_system() { value.heap_bytes() }
+                    else { target.disclosed_heap(value, &self.context.viewer) })?;
+            }
             let value = live.map(|value| crate::schema::row_image(value, target).field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
             self.meter.heap(80 + path.len() as u64 + value.heap_bytes())?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }

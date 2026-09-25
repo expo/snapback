@@ -14,6 +14,11 @@ use std::{
     collections::BTreeMap,
 };
 
+// Shared with the adapter-contract unit test: exercise the actual preflight factor.
+pub(super) fn payload_heap(bytes: u64, limit: usize) -> u64 {
+    bytes.saturating_mul(256) + crate::rows::word_heap::vec_growth::<(Value, Vec<u8>)>(limit)
+}
+
 pub(super) const VERSION: &str = "snapback4-postgres-evaluation-3";
 pub(super) const DDL: &str = "
 CREATE TABLE _backend (singleton BOOLEAN PRIMARY KEY CHECK(singleton), version TEXT NOT NULL, schema TEXT NOT NULL, programs TEXT NOT NULL);
@@ -290,7 +295,7 @@ impl Rows for Tx<'_> {
             Dir::Desc => "SELECT COALESCE(SUM(octet_length(data) + octet_length(k)), 0)::bigint FROM (SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5) AS picked",
         };
         let bytes = self.query(sql, &[&table, &name, &lo, &hi, &(limit.min(i64::MAX as usize) as i64)])?[0].get::<_, i64>(0) as u64;
-        meter.heap(bytes.saturating_mul(256) + heap::vec_growth::<(Value, Vec<u8>)>(limit))?;
+        meter.heap(payload_heap(bytes, limit))?;
         self.scan(table, name, prefix, bounds, dir, limit)
     }
 

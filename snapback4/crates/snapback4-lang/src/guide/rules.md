@@ -123,8 +123,9 @@ mark the field optional. Asset downloads apply the same field visibility.
 Field ownership does not grant read access to the row. Ownership changes
 redact the former owner's copy, or remove it if the row also becomes unreadable.
 A device queues a transition that needs another owner's omitted value or
-would acquire ownership of that value; an independent owned-field patch
-still predicts. Ordinary row grants do not add dependencies to such a patch.
+would acquire ownership of that value. An independent owned-field patch on a
+held row predicts when its own transition and resource limits permit it.
+Untouched self-equalities do not require the omitted value. Ordinary row grants do not add dependencies to such a patch.
 Unknown owner-delivery witnesses also do not prevent that prediction; the
 server decides which owners may receive the committed image.
 Only a named `update (old, next)` transition may use a private field as a
@@ -133,14 +134,24 @@ transition also cannot make an ordinary writer's success depend on another
 owner's private value. Such a test requires ownership (or audience visibility).
 Comparing an untouched private field with itself, such as
 `next.readUpTo = old.readUpTo`, remains available without knowing its value.
+Ordered self-comparisons require visibility when the field is nullable: null
+is not ordered, so even `next.secret >= old.secret` can reveal nullness.
 When an ordinary patch retains another owner's private payload, its copy is
 charged at the column's declared bound, so its actual length cannot change the
 writer's meter or exhaustion boundary.
 Private fields cannot supply indexes/cursors, expiry, recorded attribution,
 other rules' probes, aggregate inputs, or Following mappings and predicates; make the field readable by audience
 before using it there. This applies to both `view` and `maintain … timeline`.
-Projection copies and meters only the disclosed fields: a private payload's
-size cannot change another reader's result or heap cut. A scan of a table
+For a fixed program and unchanged public inputs, point reads, range/cursor
+pages, planned views, word search, streaming counts/sums and scalar reductions
+charge disclosed images plus fixed fetch reservations. Recording a public
+column does not charge its private siblings. The generated paired-world tests
+vary omitted private values and compare results, all seven meter fields,
+refusals, snapshots and streams; they are regression coverage, not a proof for
+every Quarry program. Raw storage decoding is outside this disclosed-image
+ledger. Owner delivery prepays the declared recipient/probe bound; hidden
+membership outcomes cannot change the writer's meter. Mutation event counts
+count each changed private row once, independently of owner fanout. A scan of a table
 with private fields must establish a uniformly readable scope before visiting
 server rows; otherwise it refuses with E_FIELD_AUTHORITY. Pin the audience
 key (for example `[reader = viewer]`) or query the acquired device partition.

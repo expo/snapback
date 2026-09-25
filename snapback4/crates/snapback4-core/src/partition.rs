@@ -125,6 +125,18 @@ pub fn partitions(table_name: &str, sync: &Sync, row: &Value) -> Vec<String> {
     }
 }
 
+/// The mutation receipt cannot reveal extra private owner deliveries. Count
+/// one logical change per private table/row, regardless of recipient fanout.
+#[cfg(feature = "sqlite")]
+pub(crate) fn disclosed_event_count(schema: &Schema, events: &[Event]) -> usize {
+    let mut private = BTreeSet::new();
+    events.iter().filter(|event| {
+        if schema.tables[&event.table].written_by.values().any(|a| !a.audience) {
+            private.insert((&event.table, &event.id))
+        } else { true }
+    }).count()
+}
+
 #[cfg(feature = "sqlite")]
 mod pending;
 #[cfg(feature = "sqlite")]
@@ -183,6 +195,15 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     if let Some(sync) = &table.sync {
         let mut before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
         let mut after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
+        // @ref LLP 3000.015#1 — reserve all potential owner deliveries before
+        // inspecting witnesses; neither short circuits nor recipient counts
+        // may move the writer's meter or E_BOUND boundary.
+        let ordinary_steps = (before.len() + after.len()) as u64;
+        let owner_slots = table.written_by.values().filter(|a| !a.audience).count() as u64
+            * (u64::from(old.is_some()) + u64::from(new.is_some()));
+        runner.prepay_field_delivery(&table.rules.read, owner_slots, origin == Origin::Maintained)?;
+        if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, ordinary_steps)?; }
+        else { runner.meter.charge(MeterKind::Steps, ordinary_steps)?; }
         // Shared images omit private fields; each owner's own partition also
         // carries an image only when that owner may read the row. Use the old
         // image for revocations, so losing read authority still withdraws it.
@@ -221,8 +242,6 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 log_events::del(&mut runner.events, table_name, &id, &before, &after);
             }
         }
-        if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
-        else { runner.meter.charge(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
     }
     #[cfg(feature = "sqlite")]
     if let Some(key) = &row_key && new.is_none() {

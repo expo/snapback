@@ -24,10 +24,30 @@ impl Probe for DeliveryProbe<'_, '_> {
 
 impl Runner<'_> {
     pub(crate) fn field_owner_can_read(&mut self, rule: &RuleExpr, owner: &str, row: &Value) -> Result<bool, RuntimeError> {
+        // Recipient witnesses are exact but are not the caller's observations.
+        // Partition accounting prepays their schema-derived probe/step bound.
+        let mut private_meter = crate::meter::Meter::new(crate::Ceilings::unbounded(), crate::meter::Cut::Abort);
+        std::mem::swap(&mut self.meter, &mut private_meter);
+        let expiry = self.next_expiry;
         let mut probe = DeliveryProbe { runner: self, known: true };
-        let readable = rules::evaluate(rule, owner, None, row, false, &mut probe)?;
+        let readable = rules::evaluate(rule, owner, None, row, false, &mut probe);
+        let known = probe.known;
+        self.next_expiry = expiry;
+        std::mem::swap(&mut self.meter, &mut private_meter);
         // Even a negated unknown witness cannot authorize an owner partition.
-        Ok(readable && probe.known)
+        readable.map(|readable| readable && known)
+    }
+
+    pub(crate) fn prepay_field_delivery(&mut self, rule: &RuleExpr, slots: u64, maintained: bool) -> Result<(), RuntimeError> {
+        let probes = slots.saturating_mul(rules::rule_probes(rule));
+        if maintained {
+            self.charge_maintain(MeterKind::RuleProbes, probes)?;
+            self.charge_maintain(MeterKind::Steps, slots)?;
+        } else {
+            self.meter.charge(MeterKind::RuleProbes, probes)?;
+            self.meter.step(slots)?;
+        }
+        Ok(())
     }
 
     pub(super) fn authorize_fields(&self, table: &str, row: &Value, supplied: &Value) -> Result<bool, RuntimeError> {
@@ -54,14 +74,14 @@ impl Runner<'_> {
         let definition = &self.schema.tables[table];
         if self.device && definition.written_by.iter().any(|(field, authority)|
             !authority.audience && old.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone()))
-            && ((!owned_only || definition.update_transition) && definition.rules.update.references_field(field)
+            && ((!owned_only || definition.update_transition) && definition.rules.update.needs_field_value(field, &definition.columns[field])
                 || next.field(&authority.owner).ok() == Some(&Value::Id(self.context.viewer.clone())))) {
             return Err(RuntimeError::Prediction(format!("{table}: this transition needs another principal's private field; queue it for the server (guide rules)")));
         }
         // @ref LLP 3000.015#1 — a named transition is not permission to test guesses against someone else's private value.
         if !self.context.is_system() && let Some((field, authority)) = definition.written_by.iter().find(|(field, authority)|
             !authority.audience && old.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone()))
-            && definition.rules.update.needs_field_value(field)) {
+            && definition.rules.update.needs_field_value(field, &definition.columns[*field])) {
             return Err(if readable { RuntimeError::Structural { code: "E_FIELD_AUTHORITY", message: format!("{table}.{field}: this transition needs the private value written by .{}; write as that owner or declare readable by audience (guide rules)", authority.owner) } } else { self.no_write_target() });
         }
         let transition = self.schema.tables[table].update_transition;
@@ -79,6 +99,21 @@ impl Runner<'_> {
             definition.project_fields(row, Some(&self.context.viewer))
         };
         Ok(super::recorded::public_image(definition, row))
+    }
+
+    /// Serialized store payloads are unsuitable as a private-field read price:
+    /// SQLite and Postgres use different multipliers, both before projection.
+    /// Reserve fixed fetch slots, then charge the disclosed retained image.
+    pub(super) fn scan_disclosed(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let definition = &self.schema.tables[table];
+        if !definition.written_by.values().any(|a| !a.audience) {
+            return self.tx.scan_metered(table,index,prefix,bounds,dir,limit,&mut self.meter);
+        }
+        // @ref LLP 3000.015#1 — visibility, not stored length, determines heap.
+        self.meter.heap(256 * limit as u64)?;
+        let rows = self.tx.scan(table,index,prefix,bounds,dir,limit)?;
+        for (row, _) in &rows { self.meter.heap(definition.disclosed_heap(row,&self.context.viewer))?; }
+        Ok(rows)
     }
 
     pub(super) fn private_scan_authority(&self, table: &str, uniform: bool, admitted: bool) -> Result<(), RuntimeError> {

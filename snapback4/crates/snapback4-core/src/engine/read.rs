@@ -206,7 +206,7 @@ impl Runner<'_> {
         if !self.device_work_active { return Ok((self.tx.scan(table, index, prefix, bounds, Dir::Asc, batch)?, batch)); }
         let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;
         if limit == 0 { self.meter.charge(MeterKind::Examined, 1)?; }
-        let rows = self.tx.scan_metered(table, index, prefix, bounds, Dir::Asc, limit, &mut self.meter)?;
+        let rows = self.scan_disclosed(table, index, prefix, bounds, Dir::Asc, limit)?;
         self.meter.charge(MeterKind::Examined, rows.len().max(1) as u64)?;
         Ok((rows, limit))
     }
@@ -323,7 +323,14 @@ impl Runner<'_> {
         if effect == Effect::Read && self.trust_synced_read(table) {
             return Ok(true);
         }
-        let rule = table.rules.for_effect(effect).clone();
+        let mut rule = table.rules.for_effect(effect).clone();
+        if effect == Effect::Update && let Some(old) = old {
+            for (field, authority) in &table.written_by {
+                if !authority.audience && old.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone())) {
+                    rule.fold_untouched_field(field, &table.columns[field]);
+                }
+            }
+        }
         if effect == Effect::Read { self.rule_dependencies(&rule); }
         let mut next = next.clone();
         materialize_optional_fields(&mut next, table);
@@ -552,7 +559,7 @@ impl Runner<'_> {
             if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
             }
-            let found = if metered_words { self.tx.scan_metered(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1, &mut self.meter)? }
+            let found = if metered_words { self.scan_disclosed(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)? }
                 else { self.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)? };
             let Some((_, key)) = found.into_iter().next() else { break };
             if metered_words {
@@ -736,7 +743,7 @@ impl Runner<'_> {
         let table = &self.schema.tables[&scan.table];
         let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
         self.read_charge(MeterKind::Examined, 1)?;
-        Ok(self.tx.scan_metered(&scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1, &mut self.meter)?.pop().map(|(_, key)| key))
+        Ok(self.scan_disclosed(&scan.table, &scan.index, &prefix, &bounds, Dir::Desc, 1)?.pop().map(|(_, key)| key))
     }
 
     /// A bounded page. Returns the visible rows, at most `take`, and records
@@ -898,6 +905,9 @@ impl Runner<'_> {
         // Ordinary jobs may hold an empty Purge grant; that is not a transition.
         let metered_payload = word.is_some_and(|w| w.metered) || self.view_scan_active
             || matches!(&self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_)));
+        // @ref LLP 3000.015#1 — stored private bytes are outside caller accounting.
+        // Both store adapters must bypass their serialized-payload preflight.
+        let private_payload = table.written_by.values().any(|a| !a.audience);
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
         if metered_payload || transient { self.meter.heap(word_heap::bounds(&bounds))?; }
@@ -921,14 +931,12 @@ impl Runner<'_> {
             let fetch_heap = self.meter.used.heap_bytes;
             // No adaptive lookahead, even for non-uniform rules. A later chunk
             // establishes exhaustion; every new candidate must first fit.
-            let fetched = if metered_payload || transient || job_page { self.tx.scan_metered(&scan.table, &scan.index, &prefix, &cursor, dir, batch, &mut self.meter)? }
+            let fetched = if metered_payload || transient || job_page { self.scan_disclosed(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? }
                 else { self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)? };
             if transient { row_bytes = self.meter.used.heap_bytes - fetch_heap; }
-            // The store ledger prices allocation (shared memory row handles
-            // are cheap). A view also retains the full source payload while
-            // scanning, even for rejected rows and fields its shape omits.
-            // Charge the entire fetched buffer before filtering or projecting.
-            if self.view_scan_active { self.meter.heap(fetched.iter().map(|(row, _)| row.heap_bytes()).sum())?; }
+            // A planned view retains the disclosed source image. Store-private
+            // fetches already paid it; ordinary store ledgers retain their price.
+            if self.view_scan_active && !private_payload { self.meter.heap(fetched.iter().map(|(row, _)| row.heap_bytes()).sum())?; }
             if fetched.is_empty() {
                 break;
             }

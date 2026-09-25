@@ -32,6 +32,9 @@ pub mod runner;
 pub mod validate;
 pub mod write;
 mod field_authority;
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
+mod field_authority_tests;
 mod maintains;
 pub(crate) mod timeline;
 mod timeline_authority;
@@ -937,7 +940,7 @@ impl Engine {
                 tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
                 partition::append(&tx, seq, &events)?;
                 effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
-                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
+                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_to("program")?;

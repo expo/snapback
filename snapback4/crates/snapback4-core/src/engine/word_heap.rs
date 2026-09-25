@@ -10,6 +10,10 @@
 //! and transient, freed by the same reset chain as resident-payload registers;
 //! unlike those payload copies it is measured and pinned, not charged, by
 //! sqlite_empty_scan_statement_storage_is_pinned_and_transient in tests/word_heap.rs.
+//! Tables with non-audience `written by` fields use `scan_disclosed` instead
+//! of serialized-payload preflight: a fixed 256-byte fetch-slot reservation plus
+//! the disclosed image. Raw private storage decoding is outside that caller
+//! ledger (LLP 3000.015 §1), so these blob multipliers never price hidden bytes.
 //! Existing general expression evaluation and rule-probe engines
 //! retain their own accounting; this ledger prices the expansion's added storage.
 //!
