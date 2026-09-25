@@ -56394,3 +56394,49 @@ change, authorization/disclosure/meter weakening, push, publication, ceiling
 increase or iOS simulator claim. No deviation from the round-7 brief and no
 known open finding. File map, examples, implementation choice and qualification:
 [Lane Y round-7 report](reports/20260925-lane-y-r7.md).
+
+
+## 2026-09-25 — Lane Y round 8: every admission commit reaches the live clock
+
+Implemented all round-7 delta review findings in `db1ae3c00`. The web host now
+notifies the live clock from its shared outbox commit boundary, using the maximum
+admission time in the existing bounded change batch. This covers ordinary
+admission, deferred journal recovery, orphan transfer and receipt/replay upserts.
+Notification follows successful persistence and committed-answer invalidation,
+before another serialized device call can execute. The separate orphan-only
+notification has been removed; no new queue scan or device round trip was added.
+Restore commits available orphan outboxes and their floor before its own journal
+replay. Failed saves reject restoration and leave the journal unadmitted.
+Backend adoption and store observation use the same recovery order. Synchronous
+journal capture and execution-time clamping remain intact.
+
+Four actual-Wasm regressions cover an idle client whose journal recovers only
+after backend adoption, adoption of a returned admission timestamp without host
+notifications, reload from a held-save crash checkpoint, and repeated rejected
+saves followed by successful lazy restoration. The crash checkpoint contains
+only durable stores and the synchronous journal. A waiting admission captured
+at 1000000 must replay after orphan times 1002000 and 1004000 and use 1004000.
+Failed restoration must preserve the captured record byte-for-byte and keep it
+out of the outbox. Both the live clock and stored timestamps are asserted.
+Four deliberate mutations fail and were restored: journal-first restore,
+suppressed notifications, ignored returned admission time, and notification
+before persistence. Initial held-save fixtures needed a published store identity
+before journal capture; those lane-owned development test errors were corrected
+without relaxing production identity checks.
+
+Focused checks: 48 clock/live/recovery/regression tests and 76 existing
+navigation/durability tests pass. Full `scripts/test.sh`, exit 0:
+**`== 0 failure(s) in 416 s`**. All 1570 regular client tests passed, with 10
+existing skips; all 78 model tests passed with 5000 / 5000 / 3000 seeded
+sequences. Full-run failures: lane-owned 0, baseline 0, environmental 0; none
+waived. Held browser expiry lateness was 1, 1, 2, 2 and 1 ms. Wasm remains
+1776761 B raw / 495516 B gzip, below the unchanged 496000 B ceiling. Reference
+audit: zero errors and zero unchecked references. No changed source exceeds
+1500 lines.
+
+No new Quarry form, public client API or refusal code; no server implementation
+change, authorization/disclosure/meter weakening, push, publication, ceiling
+increase or iOS simulator claim. No deviation from the round-8 brief and no
+known open finding. The clock card and operations reference describe the full
+commit and restore rule. File map, examples, implementation choice and evidence:
+[Lane Y round-8 report](reports/20260925-lane-y-r8.md).
