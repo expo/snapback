@@ -56488,3 +56488,43 @@ redesign, authorization/disclosure change, push or publication. No known open
 implementation issue or design deviation remains. The [round-2 report](reports/20260925-event-slots-r2/REPORT.md)
 records changes file by file, forms, reproductions, merge decisions, failure
 accounting and the executable mutation harness.
+
+
+## 2026-09-25 — Lane Z round 3: snapshot charge regressions, awaiting U8
+
+Completed review items 2 and 3 for LLP 3000.016 revision 12. The two-group
+snapshot fixture now has a kept highest-key original followed by excluded
+reposts before moving to the next public owned group. It checks that the
+second group gets exactly the 1, 2, 3 or 5 remaining units. Omitting the kept
+row from the page charge makes the test fail: two units requested/read instead
+of one. The all-excluded version remains covered.
+
+Added budgets 257 and 600 in both mixed-residency directions, crossing the
+256-row storage-batch boundary. The store counts cumulative decoded rows and
+requested limits independently of emitted events; continuations still deliver
+the selected events exactly once and examine all 4,096 source events exactly
+once. Resetting examined to the latest batch count makes the test fail with
+3,841 decoded rows against budget 257. Both requested mutants independently
+exit 101; after restoration all six snapshot tests pass. Production snapshot
+accounting was already correct and is unchanged. Tests and the executable
+mutation harness are committed in 525c623cd.
+
+Full qualification: `== 0 failure(s) in 658 s`, exit 0. Rust passed in 194 s;
+client tests in 193 s (main run: 1,671 passes, ten existing skips); all 78 models
+passed in 238 s. No introduced, baseline or environmental failure in this
+round's complete run; the two intentional mutant failures are preserved as
+evidence. No assertions, timeouts or engine bounds were relaxed.
+
+Item 1 is waiting, as explicitly requested when U8 has not committed after
+items 2 and 3: U's branch remained at cdb029a83, its round-seven documentation
+commit, both after the mutation checks and after the full suite. No U8 merge
+or new real-host client reproductions landed here. The known client Highs
+remain open: retained local data can cross its expiry before publication, and
+a retained sibling can let a speculative events component publish as data.
+A future U8 merge must be followed by both wasm/native regressions; the full
+suite result above does not claim those Highs fixed.
+
+No new author forms, diagnostics, production behavior, inventory measurement,
+authorization/disclosure/durability change, push or publication. The
+[round-3 report](reports/20260925-event-slots-r3/REPORT.md) lists files, exact
+mutation evidence, pending reproductions, scope decisions and compressed logs.
