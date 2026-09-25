@@ -30,7 +30,7 @@ fn cards<H: Host>(mut host: H) {
     let mut d = host.open("bob", Some(backend.clone())).unwrap();
     acquire(&mut d, &mut e, "bob");
     assert_eq!(d.store().raw_rows("posts").len(), 3);
-    assert_eq!(d.store().raw_rows("feedPosts").len(), 3);
+    assert_eq!(d.store().raw_rows("feedPosts").len(), 6);
     let first = d.query("cards", "bob", &json!({"c":null}), 21).unwrap();
     assert!(first.complete && !first.unavailable, "{first:?}");
     assert_eq!(first.data.as_array().unwrap().len(), 2);
@@ -97,7 +97,7 @@ fn adoption<H: Host>(mut host: H) {
         assert!(d.query("cards", "alice", &json!({"c":null}), 30).is_err(), "new generation must acquire first");
         acquire(&mut d, &mut e, "alice");
         assert_eq!(d.store().raw_rows("posts").len(), held);
-        assert_eq!(d.store().raw_rows("feedPosts").len(), held);
+        assert_eq!(d.store().raw_rows("feedPosts").len(), 6, "event absence stays knowable across every source residency");
         let page = d.query("cards", "alice", &json!({"c":null}), 30).unwrap();
         assert_eq!(page.unavailable, held == 0);
         assert_eq!(page.complete, held != 0);
@@ -105,7 +105,8 @@ fn adoption<H: Host>(mut host: H) {
 }
 
 fn inbox<H: Host>(mut host: H) {
-    let (mut e, mut backend) = common::compile(&source("sync public last 3 by .at"));
+    let source = source("sync public") + "\nquery cut(c: cursor ?):\n  for i in range(0, 8):\n    burn = posts first 1000\n  return feed last 300 by .at after c\n";
+    let (mut e, mut backend) = common::compile(&source);
     let bounded = backend.schema.tables["feedFeed"].sync.clone();
     // A pre-RFC inbox has no acquisition floor. Its contents and identity
     // survive an ordinary adoption; only the device's acquisition resets.
@@ -124,15 +125,26 @@ fn inbox<H: Host>(mut host: H) {
     assert!(d.store().raw_rows("feedFeed").is_empty());
     acquire(&mut d, &mut e, "alice");
     assert_eq!(d.store().raw_rows("feedFeed").len(), 1000);
+    let (cut, unknown, _) = d.query_with_coverage("cut", "alice", &json!({"c":null}), 2000);
+    let cut = cut.unwrap();
+    assert!(!cut.unavailable && !cut.complete && !unknown, "{cut:?}");
+    assert!(cut.next.is_some() && cut.capped_at.is_some(), "known meter prefix must resume");
+    assert!(!cut.data.as_array().unwrap().is_empty() && cut.data.as_array().unwrap().len() < 300);
     let first = d.query("home", "alice", &json!({"c":null}), 2000).unwrap();
     assert!(first.complete);
     let mut cursor = first.next;
     let mut count = 2;
     loop {
         let page = d.query("home", "alice", &json!({"c":cursor}), 2000).unwrap();
+        if page.unavailable {
+            assert_eq!(page.data, Value::Null);
+            assert!(page.next.is_none(), "the page past the floor has no continuation");
+            break;
+        }
+        assert!(page.complete);
         count += page.data.as_array().unwrap().len();
         cursor = page.next;
-        if cursor.is_none() { assert!(!page.complete, "the inbox floor cannot claim exhausted history"); break; }
+        assert!(cursor.is_some(), "a full page at the floor must continue to a withheld page");
     }
     assert_eq!(count, 1000);
     backend.schema.tables.get_mut("feedFeed").unwrap().sync.as_mut().unwrap().horizon = None;
@@ -143,6 +155,28 @@ fn inbox<H: Host>(mut host: H) {
     assert_eq!(d.store().raw_rows("feedFeed").len(), 1004);
 }
 
+fn known_event_absence<H: Host>(mut host: H) {
+    let source = source("sync public").replacen("sync public", "sync public last 1 by .at", 1);
+    let (mut e, backend) = common::compile(&source);
+    post(&mut e, "alice", "original", 1);
+    write(&mut e, "repost", "bob", &[("postId", id("original"))], 2);
+    drain(&mut e);
+    let mut d = host.open("charlie", Some(backend.clone())).unwrap();
+    acquire(&mut d, &mut e, "charlie");
+    assert_eq!(d.store().raw_rows("feedPosts").len(), 2);
+    let entry = d.admit(serde_json::from_value(json!({"id":"held-original","seq":1,"op":"repost","viewer":"charlie","args":{"postId":"original"},"now":3,"predictable":true})).unwrap()).unwrap();
+    assert!(entry.predictable && !entry.predicted.is_empty(), "a newer repost cannot evict original event metadata");
+    write(&mut e, "post", "alice", &[("postId", id("reply")), ("parentId", id("original"))], 4);
+    let mut d = host.open("dave", Some(backend)).unwrap();
+    acquire(&mut d, &mut e, "dave");
+    let refusal = d.admit(serde_json::from_value(json!({"id":"reply","seq":1,"op":"repost","viewer":"dave","args":{"postId":"reply"},"now":5,"predictable":true})).unwrap()).unwrap_err();
+    assert_eq!(refusal.refusal().code, "FEED_POST_NOT_FOUND", "a held reply has known event absence");
+    for (seq, op) in [(2, "follow"), (3, "unfollow")] {
+        let entry = d.admit(serde_json::from_value(json!({"id":op,"seq":seq,"op":op,"viewer":"dave","args":{"actor":"alice"},"now":6,"predictable":true})).unwrap()).unwrap();
+        assert!(!entry.predictable && entry.predicted.is_empty(), "edge transitions, including no-ops, never predict");
+    }
+}
+
 #[test] fn cards_memory() { cards(Memory::new()); }
 #[test] fn cards_sqlite() { cards(Sqlite::new("bounded-cards")); }
 #[test] fn prediction_memory() { prediction(Memory::new()); }
@@ -151,3 +185,5 @@ fn inbox<H: Host>(mut host: H) {
 #[test] fn adoption_sqlite() { adoption(Sqlite::new("bounded-adoption")); }
 #[test] fn inbox_memory() { inbox(Memory::new()); }
 #[test] fn inbox_sqlite() { inbox(Sqlite::new("bounded-inbox")); }
+#[test] fn known_event_absence_memory() { known_event_absence(Memory::new()); }
+#[test] fn known_event_absence_sqlite() { known_event_absence(Sqlite::new("bounded-event-absence")); }

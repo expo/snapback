@@ -11,26 +11,19 @@ fn compile(source: &str) -> snapback4_lang::Bound {
 }
 
 #[test]
-fn acquisition_combinations_preserve_audiences_and_use_the_posts_floor_for_events() {
+fn acquisition_combinations_preserve_full_events_and_private_inbox_floor() {
     for posts in ["sync public", "sync public last 40 by .at", "online only"] {
         for reposts in ["sync public", "sync public last 7 by .at", "online only"] {
             let bound = compile(&source(posts, reposts));
             assert!(bound.diagnostics.is_empty(), "{posts}/{reposts}: {:?}", bound.diagnostics);
             assert!(bound.notes.is_empty(), "{:?}", bound.notes);
             let tables = &bound.schema.tables;
-            let events = &tables["feedPosts"].sync;
-            assert_eq!(events.is_some(), tables["posts"].sync.is_some());
-            if let Some(events) = events {
-                assert_eq!(events.audience, Audience::Public);
-                assert_eq!(events.horizon.as_ref().map(|h| h.last), tables["posts"].sync.as_ref().unwrap().horizon.as_ref().map(|h| h.last));
-                if let Some(horizon) = &events.horizon { assert_eq!(horizon.by, "byTime"); }
-            }
             let inbox = tables["feedFeed"].sync.as_ref().unwrap();
             assert_eq!(inbox.audience, Audience::Column("readerId".into()));
             let floor = inbox.horizon.as_ref().unwrap();
             assert_eq!(floor.last, HISTORY_WINDOW as u32);
             assert_eq!(floor.by, "byReaderPage");
-            for table in ["follows", "feedRemovedEvents"] {
+            for table in ["feedPosts", "follows", "feedRemovedEvents"] {
                 let sync = tables[table].sync.as_ref().unwrap();
                 assert_eq!(sync.audience, Audience::Public);
                 assert!(sync.horizon.is_none());
@@ -42,6 +35,16 @@ fn acquisition_combinations_preserve_audiences_and_use_the_posts_floor_for_event
                 "sync public" => SiteClass::Held,
                 _ => SiteClass::Horizon,
             });
+            for table in ["feedPosts", "feedRemovedEvents"] {
+                assert!(bound.schema.operations["bounded.repost"].sites.iter().any(|site|
+                    site.kind == "timeline transition" && site.table == table && site.class == SiteClass::Held));
+            }
+            assert!(tables["feedWork"].sync.is_some());
+            for name in ["bounded.follow", "bounded.unfollow"] {
+                let fact = &bound.schema.operations[name];
+                assert_eq!(fact.predicts.as_deref(), Some("never"), "{fact:?}");
+                assert!(fact.sites.iter().filter(|site| site.kind == "timeline transition").all(|site| site.class == SiteClass::Server));
+            }
         }
     }
 }

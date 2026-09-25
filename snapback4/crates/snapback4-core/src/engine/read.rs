@@ -108,6 +108,8 @@ impl Runner<'_> {
     fn horizon_coverage(&mut self, scan: &Scan, prefix: &[Value], retained: bool) {
         if retained { self.beyond_horizon = true; self.components.note(|frame| { frame.beyond = true; frame.retained = true; }); }
         else { self.unknown_fact(&scan.table, &scan.index, prefix, &scan.site); }
+        // @ref LLP 3000.016#2.2 — unknown inbox coverage withholds the whole query, including unshaped pages.
+        if self.schema.timelines.iter().any(|timeline| scan.table == timeline.table("Feed")) { self.query_unavailable = true; }
     }
 
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
@@ -856,6 +858,7 @@ impl Runner<'_> {
         let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
         let mut crossed = false;
+        let mut candidate_inside = false;
         // Internal timeline scans retain complete source rows, including arbitrary
         // application payload. Use the same pre-allocation ledger as word scans.
         // Ordinary jobs may hold an empty Purge grant; that is not a transition.
@@ -899,6 +902,7 @@ impl Runner<'_> {
             for (mut row, key) in fetched {
                 if let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
                     if &key < floor { crossed = true; break 'outer; }
+                    candidate_inside = true;
                 }
                 if !self.read_charge(MeterKind::Examined, 1)? {
                     capped = true;
@@ -1046,12 +1050,11 @@ impl Runner<'_> {
                 match &boundary {
                     Some(crate::rows::AcquiredBoundary::Whole) => true,
                     Some(crate::rows::AcquiredBoundary::Key(floor)) => {
-                        // A full page stops at its last selected key. A shorter
-                        // page stops at its range end, which may cross the floor
-                        // even when no older row happens to be held.
+                        // @ref LLP 3000.016#2.2 — a meter cut uses its actual candidate position, not the unvisited range end.
                         let stops_inside = visible.len() == take && keys.last().is_some_and(|key| key >= floor);
+                        let cut_inside = capped && candidate_inside && !crossed;
                         let range_inside = crate::rows::scan_range(&prefix, &bounds, dir).is_none_or(|(lo, _)| lo >= *floor);
-                        stops_inside || (!crossed && range_inside)
+                        stops_inside || cut_inside || (!crossed && range_inside)
                     }
                     None => false,
                 }

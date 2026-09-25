@@ -91,8 +91,6 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
                 return Err(refusal(decl, "E_TIMELINE_SHAPE", "timeline sources and owned tables must be distinct", "map three distinct public tables: events, reposts and edges"));
             }
             let posts = source(schema, decl, &decl.posts[0], &decl.posts[1], Some(&decl.posts[2]), &[(&decl.posts[1], ColumnType::Principal), (&decl.posts[2], ColumnType::Time)])?;
-            let mut event_sync = posts.sync.clone();
-            if let Some(horizon) = event_sync.as_mut().and_then(|sync| sync.horizon.as_mut()) { horizon.by = "byTime".into(); }
             if posts.rules.delete != RuleExpr::Deny {
                 return Err(refusal(decl, "E_TIMELINE_SHAPE", "original cards must survive removal for independent reposts", "deny post deletion and set removed: true instead"));
             }
@@ -120,7 +118,7 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             // an arbitrary authored name can silently reinterpret a saved cursor.
             let followed_index = format!("$timeline:{}:followers", decl.name);
             reserve_followed_index(decl, &mut schema.tables.get_mut(&decl.edges[0]).unwrap().indexes, &followed_index)?;
-            schema.tables.get_mut(&format!("{}Posts", decl.name)).unwrap().sync = event_sync;
+            // @ref LLP 3000.016#2.1 — event absence must stay known for repost admission, independent of source residency.
             schema.tables.get_mut(&format!("{}Feed", decl.name)).unwrap().sync.as_mut().unwrap().horizon =
                 Some(Horizon { last: HISTORY_WINDOW as u32, by: "byReaderPage".into() });
             Ok(Timeline { name: decl.name.clone(), version: 2, filter, authors: Default::default(), posts: decl.posts.clone(), reposts: decl.reposts.clone(), edges: decl.edges.clone(),
