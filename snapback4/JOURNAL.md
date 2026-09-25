@@ -55342,3 +55342,38 @@ load as well as the seeded-model CPU load. No subprocess timeout, readiness
 budget, response-delivery assertion, case count or test was changed. The
 next two full runs must each reach zero failures; the failed attempt is not
 waived or counted as one of them.
+
+## 2026-09-24 — publication fix lane 2: two complete zero-failure qualifications
+
+Both final runs used implementation commit `77185a8d40`, Node 24.18.0 on the
+black M5 Max, the requested toolchain PATH, the publisher's
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, and exactly:
+
+```sh
+SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 scripts/test.sh
+```
+
+No sequence-count, Rust-process, client-file-concurrency or binary override was
+set. The first run selected the existing parallel client policy at load 13.38;
+the second selected its serial policy at load 18.14 (18 CPUs). Thus both
+ordinary scheduling branches ran their complete inventories after Rust.
+
+| Log under `~/sb4-intent/fix-041b/` | Exact suite line | Online sessions, 5,000 | Local sessions, 5,000 | Online client, 3,000 |
+| --- | --- | --- | --- | --- |
+| `suite-2.log` | `== 0 failure(s) in 645 s` | 44.90 s | 112.31 s | 55.02 s |
+| `suite-3.log` | `== 0 failure(s) in 1458 s` | 49.22 s | 113.87 s | 49.79 s |
+
+Both commands exited 0. Each run includes 2,979 Rust passes (the same 16
+inherited ignores), all 24 native witnesses, 9 fixture-wrapper passes,
+1,514 ordinary client cases (1,509 passes and the same 5 inherited skips),
+and all 78 model-file tests passing. All four requested published-0.2.33
+fences passed in each run. Neither the earlier interrupted diagnostic nor the
+first red complete attempt is counted as qualification. The four short cases
+that failed during Rust/client overlap pass in both final full runs.
+
+Final scope: the model execution barrier, cancellation checkpoints, the exact
+seed-11 overlap regression, and suite scheduling. I1–I13, the 100-step fair
+recovery bound, both 240-second session limits, all sequence counts, other
+deadlines and all compatibility pins are unchanged. No client production code,
+package version, keychain setting or credential changed. Nothing was published.
+The final commit appends this qualification record only.
