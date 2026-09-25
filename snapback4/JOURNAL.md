@@ -56169,3 +56169,52 @@ improvement, full-event dominance, unattainable 5× row/byte target under these
 floors, and unavailable packed-format measurement remain recorded in round 1.
 File map, examples, all failure classifications, inventory reference, and logs:
 [Lane U round-2 report](reports/20260925-bounded-following-r2/REPORT.md).
+
+### 2026-09-25 — Lane U round 3: possible reads fence every external answer
+
+Addressed Astra's unknown-condition bypass and Grok's native reset/install
+bypass against accepted LLP 3000.016 revision 5. Extracted read evaluation
+into `local-query.ts`; all server, remembered and composed answers now pass
+one final prediction fence, with checks before server dispatch and after
+response delivery. Unknown Quarry outcomes retain static dependencies,
+including expanded helpers; only complete known execution can narrow them.
+Native and unexecuted queries conservatively have every table as a possible
+read. Original arguments, held/offline precedence and commit invalidation
+remain intact. Server fetches no longer publish an intermediate answer.
+
+Fixed footprint parsing for slash-containing row IDs. Explicitly empty
+footprints predict no rows; absent legacy footprints remain conservative.
+Ordinary locally produced horizon and retained-history partial answers still
+show their predictions; unknown Following retains whole-query withholding.
+The first implementation overblocked those local answers, which the full
+suite caught and the corrected focused and full runs now cover.
+
+Added real wasm/native unknown-condition and helper regressions, native
+reset/install client cases, every external/unknown/E_OFFLINE publication
+route, independent-read and no-op controls, both repost point-key forms at
+an exhausted examined meter, and native continuation keys that actually
+advance the scan. Three intentional mutants fail on both Rust stores:
+posts-only miss marking, byId-only miss marking, and native unavailable=false.
+Restored code passes. Existing browser/native inbox and generation/reset
+expectations now require withholding where they previously allowed a server
+replacement or E_OFFLINE during an unobserved prediction. Their other
+security, durability and observation assertions remain.
+
+Final complete suite: **`== 0 failure(s) in 533 s`**, using
+`SNAPBACK4_RUST_TEST_PROCESSES=8`; all Rust tests, 1,519 main client passes
+(10 existing skips), acquisition/server shards, and all 78 model tests pass.
+An earlier invocation was stopped before completion to correct the footprint
+separator. The first completed invocation was **`== 1 failure(s) in 539 s`**,
+with 16 client failures attributable to this change; every case and resolution
+is listed in the report. All 40 affected focused checks then passed before the
+final full run. No baseline/environmental waiver and no lowered test counts,
+timeouts or engine ceilings. Wasm remains 1,776,325 bytes raw / 495,299 gzip.
+Changed source files stay below 1,500 lines (`local.ts`: 1,400).
+
+No new syntax/diagnostic, authorization relaxation, storage change, acquisition
+measurement, push or publication. The previous 2.387× browser acquisition
+result, full-event dominance, unmet 5× target and outstanding packed-format
+measurement remain explicit inherited limits. The report includes the prior
+inventory, all file changes, publication paths and proving tests, exact
+commands, decisions, failure classifications and compressed evidence:
+[Lane U round-3 report](reports/20260925-bounded-following-r3/REPORT.md).
